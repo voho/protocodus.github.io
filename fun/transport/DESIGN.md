@@ -931,8 +931,8 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Sizes:** 32 by default, 28 with `.button--dense` (desktop lists), 44 on touch.
 - **Text:** 14/500 label, with a 16 px icon on the left.
 - **Price:** `.price` follows the label, tabular.
-- **Disabled:** well fill and ink-3 text, with the reason in a tooltip.
-- **Pending:** keeps its width.
+- **Disabled:** well fill and ink-3 text, with the reason in a tooltip. Quiet and danger buttons keep no fill, since a fill would make them louder disabled than at rest.
+- **Pending:** `.is-pending`, with the pending label in `data-pending` ("Saving…"), keeps its width: the label stays in place, hidden, and the pending label shows over it.
 - **Icon buttons:** 32 (44 on touch), glyph 20, `--r-2`, always with an `aria-label` and a tooltip.
 
 ### 12.7 Facts, sections, disclosure
@@ -1000,7 +1000,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - `.meter--warn` applies only when the value itself is a problem (storage at 90% or more).
   - `.meter--signal` is used only for goal progress.
 - **`.state`:** a 16 px glyph and a 13/500 word in the state colour, followed by `.reason` in 13 ink.
-- **`.cargo-tile`:** a well tile (16, 20 or 32 px) holding a cargo pictogram.
+- **`.cargo-tile`:** a well tile (16, 20 or 32 px) holding a cargo pictogram. It is 20 px; `.cargo-tile--16` and `.cargo-tile--32` give the other sizes.
 
 ### 12.13 Headlines
 
@@ -1206,7 +1206,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 | File | Classes |
 |---|---|
-| `components.css` | `.button`, `.button--primary`, `--secondary`, `--quiet`, `--signal`, `--danger`, `--dense`, `.price`, `.icon-button`, `.segmented`, `.stepper`, `.field`, `.switch`, `.tag`, `.meter`, `.meter--warn`, `.meter--signal`, `.state`, `.state--ok`, `--warn`, `--error`, `--paused`, `--info`, `.reason`, `.cargo-tile`, `.facts`, `.section`, `.disclosure`, `.row`, `.row--expanded`, `.empty`, `.tooltip`, `.menu`, `.popover`, `.kbd`, `.on-ink`, `.prose`, `.tool-bar`, `.tool-bar__glyph`, `__name`, `__rule`, `__actions`, `.tip`, `.i`, `.i16`, `.i20`, `.i24` |
+| `components.css` | `.button`, `.button--primary`, `--secondary`, `--quiet`, `--signal`, `--danger`, `--dense`, `.price`, `.is-pending`, `.icon-button`, `.segmented`, `.stepper`, `.field`, `.switch`, `.tag`, `.meter`, `.meter--warn`, `.meter--signal`, `.state`, `.state--ok`, `--warn`, `--error`, `--paused`, `--info`, `.reason`, `.cargo-tile`, `.cargo-tile--16`, `--32`, `.facts`, `.section`, `.disclosure`, `.row`, `.row--expanded`, `.empty`, `.tooltip`, `.menu`, `.popover`, `.kbd`, `.on-ink`, `.prose`, `.tool-bar`, `.tool-bar__glyph`, `__name`, `__rule`, `__actions`, `.tip`, `.i`, `.i16`, `.i20`, `.i24` |
 | `refs.css` | `.ref`, `.ref--prose`, `--row`, `--compact`, `--on-ink`, `--gone`, `.is-linked`, `.bullet`, `.bullet--road`, `--rail`, `--water`, `--air`, `--16`, `.roundel`, `.strip`, `.strip__line`, `__stop`, `__vehicle`, `__vehicle--loaded`, `__waiting`, `__cut`, `.strip--proposed`, `.ladder`, `.ladder__step--done`, `--current`, `--next`, `.edge-pointer`, `.map-tag`, `.back-chip`, `.is-tinted`, `.delta` |
 | Surfaces | `.rail`, `.drawer-head`, `.drawer-actions` (hud.css); `.goal-line`, `.toast`, `.toast__lead`, `.toast__action`, `.headline-card` (notices.css); `.demand-row` (places.css); `.dialog-head`, `.chart` (dialogs.css) |
 

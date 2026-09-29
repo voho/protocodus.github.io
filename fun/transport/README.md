@@ -561,4 +561,6 @@ UI changes follow [DESIGN.md](./DESIGN.md). With the server running, `node fun/t
 
 Every line icon comes from `ui-icons.js`. With the server running, open `/fun/transport/tools/icon-sheet.html` to see each glyph at 16, 20 and 24 px on paper and on ink, beside a label, and every cargo pictogram on its well tile; look at it at 1× and 2× after drawing or changing a glyph.
 
+Buttons, fields, switches, states, rows, menus, the tool bar and the other shared controls live in `components.css`. With the server running, open `/fun/transport/tools/ui-specimen.html` to see each one at rest, on hover, with focus, disabled and pending, on paper and on ink; press *Check this page* for the contrast and type floor, and look at it at 1440 and 390 px wide after changing a control.
+
 Performance changes, reproducible dense-world benchmarks and remaining large-map limits are documented in [PERFORMANCE.md](./PERFORMANCE.md).

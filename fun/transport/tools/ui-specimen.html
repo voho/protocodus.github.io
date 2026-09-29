@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Transport components</title>
+  <link rel="icon" type="image/svg+xml" href="../icon.svg">
+  <link rel="stylesheet" href="../tokens.css">
+  <link rel="stylesheet" href="../components.css">
+  <!-- dialogs.css only for the achievement tier roundels (.medal). -->
+  <link rel="stylesheet" href="../dialogs.css">
+  <style>
+    /* Dev page (DESIGN.md 16.1), not linked from the game: every components.css primitive in every state, on paper and on ink. The page's own layout reads tokens only. */
+    html,body{height:auto;overflow:auto}
+    body{padding:var(--s-5);font-size:var(--fs-body);line-height:var(--lh-body);font-variant-numeric:tabular-nums}
+    .page-head{max-width:72ch;margin:0 0 var(--s-6);background:var(--paper)}
+    .page-head h1{margin:0 0 var(--s-2);font-size:var(--fs-display);line-height:var(--lh-display);font-weight:600;letter-spacing:var(--tr-tight)}
+    .page-head p{margin:0 0 var(--s-2);color:var(--ink-2)}
+    .page-check{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s-2) var(--s-3);margin-top:var(--s-3)}
+    .page-check p{margin:0}
+    #check-result[data-state=fail]{color:var(--error)}
+    .specimen{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:var(--s-6);align-items:start}
+    .spec{min-width:0;padding-top:var(--s-4);border-top:1px solid var(--rule);background:var(--paper)}
+    .spec--wide{grid-column:1/-1}
+    .spec>h2{margin:0;font-size:var(--fs-title);line-height:var(--lh-title);font-weight:600}
+    .spec>.lead{margin:var(--s-1) 0 var(--s-4);max-width:72ch;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+    .variant+.variant{margin-top:var(--s-5)}
+    .variant>h3{margin:0 0 var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:600}
+    .variant>h3>span{font-weight:400;color:var(--ink-2)}
+    .samples{display:flex;flex-wrap:wrap;align-items:flex-start;gap:var(--s-4) var(--s-5)}
+    .sample{display:grid;justify-items:start;align-content:start;gap:var(--s-2);min-width:0;max-width:100%;margin:0}
+    .sample>figcaption{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    .sample--field{width:min(100%,240px)}
+    .sample--field>:first-child{width:100%}
+    .sample--meter{width:min(100%,200px)}
+    .sample--meter>.meter{width:100%}
+    .sample--full{width:100%}
+    .panel{padding:var(--s-4);border-radius:var(--r-3)}
+    .panel--ink{background:var(--ink)}
+    .panel--ink figcaption,.panel--ink .note{color:var(--on-ink-2)}
+    .panel--well{background:var(--well)}
+    .note{margin:0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    .switch-label{display:inline-flex;align-items:center;gap:var(--s-2)}
+    .state-lines{display:grid;gap:var(--s-2);margin:0}
+    .state-lines>p{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s-2);margin:0}
+    .state-lines>p>.state{align-self:center}
+    .tiers{display:grid;gap:var(--s-3);margin:0;padding:0;list-style:none}
+    .tiers>li{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--s-3)}
+    .tiers .tier-text{display:grid;gap:var(--s-1)}
+    .tiers .tier-text>span{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+    .tiers .meter{width:min(100%,200px)}
+    .medal-row{display:flex;flex-wrap:wrap;gap:var(--s-2)}
+    .fact-figure{display:inline-flex;align-items:baseline;gap:var(--s-2)}
+    .fact-figure>:is(.meter,.cargo-tile){align-self:center}
+    .fact-figure>.meter{width:96px}
+    .row-list{margin:0;padding:0;list-style:none;border-radius:var(--r-3);background:var(--paper)}
+    .row-name{display:grid;min-width:0}
+    .row-name>span{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+    .row>.state,.row>.row-note{margin-left:auto}
+    .row-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    .disclosure-sample{width:min(100%,320px);padding:0 var(--s-2)}
+    .disclosure-sample p{margin:0 0 var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small)}
+    .tip p{margin:0}
+    .tip .tip-line{display:flex;justify-content:space-between;gap:var(--s-4)}
+    .tip .tip-line>strong{font-weight:500}
+    .tool-bars{display:grid;gap:var(--s-3);width:100%}
+    .tool-bars>.tool-bar{max-width:560px}
+    .glyphs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:var(--s-2)}
+    .tab-glyphs{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-bottom:var(--s-4)}
+    .tab-glyphs>figure{display:grid;justify-items:center;gap:var(--s-1);min-width:80px;margin:0;padding:var(--s-2)}
+    .tab-glyphs figcaption{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
+    .glyph{display:grid;justify-items:center;gap:var(--s-1);margin:0;padding:var(--s-2) var(--s-1);border-radius:var(--r-3);background:var(--paper)}
+    .glyph>div{display:flex;align-items:center;gap:var(--s-2);height:20px}
+    .glyph>figcaption{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    .cargo-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:var(--s-3)}
+    .cargo-tiles>figure{display:grid;justify-items:start;gap:var(--s-1);margin:0}
+    .cargo-tiles>figure>div{display:flex;align-items:center;gap:var(--s-2)}
+    .cargo-tiles figcaption{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    @media(max-width:700px){
+     body{padding:var(--s-4)}
+    }
+  </style>
+</head>
+<body>
+  <header class="page-head">
+    <h1>Transport components</h1>
+    <p>The shared primitives of components.css, from DESIGN.md 12 and its class contract in 16.3, each in every state on paper and, where it can appear there, on ink. Hover and focus are forced with the classes is-hover and is-focus, whose rules this page copies from the stylesheets, so they always match the real ones.</p>
+    <p id="coverage">Reading the class contract…</p>
+    <div class="page-check"><button type="button" class="button button--secondary" id="check-page">Check this page</button><p id="check-result">Runs the UI floor of ui-system-browser-check here: AA contrast, the 12 px floor, no sideways scroll and, on phones, 44 px buttons.</p></div>
+  </header>
+  <main class="specimen" id="specimen"></main>
+  <script type="module">
+    import { icon, names } from '../ui-icons.js';
+    import { cargoIcon } from '../cargo-icons.js';
+    import { CARGO } from '../data.js';
+    import { medalIcon, tierName } from '../achievements-view.js';
+    import { audit } from '../tests/ui-audit.mjs';
+
+    const i16 = name => icon(name, { size: 16 }), i20 = name => icon(name);
+    const tile = (cargo, size = 20) => `<span class="cargo-tile${size === 20 ? '' : ` cargo-tile--${size}`}">${cargoIcon(cargo, { decorative: true })}</span>`;
+    const price = text => `<span class="price" data-num>${text}</span>`;
+    const sample = (caption, html, cls = '') => `<figure class="sample${cls ? ` ${cls}` : ''}">${html}<figcaption>${caption}</figcaption></figure>`;
+    const variant = (title, note, samples) => `<div class="variant"><h3>${title}${note ? ` <span>${note}</span>` : ''}</h3><div class="samples">${samples.join('')}</div></div>`;
+    const section = (id, title, lead, body, wide = false) => `<section class="spec${wide ? ' spec--wide' : ''}" id="${id}" aria-labelledby="${id}-title"><h2 id="${id}-title">${title}</h2><p class="lead">${lead}</p>${body}</section>`;
+    // The five states: forced classes for hover and focus, the attribute for disabled (its reason in the tooltip) and
+    // data-pending for pending.
+    const STATES = ['Rest', 'Hover', 'Focus', 'Disabled', 'Pending'], FORCED = { Hover: ' is-hover', Focus: ' is-focus', Pending: ' is-pending' };
+    const stateAttributes = (state, reason, pending) => state === 'Disabled' ? ` disabled title="${reason}"` : state === 'Pending' ? ` aria-busy="true" data-pending="${pending}"` : '';
+
+    // Buttons (12.6).
+    const BUTTONS = [
+      ['Primary', 'button--primary', 'the main action of a surface', `${i16('routes')}Launch route ${price('$18k')}`, 'Need $18k', 'Launching…'],
+      ['Secondary', 'button--secondary', 'second actions', `${i16('saved')}Save now`, 'Saved a moment ago', 'Saving…'],
+      ['Quiet', 'button--quiet', 'Show on map, Edit, Back and Undo', `${i16('undo')}Undo`, 'Nothing to undo', 'Undoing…'],
+      ['Signal', 'button--signal', 'only the current goal step, one on screen', `Add truck to route 2 ${price('$18k')}`, 'Need $18k', 'Adding…'],
+      ['Danger', 'button--danger', 'Retire and Remove, confirmed in place', `${i16('retire')}Remove stop`, 'Route 2 uses this stop. Retire the route first, then remove the stop.', 'Removing…'],
+    ];
+    const buttons = [
+      ...BUTTONS.map(([title, cls, note, label, reason, pending]) => variant(title, note, STATES.map(state => sample(state, `<button type="button" class="button ${cls}${FORCED[state] || ''}"${stateAttributes(state, reason, pending)}>${label}</button>`)))),
+      variant('Dense', '28 px in desktop lists, 44 on touch', [
+        sample('Primary', `<button type="button" class="button button--primary button--dense">${i16('plus')}Add bus ${price('$18k')}</button>`),
+        sample('Secondary', `<button type="button" class="button button--secondary button--dense">Plan route</button>`),
+        sample('Quiet', `<button type="button" class="button button--quiet button--dense">${i16('locate')}Show on map</button>`),
+        sample('Quiet, hover', `<button type="button" class="button button--quiet button--dense is-hover">${i16('edit')}Edit</button>`),
+        sample('Danger', `<button type="button" class="button button--danger button--dense">Retire route</button>`),
+      ]),
+      variant('On ink', 'toast actions', [`<div class="panel panel--ink on-ink"><div class="samples">${[['Primary', 'button--primary', 'Open route'], ['Secondary', 'button--secondary', 'Show the gap'], ['Quiet', 'button--quiet', `${i16('locate')}Show on map`], ['Danger', 'button--danger', 'Retire route'], ['Signal', 'button--signal', `Add bus ${price('$18k')}`]].flatMap(([title, cls, label]) => [sample(title, `<button type="button" class="button ${cls}">${label}</button>`), sample(`${title}, hover`, `<button type="button" class="button ${cls} is-hover">${label}</button>`)]).join('')}${sample('Focus', `<button type="button" class="button button--secondary is-focus">Show the gap</button>`)}</div></div>`]),
+      variant('Legacy names', 'share their equivalents’ rules until the surfaces migrate', [
+        sample('button-primary', `<button type="button" class="button button-primary">Open routes</button>`),
+        sample('button-outline', `<button type="button" class="button button-outline">Keep it</button>`),
+        sample('button-orange', `<button type="button" class="button button-orange">Plan road</button>`),
+        sample('small-button', `<button type="button" class="small-button">${i16('chains')}Full chain</button>`),
+        sample('small-button danger', `<button type="button" class="small-button danger">Retire</button>`),
+        sample('tiny-button', `<button type="button" class="tiny-button" aria-label="Close" title="Close">${i20('close')}</button>`),
+        sample('text-button', `<button type="button" class="text-button">Production chains ${i16('chevronRight')}</button>`, 'sample--field'),
+      ]),
+    ].join('');
+
+    // Icon buttons (12.6).
+    const iconButton = (glyph, label, { cls = '', attrs = '' } = {}) => `<button type="button" class="icon-button${cls}" aria-label="${label}" title="${label}"${attrs}>${i20(glyph)}</button>`;
+    const iconButtons = [
+      variant('Icon button', '32 px, 44 on touch; an aria-label and a tooltip', [
+        sample('Rest', iconButton('close', 'Close')), sample('Hover', iconButton('layers', 'Map layers', { cls: ' is-hover' })), sample('Focus', iconButton('menu', 'Menu', { cls: ' is-focus' })),
+        sample('Pressed', iconButton('overview', 'Overview map', { attrs: ' aria-pressed="true"' })), sample('Disabled', iconButton('plus', 'Zoom in', { attrs: ' disabled' })),
+      ]),
+      variant('On ink', '', [`<div class="panel panel--ink on-ink"><div class="samples">${sample('Rest', iconButton('close', 'Dismiss'))}${sample('Hover', iconButton('locate', 'Show on map', { cls: ' is-hover' }))}${sample('Focus', iconButton('close', 'Dismiss', { cls: ' is-focus' }))}</div></div>`]),
+    ].join('');
+
+    // Segmented controls (12.8).
+    const segmented = (label, items, selected, { hover = -1, focus = -1, disabled = -1 } = {}) => `<div class="segmented" role="group" aria-label="${label}">${items.map((item, n) => `<button type="button" aria-pressed="${n === selected}"${n === hover ? ' class="is-hover"' : n === focus ? ' class="is-focus"' : ''}${n === disabled ? ' disabled' : ''}${item[1] ? ` aria-label="${item[1]}"` : ''}>${item[0]}</button>`).join('')}</div>`;
+    const FILTER = [['All <span data-num>3</span>'], ['Needs attention <span data-num>2</span>']], CATEGORIES = [['Network'], ['Town'], ['Industry']];
+    const segments = [
+      variant('Segmented', 'a well trough; the selected segment is ink and may carry a count', [
+        sample('Rest', segmented('Show routes', FILTER, 0)), sample('Hover', segmented('Show routes', FILTER, 0, { hover: 1 })), sample('Focus', segmented('Show routes', FILTER, 0, { focus: 1 })),
+        sample('Disabled segment', segmented('Build', CATEGORIES, 0, { disabled: 2 })),
+        sample('Glyphs', segmented('Simulation speed', [[i16('pause'), 'Pause'], ['1×', 'Normal speed'], ['3×', 'Triple speed'], ['8×', 'Eight times speed']], 1)),
+        sample('Radio labels', `<div class="segmented" role="radiogroup" aria-label="Bridge for"><label><input type="radio" name="specimen-mode" value="road" checked>Road</label><label><input type="radio" name="specimen-mode" value="rail">Rail</label></div>`),
+      ]),
+    ].join('');
+
+    // Steppers (12.8).
+    const stepper = (value, { plus = '', minus = '', plusTitle = '$18k' } = {}) => `<div class="stepper" role="group" aria-label="Trucks on route 2"><button type="button"${minus} aria-label="Sell truck, refund $9k" title="Refund $9k">${i16('minus')}</button><span data-num>${value}</span><button type="button"${plus} aria-label="Add truck ${plusTitle}" title="${plusTitle}">${i16('plus')}</button></div>`;
+    const steppers = variant('Stepper', 'the + tooltip names the price, the − one the refund', [
+      sample('Rest', stepper('2 trucks')), sample('Hover on +', stepper('2 trucks', { plus: ' class="is-hover"' })), sample('Focus on +', stepper('2 trucks', { plus: ' class="is-focus"' })),
+      sample('+ disabled, Need $18k', stepper('3 trucks', { plus: ' disabled', plusTitle: 'Need $18k' })),
+    ]);
+
+    // Fields (12.8).
+    const text = (extra = '', value = '') => `<input class="field${extra}" type="text" aria-label="Route name" placeholder="Name this route"${value ? ` value="${value}"` : ''}>`;
+    const fields = [
+      variant('Text', '', [sample('Rest', text(), 'sample--field'), sample('Hover', text(' is-hover'), 'sample--field'), sample('Focus', text(' is-focus'), 'sample--field'), sample('Filled', text('', 'Stone quarry to Alderbrook'), 'sample--field'), sample('Disabled', `<input class="field" type="text" aria-label="Route name" placeholder="Name this route" disabled>`, 'sample--field'), sample('Invalid', `<input class="field" type="text" aria-label="Route name" aria-invalid="true" value="Stone quarry to Alderbrook">`, 'sample--field')]),
+      variant('Search and select', 'a leading icon for search; a select ends in chevronDown', [
+        sample('Search', `<label class="field">${i16('search')}<input type="search" aria-label="Search routes" placeholder="Search routes"></label>`, 'sample--field'),
+        sample('Search, focus', `<label class="field">${i16('search')}<input type="search" class="is-focus" aria-label="Search stops" placeholder="Search stops"></label>`, 'sample--field'),
+        sample('Select', `<span class="field"><select aria-label="Cargo"><option>All cargo</option><option>Stone</option><option>Coal</option></select>${i16('chevronDown')}</span>`, 'sample--field'),
+        sample('Select, hover', `<span class="field"><select class="is-hover" aria-label="Transport"><option>All transport</option><option>Road</option></select>${i16('chevronDown')}</span>`, 'sample--field'),
+      ]),
+    ].join('');
+
+    // Switches (12.8).
+    const toggle = (label, { on = false, extra = '', disabled = false } = {}) => `<label class="switch-label"><input type="checkbox" role="switch" class="switch${extra}"${on ? ' checked' : ''}${disabled ? ' disabled' : ''}>${label}</label>`;
+    const switches = [
+      variant('Off', '', [sample('Rest', toggle('Full load')), sample('Hover', toggle('Full load', { extra: ' is-hover' })), sample('Focus', toggle('Full load', { extra: ' is-focus' })), sample('Disabled', toggle('Full load', { disabled: true }))]),
+      variant('On', '', [sample('Rest', toggle('Grid', { on: true })), sample('Hover', toggle('Grid', { on: true, extra: ' is-hover' })), sample('Focus', toggle('Grid', { on: true, extra: ' is-focus' })), sample('Disabled', toggle('Grid', { on: true, disabled: true }))]),
+    ].join('');
+
+    // Tags and meters (12.12), with the achievement tiers (4.4) and the plain meter they use for progress.
+    const meter = (pct, label, mod = '') => `<span class="meter${mod}" role="meter" aria-label="${label}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></span>`;
+    const tags = variant('Tag', 'quantities, never states', [sample('With a cargo tile', `<span class="tag">${tile('stone', 16)}144 stone</span>`), sample('Passengers', `<span class="tag">${tile('passengers', 16)}48 waiting</span>`), sample('Bonus', '<span class="tag">×1.5 bonus</span>'), sample('Mail', `<span class="tag">${tile('mail', 16)}12 mail</span>`)]);
+    const TIERS = ['bronze', 'silver', 'gold', 'platinum'];
+    const meters = [
+      variant('Meter', 'the fill is as wide as the value and eases over 300 ms', [['Stored 13 of 60', 22, 'Stored', ''], ['Empty', 0, 'Empty', ''], ['Full', 100, 'Full', ''], ['--warn, stored 55 of 60', 92, 'Stored', ' meter--warn'], ['--signal, 24 of 100 deliveries', 24, 'Goal progress', ' meter--signal']].map(([caption, pct, label, mod]) => sample(caption, meter(pct, label, mod), 'sample--meter'))),
+      variant('Achievement tiers', 'filled roundels (--tier-*) with an ink glyph of 3.8:1 or more', [...TIERS.map(tier => sample(`${tierName(tier)}<span data-tier-ratio="${tier}"></span>`, medalIcon(tier, { label: tierName(tier) }))), sample('Hidden', medalIcon('hidden', { locked: true, mark: '?', label: 'Hidden achievement' }))]),
+      variant('Tier progress', 'a pale roundel until earned; the plain meter measures the way', [`<ul class="tiers">${[['silver', 100, '1,000 deliveries, earned 12 Mar 1952'], ['gold', 62, '6,200 of 10,000 deliveries'], ['platinum', 8, '8,000 of 100,000 deliveries']].map(([tier, pct, line]) => `<li>${medalIcon(tier, { locked: pct < 100, label: `${tierName(tier)}${pct < 100 ? ', not yet earned' : ''}` })}<div class="tier-text"><strong>${tierName(tier)}</strong><span>${line}</span>${pct < 100 ? meter(pct, `${tierName(tier)} progress`) : ''}</div></li>`).join('')}</ul>`]),
+    ].join('');
+
+    // States (4.2) and reasons, on paper, on the well of an expanded row and on ink.
+    const STATE_LINES = [['ok', 'ok', 'Running', 'Delivered 144 stone last month.'], ['warn', 'warn', 'Buyer full', 'Deliveries still pay.'], ['error', 'broken', 'Not connected', 'The road is cut near Birchmere.'], ['paused', 'pause', 'Paused', 'It stays parked until you resume it.'], ['info', 'info', 'First trip', 'The first delivery is on its way.']];
+    const stateLines = `<div class="state-lines">${STATE_LINES.map(([kind, glyph, word, reason]) => `<p><span class="state state--${kind}">${i16(glyph)}${word}</span><span class="reason">${reason}</span></p>`).join('')}</div>`;
+    const states = [variant('On paper', '', [stateLines]), variant('On well', 'the expanded row', [`<div class="panel panel--well">${stateLines}</div>`]), variant('On ink', 'toasts and tips', [`<div class="panel panel--ink on-ink">${stateLines}</div>`])].join('');
+
+    // Cargo tiles (5.3).
+    const cargoTiles = `<div class="cargo-tiles">${Object.entries(CARGO).map(([key, cargo]) => `<figure data-cargo="${key}"><div>${[16, 20, 32].map(size => tile(key, size)).join('')}</div><figcaption>${cargo.name}</figcaption></figure>`).join('')}</div>`;
+
+    // Facts, sections and disclosures (12.7).
+    const facts = `<dl class="facts"><dt>Status</dt><dd><span class="state state--ok">${i16('ok')}Producing</span></dd><dt>Makes</dt><dd><span class="fact-figure">${tile('stone', 16)}48 stone a month</span></dd><dt>Stored</dt><dd><span class="fact-figure">${meter(22, 'Stored')}13 of 60</span></dd><dt>Served by</dt><dd>Route 2, Stone quarry to Alderbrook</dd><dt>Last month</dt><dd>$2,410 earned, $1,054 running costs</dd></dl>`;
+    const disclosure = (label, { open = false, extra = '' } = {}) => `<button type="button" class="disclosure${extra}" aria-expanded="${open}">${label}${i16('chevronDown')}</button>`;
+    const sections = [
+      variant('Section', 'a top hairline, 16 px of padding and a 13/600 heading', [`<div class="sample--full"><section class="section"><h3>Buyers of stone nearby</h3><p class="note">Alderbrook, 14 tiles. Birchmere, 17 tiles.</p></section><section class="section"><h3>Town hall</h3><p class="note">Fund development to grow faster.</p></section></div>`]),
+      variant('Disclosure', 'the chevron turns when open; nothing opens by itself', [
+        sample('Closed', `<div class="disclosure-sample">${disclosure('Town economy')}</div>`, 'sample--field'), sample('Hover', `<div class="disclosure-sample">${disclosure('Outlook', { extra: ' is-hover' })}</div>`, 'sample--field'),
+        sample('Focus', `<div class="disclosure-sample">${disclosure('Your property', { extra: ' is-focus' })}</div>`, 'sample--field'), sample('Open', `<div class="disclosure-sample">${disclosure('Needs', { open: true })}<p>Food and goods, 120 a month.</p></div>`, 'sample--field'),
+        sample('Details and summary', `<div class="disclosure-sample"><details open><summary class="disclosure">Show upcoming${i16('chevronDown')}</summary><p>First 1,000 deliveries.</p></details></div>`, 'sample--field'),
+      ]),
+    ].join('');
+
+    // Rows (12.4).
+    const row = (cls, cargo, name, near, trail) => `<button type="button" class="row${cls}">${tile(cargo)}<span class="row-name"><strong>${name}</strong><span>${near}</span></span>${trail}</button>`;
+    const rows = `<div class="row-list">${row('', 'stone', 'Stone quarry', 'near Alderbrook', `<span class="state state--ok">${i16('ok')}Producing</span>`)}${row(' is-hover', 'coal', 'Coal mine', 'near Pinehaven, hover', `<span class="state state--warn">${i16('warn')}Output piling up</span>`)}${row(' row--expanded', 'timber', 'Forest', 'near Birchmere, expanded', `<span class="state state--info">${i16('info')}Idle</span>`)}${row(' is-focus', 'grain', 'Farm', 'near Elmhaven, focus', '<span class="row-note">Opens its inspector</span>')}</div>`;
+
+    // Empty states (12.18).
+    const empties = variant('Empty', 'one sentence, then the button that does it', [
+      `<div class="sample--full"><div class="empty"><p>No routes yet. Put a stop near an industry and another near a town that buys its cargo.</p><button type="button" class="button button--primary">${i16('plus')}New route</button></div><div class="empty"><p>No saved games yet. Save this world to come back to it later.</p><button type="button" class="button button--secondary">${i16('saved')}Save now</button></div></div>`,
+    ]);
+
+    // Tooltips, tips and shortcut hints (12.10, 12.14).
+    const tooltips = variant('Tooltip', 'ink, 12/16, at most 240 px', [sample('With a shortcut', '<span class="tooltip" role="tooltip">Road <span class="kbd">(R)</span></span>'), sample('A reason', '<span class="tooltip" role="tooltip">Need $18k to add a truck.</span>'), sample('Two lines', '<span class="tooltip" role="tooltip">Refund $9k. Route 2 keeps its other trucks running.</span>')]);
+    const tips = variant('Placement tip', 'follows the pointer; the price before you let go', [
+      sample('Drag', `<div class="tip"><p class="tip-line"><strong>Road, 7 tiles</strong>${price('$1,260')}</p></div>`),
+      sample('Coverage', `<div class="tip"><p class="tip-line"><strong>Stop</strong>${price('$3.2k')}</p><p>Serves Stone quarry and Alderbrook</p></div>`),
+      sample('Invalid', `<div class="tip"><p><span class="state state--error">${i16('error')}Can’t build on water.</span> <span class="reason">Use a bridge.</span></p></div>`),
+      sample('Partial', `<div class="tip"><p class="tip-line"><strong>Road, 7 tiles</strong>${price('$900')}</p><p><span class="state state--warn">${i16('warn')}5 new tiles</span> <span class="reason">2 are built already.</span></p></div>`),
+    ]);
+
+    // Menus and popovers (12.10).
+    const menus = variant('Menu and popover', 'paper sheets; rows with an icon, a label and a shortcut or a switch', [
+      sample('Menu, with hover and focus rows', `<div class="menu" role="group" aria-label="Game menu"><button type="button">${i20('company')}Company</button><button type="button" class="is-hover">${i20('chains')}Production chains<span class="kbd">C</span></button><button type="button" class="is-focus">${i20('guide')}Guide<span class="kbd">?</span></button><button type="button">${i20('achievements')}Achievements</button><button type="button">${i20('saved')}Saved games<span class="kbd">Ctrl+S</span></button><label>${i20('sound')}Sound<input type="checkbox" role="switch" class="switch" checked></label><hr><button type="button">${i20('world')}New world</button></div>`),
+      sample('Popover', `<div class="popover" role="group" aria-label="Map layers"><label>${i20('tree')}Trees<input type="checkbox" role="switch" class="switch" checked></label><label>${i20('grid')}Grid<input type="checkbox" role="switch" class="switch"></label><label>${i20('routes')}Route lines<input type="checkbox" role="switch" class="switch" checked></label><hr><button type="button">${i20('locate')}Back to home town<span class="kbd">H</span></button></div>`),
+    ]);
+
+    // Tool bars (12.14).
+    const toolBar = (glyph, name, rule, actions) => `<div class="tool-bar" role="region" aria-label="${name}"><span class="tool-bar__glyph">${i20(glyph)}</span><strong class="tool-bar__name">${name}</strong>${rule ? `<span class="tool-bar__rule">${rule}</span>` : ''}<div class="tool-bar__actions">${actions}</div></div>`;
+    const done = '<button type="button" class="button button--primary" title="Done (Esc)">Done</button>';
+    const toolBars = `<div class="tool-bars">${toolBar('road', 'Road', 'Drag along the ground. The price shows before you let go.', done)}${toolBar('stop', 'Picking stops', 'Click a stop on the map, or press Esc.', done)}${toolBar('bridge', 'Bridge', 'Drag across water in a straight line.', `${segmented('Bridge for', [['Road'], ['Rail']], 0)}${done}`)}${toolBar('level', 'Level', '', done)}</div>`;
+
+    // Prose (4.5).
+    const prose = `<p class="prose">Cargo pays more the farther and the faster it travels. A load of stone that crosses 14 tiles in 9 days earns about $1,356, and the same load by rail arrives sooner and earns more. Prose sets its figures proportionally, so 1,111 and 1,956 sit as they would in a book.</p>`;
+
+    // Icons (5): the phone tab bar's 24 px glyphs over their 12/500 labels, then every glyph at 16 and 20 px.
+    const tabGlyphs = `<div class="tab-glyphs">${[['build', 'Build'], ['routes', 'Routes'], ['town', 'Towns'], ['industry', 'Industries']].map(([name, label]) => `<figure>${icon(name, { size: 24 })}<figcaption>${label}</figcaption></figure>`).join('')}</div>`;
+    const glyphs = `${tabGlyphs}<div class="glyphs">${names().map(name => `<figure class="glyph" data-glyph="${name}"><div>${i16(name)}${i20(name)}</div><figcaption>${name}</figcaption></figure>`).join('')}</div>`;
+
+    document.querySelector('#specimen').innerHTML = [
+      section('buttons', 'Buttons', 'A 14/500 label with a 16 px icon before it and a tabular price after it; 32 px tall. Hover changes colour only. Disabled is a well with ink-3 text and the reason in the tooltip. Pending keeps the width and shows data-pending in place of the label.', buttons, true),
+      section('icon-buttons', 'Icon buttons', 'A 20 px glyph in a 32 px square with the --r-2 corner.', iconButtons),
+      section('segmented', 'Segmented control', 'Segments are 28 px (44 on touch) in a well trough with 2 px of padding.', segments),
+      section('stepper', 'Stepper', 'Minus, a 14 px figure and plus inside an --edge border.', steppers),
+      section('switch', 'Switch', 'A native checkbox with role switch, drawn as a 32 by 18 track: --edge off, ink on, a paper knob.', switches),
+      section('fields', 'Fields', 'Paper in an --edge border, 32 px tall (44 on touch), 14 px text and an ink-2 placeholder.', fields, true),
+      section('tags-meters', 'Tags and meters', 'Tags hold quantities. Meters are a 4 px well track with an ink fill; warn only when the value is a problem, signal only for goal progress.', tags + meters),
+      section('states', 'States', 'A 16 px glyph and a 13/500 word in the state colour, then the reason in ink. No pills and no tints.', states),
+      section('facts', 'Facts', 'A 112 px label column in 13 ink-2 and values in 14 ink, 8 px apart.', facts),
+      section('sections', 'Sections and disclosure', 'Structure inside a sheet comes from hairlines, never from boxes.', sections),
+      section('rows', 'Rows', 'At least 40 px (48 on touch), 12 by 16 px of padding, hairlines between rows and the well on hover. The one expanded row is well.', rows),
+      section('empty', 'Empty states', 'What will appear here and how to get it, in one sentence.', empties),
+      section('ink', 'Tooltips and tips', 'Ink surfaces live briefly or follow the pointer. A .kbd hint is 12 ink-2 on paper and on-ink-2 on ink.', tooltips + tips),
+      section('menus', 'Menus and popovers', 'Items are 40 px (44 on touch).', menus),
+      section('tool-bar', 'Tool bar', 'The paper rail of an active tool and of route picking, with its glyph, name, one-line rule and actions.', toolBars, true),
+      section('prose', 'Prose', 'Guide text and headline detail: 14/22, at most 64 characters a line, proportional figures.', prose),
+      section('cargo', 'Cargo tiles', 'Every cargo pictogram on its well tile at 16, 20 and 32 px.', cargoTiles, true),
+      section('icons', `Icons, ${names().length}`, 'The phone tab bar at 24 px, then every ui-icons.js glyph at 16 and 20 px.', glyphs, true),
+    ].join('');
+
+    // Hover and focus, forced: a copy of each :hover or :focus-visible rule for .is-hover or .is-focus, inserted right after
+    // its original so it wins and loses exactly where the real state would.
+    const force = (rules, owner) => {
+      for (let i = rules.length - 1; i >= 0; i--) {
+        const rule = rules[i];
+        if (rule instanceof CSSStyleRule) { if (/:hover|:focus-visible/.test(rule.selectorText)) owner.insertRule(rule.cssText.replace(/:hover/g, '.is-hover').replace(/:focus-visible/g, '.is-focus'), i + 1); }
+        else if (rule.cssRules) force(rule.cssRules, rule);
+      }
+    };
+    for (const sheet of document.styleSheets) if (sheet.href) force(sheet.cssRules, sheet);
+
+    // The tier roundels carry an ink glyph: its contrast on each tier fill (DESIGN.md 4.4 asks for 3.8:1 or more).
+    const lum = hex => { const v = [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16) / 255).map(c => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+    const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    for (const el of document.querySelectorAll('[data-tier-ratio]')) { const a = lum(token('--ink')), b = lum(token(`--tier-${el.dataset.tierRatio}`)); el.textContent = `, ink ${((Math.max(a, b) + .05) / (Math.min(a, b) + .05)).toFixed(1)}:1`; }
+
+    // Coverage: every class DESIGN.md 16.3 assigns to components.css appears on this page.
+    try {
+      const design = await (await fetch('../DESIGN.md', { cache: 'no-store' })).text();
+      const row = design.slice(design.indexOf('### 16.3')).split('\n').find(line => line.startsWith('| `components.css` |'));
+      let block = '';
+      const contract = [...row.split('|')[2].matchAll(/`([^`]+)`/g)].map(([, name]) => name.startsWith('.') ? (block = name.slice(1).split(/--|__/)[0], name.slice(1)) : block + name);
+      const missing = contract.filter(name => !document.querySelector('.' + CSS.escape(name)));
+      document.body.dataset.missing = missing.join(' ');
+      document.querySelector('#coverage').textContent = missing.length ? `Missing from this page: ${missing.map(name => '.' + name).join(', ')}.` : `All ${contract.length} classes of the components.css contract appear on this page.`;
+    } catch (error) { document.querySelector('#coverage').textContent = `The class contract could not be read: ${error.message}`; }
+
+    // The UI floor of ui-system-browser-check, run over the whole page a screen at a time.
+    document.querySelector('#check-page').addEventListener('click', () => {
+      const y = scrollY, phone = innerWidth <= 700, found = new Map();
+      let overflow = 0;
+      for (let top = 0; top < document.documentElement.scrollHeight; top += innerHeight) { scrollTo(0, top); const result = audit(phone); for (const [rule, selector, detail] of result.found) found.set(`${rule} ${selector}`, detail); overflow ||= result.overflow; }
+      scrollTo(0, y);
+      if (overflow) found.set('overflow html', `${overflow}px`);
+      const out = document.querySelector('#check-result');
+      out.dataset.state = found.size ? 'fail' : 'pass';
+      out.textContent = found.size ? `${found.size} ${found.size === 1 ? 'finding' : 'findings'}: ${[...found].map(([key, detail]) => `${key} (${detail})`).join('; ')}.` : `Every text passes AA and the 12 px floor and nothing scrolls sideways${phone ? ', and every button is 44 px or more' : ''}.`;
+    });
+    await document.fonts.ready;
+    document.body.dataset.ready = 'true';
+  </script>
+</body>
+</html>

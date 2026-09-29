@@ -157,3 +157,23 @@ test('every icon name in the sources is a glyph or a migration alias', () => {
   assert.ok(found.length > 60, `the scan sees the game's icons (${found.length})`);
   assert.deepEqual(unknown.map(({ file, line, name }) => `${file}:${line} ${name}`), [], 'draw it in ui-icons.js GLYPHS or fix the name');
 });
+
+// Class contract (DESIGN.md 16.3): the classes a file's row names. '--x' and '__x' extend the block of the last full
+// class, so '.button--primary', '--secondary' reads '.button--secondary' and '.tool-bar__glyph', '__name' '.tool-bar__name'.
+export function contractClasses(file) {
+  const design = read('DESIGN.md'), row = design.slice(design.indexOf('### 16.3')).split('\n').find(line => line.startsWith(`| \`${file}\` |`));
+  let block = '';
+  return row ? [...row.split('|')[2].matchAll(/`([^`]+)`/g)].map(([, name]) => name.startsWith('.') ? (block = name.slice(1).split(/--|__/)[0], name.slice(1)) : block + name) : [];
+}
+// Every class a stylesheet's selectors name, inside at-rules too.
+export function selectorClasses(name) {
+  const found = new Set(), walk = nodes => { for (const node of nodes) if (node.type === 'group') walk(node.children); else if (node.type === 'rule') for (const match of node.prelude.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) found.add(match[1]); };
+  walk(parse(read(name)));
+  return found;
+}
+
+test('components.css defines every class DESIGN.md 16.3 assigns to it', () => {
+  const contract = contractClasses('components.css'), defined = selectorClasses('components.css');
+  assert.ok(contract.length > 40, `the contract row is read (${contract.length} classes)`);
+  assert.deepEqual(contract.filter(name => !defined.has(name)).map(name => '.' + name), [], 'add the primitive to components.css (DESIGN.md 12)');
+});

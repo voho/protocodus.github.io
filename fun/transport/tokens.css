@@ -53,14 +53,6 @@ button:disabled{cursor:not-allowed;opacity:.48}
 a{color:inherit;text-decoration:none}
 svg{width:18px;height:18px;display:block;flex-shrink:0}
 button svg{pointer-events:none}
-/* Line icons (DESIGN.md 5.1): a stroke fixed in CSS pixels, drawn in the text colour. */
-svg.i{fill:none;stroke:currentColor;stroke-width:1.5px;stroke-linecap:round;stroke-linejoin:round}
-svg.i *{vector-effect:non-scaling-stroke}
-.i .solid,.i .dot{fill:currentColor;stroke:none}
-.i16{width:16px;height:16px}
-.i20{width:20px;height:20px}
-.i24{width:24px;height:24px}
-svg.i.i24{stroke-width:1.75px}
 [hidden]{display:none!important}
 dialog{padding:0;border:1px solid transparent;background:var(--paper);color:var(--ink);border-radius:var(--r-4);width:min(760px,calc(100vw - 40px));max-height:90dvh;box-shadow:var(--e4);overflow:auto}
 dialog::backdrop{background:var(--scrim);backdrop-filter:blur(5px)}
