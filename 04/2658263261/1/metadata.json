@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "042658263261",
+  "session_id": "47392dd3-5466-4a6f-a7c8-9625e46929ee",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T14:44:11.090269Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/tests/route-planner.test.mjs",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/tests/full-load.test.mjs",
+    "fun/transport/tests/save.test.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/model.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/routes.css",
+    "fun/transport/tests/features-browser-check.mjs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "89c7b1a41e6a",
+  "checkpoint_transcript_start": 755,
+  "transcript_lines_at_start": 755,
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 805409,
+    "cache_read_tokens": 29417337,
+    "output_tokens": 390252,
+    "api_call_count": 93
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T14:44:10.324851Z",
+    "agent_lines": 0,
+    "human_added": 503,
+    "human_modified": 57,
+    "human_removed": 0,
+    "total_committed": 503,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/47392dd3-5466-4a6f-a7c8-9625e46929ee.jsonl"
+}
