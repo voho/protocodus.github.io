@@ -26,6 +26,8 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 /** A town-hall action runs until the first day of `until`. */
 export const actionActive = (until, day) => Number.isInteger(until) && Math.floor(day) < until;
+/** Development funded at the town hall; false for no town (a zone far from every centre). */
+export const fundedTown = (city, day) => !!city && actionActive(city.fundedUntil, day);
 /** Map<city, n>: stops of running routes within five tiles of each town centre, in station order. */
 export function townStopCounts(game) {
   const stops = new Set(), counts = new Map();

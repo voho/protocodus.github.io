@@ -169,7 +169,7 @@
 @media(pointer:coarse){
  #inspector .tiny-button{min-width:44px;min-height:44px;display:grid;place-items:center;margin:-16px -12px -16px 0;padding:0}
 }
-/* Town opinion: a closed fold at the foot of the town inspector with its reasons and the town hall's two optional purchases. */
+/* Town opinion: a closed fold near the foot of the town inspector with its reasons. */
 .town-opinion{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
 .town-opinion>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;min-height:32px;padding:4px 0;cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
 .town-opinion>summary::-webkit-details-marker{display:none}
@@ -180,16 +180,12 @@
 .opinion-meter{flex:0 0 48px;height:4px;border-radius:var(--r-round);background:var(--well);overflow:hidden}
 .opinion-meter i{display:block;height:100%;background:var(--ink)}
 .town-opinion[data-tone=low] .opinion-meter i{background:var(--warn)}
-.town-action-tags{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 12px}
-.town-action-tag{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
-.town-action-tag svg{width:16px;height:16px;flex:0 0 auto}
 .opinion-reasons{list-style:none;margin:8px 0 4px;padding:0}
 .opinion-reasons li{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
 .opinion-reasons b{font-weight:500;color:var(--ok);white-space:nowrap}
 .opinion-reasons li.down b{color:var(--warn)}
 .inspector .opinion-effect{margin:4px 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
 .inspector .town-opinion .micro-note{margin:4px 0 0}
-.town-opinion h4{margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--rule);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:600;color:var(--ink)}
 .town-action{margin:0 0 12px}
 .town-action .small-button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:var(--control);padding:4px 12px;border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500;color:var(--ink);text-align:left}
 .town-action .small-button:hover:not(:disabled){background:var(--well)}
@@ -199,6 +195,16 @@
 .inspector .town-action p{margin:4px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 @media(max-width:700px),(pointer:coarse){
  .town-opinion>summary,.town-action .small-button{min-height:var(--control-touch)}
+}
+/* Town hall: its own closed fold after the opinion, with the two optional purchases. */
+.town-hall{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
+.town-hall>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:4px 0;cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
+.town-hall>summary::-webkit-details-marker{display:none}
+.town-hall .town-hall-chevron{width:16px;height:16px;flex:0 0 auto;color:var(--ink-2);transition:transform var(--t-quick) var(--ease)}
+.town-hall[open] .town-hall-chevron{transform:rotate(180deg)}
+.town-hall>summary+.town-action{margin-top:8px}
+@media(max-width:700px),(pointer:coarse){
+ .town-hall>summary{min-height:var(--control-touch)}
 }
 /* The sheet grabber is a touch target too: 44 px tall, its bar where it was. */
 @media(max-width:700px) and (min-height:501px){

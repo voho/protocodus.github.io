@@ -1,12 +1,12 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
-import { localEnvironment, randomAt, weatherAt } from './environment.js';
+import { localEnvironment, randomAt, weatherAt, hasRoadAccess } from './environment.js';
 import { industryTiles } from './industry-sites.js';
-import { buildingAt, buildingFootprint, buildingSiteProblem, buildingTiles, placeBuildingSite } from './building-sites.js';
+import { buildingAt, buildingFootprint, buildingSiteProblem, buildingSize, buildingTiles, placeBuildingSite } from './building-sites.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
-import { townStopCounts, townOpinion, actionActive, TOWN_ACTIONS } from './town-authority.js';
+import { townStopCounts, townOpinion, actionActive, fundedTown, TOWN_ACTIONS, TOWN_RADIUS } from './town-authority.js';
 import { townOf, marketView, MARKET, ZONE_SECTOR } from './town-market.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
@@ -68,7 +68,7 @@ const DEMAND_NOTES = { residential: 'Homes in demand', commercial: 'Shops in dem
 
 function suitability(game, point, kind, environment, weather, city, connectedCities) {
   const e = environment, positive = [], negative = [];
-  const connected = recentlyServed(game, city, connectedCities);
+  const connected = recentlyServed(game, city, connectedCities), funded = fundedTown(city, game.day);
   const neighbors = kind === 'residential' ? e.housing : kind === 'commercial' ? e.housing + e.shops : e.industries;
   const clustering = clamp(neighbors / (kind === 'industrial' ? 3 : 10));
   const climate = clamp(weather.growth, .35, 1.2);
@@ -84,7 +84,8 @@ function suitability(game, point, kind, environment, weather, city, connectedCit
   if (!e.roadAccess) score *= .28;
   if (!connected) score *= .4;
   if (e.roadAccess) positive.push('Road access'); else negative.push('Needs a road');
-  if (connected) positive.push('Recent deliveries'); else negative.push('Needs deliveries');
+  if (funded) positive.push('Development funded');
+  if (connected) positive.push('Recent deliveries'); else if (!funded) negative.push('Needs deliveries');
   if (e.railAccess && kind === 'industrial') positive.push('Rail access');
   if (clustering > .18) positive.push(kind === 'industrial' ? 'Nearby industry' : kind === 'commercial' ? 'Nearby customers' : 'Neighbors');
   if (e.amenity > .15 && kind !== 'industrial') positive.push('Local services');
@@ -228,7 +229,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const funded = actionActive(city.fundedUntil, day);
     if (!funded && (!connected || city.activity < 8)) continue;
     const growthFactor = townOpinion(game, city, stopCounts).growth, pull = funded ? Math.max(1, demand) : demand;
-    if (randomAt(game, day, city.id, 104) >= (.055 + quality * .14) * pull * weather.growth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1) * (1 + MARKET.homesInfillBonus * (city.market?.demand?.[0] ?? 0))) continue;
+    if (randomAt(game, day, city.id, 104) >= infillChance(quality, demand, weather.growth, growthFactor, funded, city.market?.demand?.[0] ?? 0)) continue;
 
     const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
     let best = null;
@@ -257,9 +258,9 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (!tile || tile.zone !== zone.kind) continue;
     const existing = buildingAt(game, zone.x, zone.y);
     if (existing && (existing.x !== zone.x || existing.y !== zone.y)) continue;
-    const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y);
+    const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y), funded = fundedTown(city, day);
     const key = `zone:${zone.x},${zone.y}`, occupiedLevel = tile.building?.level || 0;
-    if (!recentlyServed(game, city, connectedCities) || !environment.roadAccess) {
+    if ((!recentlyServed(game, city, connectedCities) && !funded) || !environment.roadAccess) {
       // Vacant development interest fades, but an occupied building is retained.
       if (randomAt(game, day, key, 201) < .18) zone.progress = clamp(zone.progress - (.005 + randomAt(game, day, key, 202) * .01), occupiedLevel, 3);
       continue;
@@ -269,7 +270,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (randomAt(game, day, key, 203) >= .25 + quality * .10) continue;
     const demand = clamp((city.activity + city.supplies * .6) / 65, .65, 1.2);
     const needs = townNeeds(game, city), need = nextNeed(needs, zone);
-    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand * (need && !need.met ? .25 : 1) * (needs.some(n => n.kind === 'construction' && n.met) ? 1.3 : 1) * (need && !need.met ? 1 : 1 + MARKET.demandBonus * (city.market?.demand?.[ZONE_SECTOR[zone.kind]] ?? 0));
+    const increment = (.026 + quality * .026) * (.7 + randomAt(game, day, key, 204) * .6) * weather.growth * demand * (need && !need.met ? .25 : 1) * (needs.some(n => n.kind === 'construction' && n.met) ? 1.3 : 1) * (need && !need.met ? 1 : 1 + MARKET.demandBonus * (city.market?.demand?.[ZONE_SECTOR[zone.kind]] ?? 0)) * (funded ? TOWN_ACTIONS.fund.growth : 1);
     zone.progress = clamp(zone.progress + increment, occupiedLevel, 3);
     const level = Math.floor(zone.progress);
     if (level <= occupiedLevel) continue;
@@ -307,4 +308,39 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     changed = true;
   }
   if (changed) game.revision++;
+}
+
+/** A town's daily chance to build one of its own homes (the salt-104 roll); the funding forecast reads the same one. */
+export function infillChance(quality, demand, weatherGrowth, growthFactor, funded, homesBar) { return (.055 + quality * .14) * (funded ? Math.max(1, demand) : demand) * weatherGrowth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1) * (1 + MARKET.homesInfillBonus * homesBar); }
+// The town hall's forecast of a funded year: zoned tiles with a road that would develop (a developed
+// 2 × 2 counts four), and the homes the town would build on its free plots, over the year's mean weather.
+// A pure read, counted once per day and revision; it never draws randomAt.
+const forecasts = new WeakMap(), yearWeather = new WeakMap();
+const HOME_RESIDENTS = [0, 1, 2].reduce((sum, variant) => sum + BUILDINGS[residentialKind(variant, 1)].residents, 0) / 3;
+export function fundForecast(game, city) {
+  const day = Math.floor(game.day);
+  let cache = forecasts.get(game);
+  if (cache?.day !== day || cache.revision !== game.revision) forecasts.set(game, cache = { day, revision: game.revision, cities: new Map() });
+  if (!cache.cities.has(city.id)) {
+    let zones = 0;
+    for (const zone of game.zones) {
+      if (Math.abs(zone.x - city.x) >= TOWN_RADIUS || Math.abs(zone.y - city.y) >= TOWN_RADIUS) continue;
+      const tile = tileAt(game, zone.x, zone.y);
+      if (tile?.zone === zone.kind && zone.progress < 3 && townOf(game, zone.x, zone.y) === city && hasRoadAccess(game, zone.x, zone.y)) zones += tile.building ? buildingSize(tile.building) ** 2 : 1;
+    }
+    const plots = townOutlook(game, city).plots, quality = settlementSuitability(game, city, 'residential').score, demand = clamp((city.activity + city.supplies * .6) / 65, .4, 1.25);
+    const chance = infillChance(quality, demand, meanGrowth(game, city, day), townOpinion(game, city).growth, true, city.market?.demand?.[0] ?? 0);
+    // Half the draws find no home: the 3-6 tile radius roll and sites that fail.
+    const homes = Math.min(plots, Math.round(365 * chance * .5));
+    cache.cities.set(city.id, { served: recentlyServed(game, city), plots, zones, homes, residents: Math.round(homes * HOME_RESIDENTS / 10) * 10 });
+  }
+  return cache.cities.get(city.id);
+}
+// Weather growth on the 15th of each 30-day month of this 360-day year, averaged; weatherAt stays a pure cache.
+function meanGrowth(game, city, day) {
+  const start = Math.floor(day / 360) * 360, key = `${city.id}:${start}`;
+  let cache = yearWeather.get(game);
+  if (!cache) yearWeather.set(game, cache = new Map());
+  if (!cache.has(key)) { let sum = 0; for (let k = 0; k < 12; k++) sum += weatherAt(game, city.x, city.y, start + 15 + 30 * k).growth; cache.set(key, sum / 12); }
+  return cache.get(key);
 }

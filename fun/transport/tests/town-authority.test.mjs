@@ -4,9 +4,12 @@ import { createGame, build, buildProblem, addRoute, removeRoute, tick, validateG
 import { buildPlan } from '../construction-plan.js';
 import { encodeGame } from '../save-codec.js';
 import { localEnvironment, randomAt, weatherAt } from '../environment.js';
-import { passengerArrivals } from '../settlements.js';
-import { townOpinion, townStopCounts, townActionQuote, opinionBand, actionActive, disturbTown, OPINION_BANDS, TOWN_ACTIONS, DISTURBANCE, TOWN_RADIUS } from '../town-authority.js';
-import { emptyGame, tileAt, line, equivalent } from './helpers.mjs';
+import { passengerArrivals, housingCapacity, infillChance, fundForecast, settlementSuitability } from '../settlements.js';
+import { townOpinion, townStopCounts, townActionQuote, opinionBand, actionActive, disturbTown, fundedTown, OPINION_BANDS, TOWN_ACTIONS, DISTURBANCE, TOWN_RADIUS } from '../town-authority.js';
+import { MARKET } from '../town-market.js';
+import { placeBuildingSite, buildingAt } from '../building-sites.js';
+import { residentialKind, commercialKind } from '../buildings.js';
+import { emptyGame, tileAt, line, equivalent, twoTownFixture } from './helpers.mjs';
 
 const starter = () => createGame({ biome: 'taiga', size: 'regional', seed: 1847 });
 const FIELDS = ['serviceMonths', 'disturbance', 'advertisedUntil', 'fundedUntil'];
@@ -220,7 +223,7 @@ test('advertising is a priced, one-at-a-time campaign that lifts passengers by h
   assert.equal(Object.hasOwn(game.cities[0], 'advertisedUntil'), false);
 });
 
-test('funding new buildings lets even an unserved town build homes for a year, then ends silently', () => {
+test('funding development lets even an unserved town build homes for a year, then ends silently', () => {
   const game = starter(), unserved = game.cities[2], plain = structuredClone(game);
   assert.equal(townOpinion(game, unserved).reasons.length, 0);
   const quote = townActionQuote(game, unserved, 'fund');
@@ -228,9 +231,9 @@ test('funding new buildings lets even an unserved town build homes for a year, t
   assert.equal(townActionQuote(game, game.cities[0], 'fund').cost, 33500);
   const bought = buyTownAction(game, unserved.id, 'fund');
   assert.equal(bought.ok, true, bought.message);
-  assert.equal(bought.message, `New buildings funded in ${unserved.name} for a year. $${quote.cost.toLocaleString('en-US')} spent.`);
+  assert.equal(bought.message, `Development funded in ${unserved.name} for a year. $${quote.cost.toLocaleString('en-US')} spent.`);
   assert.equal(unserved.fundedUntil, 365);
-  assert.match(buyTownAction(game, unserved.id, 'fund').message, /^New buildings are already funded in /);
+  assert.match(buyTownAction(game, unserved.id, 'fund').message, /^Development is already funded in /);
   const population = unserved.population, before = plain.cities[2].population;
   tick(game, 180); tick(plain, 180);
   assert.ok(unserved.population > population, `${population} to ${unserved.population}`);
@@ -286,4 +289,148 @@ test('passenger arrivals are unchanged without a campaign and exactly half as ma
     assert.equal(passengerArrivals(game, { ...city, advertisedUntil: day + 1 }, day), before * TOWN_ACTIONS.advertise.passengers);
     assert.equal(passengerArrivals(game, { ...city, advertisedUntil: day }, day), before, 'a campaign ends on its until day');
   }
+});
+
+// Cliffe, the calibration's third town at (44, 20): the fixture's street grid out to radius 9 and homes on 70% of
+// the plots within radius 5, unserved and away from the road between Ashford and Brookby.
+function makeTown(game, id, name, cx, cy, seed) {
+  const city = { id, name, x: cx, y: cy, population: 0, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null };
+  game.cities.push(city);
+  const street = points => { for (const p of points) Object.assign(tileAt(game, p.x, p.y), { road: true, publicRoad: true }); };
+  for (let d = -9; d <= 9; d += 3) { street(line(cx - 9, cx + 9, cy + d)); street(Array.from({ length: 19 }, (_, i) => ({ x: cx + d, y: cy - 9 + i }))); }
+  for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) {
+    const x = cx + dx, y = cy + dy, tile = tileAt(game, x, y), r = ((x * 73856093) ^ (y * 19349663) ^ seed) >>> 0;
+    if (tile.road || buildingAt(game, x, y) || (!dx && !dy) || r % 10 < 3) continue;
+    const shop = (r >>> 8) % 9 === 0, level = shop ? 1 : 1 + (r >>> 4) % 2, kind = shop ? commercialKind(tile.variant, 1) : residentialKind(tile.variant, level), building = { kind, level };
+    if (!shop) building.populationCityId = id;
+    if (placeBuildingSite(game, kind, x, y, { size: 1, building }) && !shop) city.population += housingCapacity(building);
+  }
+  city.passengers = city.population * .1;
+  game.networkRevision++; game.revision++;
+  return city;
+}
+const cliffe = () => { const fixture = twoTownFixture(); return { ...fixture, C: makeTown(fixture.game, 'city-c', 'Cliffe', 44, 20, 3) }; };
+const townIn = (game, town) => game.cities.find(city => city.id === town.id);
+// Two residential and two industrial 2 × 2 blocks beside Cliffe's streets, every tile with a road beside it.
+function zoneBlocks(game, town) {
+  const tiles = { residential: [], industrial: [] }, blocks = { residential: [[4, -8], [7, -5]], industrial: [[4, 7], [7, 4]] };
+  for (const [kind, anchors] of Object.entries(blocks)) for (const [bx, by] of anchors) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+    const x = town.x + bx + dx, y = town.y + by + dy, zoned = build(game, kind, x, y);
+    assert.equal(zoned.ok, true, zoned.message); tiles[kind].push({ x, y });
+  }
+  return tiles;
+}
+const progressAt = (game, p) => game.zones.find(zone => zone.x === p.x && zone.y === p.y)?.progress ?? null;
+// A tile's development: its zone's progress, or the level of the building that took it over.
+const developed = (game, p) => Math.max(progressAt(game, p) ?? 0, buildingAt(game, p.x, p.y)?.building.level ?? 0);
+// Workshop levels grown on the industrial blocks, each site once.
+const worksOn = (game, tiles) => [...new Map(tiles.map(p => buildingAt(game, p.x, p.y)).filter(site => site?.building.kind === 'factory').map(site => [`${site.x},${site.y}`, site.building.level])).values()].reduce((sum, level) => sum + level, 0);
+
+test('funded development grows an unserved town and its zones for a year, and nothing grows unfunded', () => {
+  const { game, C } = cliffe(), tiles = zoneBlocks(game, C);
+  assert.equal(C.population, 980);
+  const funded = structuredClone(game), plain = structuredClone(game);
+  assert.equal(buyTownAction(funded, C.id, 'fund').cost, 39500);
+  tick(funded, 365); tick(plain, 365);
+  const gain = townIn(funded, C).population - C.population, works = worksOn(funded, tiles.industrial);
+  assert.ok(gain >= 250 && gain <= 1000, `+${gain}`);
+  assert.ok(works >= 3, `${works} workshop levels`);
+  for (const p of tiles.residential) assert.ok(developed(funded, p) >= 1, `${p.x},${p.y}: ${developed(funded, p)}`);
+  assert.equal(townIn(plain, C).population, C.population);
+  assert.equal(worksOn(plain, tiles.industrial), 0);
+  for (const p of [...tiles.residential, ...tiles.industrial]) assert.equal(progressAt(plain, p), 0, `${p.x},${p.y}`);
+});
+
+test('funded zones still need a road beside them', () => {
+  const { game, C } = cliffe(), p = { x: C.x - 7, y: C.y - 1 };
+  assert.equal(build(game, 'residential', p.x, p.y).ok, true);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) Object.assign(tileAt(game, p.x + dx, p.y + dy), { road: false, publicRoad: false });
+  game.networkRevision++; game.revision++;
+  assert.equal(buyTownAction(game, C.id, 'fund').ok, true);
+  for (let day = 0; day < 180; day++) { tick(game, 1); assert.equal(progressAt(game, p), 0, `day ${day}`); }
+});
+
+test('funding exactly doubles a served zone’s step from zero, and a failed roll stays failed', () => {
+  const { game, A } = twoTownFixture();
+  tick(game, 30);
+  assert.ok(game.day - A.lastServiceDay <= 30, 'Ashford is served');
+  const plots = [[7, -2], [8, -2], [7, -1], [8, -1], [7, 1], [8, 1], [7, 2], [8, 2]].map(([dx, dy]) => ({ x: A.x + dx, y: A.y + dy }));
+  for (const p of plots) assert.equal(build(game, 'residential', p.x, p.y).ok, true);
+  const funded = structuredClone(game);
+  assert.equal(buyTownAction(funded, A.id, 'fund').ok, true);
+  tick(game, 1); tick(funded, 1);
+  const moved = plots.filter(p => progressAt(game, p) > 0);
+  assert.ok(moved.length > 0 && moved.length < plots.length, `${moved.length} of ${plots.length} advanced`);
+  for (const p of plots) assert.equal(progressAt(funded, p), 2 * progressAt(game, p), `${p.x},${p.y}`);
+});
+
+test('a zone far from every town fades in a funded game and never throws', () => {
+  const { game, A, C } = cliffe(), p = { x: A.x, y: A.y + 14 };
+  assert.equal(build(game, 'residential', p.x, p.y).ok, true);
+  Object.assign(tileAt(game, p.x + 1, p.y), { road: true, publicRoad: true });
+  game.networkRevision++; game.revision++;
+  assert.ok(game.cities.every(city => Math.hypot(city.x - p.x, city.y - p.y) >= 14));
+  game.zones.find(zone => zone.x === p.x && zone.y === p.y).progress = .5;
+  for (const town of [A, C]) assert.equal(buyTownAction(game, town.id, 'fund').ok, true);
+  for (let day = 0; day < 30; day++) tick(game, 1);
+  assert.ok(progressAt(game, p) >= 0 && progressAt(game, p) < .5, `${progressAt(game, p)}`);
+});
+
+test('infillChance is the organic growth chance bit for bit', () => {
+  const inline = (quality, demand, weatherGrowth, growthFactor, funded, homesBar) => (.055 + quality * .14) * (funded ? Math.max(1, demand) : demand) * weatherGrowth * growthFactor * (funded ? TOWN_ACTIONS.fund.growth : 1) * (1 + MARKET.homesInfillBonus * homesBar);
+  for (let n = 0; n < 1000; n++) {
+    const r = salt => randomAt({ seed: 1847 }, n, 'infill', salt);
+    const args = [r(1), .4 + r(2) * .85, .4 + r(3) * .8, [1, 1.05, 1.1][Math.floor(r(4) * 3)], r(5) < .5, Math.round(r(6) * 100) / 100];
+    assert.equal(infillChance(...args), inline(...args), JSON.stringify(args));
+  }
+});
+
+test('the development forecast counts reachable zoned tiles, reads only, and comes close to a funded year', () => {
+  const { game, C } = cliffe();
+  zoneBlocks(game, C);
+  const frozen = JSON.stringify(game), forecast = fundForecast(game, C);
+  assert.deepEqual([forecast.zones, forecast.served], [16, false]);
+  assert.equal(fundForecast(game, C), forecast, 'memoised');
+  assert.equal(JSON.stringify(game), frozen, 'a forecast changes nothing');
+  const whole = structuredClone(game), parts = structuredClone(game);
+  tick(whole, 60);
+  for (let n = 0; n < 240; n++) tick(parts, .25);
+  assert.deepEqual(fundForecast(whole, townIn(whole, C)), fundForecast(parts, townIn(parts, C)));
+  assert.equal(fundForecast(whole, townIn(whole, C)).zones, 16);
+  assert.equal(fundForecast(whole, whole.cities[0]).served, true, 'Ashford is served');
+
+  const { game: bare, C: town } = cliffe(), start = town.population, empty = fundForecast(bare, town);
+  assert.equal(empty.zones, 0);
+  assert.ok(empty.plots > 0 && empty.homes > 0 && empty.residents === Math.round(empty.homes * 38 / 3 / 10) * 10, JSON.stringify(empty));
+  assert.equal(buyTownAction(bare, town.id, 'fund').ok, true);
+  tick(bare, 365);
+  const gain = town.population - start;
+  assert.ok(Math.abs(empty.residents - gain) <= .35 * gain, `${empty.residents} forecast, +${gain} built`);
+});
+
+test('a zone in a funded, unserved town reads Development funded instead of Needs deliveries, at the same score', () => {
+  const { game, C } = cliffe(), p = zoneBlocks(game, C).residential[0], plain = structuredClone(game);
+  assert.equal(buyTownAction(game, C.id, 'fund').ok, true);
+  const funded = settlementSuitability(game, p, 'residential'), unfunded = settlementSuitability(plain, p, 'residential');
+  assert.ok(funded.positive.includes('Development funded'), funded.positive.join(', '));
+  assert.ok(!funded.negative.includes('Needs deliveries'), funded.negative.join(', '));
+  assert.ok(unfunded.negative.includes('Needs deliveries') && !unfunded.positive.includes('Development funded'));
+  assert.ok(Math.abs(funded.score - unfunded.score) <= 1e-12, `${funded.score} ${unfunded.score}`);
+  assert.equal(fundedTown(C, game.day), true);
+  assert.equal(fundedTown(townIn(plain, C), plain.day), false);
+  assert.equal(fundedTown(null, 0), false);
+  assert.equal(fundedTown(undefined, 0), false);
+});
+
+test('the town hall names development in its refusals and receipt, and a refusal changes nothing', () => {
+  const { game, C } = cliffe(), quote = townActionQuote(game, C, 'fund'), price = `$${quote.cost.toLocaleString('en-US')}`;
+  game.money = quote.cost - 1;
+  let frozen = JSON.stringify(game);
+  assert.equal(buyTownAction(game, C.id, 'fund').message, `Need ${price} to fund development in Cliffe.`);
+  assert.equal(JSON.stringify(game), frozen);
+  game.money = 1_000_000;
+  assert.equal(buyTownAction(game, C.id, 'fund').message, `Development funded in Cliffe for a year. ${price} spent.`);
+  frozen = JSON.stringify(game);
+  assert.equal(buyTownAction(game, C.id, 'fund').message, 'Development is already funded in Cliffe.');
+  assert.equal(JSON.stringify(game), frozen);
 });

@@ -1041,10 +1041,10 @@ export function buyTownAction(game,cityId,action) {
   if(!owns(TOWN_ACTIONS,action))return result(false,'Choose a town action.');
   const city=game.cities.find(c=>c.id===cityId);if(!city)return result(false,'Town not found.');
   const quote=townActionQuote(game,city,action),advertise=action==='advertise';
-  if(quote.active)return result(false,advertise?`An advertising campaign is already running in ${city.name}.`:`New buildings are already funded in ${city.name}.`);
-  if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to ${advertise?'advertise':'fund new buildings'} in ${city.name}.`);
+  if(quote.active)return result(false,advertise?`An advertising campaign is already running in ${city.name}.`:`Development is already funded in ${city.name}.`);
+  if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to ${advertise?'advertise':'fund development'} in ${city.name}.`);
   const until=Math.floor(game.day)+quote.days;spend(game,quote.cost);city[advertise?'advertisedUntil':'fundedUntil']=until;
-  return result(true,`${advertise?`Advertising in ${city.name} for six months.`:`New buildings funded in ${city.name} for a year.`}${spent(quote.cost)}`,{cost:quote.cost,until});
+  return result(true,`${advertise?`Advertising in ${city.name} for six months.`:`Development funded in ${city.name} for a year.`}${spent(quote.cost)}`,{cost:quote.cost,until});
 }
 function monthlyUpdate(game) {
   monthlyMarkets(game);
