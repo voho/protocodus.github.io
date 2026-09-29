@@ -140,16 +140,17 @@ test('wanted food earns a 25% market bonus on the wanted units only, on top of t
   assert.equal(Object.hasOwn(plainRun.game.history[0], 'marketBonus'), false);
 });
 
-test('passengers and machinery never earn a market bonus', () => {
+test('passengers, mail and machinery never earn a market bonus', () => {
   const game = emptyGame(), city = town(game, 30, 30, 900);
   ensureMarket(game, city).wants.food = 50;
-  for (const cargo of ['passengers', 'machinery', 'coal']) assert.equal(recordTownSupply(game, city, cargo, 24), 0);
+  for (const cargo of ['passengers', 'mail', 'machinery', 'coal']) assert.equal(recordTownSupply(game, city, cargo, 24), 0);
   assert.deepEqual(city.market.supplied, { food: 0, household: 0, fuel: 0, materials: 0 });
-  const { game: busy, A, B, route } = twoTownFixture();
-  for (const city of [A, B]) ensureMarket(busy, city).wants.food = 500;
-  tick(busy, 40);
+  const run = withMail => { const fixture = twoTownFixture(), { game: busy, A, B, sa, sb } = fixture; for (const city of [A, B]) { ensureMarket(busy, city).wants.food = 500; city.mail = 100; } const mail = withMail ? addRoute(busy, { mode: 'road', stops: [sa.id, sb.id], cargo: 'mail' }).route : null; tick(busy, 40); return { ...fixture, mail }; };
+  const { A, route, mail } = run(true), plain = run(false);
   assert.ok(route.delivered > 0); assert.equal(route.marketBonus, undefined);
+  assert.ok(mail.delivered > 0); assert.equal(mail.marketBonus, undefined);
   assert.ok(A.market.visitorsNow + A.market.visitors > 0, 'arriving passengers are counted as visitors');
+  assert.equal(A.market.visitorsNow + A.market.visitors, plain.A.market.visitorsNow + plain.A.market.visitors, 'mail bags are not shoppers');
 });
 
 test('a contract extra is computed from the base fare, never from the market bonus', () => {

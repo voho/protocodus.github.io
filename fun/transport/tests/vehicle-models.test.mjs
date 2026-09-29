@@ -46,6 +46,8 @@ test('January names the most-used series, or a used series that begins this year
   assert.equal(newYearModel([], [], 10).name, 'Kedge Mk 1', 'no vehicles: the first series that begins');
   assert.equal(newYearModel([], [], 1).name, 'Hollin Mk 2');
   assert.equal(newYearModel([r('a', 'water', 'oil')], [v('a'), v('gone')], 10).noun, 'tanker', 'the first cargo seen names the body');
+  assert.equal(newYearModel([r('a', 'road', 'mail'), r('b', 'road', 'food')], [v('a'), v('b')], 1).noun, 'truck', 'a mail truck names the body only when the series carries nothing else');
+  assert.equal(newYearModel([r('a', 'road', 'mail')], [v('a')], 1).noun, 'mail truck');
 });
 
 test('the January notice names a model without middle dots; a headline year keeps only the prices', () => {

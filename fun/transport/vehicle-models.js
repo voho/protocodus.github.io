@@ -51,7 +51,7 @@ export function newYearModel(routes, vehicles, level) {
   for (const route of routes) routeById.set(route.id, route);
   for (const vehicle of vehicles) {
     const route = routeById.get(vehicle.routeId); if (!route) continue;
-    const key = vehicleSeriesKey(route.mode, route.cargo); counts.set(key, (counts.get(key) || 0) + 1); if (!cargoOf.has(key)) cargoOf.set(key, route.cargo);
+    const key = vehicleSeriesKey(route.mode, route.cargo); counts.set(key, (counts.get(key) || 0) + 1); if (!cargoOf.has(key) || cargoOf.get(key) === 'mail') cargoOf.set(key, route.cargo);
   }
   const keys = Object.keys(VEHICLE_SERIES), debuts = key => VEHICLE_SERIES[key].families.some(family => family.level === level);
   const most = list => list.reduce((best, key) => best === null || counts.get(key) > counts.get(best) ? key : best, null);
