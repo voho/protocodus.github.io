@@ -1,0 +1,638 @@
+Create a bold, cinematic music visualization for the attached song, rendered as a Full HD MP4 ready for YouTube. It should feel like the official visualizer an exceptionally talented motion designer would make for a major release: meticulously art-directed, fully driven by the music, and visually surprising from the first frame to the last.
+
+LISTEN FIRST
+Before designing anything, analyze the track: tempo and beat grid, downbeats and bar structure, onsets/transients (kick, snare, hi-hats), energy per frequency band (sub, bass, mids, highs), overall loudness envelope, and song structure (intro, verses, pre-chorus, chorus/drop, bridge, outro). Write down the section timestamps and base the edit on them. Every visual decision should be traceable to something in the audio.
+
+SYNC — THE CORE OF THE PIECE
+- Map audio to visuals deliberately, not generically: bass/kick drives scale, pulses, camera punches and shockwaves; snare drives cuts, flashes and shape reveals; hi-hats and highs drive particles, sparkle and fine detail; mids and vocals drive fluid motion, color shifts and typography; overall energy drives density, speed and brightness.
+- Cuts and major transitions land exactly on downbeats or phrase boundaries, never between them.
+- Build-ups visibly build (tension, acceleration, compression, darkening). Drops hit hard with an unmistakable visual payoff.
+- Quiet sections breathe: slower camera, negative space, restraint. Contrast between sections matters as much as intensity.
+- Smooth the audio-reactive signals (attack/release envelopes) so motion feels musical and intentional rather than jittery.
+
+VISUAL LANGUAGE
+Showcase a wide range of advanced techniques, each assigned to the part of the song it suits best: kinetic typography (song title, artist, and optionally key lyrics timed to the vocal), 2D and 3D animation, abstract geometry, fluid simulations, particles, distortion and displacement, creative masking, compositing, lighting, depth of field, and seamless camera movement. Establish one cohesive visual identity — a defined color palette, typography, and motif — derived from the song's mood and genre, and evolve it across sections rather than switching styles randomly. Every section should transition naturally into the next, with recurring motifs that make the whole piece feel like one continuous world.
+
+STRUCTURE
+- Intro: establish the world and the motif; reveal title and artist.
+- Verses: controlled, rhythmic, detail-rich.
+- Pre-chorus/build: rising tension and acceleration.
+- Chorus/drop: maximum impact, the most spectacular moments.
+- Bridge: a surprising shift in perspective, palette, or scale.
+- Outro: resolve the motif, end on a clean, memorable final frame (title/artist lockup).
+Adapt this to the song's actual structure.
+
+TECHNICAL REQUIREMENTS
+- Resolution 1920×1080, 16:9, at 60 fps (or 30 fps if rendering cost demands it).
+- H.264 video, yuv420p pixel format, high quality (e.g. CRF 18 or ~12–16 Mbps), AAC audio at 320 kbps, 48 kHz.
+- Duration exactly matches the song; the original audio is muxed in with no drift. Verify sync at the start, middle, and end.
+- Avoid banding in gradients (add subtle dithering/grain), avoid large full-screen strobing (keep flashes brief and within photosensitivity-safe limits), and keep text inside title-safe margins.
+- Deliver the MP4 plus a short note listing the detected BPM, section timestamps, and which audio features drive which visuals.
+
+Push the creativity, polish, timing, and visual impact as far as possible. This should feel like the visualizer that makes people replay the song.
+
+run in parallel for all these songs:
+
+/Users/vojta/Downloads/voho/*.wav
+
+---
+
+Base directory for this skill: /Users/vojta/.claude/skills/music-visualizer
+
+# Music visualizer
+
+A proven pipeline: **analyze -> inspect -> art-direct one scene module -> stills -> debug preview -> verify -> full render -> notes.**
+The generic parts (analysis, signal layer, GPU engine, render/mux, verification, notes) are finished scripts in `scripts/`.
+Your per-song work is the **art direction**: a palette, a motif, and one `scene.py` module. Spend tokens there, not on re-deriving plumbing.
+
+## Bundled files
+
+| File | What it does |
+|---|---|
+| `scripts/setup.sh` | creates `WORK/venv` with librosa, moderngl, soundfile (numpy/scipy/PIL/matplotlib from the system) |
+| `scripts/analyze.py` | song -> `audio.wav` (48 kHz, the ONLY audio used for analysis and mux) + `timeline.json` |
+| `scripts/inspect_analysis.py` | prints tempo, sections, per-bar table; writes `analysis.png` (spectrogram + sections + bands + zoom) |
+| `scripts/timeline.py` | signal layer: per-frame envelopes (instant attack), A/R-smoothed bands, `beatpos`, `flow`, section progress, phrase info, arcade counters |
+| `scripts/gfx.py` | GPU engine: `Camera`, `Lines`, `circle_pts`, `rot`, `Fluid`, `Engine` (bg/stars/nebula, lines with DOF, HUD layer, post chain) |
+| `scripts/vfont.py` | stroke font (A-Z, 0-9, symbols): text becomes glowing line segments; `draw_on` for beam write-on |
+| `scripts/render.py` | stills / clips / full render, `--debug` sync overlay, fluid warm-up, ffmpeg pipe with audio mux |
+| `scripts/contact_sheet.py` | tiles stills into one image, so one Read reviews 12-16 frames |
+| `scripts/verify_sync.py` | measures the MP4: stream specs, lag of visual hits per onset type, mute-test proxy, audio-vs-source alignment, flashes/s |
+| `scripts/make_notes.py` | delivery notes: BPM, section table, spot-check timestamps, verification results, plus your `mapping.md` |
+| `examples/scene_arcade.py` | complete worked scene ("Arcade Rush"): tunnel highway, spectrogram terrain, gyroscope core, radar beat clock, countdown builds, HUD, lockup |
+| `references/analysis.md` | how the analysis works, the pitfalls it already handles, how to fix a wrong tempo/downbeat/section |
+| `references/engine.md` | API reference for timeline / gfx / vfont / render, post parameters, performance numbers, rendering gotchas |
+| `references/design-playbook.md` | identity process, audio->visual mapping table, section treatments, escalation, transitions, photosensitivity |
+
+## Workflow
+
+`SK` = this skill's directory, `W` = a work directory (for example the scratchpad). All commands run from anywhere.
+
+### 1. Setup and analysis (about 1 minute)
+```bash
+bash $SK/scripts/setup.sh W                          # once per machine/work dir
+W/venv/bin/python $SK/scripts/analyze.py "song.mp3" --workdir W
+W/venv/bin/python $SK/scripts/inspect_analysis.py --workdir W --zoom 60,64   # then Read W/analysis.png
+```
+Check the printout and the PNG, not raw JSON. Section boundaries should sit on audible changes (the band curves step there), the downbeat lines should carry the big transitions, and the zoom row should show kicks on the red beat lines.
+If something is off (tempo octave, downbeat phase, a missed or extra section), read `references/analysis.md`; the fixes are parameter-level.
+Title and artist come from the file tags (`--title/--artist` override). The cover art is often embedded: `ffmpeg -i song.mp3 -an -c:v copy W/cover.jpg`. Look at it before designing.
+
+### 2. Art direction (think here; this is where the quality comes from)
+Read `references/design-playbook.md`. Decide and write down in `W/mapping.md`:
+- the identity: 4-6 palette colors (linear RGB), ONE motif that recurs in every section, a type treatment
+- the audio -> visual table (kick / snare / hat / beat / downbeat / phrase / sub / mids / highs / loudness / section)
+- one treatment per section type, and how each repeat escalates (drop 1 < drop 2 < finale)
+
+### 3. Scene module
+Copy `examples/scene_arcade.py` to `W/scene.py` and re-art-direct it. Keep its structural patterns (they are what makes sync exact): the highway depth mapping, envelopes from `timeline.py`, cyclic motion from `beatpos` at 1/4-4 beats per cycle, phrase-indexed camera changes, the iris transition on section starts, HUD on its own layer.
+Contract: `class Scene(tl, eng)` with `render(f)`; optional `fluid(f)` for warm-up. See `references/engine.md`.
+
+### 4. Look development with stills (cheap)
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --stills 12,40.3,55,76,100,131,170,203.5
+W/venv/bin/python $SK/scripts/contact_sheet.py W/stills W/sheet.png 4       # Read one image
+```
+Pick one still per section, plus drop starts about 2 frames in. Iterate here until every section reads. The usual first-pass problems and their fixes are in `references/engine.md` under "Gotchas".
+
+### 5. Debug preview of the most complex section
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --start 138 --end 158 --debug --preset veryfast --out W/debug.mp4
+```
+The overlay shows the scrolling beat/downbeat grid, typed onsets, section labels, bar.beat, band meters and onset lamps.
+Pull a filmstrip around a drop (`ffmpeg -i W/debug.mp4 -vf "select='between(n,N-3,N+4)',scale=480:270" -vsync 0 W/strip/f_%02d.png`, then contact-sheet it). The drop must change on the frame nearest its timestamp, together with the kick lamp.
+
+### 6. Verify on a clean clip, then render everything
+```bash
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --start 138 --end 158 --preset veryfast --out W/clip.mp4
+W/venv/bin/python $SK/scripts/verify_sync.py --workdir W --video W/clip.mp4 --offset 138
+W/venv/bin/python $SK/scripts/render.py --workdir W --scene W/scene.py --out W/final.mp4    # run in background
+W/venv/bin/python $SK/scripts/verify_sync.py --workdir W --video W/final.mp4
+W/venv/bin/python $SK/scripts/make_notes.py --workdir W --video W/final.mp4 --mapping W/mapping.md --out W/NOTES.md
+```
+Pass criteria: kick, beat and section `peak_lag == 0`; audio-vs-source lag 0 samples at start, middle and end; `max_flashes_per_second <= 3`; beats with a visible hit close to 100% in non-silent passages. Deliver the MP4 and NOTES.md next to the source song, or wherever the user asks.
+
+## Environment notes
+- **GPU needs the sandbox off.** On macOS, `moderngl.create_standalone_context()` fails inside the Claude Code sandbox with "cannot choose pixel format". Run render, stills and smoke tests with the sandbox disabled. Analysis and verification run fine sandboxed.
+- **Speed.** On an M1 Max a 1080p60 render runs at about 20-28 fps (libx264 `slow`, CRF 18), so a 3.5-minute song takes about 10 minutes. Always run the full render in the background.
+- The output is H.264 High, yuv420p, BT.709 tv-range tags, CRF 18, AAC 320k 48 kHz, `+faststart`. Grain plus TPDF dither in the final shader prevents banding.
+
+## Rules that keep it honest (and why)
+- **Every moving parameter reads the timeline.** Cyclic motion uses `tl.beatpos` (phase-locked); non-cyclic drift uses `tl.flow` or highway travel scaled by `tl.activity`, so silence means stillness. Never use a raw clock. That is what makes a muted viewer able to tap along.
+- **Hits happen on the transient frame.** Envelopes jump on the frame nearest the event and only decay afterwards. Beats are snapped to kick transients, so kick, beat and section visuals share a frame. Do not smooth event envelopes; smooth only continuous bands (fast attack, slow release).
+- **The highway trick.** Place anything that "arrives" at depth `D(te) - D(t) + ZS`, where `D` is integrated travel. It crosses the strike plane exactly when it sounds, at any speed, including during accelerating builds.
+- **Transitions land on the boundary frame.** Start iris wipes and surges at `sec_time == 0`. Anticipation (a build's suction, countdowns) may precede the boundary, but the change itself may not.
+- **Photosensitivity.** Keep full-screen additive flashes tiny (<= 0.02 linear); use exposure surges instead, which keep contrast. Put strobing detail in small elements, and check `max_flashes_per_second`.
+- **Title-safe.** HUD text stays within 90% of the frame (|x| <= 864, |y| <= 486 px from the centre at 1080p).
+
+## Token-saving habits
+- Review frames via contact sheets and filmstrips, never one PNG per Read.
+- Print compact tables (`inspect_analysis.py`) instead of dumping JSON.
+- Edit scene parameters surgically (small python/sed replacements) and re-render only the affected stills.
+- Do not re-derive the analysis heuristics or the engine. If they fail on a song, fix the specific parameter the references point to.
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<tool-use-id>toolu_01FR2WkGhEkyH21746AxUxkR</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The full render is running in the background. I'm waiting for it to finish.</result>
+<usage><subagent_tokens>201923</subagent_tokens><tool_uses>38</tool_uses><duration_ms>1218850</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 1500 of 15073 frames done at about 4.7 fps, so roughly 48 minutes left. The GPU is shared with the other renders. I'll wait for it to finish.</result>
+<usage><subagent_tokens>201656</subagent_tokens><tool_uses>38</tool_uses><duration_ms>1524473</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3bc70973cb07ab38</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Bad Boys" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>I'll wait for render progress events.</result>
+<usage><subagent_tokens>220178</subagent_tokens><tool_uses>46</tool_uses><duration_ms>1635785</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 3000 of 15073 frames done at 4.7 fps, with about 42 minutes left.</result>
+<usage><subagent_tokens>201959</subagent_tokens><tool_uses>38</tool_uses><duration_ms>1841298</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 4500 of 15073 frames done, with about 34 minutes left.</result>
+<usage><subagent_tokens>202254</subagent_tokens><tool_uses>38</tool_uses><duration_ms>2080568</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3bc70973cb07ab38</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Bad Boys" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Waiting.</result>
+<usage><subagent_tokens>219712</subagent_tokens><tool_uses>46</tool_uses><duration_ms>2169811</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 6000 of 15073 frames done, with about 28 minutes left.</result>
+<usage><subagent_tokens>202549</subagent_tokens><tool_uses>38</tool_uses><duration_ms>2329383</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 7500 of 15073 frames done, with about 22 minutes left.</result>
+<usage><subagent_tokens>202844</subagent_tokens><tool_uses>38</tool_uses><duration_ms>2532225</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac0b9b8984d1f1846</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Event Horizon" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The full render is running in the background; I'll continue once it completes.</result>
+<usage><subagent_tokens>254477</subagent_tokens><tool_uses>75</tool_uses><duration_ms>2641093</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3bc70973cb07ab38</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Bad Boys" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Waiting.</result>
+<usage><subagent_tokens>219986</subagent_tokens><tool_uses>46</tool_uses><duration_ms>2717671</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 9000 of 15073 frames done, with about 18 minutes left.</result>
+<usage><subagent_tokens>203139</subagent_tokens><tool_uses>38</tool_uses><duration_ms>2834408</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The render is still running and I'm watching for it to finish.</result>
+<usage><subagent_tokens>203826</subagent_tokens><tool_uses>39</tool_uses><duration_ms>3023297</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 9600 of 15073 frames done, with about 17 minutes left. The monitor is now set to report only when the render finishes or fails.</result>
+<usage><subagent_tokens>204140</subagent_tokens><tool_uses>39</tool_uses><duration_ms>3025256</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3bc70973cb07ab38</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Bad Boys" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Waiting for completion.</result>
+<usage><subagent_tokens>220665</subagent_tokens><tool_uses>47</tool_uses><duration_ms>3441684</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac0b9b8984d1f1846</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Event Horizon" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The "Event Horizon" visualizer is rendered and delivered. It passes every sync and photosensitivity check, and one softer target falls short: 75% of beats get a visible hit against "close to 100%".
+
+**Output files**
+- `/Users/vojta/Downloads/voho/Event Horizon - visualizer.mp4` (577 MB)
+- `/Users/vojta/Downloads/voho/Event Horizon - visualizer NOTES.md`
+- 1920x1080, 60 fps, H.264 yuv420p CRF 18, AAC 320k 48 kHz, 14275 frames, 237.917 s against a song length of 237.918 s.
+- The file had no tags, so the title is "Event Horizon" and the artist is "voho".
+
+**BPM:** 135.4, 4/4 (local tempo 134.95–138.92). The beat grid lines up with the kicks.
+
+**Sections**
+
+| # | Section | Time (s) | Look |
+|---|---|---|---|
+| 1 | intro | 0–9.93 | empty space; title and artist appear |
+| 2 | build 1 | 9.93–15.26 | matter spirals in, disk forms |
+| 3 | drop 1 | 15.26–49.04 | glowing black hole with its disk |
+| 4 | bridge 1 | 49.04–93.38 | spiral galaxy |
+| 5 | build 2 | 93.38–107.49 | dive down a gravity well, bar countdown |
+| 6 | drop 2 | 107.49–114.60 | gravity well at full speed |
+| 7 | chorus 1 | 114.60–130.52 | camera skims the disk, words on downbeats |
+| 8 | build 3 | 130.52–133.59 | gravity well, countdown |
+| 9 | drop 3 | 133.59–139.26 | gravity well, violet accent arrives |
+| 10 | bridge 2 | 139.26–145.48 | time freezes |
+| 11 | build 4 | 145.48–150.82 | gravity well, countdown |
+| 12 | drop 4 | 150.82–174.80 | black hole, violet |
+| 13 | chorus 2 | 174.80–190.82 | disk skim with violet and words |
+| 14 | bridge 3 | 190.82–196.15 | galaxy again |
+| 15 | build 5 | 196.15–199.71 | gravity well, countdown |
+| 16 | drop 5 (finale) | 199.71–228.15 | alternates gravity well and black hole every 4 bars |
+| 17 | outro | 228.15–237.92 | final title card |
+
+**Visual identity:** The whole song is a fall into a black hole. The recurring motif is the event horizon: a black disc with a thin ring of light, crossed by a tilted glowing disk whose far side is bent up over the top. Everything near the hole is bent by a simulated gravitational lens: the stars, the disk, the galaxy and the title typing on behind the hole. Colours are gold and white-hot against ice-blue, with violet held back from drop 3 onward. The galaxy bridges switch to cold teal, and the "time stops" bridge goes nearly monochrome. A corner readout counts the distance to the horizon down from 64 to 1.00, which it reaches at the outro. The last frame is the still black hole with "EVENT HORIZON / VOHO" underneath.
+
+**verify_sync results (full video)**
+- **Timing lag:** 0 frames for kick (315), beat (536), downbeat (134), snare (316), hat (1601) and section changes (16).
+- **Audio alignment:** 0 samples (0.0 ms) at start (15.2 s), middle (118.31 s) and end (230.3 s).
+- **Flashes:** at most 3 per second (limit ≤ 3); the worst window starts at 227.9 s.
+- All four automated checks pass.
+
+**Caveats**
+- **Beats with a visible hit: 0.754.** The drops, builds and choruses score close to 100%. The galaxy bridge at 49–93 s has no kick and reacts to beats only with a small ring pulse and a wave through the spiral arms, which the check barely registers.
+- **Section fix:** The stock analysis split the song into fragments, including a 0.44 s "drop" at 15.26 s. I fixed this with one extra rule in a local copy of the analysis script (`analyze_eh.py`; the shared skill is unchanged): filtered "breakdowns" shorter than 4 bars are merged back into the drop. Every timestamp is still computed from the audio, none by hand.
+- **Analysis crash:** The first analysis run segfaulted inside a shared cache directory. Pointing `NUMBA_CACHE_DIR` at the work directory fixed it.
+- **Speed tip for the other three renders:** with the machine shared, numpy's multithreaded maths thrashed and rendering dropped to 3–5 fps. Setting `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1` brought it back to about 25–30 fps. The full render still averaged about 9 fps while the other jobs ran.
+- The first half-second is almost black with a single point of light. That is the intended opening, not a fault.
+
+Everything else is in the work folder `REDACTED`, including `scene.py`, `mapping.md` and `verify.json`.</result>
+<usage><subagent_tokens>261972</subagent_tokens><tool_uses>79</tool_uses><duration_ms>4339350</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>I'm re-rendering the full song. The first render failed the photosensitivity check: it hit 4 flashes/s at 25.2 s, where a kick and a snare land together. I've toned down the kick-gate and snare brightness, and a test clip of that passage now shows 0 flashes. The render will take about 55 minutes.</result>
+<usage><subagent_tokens>212797</subagent_tokens><tool_uses>46</tool_uses><duration_ms>4712527</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<tool-use-id>toolu_011V2qDWSxkVTASeVbrQ7sUS</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>I followed the tip: the re-render was still at frame 0, so I stopped it and restarted it with `OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1`. It's running in the background now, and I'll wait for it to finish.</result>
+<usage><subagent_tokens>214516</subagent_tokens><tool_uses>51</tool_uses><duration_ms>4741911</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The re-render is much faster now: 300 of 15073 frames done at 19.4 fps, with about 13 minutes left. I'll wait for it to finish.</result>
+<usage><subagent_tokens>214520</subagent_tokens><tool_uses>51</tool_uses><duration_ms>4754182</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>That notice came from the old monitor on the stopped render, so it can be ignored. The new monitor is still watching the current re-render.</result>
+<usage><subagent_tokens>214831</subagent_tokens><tool_uses>51</tool_uses><duration_ms>4823685</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a3bc70973cb07ab38</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Bad Boys" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The Bad Boys visualizer is finished, and the full video passes every sync and flash check: hits land on the exact frame, the audio is sample-aligned at start, middle and end, and flashes peak at 2/s.
+
+**Files**
+- `/Users/vojta/Downloads/voho/Bad Boys - visualizer.mp4`: 1920x1080, 60 fps, H.264 yuv420p CRF 18, AAC 320k 48 kHz, 234.000 s (14040 frames), 555 MB.
+- `/Users/vojta/Downloads/voho/Bad Boys - visualizer NOTES.md`
+- The WAV has no tags, so the title is "Bad Boys" and the artist "voho".
+
+**BPM:** 100.0, steady (99.8–100.8), 4/4. The groove is hip-hop / breakbeat: off-beat kicks over a sub bass that never lets up, snare on beats 2 and 4, and constant fast hi-hats.
+
+**Sections**
+| # | Time (s) | Section | Look |
+|---|---|---|---|
+| 1 | 0–16.8 | intro | "Dispatch": harbour skyline whose buildings move with the spectrum; the badge draws on; the title types out one letter per hi-hat |
+| 2 | 16.8–26.4 | build | "Descent": helicopter drops from the sky to street level |
+| 3 | 26.4–64.8 | drop 1 | Street chase, "BAD BOYS" slam |
+| 4 | 64.8–74.4 | bridge | "Stakeout": rainy overhead city; focus follows the treble |
+| 5 | 74.4–84.0 | build | Descent |
+| 6 | 84.0–100.8 | drop 2 | Chase, "UNIT 2" |
+| 7 | 100.8–108.0 | bridge | Spinning 3D badge inside siren beams |
+| 8 | 108.0–115.2 | build | Badge build |
+| 9 | 115.2–124.8 | drop 3 | Chase, "UNIT 3" |
+| 10 | 124.8–132.0 | bridge | **"Lineup"** (the big shift): flat front view, cold indigo; five suspects whose heights are the five frequency bands |
+| 11 | 132.0–139.2 | build | Lineup build |
+| 12 | 139.2–168.0 | drop 4 | Chase, "UNIT 4", with an upside-down city overhead and red accents |
+| 13 | 168.0–172.8 | bridge | Badge |
+| 14 | 172.8–177.6 | build | Badge build |
+| 15 | 177.6–189.6 | drop 5 | Chase, "UNIT 5" |
+| 16 | 189.6–204.0 | chorus | "Air support": helicopter view over the whole city |
+| 17 | 204.0–216.0 | verse (finale) | "ALL UNITS": every layer at once |
+| 18 | 216.0–234.0 | outro | The camera climbs away as the city fades; the lockup draws on at 225.6 s and holds still to the end |
+
+**Visual identity:** "Night Pursuit": a wireframe city in sodium-amber and police-blue on blue-black, with ice-cyan rain for the hi-hats and siren red kept for small accents and the late escalation. The recurring motif is a six-point sheriff's **badge star**. It is the gate the camera drives through on every kick, the pattern cast by the searchlight, the spinning badge in the bridges, the build countdown (its points light up beat by beat) and the final BAD BOYS / VOHO lockup. The buildings' heights are the spectrum at the moment each one passes the camera; snares fire red and blue siren beams, and each drop adds pursuit cars ahead (UNIT 2 → ALL UNITS).
+
+**Sync verification (full video)**
+- Kick, beat, downbeat, snare, hi-hat and section-change hits all peak on the frame of the sound (lag 0).
+- Audio lag against the source is 0 samples at 25.9 s, 116.4 s and 216.1 s.
+- Max flashes per second is 2, worst at 84.0 s (limit is 3).
+- Duration matches the song exactly: 234.0 s.
+
+**Caveats**
+- **Visible hit on each beat:** 77.6% across the whole song, below the "close to 100%" target. The 20-second test clip around drop 4 scored 97%. My guess is the misses fall in the quiet stretches (intro, stakeout, lineup, outro fade), but I didn't break it down by section.
+- **Analysis script:** the stock `analyze.py` crashed twice, so I ran a patched local copy in the work dir (the skill folder isn't writable from here).
+  - It segfaulted in librosa's beat tracker until I set `NUMBA_CACHE_DIR`.
+  - It then failed on a NaN in the audio level calculation, which I fixed.
+- **Kick detection:** the stock detector found almost no kicks because the constant sub hides them. I lowered its thresholds, giving 242 kicks and a sensible section map.
+- **Snares:** only about 50–60% of the beat-2/4 snares are detected in the drops. The siren beams therefore also fire on grid beats 2 and 4 inside the chase and helicopter sections, so the red/blue rhythm stays steady.
+- **Encoding:** I used the x264 `medium` preset rather than `slow` to save time on the shared machine; quality is set by CRF 18 either way. The render took about 53 minutes at ~4.5 fps.
+
+Everything else (`scene.py`, `mapping.md`, `timeline.json`, verify JSONs) is in `REDACTED`.</result>
+<usage><subagent_tokens>225823</subagent_tokens><tool_uses>49</tool_uses><duration_ms>4903908</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 3000 of 15073 frames done at 14.2 fps, with about 14 minutes left.</result>
+<usage><subagent_tokens>215140</subagent_tokens><tool_uses>51</tool_uses><duration_ms>4950165</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>Still rendering: 9000 of 15073 frames done, with about 6 minutes left.</result>
+<usage><subagent_tokens>215441</subagent_tokens><tool_uses>51</tool_uses><duration_ms>5295161</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>This agent stopped with background work of its own still running. It may resume on its own when that work completes or reports, and the same task-id notifies again if it does; the result below may be interim.</note>
+<result>The Night Blur visualizer is finished and in your Downloads folder. The final render passes every check in the skill's pass criteria. The first full render failed the flash limit, so I toned it down and re-rendered.
+
+**Outputs**
+- `/Users/vojta/Downloads/voho/Night Blur - visualizer.mp4`: 1920x1080 at 60 fps, H.264 yuv420p CRF 18, AAC 320k 48 kHz. It runs 251.217 s (15073 frames) against a 251.215 s song, which is within one frame.
+- `/Users/vojta/Downloads/voho/Night Blur - visualizer NOTES.md`: BPM, sections, the audio-to-visual mapping, verification results and caveats.
+- The file had no title/artist tags, so it uses "Night Blur" / "voho".
+
+**BPM:** 107.0, steady all the way through, in 4/4. The first downbeat is at 1.72 s.
+
+**Sections:**
+
+| # | Section | Start |
+|---|---|---|
+| 1 | intro | 0:00.00 |
+| 2 | build 1 | 0:10.67 |
+| 3 | drop 1 | 0:17.40 |
+| 4 | build 2 (1-bar fill) | 0:39.82 |
+| 5 | drop 2 | 0:42.07 |
+| 6 | chorus 1 | 1:13.48 |
+| 7 | verse | 1:31.41 |
+| 8 | bridge | 1:53.85 |
+| 9 | build 3 | 2:09.56 |
+| 10 | drop 3 | 2:18.52 |
+| 11 | chorus 2 | 2:49.92 |
+| 12 | build 4 | 3:12.35 |
+| 13 | drop 4 (finale) | 3:16.83 |
+| 14 | breakdown | 3:46.00 |
+| 15 | outro | 3:54.92 – 4:11.21 |
+
+**Look and motif:** The world is a night motorway seen through a camera viewfinder at a slow shutter. Sodium streetlamps sit on the beat grid, light trails streak past, and a skyline is built from the spectrum, in ice blue, sodium amber and lilac on indigo-black. Rose is held back for the late drops, and the bridge turns monochrome moonlight silver. The one recurring motif is a 7-blade camera aperture. It appears as:
+- the viewfinder overlay, which snaps open on kicks;
+- the gates on the road, which kicks open as they reach the camera;
+- the moon over the chorus and the lens stack in the verse;
+- the seven-avenue city map seen top-down in the bridge;
+- the build countdown, which closes the iris one f-stop per bar;
+- the transition wipe, and the final title/artist lockup.
+
+Words smear into light trails instead of shattering, and the last phrases of the finale fold into a 7-fold kaleidoscope. The last frame is a clean aperture + NIGHT BLUR + VOHO lockup.
+
+**Sync verification (final file):**
+- **Peak lag:** kick, beat, downbeat and section changes all land on the exact frame (lag 0).
+- **Audio alignment:** 0 samples off the source at start (17.43 s), middle (138.27 s) and end (232.78 s).
+- **Flashes:** at most 2 per second, worst at 226.05 s; the limit is 3.
+
+**Caveats:**
+- **Flash fix:** the first full render hit 4 flashes/s at 0:25.2, where a kick and a snare land together. I dimmed the kick gates and snare signs and cut the snare brightness boost. The re-render is at 2/s, but hits in the drops are a little less punchy than in the first version.
+- **Snare and hi-hat timing:** their visuals peak 1 frame after the sound. These are small accent elements and aren't part of the pass criteria.
+- **Beats with a visible hit:** 77%. That count covers the whole song, including the kickless bridge and about 14 s of silence at the end where the image holds still on purpose. I haven't broken the figure down by section.
+- **Section detection:** the stock analysis split this track into 1–2 bar slivers because its kick sits under a sidechained bass. I lowered one threshold (2 kicks per bar instead of 3) in a local copy, `analyze_nb.py`, in the work folder; everything else is computed.
+- **Setup issue the other agents may hit:** the shared analysis script crashed with a segfault until I pointed its numba cache (`NUMBA_CACHE_DIR`) at a folder inside the work directory.
+
+Everything else is in the work folder, including an earlier full render (`final_v1.mp4`) that fails the flash check: `REDACTED`</result>
+<usage><subagent_tokens>221815</subagent_tokens><tool_uses>55</tool_uses><duration_ms>5655022</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a73bf35cb514645ea</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Ngizula" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The Ngizula visualizer is rendered and delivered, and every required `verify_sync.py` check passed: kicks, beats and sections land on the exact frame, the audio matches the source at start, middle and end, and flashes stay under the limit.
+
+**Files**
+- /Users/vojta/Downloads/voho/Ngizula - visualizer.mp4 (1920x1080, 60 fps, H.264 High yuv420p CRF 18, AAC 320k 48 kHz, 13027 frames). The audio track is 217.11 s, matching the song; the container reads 217.117 s because the last video frame ends 7 ms after the audio.
+- /Users/vojta/Downloads/voho/Ngizula - visualizer NOTES.md
+
+**BPM:** 123.0 in 4/4 (local tempo 121.8–124.1). The WAV has no tags, so the title is "Ngizula" and the artist "voho".
+
+**Sections**
+| # | Time (s) | Section | Visual world |
+|---|---|---|---|
+| 1 | 0.00–2.49 | intro | sigil: the diamond traces itself |
+| 2 | 2.49–4.44 | riser (build 1) | sigil: beads string on, camera pushes in |
+| 3 | 4.44–12.23 | kick intro ("breakdown") | drum skin: each kick sends a beaded diamond shockwave |
+| 4 | 12.23–20.04 | interlude (intro 2) | night savanna under a diamond moon; the title beads on one letter per hat |
+| 5 | 20.04–41.49 | build 2 (kicks enter at 27.85) | the path: footstep beads and diamond gates, countdown chevrons |
+| 6 | 41.49–90.24 | drop 1 | beadwork tunnel, one layer added per phrase |
+| 7 | 90.24–117.61 | bridge | the loom (see motif paragraph) |
+| 8 | 117.61–156.63 | build 3 (kicks re-enter at 127.35) | camera tilts down from the loom onto the path |
+| 9 | 156.63–201.51 | drop 2 | full tunnel with a pink accent, a counter-rotating inner lattice and one kaleidoscope phrase |
+| 10 | 201.51–217.11 | outro | resolves to the lockup |
+
+**Identity and motif:** The look is Zulu beadwork at night ("Ngizula" means "I wander"): glowing thread and beads in ochre and turquoise with bone highlights on indigo, with bead pink held back for drop 2. The one motif is a bead diamond: a beaded rhombus with an inner diamond, a core bead, triangle teeth and a fringe whose strand lengths follow the live spectrum. It is the sigil, the drum skin, the moon, every gate, the tunnel's cross-section, the section-transition wipe, the HUD beat lamps and the final lockup. The bridge switches to a top-down, moonlit turquoise view: a needle threads every onset as a bead along a diamond spiral, one lap per bar, and the camera rises to reveal the finished mandala. The last frame is a still lockup of the diamond, NGIZULA and VOHO.
+
+**`verify_sync.py` on the final file**
+- **Peak lags:**
+  - kick 0 (contrast 5.8)
+  - beat 0
+  - downbeat 0
+  - section 0
+  - snare 0
+  - hat 1 frame (hats are not part of the pass criteria)
+- **Audio vs source:** 0 samples off at 4.41 s, 89.79 s and 202.96 s.
+- **Max flashes per second:** 2 (limit is 3).
+
+**Caveats**
+- **Beats with a visible hit: 75%.** The skill aims for close to 100% in non-silent passages. The misses are in the sparse, kick-less stretches (interlude, bridge, outro decay), where the beat only shows in small elements.
+- **Analysis script bug:** the bundled `analyze.py` crashed on this WAV (a numerical bug at digital silence meant no kicks were detected). I ran a patched copy in the work directory that clamps one value; I didn't change the skill file, and section times are still computed, not hand-set. It also only runs with the sandbox off, because the beat tracker segfaults inside it.
+- **First full render failed the flash check** (max 6/s in the kick intro, build 2 end, early bridge and drop 2). I toned those effects down and re-rendered; the numbers above are from the second render.
+- **File size is 728 MB** (about 27 Mbps), which is normal for CRF 18 with film grain but large to upload.
+
+The work files, including `scene.py` and `mapping.md`, are in the work directory you gave me (`…/scratchpad/viz/ngizula`).</result>
+<usage><subagent_tokens>241553</subagent_tokens><tool_uses>76</tool_uses><duration_ms>6137030</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a64674649204ca8b1</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Agent "Visualizer: Night Blur" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>That was just the progress monitor timing out. The render finished before it expired, so there's nothing new: the MP4 and notes are in `/Users/vojta/Downloads/voho/` as reported above.</result>
+<usage><subagent_tokens>222150</subagent_tokens><tool_uses>55</tool_uses><duration_ms>6544605</duration_ms></usage>
+</task-notification>
+
+---
+
+did you use the skill?
+
+---
+
+can you update the skill in this way?
+
+1) work with song title (if not specified, use file name) - build initial theme, colors and topic based on that
+2) if cover image is specified, use it also
+3) do not put ANY TEXT except artist name and song name
+4) do not put any bpm or beat counters, focus only on the scene itself
+5) you can use spectrograpf or osciloscope as starting point for visualisation
