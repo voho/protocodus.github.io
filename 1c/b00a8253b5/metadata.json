@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "1cb00a8253b5",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/app-preload.js",
+    "fun/transport/app.js",
+    "fun/transport/build.css",
+    "fun/transport/design-tokens.js",
+    "fun/transport/model.js",
+    "fun/transport/places.css",
+    "fun/transport/renderer.js",
+    "fun/transport/settlements.js",
+    "fun/transport/tests/city-browser-check.mjs",
+    "fun/transport/tests/controls-browser-check.mjs",
+    "fun/transport/tests/module-preload.test.mjs",
+    "fun/transport/tests/property-browser-check.mjs",
+    "fun/transport/tests/town-forecast.test.mjs",
+    "fun/transport/town-forecast.js",
+    "fun/transport/town-market.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1c/b00a8253b5/0/metadata.json",
+      "transcript": "/1c/b00a8253b5/0/full.jsonl",
+      "context": "/1c/b00a8253b5/0/context.md",
+      "content_hash": "/1c/b00a8253b5/0/content_hash.txt",
+      "prompt": "/1c/b00a8253b5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
