@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3b4727996380",
+  "session_id": "495d27df-aecc-47c3-bdc5-ab2b4fc2d55d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T03:19:18.191607Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tests/vehicle-models.test.mjs",
+    "fun/transport/vehicle-models.js",
+    "fun/transport/app.js",
+    "fun/transport/model.js",
+    "fun/transport/tests/cohesion-browser-check.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/index.html",
+    "fun/transport/tests/compact-play-browser-check.mjs",
+    "fun/transport/tests/company-browser-check.mjs",
+    "fun/transport/tests/notices-browser-check.mjs",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/headlines.js",
+    "fun/transport/routes.css",
+    "fun/transport/tests/headlines-browser-check.mjs",
+    "fun/transport/tests/headlines.test.mjs",
+    "fun/transport/tests/route-year-profit.test.mjs",
+    "fun/transport/ui-notices.js",
+    "fun/transport/tests/evolution-browser-check.mjs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "67f9d64b5ef3",
+  "checkpoint_transcript_start": 682,
+  "transcript_lines_at_start": 682,
+  "token_usage": {
+    "input_tokens": 194,
+    "cache_creation_tokens": 398482,
+    "cache_read_tokens": 25417227,
+    "output_tokens": 280484,
+    "api_call_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T03:19:17.269312Z",
+    "agent_lines": 0,
+    "human_added": 271,
+    "human_modified": 91,
+    "human_removed": 0,
+    "total_committed": 271,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/495d27df-aecc-47c3-bdc5-ab2b4fc2d55d.jsonl"
+}
