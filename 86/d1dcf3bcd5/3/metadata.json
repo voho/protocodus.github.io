@@ -1,0 +1,53 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "86d1dcf3bcd5",
+  "session_id": "50727eda-456c-4b60-8840-93211cddc56a",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T17:17:17.396231Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tests/ui-states/refs.mjs",
+    "fun/transport/app.js",
+    "fun/transport/renderer.js",
+    "fun/transport/tests/ui-lint-baseline.json",
+    "fun/transport/ui-line.js",
+    "fun/transport/tests/next-goal-browser-check.mjs",
+    "fun/transport/DESIGN.md",
+    "fun/transport/index.html",
+    "fun/transport/tests/interconnection-browser-check.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/ui-refs.test.mjs",
+    "fun/transport/tests/ui-states/index.mjs",
+    "fun/transport/ui-motion.js",
+    "fun/transport/ui-refs.js",
+    "fun/transport/tests/plan-connection-browser-check.mjs",
+    "fun/transport/tests/ui-baseline/refs.json",
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app-preload.js",
+    "fun/transport/chains-view.js",
+    "fun/transport/refs.css"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "aba765aebbf7",
+  "checkpoint_transcript_start": 30,
+  "transcript_lines_at_start": 30,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T17:17:17.13366Z",
+    "agent_lines": 0,
+    "human_added": 1193,
+    "human_modified": 52,
+    "human_removed": 0,
+    "total_committed": 1193,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/50727eda-456c-4b60-8840-93211cddc56a.jsonl"
+}
