@@ -247,11 +247,11 @@ test('a town source reads its stock for route status, waiting counts and the for
   assert.equal(idle.state, 'waiting'); assert.equal(idle.word, 'Needs lumber');
   assert.equal(idle.detail, 'Deliver lumber to Ashford workshops. More trucks won’t help yet.');
   A.workshop = { input: { lumber: 40 }, output: { furniture: .5 } };
-  assert.equal(routeHealth(game, route).state, 'waiting');
+  assert.equal(routeHealth(game, route).state, 'running', 'waiting for the workshops to make more is normal running');
   assert.match(routeHealth(game, route).detail, /making more furniture/);
   A.workshop.output.furniture = 130.4;
-  const busy = routeHealth(game, route);
-  assert.equal(busy.waiting, 130); assert.equal(busy.state, 'busy');
+  const stocked = routeHealth(game, route);
+  assert.equal(stocked.waiting, 130); assert.equal(stocked.state, 'running');
   const draft = { mode: 'road', from: sa.id, to: sb.id, cargo: 'furniture' }, before = forecastRoute(game, draft);
   assert.equal(before.madeDay, 0); assert.equal(before.workshopsPending, true, 'no month has closed yet');
   A.workshop.input.lumber = 12;

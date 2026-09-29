@@ -4,6 +4,7 @@ import { createGame, build, buildPath, addRoute, removeRoute, tick, drainDeliver
 import { outputFill } from '../industry-simulation.js';
 import { emptyGame, line, advance, equivalent } from './helpers.mjs';
 import { borrow, repay, loanTerms, validateGame } from '../model.js';
+import { addRouteVehicle } from '../model.js';
 
 function freightFixture(mode = 'road') {
   const game = emptyGame();
@@ -147,14 +148,36 @@ test('a valid route cannot be purchased without its full vehicle cost', () => {
   assert.equal(game.vehicles.length, 0);
 });
 
-test('a full customer leaves cargo aboard and cannot pay for it repeatedly', () => {
-  const { game, destination, stops } = freightFixture();
+test('a full buyer still takes and pays for every load once, storing only what fits', () => {
+  const { game, source, destination, stops } = freightFixture();
   Object.assign(destination.inventory, { timber: 900, lumber: 900 });
   assert.equal(addRoute(game, { name: 'Full warehouse', mode: 'road', stops, cargo: 'timber' }).ok, true);
+  destination.activity = 100;
   advance(game, 40, tick);
-  assert.equal(game.totalDelivered, 0);
-  assert.equal(game.totalRevenue, 0);
-  assert.equal(game.vehicles[0].load, game.vehicles[0].capacity);
+  assert.ok(game.totalDelivered > 0 && game.totalRevenue > 0, 'deliveries to a full store still pay');
+  assert.equal(destination.received, game.totalDelivered, 'the surplus counts as received');
+  assert.ok(destination.inventory.timber <= 900 * destination.capacity + 1e-9, 'the store keeps only what fits');
+  assert.ok(destination.activity < 100, 'cargo that is not stored adds no activity, so expansion rules are unchanged');
+  assert.equal(source.shipped, game.totalDelivered + game.vehicles[0].load, 'every unit is paid once: delivered, or still aboard');
+});
+
+test('a factory short of an input still takes every delivery, so a simple route keeps earning', () => {
+  const game = emptyGame();
+  assert.equal(build(game, 'coal-mine', 10, 10).ok, true); assert.equal(build(game, 'steel-mill', 30, 9).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
+  assert.equal(build(game, 'bus-stop', 10, 12).ok, true); assert.equal(build(game, 'bus-stop', 30, 12).ok, true);
+  const route = addRoute(game, { name: 'Coal run', mode: 'road', stops: game.stations.map(station => station.id), cargo: 'coal' }).route;
+  for (let n = 1; n < 3; n++) assert.equal(addRouteVehicle(game, route.id).ok, true);
+  const mill = game.industries.find(industry => industry.kind === 'steel-mill');
+  let delivered = 0;
+  for (let quarter = 1; quarter <= 8; quarter++) {
+    advance(game, 91, tick);
+    assert.ok(route.delivered > delivered, `quarter ${quarter}: ${route.delivered} delivered, ${delivered} a quarter before`);
+    delivered = route.delivered;
+  }
+  assert.equal(mill.totalProduced || 0, 0, 'without iron ore the mill makes nothing');
+  assert.ok(mill.inventory.coal <= 900 * mill.capacity + 1e-9, 'its store keeps only what fits');
+  assert.ok(route.revenue > route.expenses, `fares ${Math.round(route.revenue)} against upkeep ${Math.round(route.expenses)}`);
 });
 
 test('a complex recipe waits for every input and consumes the recipe proportions', () => {

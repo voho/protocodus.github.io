@@ -868,8 +868,10 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     const city=endpoints[stopIndex];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;if(route.cargo==='passengers')recordVisitors(game,city,remaining);delivered=remaining;remaining=0;
   } else if(stopIndex===1) {
     const coverage=journeyCoverage(game,station,context);
+    let buyer=null;
     for(const industry of coverage.industries) {
       if(!INDUSTRIES[industry.kind].inputs[route.cargo])continue;
+      buyer??=industry;
       const available=Math.max(0,MAX_INVENTORY*industry.capacity-(industry.inventory[route.cargo]||0));
       const amount=Math.min(remaining,available);
       industry.inventory[route.cargo]=(industry.inventory[route.cargo]||0)+amount;
@@ -882,6 +884,8 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
       const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;receiver=city;bonusUnits+=recordTownSupply(game,city,route.cargo,remaining);remaining=0;
       (city.lastSupply??={})[route.cargo]=arrivalDay;
     }
+    // A buyer that lists the cargo takes and pays for the rest too; its store keeps only what fits, and only stored cargo adds activity.
+    if(remaining>0&&buyer){buyer.received+=remaining;delivered+=remaining;remaining=0;}
     if(delivered>0&&workshopRecipes(game).some(recipe=>recipe.output===route.cargo))maker=workshopMaker(game,route,coverage,context);
   }
   vehicle.load=remaining;

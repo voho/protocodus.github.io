@@ -13,7 +13,7 @@ export const TIER_NAMES = Object.freeze({ bronze: 'Bronze', silver: 'Silver', go
 export const CARGO_ORDER = Object.freeze(['passengers', 'timber', 'lumber', 'coal', 'iron', 'steel', 'grain', 'food', 'furniture', 'machinery', 'fish', 'oil', 'fuel', 'stone', 'sand', 'glass', 'copper', 'wire', 'cement', 'goods', 'mail']);
 export const CARGO_BIT = Object.freeze(Object.fromEntries(CARGO_ORDER.map((key, i) => [key, 1 << i])));
 export const CARGO_MASK = 2 ** CARGO_ORDER.length - 1;
-// Ships reach a load of 1,000 with the 1981 models, trains with the 2001 models.
+// Ships reach a load of 1,000 with the 1981 models, trains with the 2001 models. A vehicle is first 50 years past its model year in 2000.
 const HEAVY_YEAR = 1981, MUSEUM_YEAR = 2000, BIG_TOWN = 5000, FULL_CAPACITY = 3 - 1e-9;
 const NONE = Object.freeze([]);
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
@@ -69,7 +69,8 @@ export const ACHIEVEMENT_FAMILIES = Object.freeze([
     [rung('full-capacity-10', 'silver', 10, 'Ten industries at 300%'), rung('full-capacity-50', 'gold', 50, 'Fifty industries at 300%')]),
   family('years', 'company', 'Years in business', 'Your company opened on 1 January 1950.', 'month', 'years', game => calendarYear(game) - 1950,
     [rung('years-10', 'bronze', 10, 'Ten years'), rung('years-25', 'silver', 25, 'Silver jubilee'), rung('years-50', 'gold', 50, 'Golden jubilee'), rung('years-100', 'platinum', 100, 'A century')]),
-  secret('museum-piece', 'silver', 'month', 'Museum piece', 'A 1950 model is still running in 2000.', (game, state, ctx) => flag(calendarYear(game) >= MUSEUM_YEAR && ctx.vehicles.first)),
+  // Never missable: any model still running 50 years after its model year counts, so an upgrade never closes the door.
+  secret('museum-piece', 'silver', 'month', 'Museum piece', 'A vehicle still runs 50 years after its model year.', (game, state, ctx) => flag(calendarYear(game) >= MUSEUM_YEAR && calendarYear(game) - ctx.vehicles.model >= MUSEUM_YEAR - 1950)),
   secret('grand-central', 'silver', 'month', 'Grand central', 'Ten different destinations from one stop.', (game, state, ctx) => flag(ctx.partners >= 10)),
   secret('back-from-red', 'silver', 'day', 'Back from the red', 'After a month closed in the red, hold $1 million in 1950 dollars.', (game, state) => flag(state.red === true && game.money >= 1e6 && game.money >= priceFor(game, 1e6))),
   secret('heavy-haul', 'gold', 'month', 'Heavy haul', 'One vehicle carries a load of 1,000 at once.', (game, state, ctx) => flag(calendarYear(game) >= HEAVY_YEAR && ctx.vehicles.load >= 1000)),
@@ -102,7 +103,7 @@ function monthContext(game, { served = null, network = null, networkTotals = nul
       return towns;
     },
     get fullIndustries() { if (full < 0) { full = 0; for (const industry of game.industries) if (industry.capacity >= FULL_CAPACITY) full++; } return full; },
-    get vehicles() { if (!vehicles) { vehicles = { load: 0, first: false }; for (const v of game.vehicles) { if (v.load > vehicles.load) vehicles.load = v.load; if (!v.level) vehicles.first = true; } } return vehicles; },
+    get vehicles() { if (!vehicles) { vehicles = { load: 0, model: Infinity }; for (const v of game.vehicles) { if (v.load > vehicles.load) vehicles.load = v.load; if (1950 + (v.level || 0) < vehicles.model) vehicles.model = 1950 + (v.level || 0); } } return vehicles; },
   };
 }
 // The most distinct stops one stop reaches directly over running routes; two routes on one pair count once.

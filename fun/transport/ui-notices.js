@@ -62,10 +62,10 @@ export function newYearNotice(year, rate, { generation = true, model } = {}) {
   return generation ? `New for ${year}: ${vehicles} 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`;
 }
 
-/** Newly earned achievements as toasts: one each for one or two, one line at the highest tier for three or more. */
+/** Newly earned achievements as one toast: the record by name, or for two or more one line at the highest tier. */
 export function achievementNotices(ids) {
   const list = ids.map(achievementById).filter(Boolean);
-  if (list.length < 3) return list.map(a => ({ message: `${TIER_NAMES[a.tier]} achievement: ${a.title}.`, tier: a.tier }));
+  if (list.length < 2) return list.map(a => ({ message: `${TIER_NAMES[a.tier]} achievement: ${a.title}.`, tier: a.tier }));
   const tier = ACHIEVEMENT_TIERS[Math.max(...list.map(a => ACHIEVEMENT_TIERS.indexOf(a.tier)))];
   return [{ message: `${list.length} achievements earned: ${names(list.map(a => a.title))}.`, tier }];
 }

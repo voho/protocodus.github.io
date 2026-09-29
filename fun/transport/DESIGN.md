@@ -98,7 +98,7 @@ A state is always a glyph plus a word in the state colour, and the reason follow
 | State | On paper | On ink | Glyph | Examples |
 |---|---|---|---|---|
 | ok | `--ok #2F7A4B` (4.8:1) | `--ok-on-ink #8FD1A6` (7.7:1) | `ok` (check in a ring) | Running, done, +money |
-| warn | `--warn #8A5A00` (5.5:1) | `--warn-on-ink #F2C14E` (8.1:1) | `warn` (triangle) | Waiting, piling up, nearly full, buyer full |
+| warn | `--warn #8A5A00` (5.5:1) | `--warn-on-ink #F2C14E` (8.1:1) | `warn` (triangle) | Needs coal, piling up, nearly full |
 | error | `--error #B03A2A` (5.6:1) | `--error-on-ink #F4A08C` (6.7:1) | `error` (octagon), or `broken` for connections | Can't, not connected, no buyer, −money |
 | paused | `--ink-2` | `--on-ink-2` | `pause` | A route the player paused |
 | info | `--ink` | `--on-ink` | `info` | Neutral facts |
@@ -414,10 +414,12 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 | State | Words |
 |---|---|
 | ok | Running; Loading (vehicles waiting for a full load, the optional freight order) |
-| warn | Passengers waiting; Mail waiting; Cargo waiting; Buyer full; Needs coal (its supplier is short of an input, so more vehicles would not help) |
+| warn | Needs coal (its supplier is short of an input, so more vehicles would not help) |
 | error | Not connected (with the broken glyph); Stop missing; No supplier; No buyer; No passengers; No mail |
 | paused | Paused |
-| info | First trip (before the first delivery) |
+| info | First trip (before the first delivery); Stores full (the buyer's store for this cargo is full, and deliveries still pay) |
+
+Spare demand is not a state. This file first listed *Passengers waiting*, *Mail waiting* and *Cargo waiting* as warn states from two full fleet loads. But the starter bus has more passengers waiting than it can carry from its first day, and a town's pool keeps growing without service, so the first route card a player opens would ask for another bus forever (simplicity guardrail 0). A route with spare demand therefore reads *Running*. Once it has run a month with two full fleet loads of freight (at least 50) at its start, or four in its quieter town, one ink-2 line sits beside the stepper, "Room for more: 606 waiting", and its tooltip says about how many more another vehicle would carry a month. It has no glyph, no state colour and no action of its own, and it never counts toward Needs attention. For the same reason *Buyer full* became *Stores full* (info): a factory takes and pays for every delivery of a cargo it lists, even with a full store, and the reason only suggests its missing input.
 
 **Industries:**
 - Producing (ok).
@@ -463,7 +465,7 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 | How to connect ↗ | Removed. Guide is in the menu. |
 | Alderbrook · Pinehaven | Alderbrook – Pinehaven |
 | Stone quarry Stop 3 → Alderbrook Central | Stone quarry to Alderbrook |
-| Waiting 123 · About 5 loads. Add a bus. | Passengers waiting. "123 waiting. One more bus would carry them." [Add bus $18k] |
+| Waiting 123 · About 5 loads. Add a bus. | Running, with "Room for more: 123 waiting" in ink-2 beside the stepper once the route has run a month (6.4) |
 | + Bus · $18k | Add bus $18k |
 | 1 bus · 24 / 24 loaded | Passengers by road, 1 bus (load shown as capsules) |
 | Net earned −$154 | −$154 a month |
@@ -777,7 +779,7 @@ Working state (wide):
 │   (strip, fleet, figures, actions)     │     │ Makes    [stone] 48 a month      │
 ├────────────────────────────────────────┤     │ Stored   ▬▬▬░░░ 13 of 60         │
 │ [1] Alderbrook – Pinehaven      −$154  │     │ Served by [2] …to Alderbrook     │
-│     Passengers by road, 1 bus ▲ waiting│     ├──────────────────────────────────┤
+│     Passengers by road, 1 bus ✓ Running│     ├──────────────────────────────────┤
 └────────────────────────────────────────┘     │ Buyers of stone nearby           │
                                                │ [Alderbrook]  Served   14 tiles  │
                                                ├──────────────────────────────────┤

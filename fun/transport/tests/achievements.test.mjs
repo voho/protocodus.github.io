@@ -167,6 +167,9 @@ test('hidden records: museum piece, grand central, heavy haul and a nominal bill
   closeMonth(museum, 2000, 0);assert.equal(museum.achievements.unlocked['museum-piece'], dayOf(2000, 1, 1));
   const upgraded = fresh();upgraded.vehicles = [{ id: 'a', level: 45, load: 0 }, { id: 'b', level: 50, load: 0 }];
   closeMonth(upgraded, 2000, 0);assert.equal(upgraded.achievements.unlocked['museum-piece'], undefined);
+  // Never missable: upgrading the 1950 fleet closes no door, since any model still running 50 years after its model year counts.
+  closeMonth(upgraded, 2044, 10);assert.equal(upgraded.achievements.unlocked['museum-piece'], undefined, 'a 1995 model is 49 in 2044');
+  closeMonth(upgraded, 2045, 0);assert.equal(upgraded.achievements.unlocked['museum-piece'], dayOf(2045, 1, 1));
 
   const hub = (count, distinct) => { const game = fresh();game.routes = Array.from({ length: count }, (_, n) => route(`r${n}`, 'hub', `s${n % distinct}`));return game; };
   const ten = hub(10, 10);closeMonth(ten, 1950, 3);assert.ok(ten.achievements.unlocked['grand-central'] >= 0);
@@ -293,7 +296,8 @@ test('cost: a busy company’s month close stays under 8 ms and 100,000 days und
   let started = performance.now();
   for (let n = 0; n < 20; n++) stepAchievements(game, { closedMonth: 612, served, networkTotals });
   const month = (performance.now() - started) / 20;
-  assert.deepEqual(Object.keys(game.achievements.unlocked).sort(), ['delivered-100k', 'delivered-1m', 'delivered-10m', 'fleet-10', 'fleet-100', 'fleet-1000', 'full-capacity-10', 'full-capacity-50', 'network-1k', 'years-10', 'years-25', 'years-50'].sort());
+  // Its 1951 models run in 2001, 50 years on: a museum piece.
+  assert.deepEqual(Object.keys(game.achievements.unlocked).sort(), ['delivered-100k', 'delivered-1m', 'delivered-10m', 'fleet-10', 'fleet-100', 'fleet-1000', 'full-capacity-10', 'full-capacity-50', 'museum-piece', 'network-1k', 'years-10', 'years-25', 'years-50'].sort());
   assert.ok(month < 8, `month step ${month.toFixed(2)} ms`);
   started = performance.now();
   for (let n = 0; n < 1e5; n++) stepAchievements(game);
@@ -327,12 +331,10 @@ test('the dialog: six groups, 41 rows, five hidden ones until earned', () => {
   assert.equal((earned.match(/<strong>Hidden achievement<\/strong>/g) || []).length, 4);
 });
 
-test('notices: two records stay separate, three or more become one line at the top tier', () => {
+test('notices: one record is named, two or more on one day become one line at the top tier', () => {
   assert.deepEqual(achievementNotices([]), []);
-  assert.deepEqual(achievementNotices(['delivered-100k', 'fleet-100']), [
-    { message: 'Bronze achievement: 100,000 delivered.', tier: 'bronze' },
-    { message: 'Silver achievement: A hundred vehicles.', tier: 'silver' },
-  ]);
+  assert.deepEqual(achievementNotices(['delivered-100k']), [{ message: 'Bronze achievement: 100,000 delivered.', tier: 'bronze' }]);
+  assert.deepEqual(achievementNotices(['delivered-100k', 'fleet-100']), [{ message: '2 achievements earned: 100,000 delivered and A hundred vehicles.', tier: 'silver' }]);
   assert.deepEqual(achievementNotices(['fleet-10', 'fleet-100', 'fleet-1000']), [{ message: '3 achievements earned: Ten vehicles, A hundred vehicles and A thousand vehicles.', tier: 'gold' }]);
   assert.deepEqual(achievementNotices(['fleet-10', 'fleet-100', 'years-10', 'years-25', 'delivered-100m']), [{ message: '5 achievements earned: Ten vehicles, A hundred vehicles, Ten years and 2 more.', tier: 'platinum' }]);
   assert.deepEqual(achievementNotices(['no-such-record']), []);

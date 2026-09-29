@@ -124,10 +124,6 @@
 .route-condition .route-health{margin:0;min-width:0}
 .route-waiting:empty{display:none}
 .route-waiting{flex:0 0 auto;padding:0 8px;border-radius:var(--r-3);background:var(--well);color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption);white-space:nowrap}
-.route-waiting[data-state=busy]{background:var(--well);color:var(--warn)}
-.route-health[data-state=busy]{color:var(--warn)}
-.route-card:has(.route-waiting[data-state=busy]) [data-add-vehicle]:not(:disabled){border-color:var(--signal);background:var(--well);color:var(--warn)}
-.route-header .route-busy{color:var(--signal-ink)}
 .route-launch .route-separate{margin-top:8px}
 .route-forecast{margin:-8px 0 16px;padding:0 2px;color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small)}
 .route-forecast[hidden]{display:none}
@@ -219,3 +215,5 @@
 @media(max-width:700px),(pointer:coarse){
  .route-options>summary,.route-option{min-height:var(--control-touch)}
 }
+/* Spare demand: a quiet ink-2 line under the fleet, never a state or an orange call to action (DESIGN.md 6.4). */
+.route-vehicle-spec .route-room{grid-column:1/-1;min-width:0;color:var(--ink-2)}

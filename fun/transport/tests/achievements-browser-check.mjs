@@ -1,7 +1,7 @@
 // Achievements in a real browser: the dialog from the Game menu (six groups, nothing earned, five hidden rows, the
-// clock paused), one bronze toast with its medal and Open achievements, a burst of three as one gold toast that stays
-// 8 s, a gold record as a headline, a reload and an older save that celebrate nothing, the Company report's line, no
-// HUD badge and an unchanged goal card, and phone widths with no sideways scroll.
+// clock paused), one bronze toast with its medal and Open achievements, no second toast that game month, a burst of two
+// the next month as one gold toast that stays 8 s, a gold record as a headline, a reload and an older save that celebrate
+// nothing, the Company report's line, no HUD badge and an unchanged goal card, and phone widths with no sideways scroll.
 // Serve the repository root on a fresh no-store port first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -94,8 +94,21 @@ try {
   await delivered.screenshot({ path: `${output}/row-delivered-1440.png` });
   await closeDialog(page);
 
-  // 3. With headlines off, a fleet of 1,000 arrives as one grouped gold toast that stays 8 s.
+  // 3. At most one achievement toast a game month: ten vehicles later that month waits in the dialog.
+  const month = await page.evaluate(() => transport.game.lastMonth);
+  from = await toastCount(page);
+  await page.evaluate(() => { const g = transport.game, bus = g.vehicles[0]; for (let n = g.vehicles.length; n < 10; n++) g.vehicles.push({ ...bus, id: `early-${n}` }); transport.setSpeed(1); });
+  await page.waitForFunction(() => transport.game.achievements.unlocked['fleet-10'] !== undefined, undefined, { timeout: 8000 });
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => transport.setSpeed(0));
+  assert.equal(await page.evaluate(() => transport.game.lastMonth), month, 'still the same month');
+  assert.deepEqual(await achievementToasts(page, from), [], 'a second record in one month is not toasted');
+
+  // 4. The next month, with headlines off, a fleet of 1,000 arrives as one grouped gold toast that stays 8 s.
   await setHeadlines(page, false);
+  await page.evaluate(() => transport.setSpeed(8));
+  await page.waitForFunction(month => transport.game.lastMonth > month, month, { timeout: 15000 });
+  await page.evaluate(() => transport.setSpeed(0));
   from = await toastCount(page);
   await page.evaluate(() => { const g = transport.game, bus = g.vehicles[0]; for (let n = 1; n < 1000; n++) g.vehicles.push({ ...bus, id: `clone-${n}` }); transport.setSpeed(1); });
   await page.waitForFunction(from => window.__toasts.slice(from).some(t => /achievement/.test(t.className)), from, { timeout: 8000 });
@@ -103,7 +116,7 @@ try {
   await page.evaluate(() => transport.setSpeed(0));
   const fleet = await achievementToasts(page, from);
   assert.equal(fleet.length, 1, JSON.stringify(fleet));
-  assert.equal(fleet[0].text, '3 achievements earned: Ten vehicles, A hundred vehicles and A thousand vehicles.');
+  assert.equal(fleet[0].text, '2 achievements earned: A hundred vehicles and A thousand vehicles.');
   assert.match(fleet[0].className, /\btier-gold\b/);assert.match(fleet[0].medal, /medal--gold/);
   await page.locator('#toast-region .toast.tier-gold').screenshot({ path: `${output}/toast-gold-group-1440.png` });
   await page.waitForTimeout(Math.max(0, 6500 - (await page.evaluate(() => performance.now()) - shownAt)));
@@ -111,11 +124,12 @@ try {
   await page.waitForFunction(() => !document.querySelector('#toast-region .toast.tier-gold'), undefined, { timeout: 3000 });
   assert.ok(await page.evaluate(() => transport.game.headlines?.some(h => h.key === 'achievement:fleet-1000:gold')), 'News keeps the gold record');
 
-  // 4. With headlines on, a gold record is a headline card with Open achievements, and no toast.
+  // 5. With headlines on, a gold record is a headline card with Open achievements, and no toast.
   await setHeadlines(page, true);
   from = await toastCount(page);
   const cards = await page.evaluate(() => window.__headlines.length);
-  await page.evaluate(() => { transport.game.money = 1e9; transport.setSpeed(1); });
+  // A margin over the billion: a day's upkeep for the thousand-bus fleet must not drop it below before the day closes.
+  await page.evaluate(() => { transport.game.money = 1.1e9; transport.setSpeed(1); });
   await page.waitForFunction(cards => window.__headlines.length > cards, cards, { timeout: 8000 });
   await page.evaluate(() => transport.setSpeed(0));
   const card = (await page.evaluate(cards => window.__headlines.slice(cards), cards)).at(-1);
@@ -134,7 +148,7 @@ try {
   await page.screenshot({ path: `${output}/dialog-earned-bottom-1440.png` });
   await closeDialog(page);
 
-  // 5. The Company report counts them and opens the dialog; nothing shows on the HUD and the goal card is unchanged.
+  // 6. The Company report counts them and opens the dialog; nothing shows on the HUD and the goal card is unchanged.
   await openGameAction(page, 'company-button');
   await page.locator('.rating-achievements').waitFor();
   assert.match(await page.locator('.rating-achievements').innerText(), /^Achievements\s+5 of 41\s+Open$/);
@@ -146,7 +160,7 @@ try {
   assert.equal(await badges(page), 0, 'no HUD badge');
   assert.equal(await goal(page), goalBefore, 'the goal card never mentions achievements');
 
-  // 6. Persist, reload and Continue: nothing replays, and the dialog keeps five.
+  // 7. Persist, reload and Continue: nothing replays, and the dialog keeps five.
   await page.evaluate(() => transport.persist());
   await page.reload();
   await loadAutosaveFromMenu(page);
@@ -157,7 +171,7 @@ try {
   assert.match(await summary(page), /^5 of 41 earned$/);
   await closeDialog(page);
 
-  // 7. An older autosave without records is credited quietly: no toast, the stamps and 'Records began'.
+  // 8. An older autosave without records is credited quietly: no toast, the stamps and 'Records began'.
   // Leaving the page saves the company, so the save is edited at the start menu, before Continue.
   await page.reload();
   await page.waitForFunction(() => document.querySelector('#start-menu')?.open);
@@ -177,7 +191,7 @@ try {
   await closeDialog(page);
   await context.close();
 
-  // 8. Phones: the dialog never scrolls sideways and a toast fits.
+  // 9. Phones: the dialog never scrolls sideways and a toast fits.
   for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
     const phone = await browser.newContext({ viewport, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
     const small = await open(phone);

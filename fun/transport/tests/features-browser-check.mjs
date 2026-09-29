@@ -13,6 +13,12 @@ const watch = page => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
+// Text, borders and fills in the signal or warn colours (DESIGN.md 4.1 and 4.2) inside an element, as 'class colour'.
+const accents = locator => locator.evaluate(root => {
+  const probe = document.createElement('span'), colour = name => { probe.style.color = `var(${name})`; return getComputedStyle(probe).color; };
+  document.body.append(probe); const orange = new Set(['--signal', '--signal-ink', '--warn'].map(colour)); probe.remove();
+  return [root, ...root.querySelectorAll('*')].filter(el => el.getClientRects().length).flatMap(el => { const style = getComputedStyle(el); return [style.color, style.borderTopColor, style.backgroundColor].filter(value => orange.has(value)).map(value => `${el.className || el.tagName} ${value}`); });
+});
 async function openChains(page) {
   if (await page.locator('.main-nav').isVisible()) {
     await openGameAction(page, 'help-button');
@@ -259,6 +265,10 @@ try {
   await createWorldFromMenu(fleetPage);
   await fleetPage.evaluate(() => transport.setView('routes'));
   const starterCard = fleetPage.locator('.route-card[data-route-id]').first(), fleetMoney = await fleetPage.evaluate(() => transport.game.money);
+  // Spare demand is never a state: the starter card has no orange accent and never asks for a bus.
+  assert.deepEqual(await accents(starterCard), [], 'the starter card has no orange accent');
+  assert.doesNotMatch(await starterCard.innerText(), /Add a bus|Passengers waiting/i);
+  assert.equal(await starterCard.locator('[data-route-room]').isHidden(), true, 'no room line before the route has run a month');
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), true, 'the last vehicle is kept for retirement');
   await starterCard.locator('[data-add-vehicle]').click();
   assert.equal(await fleetPage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus adds a second bus to the starter route');
@@ -282,6 +292,15 @@ try {
   await fleetPage.waitForFunction(() => /% of full pay/.test(document.querySelector('[data-route-trip]').innerText));
   assert.match(await trip.innerText(), /^\d+ tiles, \d+ days\n\$[\d,]+ each, \d+% of full pay$/, 'a slow trip keeps less of the fare, and says how much');
   assert.match(await trip.locator('span').first().getAttribute('title'), /^Recent deliveries took \d+ days over \d+ tiles\. Each passenger pays \$[\d,]+ at today’s prices, \d+% of the full fare/);
+  // A quarter on, both towns hold four busloads: a quiet ink-2 line under the fleet, still no orange and no request.
+  const room = starterCard.locator('[data-route-room]');
+  await fleetPage.waitForFunction(() => document.querySelector('[data-route-room]')?.hidden === false);
+  assert.match(await room.innerText(), /^Room for more: [\d,]+ waiting$/);
+  assert.match(await room.getAttribute('title'), /^Another bus would carry about [\d,]+ more passengers a month\.$/);
+  assert.equal(await room.evaluate(el => { const probe = document.createElement('span'); probe.style.color = 'var(--ink-2)'; document.body.append(probe); const ink = getComputedStyle(probe).color; probe.remove(); return getComputedStyle(el).color === ink; }), true, 'the room line is ink-2');
+  assert.deepEqual(await accents(starterCard), [], 'room for more adds no orange');
+  assert.doesNotMatch(await starterCard.innerText(), /Add a bus|Passengers waiting/i);
+  assert.equal(await fleetPage.evaluate(() => document.querySelector('#offline-routes').hidden), true, 'room never counts as attention');
   await starterCard.screenshot({ path: `${output}/mobile-390-slow-trip-card.png` });
   await starterCard.locator('[data-remove-route]').click();
   assert.match(await fleetPage.locator('#modal').innerText(), /Its 2 buses sell for \$16,200/);

@@ -11,7 +11,7 @@ async function menu(page) { await page.locator('#game-menu-button').click(); awa
 async function dock(page, name) {
   const width = page.viewportSize().width;
   assert.equal(await page.locator('#active-tool-name').innerText(), 'Road');
-  assert.match(await page.locator('#active-tool-hint').innerText(), /Straight grades · flat turns/, 'touch players read the network rule');
+  assert.equal(await page.locator('#active-tool-hint').innerText(), 'Go straight up slopes and turn on flat ground.', 'touch players read the network rule');
   const buttons = await page.locator('#active-tool-dock button').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return { tool:el.dataset.dockTool, label:el.getAttribute('aria-label'), width:b.width, height:b.height, svg:!!el.querySelector('svg') }; }));
   assert.equal(await page.locator('#active-tool-dock').getAttribute('role'), 'toolbar');
   assert.ok(buttons.length >= 2 && buttons.length <= (width < 360 ? 2 : 3), `dock holds ${buttons.length} recent tools at ${width}px`);
@@ -63,7 +63,7 @@ try {
     assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'true', 'Choosing construction frees the map');
     assert.equal(await page.locator('#active-tool-bar').isVisible(), true);
     if (profile.name === 'desktop') {
-      assert.match(await page.locator('#active-tool-hint').innerText(), /Drag · straight grades only · flat turns/);
+      assert.equal(await page.locator('#active-tool-hint').innerText(), 'Drag to build. Go straight up slopes and turn on flat ground.');
       assert.equal(await page.locator('#active-tool-dock').isVisible(), false, 'a mouse at desktop width keeps the plain bar');
       await page.keyboard.press('s');
       assert.match(await page.locator('#active-tool-hint').innerText(), /5 tiles/, 'the stop hint names the catchment');

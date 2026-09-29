@@ -123,11 +123,11 @@ test('statuses share one shape: state, tone, word, reason, and the old label and
     assert.equal(typeof status.reason, 'string');sentence(status.detail, label);assert.equal(status.detail, plain(status.reason, namesIn(game)));
     if (status.fix) assert.ok(status.fix.action && status.fix.label, label);
   };
-  const ROUTE = ['Running', 'Passengers waiting', 'Cargo waiting', 'Buyer full', 'Not connected', 'Stop missing', 'No supplier', 'No buyer', 'No passengers', 'Paused', 'First trip', /^Needs [a-z ]+$/];
+  const ROUTE = ['Running', 'Loading', 'Stores full', 'Not connected', 'Stop missing', 'No supplier', 'No buyer', 'No passengers', 'No mail', 'Paused', 'First trip', /^Needs [a-z ]+$/];
   check(routeHealth(game, route), ROUTE, 'a new route');assert.equal(routeHealth(game, route).word, 'First trip');
   assert.equal(routeHealth(game, route).label, routeHealth(game, route).word, 'the old label stays equal to the word');
   game.industries[0].inventory.timber = 900;check(routeHealth(game, route), ROUTE, 'piling up');
-  assert.deepEqual([routeHealth(game, route).word, routeHealth(game, route).fix.action, routeHealth(game, route).fix.cost], ['Cargo waiting', 'add-vehicle', 18000]);
+  assert.deepEqual([routeHealth(game, route).state, routeHealth(game, route).word, routeHealth(game, route).fix], ['running', 'First trip', undefined], 'spare demand is never a state or a fix');
   route.active = false;check(routeHealth(game, route), ROUTE, 'broken');assert.deepEqual([routeHealth(game, route).word, routeHealth(game, route).tone, routeHealth(game, route).fix.action], ['Not connected', 'error', 'show-gap']);
   const INDUSTRY = ['Producing', 'Storage nearly full', 'Output piling up', 'Idle', /^Needs [a-z ]+$/];
   for (const site of game.industries) check(industryStatus(site, game), INDUSTRY, site.name);

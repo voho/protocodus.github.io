@@ -12,6 +12,7 @@ import { outputFill } from './industry-simulation.js';
 import { nextMilestone, progressText } from './milestones.js';
 import { workshopInputs, workshopOutputs, workshopRecipes } from './town-market.js';
 import { waitingForFullLoad } from './model.js';
+import { scheduledDays, travelTiles } from './economy-pricing.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
@@ -216,13 +217,12 @@ function endpointTowns(towns, stops) {
   }
   return best;
 }
-// Another vehicle pays only while at least two full loads wait for the fleet. Before its first delivery a route is on its first trip.
-// Reasons stay short: the route card already shows both stops.
+// A working route reads Running whatever waits for it: spare demand is routeCapacity's quiet opportunity, never a state.
+// Before its first delivery a route is on its first trip. Reasons stay short: the route card already shows both stops.
 const fleetCapacity = (game, route, stats) => stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0);
 function fleetHealth(game, route, stats, waiting, reason, known) {
-  const capacity = fleetCapacity(game, route, stats), noun = vehicleNoun(route.mode, route.cargo);
-  if (waiting < Math.max(50, 2 * capacity)) return route.delivered === 0 ? status(game, 'running', 'info', 'First trip', `The first ${noun} is on its way.`, { waiting, capacity }, known) : status(game, 'running', 'ok', 'Running', reason, { waiting, capacity }, known);
-  return status(game, 'busy', 'warn', route.cargo === 'passengers' ? 'Passengers waiting' : route.cargo === 'mail' ? 'Mail waiting' : 'Cargo waiting', `About ${count(Math.round(waiting / Math.max(1, capacity)), 'load')} waiting. Another ${noun} would carry more.`, { fix: { action: 'add-vehicle', label: `Add ${noun}`, cost: getVehiclePurchase(game, route.mode)?.cost ?? 0 }, waiting, capacity }, known);
+  const extra = { waiting, capacity: fleetCapacity(game, route, stats) };
+  return route.delivered === 0 ? status(game, 'running', 'info', 'First trip', `The first ${vehicleNoun(route.mode, route.cargo)} is on its way.`, extra, known) : status(game, 'running', 'ok', 'Running', reason, extra, known);
 }
 /** A full-load route's line at its loading stop from one scan: how many wait, and the head, the earliest arrival (array order on a tie). */
 export function fullLoadQueue(game, routeId) {
@@ -234,6 +234,23 @@ const NO_QUEUE = { count: 0, head: null };
 // Loading is the order at work, so it reads as running: the head's load, and a line behind it is the sign that one vehicle fewer would do.
 function loadingHealth(game, route, stats, { count: line, head }, waiting, known) {
   return status(game, 'running', 'ok', 'Loading', `Waiting for a full load, ${number(head.load)} of ${number(head.capacity)}${line > 1 ? `, with ${number(line - 1)} more in line` : ''}.`, { waiting, capacity: fleetCapacity(game, route, stats) }, known);
+}
+// A buyer with full stores still takes and pays for every delivery (unloadVehicle), so the route runs; the reason only suggests
+// what would set the buyer working: its missing inputs, or carrying its output away.
+function storesFull(game, route, buyer, extra, known) {
+  const definition = INDUSTRIES[buyer.kind], missing = Object.keys(definition.inputs).filter(key => key !== route.cargo && !(buyer.inventory?.[key] > 0)), made = cargoTokens(Object.keys(definition.outputs)), me = token('industry', buyer.id), cargo = cargoToken(route.cargo);
+  const reason = missing.length ? `Deliveries still pay. Supply ${cargoTokens(missing)} too and ${me} will make ${made}.` : outputFill(buyer) >= .5 ? `Deliveries still pay. Carry ${made} away from ${me} and it will use more ${cargo}.` : `Deliveries still pay while ${me} works through its ${cargo}.`;
+  return status(game, 'running', 'info', 'Stores full', reason, extra, known);
+}
+
+/** Spare demand as a quiet opportunity, never a state: {waiting, capacity, room, perMonth}. room holds once a working route has run a
+ * month and its start holds two full fleet loads (at least 50) of freight, or its quieter town four of passengers or mail. perMonth is
+ * what one more vehicle of today's model would carry a month, loading at both ends for town traffic. Pass the health already read. */
+export function routeCapacity(game, route, stats = null, health = routeHealth(game, route, stats)) {
+  const waiting = health.waiting ?? 0, capacity = health.capacity ?? fleetCapacity(game, route, stats), town = isTownTraffic(route.cargo);
+  const purchase = getVehiclePurchase(game, route.mode), trip = 2 * scheduledDays(route.mode, travelTiles(route.mode, route.path), purchase?.level);
+  const room = health.state === 'running' && health.word !== 'Loading' && game.day - (route.accountingStartDay ?? 0) >= 30 && waiting >= Math.max(50, (town ? 4 : 2) * capacity);
+  return { waiting, capacity, room, perMonth: purchase && trip > 0 ? Math.round(purchase.capacity * (town ? 2 : 1) * 30 / trip) : 0 };
 }
 
 export function routeHealth(game, route, stats = null) {
@@ -254,23 +271,23 @@ export function routeHealth(game, route, stats = null) {
   const townBuyer = towns.some(city => workshopInputs(game, city).includes(route.cargo) || TOWN_CARGO.includes(route.cargo) && !makers.includes(city)), cargo = cargoToken(route.cargo);
   if (!sources.length && !makers.length) return say('blocked', 'error', 'No supplier', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
   if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
-  if (!townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001)) {
-    return say('waiting', 'warn', 'Buyer full', `${token('industry', buyers[0].id)} has no room for more ${cargo}. Supply its other inputs, and carry its output away.`, {}, buyers);
-  }
+  // Full stores still take and pay for every delivery, so they give way to a supplier's warning and to a full-load line.
+  const full = !townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001);
   // Only a full-load route reads its line; vehicles waiting in it hold cargo that has not left yet.
   const queue = route.fullLoad === true ? stats?.queue ?? fullLoadQueue(game, route.id) : NO_QUEUE;
   const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0 && !(queue.count && waitingForFullLoad(vehicle))), nouns = capital(vehicleNoun(route.mode, route.cargo, 2));
   if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1) && !sources.length) {
     const inputs = workshopRecipes(game).filter(recipe => recipe.output === route.cargo).map(recipe => recipe.input), maker = makers[0], works = `${token('town', maker.id)} workshops`;
     if (!inputs.some(input => maker.workshop?.input[input] > 0)) return say('waiting', 'warn', `Needs ${cargoNames(inputs, 'or')}`, `Deliver ${cargoTokens(inputs, 'or')} to ${works}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
-    if (!queue.count) return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${works} are making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
+    if (!queue.count && !full) return say('running', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${works} are making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
   } else if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1)) {
     const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))], source = token('industry', sources[0].id);
     if (missing.length) return say('waiting', 'warn', `Needs ${cargoNames(missing)}`, `${source} needs ${cargoTokens(missing)} before it can make ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
-    if (!queue.count) return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
+    if (!queue.count && !full) return say('running', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
   }
   const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0) + makers.reduce((sum, city) => sum + Math.floor(city.workshop?.output[route.cargo] || 0), 0);
   if (queue.count) return loadingHealth(game, route, stats, queue, waiting, stops);
+  if (full) return storesFull(game, route, buyers[0], { waiting, capacity: fleetCapacity(game, route, stats) }, [...stops, ...buyers]);
   return fleetHealth(game, route, stats, waiting, route.fullLoad === true ? `${nouns} leave the start full, or after a month at most.` : `${nouns} load ${cargo} at the start and return for more.`, stops);
 }
 
@@ -285,13 +302,15 @@ export function nextProject(game, { source: preferred } = {}) {
     return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
-  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Keep your routes supplied and connected.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 } };
+  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 } };
   if (!freight.some(route => route.delivered > 0 && PROCESSED.has(route.cargo))) {
     const chain = memo(game, 'chain', `${siteKey(game)}:${game.routes.length}:${game.routes.at(-1)?.id}`, () => openProcessor(game));
     const pair = chain.supplied ? null : memo(game, 'factory', siteKey(game), () => factoryPair(game));
     if (pair) return { title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo' };
     if (chain.processor && chain.buyer) {
-      const name = siteName(chain.processor), next = chain.missing.length ? `${name} also needs ${cargoNames(chain.missing)}.` : chain.buyer.kind === 'city' ? `Towns buy ${cargoName(chain.cargo)}.` : recipe(chain.factory);
+      // A factory takes and pays for what it is sent even while it waits for another input, so the goal says so.
+      const name = siteName(chain.processor), supplied = Object.keys(INDUSTRIES[chain.processor.kind].inputs).filter(key => !chain.missing.includes(key));
+      const next = chain.missing.length ? `${name} also needs ${cargoNames(chain.missing)} to make ${cargoName(chain.cargo)}; ${cargoNames(supplied)} deliveries pay either way.` : chain.buyer.kind === 'city' ? `Towns buy ${cargoName(chain.cargo)}.` : recipe(chain.factory);
       return { title: `Carry ${cargoName(chain.cargo)} onward`, detail: `Carry ${cargoName(chain.cargo)} from ${name} to ${chain.buyer.name}, ${count(chain.distance, 'tile')}. ${next}`, action: 'source', target: chain.processor.id, buyer: chain.buyer, cargo: chain.cargo, button: 'Find cargo' };
     }
     if (!chain.supplied || chain.processor) return { title: 'Complete a production chain', detail: 'Find an industry near your network in Production chains, then carry its inputs and its output.', action: 'chains', button: 'Production chains' };
@@ -311,7 +330,7 @@ export function nextProject(game, { source: preferred } = {}) {
 }
 
 // Routes that cannot run at all: offline, missing a stop, or without two towns, a producer
-// or a buyer. Waiting and busy services still work, so they never count. Only sites, stops,
+// or a buyer. Waiting services and spare demand never count. Only sites, stops,
 // routes and connections decide this; game.revision moves daily, so it stays out of the key,
 // and a route going offline moves no revision, so the offline set is part of it.
 const attention = new WeakMap();

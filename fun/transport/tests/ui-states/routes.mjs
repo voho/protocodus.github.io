@@ -1,7 +1,8 @@
-// Routes states over the audit's stone route: the list, a route being edited, a filled New route form,
+// Routes states over the audit's stone route: the list, room for more, a route being edited, a filled New route form,
 // picking a stop on the map and the retire confirmation. Route cards have no collapsed form yet, so the
 // edit form stands in for the expanded route until the routes drawer gets rows.
 import { freshWorld, openView, rest, settle, stoneRoute } from './setup.mjs';
+import { clearToasts } from './setup.mjs';
 
 async function routes(page) {
   await freshWorld(page);
@@ -41,6 +42,18 @@ export const states = [
     if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
     await page.locator('[data-pick-route="from"]').click();
     await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
+    await settle(page);
+  } },
+  // A quarter on, the starter bus and the stone truck have room for more: a quiet ink-2 line under each card's vehicles.
+  { name: 'routes-room', async setup(page) {
+    await routes(page);
+    await page.evaluate(async () => { const { tick } = await import('./model.js'); for (let day = 0; day < 90; day++) tick(transport.game, 1); });
+    if (await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
+    const room = page.locator('[data-route-room]:not([hidden])').first();
+    await room.waitFor();
+    await room.evaluate(el => el.closest('.route-card').scrollIntoView({ block: 'center' }));
+    await clearToasts(page);
+    await rest(page);
     await settle(page);
   } },
   { name: 'routes-retire-confirm', async setup(page) {

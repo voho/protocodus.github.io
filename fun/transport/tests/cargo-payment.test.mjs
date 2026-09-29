@@ -63,12 +63,18 @@ test('legacy cargo without a boarding day is paid by distance only', () => {
   assert.equal(restored.vehicles[0].loadedDay, undefined, 'an empty truck keeps no clock until it loads');
 });
 
-test('freight left aboard at a full buyer restarts its clock, so it is paid like a fresh load', () => {
+test('freight nobody at the end takes stays aboard and restarts its clock, so it is paid like a fresh load; a full buyer still takes it', () => {
   const { game, vehicle, route } = freight(20);
-  game.industries[1].inventory.timber = 1e9;
+  game.industries = game.industries.slice(0, 1); game.revision++;
   arriveAt(vehicle, route, 10, game);
   tick(game, .25);
   assert.ok(vehicle.load > 0); assert.equal(route.delivered, 0); assert.equal(vehicle.loadedDay, 10);
+  const full = freight(20);
+  full.game.industries[1].inventory.timber = 1e9;
+  arriveAt(full.vehicle, full.route, 10, full.game);
+  const units = full.vehicle.load; tick(full.game, .25);
+  assert.equal(full.route.delivered, units, 'a buyer with full stores takes and pays for the load');
+  assert.equal(full.route.revenue, fareFor(full.game, 'timber', 21, units, full.game.day, 10));
 });
 
 test('cargo on a broken connection restarts its clock when the route runs again', () => {
