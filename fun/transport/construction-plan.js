@@ -5,6 +5,7 @@ import { industryFootprint, industrySiteProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { hasRoadAccess } from './environment.js';
 import { money as moneyText, tiles as tileCount } from './copy.js';
+import { townOf } from './town-market.js';
 
 /** Resolve the compact toolbar's intent to an existing, validated model tool. */
 export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = {}) {
@@ -79,6 +80,8 @@ export function quoteBuildPlan(game, tool, points, options) {
     problem ||= cost > game.money ? `Need $${Math.round(cost).toLocaleString('en-US')} for this construction.` : null;
     return { placements, cost, span, ok: unique.length > 0 && !problem, message: problem || `${span} × ${span} site` };
   }
+  // A workshop reads build()'s own verdict and names the town it joins.
+  if (tool === 'workshop') { const quote = quotePlacements(game, tool, placements), { x, y } = placements[0]; return { ...quote, span: 2, message: quote.ok ? `2 × 2 site near ${townOf(game, x, y).name}` : quote.message }; }
   return quotePlacements(game, tool, placements);
 }
 

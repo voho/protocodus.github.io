@@ -1,4 +1,7 @@
 import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions } from './model.js';
+import { freightFits, workshopLoop } from './model.js';
+import { workshopLevels, workshopOutputs } from './town-market.js';
+import { WORKSHOP } from './data.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } from './data.js';
 import { passengerArrivals } from './settlements.js';
 import { reviewGrowth } from './industry-simulation.js';
@@ -13,15 +16,11 @@ import { mailRate } from './settlements.js';
 import { localEnvironment } from './environment.js';
 
 const pathCache = new WeakMap();
-const canShip = (a, b, cargo) => {
-  const producers = a.industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);
-  return producers.length > 0 && (b.industries.some(industry => INDUSTRIES[industry.kind].inputs[cargo] && producers.every(producer => producer.id !== industry.id)) || (TOWN_CARGO.includes(cargo) && b.cities.length > 0));
-};
 const cargoNames = keys => keys.length ? listJoin([...keys.slice(0, 3).map(key => cargoName(key)), ...keys.length > 3 ? ['more'] : []]) : 'no cargo';
 // Name the gap only when no cargo at all fits; one wrong choice keeps its own advice.
 function sharedCargoGap(game, stations, coverage) {
   if (passengerEndpoints(game, ...stations)) return '';
-  if ([...coverage[0].produces, ...coverage[1].produces].some(cargo => !isTownTraffic(cargo) && (canShip(coverage[0], coverage[1], cargo) || canShip(coverage[1], coverage[0], cargo)))) return '';
+  if ([...coverage[0].produces, ...coverage[1].produces].some(cargo => !isTownTraffic(cargo) && (freightFits(game, coverage[0], coverage[1], cargo) || freightFits(game, coverage[1], coverage[0], cargo)))) return '';
   return `No cargo fits both stops. The start loads ${cargoNames(coverage[0].produces)}, and the end accepts ${cargoNames(coverage[1].accepts)}.`;
 }
 
@@ -57,9 +56,9 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (isTownTraffic(cargo)) {
     if (!passengerEndpoints(game, ...stations)) return fail(sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
-  } else if (!canShip(coverage[0], coverage[1], cargo)) {
-    if (canShip(coverage[1], coverage[0], cargo)) result.reversed = true;
-    else return fail(sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);
+  } else if (!freightFits(game, coverage[0], coverage[1], cargo)) {
+    if (freightFits(game, coverage[1], coverage[0], cargo)) result.reversed = true;
+    else return fail(workshopLoop(game, coverage[0], coverage[1], cargo) || sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);
   }
   // The same stops and cargo can take another vehicle instead of a duplicate service.
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
@@ -123,14 +122,17 @@ function loadingFlows(game, from, to, cargo) {
     return towns.map(town => { const made = cargo === 'mail' ? mailRate(town, localEnvironment(game, town.x, town.y)) : passengerArrivals(game, town, day, undefined, undefined, .5); return { made, free: Math.max(0, made - taken.get(town.id)) }; });
   }
   const producers = covers(from).industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);
-  const output = new Map(producers.map(industry => [industry.id, siteSupply(game, industry, cargo, { stops, covers }, from)]));
+  const output = new Map(producers.map(industry => [industry, siteSupply(game, industry, cargo, { stops, covers }, from)]));
+  // A town's workshops send what their levels worked last month, one product for every two materials: nothing until a month has closed.
+  const ends = covers(to).cities, towns = covers(from).cities.filter(city => !ends.includes(city) && workshopOutputs(game, city).includes(cargo)).map(city => [city, marketView(game, city).utilization]);
+  for (const [city, used] of towns) output.set(city, workshopLevels(game, city) * WORKSHOP.rate * (used || 0) / WORKSHOP.ratio);
   const made = [...output.values()].reduce((sum, n) => sum + n, 0);
   let taken = 0;
   for (const route of game.routes) {
     const stop = route.cargo === cargo && route.active && stops.get(route.stops[0]);
-    if (stop && near(stop, from, 16)) taken += Math.min(fleetRate(game, route), covers(stop).industries.reduce((sum, industry) => sum + (output.get(industry.id) || 0), 0));
+    if (stop && near(stop, from, 16)) taken += Math.min(fleetRate(game, route), [...covers(stop).industries, ...covers(stop).cities].reduce((sum, site) => sum + (output.get(site) || 0), 0));
   }
-  return [{ made, free: Math.max(0, made - taken) }];
+  return [{ made, free: Math.max(0, made - taken), pending: towns.some(([, used]) => used === undefined) }];
 }
 // Track, structures and stops a new route would share: each item's upkeep is split among its routes, as in maintenance.
 function infrastructureShare(game, mode, path, stations) {
@@ -168,7 +170,7 @@ function computeForecast(game, draft, plan) {
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
     madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullLoad: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
     tiles: paid, travel: tiles, days, share, perUnit,
-    marketBonus,
+    marketBonus, workshopsPending: flows.some(flow => flow.pending),
   };
 }
 

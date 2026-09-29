@@ -12,6 +12,21 @@ import { townOf, marketView, MARKET, ZONE_SECTOR } from './town-market.js';
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const tileAt = (game, x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
 const developmentKind = (kind, variant, level) => kind === 'residential' ? residentialKind(variant, level) : kind === 'commercial' ? commercialKind(variant, level) : 'factory';
+// Where an industrial zone's 2 × 2 workshop stands: in place over an existing one, else the square among the four holding
+// this tile that has the most industrial zoning, anchored on an industrial zone record, with no other zone kind and clear
+// land. Ties keep the order (x, y), (x − 1, y), (x, y − 1), (x − 1, y − 1), so a lone tile still grows over the land to its SE.
+export function workshopAnchor(game, x, y, existing) {
+  if (existing && existing.x === x && existing.y === y) return { x, y };
+  let best = null, most = 0;
+  for (const [ax, ay] of [[x, y], [x - 1, y], [x, y - 1], [x - 1, y - 1]]) {
+    if (tileAt(game, ax, ay)?.zone !== 'industrial' || !game.zones.some(zone => zone.x === ax && zone.y === ay && zone.kind === 'industrial')) continue;
+    let zoned = 0, mixed = false;
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) { const zone = tileAt(game, ax + dx, ay + dy)?.zone; if (zone === 'industrial') zoned++; else if (zone) mixed = true; }
+    if (mixed || zoned <= most || buildingSiteProblem(game, 'factory', ax, ay, 2, { allowZone: true })) continue;
+    best = { x: ax, y: ay }; most = zoned;
+  }
+  return best;
+}
 const GROUND = ['grass', 'sand', 'snow', 'forest'], STREET_DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 // A zone may still grow into a 2 × 2 building over the tiles right of and below it.
 const zoneRoom = (game, x, y) => !!(tileAt(game, x - 1, y)?.zone || tileAt(game, x, y - 1)?.zone || tileAt(game, x - 1, y - 1)?.zone);
@@ -86,7 +101,8 @@ export function settlementSuitability(game, point, kind = 'residential') {
   const result = suitability(game, point, kind, localEnvironment(game, point.x, point.y), weatherAt(game, point.x, point.y), nearestCity(game, point));
   const tile = tileAt(game, point.x, point.y), zone = game.zones.find(z => z.x === point.x && z.y === point.y);
   const level = Math.floor(zone?.progress || 0);
-  if (zone && level > (tile?.building?.level || 0)) {
+  if (zone?.kind === 'industrial') { if (!workshopAnchor(game, point.x, point.y, buildingAt(game, point.x, point.y))) result.negative.push('Needs 2 × 2 clear tiles'); }
+  else if (zone && level > (tile?.building?.level || 0)) {
     const next = developmentKind(zone.kind, tile.variant, level), size = buildingFootprint(next), exclude = buildingAt(game, point.x, point.y);
     const mixed = buildingTiles({ ...point, building: { footprint: size } }).some(p => { const t = tileAt(game, p.x, p.y); return t?.zone && t.zone !== zone.kind; });
     if (mixed || buildingSiteProblem(game, next, point.x, point.y, size, { exclude, allowZone: true })) result.negative.push(`Needs ${size} × ${size} clear tiles`);
@@ -258,7 +274,10 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const level = Math.floor(zone.progress);
     if (level <= occupiedLevel) continue;
     const kind = developmentKind(zone.kind, tile.variant, level);
-    proposals.push({ x: zone.x, y: zone.y, tile, city, zone, building: { kind, level } });
+    // A workshop may stand on a neighbouring anchor of its block; it grows from that tile's zone record.
+    const site = kind === 'factory' ? workshopAnchor(game, zone.x, zone.y, existing) : zone;
+    if (!site) continue;
+    proposals.push({ x: site.x, y: site.y, tile: tileAt(game, site.x, site.y), city, zone: site === zone ? zone : game.zones.find(other => other.x === site.x && other.y === site.y && other.kind === 'industrial'), building: { kind, level } });
   }
 
   let changed = false;

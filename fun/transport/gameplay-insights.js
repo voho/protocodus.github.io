@@ -10,6 +10,7 @@ import { networkTerrainShape } from './terrain-engineering.js';
 import { nearbyIndustries } from './simulation-spatial.js';
 import { outputFill } from './industry-simulation.js';
 import { nextMilestone, progressText } from './milestones.js';
+import { workshopInputs, workshopOutputs, workshopRecipes } from './town-market.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
@@ -234,19 +235,26 @@ export function routeHealth(game, route, stats = null) {
   }
   const sources = game.industries.filter(site => covers(site, from) && INDUSTRIES[site.kind].outputs[route.cargo]);
   const buyers = game.industries.filter(site => covers(site, to) && INDUSTRIES[site.kind].inputs[route.cargo] && !sources.includes(site));
-  const townBuyer = TOWN_CARGO.includes(route.cargo) && game.cities.some(city => nearby(city, to)), cargo = cargoToken(route.cargo);
-  if (!sources.length) return say('blocked', 'error', 'No supplier', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
+  // Towns load their workshops' products for another town, and towns with workshops buy their materials.
+  const towns = game.cities.filter(city => nearby(city, to)), makers = game.cities.filter(city => nearby(city, from) && !towns.includes(city) && workshopOutputs(game, city).includes(route.cargo));
+  const townBuyer = towns.some(city => workshopInputs(game, city).includes(route.cargo) || TOWN_CARGO.includes(route.cargo) && !makers.includes(city)), cargo = cargoToken(route.cargo);
+  if (!sources.length && !makers.length) return say('blocked', 'error', 'No supplier', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
   if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
   if (!townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001)) {
     return say('waiting', 'warn', 'Buyer full', `${token('industry', buyers[0].id)} has no room for more ${cargo}. Supply its other inputs, and carry its output away.`, {}, buyers);
   }
   const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0), nouns = capital(vehicleNoun(route.mode, route.cargo, 2));
-  if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1)) {
+  if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1) && !sources.length) {
+    const inputs = workshopRecipes(game).filter(recipe => recipe.output === route.cargo).map(recipe => recipe.input), maker = makers[0], works = `${token('town', maker.id)} workshops`;
+    if (!inputs.some(input => maker.workshop?.input[input] > 0)) return say('waiting', 'warn', `Needs ${cargoNames(inputs, 'or')}`, `Deliver ${cargoTokens(inputs, 'or')} to ${works}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
+    return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${works} are making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
+  }
+  if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1)) {
     const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))], source = token('industry', sources[0].id);
     if (missing.length) return say('waiting', 'warn', `Needs ${cargoNames(missing)}`, `${source} needs ${cargoTokens(missing)} before it can make ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
     return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
   }
-  const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0);
+  const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0) + makers.reduce((sum, city) => sum + Math.floor(city.workshop?.output[route.cargo] || 0), 0);
   return fleetHealth(game, route, stats, waiting, `${nouns} load ${cargo} at the start and return for more.`, stops);
 }
 

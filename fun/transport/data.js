@@ -68,10 +68,19 @@ export const INDUSTRIES = {
   'goods-factory': { footprint: 3, name: 'Goods factory', inputs: { glass: 2, wire: 2, cement: 1 }, outputs: { goods: 3 }, cost: 90000, biomes: ['desert'] },
   'equipment-factory': { footprint: 3, name: 'Equipment factory', inputs: { steel: 2, fuel: 1 }, outputs: { goods: 2 }, cost: 88000, biomes: ['tundra'] },
 };
+/** A town workshop (a 'factory' building): per level it turns `rate` materials a day into products, `ratio` to one, and stores `store` of each. */
+export const WORKSHOP = Object.freeze({ cost: 12000, footprint: 2, rate: .5, store: 150, ratio: 2, maxLevel: 3 });
+/** What each environment's workshops make, processed in this order. No output is ever an input, so cargo cannot loop. */
+export const WORKSHOP_RECIPES = Object.freeze({
+  taiga: Object.freeze([Object.freeze({ input: 'lumber', output: 'furniture' }), Object.freeze({ input: 'steel', output: 'machinery' })]),
+  tundra: Object.freeze([Object.freeze({ input: 'steel', output: 'goods' })]),
+  desert: Object.freeze([Object.freeze({ input: 'glass', output: 'goods' }), Object.freeze({ input: 'wire', output: 'goods' })]),
+});
 export const BUILD_COSTS = {
   road: 180, rail: 420, bridge: 1400, railbridge: 2300, tunnel: 2200, railtunnel: 3400,
   'bus-stop': 3200, 'train-stop': 12000, port: 18000, residential: 420, commercial: 640,
   industrial: 880, city: 45000, bulldoze: 100, raise: 240, lower: 180, level: 280,
+  workshop: WORKSHOP.cost,
   ...Object.fromEntries(Object.entries(BUILDINGS).map(([kind, building]) => [kind, building.cost])),
   ...Object.fromEntries(Object.entries(INDUSTRIES).map(([kind, industry]) => [kind, industry.cost])),
 };

@@ -9,6 +9,8 @@ import { randomAt, localEnvironment, weatherAt, stepEcology } from './environmen
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_RADIUS, DISTURBANCE } from './town-authority.js';
 import { monthlyMarkets, recordTownSupply, recordVisitors, validMarket, MARKET } from './town-market.js';
+import { stepWorkshops, acceptWorkshopInput, workshopRecipes, workshopInputs, workshopOutputs, validWorkshop, townOf } from './town-market.js';
+import { WORKSHOP } from './data.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
@@ -116,6 +118,7 @@ export function stationCoverage(game,station) {
     for (const cargo of Object.keys(INDUSTRIES[industry.kind].outputs)) produces.add(cargo);
     for (const cargo of Object.keys(INDUSTRIES[industry.kind].inputs)) accepts.add(cargo);
   }
+  for (const city of cities) { for (const cargo of workshopOutputs(game,city)) produces.add(cargo); for (const cargo of workshopInputs(game,city)) accepts.add(cargo); }
   return { cities,industries,zones,produces:[...produces],accepts:[...accepts] };
 }
 // A two-stop passenger or mail service connects two actual towns, even where older
@@ -320,6 +323,11 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
     }
     const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this stop.`,'funds'):null;
   }
+  if(tool==='workshop') {
+    const problem=buildingSiteProblem(game,'factory',x,y,WORKSHOP.footprint);if(problem)return fail(problem);
+    if(!townOf(game,x,y))return fail('Place workshops within 10 tiles of a town center.');
+    const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this workshop.`,'funds'):null;
+  }
   if(station||industry||site||t.zone||t.road||t.rail||city) return fail('Choose an empty tile or clear this one first.');
   if(t.terrain==='water'||(t.terrain==='mountain'&&!INDUSTRIES[tool]?.terrain?.includes('mountain'))) return fail('This structure needs buildable land.','terrain');
   const cost=constructionCost(game,tool,x,y);if(money<cost)return fail(`Need ${moneyText(cost)} to build this.`,'funds');
@@ -424,6 +432,12 @@ export function build(game,tool,x,y) {
     notify(game,founded(newCity.name),'success',{target:{kind:'city',id:newCity.id},template:founded(token('town',newCity.id))});
     return result(true,`${newCity.name} founded.${spent(cost)}`,{cost,city:newCity});
   }
+  // A placed workshop is the town's 'factory' building at its first level; the anchor tile names its town.
+  if(tool==='workshop') {
+    const placed=placeBuildingSite(game,'factory',x,y,{size:WORKSHOP.footprint,building:{level:1,owner:'player',paid:cost}});
+    spend(game,cost);game.revision++;
+    return result(true,`Workshop built.${spent(cost)}`,{cost,building:placed.building});
+  }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
     const size=buildingFootprint(tool);
@@ -436,6 +450,15 @@ export function build(game,tool,x,y) {
   const def=INDUSTRIES[tool];
   spend(game,cost);const newIndustry=placeIndustry(game,tool,x,y,{owner:'player'});
   return result(true,`${def.name} built.${spent(cost)}`,{cost,industry:newIndustry});
+}
+/** One more level for a workshop you placed, at the placing price; a developed one grows with its zone instead. */
+export function expandWorkshop(game,x,y) {
+  const site=buildingAt(game,x,y),cost=priceFor(game,WORKSHOP.cost);
+  if(site?.building.kind!=='factory'||site.building.owner!=='player')return result(false,'Only your own workshops can be expanded.');
+  if(site.building.level>=WORKSHOP.maxLevel)return result(false,'This workshop is fully expanded.');
+  if(game.money<cost)return result(false,`Need ${moneyText(cost)} to expand this workshop.`);
+  site.building.level+=1;site.building.paid=(site.building.paid||0)+cost;spend(game,cost);game.revision++;
+  return result(true,`Workshop expanded to level ${site.building.level}.${spent(cost)}`,{cost,building:site.building});
 }
 // One placement for the Build tool and the region's own openings. A world
 // producer starts with twelve days of output in stock, like a generated one.
@@ -481,12 +504,22 @@ export function buildPath(game,tool,points) {
   return result(count>0||skipped>0,message,{cost,built:count,failed:failures,skipped});
 }
 
-function freightPair(game,a,b,cargo) {
-  const source=stationCoverage(game,a),destination=stationCoverage(game,b);
+/** Whether freight of this cargo runs from one stop's coverage to another's: the launch, loading and the route form share it.
+ * The industry rule comes first and unchanged; then a town's workshop products load for a different town, and a town with workshops buys their materials. */
+export function freightFits(game,source,destination,cargo) {
   const producers=source.industries.filter(i=>INDUSTRIES[i.kind].outputs[cargo]);
   const consumers=destination.industries.filter(i=>INDUSTRIES[i.kind].inputs[cargo]);
-  return producers.length>0&&(consumers.some(c=>producers.every(p=>p.id!==c.id))||(TOWN_CARGO.includes(cargo)&&destination.cities.length>0));
+  if(producers.length>0&&(consumers.some(c=>producers.every(p=>p.id!==c.id))||(TOWN_CARGO.includes(cargo)&&destination.cities.length>0)))return true;
+  const townSources=source.cities.filter(city=>!destination.cities.includes(city)&&workshopOutputs(game,city).includes(cargo));
+  const townBuyers=destination.cities.filter(city=>workshopInputs(game,city).includes(cargo)||(TOWN_CARGO.includes(cargo)&&!townSources.includes(city)));
+  return producers.length+townSources.length>0&&consumers.length+townBuyers.length>0;
 }
+/** The refusal for products that could only return to the town that made them: a town both stops reach, whose workshops make this cargo. */
+export function workshopLoop(game,a,b,cargo) {
+  const town=a.cities.find(city=>b.cities.includes(city)&&workshopOutputs(game,city).includes(cargo));
+  return town?`${capital(cargoName(cargo))} from ${town.name} workshops must go to another town. Pick an end stop that doesn’t reach ${town.name}.`:'';
+}
+function freightPair(game,a,b,cargo) { return freightFits(game,stationCoverage(game,a),stationCoverage(game,b),cargo); }
 // Demolishing a site a working freight route loads from or delivers to is a player
 // action, so each route it leaves without a producer or buyer gets one warning.
 function suppliedRoutes(game,industry) {
@@ -576,7 +609,7 @@ function planRoute(game,{mode,stops,cargo},retry='launch again') {
     if(!passengerEndpoints(game,...stations))return result(false,cargo==='mail'?'Mail stops must serve two different towns within 5 tiles.':'Passenger stops must serve two different towns within 5 tiles.');
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
-    else return result(false,`These stops need a supplier of ${cargoName(cargo)} and a buyer within 5 tiles.`);
+    else return result(false,workshopLoop(game,...stations.map(stop=>stationCoverage(game,stop)),cargo)||`These stops need a supplier of ${cargoName(cargo)} and a buyer within 5 tiles.`);
   }
   const path=findPath(game,stations[0],stations[1],mode);
   if(!path)return result(false,mode==='water'?'These ports don’t share open water. Choose ports on the same river, lake or sea.':`These stops aren’t joined by ${mode}. Build the missing ${mode==='rail'?'track':'road'}, including any bridge or tunnel, then ${retry}.`);
@@ -708,6 +741,16 @@ function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
       industry.inventory[route.cargo]-=amount;industry.shipped+=amount;industry.activity+=amount;vehicle.load+=amount;free-=amount;
       if(free<=0)break;
     }
+    // Then towns' workshop products, only for a different town, as freightFits reads the two stops.
+    if(free>0&&coverage.cities.some(city=>city.workshop?.output[route.cargo]>=1)) {
+      const end=context?context.stations.get(route.stops[1]):game.stations.find(s=>s.id===route.stops[1]),destination=end?journeyCoverage(game,end,context):null;
+      for(const city of destination?coverage.cities:[]) {
+        const amount=destination.cities.includes(city)?0:Math.min(free,Math.floor(city.workshop?.output[route.cargo]||0));
+        if(amount<=0)continue;
+        city.workshop.output[route.cargo]-=amount;vehicle.load+=amount;free-=amount;
+        if(free<=0)break;
+      }
+    }
   }
   // The boarding day of what is aboard: a load-weighted mean when a load is topped up, so a wait counts.
   if(vehicle.load>before){const boarded=Math.floor(day);vehicle.loadedDay=before>0&&vehicle.loadedDay!==undefined?(vehicle.loadedDay*before+boarded*(vehicle.load-before))/vehicle.load:boarded;}
@@ -743,6 +786,8 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
       industry.received+=amount;industry.activity+=amount;remaining-=amount;delivered+=amount;
       if(remaining<=0)break;
     }
+    // Workshop materials: the first town here with workshops takes and pays for everything left, whatever fits its store.
+    if(remaining>0&&workshopRecipes(game).some(recipe=>recipe.input===route.cargo))for(const city of coverage.cities)if(workshopInputs(game,city).includes(route.cargo)){acceptWorkshopInput(game,city,route.cargo,remaining);city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;remaining=0;break;}
     if(remaining>0&&TOWN_CARGO.includes(route.cargo)&&coverage.cities.length) {
       const city=coverage.cities[0];city.supplies+=remaining;city.activity+=remaining*.7;city.delivered+=remaining;city.lastServiceDay=arrivalDay;delivered+=remaining;receiver=city;bonusUnits+=recordTownSupply(game,city,route.cargo,remaining);remaining=0;
       (city.lastSupply??={})[route.cargo]=arrivalDay;
@@ -1028,7 +1073,7 @@ export function tick(game,days,{reserved=[]}={}) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game);
       if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
     }
@@ -1058,10 +1103,12 @@ export function validateGame(game) {
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
   if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)&&validFootprint(t.building,buildingFootprint(t.building.kind))))))return false;
   if(!game.tiles.every((tile,index)=>validStructureMetadata(tile,game,index%game.width,Math.floor(index/game.width))))return false;
+  if(!game.tiles.every(t=>!t.building||(t.building.owner===undefined||t.building.owner==='player')&&(t.building.paid===undefined||finite(t.building.paid,0,1e12))))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)&&(c.mail===undefined||finite(c.mail,0,1e9))))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.cities.every(c=>(c.serviceMonths===undefined||Number.isInteger(c.serviceMonths)&&finite(c.serviceMonths,0,10))&&(c.disturbance===undefined||finite(c.disturbance,0,DISTURBANCE.max))&&(c.advertisedUntil===undefined||Number.isInteger(c.advertisedUntil)&&finite(c.advertisedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.advertise.days))&&(c.fundedUntil===undefined||Number.isInteger(c.fundedUntil)&&finite(c.fundedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.fund.days))))return false;
   if(!game.cities.every(c=>c.market===undefined||validMarket(c.market)))return false;
+  if(!game.cities.every(c=>c.workshop===undefined||validWorkshop(game,c.workshop)))return false;
   if(!game.routes.every(r=>r?.marketBonus===undefined||finite(r.marketBonus,0))||!game.history.every(h=>h?.marketBonus===undefined||finite(h.marketBonus,0))||game.monthlyMarketBonus!==undefined&&!finite(game.monthlyMarketBonus,0))return false;
   if(!game.cities.every(c=>c.lastStreetDay===undefined||finite(c.lastStreetDay,0,game.day)))return false;
   if(!game.cities.every(c=>c.popHistory===undefined||(Array.isArray(c.popHistory)&&c.popHistory.length<=12&&c.popHistory.every(n=>finite(n,0,1e8)))))return false;

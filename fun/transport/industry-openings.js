@@ -4,6 +4,7 @@ import { industryFootprint, industrySiteProblem, industryDistance, industrySize 
 import { buildingAt } from './building-sites.js';
 import { nearbyCities, nearbyIndustries, nearbyStations } from './simulation-spatial.js';
 import { surfaceHeight } from './terrain-geometry.js';
+import { workshopLevels, workshopRecipes } from './town-market.js';
 
 // New industries open, never close. From 1952, once the company has delivered freight, a month's
 // roll may open one 10 to 24 tiles from a town a stop reaches: on free, gentle ground with a trading
@@ -41,7 +42,9 @@ function gentle(game, x, y, size) {
 function partnered(game, kind, cx, cy) {
   const def = INDUSTRIES[kind], R = OPENINGS.partner, sites = nearbyIndustries(game, cx, cy, R).filter(site => Math.hypot(site.x - cx, site.y - cy) <= R);
   const town = () => nearbyCities(game, cx, cy, R).some(city => Math.hypot(city.x - cx, city.y - cy) <= R);
-  const buyer = Object.keys(def.outputs).some(cargo => sites.some(site => INDUSTRIES[site.kind].inputs[cargo]) || (TOWN_CARGO.includes(cargo) && town()));
+  // A town's workshops buy their materials.
+  const works = cargo => workshopRecipes(game).some(recipe => recipe.input === cargo) && nearbyCities(game, cx, cy, R).some(city => Math.hypot(city.x - cx, city.y - cy) <= R && workshopLevels(game, city) >= 1);
+  const buyer = Object.keys(def.outputs).some(cargo => sites.some(site => INDUSTRIES[site.kind].inputs[cargo]) || (TOWN_CARGO.includes(cargo) && town()) || works(cargo));
   return buyer && (isRaw(kind) || Object.keys(def.inputs).some(cargo => sites.some(site => INDUSTRIES[site.kind].outputs[cargo])));
 }
 

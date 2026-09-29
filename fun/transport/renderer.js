@@ -10,6 +10,7 @@ import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
 import { lensRole } from './chains.js';
+import { townLensRole } from './chains.js';
 import { industryService, industryStatus } from './gameplay-insights.js';
 import { outputFill } from './industry-simulation.js';
 import { landscapeScenery } from './landscape-scenery.js';
@@ -971,9 +972,9 @@ export function createRenderer(canvas, initialGame, options={}) {
   function coverTab(x,y){dot(ctx,x,y,8,'#fbf6e3');dot(ctx,x,y,6.6,'#4e7747');ctx.beginPath();ctx.moveTo(x-3,y);ctx.lineTo(x-.9,y+2.2);ctx.lineTo(x+3.1,y-2.2);ctx.strokeStyle='#fbf6e3';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();ctx.lineCap='butt';ctx.lineJoin='miter';}
   // Lens roles: a green up tab marks a producer, a teal down tab a buyer; a town that buys the cargo carries its icon.
   function lensTab(x,y,role){dot(ctx,x,y,8,'#fbf6e3');dot(ctx,x,y,6.6,LENS_COLORS[role]);const d=role==='source'?-1:1;ctx.beginPath();ctx.moveTo(x,y+d*3.6);ctx.lineTo(x+3.8,y-d*2);ctx.lineTo(x-3.8,y-d*2);ctx.closePath();ctx.fillStyle='#fbf6e3';ctx.fill();}
-  function lensChip(x,y){
+  function lensChip(x,y,role='buyer'){
     const image=cargoImage(lens,14);ctx.shadowColor='#293d2630';ctx.shadowBlur=5;ctx.shadowOffsetY=2;ctx.fillStyle='#f7f4e7f5';roundRect(ctx,x-11,y-11,22,22,6);ctx.fill();ctx.shadowColor='transparent';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.strokeStyle=LENS_COLORS.buyer;ctx.lineWidth=1.5;ctx.stroke();if(image.complete&&image.naturalWidth)ctx.drawImage(image,x-7,y-7,14,14);else dot(ctx,x,y,3,'#849367');
+    ctx.strokeStyle=LENS_COLORS[role];ctx.lineWidth=1.5;ctx.stroke();if(image.complete&&image.naturalWidth)ctx.drawImage(image,x-7,y-7,14,14);else dot(ctx,x,y,3,'#849367');
     if(lensStats&&x>=0&&y>=0&&x<=W&&y<=H)lensStats.towns++;
   }
   // An inspected industry reaches for its nearest targets: light dashed arcs in display pixels, beneath the labels, bowed upward.
@@ -1118,7 +1119,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       dot(ctx,center.x,center.y,4.5/camera.zoom,'#233b32');dot(ctx,center.x,center.y,3/camera.zoom,color);
     }
     const previewSite=p=>{const site=inspectSiteAt(p.x,p.y);return (tool==='inspect'||tool==='bulldoze'&&site?.object?.kind!=='mountain')&&site?site:p;};
-    const previewSpan=p=>INDUSTRIES[tool]?industryFootprint(tool):BUILDINGS[tool]?buildingFootprint(tool):siteSize(previewSite(p));
+    const previewSpan=p=>INDUSTRIES[tool]?industryFootprint(tool):BUILDINGS[tool]?buildingFootprint(tool):tool==='workshop'?2:siteSize(previewSite(p));
     const selectedStation=selected&&(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y);
     const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
     // Placing a stop draws its reach as a solid ring over the faint rings of existing stops of the same kind (64 at most).
@@ -1152,11 +1153,11 @@ export function createRenderer(canvas, initialGame, options={}) {
     const contextBubbles=contextArcs(view.context);
     // Labels stay crisp at every camera zoom, with population separated from place names.
     labelRects.length=0;const placed=placeOverlays(),shift=overlayShift();
-    lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=lensRole('towns',lens)==='buyer';
+    lensStats=lens?{cargo:lens,sources:0,buyers:0,towns:0}:null;const townLens=city=>lens?townLensRole(game,city,lens):null;
     if(layers.names)for(const city of game.cities||[]){const label=placed.labels.get(city);if(!label||!visible(city.x,city.y))continue;const p={x:label.cx+shift.x},y=label.cy+shift.y;labelRects.push({id:city.id,x:label.x+shift.x,y:label.y+shift.y,w:label.w,h:label.h});
-      if(detailLevel==='region'){const name=city.name||'New city';ctx.font=font(MAP.nameplate.regionName.weight,MAP.nameplate.regionName.size);const w=ctx.measureText(name).width+16;plate(p.x-w/2,y-11,w,22);ctx.fillStyle=COLORS.ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name,p.x,y+.5);if(townLens)lensChip(label.x+shift.x-7,y);continue;}
+      if(detailLevel==='region'){const name=city.name||'New city';ctx.font=font(MAP.nameplate.regionName.weight,MAP.nameplate.regionName.size);const w=ctx.measureText(name).width+16;plate(p.x-w/2,y-11,w,22);ctx.fillStyle=COLORS.ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(name,p.x,y+.5);if(townLens(city))lensChip(label.x+shift.x-7,y,townLens(city));continue;}
       const {name,pop,nameW,w}=nameplate(city),left=p.x-w/2;plate(left,y-13,w,26);ctx.textAlign='left';ctx.textBaseline='middle';ctx.font=font(MAP.nameplate.name.weight,MAP.nameplate.name.size);ctx.fillStyle=COLORS.ink;ctx.fillText(name,left+10,y+.5);ctx.fillStyle=COLORS.rule;ctx.fillRect(Math.round(left+nameW+20),Math.round(y-7),1,14);ctx.font=font(MAP.nameplate.population.weight,MAP.nameplate.population.size);ctx.fillStyle=MAP.nameplate.population.color;ctx.fillText(pop,left+nameW+31,y+.5);
-      if(townLens)lensChip(left-13,y);
+      if(townLens(city))lensChip(left-13,y,townLens(city));
     }
     // A cargo lens draws its producers and buyers last, at full strength with a role tab and, from Town view in, their names; other sites recede to half strength.
     // Served sites wear their route's ring, a hovered or chosen site names its state, and while a stop is placed the sites it would reach are ticked and the rest recede.
@@ -1250,7 +1251,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const footprint=viewportCorners().map(p=>[p.x/TILE*sx,p.y/TILE*sy]);
     c.beginPath();footprint.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fillStyle='#f4efcc12';c.fill();c.strokeStyle='#f6edc7';c.lineWidth=1.3;c.stroke();
     // A cargo lens replaces the industry dots with its producers and buyers, squares in their role colours above the view outline, and rings the towns that buy it.
-    if(lens){for(const city of lensRole('towns',lens)?game.cities||[]:[]){c.beginPath();c.arc((city.x+.5)*sx,(city.y+.5)*sy,4,0,TAU);c.strokeStyle=LENS_COLORS.buyer;c.lineWidth=1.5;c.stroke();}for(const ind of game.industries||[]){const role=lensRole(ind.kind,lens);if(!role)continue;const span=industrySize(ind),x=Math.round((ind.x+span/2)*sx),y=Math.round((ind.y+span/2)*sy),s=mw>=300?6:4;c.fillStyle='#fbf6e3';c.fillRect(x-s/2-1.5,y-s/2-1.5,s+3,s+3);c.fillStyle=LENS_COLORS[role];c.fillRect(x-s/2,y-s/2,s,s);}}
+    if(lens){for(const city of game.cities||[]){const role=townLensRole(game,city,lens);if(!role)continue;c.beginPath();c.arc((city.x+.5)*sx,(city.y+.5)*sy,4,0,TAU);c.strokeStyle=LENS_COLORS[role];c.lineWidth=1.5;c.stroke();}for(const ind of game.industries||[]){const role=lensRole(ind.kind,lens);if(!role)continue;const span=industrySize(ind),x=Math.round((ind.x+span/2)*sx),y=Math.round((ind.y+span/2)*sy),s=mw>=300?6:4;c.fillStyle='#fbf6e3';c.fillRect(x-s/2-1.5,y-s/2-1.5,s+3,s+3);c.fillStyle=LENS_COLORS[role];c.fillRect(x-s/2,y-s/2,s,s);}}
 
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();

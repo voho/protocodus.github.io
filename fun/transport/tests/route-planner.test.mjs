@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, getVehiclePurchase, payTiles, scheduledDays, tick, transitPay, VEHICLE_COSTS } from '../model.js';
+import { freightFits, stationCoverage } from '../model.js';
 import { keepText } from '../payment-rates.js';
 import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { routesNeedingAttention } from '../gameplay-insights.js';
@@ -343,4 +344,35 @@ test('a bus forecast carries both towns’ passengers both ways', () => {
   assert.ok(Math.abs(bus.perVehicleDay - truck.perVehicleDay * 2) < 1e-9, 'a bus loads at both ends');
   assert.ok(bus.supplyDay > 0 && bus.netMonth > 0, JSON.stringify(bus));
   assert.ok(bus.vehiclesToSaturate >= 1);
+});
+
+// Alderbrook buys lumber for its workshop and sells what it makes to Brookby; the fourth stop is a second one in Alderbrook.
+function workshopTowns() {
+  const game = emptyGame(), place = (id, name, x) => ({ id, name, x, y: 10, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null });
+  assert.equal(build(game, 'sawmill', 10, 9).ok, true);
+  game.cities.push(place('town-a', 'Alderbrook', 30), place('town-b', 'Brookby', 50)); game.revision++;
+  assert.equal(buildPath(game, 'road', line(10, 50, 12)).ok, true);
+  for (const x of [10, 30, 50, 27]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  assert.equal(build(game, 'workshop', 32, 7).ok, true);
+  return game;
+}
+
+test('default route names call a workshop town’s end its workshops', () => {
+  const game = workshopTowns(), [mill, a, b] = game.stations, plan = (from, to, cargo) => validateRoutePlan(game, { mode: 'road', from: from.id, to: to.id, cargo });
+  assert.equal(defaultRouteName(game, plan(mill, a, 'lumber'), 'lumber'), 'Sawmill to Alderbrook workshops');
+  assert.equal(defaultRouteName(game, plan(a, b, 'furniture'), 'furniture'), 'Alderbrook workshops to Brookby');
+  const back = plan(b, a, 'furniture');
+  assert.equal(back.reversed, true);
+  assert.equal(defaultRouteName(game, back, 'furniture'), 'Alderbrook workshops to Brookby');
+  assert.equal(defaultRouteName(game, plan(a, b, 'passengers'), 'passengers'), 'Alderbrook – Brookby');
+});
+
+test('the route form’s verdict for every cargo is the launch rule’s, workshops included', () => {
+  const game = workshopTowns(), [mill, a, b, twin] = game.stations;
+  for (const [from, to] of [[mill, a], [a, b], [mill, b], [twin, a]]) for (const cargo of routeCargoList(game).filter(key => key !== 'passengers' && key !== 'mail')) {
+    const plan = validateRoutePlan(game, { mode: 'road', from: from.id, to: to.id, cargo }, { ignoreFunds: true }), [ahead, back] = [[from, to], [to, from]].map(([x, y]) => freightFits(game, stationCoverage(game, x), stationCoverage(game, y), cargo));
+    assert.equal(plan.valid, ahead || back, `${cargo} from ${from.name} to ${to.name}`);
+    if (plan.valid) assert.equal(plan.reversed, !ahead);
+  }
+  assert.equal(validateRoutePlan(game, { mode: 'road', from: twin.id, to: a.id, cargo: 'furniture' }).message, 'Furniture from Alderbrook workshops must go to another town. Pick an end stop that doesn’t reach Alderbrook.');
 });

@@ -10,7 +10,7 @@ import { MAIL_POOL_SHARE } from './settlements.js';
 // growth elsewhere keep running. Entries live in the session, never in saves.
 const LISTS=['stations','industries','cities','zones'];
 const NATURAL=new Set(['grass','forest','sand','snow']);
-const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone'};
+const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone',workshop:'Workshop'};
 const cover=terrain=>NATURAL.has(terrain)?'land':terrain;
 const pinned=new WeakSet(); // Tile arrays whose homes all name their town already.
 function same(a,b){

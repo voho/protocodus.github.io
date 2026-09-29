@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, addRoute, build, buildProblem, tick, validateGame, restoreGame } from '../model.js';
+import { stationCoverage } from '../model.js';
 import { buildPlan, quoteBuildPlan } from '../construction-plan.js';
 import { captureUndo, finishUndo, canUndo, undoProblem, undoStale, undoConstruction } from '../construction-undo.js';
 import { encodeGame } from '../save-codec.js';
@@ -260,4 +261,17 @@ test('random builds, days and undos in any order never leave an invalid world', 
     } else tick(game, random() * 12);
   }
   assert.ok(undone > 40, `${undone} undos ran`);
+});
+
+test('undoing a workshop stops its town buying lumber the same day', () => {
+  const game = emptyGame(); town(game, 42, 44);
+  assert.equal(build(game, 'road', 42, 46).ok, true);
+  const stop = build(game, 'bus-stop', 42, 46).station, buys = () => stationCoverage(game, stop).accepts.includes('lumber');
+  assert.equal(buys(), false);
+  const { undo, result } = journal(game, 'workshop', [{ x: 44, y: 40 }]);
+  assert.equal(result.message, 'Workshop built. $12,000 spent.');
+  assert.equal(buys(), true);
+  assert.equal(undoConstruction(game, undo).message, 'Workshop removed. $12,000 refunded.');
+  assert.equal(buys(), false);
+  assert.equal(validateGame(game), true);
 });

@@ -4,6 +4,7 @@ import { LINE_COLORS } from './design-tokens.js';
 import { INDUSTRIES } from './data.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 import { industryDistance } from './industry-sites.js';
+import { workshopInputs, workshopOutputs } from './town-market.js';
 
 // index is the DESIGN.md number, 1–9 as in --line-N; light fills take ink numerals and an ink casing on the map.
 const LINES = LINE_COLORS.map((line, i) => Object.freeze({ index: i + 1, name: line.name, fill: line.fill, on: line.on, light: line.on !== '#FFFFFF' }));
@@ -52,7 +53,8 @@ export function ensureRouteNumbers(game) {
 export const routeLabel = route => validRouteNumber(route?.number) ? `Route ${route.number}` : 'Route';
 
 // Default names say what a route does. Freight runs '<supplier> to <buyer>', each end named after the site its stop
-// serves for the cargo, else the stop's town, else the stop; passengers and mail join two towns with an en dash, and mail says so at the end.
+// serves for the cargo, else its town's workshops when they make or take it, else the stop's town, else the stop; passengers
+// and mail join two towns with an en dash, and mail says so at the end.
 // A name another route already has gets ' 2', ' 3' and so on; `except` (a route or its id) never counts, so a route
 // renamed along its stops does not collide with itself. Names in a save are never rewritten.
 const REACH = 5, NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
@@ -72,7 +74,12 @@ export function defaultRouteName(game, stations, cargo, except = null) {
   const site = (stop, role, other) => nearbyIndustries(game, stop.x, stop.y, REACH + 2).find(site => site !== other && INDUSTRIES[site.kind]?.[role][cargo] && industryDistance(site, stop) <= REACH);
   let base;
   if (TOWN_TO_TOWN.has(cargo)) { const pair = townPair(game, from, to); base = pair ? `${pair[0].name} – ${pair[1].name}` : `${place(from)} – ${place(to)}`; }
-  else { const supplier = site(from, 'outputs'), buyer = site(to, 'inputs', supplier); base = `${supplier ? siteName(supplier) : place(from)} to ${buyer ? siteName(buyer) : place(to)}`; }
+  else {
+    const supplier = site(from, 'outputs'), buyer = site(to, 'inputs', supplier), ends = townsNear(game, to);
+    const workshops = (stop, fits) => townsNear(game, stop).filter(fits).reduce((best, town) => !best || apart(town, stop) < apart(best, stop) ? town : best, null);
+    const maker = !supplier && workshops(from, town => !ends.includes(town) && workshopOutputs(game, town).includes(cargo)), user = !buyer && workshops(to, town => workshopInputs(game, town).includes(cargo));
+    base = `${supplier ? siteName(supplier) : maker ? `${maker.name} workshops` : place(from)} to ${buyer ? siteName(buyer) : user ? `${user.name} workshops` : place(to)}`;
+  }
   const skip = typeof except === 'string' ? except : except?.id, taken = new Set();
   for (const route of game.routes || []) if (route.id !== skip) taken.add(route.name);
   const kind = cargo === 'mail' ? ' mail' : '';

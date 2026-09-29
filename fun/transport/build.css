@@ -198,3 +198,16 @@
 @media(hover:none) and (pointer:coarse){
  .tool-card .shortcut,.compact-tool>span{display:none}
 }
+/* Build › Town: the Workshop's factory portrait pairs with Industrial, and Found a town takes the whole row, like Bulldoze in Network. */
+.tool-card[data-tool=workshop] .tool-art{width:48px;height:50px;margin:-8px 0 -2px -8px}
+.tool-grid .tool-card[data-tool=city]{grid-column:1/-1;display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:60px}
+.tool-grid .tool-card[data-tool=city] svg,.tool-grid .tool-card[data-tool=city] .tool-cost{margin:0}
+.tool-grid .tool-card[data-tool=city] .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
+@media(max-width:700px){
+ .tool-grid .tool-card[data-tool=city]{padding:12px 12px;gap:8px}
+}
+@media(max-height:500px) and (orientation:landscape){
+ .compact-play .tool-grid .tool-card[data-tool=workshop] .tool-art{width:36px;height:38px;margin:-6px 0 0 -6px}
+ .compact-play .tool-grid .tool-card[data-tool=city]{min-height:44px;padding:8px 12px}
+ .compact-play .tool-grid .tool-card[data-tool=city] svg{margin:0}
+}

@@ -231,3 +231,11 @@
 @media(max-width:700px),(pointer:coarse){
  .town-economy>summary{min-height:var(--control-touch)}
 }
+/* Workshops: a workshop's recipes beside its portrait, and the Town economy's Workshops block, set like the shops' wants. */
+.workshop-recipes{display:grid;gap:4px;min-width:0}
+.workshop-recipes .cargo-recipe{flex-wrap:nowrap;gap:4px;margin:0}
+.workshop-lines{display:grid;gap:8px}
+.workshop-line{display:grid;grid-template-columns:20px auto auto 20px minmax(0,1fr);align-items:center;gap:8px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
+.workshop-line .cargo-tile{display:grid;place-items:center;width:20px;height:20px;border-radius:var(--r-1);background:var(--well)}
+.workshop-line .cargo-icon{width:18px;height:18px}
+.workshop-to{color:var(--ink-2)}

@@ -131,7 +131,7 @@ try {
   const expectedGroups={homes:9,community:7,shops:5,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
     await page.locator('#building-group').selectOption(group);
-    assert.equal(await page.locator('[data-building-sprite]').count(),count,group+' has distinct buildable designs');
+    assert.equal(await page.locator('.building-grid [data-building-sprite]').count(),count,group+' has distinct buildable designs');
   }
   await page.locator('#building-group').selectOption('community');
   await page.locator('[data-tool="school"]').click();

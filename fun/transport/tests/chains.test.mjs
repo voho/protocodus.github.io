@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INDUSTRIES } from '../data.js';
 import { chainProducts, defaultChainProduct, findIndustryTargets, industryCatalog, nearestTown, productionChain, lensCargo, lensRole } from '../chains.js';
+import { townLensRole } from '../chains.js';
+import { build } from '../model.js';
+import { emptyGame } from './helpers.mjs';
 
 test('complex desert goods trace every raw source, shared refinery and town delivery', () => {
   const graph = productionChain('desert', 'goods');
@@ -80,4 +83,18 @@ test('a cargo lens follows an industry type\'s first output and marks producers,
   for (const cargo of [null, '', 'passengers']) assert.equal(lensRole('iron-mine', cargo), null);
   assert.equal(lensRole('towns', 'passengers'), null);
   assert.equal(lensRole('missing', 'iron'), null);
+});
+
+test('only when asked, a sawmill’s targets include towns whose workshops take lumber; lens roles follow workshops', () => {
+  const game = emptyGame(), city = { id: 'town-a', name: 'Ashford', x: 40, y: 30, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }, other = { ...city, id: 'town-b', name: 'Brookby', x: 70 };
+  game.cities.push(city, other); game.revision++;
+  assert.equal(build(game, 'sawmill', 20, 30).ok, true);
+  const sawmill = game.industries[0];
+  assert.deepEqual(findIndustryTargets(game, sawmill, 5, { workshops: true }), []);
+  assert.equal(townLensRole(game, city, 'lumber'), null);
+  assert.equal(build(game, 'workshop', 43, 33).ok, true);
+  assert.deepEqual(findIndustryTargets(game, sawmill), [], 'Next goal never reads towns as lumber buyers');
+  assert.deepEqual(findIndustryTargets(game, sawmill, 5, { workshops: true }), [{ id: 'town-a', kind: 'city', name: 'Ashford workshops', x: 40, y: 30, cargo: ['lumber'], distance: 20 }]);
+  assert.deepEqual(['lumber', 'furniture', 'food', 'iron', 'passengers'].map(cargo => townLensRole(game, city, cargo)), ['buyer', 'source', 'buyer', null, null]);
+  assert.deepEqual(['lumber', 'furniture'].map(cargo => townLensRole(game, other, cargo)), [null, 'buyer']);
 });

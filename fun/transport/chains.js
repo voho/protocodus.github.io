@@ -1,4 +1,5 @@
 import { CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
+import { workshopLevels, workshopOutputs, workshopRecipes } from './town-market.js';
 
 export function industryCatalog(biome) {
   return Object.entries(INDUSTRIES).filter(([, definition]) => definition.biomes.includes(biome));
@@ -47,8 +48,8 @@ export function productionChain(biome, cargo = 'all') {
   return { cargo, nodes, edges, levels: Array.from({ length: nodes.length ? 1 + Math.max(...nodes.map(node => node.level)) : 0 }, (_, index) => nodes.filter(node => node.level === index)) };
 }
 
-/** Nearest distinct consumers of this site's output, in straight-line tiles. */
-export function findIndustryTargets(game, industry, limit = 5) {
+/** Nearest distinct consumers of this site's output, in straight-line tiles. With `workshops`, towns whose workshops take it count too. */
+export function findIndustryTargets(game, industry, limit = 5, { workshops = false } = {}) {
   const output = Object.keys(INDUSTRIES[industry?.kind]?.outputs || {});
   if (!output.length || limit <= 0) return [];
   const targets = [];
@@ -59,6 +60,8 @@ export function findIndustryTargets(game, industry, limit = 5) {
   }
   const townCargo = output.filter(key => TOWN_CARGO.includes(key));
   if (townCargo.length) for (const city of game.cities || []) targets.push({ id: city.id, kind: 'city', name: city.name, x: city.x, y: city.y, cargo: townCargo.slice() });
+  const materials = workshops ? output.filter(key => workshopRecipes(game).some(recipe => recipe.input === key)) : [];
+  if (materials.length) for (const city of game.cities || []) if (workshopLevels(game, city) >= 1) targets.push({ id: city.id, kind: 'city', name: `${city.name} workshops`, x: city.x, y: city.y, cargo: materials.slice() });
   return targets.map(target => ({ ...target, distance: Math.hypot(target.x - industry.x, target.y - industry.y) }))
     .sort((a, b) => a.distance - b.distance || String(a.id).localeCompare(String(b.id))).slice(0, Math.floor(limit));
 }
@@ -80,6 +83,13 @@ export function lensCargo(kind) {
   return definition ? Object.keys(definition.outputs)[0] || Object.keys(definition.inputs)[0] || null : null;
 }
 
+/** A town's lens role: it supplies what its workshops make, and buys what they take or what towns buy. */
+export function townLensRole(game, city, cargo) {
+  if (!cargo || cargo === 'passengers') return null;
+  const recipes = workshopRecipes(game);
+  if (recipes.some(recipe => recipe.output === cargo) && workshopOutputs(game, city).includes(cargo)) return 'source';
+  return TOWN_CARGO.includes(cargo) || recipes.some(recipe => recipe.input === cargo) && workshopLevels(game, city) >= 1 ? 'buyer' : null;
+}
 /** A site's part in a cargo lens: 'source' produces it, 'buyer' takes it (towns buy town cargo), otherwise null. */
 export function lensRole(kind, cargo) {
   if (!cargo || cargo === 'passengers') return null;

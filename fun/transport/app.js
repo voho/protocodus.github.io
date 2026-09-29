@@ -32,6 +32,9 @@ import { STATION_RADIUS } from './model.js';
 import { townNeeds, NEED_WINDOW, townGrowth, townOutlook } from './settlements.js';
 import { townOpinion, townActionQuote, townStopCounts, TOWN_ACTIONS } from './town-authority.js';
 import { marketView, demandInputs, demandLabel, familyCargo, townOf, FAMILIES, MARKET, TOWN_RADIUS } from './town-market.js';
+import { workshopLevels, workshopRecipes } from './town-market.js';
+import { expandWorkshop } from './model.js';
+import { WORKSHOP } from './data.js';
 import { nearbyZones } from './simulation-spatial.js';
 import { buyTownAction } from './model.js';
 import { dateLong, listJoin } from './copy.js';
@@ -92,7 +95,8 @@ const TOOL_INFO = {
  port:{name:'Port',icon:'port',key:'P',detail:'Place on water beside a bank, within 5 tiles of customers. Ships follow connected rivers, lakes and seas.'},
  residential:{name:'Residential',icon:'house',key:'1',detail:'Zone homes by roads. Transport brings residents.'},
  commercial:{name:'Commercial',icon:'shop',key:'2',detail:'Zone shops by roads. Transport drives growth.'},
- industrial:{name:'Industrial',icon:'factory',key:'3',detail:'Zone industry by roads. Transport drives growth.'},
+ industrial:{name:'Industrial',icon:'factory',key:'3',detail:'Zone industry by roads. Each 2 × 2 plot becomes a workshop.'},
+ workshop:{name:'Workshop',icon:'workshop',detail:'Place within 10 tiles of a town center. Turns delivered materials into products for other towns.'},
  city:{name:'Found a town',icon:'city',detail:'Place on open land. Add roads, zones and transport.'},
  bulldoze:{name:'Bulldozer',icon:'bulldoze',key:'X',detail:'Click or drag to clear buildings, groves, rocks or individual network tiles. Each whole site is charged once. Retire routes before removing stops.'}
 };
@@ -209,7 +213,7 @@ function syncToolControls() {
  if(tool==='port')$('#active-tool-hint').textContent=`${tap} water beside land, near customers`;
  if(['residential','commercial','industrial'].includes(tool))$('#active-tool-hint').textContent=touch?'Drag an area · Two fingers to move':'Drag an area · Shift for a line';
  if(tool==='bulldoze')$('#active-tool-hint').textContent=`${tap} or drag · Clears whole sites`;
- if(BUILDINGS[tool]||INDUSTRIES[tool]){const size=BUILDINGS[tool]?buildingFootprint(tool):industryFootprint(tool);$('#active-tool-hint').textContent=`${size} × ${size} site · ${tap} to place`;}
+ if(BUILDINGS[tool]||INDUSTRIES[tool]||tool==='workshop'){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):WORKSHOP.footprint;$('#active-tool-hint').textContent=`${size} × ${size} site · ${tap} to place`;}
  if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`${tap} or drag · ${tool==='raise'?'+1':'−1'} level per point`;
  if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Flat ends at the same level';
  if(aimTool(tool)&&touch){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):0;$('#active-tool-hint').textContent=size?`${size} × ${size} site · Tap to preview`:'Tap to preview · Tap again to place';}
@@ -219,7 +223,7 @@ function syncToolControls() {
 // Phones switch between recent tools from the bar itself, so a tool change never covers the map with the drawer.
 function syncToolDock(bar,touch) {
  let dock=$('#active-tool-dock');
- if(!dock){dock=document.createElement('div');dock.id='active-tool-dock';dock.setAttribute('role','toolbar');dock.setAttribute('aria-label','Recent tools');dock.onclick=e=>{const key=e.target.closest('[data-dock-tool]')?.dataset.dockTool;if(!key)return;category=INDUSTRIES[key]?'industry':BUILDINGS[key]||['residential','commercial','industrial','city'].includes(key)?'towns':'network';setTool(key);};bar.insertBefore(dock,$('#cancel-tool-button'));}
+ if(!dock){dock=document.createElement('div');dock.id='active-tool-dock';dock.setAttribute('role','toolbar');dock.setAttribute('aria-label','Recent tools');dock.onclick=e=>{const key=e.target.closest('[data-dock-tool]')?.dataset.dockTool;if(!key)return;category=INDUSTRIES[key]?'industry':BUILDINGS[key]||['residential','commercial','industrial','workshop','city'].includes(key)?'towns':'network';setTool(key);};bar.insertBefore(dock,$('#cancel-tool-button'));}
  const keys=touch?recentTools.filter(key=>key!==tool&&(!INDUSTRIES[key]||INDUSTRIES[key].biomes.includes(game.biome))).slice(0,window.innerWidth<360?2:3):[];
  dock.hidden=!keys.length;if(dock.toolKeys===keys.join())return;dock.toolKeys=keys.join();
  dock.innerHTML=keys.map(key=>{const info=TOOL_INFO[key]||BUILDINGS[key]||INDUSTRIES[key],name=escapeHTML(info?.name||'Build');return `<button type="button" data-dock-tool="${key}" aria-label="${name}" title="${name}">${icon(info?.icon||'factory')}</button>`;}).join('');
@@ -253,13 +257,19 @@ function infrastructurePortrait(kind,cls='tool-art') { return `<canvas class="${
 function industryPortrait(kind,cls='entity-art') { return `<canvas class="${cls}" width="112" height="112" data-industry-sprite="${kind}" aria-hidden="true"></canvas>`; }
 function toolCard(key, label) {
  const info=TOOL_INFO[key],base=key==='stop'?Math.min(BUILD_COSTS['bus-stop'],BUILD_COSTS['train-stop']):BUILD_COSTS[key],automatic=['road','rail','stop'].includes(key);
- return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" ${info.key?`aria-keyshortcuts="${info.key}" `:''}title="${escapeHTML(info.detail)}">${infrastructureKind(key)?infrastructurePortrait(infrastructureKind(key)):icon(info.icon)}<span class="tool-title">${label||info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?key==='bulldoze'?' / site':key==='level'?' / step':terrainTools.has(key)?' / point':' / tile':''}</span>${info.key?`<span class="shortcut" aria-hidden="true">${info.key}</span>`:''}</button>`;
+ return `<button class="tool-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" ${info.key?`aria-keyshortcuts="${info.key}" `:''}title="${escapeHTML(info.detail)}">${infrastructureKind(key)?infrastructurePortrait(infrastructureKind(key)):key==='workshop'?'<canvas class="tool-art" width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas>':icon(info.icon)}<span class="tool-title">${label||info.name}</span><span class="tool-cost">${automatic?'from ':''}${compactMoney(priceFor(game,base))}${lineTools.has(key)?key==='bulldoze'?' / site':key==='level'?' / step':terrainTools.has(key)?' / point':' / tile':''}</span>${info.key?`<span class="shortcut" aria-hidden="true">${info.key}</span>`:''}</button>`;
 }
 function toolDescription(key) {
+ if (key==='workshop') return workshopDescription();
  if (TOOL_INFO[key]) return TOOL_INFO[key].detail;
  if (BUILDINGS[key]) { const b=BUILDINGS[key];return `${b.name} · ${buildingFootprint(key)} × ${buildingFootprint(key)} clear tiles near roads.`; }
  if (INDUSTRIES[key]) {const d=INDUSTRIES[key];return `${d.name} · ${industryFootprint(key)} × ${industryFootprint(key)} clear tiles. Add a stop within 5 tiles.`;}
  return 'Choose a tool.';
+}
+// This environment's recipes, and what one level works in a month.
+function workshopDescription() {
+ const month=WORKSHOP.rate*30;
+ return `Workshop, 2 × 2. Turns ${listJoin(workshopRecipes(game).map(r=>`${CARGO[r.input].name.toLowerCase()} into ${CARGO[r.output].name.toLowerCase()}`))}. Each level turns ${integer(month)} materials a month into about ${integer(Math.floor(month/WORKSHOP.ratio))} products.`;
 }
 function buildingBenefit(kind) {
  const definition=BUILDINGS[kind];
@@ -380,7 +390,7 @@ function engineeringTools() {
  return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}${toolCard('level','Level area')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
 }
 function buildPanel() {
- const groups={network:['road','rail','stop','port','bulldoze'],towns:['residential','commercial','industrial','city']};
+ const groups={network:['road','rail','stop','port','bulldoze'],towns:['residential','commercial','industrial','workshop','city']};
  const tabs=`<div class="build-tabs" role="tablist" aria-label="Construction categories">${[['network','Network'],['towns','Town'],['industry','Industry']].map(([key,label])=>`<button role="tab" aria-selected="${category===key}" data-category="${key}" class="${category===key?'active':''}">${label}</button>`).join('')}</div>`;
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small></span></button>`).join('')}</div>`;
  return `<div class="panel-heading"><h2>Build</h2></div>${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}${tool==='stop'?`<div class="stop-mode-picker" role="group" aria-label="Stop type at road and rail crossings"><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:''}${category==='network'?engineeringTools():''}<div class="tool-description">${category==='network'&&tool==='inspect'?'Roads and rails climb straight slopes. Level awkward ground in Terrain & crossings.':escapeHTML(toolDescription(tool))}</div><div class="build-bottom-tools"><button class="compact-tool ${tool==='inspect'?'active':''}" data-tool="inspect">${icon('inspect')} Explore <span>Esc</span></button>${category!=='network'?`<button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze">${icon('bulldoze')} Bulldozer <span>X</span></button>`:''}</div>${category==='towns'?buildingPalette():projectCard()+`<button class="text-button" data-action="help">How to play <span>↗</span></button>`}`;
@@ -634,6 +644,7 @@ function routeOutlook(plan) {
  const facts=[`${isTownTraffic(formDraft.cargo)?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':isTownTraffic(formDraft.cargo)?'':' once served'}`,`One ${noun} carries ≈ ${perDay(f.perVehicleDay)} / day`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:`One ${noun} carries all of it`,`Full load ≈ ${money(f.fullLoad)}`].filter(Boolean);
  if(formDraft.mode==='road'&&room>0&&rail?.ratio>=1.5)facts.push(`A train would carry ≈ ${Math.round(rail.ratio)}× per vehicle${keepText(rail.share,f.share)}`);
  if(f.marketBonus>=1)facts.push(`Includes ≈ ${money(f.marketBonus)} a month of market bonus`);
+ if(f.workshopsPending)facts.push('Town workshops’ output counts from the end of this month');
  const trip=planText(planTrip(game,formDraft.mode,formDraft.cargo,plan.path,getVehiclePurchase(game,formDraft.mode).level));
  return {outlook:f.netMonth>0?'gain':'loss',summary,trip,facts:facts.map(fact=>`<li>${escapeHTML(fact)}</li>`).join('')};
 }
@@ -973,6 +984,21 @@ function townGrowHelp(outlook) {
  const room=outlook.plots?`${integer(outlook.plots)} free road-side ${outlook.plots===1?'plot':'plots'}`:'no free road-side plots';
  return `<details class="town-grow" ${townGrowOpen?'open':''}><summary>Help it grow</summary><p class="town-room">Room to grow · ${room}</p><p>Served towns extend their own streets over time. Zoning nearby land speeds this up.</p><button class="button button-primary full" id="zone-town">${icon('house')} Add zones</button></details>`;
 }
+// A workshop's card: its recipes, its town's stock of each material and product, and Expand on one you placed.
+function workshopBody(building,town) {
+ const levels=town?workshopLevels(game,town):0,level=building.level||1,cost=priceFor(game,WORKSHOP.cost),month=WORKSHOP.rate*30,recipes=workshopRecipes(game),stock=town?.workshop;
+ const cargo=[...new Set(recipes.flatMap(r=>[r.input,r.output]))],held=key=>(recipes.some(r=>r.input===key)?stock?.input[key]:stock?.output[key])||0;
+ const expand=building.owner==='player'&&level<WORKSHOP.maxLevel?`<button class="button button-primary full" id="expand-workshop"${game.money<cost?` disabled title="Need ${money(cost)}"`:` title="Level ${level+1}, ${integer(month)} more materials a month"`}>${icon('plus')} Expand <span class="price" data-num>${money(cost)}</span></button>`:'';
+ return `<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><div class="workshop-recipes">${recipes.map(r=>cargoRecipe({[r.input]:WORKSHOP.ratio},{[r.output]:1})).join('')}</div></div><div class="inspector-grid"><div><small>Town</small><strong>${town?escapeHTML(town.name):'Countryside'}</strong></div><div><small>Town workshops</small><strong data-num>${integer(levels)} ${levels===1?'level':'levels'}</strong></div></div>${town?`<div class="section-divider"></div><div class="ledger workshop-ledger">${cargo.map(key=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong data-num>${integer(held(key))}</strong></div>`).join('')}</div><p class="micro-note">Deliveries to a stop within 5 tiles of the town center always pay. This town’s workshops turn up to ${integer(levels*month)} materials a month into products. Carry them to another town.</p>`:'<p class="micro-note">Workshops work for a town within 10 tiles of its center.</p>'}${expand}`;
+}
+// A town's workshops in its economy: what they make, and what waits for them or is ready to carry.
+function townWorkshops(city) {
+ const levels=workshopLevels(game,city),recipes=workshopRecipes(game),stock=city.workshop;if(!levels)return '';
+ const list=(keys,side)=>listJoin([...new Set(keys)].filter(key=>(stock?.[side][key]||0)>=1).map(key=>cargoAmount(Math.floor(stock[side][key]),key)));
+ const waiting=list(recipes.map(r=>r.input),'input'),ready=list(recipes.map(r=>r.output),'output');
+ const foot=waiting||ready?`${[waiting&&`${waiting} waiting`,ready&&`${ready} ready`].filter(Boolean).join(', ')}.`:`Nothing waiting yet. Deliver ${listJoin([...new Set(recipes.map(r=>CARGO[r.input].name.toLowerCase()))],'or')} to a stop near the town center.`;
+ return `<h4>Workshops, ${integer(levels)} ${levels===1?'level':'levels'}</h4><div class="workshop-lines">${recipes.map(r=>`<div class="workshop-line"><span class="cargo-tile">${cargoIcon(r.input,{decorative:true})}</span><span>${CARGO[r.input].name}</span><span class="workshop-to">to</span><span class="cargo-tile">${cargoIcon(r.output,{decorative:true})}</span><span>${CARGO[r.output].name}</span></div>`).join('')}</div><p class="economy-foot">${escapeHTML(foot)}</p>`;
+}
 // Town economy waits in a closed fold: three demand bars, what the shops want this month and what wanted cargo pays.
 // It reads marketView only, so opening it never changes the town.
 let townEconomyOpen=false;
@@ -997,7 +1023,7 @@ function townEconomySection(city) {
  const need=slowedNeed(city),needNames=need?.cargo.map((key,n)=>n?CARGO[key].name.toLowerCase():CARGO[key].name).join(' or ');
  const hint=need?`<p class="economy-note">${escapeHTML(`${needNames} deliveries help ${need.kind==='commercial'?'shops':'homes'} grow into ${need.label.toLowerCase()}.`)}</p>`:'';
  const lead=short?`Wants ${familyName(short,cargoOf(short)).toLowerCase()}`:'';
- return `<details class="town-economy" ${townEconomyOpen?'open':''}><summary><span class="economy-title">Town economy</span><span class="economy-mini" aria-hidden="true">${view.demand.map(bar=>`<i style="height:${Math.round(3+9*bar)}px"></i>`).join('')}</span><strong class="economy-lead">${lead}</strong>${uiIcon('chevronDown',{size:16,cls:'economy-chevron'})}</summary><div class="demand-rows">${rows}</div><p class="economy-note">${escapeHTML(economyNote(view,demandInputs(game,city,view)))}</p><h4>Shops want each month</h4>${chips?`<div class="wants">${chips}</div>`:'<p class="economy-foot">No shop wants yet. Food and household shops appear as commercial zones develop.</p>'}${hint}${chips?`<p class="economy-foot">Wanted cargo pays ${Math.round(MARKET.bonus*100)}% more, up to these amounts each month.</p>`:''}</details>`;
+ return `<details class="town-economy" ${townEconomyOpen?'open':''}><summary><span class="economy-title">Town economy</span><span class="economy-mini" aria-hidden="true">${view.demand.map(bar=>`<i style="height:${Math.round(3+9*bar)}px"></i>`).join('')}</span><strong class="economy-lead">${lead}</strong>${uiIcon('chevronDown',{size:16,cls:'economy-chevron'})}</summary><div class="demand-rows">${rows}</div><p class="economy-note">${escapeHTML(economyNote(view,demandInputs(game,city,view)))}</p>${townWorkshops(city)}<h4>Shops want each month</h4>${chips?`<div class="wants">${chips}</div>`:'<p class="economy-foot">No shop wants yet. Food and household shops appear as commercial zones develop.</p>'}${hint}${chips?`<p class="economy-foot">Wanted cargo pays ${Math.round(MARKET.bonus*100)}% more, up to these amounts each month.</p>`:''}</details>`;
 }
 // Opinion of your company waits in a closed fold: why the town feels as it does, and the town hall's optional purchases.
 let townOpinionOpen=false;
@@ -1030,12 +1056,13 @@ function localConditions(conditions) {
  return `<section class="local-conditions" aria-label="Local conditions"><h4>Local conditions</h4><div class="condition-list">${positives.map(text=>`<span class="condition-chip">${icon('check')}${escapeHTML(text)}</span>`).join('')}${(conditions.notes||[]).map(text=>`<span class="condition-chip condition-note">${icon('leaf')}${escapeHTML(text)}</span>`).join('')}${negatives.map(text=>`<span class="condition-chip condition-concern">${icon('warning')}${escapeHTML(text)}</span>`).join('')}</div></section>`;
 }
 function industryDestinations(industry) {
- const outputs=Object.keys(INDUSTRIES[industry.kind].outputs), targets=findIndustryTargets(game,industry,5);
+ const outputs=Object.keys(INDUSTRIES[industry.kind].outputs), targets=findIndustryTargets(game,industry,5,{workshops:true});
  const from=servingStops(industry),plans=targets.map(target=>from.length?targetPlan(target,from):'');
  holdContext(industry,targets);
  const uses=outputs.map(cargo=>{
   const consumers=Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)&&d.inputs[cargo]).map(d=>d.name);
   if(TOWN_CARGO.includes(cargo))consumers.push('Towns');
+  if(workshopRecipes(game).some(r=>r.input===cargo))consumers.push('Town workshops');
   return `<div class="industry-use">${cargoBadge(cargo,{label:true})}<span class="cargo-arrow" aria-hidden="true">→</span><span>${escapeHTML(consumers.join(', ')||'No buyers in this region')}</span></div>`;
  }).join('');
  return `<section class="industry-destinations" aria-label="Output destinations"><div class="destination-heading"><h4>Deliver to</h4><button class="small-button" id="industry-chain">${icon('chains')} Full chain</button></div>${uses}<h4>Nearest targets <span>${targets.length}</span></h4><p class="destination-note">Direct distance · transport required</p><div class="industry-target-list">${targets.map((target,index)=>`${plans[index]?'<div class="industry-target-row">':''}<button class="industry-target" data-target-id="${escapeHTML(target.id)}" data-target-kind="${target.kind}" aria-label="Locate ${escapeHTML(target.name)} at ${target.x}, ${target.y}"><span class="target-number">${index+1}</span><span class="target-detail"><strong>${escapeHTML(target.name)}</strong><small>${Math.round(target.distance)} tiles · ${target.x}, ${target.y}</small></span><span class="target-cargo">${target.cargo.map(c=>cargoIcon(c,{decorative:true})).join('')}</span>${icon('focus')}</button>${plans[index]?plans[index]+'</div>':''}`).join('')||'<p class="destination-note">No buyers yet. Open the chain to build one.</p>'}</div></section>`;
@@ -1156,7 +1183,7 @@ function inspect(x,y,kind='',origin='') {
  if(station&&kind!=='city'&&kind!=='industry'){title=station.name;tag=stopName(station.mode).replace(/^./,c=>c.toUpperCase());body=`${infrastructurePortrait(station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art')}<div class="inspector-grid"><div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div></div>${stationCargoNotes(station)}${stationServices(station)}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
  else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`${industry.openedDay!==undefined?`<p class="micro-note">Opened in ${calendarYear(game,industry.openedDay)}</p>`:''}<div class="inspector-industry-art">${industryPortrait(industry.kind)}${cargoRecipe(d.inputs,d.outputs)}</div><div class="industry-condition" data-state="${status.state}"><strong>${escapeHTML(status.label)}</strong><p>${escapeHTML(status.detail)}</p></div>${industryService(industry)}${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>Potential / day</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building&&BUILDINGS[tile.building.kind]){const b=BUILDINGS[tile.building.kind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.tier?b.tier+' home':BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${tile.building.kind}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?escapeHTML(nearest.name):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(tile.building.kind))}</p>${span<buildingFootprint(tile.building.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
- else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Neighborhood workshop';tag=`${span} × ${span} site`;body='<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="factory" aria-hidden="true"></canvas><p>Local industry</p></div><p>Road access and town deliveries drive development. Each level supports local town activity.</p>';}
+ else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Workshop';tag=`${span} × ${span} site, level ${tile.building.level||1}`;body=workshopBody(tile.building,townOf(game,x,y));}
  else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Activity</small><strong>${integer(city.activity||0)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townGrowHelp(outlook)}${townEconomySection(city)}${townOpinionSection(city)}`;}
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y);body+=`<p>Development: ${Math.round((zone?.progress||0)/3*100)}% · Road access and regular town deliveries required.</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
@@ -1168,6 +1195,7 @@ function inspect(x,y,kind='',origin='') {
  if(changed)sheetExpanded=false;syncSheet(box);
  if(changed&&matchMedia(SHEET_MEDIA).matches)keepAboveSheet(box,industry?.x??x,industry?.y??y,industry?industrySize(industry):site?buildingSize(site.building):nature?terrainObjectSize(nature.object):1);
  if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
+ if($('#expand-workshop'))$('#expand-workshop').onclick=()=>{const result=expandWorkshop(game,x,y);toast(result.message,!result.ok);if(!result.ok)return;updateHud();persist();invalidateScene();inspect(x,y,kind,'keyboard');};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  const opinionFold=box.querySelector('.town-opinion');if(opinionFold)opinionFold.ontoggle=()=>{townOpinionOpen=opinionFold.open;};
  const economyFold=box.querySelector('.town-economy');if(economyFold)economyFold.ontoggle=()=>{townEconomyOpen=economyFold.open;};
@@ -1816,7 +1844,7 @@ function centreKeyCursor() { const box=canvas.getBoundingClientRect(),x=box.left
 function dropKeyCursor() { if(!keyCursor)return;keyCursor=keyStart=null;if(hover?.keyboard)hover=null;preview=[];$('#placement-tip').hidden=true;clearTimeout(keyTimer); }
 function placeTitle(x,y) {
  const t=tileAt(x,y),site=buildingAt(game,x,y),industry=game.industries.find(i=>industryContains(i,x,y));
- return game.stations.find(s=>s.x===x&&s.y===y)?.name||(industry?industry.name||INDUSTRIES[industry.kind].name:'')||game.cities.find(c=>c.x===x&&c.y===y)?.name||(site?BUILDINGS[site.building.kind]?.name||'Neighborhood workshop':'')||(t.zone?TOOL_INFO[t.zone].name+' zone':t.road?'Road':t.rail?'Railway':TERRAIN_NAMES[t.terrain]||'Countryside');
+ return game.stations.find(s=>s.x===x&&s.y===y)?.name||(industry?industry.name||INDUSTRIES[industry.kind].name:'')||game.cities.find(c=>c.x===x&&c.y===y)?.name||(site?BUILDINGS[site.building.kind]?.name||'Workshop':'')||(t.zone?TOOL_INFO[t.zone].name+' zone':t.road?'Road':t.rail?'Railway':TERRAIN_NAMES[t.terrain]||'Countryside');
 }
 // The live region reads '<x>, <y> · <place> · <tool> · <cost or problem>', taking the quote from the placement tip.
 function keyCursorText() {
