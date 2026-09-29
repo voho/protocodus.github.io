@@ -48,7 +48,7 @@ try{
  await page.reload();await page.locator('#start-menu').waitFor();assert.equal(await page.evaluate(()=>Boolean(window.transport)),false);assert.equal(await page.evaluate(()=>localStorage.getItem('transport-save-v1')),before.raw);
  const resume=page.locator('#start-continue');await resume.waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'start-continue');
  assert.equal(await resume.locator('strong').innerText(),'Continue');assert.match(await resume.locator('small').innerText(),/^Desert · Jan 1950 · \$[\d,]+ · saved (just now|\d+ minutes? ago)$/);
- await page.locator('#start-load').click();assert.match(await page.locator('.start-save').filter({hasText:'Autosave'}).locator('small').innerText(),/^Desert · Jan 1950 · \$[\d,]+ · \d+ × \d+ · 1 route$/);
+ await page.locator('#start-load').click();assert.match(await page.locator('.start-save').filter({hasText:'Autosave'}).locator('small').innerText(),/^Desert, Jan 1950, \$[\d,]+, \d+ × \d+, 1 route$/);
  await page.screenshot({path:`${out}/desktop-continue.png`});await resume.click();await ready(page);
  assert.deepEqual(await page.evaluate(()=>transport.game.generationOptions),company.options);assert.equal(await page.evaluate(()=>transport.game.seed),1847);
  const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,reducedMotion:'reduce'});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(base);await mobile.locator('#start-menu').waitFor();
