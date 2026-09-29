@@ -6,6 +6,7 @@
 export const APP_PRELOAD = Object.freeze([
   './ui-icons.js',
   './headlines.js',
+  './air-flight.js', './airport-art.js',
   './compact-play.js', './construction-plan.js', './route-tiles.js', './structure-visibility.js', './atlas-runtime.js',
   './raster-industries.js', './raster-buildings.js', './tree-sprites.js', './tree-shadows.js', './raster-nature.js',
   './building-sprites.js', './processing-sprites.js', './relief-sprites.js', './raster-houses.js', './sprite-cache.js',

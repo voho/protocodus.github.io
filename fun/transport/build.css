@@ -211,3 +211,22 @@
  .compact-play .tool-grid .tool-card[data-tool=city]{min-height:44px;padding:8px 12px}
  .compact-play .tool-grid .tool-card[data-tool=city] svg{margin:0}
 }
+/* Build › Network: the Airport card waits on the well, with its year, until air travel arrives; Turn turns the runway. */
+.tool-grid .tool-card[aria-disabled="true"]{background:var(--well);cursor:default}
+.tool-grid .tool-card[aria-disabled="true"] .tool-art{opacity:.5}
+.tool-grid .tool-card[aria-disabled="true"] .tool-title{color:var(--ink-2)}
+#active-tool-turn{flex:0 0 auto;min-width:56px;min-height:44px;margin-left:8px;padding:8px 12px;border:1px solid var(--edge);border-radius:var(--r-3);background:var(--paper);color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600}
+#active-tool-turn:hover{background:var(--well)}
+#active-tool-turn:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+#active-tool-turn[hidden]{display:none}
+#active-tool-turn:not([hidden])+#cancel-tool-button{margin-left:0}
+/* The Airport card takes its own row between the places and Bulldozer: portrait, then name over price. */
+.tool-grid .tool-card[data-tool=airport]{grid-column:1/-1;display:grid;grid-template-columns:60px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:12px;min-height:72px}
+.tool-grid .tool-card[data-tool=airport] .tool-art{grid-row:1/3;margin:0}
+.tool-grid .tool-card[data-tool=airport] .tool-title{align-self:end}
+.tool-grid .tool-card[data-tool=airport] .tool-cost{align-self:start}
+@media(max-height:500px) and (orientation:landscape){
+ .compact-play .tool-grid .tool-card[data-tool=airport]{grid-template-columns:40px minmax(0,1fr);min-height:44px;padding:8px 12px}
+}
+/* On a phone the Airport tool's Turn takes the recent-tools dock's place, so its hint keeps room. */
+.compact-play #active-tool-bar:has(#active-tool-turn:not([hidden])) #active-tool-dock{display:none}

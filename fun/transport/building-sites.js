@@ -1,5 +1,6 @@
 import { BUILDINGS } from './buildings.js';
 import { releaseTerrainObjects } from './terrain-objects.js';
+import { stationSiteAt } from './station-sites.js';
 
 // Extent belongs to the saved instance. A missing field is an old one-tile
 // building, even when today's catalog creates a larger version of its kind.
@@ -31,7 +32,7 @@ export function buildingSiteProblem(game,kind,x,y,size=buildingFootprint(kind),{
   for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++){
     const px=x+dx,py=y+dy,t=tileAt(game,px,py),occupied=buildingAt(game,px,py);
     if(t.terrain==='water'||t.terrain==='mountain')return `The whole ${size} × ${size} site needs buildable land.`;
-    if((occupied&&!(exclude&&occupied.x===exclude.x&&occupied.y===exclude.y))||(!allowZone&&t.zone&&!(exclude&&px===exclude.x&&py===exclude.y))||t.road||t.rail||t.bridge||t.tunnel||game.stations.some(s=>s.x===px&&s.y===py)||game.cities.some(c=>c.x===px&&c.y===py)||game.industries.some(i=>siteContains(i,px,py)))return `Clear all ${size*size} tiles before building here.`;
+    if((occupied&&!(exclude&&occupied.x===exclude.x&&occupied.y===exclude.y))||(!allowZone&&t.zone&&!(exclude&&px===exclude.x&&py===exclude.y))||t.road||t.rail||t.bridge||t.tunnel||stationSiteAt(game,px,py)||game.cities.some(c=>c.x===px&&c.y===py)||game.industries.some(i=>siteContains(i,px,py)))return `Clear all ${size*size} tiles before building here.`;
   }
   return null;
 }

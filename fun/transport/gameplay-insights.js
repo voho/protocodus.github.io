@@ -1,6 +1,6 @@
 import { INDUSTRIES, TOWN_CARGO } from './data.js';
 import { isTownTraffic } from './data.js';
-import { STATION_RADIUS, findPath, getRouteFleet, getVehiclePurchase } from './model.js';
+import { STATION_RADIUS, findPath, getRouteFleet, getVehiclePurchase, stationServes, stationDistance, stationReach, stationSiteAt, airAvailable } from './model.js';
 import { number, count, listJoin, capital, cargoName, vehicleNoun, token, plain, namesIn } from './copy.js';
 import { townGrowth, townNeeds, townOutlook } from './settlements.js';
 import { findIndustryTargets } from './chains.js';
@@ -48,14 +48,14 @@ function memo(game, name, key, compute) {
 // and stations never sit on bridges or tunnels.
 function siteAccess(game, site) {
   const city = isCity(site), size = city ? 1 : industrySize(site), R = STATION_RADIUS;
-  const stops = new Set(game.stations.map(stop => stop.y * game.width + stop.x)), centers = new Set(game.cities.map(town => town.y * game.width + town.x));
+  const centers = new Set(game.cities.map(town => town.y * game.width + town.x));
   const industries = game.industries.filter(other => other.x <= site.x + size + R && other.y <= site.y + size + R && other.x + 3 >= site.x - R && other.y + 3 >= site.y - R);
   const tile = (x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
   let land = city, port = false;
   for (let y = site.y - R; y < site.y + size + R; y++) for (let x = site.x - R; x < site.x + size + R; x++) {
     const t = tile(x, y), distance = reach(site, { x, y });
     if (!t || distance > R || (!city && distance === 0)) continue;
-    const blocked = stops.has(y * game.width + x) || t.zone || industries.some(other => industryContains(other, x, y));
+    const blocked = stationSiteAt(game, x, y) || t.zone || industries.some(other => industryContains(other, x, y));
     if ((t.road || t.rail) && !t.bridge && !t.tunnel && !blocked) return { kind: 'road', stop: t.road ? 'bus-stop' : 'train-stop' };
     if (t.terrain === 'water') { if (!t.bridge && !port) port = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tile(x + dx, y + dy) && tile(x + dx, y + dy).terrain !== 'water'); continue; }
     if (!land && t.terrain !== 'mountain' && !blocked && !centers.has(y * game.width + x) && !buildingAt(game, x, y) && networkTerrainShape(game, x, y).kind !== 'complex') land = true;
@@ -92,7 +92,7 @@ function firstRouteChoices(game) {
 }
 
 function factoryPair(game) {
-  const home = game.cities[0] || { x: game.width / 2, y: game.height / 2 }, stations = game.stations.length ? game.stations : [home], byId = new Map(game.industries.map(site => [site.id, site]));
+  const home = game.cities[0] || { x: game.width / 2, y: game.height / 2 }, stops = game.stations.filter(stop => stop.mode !== 'air'), stations = stops.length ? stops : [home], byId = new Map(game.industries.map(site => [site.id, site]));
   const industrial = { industries: game.industries, cities: [] };
   const sources = game.industries.filter(isRaw).map(site => ({ site, distance: Math.min(...stations.map(stop => industryDistance(site, stop))) })).sort((a, b) => a.distance - b.distance).slice(0, 40);
   const candidates = sources.flatMap(({ site: source, distance }) => findIndustryTargets(industrial, source, 5).map(target => ({
@@ -127,7 +127,8 @@ export function firstRouteSteps(game, choice) {
   let state = stepMemos.get(game);
   if (!state || state.key !== key) {
     const target = buyer.kind === 'city' ? game.cities.find(city => city.id === buyer.id) : game.industries.find(site => site.id === buyer.id);
-    const serving = site => site ? game.stations.filter(stop => reach(site, stop) <= STATION_RADIUS).sort((a, b) => reach(site, a) - reach(site, b)) : [];
+    // An airport never serves an industry, so the checklist leaves airports out.
+    const serving = site => site ? game.stations.filter(stop => stop.mode !== 'air' && reach(site, stop) <= STATION_RADIUS).sort((a, b) => reach(site, a) - reach(site, b)) : [];
     const from = serving(source), to = serving(target), ids = [new Set(from.map(stop => stop.id)), new Set(to.map(stop => stop.id))];
     let pair = null;
     for (const a of from.slice(0, 3)) for (const b of to.slice(0, 3)) if (!pair && a !== b && a.mode === b.mode && findPath(game, a, b, a.mode)?.length >= 3) pair = [a, b];
@@ -152,7 +153,7 @@ export function townService(game, city, activeStops = null) {
     const stops = new Set(game.routes.filter(route => route.active).flatMap(route => route.stops));
     activeStops = game.stations.filter(stop => stops.has(stop.id));
   }
-  const connected = activeStops.some(stop => nearby(stop, city));
+  const connected = activeStops.some(stop => stationServes(stop, city));
   const served = connected && Number.isFinite(city.lastServiceDay) && game.day - city.lastServiceDay <= 30;
   // The HUD counts connected towns on every tick, so the words, which read growth, needs and room, wait until read.
   let words = null;const read = () => words ??= townWords(game, city, connected, served);
@@ -209,7 +210,7 @@ export function industryService(game) {
 function endpointTowns(towns, stops) {
   let best = null, bestDistance = Infinity;
   for (const a of towns[0]) for (const b of towns[1]) {
-    const walking = Math.hypot(a.x - stops[0].x, a.y - stops[0].y) + Math.hypot(b.x - stops[1].x, b.y - stops[1].y);
+    const walking = stationDistance(stops[0], a) + stationDistance(stops[1], b);
     if (a.id !== b.id && walking < bestDistance) { best = [a, b]; bestDistance = walking; }
   }
   return best;
@@ -228,8 +229,8 @@ export function routeHealth(game, route, stats = null) {
   if (!route.active) return say('blocked', 'error', 'Not connected', route.mode === 'water' ? 'Its ports no longer share open water.' : `Its ${route.mode === 'rail' ? 'track' : 'road'} is cut. Rebuild it, including any bridge or tunnel.`, { fix: { action: 'show-gap', label: 'Show the gap' } });
   if (!ends) return say('blocked', 'error', 'Stop missing', 'One of its stops was removed. Edit the route to pick another, or retire it.', { fix: EDIT });
   if (isTownTraffic(route.cargo)) {
-    const towns = stops.map(stop => game.cities.filter(city => nearby(city, stop))), mail = route.cargo === 'mail';
-    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return say('blocked', 'error', mail ? 'No mail' : 'No passengers', `${ends} each need a different town within ${STATION_RADIUS} tiles.`, { fix: EDIT });
+    const towns = stops.map(stop => game.cities.filter(city => stationServes(stop, city))), mail = route.cargo === 'mail';
+    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return say('blocked', 'error', mail ? 'No mail' : 'No passengers', `${ends} each need a different town within ${stationReach(from)} tiles.`, { fix: EDIT });
     const pair = endpointTowns(towns, stops), waiting = Math.min(...pair.map(city => Math.floor(city[route.cargo] || 0)));
     return fleetHealth(game, route, stats, waiting, mail ? 'Mail travels both ways.' : 'Passengers travel both ways.', stops);
   }
@@ -291,7 +292,7 @@ export function nextProject(game, { source: preferred } = {}) {
     const { milestone, progress } = next, text = progressText(milestone, progress);
     return { title: milestone.title, detail: text ? `${milestone.detail} ${text}.` : milestone.detail, action: milestone.action, target: milestone.target?.(game), tool: milestone.tool, button: milestone.button, ...progress.target > 1 ? { progress: { value: Math.min(progress.value, progress.target), max: progress.target } } : {}, milestone: milestone.id, chapter: next.chapter, choices: next.choices, choice: next.choice };
   }
-  return { title: 'Build your own story', detail: 'Reach a new town, develop a riverside port, or supply a complex factory. There is no deadline.', action: 'atlas', button: 'Explore the region' };
+  return { title: 'Build your own story', detail: airAvailable(game) ? 'Reach a new town, develop a riverside port, open an airport or supply a complex factory. There is no deadline.' : 'Reach a new town, develop a riverside port, or supply a complex factory. There is no deadline.', action: 'atlas', button: 'Explore the region' };
 }
 
 // Routes that cannot run at all: offline, missing a stop, or without two towns, a producer

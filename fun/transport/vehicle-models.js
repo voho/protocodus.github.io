@@ -2,7 +2,8 @@
 // that debut in a given January; each later January adds one mark. A vehicle's
 // level is the year of its purchase or last upgrade minus 1950, so its model
 // year and age need no saved field. Names and ages are presentation only:
-// nothing here changes costs, speed, capacity or reliability.
+// nothing here changes costs, speed, capacity or reliability. Airliners
+// begin with air travel in 1952; earlier levels clamp to their first mark.
 const series = (mode, passengers, noun, plural, families) => Object.freeze({ mode, passengers, noun, plural,
   families: Object.freeze(families.map(([year, name]) => Object.freeze({ year, level: year - 1950, name }))) });
 export const VEHICLE_SERIES = Object.freeze({
@@ -12,23 +13,24 @@ export const VEHICLE_SERIES = Object.freeze({
   'freight-train': series('rail', false, 'train', 'trains', [[1950, 'Rowdon'], [1962, 'Holloway'], [1975, 'Tarrant'], [1988, 'Morven'], [2001, 'Keld'], [2014, 'Ironwood'], [2028, 'Tavish'], [2043, 'Harrow']]),
   ferry: series('water', true, 'ferry', 'ferries', [[1950, 'Linnet'], [1966, 'Plover'], [1982, 'Skerry'], [1998, 'Selkie'], [2014, 'Petrel'], [2030, 'Halyard'], [2046, 'Moorhen']]),
   freighter: series('water', false, 'ship', 'ships', [[1950, 'Hawser'], [1960, 'Kedge'], [1976, 'Merrow'], [1992, 'Longshore'], [2008, 'Tolland'], [2024, 'Fathom'], [2040, 'Ardent']]),
+  airliner: series('air', true, 'plane', 'planes', [[1952, 'Aldwyn'], [1963, 'Corvane'], [1975, 'Tessaro'], [1988, 'Ilvara'], [2001, 'Nimbrel'], [2015, 'Solenne'], [2030, 'Vellora'], [2046, 'Orrin']]),
 });
-const ART = { bus: 'bus', truck: 'truck', 'passenger-train': 'train', 'freight-train': 'train', ferry: 'ship', freighter: 'ship' };
+const ART = { bus: 'bus', truck: 'truck', 'passenger-train': 'train', 'freight-train': 'train', ferry: 'ship', freighter: 'ship', airliner: 'plane' };
 const cleanLevel = level => Number.isInteger(level) && level > 0 ? level : 0;
 const factor = n => { const tenths = Math.round(n * 10) / 10; return Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1); };
 const and = items => items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
 
 export function vehicleSeriesKey(mode, cargo) {
   const passengers = cargo === 'passengers';
-  return mode === 'rail' ? (passengers ? 'passenger-train' : 'freight-train') : mode === 'water' ? (passengers ? 'ferry' : 'freighter') : (passengers ? 'bus' : 'truck');
+  return mode === 'air' ? 'airliner' : mode === 'rail' ? (passengers ? 'passenger-train' : 'freight-train') : mode === 'water' ? (passengers ? 'ferry' : 'freighter') : (passengers ? 'bus' : 'truck');
 }
-/** {series, name:'Hollin Mk 3', family, mark, year, level, debut, noun, plural}; the last family keeps counting marks. Mail rides in the freight body. */
+/** {series, name:'Hollin Mk 3', family, mark, year, level, debut, noun, plural}; the last family keeps counting marks. Mail rides in the freight body, or aboard a plane. */
 export function vehicleModel(mode, cargo, level = 0) {
   const key = vehicleSeriesKey(mode, cargo), s = VEHICLE_SERIES[key], l = cleanLevel(level);
   let family = s.families[0];
   for (const f of s.families) { if (f.level > l) break; family = f; }
-  const mark = l - family.level + 1, tanker = mode === 'water' && (cargo === 'oil' || cargo === 'fuel'), mail = cargo === 'mail' ? 'mail ' : '';
-  return { series: key, name: `${family.name} Mk ${mark}`, family: family.name, mark, year: 1950 + l, level: l, debut: mark === 1 && l > 0, noun: tanker ? 'tanker' : mail + s.noun, plural: tanker ? 'tankers' : mail + s.plural };
+  const mark = Math.max(1, l - family.level + 1), tanker = mode === 'water' && (cargo === 'oil' || cargo === 'fuel'), mail = cargo === 'mail' ? 'mail ' : '';
+  return { series: key, name: `${family.name} Mk ${mark}`, family: family.name, mark, year: 1950 + l, level: l, debut: l === family.level && l > 0, noun: tanker ? 'tanker' : mail + s.noun, plural: tanker ? 'tankers' : mail + s.plural };
 }
 /** Whole calendar years since the model year (1950 + level). */
 export function vehicleAge(year, level) { return Math.max(0, year - 1950 - cleanLevel(level)); }
@@ -62,6 +64,8 @@ export function newYearModel(routes, vehicles, level) {
 /** The January headline when the named model begins a new family (ttd-headlines' kind 'models'), or null. */
 export function modelHeadline(model) {
   if (!model?.debut) return null;
+  // Compared with the series' first model: 1950 for most, 1952 for planes.
+  const first = VEHICLE_SERIES[model.series].families[0].level;
   return { key: `models:${model.year}`, kind: 'models', art: ART[model.series], title: `New ${model.family} ${model.plural} arrive for ${model.year}`,
-    detail: `The ${model.name} ${model.noun} carries ${factor(1 + model.level / 5)} times the load of a 1950 ${model.noun} and runs ${factor(1 + model.level / 10)}× as fast.` };
+    detail: `The ${model.name} ${model.noun} carries ${factor((1 + model.level / 5) / (1 + first / 5))} times the load of a ${1950 + first} ${model.noun} and runs ${factor((1 + model.level / 10) / (1 + first / 10))}× as fast.` };
 }

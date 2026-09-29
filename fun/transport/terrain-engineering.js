@@ -2,6 +2,7 @@ import { terrainLevel, TERRAIN_LEVELS, landHeightLevel, LAND_HEIGHT_LEVELS } fro
 import { industryContains, industrySize } from './industry-sites.js';
 import { buildingAt, buildingSize } from './building-sites.js';
 import { tileSurface, surfaceHeight } from './terrain-geometry.js';
+import { stationSiteAt, stationTiles } from './station-sites.js';
 
 export const SPAN_TOOLS = new Set(['bridge', 'railbridge', 'tunnel', 'railtunnel']);
 const tileAt = (game, x, y) => Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
@@ -17,7 +18,7 @@ export function terraformProblem(game, tool, x, y) {
   for(let dy=-1;dy<=0;dy++)for(let dx=-1;dx<=0;dx++){
     const cx=x+dx,cy=y+dy,cell=tileAt(game,cx,cy);if(!cell)continue;
     if(cell.terrain==='water')return 'Shape dry land; rivers and seas keep their shoreline.';
-    if(cell.building||cell.zone||cell.road||cell.rail||cell.bridge||cell.tunnel||occupied(game,cx,cy)||game.stations.some(s=>at(s,cx,cy)))return 'Clear buildings, zones and networks before changing this point’s height.';
+    if(cell.building||cell.zone||cell.road||cell.rail||cell.bridge||cell.tunnel||occupied(game,cx,cy)||stationSiteAt(game,cx,cy))return 'Clear buildings, zones and networks before changing this point’s height.';
   }
   const level = surfaceHeight(game,x,y);
   if (tool === 'raise' && level >= LAND_HEIGHT_LEVELS) return `Highest terrain level is ${LAND_HEIGHT_LEVELS}.`;
@@ -46,7 +47,7 @@ function occupiedHeightProblem(game,placements,verifyTargets=false){
     if(tile.building){const size=buildingSize(tile.building);for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++)addCell(x+dx,y+dy);}
     if(tile.zone||tile.road||tile.rail||tile.bridge||tile.tunnel)addCell(x,y);
   }
-  for(const p of [...game.cities,...game.stations])addCell(p.x,p.y);
+  for(const p of [...game.cities,...game.stations.flatMap(stationTiles)])addCell(p.x,p.y);
   for(const industry of game.industries){const size=industrySize(industry);for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++)addCell(industry.x+dx,industry.y+dy);}
   if(!vertices.size&&!verifyTargets)return null;
   const changed={...game,tiles:new Proxy(game.tiles,{get:(tiles,key)=>updates.get(key)??Reflect.get(tiles,key)})};
@@ -236,7 +237,7 @@ export function planStructureSpan(game, tool, points) {
   for (let i = 0; i < points.length; i++) {
     const { x, y } = points[i], tile = tileAt(game, x, y), interior = i > 0 && i < points.length - 1;
     if (tile.building || tile.zone || occupied(game, x, y)) return fail('Clear buildings and zones along the span first.');
-    const station = game.stations.find(s => at(s, x, y));
+    const station = stationSiteAt(game, x, y);
     if (station && (interior || station.mode !== mode)) return fail('Keep stops outside the span, on a matching network.');
     if (interior) {
       const clearance=spanClearance(game,structure,x,y,height)||(existing&&(structure==='bridge'?terrainLevel(tile)<level:terrainLevel(tile)>level));

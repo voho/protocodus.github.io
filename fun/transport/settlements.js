@@ -3,6 +3,7 @@ import { localEnvironment, randomAt, weatherAt, hasRoadAccess } from './environm
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingSize, buildingTiles, placeBuildingSite } from './building-sites.js';
 import { nearbyStations } from './simulation-spatial.js';
+import { stationTiles } from './station-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
@@ -135,7 +136,7 @@ export const MAIL_RATE = .0024, MAIL_POOL_SHARE = .08;
 export function mailRate(city, environment) { return Math.max(0, city.population) * MAIL_RATE * (1 + .15 * Math.min(4, environment.services)); }
 export function mailArrivals(game, city, day = Math.floor(game.day), environment = localEnvironment(game, city.x, city.y)) { return mailRate(city, environment) * (.7 + randomAt(game, day, city.id, 121) * .6); }
 
-const occupiedSites = game => new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
+const occupiedSites = game => new Set([...game.industries.flatMap(industryTiles), ...game.stations.flatMap(stationTiles), ...game.cities].map(point => `${point.x},${point.y}`));
 // Road-side lots organic growth could still take; a limit stops the count early.
 function townLots(game, city, reach, occupied, limit = Infinity) {
   let lots = 0;

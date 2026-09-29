@@ -107,7 +107,7 @@ function infrastructureBase(game) {
     else if (t.tunnel) base += t.rail ? BUILD_COSTS.railtunnel : BUILD_COSTS.tunnel;
     else base += (t.road && !t.publicRoad ? BUILD_COSTS.road : 0) + (t.rail ? BUILD_COSTS.rail : 0);
   }
-  for (const s of game.stations) base += s.mode === 'water' ? BUILD_COSTS.port : s.mode === 'rail' ? BUILD_COSTS['train-stop'] : BUILD_COSTS['bus-stop'];
+  for (const s of game.stations) base += s.mode === 'air' ? BUILD_COSTS['airport-x'] : s.mode === 'water' ? BUILD_COSTS.port : s.mode === 'rail' ? BUILD_COSTS['train-stop'] : BUILD_COSTS['bus-stop'];
   for (const i of game.industries) if (i.owner === 'player') base += INDUSTRIES[i.kind]?.cost ?? 0;
   return base;
 }

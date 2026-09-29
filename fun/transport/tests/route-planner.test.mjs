@@ -376,3 +376,31 @@ test('the route form’s verdict for every cargo is the launch rule’s, worksho
   }
   assert.equal(validateRoutePlan(game, { mode: 'road', from: twin.id, to: a.id, cargo: 'furniture' }).message, 'Furniture from Alderbrook workshops must go to another town. Pick an end stop that doesn’t reach Alderbrook.');
 });
+
+// Flights: two airports at least 16 tiles apart, passengers and mail only, no network needed.
+test('air plans: two airports, passengers and mail, 16 tiles apart, with a straight forecast', () => {
+  const game = emptyGame(); game.day = game.lastDailyDay = 730; game.lastMonth = 24;
+  const town = (id, x, y) => ({ id, name: id, x, y, population: 1500, activity: 0, growth: 0, passengers: 400, mail: 40, delivered: 0, supplies: 0, lastServiceDay: null });
+  game.cities = [town('Ash', 13, 16), town('Birch', 83, 56), town('Cove', 13, 36)];
+  const a = build(game, 'airport-x', 10, 20).station, b = build(game, 'airport-y', 80, 50).station, c = build(game, 'airport-x', 10, 30).station;
+  assert.equal(build(game, 'bus-stop', 20, 20).ok, false, 'no road there');
+  buildPath(game, 'road', line(20, 22, 10)); const bus = build(game, 'bus-stop', 20, 10).station;
+  const draft = { mode: 'air', cargo: 'passengers', from: a.id, to: b.id };
+  assert.equal(validateRoutePlan(game, { ...draft, to: bus.id }).message, 'Choose two airports.');
+  assert.equal(validateRoutePlan(game, { ...draft, cargo: 'timber' }).message, 'Planes carry passengers and mail.');
+  assert.equal(validateRoutePlan(game, { ...draft, to: c.id }).message, 'Airports must be at least 16 tiles apart for a flight.');
+  game.cities[1].x = 13; game.cities[1].y = 26; game.revision++;
+  assert.equal(validateRoutePlan(game, draft).message, 'Connected. Each airport must serve a different town within 7 tiles.');
+  game.cities[1].x = 83; game.cities[1].y = 56; game.revision++;
+  const plan = validateRoutePlan(game, draft);
+  assert.equal(plan.valid, true); assert.equal(plan.message, 'Flight, 100 tiles.'); assert.equal(plan.path.length, 101);
+  assert.deepEqual(routeCargoOptions(game, draft).filter(option => option.valid).map(option => option.cargo).sort(), ['mail', 'passengers']);
+  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Ash – Birch');
+  const level = getVehiclePurchase(game, 'air').level, forecast = forecastRoute(game, draft, plan), travel = Math.hypot(70, 30);
+  assert.equal(forecast.travel, travel); assert.equal(forecast.tiles, 100);
+  const roundTrip = 2 * travel / (12 * (1 + .1 * level) * .97) + 3.2;
+  assert.ok(Math.abs(forecast.perVehicleDay - getVehiclePurchase(game, 'air').capacity / roundTrip * 2) < 1e-9);
+  assert.equal(addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }).ok, true);
+  assert.deepEqual(filterRoutes(game, { query: 'plane' }).map(route => route.mode), ['air']);
+  assert.deepEqual(filterRoutes(game, { query: 'flight' }).map(route => route.mode), ['air']);
+});

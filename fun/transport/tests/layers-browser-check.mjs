@@ -161,6 +161,11 @@ try {
     game.stations.push({id:'qa-stop',name:'Road stop',x:49,y:34,mode:'road'},{id:'qa-station',name:'Train station',x:52,y:35,mode:'rail'});
     game.routes.push({id:'qa-route',name:'QA route',mode:'road',cargo:'food',color:'#bd7862',active:true,path:Array.from({length:11},(_,index)=>({x:43+index,y:34}))});
     game.vehicles.push({id:'qa-vehicle',routeId:'qa-route',x:50,y:34,angle:0,progress:7,direction:1,load:24,capacity:24});
+    // An airport with a plane boarding at its stand, flying to a far twin.
+    const {airPath}=await import('./station-sites.js');
+    game.stations.push({id:'qa-air-a',name:'QA Airport',x:43,y:38,mode:'air',axis:'x'},{id:'qa-air-b',name:'QA Far Airport',x:43,y:80,mode:'air',axis:'x'});
+    game.routes.push({id:'qa-flight',name:'QA flight',mode:'air',cargo:'passengers',color:'#6a8fc2',active:true,stops:['qa-air-a','qa-air-b'],path:airPath(game,{x:43,y:38},{x:43,y:80})});
+    game.vehicles.push({id:'qa-plane',routeId:'qa-flight',x:43,y:38,angle:0,progress:0,direction:1,load:30,capacity:56,dwellRemaining:1});
     const renderer=createRenderer(canvas,game);renderer.focus(48,32);renderer.setLayers(DEFAULT_LAYERS);
     // Income floats are passed by the app for a moment after each paid delivery.
     const floaters=[{x:49,y:34,revenue:1669,cargo:'food',born:0}];
@@ -185,10 +190,15 @@ try {
         q.renderer.setLayers({[key]:value});const restored=render();
         comparisons.push({key,changed:changed!==baseline,restored:restored===baseline,rockPreserved,stats});
       }
+      // The airport's own part: Stops draws its field, buildings and sign; Vehicles its plane and shadow; Day / night its lights.
+      const airCrop=()=>{const s=q.renderer.getCamera().zoom,p=q.renderer.worldToScreen(45.5,38.5);return Array.from(q.canvas.getContext('2d').getImageData(Math.round((p.x-60*s)*density),Math.round((p.y-70*s)*density),Math.round(120*s*density),Math.round(90*s*density)).data).join();},density=devicePixelRatio||1;
+      q.renderer.focus(45,40);render();const airBase=airCrop();
+      const airParts=Object.fromEntries(['stations','vehicles','lighting'].map(key=>{q.renderer.setLayers({[key]:false});render();const changed=airCrop()!==airBase;q.renderer.setLayers({[key]:q.defaults[key]});render();return[key,changed];}));
+      q.renderer.focus(48,32);render();
       q.renderer.drawMinimap(q.minimap);const miniBefore=q.minimap.toDataURL();
       q.renderer.setLayers(Object.fromEntries(Object.keys(q.defaults).map(key=>[key,false])));q.renderer.drawMinimap(q.minimap);const miniTerrain=q.minimap.toDataURL();
       q.renderer.setLayers(q.defaults);q.renderer.drawMinimap(q.minimap);const miniRestored=q.minimap.toDataURL();
-      return{zoom:q.renderer.getCamera().zoom,comparisons,minimapChanged:miniBefore!==miniTerrain,minimapRestored:miniBefore===miniRestored,unchanged:JSON.stringify(q.game)===q.original};
+      return{zoom:q.renderer.getCamera().zoom,comparisons,airParts,minimapChanged:miniBefore!==miniTerrain,minimapRestored:miniBefore===miniRestored,unchanged:JSON.stringify(q.game)===q.original};
     });
     rasterResults.push(result);
     for(const item of result.comparisons){
@@ -199,6 +209,7 @@ try {
       assert.ok(item.stats.cacheBytes<=item.stats.cacheLimit,'visibility changes respect the cache budget');
       if(item.key==='vehicles'||item.key==='vehicleLoads')assert.deepEqual(item.stats.vehicleIndicators,{empty:0,partial:0,full:0});
     }
+    for(const [key,changed] of Object.entries(result.airParts))assert.equal(changed,true,`${zoom}x ${key} toggles the airport's part`);
     assert.equal(result.minimapChanged,true,`${zoom}x Terrain also updates the overview`);
     assert.equal(result.minimapRestored,true,`${zoom}x overview restores exactly`);
     assert.equal(result.unchanged,true,'rendering leaves all map and simulation objects unchanged');

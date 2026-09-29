@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, tick, addRoute, removeRoute, build, buildPath, validateGame, restoreGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
-import { HEADLINE_LIMIT, HEADLINE_TOWN_TIERS, HEADLINE_PRIORITY, headlineKicker, headlineNoun, headlineWatch, arrivalRoute, detectHeadlines, headlineTier, townHeadline, recordHeadline } from '../headlines.js';
+import { HEADLINE_LIMIT, HEADLINE_TOWN_TIERS, HEADLINE_PRIORITY, headlineKicker, headlineNoun, headlineWatch, arrivalRoute, detectHeadlines, headlineTier, townHeadline, recordHeadline, airDebutHeadline } from '../headlines.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
 import { vehicleModel, modelHeadline } from '../vehicle-models.js';
 
@@ -117,9 +117,9 @@ test('arrivalRoute picks the town passengerEndpoints serves, and a retired route
 });
 
 test('nouns, kickers, tiers and town titles', () => {
-  assert.deepEqual([['road', 'passengers'], ['road', 'coal'], ['rail', 'passengers'], ['water', 'passengers'], ['water', 'timber']].map(([mode, cargo]) => headlineNoun(mode, cargo)), ['bus', 'truck', 'train', 'ferry', 'ship']);
-  assert.deepEqual(['arrival', 'first', 'town', 'models', 'rating', 'achievement', 'contract', 'other'].map(headlineKicker), ['Local news', 'Company first', 'Town news', 'New models', 'Company news', 'Achievement', 'Contracts', 'Headline']);
-  assert.deepEqual(HEADLINE_PRIORITY, { first: 1, rating: 1, achievement: 1, models: 2, town: 2, contract: 2, arrival: 3 });
+  assert.deepEqual([['road', 'passengers'], ['road', 'coal'], ['rail', 'passengers'], ['water', 'passengers'], ['water', 'timber'], ['air', 'passengers'], ['air', 'mail']].map(([mode, cargo]) => headlineNoun(mode, cargo)), ['bus', 'truck', 'train', 'ferry', 'ship', 'plane', 'mail plane']);
+  assert.deepEqual(['arrival', 'first', 'town', 'models', 'rating', 'achievement', 'contract', 'debut', 'other'].map(headlineKicker), ['Local news', 'Company first', 'Town news', 'New models', 'Company news', 'Achievement', 'Contracts', 'News', 'Headline']);
+  assert.deepEqual(HEADLINE_PRIORITY, { first: 1, rating: 1, achievement: 1, models: 2, town: 2, contract: 2, debut: 2, arrival: 3 });
   assert.deepEqual(HEADLINE_TOWN_TIERS, [2500, 5000, 10000]);
   assert.equal(headlineTier(980, 1004), 0);
   assert.equal(headlineTier(900, 2600), 2500);
@@ -164,9 +164,9 @@ test('recordHeadline keeps a clean, deduplicated, bounded log without touching r
   }
 
   const log = emptyGame();
-  for (let n = 0; n < 40; n++) recordHeadline(log, n === 3 ? { key: 'first:rail', kind: 'first', title: 'Train' } : n === 5 ? { key: 'first:water', kind: 'first', title: 'Ship' } : { key: `arrival:${n}`, kind: 'arrival', title: `Town ${n}` });
+  for (let n = 0; n < 40; n++) recordHeadline(log, n === 3 ? { key: 'first:rail', kind: 'first', title: 'Train' } : n === 5 ? { key: 'first:water', kind: 'first', title: 'Ship' } : n === 7 ? { key: 'first:air', kind: 'first', title: 'Plane' } : { key: `arrival:${n}`, kind: 'arrival', title: `Town ${n}` });
   assert.equal(log.headlines.length, HEADLINE_LIMIT);
-  assert.ok(log.headlines.some(entry => entry.key === 'first:rail') && log.headlines.some(entry => entry.key === 'first:water'), 'company firsts are never pruned');
+  assert.ok(['first:rail', 'first:water', 'first:air'].every(key => log.headlines.some(entry => entry.key === key)), 'company firsts are never pruned');
   assert.equal(log.headlines[0].key, 'arrival:39');
   assert.equal(validateGame(log), true);
 });
@@ -250,4 +250,22 @@ test('warm detection and a town lookup stay cheap on a busy network', () => {
   const lookups = [];
   for (let n = 0; n < 20; n++) { const at = performance.now(); arrivalRoute(game, unserved); lookups.push(performance.now() - at); }
   assert.ok(median(lookups) < 2, `arrivalRoute ${median(lookups).toFixed(3)} ms`);
+});
+
+test('the first plane lands at its airport, and the air debut is one plain entry', () => {
+  const game = emptyGame(); game.day = game.lastDailyDay = 730; game.lastMonth = 24;
+  game.cities = [town('home', 'Home', 20, 20), town('far', 'Farley', 80, 60)]; game.revision++;
+  const watch = headlineWatch(game);
+  const a = ok(build(game, 'airport-x', 18, 23)).station, b = ok(build(game, 'airport-y', 82, 55)).station;
+  ok(addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }));
+  const entries = run(game, watch, 20), first = entries.find(entry => entry.kind === 'first');
+  assert.equal(first.key, 'first:air'); assert.equal(first.art, 'plane');
+  assert.ok(/first plane (lands in Farley|lands at Farley Airport)$/.test(first.title), first.title);
+  assert.deepEqual(entries.filter(entry => entry.kind === 'first').length, 1);
+  assert.ok(watch.modes.has('air'));
+  const debut = airDebutHeadline(game);
+  assert.deepEqual([debut.key, debut.kind, debut.art, debut.title, headlineKicker(debut.kind)], ['debut:air', 'debut', 'plane', 'Air travel arrives', 'News']);
+  assert.doesNotMatch(debut.detail, / · |→/);
+  assert.equal(recordHeadline(game, debut), true); assert.equal(recordHeadline(game, debut), false, 'once only');
+  assert.equal(validateGame(game), true);
 });

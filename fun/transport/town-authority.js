@@ -1,6 +1,7 @@
 import { TOWN_CARGO } from './data.js';
 import { priceFor } from './economy-pricing.js';
 import { nearbyCities } from './simulation-spatial.js';
+import { stationReach, stationServes } from './station-sites.js';
 
 // A town's opinion of the company: Transport Tycoon's local authority, kept gentle.
 // Towns remember regular service, stops and recent town cargo, and the homes and
@@ -28,11 +29,11 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const actionActive = (until, day) => Number.isInteger(until) && Math.floor(day) < until;
 /** Development funded at the town hall; false for no town (a zone far from every centre). */
 export const fundedTown = (city, day) => !!city && actionActive(city.fundedUntil, day);
-/** Map<city, n>: stops of running routes within five tiles of each town centre, in station order. */
+/** Map<city, n>: stops of running routes that serve each town (five tiles, seven for an airport), in station order. */
 export function townStopCounts(game) {
   const stops = new Set(), counts = new Map();
   for (const route of game.routes) if (route.active) for (const id of route.stops) stops.add(id);
-  for (const station of game.stations) if (stops.has(station.id)) for (const city of nearbyCities(game, station.x, station.y, 5)) if (Math.hypot(city.x - station.x, city.y - station.y) <= 5) counts.set(city, (counts.get(city) || 0) + 1);
+  for (const station of game.stations) if (stops.has(station.id)) for (const city of nearbyCities(game, station.x, station.y, stationReach(station) + (station.mode === 'air' ? 5 : 0))) if (stationServes(station, city)) counts.set(city, (counts.get(city) || 0) + 1);
   return counts;
 }
 export const opinionBand = score => OPINION_BANDS.find(band => score >= band.min) || OPINION_BANDS.at(-1);

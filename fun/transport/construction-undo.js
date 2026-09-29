@@ -5,13 +5,15 @@ import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 import { money as moneyText } from './copy.js';
 import { MAIL_POOL_SHARE } from './settlements.js';
 import { calendarMonth } from './economy-pricing.js';
+import { stationSiteAt, stationTiles } from './station-sites.js';
+import { airportPlacement } from './construction-plan.js';
 
 // One construction gesture reversed as a diff: only the tiles, sites, residents,
 // notices and money that this build changed go back, so vehicles, cargo and
 // growth elsewhere keep running. Entries live in the session, never in saves.
 const LISTS=['stations','industries','cities','zones'];
 const NATURAL=new Set(['grass','forest','sand','snow']);
-const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone',workshop:'Workshop'};
+const NAMES={road:'Road',rail:'Rail',bridge:'Road bridge',railbridge:'Rail bridge',tunnel:'Road tunnel',railtunnel:'Rail tunnel',port:'Port',airport:'Airport','bus-stop':'Road stop','train-stop':'Rail station',residential:'Residential zone',commercial:'Commercial zone',industrial:'Industrial zone',workshop:'Workshop'};
 const cover=terrain=>NATURAL.has(terrain)?'land':terrain;
 const pinned=new WeakSet(); // Tile arrays whose homes all name their town already.
 function same(a,b){
@@ -41,7 +43,9 @@ export function captureUndo(game,tool,points){
   const centers=[];
   for(const p of Array.isArray(points)?points:[])if(p&&Number.isInteger(p.x)&&Number.isInteger(p.y)){
     centers.push(p);
-    if(tool==='bulldoze'){const site=industryAt(game,p.x,p.y)||buildingAt(game,p.x,p.y)||terrainObjectAt(game,p.x,p.y);if(site)centers.push(site);}
+    if(tool==='bulldoze'){const site=industryAt(game,p.x,p.y)||buildingAt(game,p.x,p.y)||terrainObjectAt(game,p.x,p.y),airport=stationSiteAt(game,p.x,p.y);if(site)centers.push(site);if(airport?.mode==='air')centers.push(...stationTiles(airport));}
+    // An airport's site lies either way around the pointer, depending on the runway.
+    if(tool==='airport')for(const axis of ['x','y'])centers.push(...stationTiles({...airportPlacement(p,axis),mode:'air',axis}));
   }
   const indices=[...block(game,centers,-3,3)],owners=[];
   // Founding a town first pins every older home to its current town.
@@ -68,7 +72,7 @@ export function finishUndo(entry,game,result){
   if(!changed.length&&!Object.keys(lists).length&&!people.length&&!disturbed.length&&!(cost>0))return null;
   // The watch covers each changed tile and every site the undo removes or brings back.
   const core=new Set(changed),exact=new Set(),add=({x,y})=>core.add(y*game.width+x),sites=key=>[...lists[key]?.added||[],...(lists[key]?.removed||[]).map(([,item])=>item)];
-  for(const item of [...sites('stations'),...sites('cities')])add(item);
+  for(const item of [...sites('stations').flatMap(stationTiles),...sites('cities')])add(item);
   for(const industry of sites('industries'))industryTiles(industry).forEach(add);
   before.forEach((tile,n)=>{
     const {x,y}=pointOf(game,changed[n]);
@@ -83,7 +87,7 @@ export function finishUndo(entry,game,result){
   const network=Boolean(lists.stations)||changed.some((index,n)=>['road','rail','bridge','tunnel'].some(key=>Boolean(before[n][key])!==Boolean(game.tiles[index][key])));
   const seen=new Set(entry.notifications),ids=new Set(game.notifications.filter(notice=>!seen.has(notice)).map(notice=>notice.id));
   return {tool:entry.tool,tiles:game.tiles,routes:game.routes,routeCount:game.routes.length,cost,changed,before,lists,people,disturbed,trades,network,
-    points:[...changed.map(index=>pointOf(game,index)),...sites('stations').map(({x,y})=>({x,y}))],
+    points:[...changed.map(index=>pointOf(game,index)),...sites('stations').flatMap(stationTiles)],
     notices:{before:entry.notifications,after:game.notifications.slice(),ids},money:[entry.money,[game.money,game.monthlyExpenses,game.totalExpenses]],nextId:[entry.nextId,game.nextId],
     owners:entry.owners.filter(building=>Object.hasOwn(building,'populationCityId')),core,exact,anchors,watched,after:structuredClone(watched.map(index=>game.tiles[index])),
     // A building the company now owns earns rent at the next close, so undoing it stays within this month.

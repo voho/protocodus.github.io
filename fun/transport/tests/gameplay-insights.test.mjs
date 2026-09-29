@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { townService, industryStatus, industryService, routeHealth, nextProject, stopSiteKind, firstRouteSteps, routesNeedingAttention, routeNeedsAttention } from '../gameplay-insights.js';
-import { build, buildPath, addRoute, tick, createGame } from '../model.js';
+import { build, buildPath, addRoute, tick, createGame, passengerEndpoints } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
 import { routeBreakPoint, refreshRouteConnections } from '../model.js';
@@ -255,4 +255,50 @@ test('the first cargo suggestion is cheap to repeat on a vast world', () => {
   const first=nextProject(game);assert.equal(first.title,'Your first cargo route');
   const start=performance.now();nextProject(game);const elapsed=performance.now()-start;
   assert.ok(elapsed<1,`${elapsed.toFixed(2)} ms`);
+});
+
+// Airports serve towns within seven tiles of any of their twelve tiles, and never an industry.
+const airTown = (id, x, y, passengers = 400) => ({ id, name: id, x, y, population: 1500, activity: 0, growth: 0, passengers, mail: 0, delivered: 0, supplies: 0, lastServiceDay: null });
+function airGame() { const game = emptyGame(); game.day = game.lastDailyDay = 730; game.lastMonth = 24; return game; }
+
+test('an air route reads Running once it delivers, and No passengers with one town at both ends', () => {
+  const game = airGame(); game.cities = [airTown('home', 43, 60, 60), airTown('far', 103, 60, 60)];
+  for (const city of game.cities) city.population = 200;
+  const a = build(game, 'airport-x', 40, 64).station, b = build(game, 'airport-x', 100, 64).station;
+  const { route } = addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' });
+  assert.equal(routeHealth(game, route).word, 'First trip');
+  for (let day = 0; day < 20 && !route.delivered; day++) tick(game, 1);
+  assert.ok(route.delivered > 0); assert.equal(routeHealth(game, route).word, 'Running');
+  game.cities = [game.cities[0]]; game.revision++;
+  const health = routeHealth(game, route);
+  assert.equal(health.word, 'No passengers'); assert.match(health.detail, /within 7 tiles/);
+});
+
+test('town service counts a town seven tiles from any airport tile', () => {
+  const game = airGame(); game.cities = [airTown('edge', 45, 72), airTown('home', 43, 58), airTown('far', 103, 60)];
+  const a = build(game, 'airport-x', 40, 64).station, b = build(game, 'airport-x', 100, 64).station;
+  assert.equal(addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }).ok, true);
+  assert.equal(townService(game, game.cities[0]).connected, true, 'seven tiles below the runway end');
+  game.cities[0].y = 73; assert.equal(townService(game, game.cities[0]).connected, false);
+});
+
+test('Waiting reads the town the airport actually serves, measured from its nearest tile', () => {
+  const game = airGame();
+  // Near the far end of the runway but eight tiles from its anchor, against a town nearer the anchor.
+  game.cities = [airTown('runway-end', 47, 66, 100), airTown('by-anchor', 38, 60, 300), airTown('far', 103, 60, 5000)];
+  const a = build(game, 'airport-x', 40, 64).station, b = build(game, 'airport-x', 100, 64).station;
+  const { route } = addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' });
+  const picked = passengerEndpoints(game, a, b);
+  assert.equal(picked[0].id, 'runway-end');
+  assert.equal(routeHealth(game, route).waiting, Math.floor(picked[0].passengers));
+});
+
+test('the first-route checklist never counts an airport as a stop', () => {
+  const game = airGame(); game.cities = [airTown('a', 44, 68), airTown('b', 104, 68)];
+  assert.equal(build(game, 'logging-camp', 40, 60).ok, true); assert.equal(build(game, 'sawmill', 100, 60).ok, true);
+  assert.equal(build(game, 'airport-x', 40, 64).ok, true); assert.equal(build(game, 'airport-x', 100, 64).ok, true);
+  const [camp, mill] = game.industries, choice = { source: camp, buyer: { id: mill.id, kind: 'industry', name: mill.name, x: mill.x, y: mill.y }, cargo: 'timber' };
+  const steps = firstRouteSteps(game, choice);
+  assert.deepEqual(steps.slice(0, 3).map(step => step.done), [false, false, false]);
+  assert.ok(steps.every(step => step.mode !== 'air' && step.tool !== 'air'));
 });

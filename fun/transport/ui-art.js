@@ -3,6 +3,8 @@ import { drawRasterInfrastructure, drawRasterVehicle } from './raster-transport.
 import { houseAssetsRevision } from './raster-houses.js';
 import { worldArtRevision } from './atlas-runtime.js';
 import { drawIsometricInfrastructure } from './isometric-infrastructure.js';
+import { drawAirportPortrait, drawAircraftPortrait } from './airport-art.js';
+import { lineFor } from './route-lines.js';
 
 let profile = '', sprites;
 const selector = '[data-building-sprite],[data-industry-sprite],[data-infrastructure-sprite],[data-vehicle-sprite]';
@@ -33,7 +35,7 @@ export function drawUIArtwork(root, game) {
     const vehicle = route && (canvas.dataset.vehicleSprite === 'purchase'
       ? { level: Number(canvas.dataset.level), load: 0, capacity: 1 }
       : vehicles.get(String(route.id)));
-    const identity = canvas.dataset.buildingSprite || canvas.dataset.industrySprite || canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}`;
+    const identity = canvas.dataset.buildingSprite || canvas.dataset.industrySprite || canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}${route?.mode === 'air' ? `:${lineFor(route).fill}` : ''}`;
     const key = `${profile}:${identity}:${houseAssetsRevision()}:${worldArtRevision()}`;
     if (canvas.dataset.artDrawn === key) continue;
     canvas.width = Math.round(width * density); canvas.height = Math.round(height * density);
@@ -47,10 +49,14 @@ export function drawUIArtwork(root, game) {
     } else if (canvas.dataset.infrastructureSprite) {
       const size = Math.min(width, height);
       const kind=canvas.dataset.infrastructureSprite;
-      if(!drawIsometricInfrastructure(context,kind,(width-size)/2,0,size,size,density)){
+      // The airport and the plane are drawn natively: tower, terminal and a parked airliner on its apron.
+      if(kind==='airport')drawAirportPortrait(context,width,height,{biome:game.biome});
+      else if(!drawIsometricInfrastructure(context,kind,(width-size)/2,0,size,size,density)){
         context.save();context.translate(width/2,height/2);context.transform(.7,.35,-.7,.35,0,0);
         drawRasterInfrastructure(context,kind,-size/2,-size/2,size,size,density);context.restore();
       }
+    } else if (route?.mode === 'air') {
+      drawAircraftPortrait(context, width, height, { color: lineFor(route).fill });
     } else if (route) {
       const heading = Math.PI / 4, scale = route.mode === 'water' ? 1.4 : 2.2;
       context.translate(width / 2, height / 2); context.scale(scale, scale); context.rotate(heading);

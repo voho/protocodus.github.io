@@ -10,6 +10,8 @@ import { isometricStationLights } from './isometric-infrastructure.js';
 import { projectAngle } from './isometric.js';
 import { worldArtRevision } from './atlas-runtime.js';
 import { surfaceChangesSince } from './change-journal.js';
+import { airportLights, aircraftLights, headingBucket } from './airport-art.js';
+import { stationSpan } from './station-sites.js';
 
 const TAU = Math.PI * 2;
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -24,7 +26,9 @@ export function daylightAt(day = 0) {
 }
 
 export function createLighting() {
-  const glows = new Map(), beams = new Map(), windowsCache = new Map();
+  const glows = new Map(), beams = new Map(), windowsCache = new Map(), airportEmitters = new Map();
+  // An airport's emitters depend only on its runway axis and the zoom's detail.
+  const airportLightsCached = (axis, detail) => { const key = `${axis}:${detail}`; let list = airportEmitters.get(key); if (!list) airportEmitters.set(key, list = airportLights(axis, detail)); return list; };
   let emitters = null, emitterBuilds = 0, beamBuilds = 0, beamBytes = 0, windowBytes = 0, windowBuilds = 0, windowPaints = 0;
   const BEAM_LIMIT = 2 * 1024 * 1024, WINDOW_LIMIT = 8 * 1024 * 1024;
   // Headlight geometry has only eight authored directions. Rasterize it once
@@ -123,7 +127,8 @@ export function createLighting() {
     const x1 = Math.min(game.width, bounds.x1 + 8), y1 = Math.min(game.height, bounds.y1 + 8), items = [];
     const tile = (x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const id = y * game.width + x, t = game.tiles[id], industry = industryIndex.get(id), station = stationIndex.get(id);
+      // Airports light themselves in their own pass, whichever of their tiles is in view.
+      const id = y * game.width + x, t = game.tiles[id], industry = industryIndex.get(id), anchor = stationIndex.get(id), station = anchor?.mode === 'air' ? null : anchor;
       if (!t || (!t.building && !industry && !t.road && !station)) continue;
       const hash = (Math.imul(x + 17, 73856093) ^ Math.imul(y + 31, 19349663) ^ (game.seed || 0)) >>> 0;
       const item = { x, y, hash, road: t.road && !isEngineeredTunnel(t) && hash % 11 === 0, station };
@@ -153,7 +158,7 @@ export function createLighting() {
     context.fillStyle = gradient; context.fillRect(0, 0, 64, 64); glows.set(color, image); return image;
   }
 
-  function drawLighting(c, { game, layers, camera, width, height, bounds, industryIndex, stationIndex, routesById, vehicles = game.vehicles || [], project: worldToScreen, projectVehicle, projectBuilding, projected = false, dpr, artRevision }) {
+  function drawLighting(c, { game, layers, camera, width, height, bounds, industryIndex, stationIndex, routesById, vehicles = game.vehicles || [], project: worldToScreen, projectVehicle, projectBuilding, projected = false, dpr, artRevision, airports = [], airPoses = null, projectAirport, screen, now = 0, reducedMotion = false, detailLevel = 'town' }) {
     if (layers.lighting === false) return;
     const state = daylightAt(game.day), night = state.night;
     const pixelRatio = Number.isFinite(dpr) && dpr > 0 ? dpr : Math.abs(c.getTransform().a) || 1;
@@ -219,8 +224,34 @@ export function createLighting() {
         } else { const ly = p.y - (projected ? 17 : 7) * zoom; glow(p.x + 9 * zoom, ly, Math.max(4, 10 * zoom), '#ffdf9c', .7); bulb(p.x + 9 * zoom, ly); }
       }
     }
+    // Runway edges, thresholds, taxiway edges, flood masts, glazing, the tower cab and its beacon, from the anchor's north corner.
+    if (layers.stations && projectAirport) for (const station of airports) {
+      const { w, h } = stationSpan(station);
+      if (station.x + w + 1 < bounds.x0 || station.y + h + 1 < bounds.y0 || station.x - 1 >= bounds.x1 || station.y - 1 >= bounds.y1) continue;
+      const o = projectAirport(station);
+      for (const e of airportLightsCached(station.axis, detailLevel)) {
+        let color = e.color; if (e.kind === 'beacon' && !reducedMotion && Math.floor(now / 1200) % 2) color = '#f6f7ee';
+        const x = o.x + e.x * zoom, y = o.y + e.y * zoom; glow(x, y, Math.max(3, e.radius * zoom), color, e.power); if (e.bulb) bulb(x, y, e.bulb, e.core || color);
+      }
+    }
     if (layers.vehicles) for (const vehicle of vehicles) {
       const route = routesById.get(vehicle.routeId);if(!route)continue;
+      // A plane: red and green wing tips, a white tail, a red beacon, strobes aloft and a landing light near the ground.
+      if (route.mode === 'air') {
+        const a = airPoses?.get(vehicle); if (!a || !screen) continue;
+        const s = screen(a.body); if (!visible(s)) continue;
+        const k = zoom * (detailLevel === 'region' ? 1.3 : 1), heading = headingBucket(a.pose.heading) * TAU / 48, L = aircraftLights(heading), at = q => ({ x: s.x + q.x * k, y: s.y + q.y * k });
+        for (const [q, color] of [[L.left, '#ff7a64'], [L.right, '#8ff0a8'], [L.tail, '#fff4dc']]) { const light = at(q); glow(light.x, light.y, Math.max(3, 5 * zoom), color, .8); bulb(light.x, light.y, .5, color); }
+        if (reducedMotion || now % 1100 < 450) { const beacon = at(L.beacon); glow(beacon.x, beacon.y, Math.max(3, 6 * zoom), '#ff5a45', .9); bulb(beacon.x, beacon.y, .5, '#ff5a45'); }
+        const flash = now % 1400;
+        if (!a.pose.ground && !reducedMotion && (flash < 60 || flash >= 180 && flash < 240)) for (const q of [L.left, L.right]) { const light = at(q); glow(light.x, light.y, Math.max(4, 8 * zoom), '#ffffff', 1); }
+        if (['roll', 'rollout', 'taxiIn', 'taxiOut'].includes(a.pose.phase) || !a.pose.ground && a.lift < 1.2) {
+          const nose = at(L.nose), beam = beamImage(false, projectAngle(heading), zoom, pixelRatio);
+          c.globalAlpha = night * .5; c.drawImage(beam.image, nose.x + beam.left, nose.y + beam.top, beam.width, beam.height); c.globalAlpha = 1;
+          glow(nose.x, nose.y, Math.max(3, 7 * zoom), '#ffe5ac', .8);
+        }
+        continue;
+      }
       const p = (projectVehicle||project)(vehicle.x, vehicle.y, route.mode, vehicle); if (!visible(p) || (route.mode !== 'water' && isUndergroundAt(game, vehicle.x, vehicle.y))) continue;
       const worldAngle = Number.isFinite(vehicle.angle) ? vehicle.angle : 0, worldCosine = Math.cos(worldAngle), worldSine = Math.sin(worldAngle);
       // Height changes move the whole sprite vertically; they do not change

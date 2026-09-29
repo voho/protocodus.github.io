@@ -1,4 +1,5 @@
 import { BUILDINGS } from './buildings.js';
+import { AIR_TURNAROUND } from './station-sites.js';
 /** Transport's inspectable economy catalog. Values are per production day. */
 export const BIOMES = {
   taiga: { name: 'Taiga', description: 'Pine forests, sheltered lakes and iron-rich mountain ridges.', color: '#78934d' },
@@ -41,9 +42,9 @@ export const DISTANCE_TILES = 9, HANDLING_TILES = 12;
 /** Fares count at most this multiple of the grid distance between a route's stops. */
 export const DETOUR_PAY_LIMIT = 2;
 /** Base speeds in tiles per day before weather, slopes, towns and generation. TRAVEL_PACE is the typical realised share. */
-export const VEHICLE_SPEEDS = { road: 2.8, rail: 4.6, water: 1.8 };
-export const TRAVEL_PACE = { road: .88, rail: .88, water: .78 };
-export const STOP_DAYS = { road: .2, rail: .2, water: .2 };
+export const VEHICLE_SPEEDS = { road: 2.8, rail: 4.6, water: 1.8, air: 12 };
+export const TRAVEL_PACE = { road: .88, rail: .88, water: .78, air: .97 };
+export const STOP_DAYS = { road: .2, rail: .2, water: .2, air: AIR_TURNAROUND };
 const all = ['taiga', 'tundra', 'desert'];
 export const INDUSTRIES = {
   'logging-camp': { footprint: 2, name: 'Logging camp', inputs: {}, outputs: { timber: 7 }, cost: 28000, biomes: ['taiga'], terrain: ['forest', 'grass'] },
@@ -78,17 +79,17 @@ export const WORKSHOP_RECIPES = Object.freeze({
 });
 export const BUILD_COSTS = {
   road: 180, rail: 420, bridge: 1400, railbridge: 2300, tunnel: 2200, railtunnel: 3400,
-  'bus-stop': 3200, 'train-stop': 12000, port: 18000, residential: 420, commercial: 640,
+  'bus-stop': 3200, 'train-stop': 12000, port: 18000, 'airport-x': 60000, 'airport-y': 60000, residential: 420, commercial: 640,
   industrial: 880, city: 45000, bulldoze: 100, raise: 240, lower: 180, level: 280,
   workshop: WORKSHOP.cost,
   ...Object.fromEntries(Object.entries(BUILDINGS).map(([kind, building]) => [kind, building.cost])),
   ...Object.fromEntries(Object.entries(INDUSTRIES).map(([kind, industry]) => [kind, industry.cost])),
 };
-export const VEHICLE_COSTS = { road: 18000, rail: 78000, water: 64000 };
-export const VEHICLE_CAPACITIES = { road: 24, rail: 90, water: 140 };
+export const VEHICLE_COSTS = { road: 18000, rail: 78000, water: 64000, air: 150000 };
+export const VEHICLE_CAPACITIES = { road: 24, rail: 90, water: 140, air: 40 };
 /** Daily upkeep before weather and inflation: per vehicle, per company track or road tile, per bridge or tunnel tile, per stop. */
-export const VEHICLE_UPKEEP = { road: 22, rail: 90, water: 70 };
-export const INFRASTRUCTURE_UPKEEP = { road: .075, rail: .14, structure: .2, stop: { road: 1.2, rail: 4, water: 6 } };
+export const VEHICLE_UPKEEP = { road: 22, rail: 90, water: 70, air: 150 };
+export const INFRASTRUCTURE_UPKEEP = { road: .075, rail: .14, structure: .2, stop: { road: 1.2, rail: 4, water: 6, air: 18 } };
 export const TOWN_CARGO = ['food', 'furniture', 'goods', 'fuel', 'stone', 'cement', 'machinery'];
 /** Cargo that travels between two different towns and loads at both ends. */
 export const TOWN_TRAFFIC = ['passengers', 'mail'];

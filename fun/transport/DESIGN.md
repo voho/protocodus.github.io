@@ -1011,6 +1011,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - `__name`: 14/600.
   - `__rule`: one line of 13 ink-2 that teaches the tool.
   - Optional mode segment (Road | Rail for bridges and tunnels).
+  - Optional secondary **Turn** before Done for the Airport tool (44 px); on phones it takes the recent-tools dock's place.
   - `__actions` with the primary "Done" (Esc).
   - On phones, a recent-tools dock of up to 3 icon buttons sits left of Done.
 - **Route picking** uses the same bar: "Picking stops. Click a stop on the map, or press Esc."

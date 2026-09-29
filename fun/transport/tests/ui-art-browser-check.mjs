@@ -50,6 +50,17 @@ try {
     await page.locator('[data-cargo-choice="oil"]').click();
     const tankerImage=await page.locator('#route-form canvas').evaluate(el=>el.toDataURL());
     assert.notEqual(tankerImage,ferryImage,'Cargo selection updates ferry to tanker');
+    // Air in 1952: the airport's portrait in Build and its inspector, the plane's in the route list and the route form.
+    await page.evaluate(async()=>{const model=await import('./model.js'),g=transport.game;g.day=730.02;g.lastDailyDay=730;g.lastMonth=24;g.money=5e6;const a=model.build(g,'airport-x',192,200).station,b=model.build(g,'airport-y',230,270).station;window.artQA={route:model.addRoute(g,{mode:'air',stops:[a.id,b.id],cargo:'passengers'}).route.id,airport:a};g.revision++;transport.setView('build');});
+    await page.locator('[data-category="network"]').click();
+    await portraits(page,'#panel-content [data-infrastructure-sprite="airport"]',profile.density);
+    await page.evaluate(()=>transport.inspect(artQA.airport.x+4,artQA.airport.y+1));
+    await portraits(page,'#inspector [data-infrastructure-sprite="airport"]',profile.density);
+    await page.evaluate(()=>transport.setView('routes'));
+    await portraits(page,`#route-list [data-vehicle-sprite="${await page.evaluate(()=>artQA.route)}"]`,profile.density);
+    await page.locator('#route-form [name="mode"]').selectOption('air');
+    await portraits(page,'#route-form [data-vehicle-sprite][data-mode="air"]',profile.density);
+    assert.notEqual(await page.locator('#route-form canvas').evaluate(el=>el.toDataURL()),tankerImage,'Air shows the plane');
     await page.locator('#route-search').fill('zz-no-route');await page.locator('#route-search').fill('');
     await portraits(page,'#route-list [data-vehicle-sprite]',profile.density);
     await page.screenshot({path:`${output}/${profile.name}-routes.png`});

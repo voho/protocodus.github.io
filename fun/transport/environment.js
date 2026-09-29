@@ -5,6 +5,7 @@ import { industryTiles, industryDistance } from './industry-sites.js';
 import { buildingSize } from './building-sites.js';
 import { releaseTerrainObjectsCells } from './terrain-objects.js';
 import { noteSurfaceChanges } from './change-journal.js';
+import { stationTiles } from './station-sites.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -76,9 +77,10 @@ function entityIndex(game) {
       occupied.add(key); industriesAt.set(key, industry);
     }
   }
-  for (const item of [...(game.stations || []), ...(game.cities || []), ...(game.zones || [])]) occupied.add(item.y * game.width + item.x);
+  for (const item of [...(game.stations || []).flatMap(stationTiles), ...(game.cities || []), ...(game.zones || [])]) occupied.add(item.y * game.width + item.x);
   const activeIds = new Set((game.routes || []).filter(route => route.active).flatMap(route => route.stops));
-  for (const station of game.stations || []) if (activeIds.has(station.id)) {
+  // An airport gives factories no transport access.
+  for (const station of game.stations || []) if (activeIds.has(station.id) && station.mode !== 'air') {
     const key = `${Math.floor(station.x / 8)},${Math.floor(station.y / 8)}`;
     if (!activeStations.has(key)) activeStations.set(key, []);
     activeStations.get(key).push(station);

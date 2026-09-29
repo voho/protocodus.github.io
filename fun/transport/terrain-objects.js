@@ -1,4 +1,5 @@
 import { terrainElevation, terrainLevel } from './terrain-elevation.js';
+import { stationSiteAt } from './station-sites.js';
 
 export const TERRAIN_OBJECT_KINDS = new Set(['forest','rock','mountain']);
 export const terrainObjectSize = object => [2,3].includes(object?.footprint)?object.footprint:1;
@@ -69,7 +70,7 @@ export function terrainObjectSiteProblem(game,kind,x,y,size,{exclude=null}={}){
     const px=x+dx,py=y+dy,tile=game.tiles[py*game.width+px],existing=terrainObjectAt(game,px,py);
     if(tile.terrain!==kind)return 'The whole parcel must have the same base terrain.';
     if(existing&&!(exclude&&existing.x===exclude.x&&existing.y===exclude.y))return 'Terrain-object parcels cannot overlap.';
-    if(tile.road||tile.rail||tile.bridge||tile.tunnel||tile.zone||hasBuilding(game,px,py)||(game.industries||[]).some(i=>px>=i.x&&py>=i.y&&px<i.x+sizeOf(i)&&py<i.y+sizeOf(i))||(game.cities||[]).some(c=>c.x===px&&c.y===py)||(game.stations||[]).some(s=>s.x===px&&s.y===py)||(game.zones||[]).some(z=>z.x===px&&z.y===py))return 'Terrain-object parcels need unoccupied land.';
+    if(tile.road||tile.rail||tile.bridge||tile.tunnel||tile.zone||hasBuilding(game,px,py)||(game.industries||[]).some(i=>px>=i.x&&py>=i.y&&px<i.x+sizeOf(i)&&py<i.y+sizeOf(i))||(game.cities||[]).some(c=>c.x===px&&c.y===py)||stationSiteAt(game,px,py)||(game.zones||[]).some(z=>z.x===px&&z.y===py))return 'Terrain-object parcels need unoccupied land.';
   }
   return null;
 }

@@ -514,6 +514,28 @@ try {
   await vehiclePage.locator('#inspector').waitFor({ state: 'hidden' });
   const retired = await vehiclePage.evaluate(stop => { transport.renderer.focus(stop.x, stop.y); transport.renderer.render(performance.now(), {}); return transport.renderer.getStats().stopSigns; }, starterRoute.stops[0]);
   assert.ok(retired.drawn >= 1 && retired.idle === retired.drawn, `with its route retired the stop's sign turns pale: ${JSON.stringify(retired)}`);
+  // Air: the route form offers planes once air travel arrives, and a plane's card names its model and its trip.
+  const modes = () => vehiclePage.evaluate(() => { transport.setView('routes'); return [...document.querySelectorAll('#route-form [name="mode"] option')].map(option => option.textContent); });
+  assert.ok(!(await modes()).includes('Air, plane'), 'no planes before 1952');
+  const plane = await vehiclePage.evaluate(async () => {
+    const model = await import('./model.js'), g = transport.game; g.day = 730.02; g.lastDailyDay = 730; g.lastMonth = 24; g.money = 5e6;
+    const a = model.build(g, 'airport-x', 192, 200).station, b = model.build(g, 'airport-y', 230, 270).station, route = model.addRoute(g, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }).route;
+    for (let n = 0; n < 60; n++) model.tick(g, .05);
+    g.revision++; return g.vehicles.find(vehicle => vehicle.routeId === route.id).id;
+  });
+  assert.ok((await modes()).includes('Air, plane'), 'Air joins the route form in 1952');
+  await vehiclePage.keyboard.press('Escape');
+  const planeAt = await vehiclePage.evaluate(id => {
+    const g = transport.game, v = g.vehicles.find(vehicle => vehicle.id === id), w = transport.renderer.vehicleWorldPoint(v), r = document.querySelector('#world').getBoundingClientRect();
+    transport.renderer.setZoom(1); transport.renderer.focus(w.x, w.y); transport.renderer.render(performance.now(), {});
+    for (let y = -90; y < 40; y += 3) for (let x = -40; x < 40; x += 3) if (transport.renderer.vehicleAt(r.left + r.width / 2 + x, r.top + r.height / 2 + y)?.id === id) return { x: r.left + r.width / 2 + x, y: r.top + r.height / 2 + y };
+    return null;
+  }, plane);
+  assert.ok(planeAt, 'a plane is pickable where it is drawn');
+  await vehiclePage.mouse.click(planeAt.x, planeAt.y);
+  assert.match(await vehiclePage.locator('#inspector .eyebrow').textContent(), /^Aldwyn Mk \d+ plane$/);
+  assert.match(await vehiclePage.locator('[data-vehicle-live="trip"]').textContent(), /^(Heading to Elmhaven Airport · \d+ tiles?|(Landing at|Taxiing at|Boarding at|Taking off from) (Fernford|Elmhaven) Airport)$/);
+  await vehiclePage.locator('#inspector .tiny-button').click();
   await vehiclePage.close();
 
   // On a touch screen the route picker says Tap and takes a stop sign within a finger's reach.
@@ -536,7 +558,7 @@ try {
   assert.equal(await touchPage.locator('.toast.error').count(), 0, 'a near tap raises no error');
   await touchContext.close();
   assert.deepEqual(errors, [], 'vehicle cards and stop signs run without console or runtime errors');
-  console.log('Vehicle and stop sign checks passed: badge and bus picks at 3 zooms, hidden vehicles, sign picks, Follow, Show route, touch picking.');
+  console.log('Vehicle and stop sign checks passed: badge and bus picks at 3 zooms, hidden vehicles, sign picks, Follow, Show route, touch picking, plane card.');
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);

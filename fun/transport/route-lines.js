@@ -5,6 +5,7 @@ import { INDUSTRIES } from './data.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 import { industryDistance } from './industry-sites.js';
 import { workshopInputs, workshopOutputs } from './town-market.js';
+import { stationDistance, stationReach, stationServes } from './station-sites.js';
 
 // index is the DESIGN.md number, 1–9 as in --line-N; light fills take ink numerals and an ink casing on the map.
 const LINES = LINE_COLORS.map((line, i) => Object.freeze({ index: i + 1, name: line.name, fill: line.fill, on: line.on, light: line.on !== '#FFFFFF' }));
@@ -59,18 +60,19 @@ export const routeLabel = route => validRouteNumber(route?.number) ? `Route ${ro
 // renamed along its stops does not collide with itself. Names in a save are never rewritten.
 const REACH = 5, NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
 const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const townsNear = (game, stop) => nearbyCities(game, stop.x, stop.y, REACH).filter(town => apart(town, stop) <= REACH);
+// An airport names the towns within its wider reach, measured from its nearest tile.
+const townsNear = (game, stop) => nearbyCities(game, stop.x, stop.y, stationReach(stop) + (stop.mode === 'air' ? 5 : 0)).filter(town => stationServes(stop, town));
 const siteName = site => site.name || INDUSTRIES[site.kind]?.name || '';
 const fit = (text, length) => text.length > length ? text.slice(0, length - 1).trimEnd() + '…' : text;
 function townPair(game, from, to) {
   let best = null, walk = Infinity;
-  for (const a of townsNear(game, from)) for (const b of townsNear(game, to)) if (a.id !== b.id && apart(a, from) + apart(b, to) < walk) { best = [a, b]; walk = apart(a, from) + apart(b, to); }
+  for (const a of townsNear(game, from)) for (const b of townsNear(game, to)) if (a.id !== b.id && stationDistance(from, a) + stationDistance(to, b) < walk) { best = [a, b]; walk = stationDistance(from, a) + stationDistance(to, b); }
   return best;
 }
 export function defaultRouteName(game, stations, cargo, except = null) {
   const [from, to] = stations || [];
   if (!from || !to) return '';
-  const place = stop => townsNear(game, stop).reduce((best, town) => !best || apart(town, stop) < apart(best, stop) ? town : best, null)?.name || stop.name;
+  const place = stop => townsNear(game, stop).reduce((best, town) => !best || stationDistance(stop, town) < stationDistance(stop, best) ? town : best, null)?.name || stop.name;
   const site = (stop, role, other) => nearbyIndustries(game, stop.x, stop.y, REACH + 2).find(site => site !== other && INDUSTRIES[site.kind]?.[role][cargo] && industryDistance(site, stop) <= REACH);
   let base;
   if (TOWN_TO_TOWN.has(cargo)) { const pair = townPair(game, from, to); base = pair ? `${pair[0].name} – ${pair[1].name}` : `${place(from)} – ${place(to)}`; }

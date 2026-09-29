@@ -11,6 +11,10 @@ export function calendarYear(game, day = game.day) {
   return new Date(START_DATE + Math.max(0, Math.floor(day || 0)) * DAY_MS).getUTCFullYear();
 }
 
+/** Air travel opens on 1 January of this year; earlier companies see the Airport tool greyed. */
+export const AIR_DEBUT_YEAR = 1952;
+export const airAvailable = (game, day = game.day) => calendarYear(game, day) >= AIR_DEBUT_YEAR;
+
 export function calendarMonth(game, day = game.day) {
   const date = new Date(START_DATE + Math.max(0, Math.floor(day || 0)) * DAY_MS);
   return (date.getUTCFullYear() - 1950) * 12 + date.getUTCMonth();

@@ -1,4 +1,4 @@
-import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions } from './model.js';
+import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
 import { workshopLevels, workshopOutputs } from './town-market.js';
 import { WORKSHOP } from './data.js';
@@ -34,11 +34,12 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   const stations = [draft.from, draft.to].map(id => game.stations.find(stop => String(stop.id) === String(id)));
   const result = { valid: false, connected: false, state: 'missing', stations, path: null, reversed: false };
   const fail = message => ({ ...result, message });
-  if (!['road', 'rail', 'water'].includes(mode) || !Object.hasOwn(CARGO, cargo)) return fail('Choose transport and cargo.');
+  if (!['road', 'rail', 'water', 'air'].includes(mode) || !Object.hasOwn(CARGO, cargo)) return fail('Choose transport and cargo.');
   if (!stations[0]) return fail('Select a start stop on the map or from the list.');
   if (!stations[1]) return fail('Select an end stop on the map or from the list.');
-  if (stations.some(stop => stop.mode !== mode)) return fail(`Choose two ${mode === 'water' ? 'ports' : mode === 'rail' ? 'rail stations' : 'road stops'}.`);
+  if (stations.some(stop => stop.mode !== mode)) return fail(`Choose two ${mode === 'water' ? 'ports' : mode === 'rail' ? 'rail stations' : mode === 'air' ? 'airports' : 'road stops'}.`);
   if (stations[0].id === stations[1].id) return fail('Choose two different stops.');
+  if (mode === 'air' && !isTownTraffic(cargo)) return fail('Planes carry passengers and mail.');
   const key = [game.networkRevision || 0, mode, ...stations.flatMap(stop => [stop.id, stop.x, stop.y])].join(':');
   let cached = pathCache.get(game);
   if (!cached || cached.key !== key) {
@@ -53,9 +54,10 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   result.connected = true;
   result.state = 'connected';
   if (result.path.length < 3) return fail('Stops are too close. Leave at least two tiles of travel.');
+  if (mode === 'air' && result.path.length - 1 < AIRPORT_MIN_TILES) return fail(`Airports must be at least ${AIRPORT_MIN_TILES} tiles apart for a flight.`);
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (isTownTraffic(cargo)) {
-    if (!passengerEndpoints(game, ...stations)) return fail(sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
+    if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
   } else if (!freightFits(game, coverage[0], coverage[1], cargo)) {
     if (freightFits(game, coverage[1], coverage[0], cargo)) result.reversed = true;
     else return fail(workshopLoop(game, coverage[0], coverage[1], cargo) || sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);
@@ -64,7 +66,7 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
   result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || isTownTraffic(cargo) && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
   if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail(`Connected. Need ${money(getVehiclePurchase(game,mode).cost)} for the first ${vehicleNoun(mode, cargo)}.`);
-  return { ...result, valid: true, message: `Connected by ${mode === 'water' ? 'water' : mode}, ${tiles(result.path.length - 1)}.${result.reversed ? ' Loads at the end stop.' : ''}` };
+  return { ...result, valid: true, message: mode === 'air' ? `Flight, ${tiles(result.path.length - 1)}.` : `Connected by ${mode === 'water' ? 'water' : mode}, ${tiles(result.path.length - 1)}.${result.reversed ? ' Loads at the end stop.' : ''}` };
 }
 
 // Every biome cargo with its verdict for these stops, fitting cargo first:
@@ -138,11 +140,11 @@ function loadingFlows(game, from, to, cargo) {
 function infrastructureShare(game, mode, path, stations) {
   const users = new Map(), use = key => users.set(key, (users.get(key) || 0) + 1);
   for (const route of game.routes) {
-    if (mode !== 'water' && route.mode === mode) for (const point of route.path) use(point.y * game.width + point.x);
+    if ((mode === 'road' || mode === 'rail') && route.mode === mode) for (const point of route.path) use(point.y * game.width + point.x);
     for (const id of route.stops) use(`station:${id}`);
   }
   let share = 0;
-  if (mode !== 'water') for (const point of path) {
+  if (mode === 'road' || mode === 'rail') for (const point of path) {
     const key = point.y * game.width + point.x, tile = game.tiles[key];
     share += ((mode === 'rail' ? INFRASTRUCTURE_UPKEEP.rail : tile.publicRoad ? 0 : INFRASTRUCTURE_UPKEEP.road) + (tile.bridge || tile.tunnel ? INFRASTRUCTURE_UPKEEP.structure : 0)) / ((users.get(key) || 0) + 1);
   }
@@ -164,7 +166,9 @@ function computeForecast(game, draft, plan) {
   const receiver = TOWN_CARGO.includes(cargo) ? stationCoverage(game, to).cities[0] : null, family = receiver && familyOf(game, cargo), market = family && marketView(game, receiver);
   const marketBonus = market ? MARKET.bonus * perUnit * Math.min(movedDay * 30, Math.max(0, Math.round(market.wants[family] * (1 - market.met[family])))) : 0;
   netMonth += marketBonus;
-  const otherModes = Object.keys(VEHICLE_SPEEDS).filter(other => other !== mode).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay, share: transitPay(cargo, Math.round(scheduledDays(other, tiles, vehicle.level))) }; });
+  // A plane is compared only once air travel has arrived and an airport serves each end's town.
+  const flies = mode !== 'air' && isTownTraffic(cargo) && airAvailable(game) && Boolean(passengerEndpoints(game, from, to)?.every(town => game.stations.some(stop => stop.mode === 'air' && stationServes(stop, town))));
+  const otherModes = Object.keys(VEHICLE_SPEEDS).filter(other => other !== mode && (other !== 'air' || flies)).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay, share: transitPay(cargo, Math.round(scheduledDays(other, tiles, vehicle.level))) }; });
   return {
     perVehicleDay, supplyDay, movedDay, netMonth, paybackMonths: netMonth > 0 ? purchase.cost / netMonth : Infinity,
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
@@ -201,7 +205,7 @@ export function filterRoutes(game, filters = {}) {
     if (filters.status === 'attention' && !routeNeedsAttention(game, route)) return false;
     if (filters.cargo && filters.cargo !== 'all' && route.cargo !== filters.cargo) return false;
     if (!words.length) return true;
-    const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : vehicleNoun(route.mode, route.cargo), ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();
+    const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : route.mode === 'air' ? 'plane airport flight air' : vehicleNoun(route.mode, route.cargo), ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();
     return words.every(word => search.includes(word));
   });
 }

@@ -6,9 +6,10 @@ import { terrainObjectAt } from './terrain-objects.js';
 import { hasRoadAccess } from './environment.js';
 import { money as moneyText, tiles as tileCount } from './copy.js';
 import { townOf } from './town-market.js';
+import { stationSiteAt, AIRPORT_LENGTH } from './station-sites.js';
 
 /** Resolve the compact toolbar's intent to an existing, validated model tool. */
-export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = {}) {
+export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road', airportAxis = 'x' } = {}) {
   const tile = tileAt(game, x, y);
   if (tool === 'road' || tool === 'rail') {
     if (tile?.terrain === 'water') return tool === 'rail' ? 'railbridge' : 'bridge';
@@ -18,8 +19,11 @@ export function resolveBuildTool(game, tool, x, y, { preferredMode = 'road' } = 
     const mode = tile?.rail && !tile.road ? 'rail' : tile?.road && !tile.rail ? 'road' : preferredMode === 'rail' ? 'rail' : 'road';
     return mode === 'rail' ? 'train-stop' : 'bus-stop';
   }
+  if (tool === 'airport') return airportAxis === 'y' ? 'airport-y' : 'airport-x';
   return tool;
 }
+/** The airport tool centres its 6 × 2 site on the pointer: the model's anchor is the site's north-west tile. */
+export function airportPlacement(point, axis = 'x') { const along = Math.floor((AIRPORT_LENGTH - 1) / 2); return axis === 'y' ? { x: point.x, y: point.y - along, tool: 'airport-y' } : { x: point.x - along, y: point.y, tool: 'airport-x' }; }
 
 function uniquePoints(points) {
   const unique = new Map();
@@ -42,13 +46,14 @@ const NOTHING_TO_CLEAR = 'There’s nothing to bulldoze here.';
 // A drag crossing several cells of one site demolishes and pays for it once.
 // Zone strokes skip what they cannot claim and demolition skips empty ground;
 // one tile, or a stroke with nothing left, keeps its tiles so the quote gives build()'s own refusal.
-function constructionPoints(game, tool, points) {
+function constructionPoints(game, tool, points, options) {
   const unique = uniquePoints(points);
+  if (tool === 'airport') return uniquePoints(unique.map(point => airportPlacement(point, options?.airportAxis)));
   if (ZONE_TOOLS.has(tool)) { const kept = unique.length > 1 ? zonePlanPoints(game, tool, unique) : unique; return kept.length ? kept : unique; }
   if (tool !== 'bulldoze') return unique;
   const sites = uniquePoints(unique.map(point => {
-    const nature = terrainObjectAt(game, point.x, point.y);
-    return industryAt(game, point.x, point.y) || buildingAt(game, point.x, point.y) || (nature && nature.object.kind !== 'mountain' ? nature : point);
+    const nature = terrainObjectAt(game, point.x, point.y), airport = stationSiteAt(game, point.x, point.y);
+    return industryAt(game, point.x, point.y) || buildingAt(game, point.x, point.y) || (airport?.mode === 'air' ? airport : null) || (nature && nature.object.kind !== 'mountain' ? nature : point);
   })), kept = sites.length > 1 ? sites.filter(p => buildProblem(game, 'bulldoze', p.x, p.y, { money: Infinity })?.message !== NOTHING_TO_CLEAR) : sites;
   return kept.length ? kept : sites;
 }
@@ -56,7 +61,7 @@ function constructionPoints(game, tool, points) {
 export function quoteBuildPlan(game, tool, points, options) {
   if(tool==='level')return quoteTerraformLevel(game,points,options);
   if(tool==='raise'||tool==='lower')return quoteTerraformStroke(game,tool,points);
-  const unique=constructionPoints(game,tool,points);
+  const unique=constructionPoints(game,tool,points,options);
   if(SPAN_TOOLS.has(tool)&&unique.length>1)return quoteStructureSpan(game,tool,unique);
   const placements = unique.map(({ x, y }) => {
     const resolved = resolveBuildTool(game, tool, x, y, options);

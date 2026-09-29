@@ -5,6 +5,7 @@ import { buildingAt } from './building-sites.js';
 import { nearbyCities, nearbyIndustries, nearbyStations } from './simulation-spatial.js';
 import { surfaceHeight } from './terrain-geometry.js';
 import { workshopLevels, workshopRecipes } from './town-market.js';
+import { stationReach, stationServes } from './station-sites.js';
 
 // New industries open, never close. From 1952, once the company has delivered freight, a month's
 // roll may open one 10 to 24 tiles from a town a stop reaches: on free, gentle ground with a trading
@@ -20,8 +21,8 @@ const FREIGHT = new Set(Object.values(INDUSTRIES).flatMap(def => Object.keys(def
 
 /** Towns with a stop within reach of their centre, in town order. */
 export function openingAnchors(game) {
-  const R = OPENINGS.catchment, ids = new Set();
-  for (const stop of game.stations) for (const city of nearbyCities(game, stop.x, stop.y, R)) if (Math.hypot(stop.x - city.x, stop.y - city.y) <= R) ids.add(city.id);
+  const ids = new Set();
+  for (const stop of game.stations) for (const city of nearbyCities(game, stop.x, stop.y, stationReach(stop) + (stop.mode === 'air' ? 5 : 0))) if (stationServes(stop, city)) ids.add(city.id);
   return ids.size ? game.cities.filter(city => ids.has(city.id)) : [];
 }
 export const openingChance = towns => Math.min(OPENINGS.maxChance, OPENINGS.baseChance + OPENINGS.perTown * towns);

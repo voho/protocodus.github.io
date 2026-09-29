@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveBuildTool, quoteBuildPlan, buildPlan, zonePlanPoints } from '../construction-plan.js';
+import { resolveBuildTool, quoteBuildPlan, buildPlan, zonePlanPoints, airportPlacement } from '../construction-plan.js';
 import { hasRoadAccess } from '../environment.js';
 import { build, buildProblem, constructionCost, findPath } from '../model.js';
 import { routeTileIndex } from '../route-tiles.js';
@@ -356,4 +356,18 @@ test('a demolition stroke passes over empty ground and counts only what it clear
   assert.equal(result.built, 5); assert.equal(result.failed, 0); assert.equal(result.cost, quote.cost); assert.doesNotMatch(result.message, /skipped/);
   const empty = quoteBuildPlan(game, 'bulldoze', points);
   assert.equal(empty.ok, false); assert.equal(empty.message, 'There’s nothing to bulldoze here.', 'empty ground alone still says so');
+});
+
+test('the airport tool centres its 6 × 2 site on the pointer and quotes build()’s verdict', () => {
+  const game = emptyGame(); game.day = game.lastDailyDay = 730; game.lastMonth = 24;
+  assert.equal(resolveBuildTool(game, 'airport', 30, 30), 'airport-x'); assert.equal(resolveBuildTool(game, 'airport', 30, 30, { airportAxis: 'y' }), 'airport-y');
+  assert.deepEqual(airportPlacement({ x: 30, y: 30 }), { x: 28, y: 30, tool: 'airport-x' }); assert.deepEqual(airportPlacement({ x: 30, y: 30 }, 'y'), { x: 30, y: 28, tool: 'airport-y' });
+  const quote = quoteBuildPlan(game, 'airport', [{ x: 30, y: 30 }], { airportAxis: 'y' });
+  assert.equal(quote.ok, true); assert.deepEqual(quote.placements.map(p => [p.x, p.y, p.tool]), [[30, 28, 'airport-y']]);
+  assert.equal(quote.cost, constructionCost(game, 'airport-y', 30, 28));
+  tileAt(game, 31, 32).terrain = 'water';
+  const refused = quoteBuildPlan(game, 'airport', [{ x: 30, y: 30 }], { airportAxis: 'y' });
+  assert.equal(refused.ok, false); assert.match(refused.message, /dry land/);
+  const built = buildPlan(game, 'airport', [{ x: 30, y: 30 }], { airportAxis: 'x' });
+  assert.equal(built.ok, true, built.message); assert.deepEqual([built.station.x, built.station.y, built.station.axis], [28, 30, 'x']);
 });

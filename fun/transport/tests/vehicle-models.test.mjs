@@ -2,13 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { VEHICLE_SERIES, vehicleSeriesKey, vehicleModel, vehicleAge, ageText, fleetModelText, newYearModel, modelHeadline } from '../vehicle-models.js';
 import { newYearNotice } from '../ui-notices.js';
+import { AIR_DEBUT_YEAR } from '../economy-pricing.js';
 
-test('six fictional series, 46 invented names, every series from 1950', () => {
-  assert.deepEqual(Object.keys(VEHICLE_SERIES), ['bus', 'truck', 'passenger-train', 'freight-train', 'ferry', 'freighter']);
+test('seven fictional series, 54 invented names, every series from 1950, the airliner from AIR_DEBUT_YEAR', () => {
+  assert.deepEqual(Object.keys(VEHICLE_SERIES), ['bus', 'truck', 'passenger-train', 'freight-train', 'ferry', 'freighter', 'airliner']);
   const names = Object.values(VEHICLE_SERIES).flatMap(s => s.families.map(f => f.name));
-  assert.equal(names.length, 46); assert.equal(new Set(names).size, 46);
+  assert.equal(names.length, 54); assert.equal(new Set(names).size, 54);
+  assert.equal(VEHICLE_SERIES.airliner.families[0].year, AIR_DEBUT_YEAR); assert.equal(VEHICLE_SERIES.airliner.families.length, 8);
   for (const n of names) { assert.match(n, /^[A-Z][a-z]{3,8}$/); assert.doesNotMatch(n.toLowerCase(), /(ford|haven|field|mere|ridge|bridge|brook|vale)$/); }
-  for (const s of Object.values(VEHICLE_SERIES)) { assert.equal(s.families[0].year, 1950); s.families.forEach((f, i) => { assert.equal(f.level, f.year - 1950); if (i) assert.ok(f.year > s.families[i - 1].year); }); }
+  for (const s of Object.values(VEHICLE_SERIES)) { assert.equal(s.families[0].year, s.mode === 'air' ? AIR_DEBUT_YEAR : 1950); s.families.forEach((f, i) => { assert.equal(f.level, f.year - 1950); if (i) assert.ok(f.year > s.families[i - 1].year); }); }
   assert.ok(Object.isFrozen(VEHICLE_SERIES) && Object.isFrozen(VEHICLE_SERIES.bus.families[0]));
 });
 
@@ -18,11 +20,14 @@ test('a level names its model: family, mark, model year and noun', () => {
   assert.equal(vehicleModel('road', 'passengers', 11).name, 'Pendle Mk 1'); assert.equal(vehicleModel('road', 'passengers', 11).debut, true);
   assert.equal(vehicleModel('road', 'passengers', 150).name, 'Aurel Mk 66', 'the last family keeps counting');
   for (const bad of [-1, 1.5, undefined, NaN, '3']) assert.equal(vehicleModel('rail', 'coal', bad).name, 'Rowdon Mk 1');
-  assert.deepEqual([['road', 'coal'], ['rail', 'passengers'], ['rail', 'coal'], ['water', 'passengers'], ['water', 'fish'], ['air', 'passengers']].map(([mode, cargo]) => vehicleSeriesKey(mode, cargo)), ['truck', 'passenger-train', 'freight-train', 'ferry', 'freighter', 'bus']);
+  assert.deepEqual([['road', 'coal'], ['rail', 'passengers'], ['rail', 'coal'], ['water', 'passengers'], ['water', 'fish'], ['air', 'passengers'], ['air', 'mail']].map(([mode, cargo]) => vehicleSeriesKey(mode, cargo)), ['truck', 'passenger-train', 'freight-train', 'ferry', 'freighter', 'airliner', 'airliner']);
   assert.equal(vehicleModel('water', 'oil', 3).noun, 'tanker'); assert.equal(vehicleModel('water', 'fuel', 3).plural, 'tankers'); assert.equal(vehicleModel('water', 'fish', 3).noun, 'ship');
   // Mail rides in the mode's freight body.
   assert.deepEqual(['road', 'rail', 'water'].map(mode => [vehicleSeriesKey(mode, 'mail'), vehicleModel(mode, 'mail', 2).noun, vehicleModel(mode, 'mail', 2).plural]), [['truck', 'mail truck', 'mail trucks'], ['freight-train', 'mail train', 'mail trains'], ['freighter', 'mail ship', 'mail ships']]);
-  for (const s of Object.values(VEHICLE_SERIES)) for (let l = 0; l < s.families[1].level; l++) assert.equal(vehicleModel(s.mode, s.passengers ? 'passengers' : 'coal', l).mark, l + 1);
+  for (const s of Object.values(VEHICLE_SERIES)) if (s.mode !== 'air') for (let l = 0; l < s.families[1].level; l++) assert.equal(vehicleModel(s.mode, s.passengers ? 'passengers' : 'coal', l).mark, l + 1);
+  // The airliner begins in 1952: its first mark is level 2, and earlier levels clamp to Mk 1.
+  assert.deepEqual([0, 1, 2, 3, 12, 13].map(l => vehicleModel('air', 'passengers', l).name), ['Aldwyn Mk 1', 'Aldwyn Mk 1', 'Aldwyn Mk 1', 'Aldwyn Mk 2', 'Aldwyn Mk 11', 'Corvane Mk 1']);
+  assert.deepEqual([vehicleModel('air', 'mail', 2).noun, vehicleModel('air', 'mail', 2).plural, vehicleModel('air', 'passengers', 2).debut, vehicleModel('air', 'passengers', 1).debut], ['mail plane', 'mail planes', true, false]);
   assert.equal(vehicleAge(1970, 3), 17); assert.equal(vehicleAge(1950, 0), 0); assert.equal(vehicleAge(1951, undefined), 1); assert.equal(vehicleAge(1960, 12), 0);
   assert.deepEqual([0, 1, 17].map(ageText), ['new this year', '1 year old', '17 years old']);
 });
@@ -62,6 +67,7 @@ test('a new series makes the one January headline, with its own copy', () => {
   assert.deepEqual(modelHeadline(vehicleModel('road', 'passengers', 11)), { key: 'models:1961', kind: 'models', art: 'bus', title: 'New Pendle buses arrive for 1961', detail: 'The Pendle Mk 1 bus carries 3.2 times the load of a 1950 bus and runs 2.1× as fast.' });
   assert.deepEqual(modelHeadline(vehicleModel('water', 'oil', 10)), { key: 'models:1960', kind: 'models', art: 'ship', title: 'New Kedge tankers arrive for 1960', detail: 'The Kedge Mk 1 tanker carries 3 times the load of a 1950 tanker and runs 2× as fast.' });
   assert.equal(modelHeadline(vehicleModel('rail', 'coal', 12)).art, 'train');
+  assert.deepEqual(modelHeadline(vehicleModel('air', 'passengers', 13)), { key: 'models:1963', kind: 'models', art: 'plane', title: 'New Corvane planes arrive for 1963', detail: 'The Corvane Mk 1 plane carries 2.6 times the load of a 1952 plane and runs 1.9× as fast.' });
   for (const level of [0, 1, 5, 10, 12]) assert.equal(modelHeadline(vehicleModel('road', 'passengers', level)), null, level);
   for (const [key, s] of Object.entries(VEHICLE_SERIES)) for (const family of s.families.slice(1)) {
     const entry = modelHeadline(vehicleModel(s.mode, s.passengers ? 'passengers' : 'coal', family.level));
