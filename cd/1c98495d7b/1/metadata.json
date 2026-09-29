@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "cd1c98495d7b",
+  "session_id": "47392dd3-5466-4a6f-a7c8-9625e46929ee",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T08:47:39.186134Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/tests/town-market.test.mjs",
+    "fun/transport/town-market.js",
+    "fun/transport/tests/company-rating.test.mjs",
+    "fun/transport/app.js",
+    "fun/transport/cargo-icons.js",
+    "fun/transport/construction-undo.js",
+    "fun/transport/tests/property-browser-check.mjs",
+    "fun/transport/tests/property.test.mjs",
+    "fun/transport/building-sites.js",
+    "fun/transport/tests/expansion-model.test.mjs",
+    "fun/transport/places.css",
+    "fun/transport/tests/company-rating-browser-check.mjs",
+    "fun/transport/tests/construction-undo.test.mjs",
+    "fun/transport/README.md",
+    "fun/transport/company-rating.js",
+    "fun/transport/dialogs.css",
+    "fun/transport/index.html",
+    "fun/transport/model.js",
+    "fun/transport/ARCHITECTURE.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "89c7b1a41e6a",
+  "checkpoint_transcript_start": 753,
+  "transcript_lines_at_start": 753,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T08:47:37.730555Z",
+    "agent_lines": 0,
+    "human_added": 744,
+    "human_modified": 30,
+    "human_removed": 0,
+    "total_committed": 744,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/47392dd3-5466-4a6f-a7c8-9625e46929ee.jsonl"
+}
