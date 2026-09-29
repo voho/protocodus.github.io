@@ -1,5 +1,6 @@
 import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
+import { FULL_LOAD_MAX_WAIT } from './model.js';
 import { workshopLevels, workshopOutputs } from './town-market.js';
 import { WORKSHOP } from './data.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } from './data.js';
@@ -154,13 +155,16 @@ function infrastructureShare(game, mode, path, stations) {
 function computeForecast(game, draft, plan) {
   if (!plan.valid) return null;
   const { mode, cargo } = draft, purchase = getVehiclePurchase(game, mode), tiles = travelTiles(mode, plan.path), paid = payTiles(plan.path), joining = Boolean(plan.existingRouteId);
-  // One trip's days on the way set the share of the fare a delivery keeps.
-  const days = Math.round(scheduledDays(mode, tiles, purchase.level)), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
   const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations, flows = loadingFlows(game, from, to, cargo);
   const oneWay = purchase.capacity / roundTrip(mode, tiles, purchase.level), perVehicleDay = oneWay * flows.length;
   const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay, flow.free), 0);
+  // With full load a freight vehicle stands at the start for the share of its round trips the supply cannot fill, at the
+  // idle 45% of its upkeep, and what boards during a wait rides along for about half of it. A supply that fills it never waits.
+  const full = draft.fullLoad === true && !isTownTraffic(cargo), moving = full ? Math.min(1, supplyDay / perVehicleDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity / Math.max(.01, supplyDay)) / 2 : 0;
+  // One trip's days on the way set the share of the fare a delivery keeps.
+  const days = Math.round(scheduledDays(mode, tiles, purchase.level) + wait), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
   // An added vehicle joins its route's share of the network; a new route takes its own.
-  const upkeep = VEHICLE_UPKEEP[mode] + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to]));
+  const upkeep = VEHICLE_UPKEEP[mode] * (moving + .45 * (1 - moving)) + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to]));
   let netMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) - priceFor(game, upkeep * 30);
   // The receiving town's shops pay a quarter more for what they still wanted last month.
   const receiver = TOWN_CARGO.includes(cargo) ? stationCoverage(game, to).cities[0] : null, family = receiver && familyOf(game, cargo), market = family && marketView(game, receiver);
@@ -172,8 +176,8 @@ function computeForecast(game, draft, plan) {
   return {
     perVehicleDay, supplyDay, movedDay, netMonth, paybackMonths: netMonth > 0 ? purchase.cost / netMonth : Infinity,
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
-    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullLoad: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
-    tiles: paid, travel: tiles, days, share, perUnit,
+    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullFare: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
+    tiles: paid, travel: tiles, days, share, perUnit, wait,
     marketBonus, workshopsPending: flows.some(flow => flow.pending),
   };
 }
@@ -181,13 +185,16 @@ function computeForecast(game, draft, plan) {
 // A rough monthly outlook for one more vehicle on these stops: fares for what it can carry of the
 // cargo not yet taken, less its upkeep and share of the network. Cached per draft, day and revision.
 export function forecastRoute(game, draft, plan = null) {
-  const key = [game.networkRevision || 0, game.revision, Math.floor(game.day), game.routes.length, game.vehicles.length, draft.mode, draft.from, draft.to, draft.cargo].join(':');
+  const key = [game.networkRevision || 0, game.revision, Math.floor(game.day), game.routes.length, game.vehicles.length, draft.mode, draft.from, draft.to, draft.cargo, draft.fullLoad === true].join(':');
   const cached = forecastCache.get(game);
   if (cached?.key === key) return cached.forecast;
   const forecast = computeForecast(game, draft, plan?.valid ? plan : validateRoutePlan(game, draft, { ignoreFunds: true }));
   forecastCache.set(game, { key, forecast });
   return forecast;
 }
+
+/** Forecast details' fare line. 'Full load' names only the order, so this is what one full vehicle pays. */
+export const fullFareText = (mode, cargo, fare) => `A full ${vehicleNoun(mode, cargo)} pays ≈ ${money(fare)}`;
 
 // Name a route by what it does, as route-lines.js does at launch; `except` is the route being edited.
 export function defaultRouteName(game, plan, cargo, except = null) {

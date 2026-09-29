@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { createGame, tick, saveGame, loadGame, deleteSave, validateGame, SAVE_KEY } from '../model.js';
 import { advance } from './helpers.mjs';
 import { borrow, loanTerms } from '../model.js';
+import { build, buildPath, addRoute } from '../model.js';
+import { emptyGame, line } from './helpers.mjs';
 
 function withStorage(run, customStorage) {
   const old = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -76,6 +78,11 @@ test('incompatible, corrupted and inconsistent saves are rejected without crashi
     game => { game.startingFunds = 300000; },
     game => { game.annual = [{ year: 1950, revenue: 1, operatingProfit: 1, delivered: 1, population: 1, routes: 1, bestRouteId: 42 }]; },
     game => { game.annual = {}; },
+    game => { game.routes[0].fullLoad = 'yes'; },
+    game => { game.routes[0].fullLoad = 1; },
+    game => { game.vehicles[0].fullLoadSince = -1; },
+    game => { game.vehicles[0].fullLoadSince = game.day + 1; },
+    game => { game.vehicles[0].fullLoadSince = 'soon'; },
   ];
   for (const mutate of corruptions) {
     const invalid = structuredClone(base);
@@ -128,6 +135,30 @@ test('saving during a loading wait resumes the same remaining wait and productio
   assert.deepEqual(content(restored), content(game));
   for (const step of [.0625, .1875, 1.5, .25, 17]) { tick(game, step); tick(restored, step); }
   assert.deepEqual(content(restored), content(game));
+}));
+
+test('a full-load wait is kept only on a freight route that asks for full loads', () => withStorage(storage => {
+  const game = emptyGame();
+  build(game, 'logging-camp', 10, 10); build(game, 'sawmill', 30, 10); buildPath(game, 'road', line(10, 30, 12));
+  for (const x of [10, 30]) build(game, 'bus-stop', x, 12);
+  const route = addRoute(game, { mode: 'road', cargo: 'timber', stops: game.stations.map(stop => stop.id) }).route;
+  tick(game, 5);
+  game.vehicles[0].fullLoadSince = 3;
+  storage.setItem(SAVE_KEY, JSON.stringify(game));
+  const plain = loadGame();
+  assert.ok(plain);
+  assert.equal(plain.vehicles[0].fullLoadSince, null, 'a route without full load lets the wait go');
+  route.fullLoad = true;
+  storage.setItem(SAVE_KEY, JSON.stringify(game));
+  assert.equal(loadGame().vehicles[0].fullLoadSince, 3, 'a freight route with full load keeps it');
+  const town = createGame({ size: 'regional', seed: 44 });
+  tick(town, 5);
+  Object.assign(town.routes[0], { fullLoad: true }); town.vehicles[0].fullLoadSince = 2;
+  assert.equal(town.routes[0].cargo, 'passengers');
+  storage.setItem(SAVE_KEY, JSON.stringify(town));
+  const passengers = loadGame();
+  assert.ok(passengers);
+  assert.deepEqual([passengers.vehicles[0].fullLoadSince, passengers.routes[0].fullLoad], [null, false], 'passenger routes never wait');
 }));
 
 test('a loan, yearly summaries and starting funds survive a save; older saves load without them', () => withStorage(() => {

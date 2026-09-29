@@ -11,6 +11,7 @@ import { nearbyIndustries } from './simulation-spatial.js';
 import { outputFill } from './industry-simulation.js';
 import { nextMilestone, progressText } from './milestones.js';
 import { workshopInputs, workshopOutputs, workshopRecipes } from './town-market.js';
+import { waitingForFullLoad } from './model.js';
 
 const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
@@ -217,10 +218,22 @@ function endpointTowns(towns, stops) {
 }
 // Another vehicle pays only while at least two full loads wait for the fleet. Before its first delivery a route is on its first trip.
 // Reasons stay short: the route card already shows both stops.
+const fleetCapacity = (game, route, stats) => stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0);
 function fleetHealth(game, route, stats, waiting, reason, known) {
-  const capacity = stats?.capacity ?? game.vehicles.reduce((sum, vehicle) => vehicle.routeId === route.id ? sum + (vehicle.capacity || 0) : sum, 0), noun = vehicleNoun(route.mode, route.cargo);
+  const capacity = fleetCapacity(game, route, stats), noun = vehicleNoun(route.mode, route.cargo);
   if (waiting < Math.max(50, 2 * capacity)) return route.delivered === 0 ? status(game, 'running', 'info', 'First trip', `The first ${noun} is on its way.`, { waiting, capacity }, known) : status(game, 'running', 'ok', 'Running', reason, { waiting, capacity }, known);
   return status(game, 'busy', 'warn', route.cargo === 'passengers' ? 'Passengers waiting' : route.cargo === 'mail' ? 'Mail waiting' : 'Cargo waiting', `About ${count(Math.round(waiting / Math.max(1, capacity)), 'load')} waiting. Another ${noun} would carry more.`, { fix: { action: 'add-vehicle', label: `Add ${noun}`, cost: getVehiclePurchase(game, route.mode)?.cost ?? 0 }, waiting, capacity }, known);
+}
+/** A full-load route's line at its loading stop from one scan: how many wait, and the head, the earliest arrival (array order on a tie). */
+export function fullLoadQueue(game, routeId) {
+  let count = 0, head = null;
+  for (const vehicle of game.vehicles) if (vehicle.routeId === routeId && waitingForFullLoad(vehicle)) { count++; if (!head || vehicle.fullLoadSince < head.fullLoadSince) head = vehicle; }
+  return { count, head };
+}
+const NO_QUEUE = { count: 0, head: null };
+// Loading is the order at work, so it reads as running: the head's load, and a line behind it is the sign that one vehicle fewer would do.
+function loadingHealth(game, route, stats, { count: line, head }, waiting, known) {
+  return status(game, 'running', 'ok', 'Loading', `Waiting for a full load, ${number(head.load)} of ${number(head.capacity)}${line > 1 ? `, with ${number(line - 1)} more in line` : ''}.`, { waiting, capacity: fleetCapacity(game, route, stats) }, known);
 }
 
 export function routeHealth(game, route, stats = null) {
@@ -244,19 +257,21 @@ export function routeHealth(game, route, stats = null) {
   if (!townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001)) {
     return say('waiting', 'warn', 'Buyer full', `${token('industry', buyers[0].id)} has no room for more ${cargo}. Supply its other inputs, and carry its output away.`, {}, buyers);
   }
-  const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0), nouns = capital(vehicleNoun(route.mode, route.cargo, 2));
+  // Only a full-load route reads its line; vehicles waiting in it hold cargo that has not left yet.
+  const queue = route.fullLoad === true ? stats?.queue ?? fullLoadQueue(game, route.id) : NO_QUEUE;
+  const loaded = game.vehicles.some(vehicle => vehicle.routeId === route.id && vehicle.load > 0 && !(queue.count && waitingForFullLoad(vehicle))), nouns = capital(vehicleNoun(route.mode, route.cargo, 2));
   if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1) && !sources.length) {
     const inputs = workshopRecipes(game).filter(recipe => recipe.output === route.cargo).map(recipe => recipe.input), maker = makers[0], works = `${token('town', maker.id)} workshops`;
     if (!inputs.some(input => maker.workshop?.input[input] > 0)) return say('waiting', 'warn', `Needs ${cargoNames(inputs, 'or')}`, `Deliver ${cargoTokens(inputs, 'or')} to ${works}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
-    return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${works} are making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
-  }
-  if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1)) {
+    if (!queue.count) return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${works} are making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, makers);
+  } else if (!loaded && !sources.some(site => (site.inventory?.[route.cargo] || 0) >= 1) && !makers.some(city => (city.workshop?.output[route.cargo] || 0) >= 1)) {
     const missing = [...new Set(sources.flatMap(site => industryStatus(site).missing))], source = token('industry', sources[0].id);
     if (missing.length) return say('waiting', 'warn', `Needs ${cargoNames(missing)}`, `${source} needs ${cargoTokens(missing)} before it can make ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
-    return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
+    if (!queue.count) return say('waiting', route.delivered === 0 ? 'info' : 'ok', route.delivered === 0 ? 'First trip' : 'Running', `${source} is making more ${cargo}. More ${nouns.toLowerCase()} won’t help yet.`, {}, sources);
   }
   const waiting = sources.reduce((sum, site) => sum + Math.floor(site.inventory?.[route.cargo] || 0), 0) + makers.reduce((sum, city) => sum + Math.floor(city.workshop?.output[route.cargo] || 0), 0);
-  return fleetHealth(game, route, stats, waiting, `${nouns} load ${cargo} at the start and return for more.`, stops);
+  if (queue.count) return loadingHealth(game, route, stats, queue, waiting, stops);
+  return fleetHealth(game, route, stats, waiting, route.fullLoad === true ? `${nouns} leave the start full, or after a month at most.` : `${nouns} load ${cargo} at the start and return for more.`, stops);
 }
 
 /** One optional goal at a time. Searches are memoised; the stage is re-read on every call. */

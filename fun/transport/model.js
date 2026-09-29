@@ -666,16 +666,18 @@ function planRoute(game,{mode,stops,cargo},retry='launch again') {
   if(mode==='air'&&path.length-1<AIRPORT_MIN_TILES)return result(false,`Airports must be at least ${AIRPORT_MIN_TILES} tiles apart for a flight.`);
   return result(true,'',{stations,path});
 }
-export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
+export function addRoute(game,{name,mode='road',stops,cargo='passengers',fullLoad=false}={}) {
+  if(typeof fullLoad!=='boolean')return result(false,'Choose on or off.');
+  if(fullLoad&&isTownTraffic(cargo))return result(false,'Full load is for freight routes.');
   const plan=planRoute(game,{mode,stops,cargo});if(!plan.ok)return plan;
   const {stations,path}=plan;
   if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
   const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
   const line=nextLineColor(game,stations.map(s=>s.id));
-  const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,profitThisYear:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};
+  const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,profitThisYear:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};if(fullLoad)route.fullLoad=true;
   // The first plane starts at its stand, ready to taxi out.
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:mode==='air'?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
-  spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);loadVehicle(game,route,vehicle,0);game.revision++;
+  spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);beginFullLoadWait(route,vehicle,0,loadVehicle(game,route,vehicle,0),game.day);game.revision++;
   return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
 }
 // An edit moves a service to new stops or another freight without selling its vehicles. Nothing is
@@ -691,6 +693,8 @@ export function editRoute(game,routeId,{stops,cargo}={}) {
   if(route.mode==='air'){const oldMax=route.path.length-1,newMax=plan.path.length-1;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.progress=vehicle.progress/oldMax*newMax;}
   route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
   if(route.mode!=='air')snapVehiclesToPath(game,route,plan.path);
+  // A queue at the old start leaves; the route keeps its full-load order for the next arrivals where it loads.
+  for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])if(waitingForFullLoad(vehicle))vehicle.fullLoadSince=null;
   if(changed){route.cargo=cargo;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.load=0;}
   // Cargo aboard is dispatched afresh from the edited route, and its trip times start over.
   restartCargoClocks(game,route,game.day);clearRouteTransit(game,route.id);
@@ -752,7 +756,7 @@ export function addRouteVehicle(game,routeId) {
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:route.mode==='air'&&stop>=0?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   // A plane flies the straight chord: one started mid-flight appears at its place in the air.
   if(route.mode==='air'){const f=progress/L,first=route.path[0],last=route.path[L];vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*direction,(last.x-first.x)*direction);}
-  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)loadVehicle(game,route,vehicle,stop);game.revision++;
+  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);game.revision++;
   return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
 }
 export function sellRouteVehicle(game,routeId) {
@@ -762,6 +766,23 @@ export function sellRouteVehicle(game,routeId) {
   const vehicle=sellCandidate(vehicles),refund=saleValue(route,vehicle);
   game.vehicles=game.vehicles.filter(v=>v!==vehicle);game.money+=refund;game.revision++;
   return result(true,`${capital(vehicleNoun(route.mode,route.cargo))} sold from ${route.name}. ${moneyText(refund)} refunded.`,{vehicle,refund});
+}
+// Full load, Transport Tycoon's order: optional, off for every route and for freight only. A vehicle that reaches the
+// stop where it loads short of full waits there, the earliest arrival first, until it is full, nothing there can supply
+// it or a month has passed. route.fullLoad is written only once turned on; vehicle.fullLoadSince holds the day a wait
+// began and turns null when it ends. Neither is ever deleted, so fleets keep their object shapes in the hot loops.
+export const FULL_LOAD_MAX_WAIT=30;
+export function waitingForFullLoad(v) { return typeof v?.fullLoadSince==='number'; }
+export function setRouteFullLoad(game,routeId,on) {
+  const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
+  if(typeof on!=='boolean')return result(false,'Choose on or off.');
+  if(isTownTraffic(route.cargo))return result(false,'Full load is for freight routes.');
+  if((route.fullLoad===true)===on)return result(false,'Nothing to change.');
+  const index=fleetIndex(game),nouns=capital(vehicleNoun(route.mode,route.cargo,2)),start=index.stationById.get(route.stops[0]);
+  route.fullLoad=on;
+  if(!on)for(const vehicle of index.vehiclesByRoute.get(route.id)||[])if(waitingForFullLoad(vehicle))vehicle.fullLoadSince=null;
+  game.revision++;
+  return result(true,on?`${nouns} on ${route.name} wait at ${start?.name||'their first stop'} for a full load, for a month at most.`:`${nouns} on ${route.name} leave as soon as they have loaded.`,{route});
 }
 function journeyContext(game) {
   return { stations:fleetIndex(game).stationById, coverage:new Map(), endpoints:new Map(), environments:new Map() };
@@ -784,10 +805,12 @@ function workshopMaker(game,route,destination,context) {
   if(!source||source.industries.some(industry=>INDUSTRIES[industry.kind].outputs[route.cargo]))return null;
   return source.cities.find(city=>!destination.cities.includes(city)&&workshopOutputs(game,city).includes(route.cargo))||null;
 }
+// Returns the sources a freight start has: the covered industries that make its cargo, whatever their stock, or,
+// without one, the towns whose workshops could load it here. Anywhere else 0; a full-load wait needs a source.
 function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
-  const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
+  const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return 0;
   const before=vehicle.load;
-  let free=vehicle.capacity-vehicle.load;
+  let free=vehicle.capacity-vehicle.load,sources=0;
   if(isTownTraffic(route.cargo)) {
     const endpoints=journeyEndpoints(game,route,context),pool=route.cargo;
     for(const city of endpoints?[endpoints[stopIndex]]:[]) {
@@ -799,9 +822,9 @@ function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
     const coverage=journeyCoverage(game,station,context);
     for(const industry of coverage.industries) {
       if(!INDUSTRIES[industry.kind].outputs[route.cargo])continue;
+      sources++;if(free<=0)continue;
       const amount=Math.min(free,Math.floor(industry.inventory[route.cargo]||0));
       industry.inventory[route.cargo]-=amount;industry.shipped+=amount;industry.activity+=amount;vehicle.load+=amount;free-=amount;
-      if(free<=0)break;
     }
     // Then towns' workshop products, only for a different town, as freightFits reads the two stops.
     if(free>0&&coverage.cities.some(city=>city.workshop?.output[route.cargo]>=1)) {
@@ -813,10 +836,15 @@ function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
         if(free<=0)break;
       }
     }
+    if(!sources&&coverage.produces.includes(route.cargo)){const end=context?context.stations.get(route.stops[1]):game.stations.find(s=>s.id===route.stops[1]),destination=end?journeyCoverage(game,end,context):null;for(const city of destination?coverage.cities:[])if(!destination.cities.includes(city)&&workshopOutputs(game,city).includes(route.cargo))sources++;}
   }
   // The boarding day of what is aboard: a load-weighted mean when a load is topped up, so a wait counts.
   if(vehicle.load>before){const boarded=Math.floor(day);vehicle.loadedDay=before>0&&vehicle.loadedDay!==undefined?(vehicle.loadedDay*before+boarded*(vehicle.load-before))/vehicle.load:boarded;}
+  return sources;
 }
+// A freight vehicle that reaches its loading stop short of full starts to wait there when its route asks for a full load
+// and something there can supply it: from the arrival time, or the day it was bought.
+function beginFullLoadWait(route,vehicle,stopIndex,sources,day){if(route.fullLoad===true&&!isTownTraffic(route.cargo)&&stopIndex===0&&sources>0&&vehicle.load<vehicle.capacity)vehicle.fullLoadSince=day;}
 // The shortest connected path, capped at twice the stops' grid distance, sets the fare; loops and detours cannot manufacture income.
 // Days on the way (undefined for legacy cargo) keep a share of it: see transitPay.
 export function fareFor(game,cargo,pathLength,units,day=game.day,transitDays) { return priceFor(game,units*CARGO[cargo].price*distancePay(pathLength-1)*transitPay(cargo,transitDays),day); }
@@ -980,7 +1008,10 @@ function travelSpeed(game,route,vehicle,segment){
 function travelPlan(game,route,vehicle,days){
   const state={progress:vehicle.progress,totalDistance:vehicle.totalDistance||0,dwellRemaining:vehicle.dwellRemaining||0};
   const max=route.path.length-1,endpoint=vehicle.direction===1?max:0;
-  let remaining=days,elapsed=0;
+  // A vehicle waiting for a full load holds still, its dwell kept for after. It falls through with no time to spend
+  // rather than returning, so anything the tail counts per day on the way still counts the wait.
+  const waiting=waitingForFullLoad(vehicle);
+  let remaining=waiting?0:days,elapsed=0;
   if(state.dwellRemaining>0){const wait=Math.min(remaining,state.dwellRemaining);state.dwellRemaining=Math.max(0,state.dwellRemaining-wait);remaining-=wait;elapsed+=wait;}
   while(remaining>1e-10&&Math.abs(state.progress-endpoint)>1e-9){
     const segment=clamp(vehicle.direction===1?Math.floor(state.progress+1e-9):Math.ceil(state.progress-1e-9)-1,0,max-1);
@@ -988,20 +1019,22 @@ function travelPlan(game,route,vehicle,days){
     if(remaining+1e-12>=duration){state.progress=boundary;state.totalDistance+=space;remaining=Math.max(0,remaining-duration);elapsed+=duration;}
     else{const step=remaining*speed;state.progress+=step*vehicle.direction;state.totalDistance+=step;elapsed+=remaining;remaining=0;}
   }
-  const arrived=state.dwellRemaining<=0&&Math.abs(state.progress-endpoint)<1e-9;
+  const arrived=!waiting&&state.dwellRemaining<=0&&Math.abs(state.progress-endpoint)<1e-9;
   if(arrived)state.progress=endpoint;
   return {state,elapsed:arrived?elapsed:days,arrived};
 }
 function arriveVehicle(game,route,vehicle,arrivalDay,context){
   const stopIndex=vehicle.direction===1?1:0;
   // Anything still aboard (a full buyer) is dispatched again from here: its clock restarts.
-  unloadVehicle(game,route,vehicle,stopIndex,arrivalDay,context);if(vehicle.load>0)vehicle.loadedDay=Math.floor(arrivalDay);loadVehicle(game,route,vehicle,stopIndex,context,arrivalDay);vehicle.direction*=-1;vehicle.tripSerial=(vehicle.tripSerial||0)+1;
+  unloadVehicle(game,route,vehicle,stopIndex,arrivalDay,context);if(vehicle.load>0)vehicle.loadedDay=Math.floor(arrivalDay);const sources=loadVehicle(game,route,vehicle,stopIndex,context,arrivalDay);vehicle.direction*=-1;vehicle.tripSerial=(vehicle.tripSerial||0)+1;
   // A plane's visit is a fixed ground timeline: landing roll, taxi, boarding, taxi and take-off.
   if(route.mode==='air'){vehicle.dwellRemaining=AIR_TURNAROUND;return;}
   const stop=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);
   let e=context?.environments.get(stop);
   if(!e){e=localEnvironment(game,stop.x,stop.y,2);context?.environments.set(stop,e);}
   vehicle.dwellRemaining=(.05+randomAt(game,Math.floor(arrivalDay),vehicle.id,500+vehicle.tripSerial)*.13)*(route.mode==='water'?1.8:1)*(1+vehicle.load/vehicle.capacity*.5)/(1+e.access*.35+e.services*.06);
+  // A full-load wait holds the vehicle here; the dwell just drawn runs once the wait is over.
+  beginFullLoadWait(route,vehicle,stopIndex,sources,arrivalDay);
 }
 function moveVehicles(game,days) {
   for(const route of game.routes)updateRoutePath(game,route);
@@ -1072,7 +1105,7 @@ function maintenance(game) {
     const route=routeIndex.get(v.routeId),localWeather=weatherAt(game,v.x,v.y,day),key=Math.floor(v.y)*game.width+Math.floor(v.x);
     let e=environments.get(key);if(!e){e=localEnvironment(game,v.x,v.y,2);environments.set(key,e);}
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
-    const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
+    const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active&&!waitingForFullLoad(v)?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
     if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
     return sum+expense;
   },0);
@@ -1093,6 +1126,25 @@ function maintenance(game) {
   game.money-=expenses;game.monthlyExpenses+=expenses;game.totalExpenses+=expenses;
   game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+expenses;
   game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+expenses;
+}
+// Once a day, after upkeep charged the day by who waited through it, each vehicle waiting for a full load tries its
+// stop again, the earliest arrival first. Stock grows only in stepIndustries, so within a day it can only shrink, and
+// every split of the day retries at the same boundary. A route that is broken stays frozen; anything else ends the
+// wait, and the vehicle leaves after its dwell. No randomness, notices, ids or revisions.
+function serveFullLoads(game){
+  const vehicles=game.vehicles;let waiting=null;
+  for(let i=0;i<vehicles.length;i++)if(typeof vehicles[i].fullLoadSince==='number')(waiting??=[]).push(i);
+  if(!waiting)return;
+  waiting.sort((a,b)=>vehicles[a].fullLoadSince-vehicles[b].fullLoadSince||a-b);
+  const routes=fleetIndex(game).routeById,context=journeyContext(game);
+  for(const i of waiting){
+    const v=vehicles[i],route=routes.get(v.routeId);
+    if(!route||route.fullLoad!==true||isTownTraffic(route.cargo)){v.fullLoadSince=null;continue;}
+    if(!route.active)continue;
+    if(v.direction!==1||v.progress!==0){v.fullLoadSince=null;continue;}
+    const sources=loadVehicle(game,route,v,0,context,game.day);
+    if(v.load>=v.capacity||sources===0||game.day-v.fullLoadSince>=FULL_LOAD_MAX_WAIT)v.fullLoadSince=null;
+  }
 }
 
 // An optional credit line in 1950 dollars: no due date, no automatic borrowing or repayment, and a
@@ -1164,7 +1216,7 @@ export function tick(game,days,{reserved=[]}={}) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game),closedMonth=month>game.lastMonth?game.lastMonth:null;
       if(closedMonth!==null){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
       stepAchievements(game,{closedMonth,served,networkTotals});
@@ -1257,8 +1309,10 @@ export function validateGame(game) {
   if(!game.routes.every(route=>route.expenses===undefined||finite(route.expenses,0,1e15)))return false;
   if(!game.routes.every(route=>['profitThisYear','profitLastYear'].every(key=>route[key]===undefined||finite(route[key],-1e15,1e15))))return false;
   if(!game.routes.every(route=>(route.accountingStartDay===undefined||finite(route.accountingStartDay,0,game.day))&&(route.revenueAtAccountingStart===undefined||finite(route.revenueAtAccountingStart,0,route.revenue))))return false;
+  if(!game.routes.every(r=>r.fullLoad===undefined||typeof r.fullLoad==='boolean'))return false;
   if(!game.vehicles.every(v=>uniqueId(v)&&game.routes.some(r=>r.id===v.routeId)&&finite(v.x,0,game.width)&&finite(v.y,0,game.height)&&finite(v.angle)&&finite(v.capacity,1,1e9)&&finite(v.load,0,v.capacity)&&finite(v.progress,0,(game.routes.find(r=>r.id===v.routeId)?.path.length||1)-1)&&[1,-1].includes(v.direction)))return false;
   if(!game.vehicles.every(v=>(v.dwellRemaining===undefined||finite(v.dwellRemaining,0,3))&&(v.tripSerial===undefined||(Number.isInteger(v.tripSerial)&&finite(v.tripSerial,0,1e10)))&&(v.totalDistance===undefined||finite(v.totalDistance,0,1e15))&&(v.loadedDay===undefined||finite(v.loadedDay,0,game.day))))return false;
+  if(!game.vehicles.every(v=>v.fullLoadSince===undefined||v.fullLoadSince===null||finite(v.fullLoadSince,0,game.day)))return false;
   const availableLevel=availableVehicleLevel(game);
   if(!game.vehicles.every(v=>(v.level===undefined||(Number.isInteger(v.level)&&finite(v.level,0,availableLevel)))&&(v.paidPrice===undefined||finite(v.paidPrice,0,1e15))))return false;
   for(const route of game.routes) {
@@ -1318,10 +1372,12 @@ export function restoreGame(saved) {
     game.monthlyOperatingExpenses??=0;game.totalOperatingExpenses??=0;game.lastMonthlyOperatingProfit??=0;game.monthlyIncomeAtAccountingStart??=0;game.accountingStartDay??=game.day;
     game.lastMonth=calendarMonth(game);
     for(const industry of game.industries)initializeIndustry(game,industry);
-    for(const vehicle of game.vehicles){vehicle.dwellRemaining??=0;vehicle.tripSerial??=0;vehicle.level??=0;vehicle.paidPrice??=VEHICLE_COSTS[game.routes.find(route=>route.id===vehicle.routeId).mode];}
+    // A wait lasts only on a freight route that still asks for full loads; an older or edited save simply lets it go.
+    const routeById=new Map(game.routes.map(r=>[r.id,r]));
+    for(const vehicle of game.vehicles){vehicle.dwellRemaining??=0;vehicle.tripSerial??=0;vehicle.level??=0;vehicle.paidPrice??=VEHICLE_COSTS[game.routes.find(route=>route.id===vehicle.routeId).mode];if(waitingForFullLoad(vehicle)){const r=routeById.get(vehicle.routeId);if(r?.fullLoad!==true||isTownTraffic(r.cargo))vehicle.fullLoadSince=null;}}
     for(const city of game.cities)if(city.lastServiceDay===undefined)city.lastServiceDay=city.delivered>0?game.day:null;
     for(const city of game.cities)city.mail??=0;
-    for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
+    for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;if(route.fullLoad===true&&isTownTraffic(route.cargo))route.fullLoad=false;}
     ensureRouteNumbers(game);
     if(game.achievements===undefined)backfillAchievements(game,{networkTotals});
     // A save from before the rating is reviewed once, silently: every title it meets is stamped today.

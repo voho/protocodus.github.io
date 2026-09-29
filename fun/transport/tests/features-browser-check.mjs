@@ -93,7 +93,7 @@ try {
     return launch.top >= drawer.top && launch.bottom <= drawer.bottom + 1;
   }, undefined, { timeout: 3000 });
   await quarryPage.locator('.forecast-details summary').click();
-  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /^Source makes ≈ [\d.]+ \/ day once served\nOne truck carries ≈ [\d.]+ \/ day\n(Room for ≈ \d+ more trucks?|One truck carries all of it)\nFull load ≈ \$[\d,]+/);
+  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /^Source makes ≈ [\d.]+ \/ day once served\nOne truck carries ≈ [\d.]+ \/ day\n(Room for ≈ \d+ more trucks?|One truck carries all of it)\nA full truck pays ≈ \$[\d,]+/);
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'true');
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('data-fits'), 'false', 'other cargo is dimmed but stays clickable');
   assert.match(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('title'), /different town/);
@@ -145,6 +145,112 @@ try {
   await quarryPage.close();
   assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
   console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, forecast, folded planner, 390px.');
+
+  // Full load: an optional order under More options, for freight only. A quarry too slow to fill the truck makes it wait
+  // at the stop; the card reads Loading, the line survives a reload, the truck's card says where it waits, and unticking
+  // the order in Edit lets it leave.
+  const quarryStop = page => page.evaluate(async () => {
+    const { build } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
+    const game = transport.game, road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
+    if (!road.ok || !stop.ok) throw new Error(`Could not prepare the quarry fixture: ${road.message}; ${stop.message}`);
+    return { station: stop.station, alder: game.stations.find(station => station.name === 'Alderbrook Central') };
+  });
+  const waitingLine = (page, id) => page.evaluate(id => transport.game.vehicles.filter(vehicle => vehicle.routeId === id && typeof vehicle.fullLoadSince === 'number').map(vehicle => [vehicle.id, vehicle.fullLoadSince]), id);
+  const loadPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  watch(loadPage);
+  await loadPage.goto(url);
+  await createWorldFromMenu(loadPage, { biome: 'taiga', size: 'square512', seed: 1847 });
+  const loadStops = await quarryStop(loadPage);
+  await loadPage.evaluate(() => transport.setView('routes'));
+  await loadPage.locator('#route-form [name="from"]').selectOption(loadStops.station.id);
+  await loadPage.locator('#route-form [name="to"]').selectOption(loadStops.alder.id);
+  await loadPage.locator('[data-cargo-choice="passengers"]').click();
+  assert.equal(await loadPage.locator('.route-options').isHidden(), true, 'passengers never wait, so More options is hidden');
+  await loadPage.locator('[data-cargo-choice="stone"]').click();
+  await verifyConnection(loadPage, 'connected', true);
+  assert.equal(await loadPage.locator('.route-options').isVisible(), true, 'freight offers More options');
+  assert.equal(await loadPage.locator('.route-options').evaluate(element => element.open), false, 'More options starts folded');
+  assert.equal(await loadPage.locator('.route-options-state').textContent(), '', 'full load is off by default');
+  await loadPage.locator('.route-options summary').click();
+  await loadPage.locator('[data-route-option="full-load"]').check();
+  assert.equal(await loadPage.locator('.route-options-state').textContent(), 'Full load', 'the summary names the order');
+  await loadPage.locator('.route-options').scrollIntoViewIfNeeded();
+  await loadPage.screenshot({ path: `${output}/desktop-full-load-options.png` });
+  await loadPage.locator('#route-form button[type="submit"]').click();
+  const loadRoute = await loadPage.evaluate(() => { const route = transport.game.routes.at(-1); return { id: route.id, cargo: route.cargo, fullLoad: route.fullLoad }; });
+  assert.deepEqual([loadRoute.cargo, loadRoute.fullLoad], ['stone', true], 'the route launches with full load');
+  const loadCard = loadPage.locator(`.route-card[data-route-id="${loadRoute.id}"]`);
+  assert.deepEqual(await loadCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'the route card gains no controls');
+  // The truck left full; a quarry at its smallest size, with its store emptied, leaves it waiting when it returns.
+  await loadPage.evaluate(stop => { const quarry = transport.game.industries.filter(site => site.kind === 'quarry').sort((a, b) => Math.hypot(a.x - stop.x, a.y - stop.y) - Math.hypot(b.x - stop.x, b.y - stop.y))[0]; quarry.inventory.stone = 0; quarry.capacity = .1; }, loadStops.station);
+  await loadPage.locator('[data-speed="8"]').click();
+  await loadPage.waitForFunction(id => transport.game.vehicles.some(vehicle => vehicle.routeId === id && typeof vehicle.fullLoadSince === 'number') && document.querySelector(`[data-route-status="${id}"]`)?.textContent === 'Loading', loadRoute.id, { timeout: 10000 });
+  await loadPage.locator('[data-speed="0"]').click();
+  assert.match(await loadCard.locator('[data-route-health]').textContent(), /^Waiting for a full load, \d+ of \d+\.$/, 'the card says how full the truck is');
+  assert.equal(await loadCard.locator('[data-route-status]').evaluate(element => element.classList.contains('route-offline')), false, 'loading is running, never offline');
+  await loadCard.screenshot({ path: `${output}/desktop-full-load-card.png` });
+  const line = await waitingLine(loadPage, loadRoute.id);
+  assert.ok(line.length > 0);
+  await loadPage.evaluate(() => transport.persist());
+  await loadPage.goto(url);
+  await loadAutosaveFromMenu(loadPage);
+  assert.equal(await loadPage.evaluate(id => transport.game.routes.find(route => route.id === id)?.fullLoad, loadRoute.id), true, 'the order survives a reload');
+  assert.deepEqual(await waitingLine(loadPage, loadRoute.id), line, 'the same trucks wait since the same moments');
+  if (await loadPage.locator('.sidebar.mobile-open').count()) await loadPage.locator('#close-management').click();
+  const truckAt = await loadPage.evaluate(id => {
+    const vehicle = transport.game.vehicles.find(item => item.id === id), at = transport.renderer.vehicleWorldPoint(vehicle), r = document.querySelector('#world').getBoundingClientRect();
+    transport.renderer.setZoom(2); transport.renderer.focus(at.x, at.y); transport.renderer.render(performance.now(), {});
+    for (let y = -90; y < 40; y += 3) for (let x = -40; x < 40; x += 3) if (transport.renderer.vehicleAt(r.left + r.width / 2 + x, r.top + r.height / 2 + y)?.id === id) return { x: r.left + r.width / 2 + x, y: r.top + r.height / 2 + y };
+    return null;
+  }, line[0][0]);
+  assert.ok(truckAt, 'a waiting truck is pickable where it stands');
+  await loadPage.mouse.click(truckAt.x, truckAt.y);
+  assert.match(await loadPage.locator('[data-vehicle-live="trip"]').textContent(), /^Waiting for a full load at Stone quarry Stop \d+, \d+ of \d+$/, 'the truck card says where it waits');
+  await loadPage.waitForTimeout(300);
+  await loadPage.screenshot({ path: `${output}/desktop-full-load-truck.png` });
+  await loadPage.locator('#inspector .tiny-button').click();
+  await loadPage.evaluate(() => transport.setView('routes'));
+  await loadCard.locator('[data-edit-route]').click();
+  assert.deepEqual(await loadPage.locator('.route-options').evaluate(element => [element.open, element.hidden]), [true, false], 'Edit opens More options on a full-load route');
+  assert.equal(await loadPage.locator('[data-route-option="full-load"]').isChecked(), true);
+  assert.equal(await loadPage.locator('#route-form button[type="submit"]').isDisabled(), true, 'nothing to save yet');
+  await loadPage.locator('[data-route-option="full-load"]').uncheck();
+  assert.equal(await loadPage.locator('#route-form button[type="submit"]').isDisabled(), false, 'the order alone is a change');
+  await loadPage.locator('#route-form button[type="submit"]').click();
+  await loadPage.locator('#toast-region').filter({ hasText: 'leave as soon as they have loaded' }).waitFor({ timeout: 2000 });
+  await loadPage.waitForFunction(id => !transport.game.vehicles.some(vehicle => vehicle.routeId === id && typeof vehicle.fullLoadSince === 'number'), loadRoute.id, { timeout: 2000 });
+  assert.equal(await loadPage.evaluate(id => transport.game.routes.find(route => route.id === id).fullLoad, loadRoute.id), false);
+  await loadPage.close();
+  // On a phone, More options fits the drawer and its rows are finger-sized; the card keeps its height.
+  const loadTouch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  const loadPhone = await loadTouch.newPage();
+  watch(loadPhone);
+  await loadPhone.goto(url);
+  await createWorldFromMenu(loadPhone, { biome: 'taiga', size: 'square512', seed: 1847 });
+  const phoneStops = await quarryStop(loadPhone);
+  await loadPhone.evaluate(() => transport.setView('routes'));
+  await loadPhone.locator('#route-form [name="from"]').selectOption(phoneStops.station.id);
+  await loadPhone.locator('#route-form [name="to"]').selectOption(phoneStops.alder.id);
+  await loadPhone.locator('[data-cargo-choice="stone"]').click();
+  await loadPhone.locator('.route-options summary').click();
+  await loadPhone.locator('[data-route-option="full-load"]').check();
+  assert.equal(await loadPhone.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px planner fits the screen');
+  assert.equal(await fits(loadPhone, '#panel-content'), true, '390px More options fits the drawer');
+  for (const selector of ['.route-options summary', '.route-option']) assert.ok((await loadPhone.locator(selector).boundingBox()).height >= 44, `${selector} is at least 44px tall on touch`);
+  await loadPhone.locator('.route-options').scrollIntoViewIfNeeded();
+  await loadPhone.screenshot({ path: `${output}/mobile-390-full-load-options.png` });
+  await loadPhone.locator('#route-form button[type="submit"]').click();
+  const phoneRoute = await loadPhone.evaluate(() => transport.game.routes.at(-1).id), phoneCard = loadPhone.locator(`.route-card[data-route-id="${phoneRoute}"]`);
+  await phoneCard.scrollIntoViewIfNeeded();
+  const phoneHeight = (await phoneCard.boundingBox()).height;
+  assert.equal(await phoneCard.evaluate(card => card.scrollWidth <= card.clientWidth + 1), true, 'the 390px full-load card does not overflow');
+  await phoneCard.screenshot({ path: `${output}/mobile-390-full-load-card.png` });
+  await loadPhone.evaluate(async id => { (await import('./model.js')).setRouteFullLoad(transport.game, id, false); transport.setView('routes'); }, phoneRoute);
+  await phoneCard.scrollIntoViewIfNeeded();
+  assert.equal((await phoneCard.boundingBox()).height, phoneHeight, 'the order adds nothing to the 390px card');
+  await loadTouch.close();
+  assert.deepEqual(errors, [], 'full load runs without console or runtime errors');
+  console.log('Full load checks passed: freight only, folded option, launch, Loading card, reload, truck card, edit off, 390px touch.');
 
   // A route card buys and sells vehicles on its own service; the fleet survives an autosave reload.
   const fleetPage = await browser.newPage({ viewport: { width: 390, height: 844 } });

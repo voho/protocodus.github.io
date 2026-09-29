@@ -413,7 +413,7 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 
 | State | Words |
 |---|---|
-| ok | Running |
+| ok | Running; Loading (vehicles waiting for a full load, the optional freight order) |
 | warn | Passengers waiting; Mail waiting; Cargo waiting; Buyer full; Needs coal (its supplier is short of an input, so more vehicles would not help) |
 | error | Not connected (with the broken glyph); Stop missing; No supplier; No buyer; No passengers; No mail |
 | paused | Paused |

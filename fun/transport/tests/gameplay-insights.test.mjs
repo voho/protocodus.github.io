@@ -6,6 +6,7 @@ import { industryContains, industryDistance } from '../industry-sites.js';
 import { emptyGame, line, advance, tileAt } from './helpers.mjs';
 import { routeBreakPoint, refreshRouteConnections } from '../model.js';
 import { buildPlan } from '../construction-plan.js';
+import { fullLoadQueue } from '../gameplay-insights.js';
 
 const site = (id, kind, x, inventory = {}) => ({ id, kind, x, y: 12, inventory, capacity: 1 });
 const routeGame = () => ({
@@ -139,6 +140,41 @@ test('a running route turns busy when cargo or passengers pile up beyond two ful
   assert.equal(health.detail,'About 2 loads waiting. Another bus would carry more.');
   towns.cities[1].passengers=40;health=routeHealth(towns,towns.routes[0]);
   assert.deepEqual([health.state,health.waiting],['running',40]);
+});
+
+test('a full-load route reads Loading while its trucks wait, naming the head of the line and how many wait behind it', () => {
+  const game=routeGame(),route=game.routes[0];route.fullLoad=true;
+  game.vehicles.push({id:'v5',routeId:'r',load:10,capacity:24,fullLoadSince:5});
+  let health=routeHealth(game,route);
+  assert.deepEqual([health.state,health.tone,health.label,health.detail],['running','ok','Loading','Waiting for a full load, 10 of 24.']);
+  game.vehicles.unshift({id:'v6',routeId:'r',load:0,capacity:24,fullLoadSince:6},{id:'v7',routeId:'r',load:0,capacity:24,fullLoadSince:7});
+  health=routeHealth(game,route);
+  assert.equal(health.detail,'Waiting for a full load, 10 of 24, with 2 more in line.','the head is the earliest arrival, wherever it sits in the fleet');
+  assert.deepEqual([health.waiting,health.capacity],[0,72]);
+  const queue=fullLoadQueue(game,'r');
+  assert.deepEqual([queue.count,queue.head.id],[3,'v5']);
+  assert.deepEqual(routeHealth(game,route,{capacity:72,queue}),health,'the caller may pass the line it already found');
+  assert.equal(routeNeedsAttention(game,route),false,'loading is the order at work, not a fault');
+  game.vehicles.length=0;game.vehicles.push({id:'v8',routeId:'r',load:0,capacity:24});game.industries[0].inventory.timber=40;
+  health=routeHealth(game,route);
+  assert.deepEqual([health.label,health.detail],['Running','Trucks leave the start full, or after a month at most.']);
+});
+
+test('a waiting truck still points a stalled factory back to its missing input', () => {
+  const game=routeGame(),route=game.routes[0];Object.assign(route,{cargo:'steel',fullLoad:true});
+  game.industries=[site('source','steel-mill',10,{coal:5}),site('buyer','machine-works',30)];
+  game.vehicles.push({id:'v1',routeId:'r',load:5,capacity:24,fullLoadSince:3});
+  assert.equal(routeHealth(game,route).label,'Needs iron ore');
+});
+
+test('a route without full load never reads the line and reads as before', () => {
+  const game=routeGame(),route=game.routes[0];let reads=0;
+  const truck={id:'v1',routeId:'r',load:10,capacity:24};
+  const before=routeHealth(game,route);game.vehicles.push(truck);const loaded=routeHealth(game,route);
+  Object.defineProperty(truck,'fullLoadSince',{get(){reads++;return 5;},enumerable:true});
+  assert.deepEqual(routeHealth(game,route),loaded);assert.equal(reads,0);
+  game.vehicles.length=0;assert.deepEqual(routeHealth(game,route),before);
+  route.fullLoad=false;game.vehicles.push(truck);assert.deepEqual(routeHealth(game,route),loaded);assert.equal(reads,0);
 });
 
 test('routes need attention only while they cannot run, and the count follows every cause', () => {

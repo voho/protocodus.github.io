@@ -6,6 +6,9 @@ import { keepText } from '../payment-rates.js';
 import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { routesNeedingAttention } from '../gameplay-insights.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
+import { FULL_LOAD_MAX_WAIT } from '../model.js';
+import { fullFareText } from '../route-planner.js';
+import { money } from '../copy.js';
 
 function fixture(mode = 'road') {
   const game = emptyGame();
@@ -262,7 +265,24 @@ test('fareFor is the revenue of a real delivery', () => {
   const [delivery] = drainDeliveryEvents(game);
   assert.equal(delivery.amount, 24);
   assert.equal(route.revenue, fareFor(game, 'stone', payTiles(route.path) + 1, delivery.amount, delivery.day, Math.floor(delivery.day) - boarded));
-  assert.equal(forecastRoute(game, draft).fullLoad, fareFor(game, 'stone', route.path.length, 24));
+  assert.equal(forecastRoute(game, draft).fullFare, fareFor(game, 'stone', route.path.length, 24));
+});
+
+test('with full load, a train the quarry cannot fill stands at the idle rate, and the forecast counts its wait', () => {
+  const { game, draft } = quarryLine('rail', 40), off = forecastRoute(game, draft), on = forecastRoute(game, { ...draft, fullLoad: true }), purchase = getVehiclePurchase(game, 'rail');
+  assert.ok(off.supplyDay < off.perVehicleDay, `the quarry makes ${off.supplyDay} a day, a train carries ${off.perVehicleDay}`);
+  assert.ok(on.netMonth > off.netMonth, `${Math.round(on.netMonth)} with full load, ${Math.round(off.netMonth)} without`);
+  assert.equal(on.wait, Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity / on.supplyDay) / 2);
+  assert.equal(on.days, Math.round(scheduledDays('rail', 40, purchase.level) + on.wait));
+  assert.equal(off.wait, 0);
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to], fullLoad: true }).route;
+  simulate(game, 180);
+  const month = (route.revenue - route.expenses) / 6;
+  assert.ok(Math.abs(month / on.netMonth - 1) <= .3, `forecast ${Math.round(on.netMonth)} vs simulated ${Math.round(month)} a month`);
+  const near = quarryLine('road', 10), plain = forecastRoute(near.game, near.draft), full = forecastRoute(near.game, { ...near.draft, fullLoad: true });
+  assert.ok(plain.supplyDay >= plain.perVehicleDay, 'a short road line has more stone than a truck carries');
+  assert.deepEqual([full.netMonth, full.days, full.wait], [plain.netMonth, plain.days, 0], 'a truck that never waits is forecast as before');
+  assert.equal(fullFareText('rail', 'stone', on.fullFare), `A full train pays ≈ ${money(on.fullFare)}`);
 });
 
 test('the forecast times a trip and prices one unit after its days on the way', () => {

@@ -205,3 +205,17 @@
 .route-vehicle-spec .vehicle-model{grid-column:1;grid-row:2;min-width:0;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 .route-vehicle-spec:has(.route-upgrade-button) .fleet-stepper{grid-row:1}
 .inspector .vehicle-trip .vehicle-age{margin:var(--s-1) 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+/* Full load: More options above the launch buttons, for freight only, with one checkbox and its note. */
+.route-options{margin:var(--s-3) 0;border-top:1px solid var(--rule);padding-top:var(--s-1)}
+.route-options[hidden]{display:none}
+.route-options>summary{display:flex;align-items:center;gap:var(--s-2);min-height:var(--control);cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);color:var(--ink)}
+.route-options>summary::-webkit-details-marker{display:none}
+.route-options-state{margin-left:auto;font-weight:var(--fw-regular);color:var(--ink-2)}
+.route-options-chevron{width:16px;height:16px;flex:0 0 auto;color:var(--ink-2);transition:transform var(--t-quick) var(--ease)}
+.route-options[open] .route-options-chevron{transform:rotate(180deg)}
+.route-option{display:flex;align-items:center;gap:var(--s-2);min-height:var(--control);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);cursor:pointer}
+.route-option input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
+.route-options .form-note{margin:var(--s-1) 0 var(--s-2)}
+@media(max-width:700px),(pointer:coarse){
+ .route-options>summary,.route-option{min-height:var(--control-touch)}
+}
