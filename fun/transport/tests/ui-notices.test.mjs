@@ -152,3 +152,14 @@ test('a below-zero balance toasts when it begins and each January, while News ke
   assert.equal(creditToast(credit(31), history), true, 'no earlier month to compare');
   assert.equal(creditToast(credit(7), history), true, 'a notice outside the history still shows');
 });
+
+test('industry openings group into one sentence and keep every site', () => {
+  const opening = (n, name, town) => ({ id: `notice-${n}`, day: 800, message: `New ${name} opens near ${town}.`, text: '', type: 'success', topic: 'industry-opening', target: { kind: 'industry', id: `industry-${n}` }, template: `New {industry:industry-${n}} opens near {town:city-${n}}.` });
+  const list = [opening(301, 'coal mine', 'Pinehaven'), opening(302, 'grain farm', 'Alderbrook'), opening(303, 'oil well', 'Pinehaven')];
+  const [grouped] = groupNotices(list);
+  assert.equal(grouped.message, '3 new industries opened: coal mine, grain farm and oil well.');
+  assert.equal(grouped.template, '3 new industries opened: {industry:industry-301}, {industry:industry-302} and {industry:industry-303}.');
+  assert.deepEqual(grouped.targets, list.map(notice => notice.target));
+  assert.equal(toastType(grouped.type), 'ok', 'openings toast quietly');
+  assert.equal(groupNotices([list[0]])[0].message, 'New coal mine opens near Pinehaven.');
+});

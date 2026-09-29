@@ -29,7 +29,63 @@ const waitForToast = (page, pattern, from = 0) => page.waitForFunction(({ source
   .catch(async error => { throw new Error(`No toast matching ${pattern}; shown: ${JSON.stringify(await toastsSince(page, from))}`, { cause: error }); });
 const clearToasts = page => page.evaluate(() => document.querySelector('#toast-region').replaceChildren());
 
+// A new industry opens near a served town: one quiet toast whose Show inspects it, a News entry, and a date that survives a reload.
+async function industryOpening(viewport, name) {
+  const page = await open(viewport);
+  await createWorldFromMenu(page);
+  await waitForToast(page, /^Welcome to /);
+  await clearToasts(page);
+  const from = await shown(page);
+  const site = await page.evaluate(async () => {
+    const { openIndustry } = await import('./model.js');
+    for (let month = 24; month <= 120; month++) { const site = openIndustry(transport.game, month, { force: true }); if (site) { transport.game.money += 1; return { id: site.id, name: site.name, x: site.x, y: site.y, message: transport.game.notifications[0].message }; } }
+    return null;
+  });
+  assert.ok(site, 'a forced opening finds a plot near the starting towns');
+  await waitForToast(page, /^New .+ opens near .+\.$/, from);
+  const toast = (await toastsSince(page, from)).find(item => /opens near/.test(item.text));
+  assert.equal(toast.text, site.message);
+  assert.equal(toast.type, 'toast', 'an opening toasts quietly: no warning, milestone or beep');
+  assert.equal(toast.action, 'Show');
+  const fits = await page.evaluate(() => { const box = document.querySelector('#toast-region .toast').getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; });
+  assert.equal(fits, true, `the opening toast fits ${viewport.width}px`);
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${output}/opening-toast-${name}.png` });
+  await page.locator('#toast-region .toast-action', { hasText: 'Show' }).click();
+  await page.locator('#inspector').waitFor({ state: 'visible' });
+  await page.waitForTimeout(700);
+  const inspected = await page.evaluate(site => {
+    const p = transport.renderer.worldToScreen(site.x + .5, site.y + .5), canvas = document.querySelector('#world');
+    return { title: document.querySelector('#inspector-title').textContent, text: document.querySelector('#inspector').innerText, onMap: p.x >= 0 && p.y >= 0 && p.x <= canvas.clientWidth && p.y <= canvas.clientHeight };
+  }, site);
+  assert.equal(inspected.title, site.name, 'Show inspects the new industry');
+  assert.match(inspected.text, /Opened in 1950/);
+  assert.equal(inspected.onMap, true, 'Show brings the new industry into view');
+  await page.screenshot({ path: `${output}/opening-inspector-${name}.png` });
+  await page.locator('#inspector .tiny-button').click();
+  await openGameAction(page, 'news-button');
+  await page.locator('.news-list').waitFor();
+  const first = page.locator('.news-item').first();
+  assert.match(await first.innerText(), new RegExp(site.message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.equal(await first.locator('[data-news-target]').innerText(), 'Show');
+  await page.screenshot({ path: `${output}/opening-news-${name}.png` });
+  await page.locator('#modal .close-modal').click();
+  // A world saved before its first day replays its welcome, so play two days first, as a real 1952 opening would be.
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 2); await transport.persist(); });
+  await page.reload();
+  await loadAutosaveFromMenu(page);
+  await page.evaluate(site => transport.inspect(site.x, site.y, 'industry'), site);
+  await page.locator('#inspector').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#inspector-title').innerText(), site.name);
+  assert.match(await page.locator('#inspector').innerText(), /Opened in 1950/, 'the opening date is saved');
+  await page.waitForTimeout(1500);
+  assert.deepEqual((await toastsSince(page, 0)).filter(item => /opens near/.test(item.text)), [], 'loading a save replays no opening');
+  await page.close();
+}
+
 try {
+  await industryOpening({ width: 1440, height: 960 }, 'desktop');
+  await industryOpening({ width: 390, height: 844 }, '390');
   const page = await open({ width: 1440, height: 960 });
   await createWorldFromMenu(page);
   await waitForToast(page, /^Welcome to /);
@@ -267,7 +323,7 @@ try {
   await phone.close();
 
   assert.deepEqual(errors, []);
-  console.log('Notices browser check passed: welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
+  console.log('Notices browser check passed: a quiet industry opening with Show, News and its saved date at 1440 and 390px, welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
 } finally {
   await browser.close();
 }

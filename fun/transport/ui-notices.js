@@ -11,6 +11,7 @@ const GROUP_TEXT = {
   'route-connection': [count => `${count} routes are no longer connected`, /^(.*?) (?:has lost its (?:water )?connection|is no longer connected)/, 'a route'],
   'industry-growth': [count => `${count} industries expanded`, /^(.*?) expanded to /, 'an industry'],
   'route-supply': [count => `${count} routes lost a supplier or buyer`, /^(.*?) lost its /, 'a route'],
+  'industry-opening': [count => `${count} new industries opened`, /^New (.*?) opens near /, 'an industry'],
 };
 function groupText(topic, members) {
   const [lead, pattern, unnamed] = GROUP_TEXT[topic], ids = members.map(notice => notice.target?.id);

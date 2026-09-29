@@ -14,6 +14,7 @@ import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSin
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
 import { stepContracts, contractBonus, validContracts } from './contracts.js';
+import { planIndustryOpening } from './industry-openings.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
 import { distancePay, transitPay, payTiles } from './economy-pricing.js';
 import { VEHICLE_SPEEDS } from './data.js';
@@ -48,6 +49,8 @@ const moneyText = n => money(n);
 // A result names what it did, then the money: 'Road built. $1,200 spent.'
 const spent = cost => cost>0?` ${moneyText(cost)} spent.`:'';
 const makeId = (game,prefix) => `${prefix}-${game.nextId++}`;
+// Generated towns and industries are numbered from 1, so a new one skips any id already taken.
+function freshId(game,prefix,list){const used=new Set(list.map(item=>item.id));let id;do id=makeId(game,prefix);while(used.has(id));return id;}
 export function tileAt(game,x,y) {
   return Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y*game.width+x] : null;
 }
@@ -409,7 +412,7 @@ export function build(game,tool,x,y) {
     const prefixes=game.biome==='taiga'?['Birch','Willow','Silver','Fern','Maple']:game.biome==='tundra'?['Ice','Frost','North','Winter','Snow']:['Amber','Gold','Dune','Palm','Sun'];
     const suffixes=['field','haven','ford','creek','ridge'];
     const n=Math.max(0,game.cities.length-4);
-    const newCity={id:makeId(game,'city'),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null,founded:true};
+    const newCity={id:freshId(game,'city',game.cities),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null,founded:true};
     releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game,[point]);
     const founded=town=>`${town} founded. Zone homes nearby and give it a passenger route.`;
@@ -426,12 +429,28 @@ export function build(game,tool,x,y) {
     return result(true,`${def.name} built.${spent(cost)}`,{cost,building:placed.building});
   }
   const def=INDUSTRIES[tool];
-  const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
-  const size=industryFootprint(tool),newIndustry={id:makeId(game,'industry'),kind:tool,name:def.name,x,y,footprint:size,capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner:'player'};
-  initializeIndustry(game,newIndustry);
-  releaseTerrainObjects(game,industryTiles(newIndustry));
-  spend(game,cost);game.industries.push(newIndustry);game.revision++;
+  spend(game,cost);const newIndustry=placeIndustry(game,tool,x,y,{owner:'player'});
   return result(true,`${def.name} built.${spent(cost)}`,{cost,industry:newIndustry});
+}
+// One placement for the Build tool and the region's own openings. A world
+// producer starts with twelve days of output in stock, like a generated one.
+function placeIndustry(game,kind,x,y,{owner,openedDay}){
+  const def=INDUSTRIES[kind],stocked=owner!=='player'&&!Object.keys(def.inputs).length;
+  const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,stocked&&owns(def.outputs,cargo)?def.outputs[cargo]*12:0]));
+  const site={id:freshId(game,'industry',game.industries),kind,name:def.name,x,y,footprint:industryFootprint(kind),capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner,...openedDay===undefined?{}:{openedDay}};
+  initializeIndustry(game,site);
+  releaseTerrainObjects(game,industryTiles(site));
+  game.industries.push(site);game.revision++;
+  return site;
+}
+/** The region's monthly opening near a served town, announced once; `force` (tests and debugging only) skips the date, freight and chance gates. */
+export function openIndustry(game,month=calendarMonth(game),{force=false}={}){
+  const plan=planIndustryOpening(game,month,{force});if(!plan)return null;
+  const site=placeIndustry(game,plan.kind,plan.x,plan.y,{owner:'world',openedDay:Math.floor(game.day)}),size=industrySize(site);
+  const town=closestCity(game,{x:site.x+(size-1)/2,y:site.y+(size-1)/2})||game.cities.find(city=>city.id===plan.anchorId);
+  const opened=(industry,near)=>`New ${industry} opens near ${near}.`;
+  notify(game,opened(INDUSTRIES[plan.kind].name.toLowerCase(),town.name),'success',{topic:'industry-opening',target:{kind:'industry',id:site.id},template:opened(token('industry',site.id),token('town',town.id))});
+  return site;
 }
 
 export function buildPath(game,tool,points) {
@@ -996,7 +1015,7 @@ export function tick(game,days,{reserved=[]}={}) {
     if(game.day+.00000001>=nextDay) {
       game.day=nextDay;stepIndustries(game,notify);stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game);
-      if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;}
+      if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
     }
   }
 }
@@ -1033,7 +1052,7 @@ export function validateGame(game) {
   if(!game.cities.every(c=>c.lastSupply===undefined||(c.lastSupply&&typeof c.lastSupply==='object'&&!Array.isArray(c.lastSupply)&&Object.entries(c.lastSupply).every(([cargo,day])=>TOWN_CARGO.includes(cargo)&&finite(day,0,game.day)))))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
   if(!game.industries.every(i=>validFootprint(i,industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
-  if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))))return false;
+  if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))&&(i.openedDay===undefined||(Number.isInteger(i.openedDay)&&finite(i.openedDay,0,Math.floor(game.day))))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
   // Only occupied cells need an index: even the largest world stays sparse.
