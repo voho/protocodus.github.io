@@ -585,3 +585,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .speed-control button{height:28px;min-width:24px}
 }
 .management-drawer-heading{display:flex;align-items:center;justify-content:space-between;flex:0 0 41px;gap:12px;padding:4px 8px 4px 16px;border-bottom:1px solid var(--rule);font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0;color:var(--ink)}
+/* Game menu rows are 44 px on touch (DESIGN 12.10), so every row, Achievements included, meets the touch target. */
+@media(max-width:700px),(pointer:coarse){
+ #game-menu .compact-menu-action{min-height:var(--control-touch)}
+}

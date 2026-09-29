@@ -126,6 +126,16 @@ Rare big moments arrive as a headline card at the top of the map: the first bus,
 
 **Game menu → News** lists the latest 24 company notices and headlines with their dates, newest first, and a **Show** button while the route, town or industry still exists. The yearly, first-delivery and 1,000-resident moments are shown as they happen and are not kept in News. Milestones reached within the span of the log join it by date, one line per day, with a **Goals** button.
 
+## Achievements
+
+**Game menu → Achievements** keeps long-term records of your company, from 100,000 deliveries to a century in business. There are 41 in six groups. **Deliveries and earnings** counts everything delivered over the company's lifetime, your best year's operating profit, the most one route earns in a year and your yearly rent. **Fleet and network** counts the vehicles you own at once, the road and railway tiles you built (town streets don't count), your bridge and tunnel tiles and your longest running route by road, rail or water. **Towns** counts the towns you serve, every town on a map of 25 or more, towns of 5,000 residents and a town you founded reaching 2,500. **Industry and cargo** asks for mail and every cargo your landscape makes, then all of them within one calendar year, and for industries at their full 300% at the same time. **Company** marks your years in business. Money is counted in 1950 dollars: a year's total is divided by that year's prices, so inflation never earns a record for you.
+
+Each record comes in bronze, silver, gold or platinum. On the default 512 map bronze arrives in your first years, silver over a decade or with a sizeable network, gold over decades or with a large network, and platinum over a century; some platinum records, such as a hundred towns served, suit the larger maps. Every record starts beyond the last Company goal. Five more are hidden: they show as **?** until you find them.
+
+They are just for fun. Achievements never pay, unlock or change anything, nothing else in the game reads them, and nothing reminds you of them: no badge, no countdown, nothing to lose. A record, once earned, is yours to keep, whatever happens later. Deliveries and the fleet count at the end of each day, most records as each month closes and the yearly ones on January 1; a record you have met but not yet earned says when it will be. The dialog shows each record's medals, the next one with its progress, and the last one earned with its date. Like every dialog it pauses the game.
+
+When you earn one, a notice with **Open achievements** names it; three or more at once share one notice. Gold and platinum records arrive as a headline card instead, or as a notice while headlines are off. The Company report shows how many you have earned, and so does the century evaluation. An older save is credited quietly when it loads: its records begin that day, shown as **Records began** in the dialog, and whatever it has already reached is stamped that day without a notice.
+
 ## Company rating
 
 Each quarter, as March, June, September and December close, your company is reviewed and rated from 0 to 1,000 on nine measures. Each measure earns its points as it nears full marks, fastest at first: half of a target earns about 70% of its points.

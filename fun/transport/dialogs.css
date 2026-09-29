@@ -273,3 +273,49 @@
 .century-facts dd{margin:0;font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:var(--fw-semibold)}
 .century-card .rating-career{margin-top:var(--s-4)}
 .century-note{margin:var(--s-4) 0 0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+/* Achievements (achievements-view.js): tier roundels, the next record with its measure and the last one earned. Records change nothing, so the dialog stays quiet: ink figures and hairline rows, with colour only in the medals. The Company report and the century card each carry one line that opens it. */
+.medal{display:inline-grid;place-items:center;flex:0 0 auto;width:24px;height:24px;border:1px solid color-mix(in srgb,var(--ink) 35%,transparent);border-radius:var(--r-round);background:var(--tier);color:var(--ink)}
+.medal--bronze{--tier:var(--tier-bronze)}
+.medal--silver{--tier:var(--tier-silver)}
+.medal--gold{--tier:var(--tier-gold)}
+.medal--platinum{--tier:var(--tier-platinum)}
+.medal.is-locked{border-color:var(--edge);background:color-mix(in srgb,var(--tier) 24%,var(--paper));color:var(--ink-2)}
+.medal--hidden{--tier:var(--paper)}
+.medal-mark{font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold);color:var(--ink-2)}
+#modal:has(.achievements-dialog){width:min(720px,calc(100vw - 32px))}
+.achievements-dialog .close-modal{display:grid;place-items:center}
+.achievements-summary{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--s-1) var(--s-3);margin:var(--s-4) 0 0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
+.achievements-summary strong{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:var(--fw-semibold);letter-spacing:var(--tr-tight);color:var(--ink)}
+.achievement-group{margin-top:var(--s-5)}
+.achievement-group h3{margin:0;padding-bottom:var(--s-2);border-bottom:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-semibold)}
+.achievement-list{list-style:none;margin:0;padding:0}
+.achievement-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:var(--s-2) var(--s-4);padding:var(--s-3) 0;border-bottom:1px solid var(--rule)}
+.achievement-row:last-child{border-bottom:0}
+.achievement-text{grid-column:1;grid-row:1;min-width:0}
+.achievement-text strong{display:block;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-semibold)}
+.achievement-text p{margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.achievement-row[data-state=hidden] strong{font-weight:var(--fw-medium);color:var(--ink-2)}
+.achievement-medals{grid-column:2;grid-row:1;display:flex;justify-content:flex-end;gap:var(--s-1)}
+.achievement-medals .medal{width:28px;height:28px}
+.achievement-progress{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s-1) var(--s-3);margin-top:var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
+.achievement-meter{flex:0 0 120px;height:4px;border-radius:var(--r-round);background:var(--well);overflow:hidden}
+.achievement-meter>span{display:block;height:100%;border-radius:var(--r-round);background:var(--ink)}
+.achievement-cargo{display:flex;flex-wrap:wrap;gap:var(--s-1)}
+.achievement-cargo-tile{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:var(--r-1);background:var(--well)}
+.achievement-cargo-tile svg{width:16px;height:16px}
+.achievement-text .achievement-earned{margin-top:var(--s-1);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.rating-achievements,.century-achievements{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:var(--s-2) var(--s-3);margin:var(--s-3) 0 0;padding-top:var(--s-3);border-top:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body)}
+.rating-achievements strong{font-weight:var(--fw-semibold);white-space:nowrap}
+.century-achievements{grid-template-columns:auto minmax(0,1fr) auto;margin-top:var(--s-4)}
+.century-achievements:not(:has(.medal)){grid-template-columns:minmax(0,1fr) auto}
+.century-achievements strong{font-weight:var(--fw-semibold)}
+.rating-achievements .small-button,.century-achievements .small-button{display:inline-flex;align-items:center;gap:var(--s-1);min-height:28px;padding:var(--s-1) var(--s-2)}
+@media(max-width:520px){
+ .achievement-row{grid-template-columns:minmax(0,1fr)}
+ .achievement-medals{grid-column:1;justify-content:flex-start}
+ .achievement-text{grid-row:2}
+}
+@media(max-width:700px),(pointer:coarse){
+ .achievements-dialog .close-modal{width:var(--control-touch);height:var(--control-touch)}
+ .achievements-dialog .modal-actions .button,.rating-achievements .small-button,.century-achievements .small-button{min-height:var(--control-touch)}
+}

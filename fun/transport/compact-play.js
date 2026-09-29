@@ -3,7 +3,7 @@ import { icon } from './ui-icons.js';
 const $ = selector => document.querySelector(selector);
 
 /** Keep secondary controls available without reserving space around the map. */
-export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
+export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
   const app = $('#app'), sidebar = $('.sidebar'), mobileToggle = $('.mobile-panel-toggle');
   const topbar = $('.topbar'), canvas = $('#world'), minimap = $('.minimap-wrap');
   app.classList.add('compact-play');
@@ -53,6 +53,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
   if (onNews) addAction('news-button', 'News', icon('news'), onNews);
   if (onCompany) addAction('company-button', 'Company', icon('company'), onCompany);
   if (onGoals) addAction('goals-button', 'Company goals', icon('flag'), onGoals);
+  if (onAchievements) addAction('achievements-button', 'Achievements', icon('achievements'), onAchievements);
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;
     overviewButton.setAttribute('aria-pressed', String(!minimap.hidden));

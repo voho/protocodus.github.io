@@ -207,3 +207,10 @@
 .news-headline p.prose{color:var(--ink-2)}
 .news-pref{display:flex;align-items:center;gap:var(--s-2);margin:var(--s-3) 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);cursor:pointer}
 .news-pref input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
+/* Achievement toasts (ttd-achievements): the tier roundel leads and the tier colour edges the toast; gold and platinum stay 8 s. */
+.toast.tier-bronze{--tier:var(--tier-bronze)}
+.toast.tier-silver{--tier:var(--tier-silver)}
+.toast.tier-gold{--tier:var(--tier-gold)}
+.toast.tier-platinum{--tier:var(--tier-platinum)}
+.toast.achievement{border-left-color:var(--tier)}
+.toast.achievement>.medal{flex:0 0 auto;animation:toast-check .2s ease-out}

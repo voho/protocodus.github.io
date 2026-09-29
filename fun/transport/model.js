@@ -31,6 +31,7 @@ import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructur
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 import { vehicleModel } from './vehicle-models.js';
 import { reviewPerformance, validPerformance } from './company-rating.js';
+import { createAchievementState, noteDelivery, stepAchievements, backfillAchievements, validAchievements } from './achievements.js';
 export { priceFor, inflationInfo } from './economy-pricing.js';
 export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
@@ -94,6 +95,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
     totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
+    achievements:createAchievementState(0),
   };
   rememberGeneratedWorld(game);
   for(const city of game.cities)city.mail??=0;
@@ -812,6 +814,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     const fare=fareFor(game,route.cargo,payTiles(route.path)+1,delivered,arrivalDay,transit),bonus=bonusUnits>0?Math.round(MARKET.bonus*fare*bonusUnits/delivered):0,revenue=fare+bonus+(game.contracts?contractBonus(game,route,fare,arrivalDay,site=>journeyCoverage(game,site,context)):0);
     if(bonus>0){route.marketBonus=(route.marketBonus||0)+bonus;receiver.market.bonus+=bonus;game.monthlyMarketBonus=(game.monthlyMarketBonus||0)+bonus;}
     route.delivered+=delivered;route.revenue+=revenue;game.totalDelivered+=delivered;game.totalRevenue+=revenue;game.monthlyIncome+=revenue;game.money+=revenue;
+    if(game.achievements)noteDelivery(game.achievements,route.cargo);
     route.profitThisYear=(route.profitThisYear??0)+revenue;
     let log=deliveryLog.get(game);if(!log)deliveryLog.set(game,log=[]);
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
@@ -982,10 +985,19 @@ function infrastructureShares(game){
   for(const {cost,routes}of users.values())for(const id of routes)shares.set(id,shares.get(id)+cost/routes.size);
   upkeepShareCache.set(game,{revision,routes:game.routes,count:game.routes.length,shares});return shares;
 }
+// One pass over the network per revision: its upkeep, and the tiles the company built (achievements read those, never the simulation).
+const networkCounts=new WeakMap();
+function countNetwork(game){
+  let upkeep=0,owned=0,structures=0;
+  for(const id of networkIndex(game)){const t=game.tiles[id];upkeep+=(t.road&&!t.publicRoad?INFRASTRUCTURE_UPKEEP.road:0)+(t.rail?INFRASTRUCTURE_UPKEEP.rail:0)+((t.bridge||t.tunnel)?INFRASTRUCTURE_UPKEEP.structure:0);if(t.rail||t.road&&!t.publicRoad)owned++;if((t.bridge||t.tunnel)&&(t.rail||!t.publicRoad))structures++;}
+  const totals={revision:game.networkRevision||0,tiles:game.tiles,upkeep,owned,structures};networkCounts.set(game,totals);return totals;
+}
+/** Road and rail tiles the company owns, and its bridge and tunnel tiles; recounted only after a network change. */
+export function networkTotals(game){const totals=networkCounts.get(game);return totals&&totals.revision===(game.networkRevision||0)&&totals.tiles===game.tiles?totals:countNetwork(game);}
 function maintenance(game) {
   if(game.maintenanceRevision!==(game.networkRevision||0)) {
     let upkeep=0;
-    for(const id of networkIndex(game)){const t=game.tiles[id];upkeep+=(t.road&&!t.publicRoad?INFRASTRUCTURE_UPKEEP.road:0)+(t.rail?INFRASTRUCTURE_UPKEEP.rail:0)+((t.bridge||t.tunnel)?INFRASTRUCTURE_UPKEEP.structure:0);}
+    upkeep+=countNetwork(game).upkeep;
     upkeep+=game.stations.reduce((sum,s)=>sum+INFRASTRUCTURE_UPKEEP.stop[s.mode],0);
     game.infrastructureUpkeep=upkeep;game.maintenanceRevision=game.networkRevision||0;
   }
@@ -1087,9 +1099,10 @@ export function tick(game,days,{reserved=[]}={}) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
-      const month=calendarMonth(game);
-      if(month>game.lastMonth){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
+      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      const month=calendarMonth(game),closedMonth=month>game.lastMonth?game.lastMonth:null;
+      if(closedMonth!==null){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
+      stepAchievements(game,{closedMonth,served,networkTotals});
     }
   }
 }
@@ -1196,6 +1209,7 @@ export function validateGame(game) {
   if(!validMilestones(game)||!game.cities.every(c=>c.founded===undefined||typeof c.founded==='boolean'))return false;
   if(!validContracts(game))return false;
   if(game.headlines!==undefined&&!(Array.isArray(game.headlines)&&game.headlines.length<=24&&game.headlines.every((h,i,log)=>Boolean(h)&&typeof h.key==='string'&&h.key.length>0&&h.key.length<=64&&log.findIndex(o=>o?.key===h.key)===i&&typeof h.kind==='string'&&h.kind.length>0&&h.kind.length<=24&&Number.isInteger(h.day)&&h.day>=0&&h.day<=game.day&&typeof h.title==='string'&&h.title.length>0&&h.title.length<=140&&(h.detail===undefined||(typeof h.detail==='string'&&h.detail.length<=240))&&(h.art===undefined||(typeof h.art==='string'&&h.art.length<=16))&&(h.target===undefined||(Boolean(h.target)&&['industry','city','route'].includes(h.target.kind)&&typeof h.target.id==='string'&&h.target.id.length<=64)))))return false;
+  if(!validAchievements(game))return false;
   return true;
 }
 export function saveGame(game) {
@@ -1239,6 +1253,7 @@ export function restoreGame(saved) {
     for(const city of game.cities)city.mail??=0;
     for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
     ensureRouteNumbers(game);
+    if(game.achievements===undefined)backfillAchievements(game,{networkTotals});
     // A save from before the rating is reviewed once, silently: every title it meets is stamped today.
     if(game.performance===undefined&&game.history.length>=3)reviewPerformance(game,{loanLimit:loanTerms(game).limit,backfill:true});
     game.maintenanceRevision=-1;

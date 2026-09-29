@@ -308,6 +308,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     changed = true;
   }
   if (changed) game.revision++;
+  return connectedCities;
 }
 
 /** A town's daily chance to build one of its own homes (the salt-104 roll); the funding forecast reads the same one. */

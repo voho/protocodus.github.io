@@ -1,11 +1,12 @@
 import { listJoin, token } from './copy.js';
+import { achievementById, ACHIEVEMENT_TIERS, TIER_NAMES } from './achievements.js';
 
 // DOM-free batching between the model's notice log and HUD toasts. The model
 // keeps its newest 24 notices first; the HUD shows every unseen one, oldest first.
 export const NOTICE_LIMIT = 24;
 export const TOWN_MILESTONES = [1000, 2500, 5000, 10000];
 const LEGACY_TOPICS = [[/has lost its (water )?connection|is no longer connected/, 'route-connection'], [/expanded to/, 'industry-growth']];
-const names = list => list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more` : listJoin(list);
+export const names = list => list.length > 3 ? `${list.slice(0, 3).join(', ')} and ${list.length - 3} more` : listJoin(list);
 // A burst reads as one sentence, with its plain names from the messages (older saves' wording too) and its template from the targets.
 const GROUP_TEXT = {
   'route-connection': [count => `${count} routes are no longer connected`, /^(.*?) (?:has lost its (?:water )?connection|is no longer connected)/, 'a route'],
@@ -59,4 +60,12 @@ export function creditToast(notice, history) {
 export function newYearNotice(year, rate, { generation = true, model } = {}) {
   const vehicles = !model ? 'vehicles carry' : model.debut ? `vehicles such as the ${model.name}, a new ${model.noun} series, carry` : `vehicles such as the ${model.name} ${model.noun} carry`;
   return generation ? `New for ${year}: ${vehicles} 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`;
+}
+
+/** Newly earned achievements as toasts: one each for one or two, one line at the highest tier for three or more. */
+export function achievementNotices(ids) {
+  const list = ids.map(achievementById).filter(Boolean);
+  if (list.length < 3) return list.map(a => ({ message: `${TIER_NAMES[a.tier]} achievement: ${a.title}.`, tier: a.tier }));
+  const tier = ACHIEVEMENT_TIERS[Math.max(...list.map(a => ACHIEVEMENT_TIERS.indexOf(a.tier)))];
+  return [{ message: `${list.length} achievements earned: ${names(list.map(a => a.title))}.`, tier }];
 }

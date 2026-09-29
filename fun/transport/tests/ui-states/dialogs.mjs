@@ -1,5 +1,4 @@
-// Dialog states: the start menu, the loading screen and every dialog the game menu opens. Achievements
-// do not exist yet.
+// Dialog states: the start menu, the loading screen and every dialog the game menu opens.
 import { freshWorld, openGameAction, settle, stoneRoute } from './setup.mjs';
 
 const dialog = async page => { await page.locator('#modal[open]').waitFor(); await settle(page); };
@@ -58,6 +57,13 @@ export const states = [
     await openGameAction(page, 'save-button');
     await page.locator('[data-save-slot="autosave"] [data-save-action="load"]').click();
     await page.locator('.save-confirmation').waitFor();
+    await dialog(page);
+  } },
+  // A company a few records in: two bronze records earned, a hidden gold one revealed and deliveries on the way to a million.
+  { name: 'dialogs-achievements', async setup(page) {
+    await freshWorld(page);
+    await page.evaluate(() => { const a = transport.game.achievements; transport.game.totalDelivered = 412300; Object.assign(a.unlocked, { 'delivered-100k': 3, 'fleet-10': 5, 'billion-nominal': 9 }); a.cargo = 7; });
+    await openGameAction(page, 'achievements-button');
     await dialog(page);
   } },
 ];

@@ -60,6 +60,11 @@ import { money as moneyText, dateShort } from './copy.js';
 import { routeNeedsAttention } from './gameplay-insights.js';
 import { creditToast } from './ui-notices.js';
 import { HEADLINE_PRIORITY, headlineKicker, headlineWatch, detectHeadlines, headlineTier, townHeadline, recordHeadline } from './headlines.js';
+import { ACHIEVEMENTS, TIER_NAMES, achievementById, drainAchievementUnlocks, earnedCount } from './achievements.js';
+import { renderAchievements, medalIcon } from './achievements-view.js';
+import { achievementNotices } from './ui-notices.js';
+import { networkTotals } from './model.js';
+import { activeCities } from './settlements.js';
 import { has as hasIcon } from './ui-icons.js';
 import { preloadHouses, onHouseAssetsChange } from './raster-houses.js';
 import { preloadWorldArt, onWorldArtChange, startupArtCells } from './atlas-runtime.js';
@@ -182,15 +187,15 @@ function chime() {
  try { for (const [index,frequency] of [660,990].entries()) { const at=audioContext.currentTime+index*.08, oscillator=audioContext.createOscillator(), gain=audioContext.createGain(); oscillator.connect(gain); gain.connect(audioContext.destination); oscillator.type='sine'; oscillator.frequency.setValueAtTime(frequency,at); gain.gain.setValueAtTime(.0001,at); gain.gain.exponentialRampToValueAtTime(.018,at+.012); gain.gain.exponentialRampToValueAtTime(.0005,at+.18); oscillator.start(at); oscillator.stop(at+.19); } } catch { sounds=false; }
 }
 function toast(message, options=false) {
- const {type=options===true?'error':'ok',action=null,key=message,silent=false}=typeof options==='object'&&options?options:{},region=$('#toast-region');
+ const {type=options===true?'error':'ok',action=null,key=message,silent=false,tier=''}=typeof options==='object'&&options?options:{},region=$('#toast-region');
  let el=[...region.children].find(node=>node.toastKey===key),count=1;
  if(el){count=el.toastCount+1;clearTimeout(el.toastTimer);}else{el=document.createElement('div');region.append(el);}
- el.className='toast'+(type==='ok'?'':' '+type);el.toastKey=key;el.toastCount=count;
+ el.className='toast'+(type==='ok'?'':' '+type)+(tier?` achievement tier-${tier}`:'');el.toastKey=key;el.toastCount=count;
  const actions=[action].flat().filter(Boolean),buttons=actions.map(item=>`<button type="button" class="toast-action">${escapeHTML(item.label)}</button>`).join('');
- el.innerHTML=icon(type==='ok'||type==='milestone'?'check':'warning')+`<span>${escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(actions.length>1?`<div class="toast-actions">${buttons}</div>`:buttons);
+ el.innerHTML=(tier?medalIcon(tier):icon(type==='ok'||type==='milestone'?'check':'warning'))+`<span>${escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(actions.length>1?`<div class="toast-actions">${buttons}</div>`:buttons);
  el.querySelectorAll('.toast-action').forEach((button,index)=>{button.onclick=()=>{el.remove();actions[index].run();};});
  while(region.children.length>3) region.firstChild.remove();
- el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
+ el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'||tier==='gold'||tier==='platinum'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
 function changeSpeed(next) { if(next>0)previousSpeed=next; speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); syncPausedChip(); }
 // A frozen world can look hung, so pausing names itself on the map; CSS hides it under dialogs and loading.
@@ -1354,6 +1359,7 @@ function activateGame(next) {
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
  goalChoice=null;goalOpen=false;goalSignature='';lastNoticeId=game.day<1?undefined:game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
  resetMoments();
+ drainAchievementUnlocks(game);
  canvas.classList.remove('build-mode','dragging','route-picking');$('#placement-tip').hidden=true;
  $('#inspector').hidden=true;$('#inspector').replaceChildren();$('#toast-region').replaceChildren();
  rentSeen=(game.totalProperty||0)>0;sellAsk='';
@@ -1470,7 +1476,7 @@ function stepHeadlines(now,dt) {
  if(headlineQueue.length&&headlinesOn&&!$('#modal').open&&tool==='inspect'&&!isRoutePicking()&&now-headlineClosedAt>=15000)showHeadline(headlineQueue.shift());
 }
 function showHeadline(entry) {
- const action=entry.kind==='rating'?(entry.key==='rating:century'?{label:'See evaluation',run:openCenturyCard}:{label:'Open report',run:openCompany}):entry.kind==='models'&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:noticeTargetExists(entry.target)?{label:'Show',run:()=>showNoticeTarget(entry.target)}:null;
+ const action=entry.kind==='achievement'?{label:'Open achievements',run:openAchievements}:entry.kind==='rating'?(entry.key==='rating:century'?{label:'See evaluation',run:openCenturyCard}:{label:'Open report',run:openCompany}):entry.kind==='models'&&getFleetUpgrade(game).available?{label:'Review upgrades',run:reviewUpgrades}:noticeTargetExists(entry.target)?{label:'Show',run:()=>showNoticeTarget(entry.target)}:null;
  const el=document.createElement('article');el.className='headline-card';el.dataset.kind=entry.kind;el.setAttribute('aria-labelledby','headline-title');
  el.innerHTML=`<span class="headline-art" aria-hidden="true">${icon(headlineArt(entry.art))}</span><div class="headline-body"><p class="headline-kicker"><span>${escapeHTML(headlineKicker(entry.kind))}</span><time>${dateLong(entry.day)}</time></p><h2 id="headline-title" class="prose">${escapeHTML(entry.title)}</h2>${entry.detail?`<p class="headline-detail prose">${escapeHTML(entry.detail)}</p>`:''}${action?`<div class="headline-actions"><button type="button" class="headline-action">${escapeHTML(action.label)}</button></div>`:''}</div><button type="button" class="headline-close" aria-label="Dismiss headline" title="Dismiss">${icon('close')}</button>`;
  // Pointing at the card or focusing inside it holds its countdown; it never takes focus itself.
@@ -1501,7 +1507,7 @@ function showQueuedNotices(now) {
   const entry=noticeQueue[i];if(entry.paced&&now-pacedNoticeAt<2000){i++;continue;}
   noticeQueue.splice(i,1);if(entry.paced)pacedNoticeAt=now;
   const target=entry.targets?.find(noticeTargetExists);
-  toast(entry.message,{type:entry.type,action:entry.action||(target?{label:'Show',run:()=>showNoticeTarget(target)}:null),silent:beeped});beeped||=entry.type!=='ok';shown++;
+  toast(entry.message,{type:entry.type,action:entry.action||(target?{label:'Show',run:()=>showNoticeTarget(target)}:null),silent:beeped,tier:entry.tier});beeped||=entry.type!=='ok';shown++;
  }
 }
 function queueNewYear(pricing) {
@@ -1590,6 +1596,24 @@ function openGoals() {
  closeMobile();openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Company goals</h2><p>Optional milestones, reached in any order. A chapter is complete when all but one of its goals are done.</p></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="goal-chapters">${chapters}</div><div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
+// Achievements (achievements.js): long-term records that change nothing. The dialog only reads, and like every dialog it pauses.
+function openAchievements() {
+ closeMobile();openModal(`<div class="modal-inner achievements-dialog"><div class="modal-heading"><div><h2>Achievements</h2><p>Long-term records of your company. They are just for fun and never change how the game plays.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${renderAchievements(game,{served:activeCities(game),network:networkTotals(game)})}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ $('#modal .close-modal')?.focus({preventScroll:true});
+}
+$('#modal').addEventListener('click',e=>{if(e.target.closest?.('[data-open-achievements]'))openAchievements();});
+// Each record celebrates once, as the day it was earned closes; a load or an older save's credit never replays one. Gold and platinum make
+// a headline (a toast when headlines are off), three or more at once share one toast, and the century's badge waits on its evaluation card.
+function queueAchievements(ids) {
+ const toasts=[];
+ for(const id of ids){
+  const a=achievementById(id);if(!a||id==='years-100'&&game.performance?.century)continue;
+  if((a.tier==='gold'||a.tier==='platinum')&&announceHeadline({key:`achievement:${id}:${a.tier}`,kind:'achievement',art:'achievements',day:game.achievements.unlocked[id],title:`${TIER_NAMES[a.tier]} achievement: ${a.title}`,detail:a.detail}))continue;
+  toasts.push(id);
+ }
+ for(const entry of achievementNotices(toasts))noticeQueue.push({...entry,type:'milestone',paced:true,action:{label:'Open achievements',run:openAchievements}});
+}
+function achievementsLineHTML() { return `<p class="rating-achievements"><span>Achievements</span><strong data-num>${earnedCount(game)} of ${ACHIEVEMENTS.length}</strong><button type="button" class="small-button" data-open-achievements>Open ${icon('chevronRight')}</button></p>`; }
 // Company: the last 36 closed months as sparklines, yearly summaries, routes by net a month and the optional loan.
 function openCompany(section) {
  const history=game.history,terms=loanTerms(game),years=[...(game.annual||[])].reverse(),signed=v=>(v<0?'−':'+')+money(v);
@@ -1668,20 +1692,20 @@ function propertySectionHTML() {
 // The Company report's first block: title, score, the way to the next title, company value and, folded, what counts.
 function performanceSectionHTML() {
  const p=game.performance,title=CAREER_TITLES[careerTitle(game)];
- if(!p)return `<section class="company-section rating-summary"><div class="rating-head"><h3>${title}</h3></div><p class="rating-meta">The first review is on ${dateLong(nextReviewDay(game))}.</p></section>`;
+ if(!p)return `<section class="company-section rating-summary"><div class="rating-head"><h3>${title}</h3></div><p class="rating-meta">The first review is on ${dateLong(nextReviewDay(game))}.</p>${achievementsLineHTML()}</section>`;
  const next=nextTitle(game),signed=v=>`<span class="${v>0?'gain':v<0?'loss':'even'}">${moneyText(v,{signed:true})}</span>`,full=part=>part.money?moneyText(partTarget(game,part,p.day)):integer(part.target);
  const weakest=game.routes.find(route=>route.id===p.weakest);
  const cells=[integer(p.values[0]),integer(p.values[1]),p.values[2]===null?`Counts from ${MIN_RATED_FLEET} vehicles with a full year`:`${signed(p.values[2])} per vehicle last year${weakest?`<span class="rating-route"><span>${escapeHTML(weakest.name)}</span><button type="button" class="small-button" data-rating-show="${escapeHTML(weakest.id)}">Show</button></span>`:''}`,signed(p.values[3]),signed(p.values[4]),`${integer(p.values[5])} in 12 months`,integer(p.values[6]),signed(p.values[7]),p.values[8]>0?`${moneyText(p.values[8])} borrowed`:'No loan'];
  const marks=RATING_PARTS.map(part=>part.id==='weakest'?`${full(part)} per vehicle`:part.id==='loan'?'No loan':full(part));
  const rows=RATING_PARTS.map((part,i)=>`<tr title="Full marks: ${escapeHTML(marks[i])}"><th scope="row">${part.label}</th><td>${cells[i]}</td><td>${marks[i]}</td><td>${p.points[i]} of ${part.max}</td></tr>`).join('');
  const century=p.century?`<p class="rating-century"><span>A century of transport: ${CAREER_TITLES[p.century.title]}, ${integer(p.century.score)} of 1,000</span><button type="button" class="small-button" id="rating-century">See evaluation</button></p>`:'';
- return `<section class="company-section rating-summary" aria-labelledby="rating-title"><div class="rating-head"><h3 id="rating-title">${title}</h3><p class="rating-score"><strong data-num>${integer(p.score)}</strong> <span>of 1,000</span></p></div><div class="rating-track" aria-hidden="true"><span style="width:${next?Math.min(100,p.score/next.score*100):100}%"></span></div><p class="rating-meta"><span>${next?`${next.name} at ${integer(next.score)}`:'The top title'}</span><span>Reviewed ${dateLong(p.day)}, next review ${dateLong(nextReviewDay(game))}</span></p>${companyValueHTML()}${century}<details class="rating-details"${ratingDetailsOpen?' open':''}><summary>What counts ${icon('chevronDown')}</summary><div class="rating-table"><table><thead><tr><th scope="col">Measure</th><th scope="col">At review</th><th scope="col">Full marks</th><th scope="col">Points</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">Total</th><td></td><td></td><td>${integer(p.score)} of 1,000</td></tr></tfoot></table></div><p class="rating-note">Points rise fastest at first: half of a target earns about 70% of its points. The rating is recognition only and never changes prices, towns or vehicles. A title, once earned, is yours to keep.</p>${p.reached.length>1?`<h4>Titles earned</h4>${careerHTML(p.reached)}`:''}</details></section>`;
+ return `<section class="company-section rating-summary" aria-labelledby="rating-title"><div class="rating-head"><h3 id="rating-title">${title}</h3><p class="rating-score"><strong data-num>${integer(p.score)}</strong> <span>of 1,000</span></p></div><div class="rating-track" aria-hidden="true"><span style="width:${next?Math.min(100,p.score/next.score*100):100}%"></span></div><p class="rating-meta"><span>${next?`${next.name} at ${integer(next.score)}`:'The top title'}</span><span>Reviewed ${dateLong(p.day)}, next review ${dateLong(nextReviewDay(game))}</span></p>${companyValueHTML()}${century}${achievementsLineHTML()}<details class="rating-details"${ratingDetailsOpen?' open':''}><summary>What counts ${icon('chevronDown')}</summary><div class="rating-table"><table><thead><tr><th scope="col">Measure</th><th scope="col">At review</th><th scope="col">Full marks</th><th scope="col">Points</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th scope="row">Total</th><td></td><td></td><td>${integer(p.score)} of 1,000</td></tr></tfoot></table></div><p class="rating-note">Points rise fastest at first: half of a target earns about 70% of its points. The rating is recognition only and never changes prices, towns or vehicles. A title, once earned, is yours to keep.</p>${p.reached.length>1?`<h4>Titles earned</h4>${careerHTML(p.reached)}`:''}</details></section>`;
 }
 // The century evaluation opens only when asked for, from its news or the report; like every dialog it pauses.
 function openCenturyCard() {
  const p=game.performance,c=p?.century;if(!c)return;
  const reached=p.reached.filter(day=>day<=c.day);
- closeMobile();openModal(`<div class="modal-inner century-card"><div class="modal-heading"><div><h2>A century of transport</h2><p>${dateLong(c.day)}. Your company has run for one hundred years.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div><div class="century-title"><strong>${CAREER_TITLES[c.title]}</strong><span>Performance ${integer(c.score)} of 1,000, career best ${integer(p.best)}</span></div><dl class="century-facts"><div><dt>Company value</dt><dd data-num>${moneyText(c.value)}</dd></div><div><dt>Titles earned</dt><dd data-num>${reached.length} of ${CAREER_TITLES.length}</dd></div></dl>${careerHTML(reached)}<p class="century-note">Play continues. There is no end date, and every title you have earned stays yours.</p><div class="modal-actions"><button class="button button-outline" id="century-report">Company report</button><button class="button button-primary" data-close>Keep playing</button></div></div>`);
+ closeMobile();openModal(`<div class="modal-inner century-card"><div class="modal-heading"><div><h2>A century of transport</h2><p>${dateLong(c.day)}. Your company has run for one hundred years.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div><div class="century-title"><strong>${CAREER_TITLES[c.title]}</strong><span>Performance ${integer(c.score)} of 1,000, career best ${integer(p.best)}</span></div><dl class="century-facts"><div><dt>Company value</dt><dd data-num>${moneyText(c.value)}</dd></div><div><dt>Titles earned</dt><dd data-num>${reached.length} of ${CAREER_TITLES.length}</dd></div></dl>${careerHTML(reached)}<p class="century-achievements">${game.achievements?.unlocked['years-100']!==undefined?medalIcon('platinum',{label:'Platinum: A century'}):''}<span><strong data-num>${earnedCount(game)}</strong> of ${ACHIEVEMENTS.length} achievements earned</span><button type="button" class="small-button" data-open-achievements>Open ${icon('chevronRight')}</button></p><p class="century-note">Play continues. There is no end date, and every title you have earned stays yours.</p><div class="modal-actions"><button class="button button-outline" id="century-report">Company report</button><button class="button button-primary" data-close>Keep playing</button></div></div>`);
  $('#century-report').addEventListener('click',()=>{closeModal();openCompany();});
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
@@ -2030,7 +2054,7 @@ window.addEventListener('pagehide',()=>{if((!isLoading()||menuOpening)&&!$('#sta
 document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if(document.hidden&&(!isLoading()||menuOpening)&&!$('#start-menu')?.open)flushSave();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
-compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onAchievements:openAchievements,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
 // Closing the drawer yourself ends a lens set by Routes or Industries; locating a site or picking a stop closes it and keeps the lens.
 for(const el of [$('#close-management'),mobileToggle,...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('mobile-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
@@ -2093,6 +2117,8 @@ function frame(now){
   if(selected&&!$('#inspector').hidden&&!$('#inspector').contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)inspect(selected.x,selected.y,selected.kind);
   if(selectedVehicle&&!$('#inspector').hidden)inspectVehicle(selectedVehicle,true);
  }
+ // Records wait for the HUD pass that has just queued the day's other news, so the century and new titles lead.
+ if(hudAt===now){const earned=drainAchievementUnlocks(game);if(earned.length)queueAchievements(earned);}
  if(noticeQueue.length&&now-noticeAt>400){noticeAt=now;showQueuedNotices(now);}
  if(headlineCurrent||headlineQueue.length)stepHeadlines(now,elapsed*1000);
  if((!compactUI||compactUI.isMinimapVisible())&&(!minimapState||minimapState.game!==game||minimapState.revision!==game.revision||minimapState.layers!==mapLayers||minimapState.x!==camera.x||minimapState.y!==camera.y||minimapState.height!==camera.height||minimapState.zoom!==camera.zoom||minimapState.w!==w||minimapState.h!==h)){

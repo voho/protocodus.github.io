@@ -15,5 +15,6 @@ export const APP_PRELOAD = Object.freeze([
   './formatters.js', './shoreline.js', './terrain-mesh.js', './scenery-batches.js', './route-render-index.js',
   './renderer.js', './construction-undo.js', './network-router.js', './ui-art.js', './route-planner.js',
   './payment-rates.js',
+  './achievements-view.js',
   './chains-view.js', './saves-view.js', './visibility-view.js', './ui-notices.js', './app.js'
 ]);
