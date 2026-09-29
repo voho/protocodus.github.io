@@ -1,0 +1,138 @@
+/* References, the line language and the map's overlays (DESIGN.md 7, 8, 9 and 10), built by ui-refs.js, ui-line.js, ui-motion.js and app.js. Tokens only. */
+/* A reference: its kind's mark, then its label. Prose keeps a 1 px underline in ink at 28%, solid on hover, on focus and while linked. */
+.ref{display:inline-block;max-width:100%;margin:0;padding:0;border:0;border-radius:var(--r-1);background:none;color:inherit;font:inherit;font-weight:var(--fw-medium);text-align:left;white-space:nowrap;vertical-align:baseline;cursor:pointer;transition:background-color var(--t-quick) var(--ease)}
+.ref-mark{display:inline-flex;align-items:center;justify-content:center;margin-right:var(--s-1);vertical-align:middle;line-height:0}
+.ref-label{text-decoration:underline 1px color-mix(in srgb,var(--ink) 28%,transparent);text-underline-offset:3px;transition:text-decoration-color var(--t-quick) var(--ease)}
+.ref:hover .ref-label,.ref:focus-visible .ref-label,.ref.is-linked .ref-label{text-decoration-color:currentColor}
+.ref>.bullet{margin-left:var(--s-1)}
+.ref--prose{position:relative;margin:0 -2px;padding:0 2px}
+.ref.is-linked{background:var(--well)}
+/* A whole list row is the reference: no underline until hover, the well behind it while hovered or linked. */
+.ref--row{display:flex;align-items:center;gap:var(--s-2);width:100%;min-height:var(--row);padding:var(--s-3) var(--s-4);border-radius:0;white-space:normal}
+.ref--row .ref-mark{margin:0}
+.ref--row .ref-label{text-decoration-color:transparent}
+.ref--row:hover{background:var(--well)}
+/* The mark alone, where space is tight: a route's bullet in a toast lead or a table. */
+.ref--compact{padding:2px;border-radius:var(--r-2);line-height:0}
+.ref--compact .ref-mark{margin:0}
+/* On ink (toasts, tips): the underline in paper at 40%, a paper wash when linked and the signal focus ring. */
+.ref--on-ink .ref-label{text-decoration-color:color-mix(in srgb,var(--paper) 40%,transparent)}
+.ref--on-ink:hover .ref-label,.ref--on-ink:focus-visible .ref-label,.ref--on-ink.is-linked .ref-label{text-decoration-color:currentColor}
+.ref--on-ink.is-linked{background:color-mix(in srgb,var(--on-ink) 16%,transparent)}
+.ref--on-ink:focus-visible{outline-color:var(--signal)}
+.ref--gone{color:inherit}
+.ref .cargo-tile,.strip .cargo-tile{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:var(--r-1);background:var(--well)}
+.ref .cargo-tile .cargo-icon,.strip .cargo-tile .cargo-icon{width:14px;height:14px}
+/* Touch: prose references reach 44 px through a layer the line never sees; their own text sits above every such layer, so a tap on a reference's words never lands on the one on the next line. */
+@media(pointer:coarse){
+ .ref--prose::after{content:'';position:absolute;inset:-12px 0}
+ .ref--prose>*{position:relative;z-index:1}
+}
+/* The route bullet (8.1): the numeral in 12/700 on the line colour (--c, --on from ui-line.js), shaped by mode and wider from two digits. */
+.bullet{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;min-width:20px;height:20px;padding:0 var(--s-1);background:var(--c);color:var(--on);font-size:var(--fs-caption);line-height:1;font-weight:var(--fw-bold);font-variant-numeric:tabular-nums;white-space:nowrap;vertical-align:middle}
+.bullet--16{min-width:16px;height:16px}
+.bullet__n{position:relative;z-index:1}
+.bullet--light{border:1px solid color-mix(in srgb,var(--ink) 35%,transparent)}
+.bullet--road{border-radius:var(--r-1)}
+.bullet--rail,.bullet--water{border-radius:var(--r-round)}
+.bullet--water{min-width:32px}
+.bullet--water.bullet--16{min-width:26px}
+/* Air: a diamond, a pointed hexagon from two digits, drawn beneath the upright numeral; a light line keeps its edge as an outer layer. */
+.bullet--air{--m:10px;padding:0;border:0;border-radius:0;background:none}
+.bullet--air.bullet--16{--m:8px}
+.bullet--air.bullet--wide{padding:0 var(--s-2)}
+.bullet--air::before,.bullet--air::after{content:'';position:absolute;inset:0;clip-path:polygon(var(--m) 0,calc(100% - var(--m)) 0,100% 50%,calc(100% - var(--m)) 100%,var(--m) 100%,0 50%)}
+.bullet--air::before{background:var(--c)}
+.bullet--air.bullet--light::before{background:color-mix(in srgb,var(--ink) 35%,transparent)}
+.bullet--air.bullet--light::after{inset:1px;background:var(--c)}
+/* A stop: a 12 px paper disc in a 2.5 px ink ring; an --edge ring when no route uses it. */
+.roundel{display:inline-block;flex:none;box-sizing:border-box;width:12px;height:12px;border:2.5px solid var(--ink);border-radius:var(--r-round);background:var(--paper);vertical-align:middle}
+.roundel--unused{border-color:var(--edge)}
+/* The strip diagram (8.2), 56 px with its names: waiting cargo above the stops, the 4 px line with its roundels, capsules and chevrons, then the end names in two columns. */
+.strip{display:grid;gap:2px;min-width:0}
+.strip__row{display:flex;align-items:center;gap:var(--s-2);min-width:0}
+.strip__track{position:relative;flex:1;min-width:0;height:36px;margin:0 6px}
+.strip__line{position:absolute;top:24px;height:4px;border-radius:var(--r-round);background:var(--c)}
+.strip--light .strip__line{outline:1px solid color-mix(in srgb,var(--ink) 35%,transparent)}
+.strip__gap{position:absolute;top:25px;border-top:2px dashed var(--error)}
+.strip__cut{position:absolute;top:18px;display:grid;transform:translateX(-50%);color:var(--error)}
+.strip__chevron{position:absolute;top:24px;width:0;height:0;border-top:2px solid transparent;border-bottom:2px solid transparent;border-left:3px solid var(--on);transform:translateX(-50%)}
+.strip__chevron--back{border-left:0;border-right:3px solid var(--on)}
+.strip__stop{position:absolute;top:20px;display:grid;transform:translateX(-50%)}
+.strip__vehicle{position:absolute;top:22px;box-sizing:border-box;width:14px;height:8px;border:1.5px solid var(--ink);border-radius:var(--r-round);background:var(--paper);transform:translateX(-50%)}
+.strip__vehicle--loaded{background:var(--ink)}
+.strip__waiting{position:absolute;top:1px;display:inline-flex;align-items:center;gap:var(--s-1);transform:translateX(-50%);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:var(--fw-semibold);white-space:nowrap}
+.strip__waiting--start{transform:translateX(-6px)}
+.strip__waiting--end{transform:translateX(calc(6px - 100%))}
+.strip__waiting .cargo-tile{width:14px;height:14px}
+.strip__waiting .cargo-tile .cargo-icon{width:12px;height:12px}
+.strip__more{flex:none;margin-top:12px;padding:0 var(--s-1);border-radius:var(--r-1);background:var(--well);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:var(--fw-semibold)}
+.strip__names{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-3);font-size:var(--fs-small);line-height:var(--lh-small)}
+.strip__name{min-width:0;overflow-wrap:anywhere}
+.strip__name:last-child{text-align:right}
+.strip__name:only-child{text-align:left}
+/* Proposed (8.3): a dashed ink-2 line between two roundels, no bullet, capsules or chevrons yet. */
+.strip--proposed .strip__line{top:25px;height:0;border-top:2px dashed var(--ink-2);border-radius:0;background:none}
+/* Launch: the line draws once from A to B in 400 ms (ui-line.js drawOnce; never under reduced motion). */
+.strip--draw .strip__line{animation:strip-draw 400ms var(--ease) both}
+@keyframes strip-draw{
+ from{clip-path:inset(0 100% 0 0)}
+ to{clip-path:inset(0)}
+}
+/* The ladder (8.3), the strip turned vertical: done is an ink roundel with a paper check, current a signal ring, next a hollow --edge ring; the connector dashes into a new part. */
+.ladder{display:grid;gap:var(--s-3);margin:0;padding:0;list-style:none}
+.ladder__step{position:relative;display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:start;gap:var(--s-3)}
+.ladder__step:not(:last-child)::after{content:'';position:absolute;left:7px;top:20px;bottom:-14px;border-left:2px solid var(--edge)}
+.ladder__step--done:not(:last-child)::after{border-left-color:var(--ink)}
+.ladder__step:has(+.ladder__step--part)::after{border-left-style:dashed}
+.ladder__node{display:grid;place-items:center;box-sizing:border-box;width:16px;height:16px;margin-top:2px;border:2px solid var(--edge);border-radius:var(--r-round);background:var(--paper)}
+.ladder__step--done .ladder__node{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.ladder__step--done .ladder__node svg{width:12px;height:12px}
+.ladder__step--current .ladder__node{border:2.5px solid var(--signal)}
+.ladder__step--next .ladder__node{border-color:var(--edge)}
+.ladder__label{min-width:0;font-size:var(--fs-body);line-height:var(--lh-body)}
+.ladder__meta{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);white-space:nowrap}
+/* Map overlays (DESIGN.md 9): ink tags placed by app.js with renderer.worldToScreen, recomputed only when the camera or the target changes. */
+#map-overlays{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.edge-pointer,.map-tag{position:absolute;left:0;top:0;z-index:var(--z-map-overlay);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);white-space:nowrap}
+/* The edge pointer: the kind's mark, the name and the distance, with a signal chevron turned toward the target past the band's edge. */
+.edge-pointer{display:flex;align-items:center;gap:var(--s-2);max-width:min(320px,calc(100% - 2 * var(--gutter)));min-height:var(--control);padding:0 var(--s-2) 0 var(--s-3);border:0;border-radius:var(--r-3);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);pointer-events:auto;cursor:pointer}
+.edge-pointer__mark{display:grid;place-items:center;flex:none}
+.edge-pointer__name{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.edge-pointer__distance{flex:none;color:var(--on-ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.edge-pointer__chevron{display:grid;flex:none;color:var(--signal)}
+.edge-pointer:hover{background:color-mix(in srgb,var(--ink) 88%,var(--on-ink))}
+.edge-pointer:focus-visible,.back-chip:focus-visible{outline-color:var(--signal)}
+/* The selection tag: the selected thing's name in ink above it, unless the map already names it. */
+.map-tag{max-width:240px;overflow:hidden;padding:var(--s-1) var(--s-2);border-radius:var(--r-1);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold);text-overflow:ellipsis;pointer-events:none}
+/* After a long jump: 'Back to where you were' at the bottom left of the visible band for 8 s. */
+.back-chip{position:absolute;left:calc(var(--band-l,0px) + var(--gutter));bottom:calc(var(--band-b,0px) + var(--gutter));z-index:var(--z-toolbar);display:flex;align-items:center;gap:var(--s-2);min-height:var(--control);padding:0 var(--s-3) 0 var(--s-2);border:0;border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);white-space:nowrap;pointer-events:auto;cursor:pointer}
+.back-chip:hover{background:color-mix(in srgb,var(--ink) 88%,var(--on-ink))}
+@media(pointer:coarse),(max-width:700px){
+ .edge-pointer,.back-chip{min-height:var(--control-touch)}
+}
+/* The inspector's Back line (12.5), a quiet button above the header when it was reached through a reference. */
+.inspector-back{display:inline-flex;align-items:center;gap:var(--s-1);max-width:100%;min-height:28px;margin:0 0 var(--s-2) calc(0px - var(--s-2));padding:0 var(--s-2) 0 var(--s-1);border-radius:var(--r-2);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);text-align:left}
+.inspector-back>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inspector-back:hover{background:var(--well);color:var(--ink)}
+@media(pointer:coarse),(max-width:700px){
+ .inspector-back{min-height:var(--control-touch)}
+}
+/* Motion that answers the player (DESIGN.md 10.1): the well tint behind a changed figure, the money delta beside the balance and an inspector's crossfade. */
+.is-tinted{animation:tint var(--t-tint) var(--ease)}
+@keyframes tint{
+ from{background-color:var(--well)}
+}
+.delta{position:fixed;z-index:var(--z-tooltip);transform:translateY(-50%);color:var(--ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold);font-variant-numeric:tabular-nums;white-space:nowrap;pointer-events:none;animation:delta 1.2s var(--ease) both}
+.delta--ok{color:var(--ok)}
+.delta--error{color:var(--error)}
+@keyframes delta{
+ 0%{opacity:0}
+ 12%{opacity:1}
+ 75%{opacity:1}
+ 100%{opacity:0}
+}
+.is-crossfading{animation:crossfade var(--t-quick) var(--ease)}
+@keyframes crossfade{
+ from{opacity:.35}
+}

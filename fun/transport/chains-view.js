@@ -3,6 +3,7 @@ import { cargoBadge, cargoIcon, cargoRecipe } from './cargo-icons.js';
 import { drawUIArtwork } from './ui-art.js';
 import { chainProducts, defaultChainProduct, nearestTown, productionChain } from './chains.js';
 import { icon } from './ui-icons.js';
+import { scrollIntoViewSafe } from './ui-motion.js';
 
 const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const number = value => Math.floor(value || 0).toLocaleString('en-US');
@@ -66,7 +67,7 @@ export function mountChains(container, game, { onLocate, onBuild, onClose, onCha
     region.querySelectorAll('[data-chain-locate]').forEach(button => button.addEventListener('click', () => finish(onLocate, button.dataset.chainLocate)));
     region.querySelectorAll('[data-chain-consumer]').forEach(button => button.addEventListener('click', () => {
       select(button.dataset.chainConsumer);
-      container.querySelector(`[data-chain-node="${button.dataset.chainConsumer}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+      scrollIntoViewSafe(container.querySelector(`[data-chain-node="${button.dataset.chainConsumer}"]`), { block: 'nearest', inline: 'center' });
     }));
     if (sites.length) drawSitesMap(region.querySelector('canvas'), sites);
   }

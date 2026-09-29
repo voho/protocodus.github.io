@@ -85,6 +85,9 @@ import { calendarYear } from './economy-pricing.js';
 import { buildingAt, buildingSize, buildingFootprint } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
 import { showLoading, updateLoading, hideLoading, isLoading, paintLoading } from './loading-screen.js';
+import { installReferences, linkFromMap, resolveRef, refKey, refMark } from './ui-refs.js';
+import { reducedMotion, cameraDuration, scrollIntoViewSafe } from './ui-motion.js';
+import { tiles as tilesText } from './copy.js';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -328,11 +331,12 @@ function runProjectAction(action,target,extra={}) {
   // Frame both sites; the Region view keeps a long first route or a narrow screen in view.
   const center=site=>{const industry=game.industries.find(i=>i.id===site.id);return industry?{x:industry.x+(industrySize(industry)-1)/2,y:industry.y+(industrySize(industry)-1)/2}:site;};
   if(extra.choice){
-   const a=center(extra.choice.source),b=center(extra.choice.buyer),fits=()=>[a,b].every(p=>{const s=renderer.worldToScreen(p.x,p.y);return s.x>40&&s.y>40&&s.x<canvas.clientWidth-40&&s.y<canvas.clientHeight-40;});
-   renderer.setZoom(1);renderer.focus((a.x+b.x)/2,(a.y+b.y)/2);if(Math.hypot(a.x-b.x,a.y-b.y)>20||!fits()){renderer.setZoom(.5);renderer.focus((a.x+b.x)/2,(a.y+b.y)/2);}updateHud();
+   // Both centres at least 40 px inside the visible band at Town view, else Region.
+   const a=center(extra.choice.source),b=center(extra.choice.buyer),band=syncBand(),fits=zoom=>Math.abs((a.x-a.y)-(b.x-b.y))*TILE*zoom/2<band.width/2-40&&Math.abs((a.x+a.y)-(b.x+b.y))*TILE*zoom/4<band.height/2-40;
+   glideCamera({x0:Math.min(a.x,b.x),y0:Math.min(a.y,b.y),x1:Math.max(a.x,b.x),y1:Math.max(a.y,b.y)},{zoom:Math.hypot(a.x-b.x,a.y-b.y)>20||!fits(1)?.5:1});updateHud();
   }
  }
- else if(action==='launch'){formDraft={name:'',mode:extra.mode,from:String(extra.from??''),to:String(extra.to??''),cargo:extra.cargo,fullLoad:false,optionsOpen:false};setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});}
+ else if(action==='launch'){formDraft={name:'',mode:extra.mode,from:String(extra.from??''),to:String(extra.to??''),cargo:extra.cargo,fullLoad:false,optionsOpen:false};setView('routes');scrollIntoViewSafe($('#route-form'),{block:'nearest'});}
  else if(action==='chains')openChains();
  else if(action==='routes')setView('routes');
  else if(action==='towns'){category='towns';setView('build');$('#panel-content').scrollTop=0;}
@@ -387,8 +391,9 @@ function planFirstConnection(project) {
 function framePoints(points) {
  const card=$('#objective-card').getBoundingClientRect(),map=canvas.getBoundingClientRect(),right=card.width&&card.left>map.left+map.width/2?map.right-card.left+12:0,inset={left:40,top:130,right:40+right,bottom:70};
  const xs=points.map(p=>p.x),ys=points.map(p=>p.y),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
- const fits=()=>points.every(p=>{const s=renderer.worldToScreen(p.x+.5,p.y+.5);return s.x>inset.left&&s.y>inset.top&&s.x<canvas.clientWidth-inset.right&&s.y<canvas.clientHeight-inset.bottom;});
- for(const zoom of [1,.5]){renderer.setZoom(zoom);renderer.focus(cx,cy);renderer.pan((inset.left-inset.right)/2,(inset.top-inset.bottom)/2);if(fits())break;}
+ // Where each point's far corner would land with the view centred on them and shifted by the insets, terrain aside.
+ const shift={x:(inset.left-inset.right)/2,y:(inset.top-inset.bottom)/2},fits=zoom=>points.every(p=>{const x=canvas.clientWidth/2+shift.x+((p.x-cx)-(p.y-cy))*TILE*zoom,y=canvas.clientHeight/2+shift.y+((p.x-cx)+(p.y-cy)+1)*TILE/2*zoom;return x>inset.left&&y>inset.top&&x<canvas.clientWidth-inset.right&&y<canvas.clientHeight-inset.bottom;});
+ glideCamera({x0:Math.min(...xs),y0:Math.min(...ys),x1:Math.max(...xs),y1:Math.max(...ys)},{zoom:fits(1)?1:.5,offset:shift});
  updateHud();
 }
 function showConnectionPlan() {
@@ -606,7 +611,7 @@ function showContract(id) {
  const {from,to,source}=sites,width=(Math.abs((from.x-from.y)-(to.x-to.y))+6)*TILE,height=(Math.abs((from.x+from.y)-(to.x+to.y))+6)*TILE/2+48;
  setTool('inspect');closeModal();if(window.innerWidth>700)inspect(source.x,source.y,'industry');
  const map=canvas.getBoundingClientRect(),card=$('#inspector').hidden?null:$('#inspector').getBoundingClientRect(),left=card&&card.right<map.left+map.width/2?card.right-map.left:0;
- renderer.setZoom(Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>width*zoom<=(map.width-left)*.85&&height*zoom<=map.height*.8)));renderer.focus((from.x+to.x)/2,(from.y+to.y)/2);if(left)renderer.pan(left/2,0);
+ glideCamera({x0:Math.min(from.x,to.x),y0:Math.min(from.y,to.y),x1:Math.max(from.x,to.x),y1:Math.max(from.y,to.y),cx:(from.x+to.x)/2,cy:(from.y+to.y)/2},{zoom:Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>width*zoom<=(map.width-left)*.85&&height*zoom<=map.height*.8)),offset:{x:left/2,y:0}});
  updateHud();
 }
 $('#panel-content').addEventListener('click',e=>{const button=e.target.closest?.('[data-show-contract]');if(button)showContract(button.dataset.showContract);});
@@ -652,7 +657,7 @@ function editNote(route) { const count=getRouteFleet(game,route.id).count;return
 function startRouteEdit(id,keyboard) {
  const route=game.routes.find(r=>r.id===id);if(!route)return;
  cancelRoutePicking();formDraft={editing:route.id,name:'',mode:route.mode,from:String(route.stops[0]),to:String(route.stops[1]),cargo:route.cargo,fullLoad:route.fullLoad===true,optionsOpen:route.fullLoad===true,open:true,autoKey:`${route.stops[0]}|${route.stops[1]}|${route.mode}`};
- setView('routes');$('#route-planner')?.scrollIntoView({block:'start',behavior:'smooth'});if(keyboard)$('#route-form [name=from]')?.focus({preventScroll:true});
+ setView('routes');scrollIntoViewSafe($('#route-planner'),{block:'start'});if(keyboard)$('#route-form [name=from]')?.focus({preventScroll:true});
 }
 function leaveRouteEdit(open=false) { formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',fullLoad:false,optionsOpen:false,open}; }
 function cancelRouteEdit() {
@@ -736,15 +741,164 @@ function bindRouteCards(root) {
  root.querySelectorAll('[data-edit-route]').forEach(el=>el.addEventListener('click',e=>startRouteEdit(el.dataset.editRoute,e.detail===0)));
  root.querySelectorAll('[data-add-vehicle],[data-sell-vehicle]').forEach(button=>button.addEventListener('click',()=>changeFleet(button.dataset.addVehicle||button.dataset.sellVehicle,button.hasAttribute('data-add-vehicle'))));
 }
-// Show frames the whole route at the closest zoom that fits its projected extent, then highlights it for a moment.
+// Show frames the whole route at the closest zoom that fits its projected extent in the visible band, then highlights it for a moment.
 const routeExtents=new WeakMap();
-export function showRoute(id) {
+export function showRoute(id,{hold=4000}={}) {
  const route=game.routes.find(r=>String(r.id)===String(id));if(!route?.path?.length)return;
- cancelRoutePicking();setMapLayers({routes:true});
+ cancelRoutePicking();setMapLayers({routes:true});closeMobile();
  let extent=routeExtents.get(route.path);
  if(!extent){let u0=Infinity,u1=-Infinity,v0=Infinity,v1=-Infinity;for(const p of route.path){u0=Math.min(u0,p.x-p.y);u1=Math.max(u1,p.x-p.y);v0=Math.min(v0,p.x+p.y);v1=Math.max(v1,p.x+p.y);}extent={u:(u0+u1)/2,v:(v0+v1)/2,width:(u1-u0)*TILE,height:(v1-v0)*TILE/2+48};routeExtents.set(route.path,extent);}
- renderer.setZoom(Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>extent.width*zoom<=canvas.clientWidth*.8&&extent.height*zoom<=canvas.clientHeight*.8)));renderer.focus((extent.u+extent.v)/2,(extent.v-extent.u)/2);
- highlight={id:route.id,until:performance.now()+4000};closeMobile();updateHud();
+ const band=syncBand(),x=(extent.u+extent.v)/2,y=(extent.v-extent.u)/2;
+ glideCamera({x0:x,y0:y,x1:x,y1:y},{zoom:Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>extent.width*zoom<=band.width*.8&&extent.height*zoom<=band.height*.8))});
+ highlight={id:route.id,until:performance.now()+hold};updateHud();
+}
+// References and the camera (DESIGN.md 7 and 10). refView.hoverRef is the reference the pointer, keyboard or a long press is on;
+// refShown rings a target for a while (Show on map, and 1.2 s after a cut). The inspector keeps the places it was reached from
+// (inspectorTrail) for its Back line, and inspectorSource, the reference that opened it, takes focus back when it closes.
+const refView={hoverRef:null},mapSection=$('.map-section'),overlays=$('#map-overlays');
+let refShown={ref:null,until:0},inspectorTrail=[],inspectorSource=null,overlayKey='',backTimer=0,bandQueued=false,bandBox={left:0,top:0,right:0,bottom:0,width:0,height:0};
+// A reference opens its target and frames it in the visible band, keeping the panel it came from; data-ref-action="show" (hold)
+// only frames it and rings it for a while. Routes open their row in Routes. A reference inside the inspector gives the next
+// inspector a Back line. The camera glides, or past 3 screens (and under reduced motion) cuts and rings the target for 1.2 s.
+export function revealRef(ref,{source=null,open=true,hold=0,keyboard=false}={}) {
+ const key=refKey(ref),target=resolveRef(game,key,{vehiclePoint:renderer.vehicleWorldPoint}),entity=target.entity;if(!target.exists)return false;
+ if(target.kind==='cargo'){setCargoLens(target.id,'chains');return true;}
+ const box=$('#inspector'),from=open&&source&&!box.hidden&&box.contains(source)?inspectorPlace():null;
+ if(source?.closest?.('#modal'))closeModal();
+ if(target.kind==='route'){if(open)showNoticeTarget({kind:'route',id:target.id});else showRoute(target.id,{hold:Math.max(hold,1200)});return true;}
+ if(open){
+  if(tool!=='inspect')setTool('inspect');
+  if(window.innerWidth<=700)closeMobile();
+  const options={from,source:source?.closest?.('#map-overlays')?inspectorSource:source};
+  if(target.kind==='vehicle')inspectVehicle(target.id,false,options);
+  else inspect(entity.x,entity.y,target.kind==='town'?'city':target.kind==='industry'?'industry':'',keyboard?'keyboard':'',options);
+  if(underDrawer($('#inspector')))closeMobile(); // the drawer keeps its place unless it would hide the inspector
+ }
+ const cut=glideCamera(target.frame,{zoom:target.kind==='vehicle'?undefined:1,ref:key});
+ if(hold)refShown={ref:key,until:performance.now()+Math.max(hold,cut?1200:0)};
+ updateHud();return true;
+}
+// Whether the open drawer covers most of an element, by layout boxes (a drawer mid-slide counts where it will rest).
+function underDrawer(el) {
+ const drawer=$('.sidebar');if(!drawer.classList.contains('mobile-open')||el.hidden||!el.getClientRects().length)return false;
+ const a=layoutAt(drawer),b=layoutAt(el),w=Math.min(a.x+drawer.offsetWidth,b.x+el.offsetWidth)-Math.max(a.x,b.x),h=Math.min(a.y+drawer.offsetHeight,b.y+el.offsetHeight)-Math.max(a.y,b.y);
+ return w>0&&h>0&&w*h>el.offsetWidth*el.offsetHeight/2;
+}
+// Moves the camera the 10.2 way, framed in the visible band (or at offset px from the canvas centre): a 280–480 ms glide, or a
+// cut past 3 screens and under reduced motion, after which ref, if given, is ringed for 1.2 s. A jump past 3 screens offers
+// "Back to where you were" for 8 s. Returns whether it cut.
+function glideCamera(frame,{zoom,offset,ref=null,back=true}={}) {
+ if(!frame)return false;syncBand();
+ const before=renderer.getCamera(),screens=renderer.screensTo(frame,{zoom,offset}),cut=screens>3||reducedMotion();
+ renderer.glideTo(frame,{zoom,offset,duration:cut?0:cameraDuration(screens)});
+ if(cut&&ref)refShown={ref,until:performance.now()+1200};
+ if(back&&screens>3)offerBack(before);
+ return cut;
+}
+function offerBack(camera) {
+ clearTimeout(backTimer);let chip=overlays.querySelector('.back-chip');const serial=worldSerial,x=camera.x/TILE-.5,y=camera.y/TILE-.5;
+ if(!chip){chip=document.createElement('button');chip.type='button';chip.className='back-chip';chip.tabIndex=-1;chip.innerHTML=`${uiIcon('chevronLeft',{size:16})}<span>Back to where you were</span>`;overlays.append(chip);}
+ chip.onclick=()=>{hideBack();if(serial!==worldSerial)return;glideCamera({x0:x,y0:y,x1:x,y1:y,height:camera.height},{zoom:camera.zoom,offset:{x:0,y:0},back:false});updateHud();};
+ backTimer=setTimeout(hideBack,8000);
+}
+function hideBack() { clearTimeout(backTimer);overlays.querySelector('.back-chip')?.remove(); }
+// The visible band (10.2): the map less the panels over it, the drawer, the inspector (a phone sheet too) and anything marked
+// data-band. Each panel gives up the side of the map that keeps the most of it; one that would leave under a third of the map is
+// left out. Layout boxes, not transformed ones, so a drawer mid-slide counts where it will rest. Kept as --band-l/-r/-t/-b on
+// .map-section and in the renderer, which frames every glide in it.
+const layoutAt=el=>{let x=0,y=0;for(let node=el;node;node=node.offsetParent){x+=node.offsetLeft;y+=node.offsetTop;}return{x,y};};
+function syncBand() {
+ const W=mapSection.clientWidth,H=mapSection.clientHeight,at=layoutAt(mapSection),box={left:0,top:0,right:W,bottom:H};
+ for(const panel of [$('.sidebar'),$('#inspector'),...$$('[data-band]')]){
+  if(!panel||panel.hidden||!panel.getClientRects().length||panel.classList.contains('sidebar')&&!panel.classList.contains('mobile-open'))continue;
+  const p=layoutAt(panel),left=p.x-at.x,top=p.y-at.y,right=left+panel.offsetWidth,bottom=top+panel.offsetHeight;
+  if(right<=box.left||left>=box.right||bottom<=box.top||top>=box.bottom)continue;
+  const keep=[{...box,left:right},{...box,right:left},{...box,top:bottom},{...box,bottom:top}].map(next=>({next,area:Math.max(0,next.right-next.left)*Math.max(0,next.bottom-next.top)})).reduce((a,b)=>b.area>a.area?b:a);
+  if(keep.area>=W*H/3)Object.assign(box,keep.next);
+ }
+ const next={left:Math.round(box.left),top:Math.round(box.top),right:Math.round(box.right),bottom:Math.round(box.bottom)};
+ if(['left','top','right','bottom'].some(side=>next[side]!==bandBox[side])){for(const [name,value] of [['l',next.left],['t',next.top],['r',W-next.right],['b',H-next.bottom]])mapSection.style.setProperty(`--band-${name}`,`${Math.round(value)}px`);renderer.setBand(next);}
+ return bandBox={...next,width:next.right-next.left,height:next.bottom-next.top};
+}
+function queueBand() { if(bandQueued)return;bandQueued=true;requestAnimationFrame(()=>{bandQueued=false;syncBand();}); }
+// Map overlays (DESIGN.md 9) in #map-overlays, placed with worldToScreen and recomputed only when the camera, the band or the
+// target changes: the edge pointer toward a hovered target outside the band, and the selection tag.
+function syncOverlays(hoverRef) {
+ const camera=renderer.getCamera(),vehicle=selectedVehicle?game.vehicles.find(v=>v.id===selectedVehicle):null,hovered=hoverRef?.startsWith('vehicle:')?game.vehicles.find(v=>`vehicle:${v.id}`===hoverRef):null;
+ const key=[worldSerial,game.revision,camera.x,camera.y,camera.zoom,camera.height,canvas.clientWidth,canvas.clientHeight,bandBox.left,bandBox.top,bandBox.right,bandBox.bottom,hoverRef,selected?.x,selected?.y,selected?.kind,$('#inspector').hidden,vehicle?.x,vehicle?.y,hovered?.x,hovered?.y,mapLayers.names,mapLayers.stations].join();
+ if(key===overlayKey)return;overlayKey=key;
+ placeEdgePointer(hoverRef);placeSelectionTag(selectionTag(vehicle));
+}
+// One ink pointer at the band's edge on the line from its centre toward a hovered target outside it: the kind's mark, the name,
+// the distance in tiles from the tile at the band's centre and a signal chevron turned toward it. It is a Show on map reference.
+function placeEdgePointer(hoverRef) {
+ const target=hoverRef?resolveRef(game,hoverRef,{vehiclePoint:renderer.vehicleWorldPoint}):null,f=target?.frame,corners=f?[[f.x0,f.y0],[f.x1,f.y0],[f.x0,f.y1],[f.x1,f.y1]].map(([x,y])=>renderer.worldToScreen(x,y)):[];
+ const xs=corners.map(p=>p.x),ys=corners.map(p=>p.y),shown=f&&Math.max(...xs)>=bandBox.left&&Math.min(...xs)<=bandBox.right&&Math.max(...ys)>=bandBox.top&&Math.min(...ys)<=bandBox.bottom;
+ let el=overlays.querySelector('.edge-pointer');if(!f||shown){el?.remove();return;}
+ if(!el){el=document.createElement('button');el.type='button';el.className='edge-pointer';el.tabIndex=-1;el.dataset.refAction='show';overlays.append(el);}
+ const centre={x:(bandBox.left+bandBox.right)/2,y:(bandBox.top+bandBox.bottom)/2},x=f.cx??(f.x0+f.x1)/2,y=f.cy??(f.y0+f.y1)/2,p=renderer.worldToScreen(x,y),dx=p.x-centre.x,dy=p.y-centre.y;
+ const rect=canvas.getBoundingClientRect(),from=renderer.screenToTile(rect.left+centre.x,rect.top+centre.y,{clamp:true}),key=refKey(hoverRef);
+ const html=`<span class="edge-pointer__mark">${refMark(game,key)}</span><span class="edge-pointer__name">${escapeHTML(target.label)}</span><span class="edge-pointer__distance" data-num>${tilesText(Math.round(Math.hypot(x-from.x,y-from.y)))}</span><span class="edge-pointer__chevron" style="transform:rotate(${Math.atan2(dy,dx).toFixed(3)}rad)">${uiIcon('chevronRight',{size:16})}</span>`;
+ if(el.dataset.ref!==key)el.dataset.ref=key;if(el.shownHTML!==html)el.innerHTML=el.shownHTML=html;
+ const w=el.offsetWidth,h=el.offsetHeight,reach=Math.min(dx?Math.max(0,bandBox.width/2-w/2-12)/Math.abs(dx):Infinity,dy?Math.max(0,bandBox.height/2-h/2-12)/Math.abs(dy):Infinity);
+ el.style.transform=`translate(${Math.round(centre.x+dx*reach-w/2)}px,${Math.round(centre.y+dy*reach-h/2)}px)`;
+}
+// The selected thing's name in an ink tag above it, when the map does not name it already: a town's nameplate, and a stop's or
+// a site's label while names are shown. Vehicles, buildings and workshops always carry it.
+const layerOn=name=>mapLayers[name]!==false;
+function selectionTag(vehicle) {
+ const zoom=renderer.getCamera().zoom;
+ if(vehicle){const q=renderer.vehicleWorldPoint(vehicle),p=renderer.worldToScreen(q.x,q.y);return {text:resolveRef(game,`vehicle:${vehicle.id}`).label,x:p.x,y:p.y-34*zoom-10};} // clear of its load badge
+ if(!selected||$('#inspector').hidden)return null;
+ const {x,y,kind}=selected,names=layerOn('names'),station=kind!=='city'&&kind!=='industry'?stationAt(game,x,y):null,industry=!station&&kind!=='city'?game.industries.find(i=>industryContains(i,x,y)):null,city=!station&&!industry?game.cities.find(c=>c.x===x&&c.y===y):null,site=!station&&!industry&&!city?buildingAt(game,x,y):null;
+ if(station){if(names&&layerOn('stations'))return null;const m=renderer.stationMarker(station);return {text:station.name,x:m.x+m.size/2,y:m.y-4};}
+ if(industry){if(names)return null;const m=renderer.industryMarker(industry);return {text:industry.name||INDUSTRIES[industry.kind].name,x:m.x,y:m.y-m.size/2-4};}
+ if(city){if(renderer.cityLabels().some(label=>label.id===city.id))return null;const p=renderer.worldToScreen(city.x,city.y);return {text:city.name,x:p.x,y:p.y-24*zoom};}
+ if(site){const top=renderer.gridPointToScreen(site.x,site.y);return {text:BUILDINGS[site.building.kind]?.name||'Workshop',x:top.x,y:top.y-40*zoom};}
+ return null;
+}
+function placeSelectionTag(tag) {
+ let el=overlays.querySelector('.map-tag');
+ if(!tag||tag.x<bandBox.left||tag.x>bandBox.right||tag.y<bandBox.top||tag.y>bandBox.bottom){el?.remove();return;}
+ if(!el){el=document.createElement('span');el.className='map-tag';overlays.append(el);}
+ if(el.textContent!==tag.text)el.textContent=tag.text;
+ el.style.transform=`translate(${Math.round(tag.x-el.offsetWidth/2)}px,${Math.round(tag.y-el.offsetHeight)}px)`;
+}
+// The inspector's Back line (12.5) and its focus return: Esc or × gives focus back to the reference that opened it, or to the
+// map when focus was inside it.
+const inspectorPlace=()=>({x:selected?.x,y:selected?.y,kind:selected?.kind||'',vehicle:selectedVehicle,scroll:$('#inspector').scrollTop,name:selectedVehicle?resolveRef(game,`vehicle:${selectedVehicle}`).label:$('#inspector-title')?.textContent||'',source:inspectorSource});
+function inspectorBackLine() { const back=inspectorTrail.at(-1);return back?`<button type="button" class="inspector-back" data-inspector-back>${uiIcon('chevronLeft',{size:16})}<span>Back to ${escapeHTML(back.name)}</span></button>`:''; }
+// A new place in the inspector: from a reference inside it, the place it showed joins the trail; Back keeps the trail; anything else starts afresh.
+function trackInspector({from=null,source=null,back=null}={}) { if(back){inspectorSource=back.source;return;}inspectorTrail=from?[...inspectorTrail,from].slice(-8):[];inspectorSource=source; }
+function inspectorBack() {
+ const back=inspectorTrail.pop(),box=$('#inspector');if(!back)return false;
+ if(back.vehicle&&game.vehicles.some(v=>v.id===back.vehicle))inspectVehicle(back.vehicle,false,{back});else if(back.x!==undefined&&!back.vehicle)inspect(back.x,back.y,back.kind,'',{back});else return inspectorBack();
+ box.scrollTop=back.scroll;($('#inspector [data-inspector-back]')||$('#inspector-title'))?.focus({preventScroll:true});
+ return true;
+}
+function inspectorClosed(inside) {
+ const source=inspectorSource;inspectorTrail=[];inspectorSource=null;
+ if(source?.isConnected&&!source.closest('[inert],[hidden],#map-overlays')&&source.getClientRects().length)source.focus({preventScroll:true});else if(inside)canvas.focus({preventScroll:true});
+}
+function closeInspector() { const box=$('#inspector'),inside=box.contains(document.activeElement);box.hidden=true;selected=null;inspectorHTML='';if(selectedVehicle)clearVehicle();inspectorClosed(inside); }
+// The stop, industry or town centre on a map tile, for linkFromMap.
+function mapRefAt({x,y}) {
+ const station=stationAt(game,x,y),industry=station?null:game.industries.find(i=>industryContains(i,x,y)),city=station||industry?null:game.cities.find(c=>c.x===x&&c.y===y);
+ return station?`stop:${station.id}`:industry?`industry:${industry.id}`:city?`town:${city.id}`:null;
+}
+let linkedTile=null,references=null;
+function initReferences() {
+ references=installReferences({getGame:()=>game,view:refView,onOpen:revealRef,onCargo:cargo=>setCargoLens(cargo,'chains')});
+ const resize=new ResizeObserver(queueBand),attributes=new MutationObserver(queueBand);
+ for(const el of [mapSection,$('.sidebar'),$('#inspector')]){resize.observe(el);if(el!==mapSection)attributes.observe(el,{attributes:true,attributeFilter:['class','hidden']});}
+ $('.sidebar').addEventListener('transitionend',queueBand);
+ $('#inspector').addEventListener('click',e=>{if(e.target.closest('[data-inspector-back]'))inspectorBack();else if(e.target.closest('.tiny-button')&&$('#inspector').hidden)inspectorClosed(true);});
+ overlays.addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();}); // overlay buttons act without taking focus
+ // Map hover lights the hovered place's rows and references in open panels (7.4), once for each tile the pointer handler
+ // picks (it keeps one hover object per tile); nothing scrolls.
+ canvas.addEventListener('pointermove',e=>{const at=e.pointerType!=='touch'&&!pointer&&!touchGesture&&tool==='inspect'?hover:null;if(at===linkedTile)return;linkedTile=at;linkFromMap(at&&mapRefAt(at));});
+ canvas.addEventListener('pointerleave',()=>{linkedTile=null;linkFromMap(null);});
+ syncBand();
 }
 function refreshRouteList() {
  const list=$('#route-list');if(!list)return;const routes=filterRoutes(game,routeFilters);
@@ -784,7 +938,7 @@ function pickRouteStopAt(x,y) {
  if(routePicking==='from'&&String(station.id)===String(formDraft.to))formDraft.to='';
  formDraft[routePicking]=String(station.id);
  if(routePicking==='from'&&!formDraft.to){routePicking='to';renderPanel();showRoutePickHint();}
- else{cancelRoutePicking();setView('routes');$('#route-form [type=submit]')?.scrollIntoView({block:'nearest',behavior:'smooth'});const plan=draftPlan();$('#status-message').textContent=plan.message;}
+ else{cancelRoutePicking();setView('routes');scrollIntoViewSafe($('#route-form [type=submit]'),{block:'nearest'});const plan=draftPlan();$('#status-message').textContent=plan.message;}
  return true;
 }
 // A cargo lens lights the producers and buyers of one freight cargo on the map, minimap and atlas; it is view state and never saved.
@@ -849,7 +1003,7 @@ function entitySorter() {
 function townsPanel() { return `<div class="panel-heading"><h2>Towns</h2><span>${game.cities.length}</span></div><div class="entity-filters">${entitySearch('Find a town')}${entitySorter()}</div><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-tool="city">${icon('city')} Found town · ${compactMoney(priceFor(game,BUILD_COSTS.city))}</button><button class="text-button" data-action="development">Zone a neighborhood <span>↗</span></button>`; }
 function industryPanel() { return `<div class="panel-heading"><h2>Industries</h2><span>${game.industries.length} sites</span></div><div class="entity-filters">${entitySearch('Find a site or cargo')}${entitySorter()}</div><label class="entity-search"><span class="sr-only">Industry type</span><select id="industry-kind" aria-label="Industry type"><option value="all">All industries</option>${Object.entries(INDUSTRIES).filter(([,def])=>def.biomes.includes(game.biome)).map(([key,def])=>`<option value="${key}" ${entityFilters.kind===key?'selected':''}>${escapeHTML(def.name)}</option>`).join('')}</select></label><div id="entity-list">${entityCards()}</div><div class="section-divider"></div><button class="button button-primary full" data-action="industry-build">${icon('factory')} Build industry</button><button class="text-button" data-action="chains">Production chains <span>↗</span></button>`; }
 function bindEntityCards(root) {
- root.querySelectorAll('[data-city]').forEach(el=>el.addEventListener('click',e=>{const city=game.cities.find(c=>String(c.id)===el.dataset.city);setTool('inspect');renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',e.detail===0?'keyboard':'');closeMobile();}));
+ root.querySelectorAll('[data-city]').forEach(el=>el.addEventListener('click',e=>{const city=game.cities.find(c=>String(c.id)===el.dataset.city);setTool('inspect');inspect(city.x,city.y,'city',e.detail===0?'keyboard':'');closeMobile();glideCamera({x0:city.x,y0:city.y,x1:city.x,y1:city.y},{ref:`town:${city.id}`});}));
  root.querySelectorAll('[data-industry]').forEach(el=>el.addEventListener('click',e=>locateIndustry(el.dataset.industry,e.detail===0?'keyboard':'')));
  // A pointer page turn lets focus go with the old buttons, so the periodic refresh keeps running; a keyboard one keeps its place.
  root.querySelectorAll('[data-entity-page]').forEach(button=>button.addEventListener('click',e=>{
@@ -893,7 +1047,7 @@ function renderPanel() {
  if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;routePage=0;refreshRouteList();});
  for(const key of ['mode','status','cargo'])if($(`#route-filter-${key}`))$(`#route-filter-${key}`).addEventListener('change',e=>{routeFilters[key]=e.target.value;routePage=0;refreshRouteList();});
  if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();};
- if($('#new-route-button'))$('#new-route-button').onclick=()=>{if(formDraft.editing){cancelRoutePicking();leaveRouteEdit(true);renderPanel();}formDraft.open=true;$('#route-planner').open=true;$('#route-planner').scrollIntoView({block:'start',behavior:'smooth'});$('#route-form [name=name]').focus({preventScroll:true});};
+ if($('#new-route-button'))$('#new-route-button').onclick=()=>{if(formDraft.editing){cancelRoutePicking();leaveRouteEdit(true);renderPanel();}formDraft.open=true;$('#route-planner').open=true;scrollIntoViewSafe($('#route-planner'),{block:'start'});$('#route-form [name=name]').focus({preventScroll:true});};
  const planner=panel.querySelector('#route-planner');if(planner){planner.querySelector('summary').onclick=()=>{formDraft.open=!planner.open;};planner.addEventListener('toggle',()=>{if(planner.isConnected)formDraft.open=planner.open;});}
  panel.querySelector('.forecast-details')?.addEventListener('toggle',e=>{try{localStorage.setItem('transport-forecast-details',e.currentTarget.open?'open':'closed');}catch{}});
  // The checkbox has no name, so the form's own listeners pass it by; the draft keeps it after a launch, like the stops.
@@ -1194,12 +1348,12 @@ $('#inspector').addEventListener('focusout',()=>pickContext(hoveredTarget()));
 function locateIndustry(id,origin='') {
  const industry=game.industries.find(i=>String(i.id)===String(id));
  if(!industry)return;
- setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(industry.x+(industrySize(industry)-1)/2,industry.y+(industrySize(industry)-1)/2);inspect(industry.x,industry.y,'industry',origin);updateHud();
+ setTool('inspect');closeModal();closeMobile();inspect(industry.x,industry.y,'industry',origin);glideCamera(resolveRef(game,`industry:${industry.id}`).frame,{zoom:1,ref:`industry:${industry.id}`});updateHud();
 }
 function locateDestination(id,kind,origin='') {
  if(kind==='industry'){locateIndustry(id,origin);return;}
  const city=game.cities.find(c=>String(c.id)===String(id));if(!city)return;
- setTool('inspect');closeModal();closeMobile();renderer.setZoom(1);renderer.focus(city.x,city.y);inspect(city.x,city.y,'city',origin);updateHud();
+ setTool('inspect');closeModal();closeMobile();inspect(city.x,city.y,'city',origin);glideCamera(resolveRef(game,`town:${city.id}`).frame,{zoom:1,ref:`town:${city.id}`});updateHud();
 }
 // Inspectors name the stops and routes that serve a place; their buttons pre-fill the planner and pick any open end on the map.
 const nameList = (names,max=3) => names.length>max?`${names.slice(0,max).join(', ')} and ${names.length-max} more`:names.length>1?`${names.slice(0,-1).join(', ')} and ${names.at(-1)}`:names[0]||'';
@@ -1211,7 +1365,7 @@ function servingStops(site) {
 }
 function planRoute(draft,pick='') {
  formDraft={...formDraft,name:'',autoNote:'',open:true,editing:'',...formDraft.editing&&{fullLoad:false,optionsOpen:false},...draft};setView('routes');
- if(pick)beginRoutePicking(pick);else $('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});
+ if(pick)beginRoutePicking(pick);else scrollIntoViewSafe($('#route-form'),{block:'nearest'});
 }
 function stationCargoNotes(station) {
  const coverage=stationCoverage(game,station),names=[...coverage.cities.map(city=>city.name),...coverage.industries.map(site=>site.name||INDUSTRIES[site.kind].name)];
@@ -1271,12 +1425,13 @@ function retapsSheet(x,y) {
 }
 // The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
 let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
-function inspect(x,y,kind='',origin='') {
+function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
  if(selectedVehicle)clearVehicle();
  const site=kind!=='city'?buildingAt(game,x,y):null;if(site){x=site.x;y=site.y;}
  const airport=kind!=='city'&&!site?stationAt(game,x,y):null;if(airport?.mode==='air'){x=airport.x;y=airport.y;}
  const terrainSite=kind!=='city'&&!site?terrainObjectAt(game,x,y):null,nature=terrainSite?.object.kind==='mountain'?null:terrainSite;if(nature){x=nature.x;y=nature.y;}
  const tile=tileAt(x,y);if(!tile)return;const changed=!selected||selected.x!==x||selected.y!==y||selected.kind!==kind;selected={x,y,kind};
+ if(changed||back)trackInspector({from,source,back});
  const station=stationAt(game,x,y),industry=game.industries.find(i=>industryContains(i,x,y)), city=game.cities.find(c=>c.x===x&&c.y===y)||game.cities.find(c=>Math.hypot(c.x-x,c.y-y)<4&&tile.building);
  let title,tag,body;
  if(station&&kind!=='city'&&kind!=='industry'){const air=station.mode==='air';title=station.name;tag=air?'Airport, 6 × 2 site':stopName(station.mode).replace(/^./,c=>c.toUpperCase());body=`${infrastructurePortrait(air?'airport':station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art')}<div class="inspector-grid">${air?`<div><small>Runway</small><strong>${station.axis==='y'?'North–south':'East–west'}</strong></div><div><small>Coverage</small><strong>${AIRPORT_REACH} tiles</strong></div>`:`<div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>5 tiles</strong></div>`}</div>${stationCargoNotes(station)}${air?`<p class="micro-note">Planes fly straight to any airport at least ${AIRPORT_MIN_TILES} tiles away. No track needed.</p>`:''}${stationServices(station)}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
@@ -1287,13 +1442,13 @@ function inspect(x,y,kind='',origin='') {
  else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y),town=townOf(game,x,y),share=`Development ${Math.round((zone?.progress||0)/3*100)}%.`;body+=`<p>${fundedTown(town,game.day)?`${share} Funded until ${dateLong(town.fundedUntil)}. Road access required.`:`${share} Road access and regular town deliveries required.`}${town&&!tile.building?' Your plot: it earns ground rent once built up.':''}</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
- const box=$('#inspector'),html=`${sheetGrabber}<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
+ const box=$('#inspector'),html=`${sheetGrabber}${inspectorBackLine()}<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}`,key=`${worldSerial}|${x},${y},${kind}`;
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
  if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}
  box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();box.querySelector('.tiny-button').onclick=()=>{box.hidden=true;selected=null;inspectorHTML='';};
  if(changed)sheetExpanded=false;syncSheet(box);
  if(changed&&matchMedia(SHEET_MEDIA).matches)keepAboveSheet(box,industry?.x??x,industry?.y??y,industry?industrySize(industry):site?buildingSize(site.building):nature?terrainObjectSize(nature.object):1);
- if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');$('#route-form')?.scrollIntoView({block:'nearest',behavior:'smooth'});};
+ if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes');scrollIntoViewSafe($('#route-form'),{block:'nearest'});};
  if($('#expand-workshop'))$('#expand-workshop').onclick=()=>{const result=expandWorkshop(game,x,y);toast(result.message,!result.ok);if(!result.ok)return;updateHud();persist();invalidateScene();inspect(x,y,kind,'keyboard');};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  const opinionFold=box.querySelector('.town-opinion');if(opinionFold)opinionFold.ontoggle=()=>{townOpinionOpen=opinionFold.open;};
@@ -1311,8 +1466,9 @@ function inspect(x,y,kind='',origin='') {
 // A carrier's card names its service and trip; the map rings the carrier instead of a tile.
 // Load, trip and Follow update in place, so a live refresh never replaces a pressed control.
 let selectedVehicle=null,follow=null;
-function clearVehicle() { selectedVehicle=null;follow=null;invalidateScene(); }
-function stopFollow() { follow=null;$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','false'); }
+// Follow opens with a glide to its carrier (vehicleAction); ending Follow before it lands stops the camera where it is.
+function clearVehicle() { if(follow&&follow.cx===undefined)renderer.glideTo(null);selectedVehicle=null;follow=null;invalidateScene(); }
+function stopFollow() { if(follow&&follow.cx===undefined)renderer.glideTo(null);follow=null;$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','false'); }
 // On a phone the card covers the map's centre, so a followed carrier rides in the open map above it (screen pixels).
 function followLift() { const card=$('#inspector').getBoundingClientRect(),map=canvas.getBoundingClientRect(),x=map.left+map.width/2,y=map.top+map.height/2;return card.left<x&&card.right>x&&card.top<y+40?Math.max(0,y-(map.top+card.top)/2):0; }
 // A plane flies the straight chord of its saved staircase, and on the ground says where it is on its visit.
@@ -1324,13 +1480,14 @@ function planeVisit(route,vehicle) {
 }
 // A vehicle in a full-load line stands at the stop where it loads.
 function fullLoadWait(route,vehicle) { if(!waitingForFullLoad(vehicle))return '';const here=game.stations.find(s=>s.id===route.stops[0]);return `Waiting for a full load at ${here?.name||'a removed stop'}, ${integer(vehicle.load)} of ${integer(vehicle.capacity)}`; }
-function inspectVehicle(id,refresh=false) {
+function inspectVehicle(id,refresh=false,{from=null,source=null,back=null}={}) {
  const box=$('#inspector'),vehicle=game.vehicles.find(v=>v.id===id),route=vehicle&&game.routes.find(r=>r.id===vehicle.routeId);
  if(!route){if(selectedVehicle===id){clearVehicle();box.hidden=true;inspectorHTML='';}return;}
+ if(box.hidden||inspectorKey!==`${worldSerial}|vehicle:${id}`||back)trackInspector({from,source,back});
  if(selectedVehicle!==id){follow=null;selectedVehicle=id;invalidateScene();}selected=null;
  const order=fleetOrder(route),model=vehicleModel(route.mode,route.cargo,vehicle.level),health=routeHealth(game,route,getRouteFleet(game,route.id)),ahead=(vehicle.direction||1)>0,stop=game.stations.find(s=>s.id===route.stops[ahead?1:0]),tiles=Math.max(0,Math.ceil((ahead?route.path.length-1-(vehicle.progress||0):vehicle.progress||0)*chordShare(route)-1e-6));
  const load=`${integer(vehicle.load)} / ${integer(vehicle.capacity)}`,trip=planeVisit(route,vehicle)||fullLoadWait(route,vehicle)||`Heading to ${stop?.name||'a removed stop'} · ${tiles===1?'1 tile':integer(tiles)+' tiles'}`;
- const html=`${sheetGrabber}<div class="inspector-top"><span class="eyebrow">${escapeHTML(`${model.name} ${model.noun}`)}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(route.name)}</h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong><small data-vehicle-live="aboard"></small></span><p class="vehicle-age">${model.year} model, ${ageText(vehicleAge(calendarYear(game),vehicle.level))}</p><p data-vehicle-live="trip"></p></div></div><div class="industry-condition" data-state="${health.state}"><strong>${escapeHTML(health.label)}</strong><p>${escapeHTML(health.detail)}</p></div><div class="vehicle-actions"><button class="small-button" data-vehicle-action="follow" aria-pressed="false">${icon('focus')}Follow</button><button class="small-button" data-vehicle-action="show">${icon('route')}Show route</button><button class="small-button" data-vehicle-action="routes">Open in Routes</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div>`,key=`${worldSerial}|vehicle:${id}`;
+ const html=`${sheetGrabber}${inspectorBackLine()}<div class="inspector-top"><span class="eyebrow">${escapeHTML(`${model.name} ${model.noun}`)}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(route.name)}</h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong><small data-vehicle-live="aboard"></small></span><p class="vehicle-age">${model.year} model, ${ageText(vehicleAge(calendarYear(game),vehicle.level))}</p><p data-vehicle-live="trip"></p></div></div><div class="industry-condition" data-state="${health.state}"><strong>${escapeHTML(health.label)}</strong><p>${escapeHTML(health.detail)}</p></div><div class="vehicle-actions"><button class="small-button" data-vehicle-action="follow" aria-pressed="false">${icon('focus')}Follow</button><button class="small-button" data-vehicle-action="show">${icon('route')}Show route</button><button class="small-button" data-vehicle-action="routes">Open in Routes</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div>`,key=`${worldSerial}|vehicle:${id}`;
  const same=!box.hidden&&key===inspectorKey,hold=refresh&&(box.contains(document.activeElement)||panelPress||performance.now()-panelReleasedAt<=250);
  if(!same||html!==inspectorHTML&&!hold){
   box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);if(!same){box.scrollTop=0;sheetExpanded=false;}
@@ -1346,7 +1503,7 @@ function inspectVehicle(id,refresh=false) {
 function vehicleAction(action,id) {
  const vehicle=game.vehicles.find(v=>v.id===id),route=vehicle&&game.routes.find(r=>r.id===vehicle.routeId);if(!route)return;
  // Follow never changes the game speed; at 8× it steps Detail out to Town, which keeps up with the carrier.
- if(action==='follow'){if(follow){stopFollow();return;}follow={id,vehicle};$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','true');if(speed>=8&&renderer.getCamera().zoom>1){renderer.setZoom(1);updateHud();}return;}
+ if(action==='follow'){if(follow){stopFollow();return;}const q=renderer.vehicleWorldPoint(vehicle);follow={id,vehicle,frame:{x0:q.x,y0:q.y,x1:q.x,y1:q.y,cx:q.x,cy:q.y}};$('#inspector [data-vehicle-action="follow"]')?.setAttribute('aria-pressed','true');glideCamera(follow.frame,{zoom:speed>=8&&renderer.getCamera().zoom>1?1:undefined,offset:{x:0,y:-followLift()}});updateHud();return;}
  if(action==='show'){showRoute(route.id);return;}
  if(action==='routes'){if(!filterRoutes(game,routeFilters).some(r=>r.id===route.id))routeFilters={query:'',mode:'all',status:'all',cargo:'all'};setView('routes');flashRoute(route.id);return;}
  const focused=document.activeElement?.dataset?.vehicleAction==='add';changeFleet(route.id,true);inspectVehicle(id);
@@ -1423,6 +1580,7 @@ function activateGame(next) {
  undoStack=[];
  cancelRoutePicking();cancelGesture();closeMapMenus();
  game=next;worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
+ hideBack();references?.clear();refShown={ref:null,until:0};inspectorTrail=[];inspectorSource=null; // rings, the back chip and the Back line belong to the old world
  view='build';category='network';buildingGroup='homes';chainSelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',fullLoad:false,optionsOpen:false};
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
@@ -1643,7 +1801,7 @@ function noticeTargetExists(target) { return Boolean(target)&&(target.kind==='ro
 function showNoticeTarget(target) {
  if(!noticeTargetExists(target))return;
  if(target.kind!=='route'){locateDestination(target.id,target.kind);return;}
- closeModal();
+ closeModal();showRoute(target.id);
  if(!filterRoutes(game,routeFilters).some(route=>String(route.id)===target.id))routeFilters={query:'',mode:'all',status:'all',cargo:'all'};
  routePage=Math.max(0,Math.floor(filterRoutes(game,routeFilters).findIndex(route=>String(route.id)===target.id)/ROUTES_PER_PAGE));setView('routes');
  const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===target.id);revealInPanel(card,card?.querySelector('[data-focus-route]'));
@@ -2136,7 +2294,17 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();spaceConsumed=true;if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
  }
  if(e.repeat)return;const key=e.key.toLowerCase();
- if(key==='escape'){if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}if(tool==='inspect')setCargoLens(null);setTool('inspect');closeMobile();return;}
+ // Esc steps back one level at a time (DESIGN.md 10.5): an open popover or menu (the zoom menu, map options and layers close
+ // above), a stroke, the tool or a planned connection, the inspector (to its Back target first), the drawer; with nothing left
+ // open it clears the cargo lens.
+ if(key==='escape'){
+  if($('#game-menu')&&!$('#game-menu').hidden){compactUI?.closeMenu(true);return;}
+  if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}
+  if(tool!=='inspect'||connectionPlan){setTool('inspect');return;}
+  if(!$('#inspector').hidden){if(!inspectorBack())closeInspector();return;}
+  if($('.sidebar').classList.contains('mobile-open')){const inside=$('.sidebar').contains(document.activeElement);if(compactUI)compactUI.closeManagement(inside);else closeMobile();dropCargoLens('routes','industry');return;}
+  setCargoLens(null);return;
+ }
  // Physical keys keep brackets and digits reachable on QWERTZ and AZERTY layouts; a printed + still zooms.
  const rail=preferredMode==='rail',keys={r:'road',t:'rail',s:'stop',p:'port',a:'airport',b:rail?'railbridge':'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'},codes={KeyE:'level',BracketLeft:'lower',BracketRight:key==='+'?null:'raise',KeyN:rail?'railtunnel':'tunnel',Digit1:'residential',Digit2:'commercial',Digit3:'industrial'},next=keys[key]||codes[e.code];
  // A again turns the runway; before 1952 it only says when air travel arrives.
@@ -2159,6 +2327,7 @@ document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();if
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name))});
 compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onAchievements:openAchievements,onView:setView,getView:()=>view,onCancelGesture:cancelGesture,onMinimapOpen:()=>{renderer.drawMinimap($('#minimap'));invalidateScene();}});
+initReferences();
 // Closing the drawer yourself ends a lens set by Routes or Industries; locating a site or picking a stop closes it and keeps the lens.
 for(const el of [$('#close-management'),mobileToggle,...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('mobile-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
@@ -2200,19 +2369,22 @@ function frame(now){
  const floaterPaint=floaters.length>0;if(floaterPaint)floaters=floaters.filter(f=>now-f.born<1600).slice(-24);
  // Follow centres its carrier until the card closes, a tool is chosen or anything else moves the map.
  if(selectedVehicle&&$('#inspector').hidden)clearVehicle();
- if(follow){const at=renderer.getCamera(),v=follow.vehicle;if(follow.id!==selectedVehicle||tool!=='inspect'||follow.cx!==undefined&&Math.hypot(at.x-follow.cx,at.y-follow.cy)>2)stopFollow();else{const q=renderer.vehicleWorldPoint(v);if(!(Math.abs(q.x-follow.x)<=.01&&Math.abs(q.y-follow.y)<=.01)){const lift=followLift();renderer.focus(q.x,q.y);if(lift)renderer.pan(0,-lift);const next=renderer.getCamera();Object.assign(follow,{x:q.x,y:q.y,cx:next.x,cy:next.y});}}}
+ // A glide moves the camera first (stepCamera): Follow's own glide chases its carrier, and any other ends Follow once it lands.
+ if(follow?.frame&&follow.cx===undefined){const q=renderer.vehicleWorldPoint(follow.vehicle);follow.frame.cx=q.x;follow.frame.cy=q.y;}const moving=renderer.stepCamera(now);
+ if(follow&&!moving){const at=renderer.getCamera(),v=follow.vehicle;if(follow.id!==selectedVehicle||tool!=='inspect'||follow.cx!==undefined&&Math.hypot(at.x-follow.cx,at.y-follow.cy)>2)stopFollow();else{const q=renderer.vehicleWorldPoint(v);if(!(Math.abs(q.x-follow.x)<=.01&&Math.abs(q.y-follow.y)<=.01)){const lift=followLift();renderer.focus(q.x,q.y);if(lift)renderer.pan(0,-lift);const next=renderer.getCamera();Object.assign(follow,{x:q.x,y:q.y,cx:next.x,cy:next.y});}}}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  // An aimed tile keeps hover and its tip through pans and pinches; a new stop's reach ring lets go after 1.5 s.
  if(reachFlash&&(reachFlash.until<now||selected!==reachFlash)){if(selected===reachFlash)selected=null;reachFlash=null;}
  const aim=liveAim();if(touchAim&&!aim){if(hover===touchAim.at)hover=null;touchAim=null;}
  else if(aim){hover=aim.at;const key=`${camera.x},${camera.y},${camera.zoom},${camera.height},${w},${h},${game.revision}`;if(!$('.sidebar').classList.contains('mobile-open')&&(aim.key!==key||$('#placement-tip').hidden)){aim.key=key;updatePlacementTip();}}
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
- const outlines=propertyOutlines();
- const changed=!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute||painted.outlines!==outlines;
+ const outlines=propertyOutlines(),hoverRef=refView.hoverRef||(refShown.until>now?refShown.ref:null);
+ const changed=moving||painted?.hoverRef!==hoverRef||!painted||painted.game!==game||painted.day!==game.day||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute||painted.outlines!==outlines;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),floaters,highlightRoute,selectedVehicleId:selectedVehicle,context:contextView(),propertyOutlines:outlines,...connectionView()});
-  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute,outlines};
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),floaters,highlightRoute,hoverRef,selectedVehicleId:selectedVehicle,context:contextView(),propertyOutlines:outlines,...connectionView()});
+  painted={game,day:game.day,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute,outlines,hoverRef};
  }
+ syncOverlays(hoverRef);
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
   updateHud();hudAt=now;hudState={game,day:game.day,revision:game.revision,money:game.money,zoom:camera.zoom,w,view};
   const fresh=collectNotices(game.notifications,lastNoticeId);lastNoticeId=game.notifications[0]?.id;for(const entry of groupNotices(fresh))if(entry.topic!=='credit'||creditToast(entry,game.history))noticeQueue.push({...entry,type:toastType(entry.type),...entry.topic==='credit'?{action:{label:'Loan',run:()=>openCompany('loan')}}:{}});watchHeadlines();watchRoutes();

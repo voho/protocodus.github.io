@@ -729,9 +729,13 @@ try {
   await page.locator(`[data-chain-locate="${steel.id}"]`).click();
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Locate returns to the live map');
   assert.equal(await page.locator('#inspector h3').textContent(), steel.name, 'Locate inspects the selected site');
-  const camera = await page.evaluate(() => transport.renderer.getCamera());
-  const middle = (steel.footprint || 1) / 2;
-  assert.ok(Math.abs(camera.x - (steel.x + middle) * 32) < 1 && Math.abs(camera.y - (steel.y + middle) * 32) < 1, 'Locate centers the actual instance');
+  // Locate glides or cuts to the site and frames it in the visible band, the map right of the inspector (DESIGN.md 10.2).
+  await page.waitForFunction(() => !transport.renderer.getStats().gliding);
+  const centred = await page.evaluate(steel => {
+    const middle = (steel.footprint || 1) / 2, p = transport.renderer.worldToScreen(steel.x + middle - .5, steel.y + middle - .5), map = document.querySelector('.map-section'), s = getComputedStyle(map), band = side => parseFloat(s.getPropertyValue(`--band-${side}`)) || 0;
+    return { dx: p.x - (band('l') + map.clientWidth - band('r')) / 2, dy: p.y - (band('t') + map.clientHeight - band('b')) / 2 };
+  }, steel);
+  assert.ok(Math.abs(centred.dx) < 2 && Math.abs(centred.dy) < 2, `Locate centers the actual instance in the visible band: ${JSON.stringify(centred)}`);
 
   const expectedSteelTargets = await page.evaluate(steel => {
     return transport.game.industries.filter(industry => ['machine-works', 'furniture-factory'].includes(industry.kind))
@@ -820,9 +824,12 @@ try {
   const first = page.locator('#entity-list [data-industry]').first(), listed = { id: await first.getAttribute('data-industry'), name: await first.locator('h3').textContent(), place: await first.locator('.entity-place').textContent() };
   await first.click();
   assert.equal(await page.locator('#inspector h3').textContent(), listed.name, 'a card locates and inspects its site');
+  await page.waitForFunction(() => !transport.renderer.getStats().gliding);
   const located = await page.evaluate(async () => {
-    const { industrySize } = await import('./industry-sites.js'), game = transport.game, camera = transport.renderer.getCamera(), x = camera.x / 32 - .5, y = camera.y / 32 - .5;
-    const site = game.industries.find(industry => x >= industry.x && y >= industry.y && x <= industry.x + industrySize(industry) - 1 && y <= industry.y + industrySize(industry) - 1);
+    // The site under the middle of the visible band, the map right of the inspector.
+    const { industrySize } = await import('./industry-sites.js'), game = transport.game, map = document.querySelector('.map-section'), s = getComputedStyle(map), band = side => parseFloat(s.getPropertyValue(`--band-${side}`)) || 0, r = map.getBoundingClientRect();
+    const at = transport.renderer.screenToTile(r.left + (band('l') + map.clientWidth - band('r')) / 2, r.top + (band('t') + map.clientHeight - band('b')) / 2);
+    const site = game.industries.find(industry => at.x >= industry.x && at.y >= industry.y && at.x <= industry.x + industrySize(industry) - 1 && at.y <= industry.y + industrySize(industry) - 1), x = site.x + (industrySize(site) - 1) / 2, y = site.y + (industrySize(site) - 1) / 2;
     return { id: site.id, town: game.cities.reduce((best, city) => !best || Math.hypot(city.x - x, city.y - y) < Math.hypot(best.x - x, best.y - y) ? city : best, null).name };
   });
   assert.equal(located.id, listed.id, 'the camera centres the listed site');
@@ -1004,6 +1011,7 @@ try {
   // Show frames the whole starter route, then lights it for a few seconds.
   const starter = await page.evaluate(() => transport.game.routes[0].id);
   await page.locator(`[data-focus-route="${starter}"]`).click();
+  await page.waitForFunction(() => !transport.renderer.getStats().gliding);
   assert.equal(await page.evaluate(id => {
     const route = transport.game.routes.find(route => route.id === id), rect = document.querySelector('#world').getBoundingClientRect();
     return route.stops.every(stop => { const station = transport.game.stations.find(station => station.id === stop), p = transport.renderer.worldToScreen(station.x, station.y); return p.x > 0 && p.y > 0 && p.x < rect.width && p.y < rect.height; });

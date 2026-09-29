@@ -5,6 +5,7 @@ import { states as routes } from './routes.mjs';
 import { states as places } from './places.mjs';
 import { states as notices } from './notices.mjs';
 import { states as dialogs } from './dialogs.mjs';
+import { states as refs } from './refs.mjs';
 
-export const surfaces = { hud, build, routes, places, notices, dialogs };
+export const surfaces = { hud, build, routes, places, notices, dialogs, refs };
 export const states = Object.entries(surfaces).flatMap(([surface, list]) => list.map(state => ({ ...state, surface })));

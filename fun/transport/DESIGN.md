@@ -744,6 +744,8 @@ Ambient income never animates in the DOM; the canvas floaters show it. The `.inc
   2. Popover or menu.
   3. Inspector (to its Back target, if there is one).
   4. Drawer.
+
+  A popover or menu that is open closes before the tool. It sits on top and holds focus, and a tool ended under an open menu would leave the menu in place. With nothing left open, Esc clears the cargo lens.
 - Closing any panel returns focus to where it was opened from, or to the canvas if that is gone.
 - Opening a reference from a toast doesn't dismiss the other toasts.
 - On phones, the inspector sheet replaces the routes sheet, and Back returns to it at the same scroll.
@@ -1082,7 +1084,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Toasts:** at the bottom above the tab bar. While a sheet is open they move to the top of the band. Their actions are icon-only, with an `aria-label`.
 - **Zoom:** pinch, plus 44 px + and − buttons stacked at the bottom right above the tab bar. The buttons hide while a sheet is open. Layers and Overview map live in the menu.
 - **Touch:**
-  - Every target is at least 44 × 44. References in prose get a 44 px hit area through padding, not bigger type.
+  - Every target is at least 44 × 44. References in prose get a 44 px hit area through an invisible layer under their text, not bigger type. (Padding would let a reference on the next line take taps meant for the one above it.)
   - Long-press previews references.
   - No information is available only on hover: the ledger opens on tap.
 - **Narrow** (360 px or narrower):

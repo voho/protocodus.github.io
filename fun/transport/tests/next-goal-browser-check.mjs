@@ -49,7 +49,8 @@ try {
   await page.locator('[data-goal-step="0"]').click();
   assert.equal(await page.locator('#active-tool-bar').isVisible(), true);
   assert.equal(await page.locator('#active-tool-name').textContent(), 'Road', 'no road reaches the quarry yet');
-  const framed = await page.evaluate(({ x, y }) => { const p = transport.renderer.worldToScreen(x + .5, y + .5), c = document.querySelector('#world'); return p.x > 0 && p.y > 0 && p.x < c.clientWidth && p.y < c.clientHeight; }, quarry);
+  await page.waitForFunction(() => !transport.renderer.getStats().gliding); // the camera glides to the pair (DESIGN.md 10.2)
+  const framed =await page.evaluate(({ x, y }) => { const p = transport.renderer.worldToScreen(x + .5, y + .5), c = document.querySelector('#world'); return p.x > 0 && p.y > 0 && p.x < c.clientWidth && p.y < c.clientHeight; }, quarry);
   assert.equal(framed, true, 'the quarry is on screen');
   await page.keyboard.press('Escape');
 
