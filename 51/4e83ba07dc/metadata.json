@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "514e83ba07dc",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/index.html",
+    "fun/transport/model.js",
+    "fun/transport/renderer.js",
+    "fun/transport/route-lines.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/large-sites-renderer-check.mjs",
+    "fun/transport/tests/route-lines.test.mjs",
+    "fun/transport/tests/route-planner.test.mjs",
+    "fun/transport/tests/save.test.mjs",
+    "fun/transport/tests/terrain-objects-renderer-check.mjs",
+    "fun/transport/tests/ui-lint-baseline.json",
+    "fun/transport/tools/route-stress.mjs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/51/4e83ba07dc/0/metadata.json",
+      "transcript": "/51/4e83ba07dc/0/full.jsonl",
+      "context": "/51/4e83ba07dc/0/context.md",
+      "content_hash": "/51/4e83ba07dc/0/content_hash.txt",
+      "prompt": "/51/4e83ba07dc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
