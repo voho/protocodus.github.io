@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "35b4b46647d3",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/DESIGN.md",
+    "fun/transport/README.md",
+    "fun/transport/construction-plan.js",
+    "fun/transport/construction-undo.js",
+    "fun/transport/copy.js",
+    "fun/transport/gameplay-insights.js",
+    "fun/transport/index.html",
+    "fun/transport/industry-simulation.js",
+    "fun/transport/milestones.js",
+    "fun/transport/model.js",
+    "fun/transport/route-planner.js",
+    "fun/transport/save-slots.js",
+    "fun/transport/terrain-engineering.js",
+    "fun/transport/tests/cohesion-browser-check.mjs",
+    "fun/transport/tests/construction-plan.test.mjs",
+    "fun/transport/tests/construction-undo.test.mjs",
+    "fun/transport/tests/controls-browser-check.mjs",
+    "fun/transport/tests/copy.test.mjs",
+    "fun/transport/tests/economy.test.mjs",
+    "fun/transport/tests/features-browser-check.mjs",
+    "fun/transport/tests/gameplay-insights.test.mjs",
+    "fun/transport/tests/industry-sites.test.mjs",
+    "fun/transport/tests/infrastructure.test.mjs",
+    "fun/transport/tests/milestones-browser-check.mjs",
+    "fun/transport/tests/milestones.test.mjs",
+    "fun/transport/tests/network-slopes.test.mjs",
+    "fun/transport/tests/notices-browser-check.mjs",
+    "fun/transport/tests/plan-connection-browser-check.mjs",
+    "fun/transport/tests/resources-browser-check.mjs",
+    "fun/transport/tests/route-edit.test.mjs",
+    "fun/transport/tests/route-fleet.test.mjs",
+    "fun/transport/tests/route-planner.test.mjs",
+    "fun/transport/tests/save-slots.test.mjs",
+    "fun/transport/tests/ui-lint-baseline.json",
+    "fun/transport/tests/ui-notices.test.mjs",
+    "fun/transport/ui-notices.js",
+    "fun/transport/world.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/b4b46647d3/0/metadata.json",
+      "transcript": "/35/b4b46647d3/0/full.jsonl",
+      "context": "/35/b4b46647d3/0/context.md",
+      "content_hash": "/35/b4b46647d3/0/content_hash.txt",
+      "prompt": "/35/b4b46647d3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
