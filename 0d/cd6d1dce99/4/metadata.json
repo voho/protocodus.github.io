@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0dcd6d1dce99",
+  "session_id": "8b905126-bbc4-441c-bdd8-6f910fcfa0e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T09:17:08.164Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "fun/transport/achievements.js",
+    "fun/transport/tests/start-menu-browser-check.mjs"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c03e865a1b11",
+  "token_usage": {
+    "input_tokens": 302,
+    "cache_creation_tokens": 4237731,
+    "cache_read_tokens": 48413050,
+    "output_tokens": 191277,
+    "api_call_count": 149
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T09:17:05.950714Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/8b905126-bbc4-441c-bdd8-6f910fcfa0e1.jsonl"
+}
