@@ -235,6 +235,21 @@ try {
   await page.waitForFunction(price => document.querySelector('[data-tool="city"]')?.innerText !== price, price);
   assert.equal(await page.locator('#entity-search').inputValue(), 'a', 'the deferred repricing keeps the query');
 
+  // A mail route is town service: it delivers with no first-delivery toast, no milestone and no News entry.
+  from = await shown(page);
+  const mailRoute = await page.evaluate(async () => {
+    const { addRoute } = await import('./model.js'), g = transport.game, result = addRoute(g, { mode: 'road', stops: g.routes[0].stops, cargo: 'mail' });
+    return { ok: result.ok, message: result.message, id: result.route?.id, notices: g.notifications.length };
+  });
+  assert.equal(mailRoute.ok, true, mailRoute.message);
+  await page.waitForTimeout(600);
+  await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 30); });
+  await page.waitForTimeout(900);
+  assert.ok(await page.evaluate(id => transport.game.routes.find(route => route.id === id).delivered > 0, mailRoute.id), 'the mail route delivers');
+  assert.deepEqual((await toastsSince(page, from)).filter(toast => /mail|^First/i.test(toast.text)), [], 'mail delivers without a first-delivery toast');
+  assert.equal(await page.evaluate(() => transport.game.notifications.filter(notice => /mail/i.test(notice.message)).length), 0, 'and without a News entry');
+  assert.equal(await page.evaluate(() => transport.game.milestones?.['first-freight']), undefined, 'mail is not freight');
+
   // A new freight route announces its first delivery once, with a way to the route.
   from = await shown(page);
   const freight = await page.evaluate(async () => {
@@ -323,7 +338,7 @@ try {
   await phone.close();
 
   assert.deepEqual(errors, []);
-  console.log('Notices browser check passed: a quiet industry opening with Show, News and its saved date at 1440 and 390px, welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, first delivery, town milestones, quiet save loading, 390px layout.');
+  console.log('Notices browser check passed: a quiet industry opening with Show, News and its saved date at 1440 and 390px, welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, a quiet mail route, first delivery, town milestones, quiet save loading, 390px layout.');
 } finally {
   await browser.close();
 }

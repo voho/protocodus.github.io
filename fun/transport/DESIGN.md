@@ -329,7 +329,7 @@ Stops always use `stop`. Bus no longer stands for every stop.
 ### 5.3 Three picture languages, one rule each
 
 - **Line glyphs** are for controls and kinds of thing.
-- **Cargo pictograms** (`cargo-icons.js`: 20 painterly, coloured pictograms) are content.
+- **Cargo pictograms** (`cargo-icons.js`: 21 painterly, coloured pictograms) are content.
   - They always sit on a well tile (16, 20 or 32 px, `--r-1`), which matches the badges on the map.
   - An industry is shown by its output pictogram.
   - They are never used as action icons.
@@ -413,8 +413,8 @@ Every status has one reason line. When there is a fix, the fix appears as an act
 | State | Words |
 |---|---|
 | ok | Running |
-| warn | Passengers waiting; Cargo waiting; Buyer full; Needs coal (its supplier is short of an input, so more vehicles would not help) |
-| error | Not connected (with the broken glyph); Stop missing; No supplier; No buyer; No passengers |
+| warn | Passengers waiting; Mail waiting; Cargo waiting; Buyer full; Needs coal (its supplier is short of an input, so more vehicles would not help) |
+| error | Not connected (with the broken glyph); Stop missing; No supplier; No buyer; No passengers; No mail |
 | paused | Paused |
 | info | First trip (before the first delivery) |
 

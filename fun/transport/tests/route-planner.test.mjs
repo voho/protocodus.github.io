@@ -126,19 +126,20 @@ test('cargo options follow the chosen stops: a quarry stop and a town stop carry
   assert.equal(game.routes.length, 0);
 });
 
-test('a town-to-town pair fits passengers only, and cargo options ignore funds', () => {
+test('a town-to-town pair fits passengers and mail, and cargo options ignore funds', () => {
   const { game, draft } = quarryFixture();
   game.cities.push({ id: 'town-b', name: 'Pinehaven', x: 10, y: 14 });
   const passengers = { ...draft, from: draft.to, to: draft.from };
   game.industries = [];
-  assert.deepEqual(fitting(routeCargoOptions(game, passengers)), ['passengers']);
+  assert.deepEqual(fitting(routeCargoOptions(game, passengers)), ['passengers', 'mail']);
   game.money = 0;
   assert.match(validateRoutePlan(game, passengers).message, /^Connected\. Need \$[\d,]+ for the first bus\.$/);
   assert.equal(validateRoutePlan(game, passengers).valid, false);
   assert.equal(validateRoutePlan(game, passengers, { ignoreFunds: true }).valid, true);
-  assert.deepEqual(fitting(routeCargoOptions(game, passengers)), ['passengers'], 'short funds never hide a fitting cargo');
+  assert.deepEqual(fitting(routeCargoOptions(game, passengers)), ['passengers', 'mail'], 'short funds never hide a fitting cargo');
   const plan = validateRoutePlan(game, passengers, { ignoreFunds: true });
   assert.equal(defaultRouteName(game, plan, 'passengers'), 'Alderbrook – Pinehaven');
+  assert.equal(defaultRouteName(game, plan, 'mail'), 'Alderbrook – Pinehaven mail');
 });
 
 test('default route names describe the freight flow after reversal', () => {

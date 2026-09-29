@@ -30,6 +30,8 @@ try {
     assert.match(await entry.innerText(), new RegExp(definition.name), `${definition.name} is visible beside its symbol`);
     assert.equal(await entry.locator('svg').getAttribute('aria-hidden'), 'true', `${definition.name} avoids repeating the adjacent accessible text`);
   }
+  assert.equal(await page.locator('.resource-legend .resource-entry').nth(1).innerText(), 'Mail', 'the envelope follows passengers in the key');
+  assert.equal(await page.locator('.resource-town-traffic').innerText(), 'Passengers and mail travel between two towns, both ways. Mail pays more, in full on trips of up to 14 days.');
   await page.locator('.resource-legend').screenshot({ path: `${output}/resource-contact-sheet.png` });
   // Cargo payment rates: a line per biome cargo, a crosshair tip by pointer and keys, legend highlights and a table view.
   const biomeCargo = await page.evaluate(async () => (await import('./route-planner.js')).routeCargoList(transport.game));
@@ -309,7 +311,7 @@ try {
     await page.keyboard.press('Escape');
     await page.locator('.mobile-panel-toggle').click();
   }
-  assert.equal(Object.keys(cargo).length, 20);
+  assert.equal(Object.keys(cargo).length, 21);
   assert.deepEqual(errors, [], 'no browser console or runtime errors');
   console.log(`Transport resource UI checks passed. Screenshots: ${output}`);
 } finally {

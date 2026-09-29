@@ -25,6 +25,7 @@ import { cargoIcon, cargoBadge, cargoRecipe } from './cargo-icons.js';
 import { filterRoutes, validateRoutePlan, routeCargoList, routeCargoOptions, defaultRouteName } from './route-planner.js';
 import { addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, vehicleNoun, MAX_VEHICLES } from './model.js';
 import { TOWN_CARGO } from './data.js';
+import { isTownTraffic } from './data.js';
 import { STATION_RADIUS } from './model.js';
 import { townNeeds, NEED_WINDOW, townGrowth, townOutlook } from './settlements.js';
 import { townOpinion, townActionQuote, townStopCounts, TOWN_ACTIONS } from './town-authority.js';
@@ -262,7 +263,7 @@ function buildingBenefit(kind) {
  const definition=BUILDINGS[kind];
  if(definition.residents)return `${definition.residents} residents per level when placed within 10 tiles of a town. Nearby services and greenery help homes flourish.`;
  const effects={school:'Helps nearby neighborhoods develop and supports local factory productivity.',hospital:'Improves neighborhood appeal and supports local factory productivity.','police-station':'Supports local traffic and lowers nearby vehicle upkeep.','fire-station':'Lowers nearby factory upkeep and improves neighborhood appeal.'};
- return effects[kind]||(definition.group==='shops'?'Attracts nearby development and supports local passenger demand.':definition.group==='services'?'Attracts nearby development and supports local transport and industry.':'Improves neighborhood appeal and supports local passenger demand.');
+ return effects[kind]||(definition.group==='shops'?'Attracts nearby development and supports local passenger demand.':definition.group==='services'?'Attracts nearby development and supports local transport and industry. Near a town centre it adds mail.':'Improves neighborhood appeal and supports local passenger demand.');
 }
 function buildingPalette() {
  return `<div class="section-divider"></div><div class="panel-heading"><h2>Buildings</h2><span>26 designs</span></div><label class="building-filter"><span class="sr-only">Building collection</span><select id="building-group" aria-label="Building collection">${Object.entries(BUILDING_GROUPS).map(([key,g])=>`<option value="${key}" ${buildingGroup===key?'selected':''}>${g.name} · ${Object.values(BUILDINGS).filter(b=>b.group===key).length}</option>`).join('')}</select></label><div class="building-grid">${Object.entries(BUILDINGS).filter(([,b])=>b.group===buildingGroup).map(([key,b])=>`<button class="building-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(b.name)} · ${buildingFootprint(key)} × ${buildingFootprint(key)} site · ${money(priceFor(game,b.cost))} · ${escapeHTML(buildingBenefit(key))}"><canvas width="96" height="100" data-building-sprite="${key}" aria-hidden="true"></canvas><span class="building-tier">${b.tier||BUILDING_GROUPS[b.group].name}</span><strong>${escapeHTML(b.name)}</strong><span class="building-price">${money(priceFor(game,b.cost))}<small>${buildingFootprint(key)} × ${buildingFootprint(key)}</small></span></button>`).join('')}</div>`;
@@ -573,10 +574,10 @@ function addFromPlanner(routeId) {
 }
 // Edit reuses the planner for one route: its transport stays, nothing is bought or sold, and buses never turn into trucks.
 const editingRoute = () => formDraft.editing?game.routes.find(route=>route.id===formDraft.editing)||null:null;
-const editCargo = cargo => { const route=editingRoute();return !route||(cargo==='passengers')===(route.cargo==='passengers'); };
+const editCargo = cargo => { const route=editingRoute();return !route||(isTownTraffic(route.cargo)?cargo===route.cargo:!isTownTraffic(cargo)); };
 const draftPlan = () => validateRoutePlan(game,formDraft,{ignoreFunds:Boolean(editingRoute())});
 function editChanges(plan) { const route=editingRoute(),[a,b]=plan.reversed?[...plan.stations].reverse():plan.stations;return !route||a?.id!==route.stops[0]||b?.id!==route.stops[1]||formDraft.cargo!==route.cargo; }
-function editNote(route) { const count=getRouteFleet(game,route.id).count;return `<p class="form-note route-edit-note"><strong>${escapeHTML(route.name)}</strong> keeps its ${count===1?fleetNoun(route,1):count+' '+fleetNoun(route,count)}. Change the stops${route.cargo==='passengers'?'':' or the freight'}; nothing is bought or sold.</p>`; }
+function editNote(route) { const count=getRouteFleet(game,route.id).count;return `<p class="form-note route-edit-note"><strong>${escapeHTML(route.name)}</strong> keeps its ${count===1?fleetNoun(route,1):count+' '+fleetNoun(route,count)}. Change the stops${isTownTraffic(route.cargo)?'':' or the freight'}; nothing is bought or sold.</p>`; }
 function startRouteEdit(id,keyboard) {
  const route=game.routes.find(r=>r.id===id);if(!route)return;
  cancelRoutePicking();formDraft={editing:route.id,name:'',mode:route.mode,from:String(route.stops[0]),to:String(route.stops[1]),cargo:route.cargo,open:true,autoKey:`${route.stops[0]}|${route.stops[1]}|${route.mode}`};
@@ -612,7 +613,7 @@ function routeOutlook(plan) {
  const noun=vehicleNoun(formDraft.mode,formDraft.cargo),months=Math.max(1,Math.round(f.paybackMonths)),room=f.vehiclesToSaturate-1,rail=f.otherModes.find(other=>other.mode==='rail');
  const summary=f.netMonth>0?`≈ +${compactMoney(f.netMonth)} / month · pays back in about ${months<24?`${months}\u00a0month${months===1?'':'s'}`:`${Math.round(months/12)}\u00a0years`}`:'Likely to earn less than its upkeep';
  const shared=f.madeDay-f.supplyDay>.05,plural=noun==='bus'?'buses':noun+'s';
- const facts=[`${formDraft.cargo==='passengers'?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':formDraft.cargo==='passengers'?'':' once served'}`,`One ${noun} carries ≈ ${perDay(f.perVehicleDay)} / day`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:`One ${noun} carries all of it`,`Full load ≈ ${money(f.fullLoad)}`].filter(Boolean);
+ const facts=[`${isTownTraffic(formDraft.cargo)?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':isTownTraffic(formDraft.cargo)?'':' once served'}`,`One ${noun} carries ≈ ${perDay(f.perVehicleDay)} / day`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:`One ${noun} carries all of it`,`Full load ≈ ${money(f.fullLoad)}`].filter(Boolean);
  if(formDraft.mode==='road'&&room>0&&rail?.ratio>=1.5)facts.push(`A train would carry ≈ ${Math.round(rail.ratio)}× per vehicle${keepText(rail.share,f.share)}`);
  if(f.marketBonus>=1)facts.push(`Includes ≈ ${money(f.marketBonus)} a month of market bonus`);
  const trip=planText(planTrip(game,formDraft.mode,formDraft.cargo,plan.path,getVehiclePurchase(game,formDraft.mode).level));
@@ -641,7 +642,7 @@ function autoSelectCargo() {
  const stops=[formDraft.from,formDraft.to].map(id=>id?game.stations.find(s=>String(s.id)===String(id)):null);if(!stops[0]){formDraft.autoNote='';return;}
  const options=stops[1]?routeCargoOptions(game,formDraft).filter(option=>editCargo(option.cargo)):[];let next='';
  if(options.length)next=options[0].valid&&!options.some(option=>option.valid&&option.cargo===formDraft.cargo)?options[0].cargo:'';
- else if(!stops.some(stop=>stop&&stationCoverage(game,stop).produces.includes(formDraft.cargo)))next=stationCoverage(game,stops[0]).produces.find(cargo=>cargo!=='passengers'&&routeCargoList(game).includes(cargo))||'';
+ else if(!stops.some(stop=>stop&&stationCoverage(game,stop).produces.includes(formDraft.cargo)))next=stationCoverage(game,stops[0]).produces.find(cargo=>!isTownTraffic(cargo)&&routeCargoList(game).includes(cargo))||'';
  if(next&&next!==formDraft.cargo&&editCargo(next)){formDraft.cargo=next;formDraft.autoNote=`Cargo set to ${CARGO[next].name}`;}
  if(cargoLens?.origin==='routes'&&cargoLens.cargo!==formDraft.cargo)setCargoLens(null);
 }
@@ -713,7 +714,7 @@ function pickRouteStopAt(x,y) {
 // Routes and Industries keep the lens they set while their view stays open; one from Chains stays until the chip's × or Escape.
 let cargoLens=null;
 function setCargoLens(cargo,origin='') {
- const next=cargo&&cargo!=='passengers'&&CARGO[cargo]?{cargo,origin,game}:null;if(next?.cargo===cargoLens?.cargo&&next?.origin===cargoLens?.origin)return;
+ const next=cargo&&!isTownTraffic(cargo)&&CARGO[cargo]?{cargo,origin,game}:null;if(next?.cargo===cargoLens?.cargo&&next?.origin===cargoLens?.origin)return;
  cargoLens=next;renderer.setLens(next?.cargo||null);renderer.drawMinimap($('#minimap'));minimapAt=performance.now();syncLensChip();
 }
 function dropCargoLens(...origins) { if(origins.includes(cargoLens?.origin))setCargoLens(null); }
@@ -1345,9 +1346,9 @@ function openAtlas() {
 }
 function openHelp(tab='basics') {
  if(tab==='chains'){openChains();return;}
- const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Roads and rails climb straight slopes; turns need flat ground. Terrain has eight levels, 0–7. Use Terrain &amp; crossings to raise or lower grid points, or drag an area level. Bridges and tunnels need flat ends at the same level. Choose Road or Rail before building.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction. Deliveries pay more the further they go; slow ones keep less. Resources shows the rates.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>Shift</kbd> Straight drag</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>B</kbd> / <kbd>N</kbd> Bridge / tunnel</span><span><kbd>[</kbd> / <kbd>]</kbd> Lower / raise land</span><span><kbd>E</kbd> Level land</span><span><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> Zones</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>C</kbd> Production chains</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> / <kbd>Right-click</kbd> Cancel a drag, then Done</span><span><kbd>Ctrl+S</kbd> Save / load</span></div>`;
+ const basics=`<div class="guide-grid"><div class="guide-item"><span>${icon('road')}Build a network</span><p>Roads and rails climb straight slopes; turns need flat ground. Terrain has eight levels, 0–7. Use Terrain &amp; crossings to raise or lower grid points, or drag an area level. Bridges and tunnels need flat ends at the same level. Choose Road or Rail before building.</p></div><div class="guide-item"><span>${icon('route')}Connect two stops</span><p>Place stops or ports within 5 tiles of customers. Connect them, choose cargo, then launch a bus, train or ship.</p></div><div class="guide-item"><span>${icon('factory')}Supply factories</span><p>Deliver every input in a recipe. Towns buy finished goods. Freight returns empty; passengers and mail travel both ways.</p></div><div class="guide-item"><span>${icon('leaf')}Slow, local growth</span><p>Zone within 10 tiles of a town, beside roads. Regular deliveries drive growth; services and greenery help.</p></div><div class="guide-item"><span>${icon('leaf')}Build at your own pace</span><p>Your starter bus earns money while you plan. Start small, supply every factory input, and expand when demand fills your vehicles. Next projects are optional.</p></div><div class="guide-item"><span>${icon('route')}Understand the money</span><p>Profit shows operations this calendar month. Tap Balance for building spend and last month. Routes show fares minus upkeep since tracking began, excluding construction. Deliveries pay more the further they go; slow ones keep less. Resources shows the rates.</p></div></div><div class="keyboard-help"><span><kbd>R</kbd> Road</span><span><kbd>T</kbd> Rail</span><span><kbd>Shift</kbd> Straight drag</span><span><kbd>S</kbd> Stop on road / rail</span><span><kbd>P</kbd> Port</span><span><kbd>B</kbd> / <kbd>N</kbd> Bridge / tunnel</span><span><kbd>[</kbd> / <kbd>]</kbd> Lower / raise land</span><span><kbd>E</kbd> Level land</span><span><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> Zones</span><span><kbd>X</kbd> Bulldozer</span><span><kbd>Right drag</kbd> Move map</span><span><kbd>Two fingers</kbd> Move / pinch to zoom</span><span><kbd>G</kbd> Grid</span><span><kbd>L</kbd> Layers</span><span><kbd>H</kbd> Home</span><span><kbd>M</kbd> Map</span><span><kbd>C</kbd> Production chains</span><span><kbd>Space</kbd> Pause / hold to pan</span><span><kbd>Esc</kbd> / <kbd>Right-click</kbd> Cancel a drag, then Done</span><span><kbd>Ctrl+S</kbd> Save / load</span></div>`;
  const chainBody=`<p class="panel-description">Base recipes · output varies by local conditions</p><div class="help-chain-grid">${Object.values(INDUSTRIES).filter(d=>d.biomes.includes(game.biome)).map(d=>`<article class="chain-card"><h4>${d.name}</h4>${cargoRecipe(d.inputs,d.outputs)}</article>`).join('')}</div>`;
- const resources=`<div class="resource-legend">${Object.entries(CARGO).map(([key,c])=>`<div class="resource-entry">${cargoIcon(key,{decorative:true})}<span>${c.name}</span></div>`).join('')}</div>`+paymentRatesHTML(game);
+ const resources=`<div class="resource-legend">${Object.entries(CARGO).map(([key,c])=>`<div class="resource-entry">${cargoIcon(key,{decorative:true})}<span>${c.name}</span></div>`).join('')}</div>`+'<p class="payment-note resource-town-traffic">Passengers and mail travel between two towns, both ways. Mail pays more, in full on trips of up to 14 days.</p>'+paymentRatesHTML(game);
  openModal(`<div class="modal-inner"><div class="modal-heading"><div><h2>Field guide</h2></div><button class="close-modal" aria-label="Close dialog">×</button></div><div class="modal-tabbar"><button data-help-tab="basics" class="${tab==='basics'?'active':''}">Basics</button><button data-help-tab="chains" class="${tab==='chains'?'active':''}">Production</button><button data-help-tab="resources" class="${tab==='resources'?'active':''}">Resources</button></div>${tab==='basics'?basics:tab==='chains'?chainBody:resources}<div class="modal-actions"><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-help-tab]').forEach(el=>el.addEventListener('click',()=>openHelp(el.dataset.helpTab)));
  paymentRates?.dispose();paymentRates=tab==='resources'?bindPaymentRates($('#modal'),game):null;
@@ -1358,7 +1359,7 @@ function openHelp(tab='basics') {
 function resetMoments() {
  noticeQueue=[];pricingYear=inflationInfo(game).year;panelPricesStale=false;townDay=-1;
  const stopCounts=townStopCounts(game);outstandingTowns=new Set(game.cities.filter(city=>townOpinion(game,city,stopCounts).label==='Outstanding').map(city=>city.id));
- knownRoutes=new Set(game.routes.map(route=>route.id));firstDeliveryPending=new Set(game.routes.filter(route=>route.cargo!=='passengers'&&route.delivered===0).map(route=>route.id));
+ knownRoutes=new Set(game.routes.map(route=>route.id));firstDeliveryPending=new Set(game.routes.filter(route=>!isTownTraffic(route.cargo)&&route.delivered===0).map(route=>route.id));
  townPeaks=new Map(game.cities.map(city=>[city.id,city.population]));
  // An older save or a new world has no stamps yet; whatever it has already met is backfilled silently.
  seenMilestones=new Set(game.milestones?Object.keys(game.milestones):metMilestones(game));milestoneMonth=Math.max(-1,...Object.values(game.milestones||{}).map(monthOf));goalSeen=null;goalChanged=false;
@@ -1444,7 +1445,7 @@ function revealInPanel(el,focusTarget=el) {
 // Every freight route launched this session is watched; loaded routes only if they have not delivered yet.
 function watchRoutes() {
  for(const route of game.routes){
-  if(!knownRoutes.has(route.id)){knownRoutes.add(route.id);if(route.cargo!=='passengers')firstDeliveryPending.add(route.id);}
+  if(!knownRoutes.has(route.id)){knownRoutes.add(route.id);if(!isTownTraffic(route.cargo))firstDeliveryPending.add(route.id);}
   if(!(route.delivered>0&&firstDeliveryPending.delete(route.id)))continue;
   // The company's first freight delivery is also its first milestone; one toast says both.
   const first=!seenMilestones.has('first-freight');if(first){seenMilestones.add('first-freight');milestoneMonth=monthOf(game.day);}
@@ -1614,7 +1615,7 @@ function placementNote(effective,plan) {
  if(['bus-stop','train-stop','port'].includes(effective)&&plan.placements.length===1){
   const {x,y}=plan.placements[0],key=`${x},${y}:${game.revision}`;let cache=coverageTips.get(game);if(!cache)coverageTips.set(game,cache=new Map());
   if(!cache.has(key)){
-   const c=stationCoverage(game,{x,y}),list=items=>items.slice(0,3).join(', ')+(items.length>3?` +${items.length-3}`:''),cargo=keys=>keys.filter(k=>k!=='passengers').map(k=>CARGO[k].name.toLowerCase());
+   const c=stationCoverage(game,{x,y}),list=items=>items.slice(0,3).join(', ')+(items.length>3?` +${items.length-3}`:''),cargo=keys=>keys.filter(k=>!isTownTraffic(k)).map(k=>CARGO[k].name.toLowerCase());
    const parts=[[cargo(c.produces),'Loads'],[cargo(c.accepts),'Accepts'],[c.cities.map(city=>city.name),'serves']].filter(([items])=>items.length).map(([items,label])=>`${label} ${list(items)}`);
    if(cache.size>=64)cache.delete(cache.keys().next().value);
    cache.set(key,parts.length?{text:parts.join(' · ')}:{text:'No customers within 5 tiles',warning:true});

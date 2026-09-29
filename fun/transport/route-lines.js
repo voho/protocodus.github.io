@@ -52,7 +52,7 @@ export function ensureRouteNumbers(game) {
 export const routeLabel = route => validRouteNumber(route?.number) ? `Route ${route.number}` : 'Route';
 
 // Default names say what a route does. Freight runs '<supplier> to <buyer>', each end named after the site its stop
-// serves for the cargo, else the stop's town, else the stop; passengers and mail join two towns with an en dash.
+// serves for the cargo, else the stop's town, else the stop; passengers and mail join two towns with an en dash, and mail says so at the end.
 // A name another route already has gets ' 2', ' 3' and so on; `except` (a route or its id) never counts, so a route
 // renamed along its stops does not collide with itself. Names in a save are never rewritten.
 const REACH = 5, NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
@@ -75,5 +75,6 @@ export function defaultRouteName(game, stations, cargo, except = null) {
   else { const supplier = site(from, 'outputs'), buyer = site(to, 'inputs', supplier); base = `${supplier ? siteName(supplier) : place(from)} to ${buyer ? siteName(buyer) : place(to)}`; }
   const skip = typeof except === 'string' ? except : except?.id, taken = new Set();
   for (const route of game.routes || []) if (route.id !== skip) taken.add(route.name);
-  for (let n = 1; ; n++) { const count = n > 1 ? ` ${n}` : '', name = fit(base, NAME_LENGTH - count.length) + count; if (!taken.has(name)) return name; }
+  const kind = cargo === 'mail' ? ' mail' : '';
+  for (let n = 1; ; n++) { const count = n > 1 ? ` ${n}` : '', name = fit(base, NAME_LENGTH - kind.length - count.length) + kind + count; if (!taken.has(name)) return name; }
 }

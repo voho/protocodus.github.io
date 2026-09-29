@@ -19,6 +19,8 @@ import { planIndustryOpening } from './industry-openings.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth } from './economy-pricing.js';
 import { distancePay, transitPay, payTiles } from './economy-pricing.js';
 import { VEHICLE_SPEEDS } from './data.js';
+import { isTownTraffic } from './data.js';
+import { MAIL_POOL_SHARE } from './settlements.js';
 import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { surfaceHeight } from './terrain-geometry.js';
@@ -89,6 +91,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
   };
   rememberGeneratedWorld(game);
+  for(const city of game.cities)city.mail??=0;
   for(const industry of game.industries)initializeIndustry(game,industry);
   game.stations.push(
     {id:'station-1',name:`${game.cities[0].name} Central`,x:game.cities[0].x,y:game.cities[0].y,mode:'road'},
@@ -106,15 +109,15 @@ export function stationCoverage(game,station) {
   const cities=nearbyCities(game,station.x,station.y,STATION_RADIUS).filter(city => distance(city,station)<=STATION_RADIUS);
   const industries=nearbyIndustries(game,station.x,station.y,STATION_RADIUS+2).filter(industry => industryDistance(industry,station)<=STATION_RADIUS);
   const zones=nearbyZones(game,station.x,station.y,STATION_RADIUS).filter(zone => distance(zone,station)<=STATION_RADIUS);
-  const produces=new Set(cities.length ? ['passengers'] : []);
-  const accepts=new Set(cities.length ? ['passengers',...TOWN_CARGO] : []);
+  const produces=new Set(cities.length ? ['passengers','mail'] : []);
+  const accepts=new Set(cities.length ? ['passengers','mail',...TOWN_CARGO] : []);
   for (const industry of industries) {
     for (const cargo of Object.keys(INDUSTRIES[industry.kind].outputs)) produces.add(cargo);
     for (const cargo of Object.keys(INDUSTRIES[industry.kind].inputs)) accepts.add(cargo);
   }
   return { cities,industries,zones,produces:[...produces],accepts:[...accepts] };
 }
-// A two-stop passenger service connects two actual towns, even where older
+// A two-stop passenger or mail service connects two actual towns, even where older
 // maps have overlapping catchments. It must not collect and return the same town.
 export function passengerEndpoints(game,from,to) {
   if(!from||!to)return null;
@@ -359,7 +362,7 @@ export function build(game,tool,x,y) {
       for(const p of points){const cell=tileAt(game,p.x,p.y);cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';cell.detail='';}
     }else releaseTerrainObjects(game,[point]);
     const residents=housingCapacity(site?.building),town=residents?(owns(site.building,'populationCityId')?game.cities.find(city=>city.id===site.building.populationCityId):closestCity(game,site,10)):null;
-    if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);}
+    if(town){town.population=Math.max(0,town.population-residents);town.passengers=Math.min(town.passengers,town.population*.9);if(town.mail>town.population*MAIL_POOL_SHARE)town.mail=town.population*MAIL_POOL_SHARE;}
     if(station) game.stations=game.stations.filter(s=>s.id!==station.id);
     const supplied=industry?suppliedRoutes(game,industry):[];
     if(industry){
@@ -413,7 +416,7 @@ export function build(game,tool,x,y) {
     const prefixes=game.biome==='taiga'?['Birch','Willow','Silver','Fern','Maple']:game.biome==='tundra'?['Ice','Frost','North','Winter','Snow']:['Amber','Gold','Dune','Palm','Sun'];
     const suffixes=['field','haven','ford','creek','ridge'];
     const n=Math.max(0,game.cities.length-4);
-    const newCity={id:freshId(game,'city',game.cities),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,delivered:0,supplies:0,lastServiceDay:null,founded:true};
+    const newCity={id:freshId(game,'city',game.cities),name:prefixes[n%prefixes.length]+suffixes[Math.floor(n/prefixes.length)%suffixes.length],x,y,population:80,activity:0,growth:0,passengers:12,mail:0,delivered:0,supplies:0,lastServiceDay:null,founded:true};
     releaseTerrainObjects(game,[point]);
     spend(game,cost);game.cities.push(newCity);t.road=true;t.detail='';t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';invalidateNetwork(game,[point]);
     const founded=town=>`${town} founded. Zone homes nearby and give it a passenger route.`;
@@ -487,7 +490,7 @@ function freightPair(game,a,b,cargo) {
 // action, so each route it leaves without a producer or buyer gets one warning.
 function suppliedRoutes(game,industry) {
   const stops=new Map(game.stations.map(stop=>[stop.id,stop]));
-  return game.routes.filter(route=>{const [a,b]=route.stops.map(id=>stops.get(id));return route.cargo!=='passengers'&&a&&b&&(industryDistance(industry,a)<=STATION_RADIUS||industryDistance(industry,b)<=STATION_RADIUS)&&freightPair(game,a,b,route.cargo);});
+  return game.routes.filter(route=>{const [a,b]=route.stops.map(id=>stops.get(id));return !isTownTraffic(route.cargo)&&a&&b&&(industryDistance(industry,a)<=STATION_RADIUS||industryDistance(industry,b)<=STATION_RADIUS)&&freightPair(game,a,b,route.cargo);});
 }
 function warnLostSupply(game,routes) {
   for(const route of routes){
@@ -566,8 +569,8 @@ function planRoute(game,{mode,stops,cargo},retry='launch again') {
   if(!Array.isArray(stops)||stops.length!==2||stops[0]===stops[1])return result(false,'Choose two different stops.');
   let stations=stops.map(id=>game.stations.find(s=>s.id===id));
   if(stations.some(s=>!s||s.mode!==mode))return result(false,mode==='water'?'Choose two ports for a ship route.':`Both stops must be ${stopKind(mode)}s.`);
-  if(cargo==='passengers') {
-    if(!passengerEndpoints(game,...stations))return result(false,'Passenger stops must serve two different towns within 5 tiles.');
+  if(isTownTraffic(cargo)) {
+    if(!passengerEndpoints(game,...stations))return result(false,cargo==='mail'?'Mail stops must serve two different towns within 5 tiles.':'Passenger stops must serve two different towns within 5 tiles.');
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
     else return result(false,`These stops need a supplier of ${cargoName(cargo)} and a buyer within 5 tiles.`);
@@ -592,6 +595,7 @@ export function addRoute(game,{name,mode='road',stops,cargo='passengers'}={}) {
 // bought or sold; the card counts the new service afresh, and a new cargo leaves the old load behind.
 export function editRoute(game,routeId,{stops,cargo}={}) {
   const route=game.routes.find(r=>r.id===routeId);if(!route)return result(false,'Route not found.');
+  if(cargo!==route.cargo&&(cargo==='mail'||route.cargo==='mail'))return result(false,'Mail needs its own route. Launch a new one instead.');
   if(cargo!==route.cargo&&(cargo==='passengers'||route.cargo==='passengers'))return result(false,'Passenger and freight vehicles differ. Launch a new route instead.');
   const plan=planRoute(game,{mode:route.mode,stops,cargo},'try again');if(!plan.ok)return plan;
   const [a,b]=plan.stations,changed=cargo!==route.cargo;
@@ -686,11 +690,11 @@ function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   const before=vehicle.load;
   let free=vehicle.capacity-vehicle.load;
-  if(route.cargo==='passengers') {
-    const endpoints=journeyEndpoints(game,route,context);
+  if(isTownTraffic(route.cargo)) {
+    const endpoints=journeyEndpoints(game,route,context),pool=route.cargo;
     for(const city of endpoints?[endpoints[stopIndex]]:[]) {
-      const amount=Math.min(free,Math.floor(city.passengers||0));
-      city.passengers-=amount;vehicle.load+=amount;free-=amount;city.activity+=amount*.18;
+      const amount=Math.min(free,Math.floor(city[pool]||0));
+      city[pool]=(city[pool]||0)-amount;vehicle.load+=amount;free-=amount;city.activity+=amount*.18;
       if(free<=0)break;
     }
   } else if(stopIndex===0) {
@@ -723,7 +727,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
   let bonusUnits=0,receiver=null;
   const station=context?context.stations.get(route.stops[stopIndex]):game.stations.find(s=>s.id===route.stops[stopIndex]);if(!station)return;
   let remaining=vehicle.load,delivered=0;
-  if(route.cargo==='passengers') {
+  if(isTownTraffic(route.cargo)) {
     const endpoints=journeyEndpoints(game,route,context);if(!endpoints)return;
     const city=endpoints[stopIndex];city.activity+=remaining;city.delivered+=remaining;city.lastServiceDay=arrivalDay;if(route.cargo==='passengers')recordVisitors(game,city,remaining);delivered=remaining;remaining=0;
   } else if(stopIndex===1) {
@@ -1049,7 +1053,7 @@ export function validateGame(game) {
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
   if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)&&validFootprint(t.building,buildingFootprint(t.building.kind))))))return false;
   if(!game.tiles.every((tile,index)=>validStructureMetadata(tile,game,index%game.width,Math.floor(index/game.width))))return false;
-  if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)))return false;
+  if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)&&(c.mail===undefined||finite(c.mail,0,1e9))))return false;
   if(!game.cities.every(c=>c.lastServiceDay===undefined||c.lastServiceDay===null||finite(c.lastServiceDay,0,game.day)))return false;
   if(!game.cities.every(c=>(c.serviceMonths===undefined||Number.isInteger(c.serviceMonths)&&finite(c.serviceMonths,0,10))&&(c.disturbance===undefined||finite(c.disturbance,0,DISTURBANCE.max))&&(c.advertisedUntil===undefined||Number.isInteger(c.advertisedUntil)&&finite(c.advertisedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.advertise.days))&&(c.fundedUntil===undefined||Number.isInteger(c.fundedUntil)&&finite(c.fundedUntil,0,Math.floor(game.day)+TOWN_ACTIONS.fund.days))))return false;
   if(!game.cities.every(c=>c.market===undefined||validMarket(c.market)))return false;
@@ -1162,6 +1166,7 @@ export function restoreGame(saved) {
     for(const industry of game.industries)initializeIndustry(game,industry);
     for(const vehicle of game.vehicles){vehicle.dwellRemaining??=0;vehicle.tripSerial??=0;vehicle.level??=0;vehicle.paidPrice??=VEHICLE_COSTS[game.routes.find(route=>route.id===vehicle.routeId).mode];}
     for(const city of game.cities)if(city.lastServiceDay===undefined)city.lastServiceDay=city.delivered>0?game.day:null;
+    for(const city of game.cities)city.mail??=0;
     for(const route of game.routes){route.pathRevision=-1;if(route.expenses===undefined)route.revenueAtAccountingStart=route.revenue;route.expenses??=0;route.accountingStartDay??=game.day;route.revenueAtAccountingStart??=0;}
     ensureRouteNumbers(game);
     game.maintenanceRevision=-1;

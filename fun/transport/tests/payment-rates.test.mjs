@@ -10,7 +10,7 @@ const world = biome => { if (!worlds.has(biome)) worlds.set(biome, createGame({ 
 const count = (html, pattern) => (html.match(pattern) || []).length;
 
 test('the chart draws one line and one table row for every cargo of the biome', () => {
-  for (const [biome, expected] of [['taiga', 13], ['tundra', 11], ['desert', 12]]) {
+  for (const [biome, expected] of [['taiga', 14], ['tundra', 12], ['desert', 13]]) {
     const game = world(biome), cargo = routeCargoList(game), html = paymentRatesHTML(game);
     assert.equal(cargo.length, expected, biome);
     assert.equal(count(html, /data-payment-line="/g), cargo.length, `${biome} lines`);

@@ -10,7 +10,7 @@ import { emptyGame, tileAt, line, equivalent } from './helpers.mjs';
 
 const starter = () => createGame({ biome: 'taiga', size: 'regional', seed: 1847 });
 const FIELDS = ['serviceMonths', 'disturbance', 'advertisedUntil', 'fundedUntil'];
-const CITY_KEYS = ['id', 'name', 'x', 'y', 'population', 'activity', 'growth', 'passengers', 'delivered', 'supplies', 'lastServiceDay'];
+const CITY_KEYS = ['id', 'name', 'x', 'y', 'population', 'activity', 'growth', 'passengers', 'delivered', 'supplies', 'lastServiceDay', 'mail'];
 const summary = opinion => ({ score: opinion.score, label: opinion.label, growth: opinion.growth });
 const nextMonth = game => { const month = game.lastMonth; while (game.lastMonth === month) tick(game, 1); };
 // Where build() would accept a tool, nearest the town centre first.

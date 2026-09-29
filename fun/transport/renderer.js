@@ -4,6 +4,7 @@ import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './ter
 import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
+import { isTownTraffic } from './data.js';
 import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint } from './model.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
@@ -126,7 +127,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   // A cargo lens is view state, never saved: producers and buyers of one cargo stand out on the map, minimap and atlas.
   const LENS_COLORS={source:'#4e7747',buyer:'#3f7f88'};let lens=null,lensStats=null;
-  function setLens(cargo){cargo=cargo&&cargo!=='passengers'?cargo:null;if(cargo===lens)return;lens=cargo;lensStats=null;options.onInvalidate?.();}
+  function setLens(cargo){cargo=cargo&&!isTownTraffic(cargo)?cargo:null;if(cargo===lens)return;lens=cargo;lensStats=null;options.onInvalidate?.();}
   // Which sites a freight service loads at or delivers to changes only with sites, stops, routes and connections.
   // game.revision moves every day, so it stays out of the key; a route going offline moves no revision, so the active count is in it.
   let service={key:'',lists:[],sites:new Map()},markerStats={drawn:0,served:0,waiting:0,meters:0,covered:0};
@@ -1052,7 +1053,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.save();ctx.lineJoin=ctx.lineCap='round';
       ctx.globalAlpha=shown*(line.light?MAP.line.casingAlpha:MAP.line.haloAlpha);ctx.strokeStyle=line.light?COLORS.ink:COLORS.paper;ctx.lineWidth=(core+(line.light?MAP.line.casing:MAP.line.halo))/z;ctx.stroke(cached.drawing);
       ctx.globalAlpha=shown;ctx.strokeStyle=line.fill;ctx.lineWidth=core/z;ctx.stroke(cached.drawing);
-      if(!held&&r.cargo!=='passengers')flowChevrons(r,cached.ranges,core,line.on);
+      if(!held&&!isTownTraffic(r.cargo))flowChevrons(r,cached.ranges,core,line.on);
       if(r.active===false)brokenStretch(r,core,fade);
       ctx.restore();
     }

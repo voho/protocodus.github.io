@@ -4,6 +4,7 @@ import { CARGO } from './data.js';
 // and the roomy 32px grid keeps the same marks readable in small recipe rows.
 const ART = {
   passengers: `<circle cx="11" cy="9" r="4" fill="#e1b874"/><path d="M3.5 27v-6a7.5 7.5 0 0 1 15 0v6Z" fill="#799590"/><circle cx="23" cy="11" r="3.5" fill="#e1b874"/><path d="M21 19a6 6 0 0 1 8 5v3h-8" fill="#d5a875"/>`,
+  mail: `<path d="M8 5h20v14H8Z" fill="#d9c49c"/><path d="M21 7h4.5v4H21Z" fill="#d98b5f"/><path d="M3 11h23v16H3Z" fill="#f3e8cc"/><path d="m3 11 11.5 9L26 11M3 27l8.5-7.5M26 27l-8.5-7.5" fill="none"/>`,
   timber: `<path d="m6 22 12-12q6-3 9 3L15 26Z" fill="#99764d"/><path d="m5 13 9-9q6-3 9 3l-9 9Z" fill="#a68151"/><ellipse cx="9" cy="15" rx="5" ry="4.5" transform="rotate(35 9 15)" fill="#dbc090"/><ellipse cx="11" cy="24" rx="5" ry="4.5" transform="rotate(35 11 24)" fill="#ddc397"/><path d="m18 17 7-7M17 10l3-3" stroke="#705638"/><path d="m7 15 3 1m-1 7 3 2" stroke="#9c774a"/>`,
   lumber: `<path d="m3 22 20-9 6 5-20 10Z" fill="#c39156"/><path d="m3 16 20-9 6 5-20 10Z" fill="#d6ad70"/><path d="m3 10 20-7 6 5-20 8Z" fill="#ead09d"/><path d="m9 16 20-8v4M9 22l20-10v6M9 28v-6M3 10v6m0 0v6" fill="none"/><path d="m11 10 9-3m-8 13 8-4" stroke="#ac824a"/>`,
   coal: `<path d="m3 23 2-9 7-3 7 8-1 8H7Z" fill="#53616a"/><path d="m14 13 3-8 8 2 4 8-8 7Z" fill="#667078"/><path d="m15 24 4-9 8 3 2 8-7 3Z" fill="#3e4d54"/><path d="m7 16 5 1 3 6m4-14 3 3m0 9 4 2" fill="none" stroke="#97a2a5"/>`,

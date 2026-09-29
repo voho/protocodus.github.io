@@ -1,6 +1,8 @@
 import { passengerEndpoints, STATION_RADIUS } from './model.js';
 import { TOWN_CARGO } from './data.js';
 import { number } from './copy.js';
+import { vehicleNoun } from './copy.js';
+import { isTownTraffic } from './data.js';
 
 // Headlines: rare good news about the company, derived from state the simulation already keeps (a town's first
 // lastServiceDay, a route's first delivery in a new mode, town peaks, the pricing year). DOM-free. Nothing here
@@ -10,7 +12,7 @@ export const HEADLINE_TOWN_TIERS = [2500, 5000, 10000];
 export const MODEL_YEAR_STEP = 5;
 export const HEADLINE_PRIORITY = Object.freeze({ first: 1, rating: 1, achievement: 1, models: 2, town: 2, contract: 2, arrival: 3 });
 const KICKERS = { arrival: 'Local news', first: 'Company first', town: 'Town news', models: 'New models', rating: 'Company news', achievement: 'Achievement', contract: 'Contracts' };
-const ART = { bus: 'bus', truck: 'truck', train: 'train', ferry: 'ship', ship: 'ship' };
+const ART = { bus: 'bus', truck: 'truck', train: 'train', ferry: 'ship', ship: 'ship', 'mail truck': 'truck', 'mail train': 'train', 'mail ship': 'ship' };
 const TIMES = ['', 'once', 'twice', 'three times', 'four times', 'five times', 'six times', 'seven times', 'eight times', 'nine times', 'ten times'];
 const TARGETS = ['industry', 'city', 'route'];
 const residents = n => number(Math.floor(Number(n) || 0));
@@ -19,8 +21,9 @@ const near = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
 const clip = (text, limit) => text.length > limit ? text.slice(0, limit - 1) + '…' : text;
 
 export const headlineKicker = kind => KICKERS[kind] || 'Headline';
-/** bus, truck, train, ferry or ship: the vehicle a headline names. */
+/** bus, truck, train, ferry or ship, or a mail truck, train or ship: the vehicle a headline names. */
 export function headlineNoun(mode, cargo) {
+  if (cargo === 'mail') return vehicleNoun(mode, cargo);
   if (mode === 'water') return cargo === 'passengers' ? 'ferry' : 'ship';
   if (mode === 'rail') return 'train';
   return cargo === 'passengers' ? 'bus' : 'truck';
@@ -36,7 +39,7 @@ export function headlineWatch(game) {
   return { game, towns, modes };
 }
 
-/** The newest delivering route that serves the town: a passenger route whose endpoints include it, or town freight into a stop near it. */
+/** The newest delivering route that serves the town: a passenger or mail route whose endpoints include it, or town freight into a stop near it. */
 export function arrivalRoute(game, city) {
   const stops = new Map();
   for (const stop of game.stations) if (near(stop, city)) stops.set(stop.id, stop);
@@ -44,7 +47,7 @@ export function arrivalRoute(game, city) {
   let byId = null;
   for (let i = game.routes.length - 1; i >= 0; i--) {
     const route = game.routes[i]; if (!(route.delivered > 0)) continue;
-    if (route.cargo === 'passengers') {
+    if (isTownTraffic(route.cargo)) {
       if (!stops.has(route.stops[0]) && !stops.has(route.stops[1])) continue;
       byId ??= new Map(game.stations.map(stop => [stop.id, stop]));
       if (passengerEndpoints(game, byId.get(route.stops[0]), byId.get(route.stops[1]))?.some(town => town.id === city.id)) return route;
@@ -55,7 +58,7 @@ export function arrivalRoute(game, city) {
 function arrivalEntry(city, route, first) {
   const n = residents(city.population);
   if (!route) return { key: `arrival:${city.id}`, kind: 'arrival', day: Math.floor(city.lastServiceDay), art: 'town', title: `${city.name} joins your network`, detail: `Its ${n} residents are now served by your company.`, target: { kind: 'city', id: city.id } };
-  const noun = headlineNoun(route.mode, route.cargo), tail = `Its ${n} residents are now ${route.cargo === 'passengers' ? 'linked' : 'supplied'} by ${route.name}.`;
+  const noun = headlineNoun(route.mode, route.cargo), tail = `Its ${n} residents are now ${isTownTraffic(route.cargo) ? 'linked' : 'supplied'} by ${route.name}.`;
   return { key: first ? `first:${route.mode}` : `arrival:${city.id}`, kind: first ? 'first' : 'arrival', day: Math.floor(city.lastServiceDay), art: ART[noun],
     title: `Citizens celebrate as the first ${noun} arrives in ${city.name}`, detail: (first ? `The company’s first ${noun}. ` : '') + tail, target: { kind: 'city', id: city.id }, routeId: route.id };
 }

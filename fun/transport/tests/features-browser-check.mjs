@@ -197,6 +197,66 @@ try {
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
   console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
 
+  // Mail: two town stops keep Passengers and offer Mail second; a mail truck launches, delivers with its envelope floater and survives a reload.
+  const mailPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  watch(mailPage);
+  await mailPage.goto(url);
+  await createWorldFromMenu(mailPage);
+  await mailPage.evaluate(() => {
+    const renderer = transport.renderer, original = renderer.render;
+    window.mailFloaters = [];
+    renderer.render = function (now, view = {}) { for (const floater of view.floaters || []) if (floater.cargo === 'mail' && !mailFloaters.includes(floater)) mailFloaters.push(floater); return original.apply(this, arguments); };
+    transport.setView('routes');
+  });
+  // The starter bus runs four days ahead, so its income never merges with the first mail floater.
+  await mailPage.evaluate(async () => (await import('./model.js')).tick(transport.game, 4));
+  await mailPage.locator('#new-route-button').click();
+  await mailPage.locator('#route-form [name="from"]').selectOption('station-1');
+  await mailPage.locator('#route-form [name="to"]').selectOption('station-2');
+  assert.deepEqual(await mailPage.locator('[data-cargo-choice]').evaluateAll(buttons => buttons.slice(0, 2).map(button => button.dataset.cargoChoice)), ['passengers', 'mail'], 'mail is the second cargo');
+  assert.equal(await mailPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'two town stops keep Passengers');
+  assert.equal(await mailPage.locator('[data-cargo-choice="mail"]').getAttribute('data-fits'), 'true', 'Mail fits two towns');
+  assert.equal(await mailPage.locator('.route-stop-field').first().locator('[data-cargo-pick="mail"]').count(), 1, 'a town stop loads mail');
+  await mailPage.locator('[data-cargo-choice="mail"]').click();
+  assert.equal(await mailPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Alderbrook – Pinehaven mail');
+  assert.equal(await mailPage.locator('[data-vehicle-sprite="purchase"]').getAttribute('data-cargo'), 'mail', 'the purchase portrait is the mail truck');
+  assert.match(await mailPage.locator('#route-connection').textContent(), /^Connected by road, \d+ tiles\.$/, 'mail is a route of its own beside the bus');
+  assert.match(await mailPage.locator('#route-form .route-forecast-trip').textContent(), /^\d+ tiles, about \d+ days on the way, about \$[\d,]+ each$/, 'the trip keeps the full fare');
+  await mailPage.locator('#route-planner').screenshot({ path: `${output}/desktop-mail-form.png` });
+  const mailQuote = await mailPage.evaluate(async () => (await import('./model.js')).getVehiclePurchase(transport.game, 'road').cost), mailMoney = await mailPage.evaluate(() => transport.game.money);
+  await mailPage.locator('#route-form button[type="submit"]').click();
+  const mail = await mailPage.evaluate(() => { const route = transport.game.routes.find(item => item.cargo === 'mail'); return route && { id: route.id, name: route.name, stop: transport.game.stations.find(stop => stop.id === route.stops[1]) }; });
+  assert.ok(mail, 'the mail route launches'); assert.equal(mail.name, 'Alderbrook – Pinehaven mail');
+  assert.equal(await mailPage.evaluate(() => transport.game.money), mailMoney - mailQuote, 'the launch costs the quoted mail truck');
+  await mailPage.evaluate(stop => transport.renderer.focus(stop.x, stop.y - 1), mail.stop);
+  await mailPage.locator('[data-speed="3"]').click();
+  await mailPage.waitForFunction(id => transport.game.routes.find(route => route.id === id).delivered > 0, mail.id, { timeout: 90000 });
+  await mailPage.waitForFunction(() => mailFloaters.length > 0, undefined, { timeout: 5000 });
+  await mailPage.evaluate(() => transport.setSpeed(0));
+  await mailPage.screenshot({ path: `${output}/desktop-mail-floater.png` });
+  const mailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
+  await mailPage.waitForFunction(id => document.querySelector(`[data-route-health="${id}"]`)?.textContent === 'Mail travels both ways.', mail.id);
+  assert.equal(await mailCard.locator('[data-route-status]').textContent(), 'Running');
+  assert.equal(await mailCard.locator('[data-cargo-icon="mail"]').count(), 1, 'the card shows the envelope');
+  assert.match(await mailCard.locator('[data-vehicle-spec]').textContent(), /^1 mail truck · /);
+  await mailCard.screenshot({ path: `${output}/desktop-mail-card.png` });
+  const waitingMail = await mailPage.evaluate(() => transport.game.cities.slice(0, 2).map(city => city.mail));
+  assert.ok(waitingMail.every(n => Number.isFinite(n) && n >= 0), `towns keep their waiting mail: ${waitingMail}`);
+  await mailPage.evaluate(() => transport.persist());
+  await mailPage.setViewportSize({ width: 390, height: 844 });
+  await mailPage.goto(url);
+  await loadAutosaveFromMenu(mailPage);
+  assert.deepEqual(await mailPage.evaluate(id => [transport.game.routes.find(route => route.id === id)?.cargo, transport.game.cities.every(city => Number.isFinite(city.mail))], mail.id), ['mail', true], 'the mail route and waiting mail survive a reload');
+  await mailPage.evaluate(() => transport.setView('routes'));
+  const phoneMailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
+  await phoneMailCard.scrollIntoViewIfNeeded();
+  assert.equal(await fits(mailPage, '#panel-content'), true, 'the 390px drawer fits the mail card');
+  assert.equal(await phoneMailCard.evaluate(card => card.scrollWidth <= card.clientWidth + 1), true, 'the 390px mail card does not overflow');
+  await phoneMailCard.screenshot({ path: `${output}/mobile-390-mail-card.png` });
+  await mailPage.close();
+  assert.deepEqual(errors, [], 'mail runs without console or runtime errors');
+  console.log('Mail checks passed: second cargo, Passengers kept, Mail fits, name, truck portrait, quote, delivery floater, card, reload, 390px.');
+
   // Edit moves the stone route to Pinehaven by Pick on map and keeps its trucks; a new freight asks before dropping the load.
   const editPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(editPage);

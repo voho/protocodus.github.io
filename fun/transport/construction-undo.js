@@ -3,6 +3,7 @@ import { buildingAt, buildingTiles } from './building-sites.js';
 import { industryTiles } from './industry-sites.js';
 import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 import { money as moneyText } from './copy.js';
+import { MAIL_POOL_SHARE } from './settlements.js';
 
 // One construction gesture reversed as a diff: only the tiles, sites, residents,
 // notices and money that this build changed go back, so vehicles, cargo and
@@ -45,7 +46,7 @@ export function captureUndo(game,tool,points){
   // Founding a town first pins every older home to its current town.
   if(tool==='city'&&!pinned.has(game.tiles)){for(const tile of game.tiles)if(tile.building&&!Object.hasOwn(tile.building,'populationCityId'))owners.push(tile.building);if(!owners.length)pinned.add(game.tiles);}
   return {tool,tiles:game.tiles,indices,before:structuredClone(indices.map(index=>game.tiles[index])),lists:Object.fromEntries(LISTS.map(key=>[key,game[key].slice()])),notifications:game.notifications.slice(),
-    people:game.cities.map(city=>[city,city.population,city.passengers]),money:[game.money,game.monthlyExpenses,game.totalExpenses],nextId:game.nextId,owners,
+    people:game.cities.map(city=>[city,city.population,city.passengers,city.mail]),money:[game.money,game.monthlyExpenses,game.totalExpenses],nextId:game.nextId,owners,
     calm:game.cities.map(city=>[city,city.disturbance||0])};
 }
 
@@ -59,7 +60,7 @@ export function finishUndo(entry,game,result){
     const old=new Set(was),kept=new Set(now);
     lists[key]={before:was,after:now.slice(),added:now.filter(item=>!old.has(item)),removed:was.flatMap((item,index)=>kept.has(item)?[]:[[index,item]])};
   }
-  const towns=new Set(game.cities),people=entry.people.filter(([city,population,passengers])=>towns.has(city)&&(city.population!==population||city.passengers!==passengers)).map(([city,population,passengers])=>[city,population,city.population,passengers,city.passengers]);
+  const towns=new Set(game.cities),people=entry.people.filter(([city,population,passengers,mail])=>towns.has(city)&&(city.population!==population||city.passengers!==passengers||city.mail!==mail)).map(([city,population,passengers,mail])=>[city,population,city.population,passengers,city.passengers,mail,city.mail]);
   // A demolition's dent in a town's opinion is kept as the amount it added, so later fading or demolition stays.
   const disturbed=entry.calm.filter(([city,before])=>towns.has(city)&&(city.disturbance||0)!==before).map(([city,before])=>[city,(city.disturbance||0)-before]);
   const cost=result.cost||0;
@@ -125,9 +126,10 @@ export function undoConstruction(game,entry){
   entry.changed.forEach((index,n)=>{const tile=game.tiles[index];for(const key of Object.keys(tile))delete tile[key];Object.assign(tile,entry.before[n]);});
   for(const key of LISTS)if(entry.lists[key])game[key]=restoreList(game[key],entry.lists[key]);
   const towns=new Set(game.cities);
-  for(const [city,population,populationAfter,passengers,passengersAfter] of entry.people)if(towns.has(city)){
+  for(const [city,population,populationAfter,passengers,passengersAfter,mail,mailAfter] of entry.people)if(towns.has(city)){
     city.population=city.population===populationAfter?population:Math.max(0,city.population-(populationAfter-population));
     city.passengers=city.passengers===passengersAfter?passengers:Math.min(Math.max(0,city.passengers-(passengersAfter-passengers)),city.population*.9);
+    if(mail!==undefined)city.mail=city.mail===mailAfter?mail:Math.min(Math.max(0,city.mail-(mailAfter-mail)),city.population*MAIL_POOL_SHARE);
   }
   for(const [city,delta] of entry.disturbed)if(towns.has(city)){const left=Math.max(0,(city.disturbance||0)-delta);if(left)city.disturbance=left;else delete city.disturbance;}
   for(const building of entry.owners)delete building.populationCityId;

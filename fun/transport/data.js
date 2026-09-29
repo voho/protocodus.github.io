@@ -7,6 +7,7 @@ export const BIOMES = {
 };
 export const CARGO = {
   passengers: { name: 'Passengers', color: '#edc773', price: 18, transit: 'express' },
+  mail: { name: 'Mail', color: '#d9a47e', price: 26, transit: 'express' },
   timber: { name: 'Timber', color: '#947044', price: 22, transit: 'bulk' },
   lumber: { name: 'Lumber', color: '#c4985b', price: 36, transit: 'standard' },
   coal: { name: 'Coal', color: '#667078', price: 23, transit: 'bulk' },
@@ -80,3 +81,6 @@ export const VEHICLE_CAPACITIES = { road: 24, rail: 90, water: 140 };
 export const VEHICLE_UPKEEP = { road: 22, rail: 90, water: 70 };
 export const INFRASTRUCTURE_UPKEEP = { road: .075, rail: .14, structure: .2, stop: { road: 1.2, rail: 4, water: 6 } };
 export const TOWN_CARGO = ['food', 'furniture', 'goods', 'fuel', 'stone', 'cement', 'machinery'];
+/** Cargo that travels between two different towns and loads at both ends. */
+export const TOWN_TRAFFIC = ['passengers', 'mail'];
+export const isTownTraffic = cargo => cargo === 'passengers' || cargo === 'mail';

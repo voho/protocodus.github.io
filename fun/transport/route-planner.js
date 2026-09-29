@@ -8,6 +8,9 @@ import { defaultRouteName as routeName } from './route-lines.js';
 import { payTiles, travelTiles, scheduledDays, transitPay } from './economy-pricing.js';
 import { VEHICLE_SPEEDS } from './data.js';
 import { familyOf, marketView, MARKET } from './town-market.js';
+import { isTownTraffic } from './data.js';
+import { mailRate } from './settlements.js';
+import { localEnvironment } from './environment.js';
 
 const pathCache = new WeakMap();
 const canShip = (a, b, cargo) => {
@@ -18,12 +21,12 @@ const cargoNames = keys => keys.length ? listJoin([...keys.slice(0, 3).map(key =
 // Name the gap only when no cargo at all fits; one wrong choice keeps its own advice.
 function sharedCargoGap(game, stations, coverage) {
   if (passengerEndpoints(game, ...stations)) return '';
-  if ([...coverage[0].produces, ...coverage[1].produces].some(cargo => cargo !== 'passengers' && (canShip(coverage[0], coverage[1], cargo) || canShip(coverage[1], coverage[0], cargo)))) return '';
+  if ([...coverage[0].produces, ...coverage[1].produces].some(cargo => !isTownTraffic(cargo) && (canShip(coverage[0], coverage[1], cargo) || canShip(coverage[1], coverage[0], cargo)))) return '';
   return `No cargo fits both stops. The start loads ${cargoNames(coverage[0].produces)}, and the end accepts ${cargoNames(coverage[1].accepts)}.`;
 }
 
 export function routeCargoList(game) {
-  return Object.keys(CARGO).filter(key => key === 'passengers' || Object.values(INDUSTRIES).some(industry => industry.biomes.includes(game.biome) && (industry.inputs[key] || industry.outputs[key])));
+  return Object.keys(CARGO).filter(key => isTownTraffic(key) || Object.values(INDUSTRIES).some(industry => industry.biomes.includes(game.biome) && (industry.inputs[key] || industry.outputs[key])));
 }
 
 // Match the launch rules without buying a vehicle or changing the world.
@@ -52,7 +55,7 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   result.state = 'connected';
   if (result.path.length < 3) return fail('Stops are too close. Leave at least two tiles of travel.');
   const coverage = stations.map(stop => stationCoverage(game, stop));
-  if (cargo === 'passengers') {
+  if (isTownTraffic(cargo)) {
     if (!passengerEndpoints(game, ...stations)) return fail(sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
   } else if (!canShip(coverage[0], coverage[1], cargo)) {
     if (canShip(coverage[1], coverage[0], cargo)) result.reversed = true;
@@ -60,17 +63,17 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   }
   // The same stops and cargo can take another vehicle instead of a duplicate service.
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
-  result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || cargo === 'passengers' && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
+  result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || isTownTraffic(cargo) && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
   if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail(`Connected. Need ${money(getVehiclePurchase(game,mode).cost)} for the first ${vehicleNoun(mode, cargo)}.`);
   return { ...result, valid: true, message: `Connected by ${mode === 'water' ? 'water' : mode}, ${tiles(result.path.length - 1)}.${result.reversed ? ' Loads at the end stop.' : ''}` };
 }
 
 // Every biome cargo with its verdict for these stops, fitting cargo first:
-// loaded at the start, then loaded at the end, then passengers. Empty until connected.
+// loaded at the start, then loaded at the end, then passengers, then mail. Empty until connected.
 export function routeCargoOptions(game, draft) {
   const plans = routeCargoList(game).map(cargo => [cargo, validateRoutePlan(game, { ...draft, cargo }, { ignoreFunds: true })]);
   if (!plans[0]?.[1].connected) return [];
-  const rank = ([cargo, plan]) => !plan.valid ? 3 : cargo === 'passengers' ? 2 : plan.reversed ? 1 : 0;
+  const rank = ([cargo, plan]) => !plan.valid ? 3 : cargo === 'mail' ? 2.5 : cargo === 'passengers' ? 2 : plan.reversed ? 1 : 0;
   return plans.sort((a, b) => rank(a) - rank(b)).map(([cargo, plan]) => ({ cargo, valid: plan.valid, reversed: plan.reversed, message: plan.message }));
 }
 
@@ -107,17 +110,17 @@ function siteSupply(game, industry, cargo, { stops, covers }, from) {
   return Math.min(potential, Math.max(fed, recent));
 }
 // Daily cargo left for a new vehicle at each loading end: one flow for freight, one per town for
-// passengers, after the routes that already load there take what their fleets carry.
+// passengers or mail, after the routes that already load there take what their fleets carry.
 function loadingFlows(game, from, to, cargo) {
   const stops = new Map(game.stations.map(stop => [stop.id, stop])), coverage = new Map(), day = Math.floor(game.day);
   const covers = stop => { if (!coverage.has(stop)) coverage.set(stop, stationCoverage(game, stop)); return coverage.get(stop); };
-  if (cargo === 'passengers') {
+  if (isTownTraffic(cargo)) {
     const towns = passengerEndpoints(game, from, to), taken = new Map(towns.map(town => [town.id, 0]));
-    for (const route of game.routes) if (route.cargo === 'passengers' && route.active) {
+    for (const route of game.routes) if (route.cargo === cargo && route.active) {
       const ends = route.stops.map(id => stops.get(id));
       if (ends.every(Boolean) && ends.some(stop => towns.some(town => near(stop, town, 5)))) for (const town of passengerEndpoints(game, ...ends) || []) if (taken.has(town.id)) taken.set(town.id, taken.get(town.id) + fleetRate(game, route));
     }
-    return towns.map(town => { const made = passengerArrivals(game, town, day, undefined, undefined, .5); return { made, free: Math.max(0, made - taken.get(town.id)) }; });
+    return towns.map(town => { const made = cargo === 'mail' ? mailRate(town, localEnvironment(game, town.x, town.y)) : passengerArrivals(game, town, day, undefined, undefined, .5); return { made, free: Math.max(0, made - taken.get(town.id)) }; });
   }
   const producers = covers(from).industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);
   const output = new Map(producers.map(industry => [industry.id, siteSupply(game, industry, cargo, { stops, covers }, from)]));
@@ -196,7 +199,7 @@ export function filterRoutes(game, filters = {}) {
     if (filters.status === 'attention' && !routeNeedsAttention(game, route)) return false;
     if (filters.cargo && filters.cargo !== 'all' && route.cargo !== filters.cargo) return false;
     if (!words.length) return true;
-    const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : route.cargo === 'passengers' ? 'bus' : 'truck', ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();
+    const search = [route.name, CARGO[route.cargo]?.name, route.cargo, route.mode, route.mode === 'water' ? 'ship ferry boat port' : route.mode === 'rail' ? 'train' : vehicleNoun(route.mode, route.cargo), ...route.stops.map(id => stops.get(String(id)))].join(' ').toLocaleLowerCase();
     return words.every(word => search.includes(word));
   });
 }

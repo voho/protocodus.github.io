@@ -1,4 +1,5 @@
 import { CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
+import { isTownTraffic } from './data.js';
 import { randomAt } from './environment.js';
 import { calendarMonth, distancePay } from './economy-pricing.js';
 import { industrySize } from './industry-sites.js';
@@ -17,7 +18,7 @@ const center = site => INDUSTRIES[site.kind] ? { x: site.x + (industrySize(site)
 // Fares grow with distancePay(L) = (L + 12) ÷ 9 while a round trip grows with L, so income per vehicle-day falls as f(L).
 const perDay = length => distancePay(length) / length;
 const producing = site => site.owner !== 'player' && Object.keys(INDUSTRIES[site.kind].outputs).length > 0 && (Object.keys(INDUSTRIES[site.kind].inputs).length === 0 || site.production > 0);
-const started = game => game.contracts !== undefined || game.routes.some(route => route.cargo !== 'passengers' && route.delivered > 0);
+const started = game => game.contracts !== undefined || game.routes.some(route => !isTownTraffic(route.cargo) && route.delivered > 0);
 
 /** The bonus paid on top of the fare: a served contract earns 1.6× what a 10-tile route earns per vehicle-day. */
 export function contractMultiplier(distance) { return Math.min(4, Math.max(1, 1.6 * perDay(10) / perDay(distance) - 1)); }
@@ -49,7 +50,7 @@ function servedPairs(game, coverageOf) {
   const pairs = new Set(), stops = new Map(game.stations.map(stop => [stop.id, stop])), covered = new Map();
   const cover = id => { if (!covered.has(id)) covered.set(id, stops.has(id) ? coverageOf(stops.get(id)) : null); return covered.get(id); };
   for (const route of game.routes) {
-    if (!route.active || route.cargo === 'passengers') continue;
+    if (!route.active || isTownTraffic(route.cargo)) continue;
     const from = cover(route.stops[0]), to = cover(route.stops[1]);
     if (!from || !to) continue;
     const targets = to.industries.filter(site => INDUSTRIES[site.kind].inputs[route.cargo]).map(site => ({ kind: 'industry', id: site.id }));
@@ -126,7 +127,7 @@ export function validContracts(game) {
   if (list === undefined) return true;
   if (!Array.isArray(list) || list.length > MAX_CONTRACTS) return false;
   return list.every(contract => {
-    if (!contract || typeof contract !== 'object' || !shortId(contract.id) || ids.has(contract.id) || !owns(CARGO, contract.cargo) || contract.cargo === 'passengers' || !shortId(contract.sourceId)) return false;
+    if (!contract || typeof contract !== 'object' || !shortId(contract.id) || ids.has(contract.id) || !owns(CARGO, contract.cargo) || isTownTraffic(contract.cargo) || !shortId(contract.sourceId)) return false;
     ids.add(contract.id);
     const { target } = contract;
     if (!target || typeof target !== 'object' || !['industry', 'city'].includes(target.kind) || !shortId(target.id) || !finite(contract.distance, 0, 10000) || !finite(contract.multiplier, 1, 4)) return false;

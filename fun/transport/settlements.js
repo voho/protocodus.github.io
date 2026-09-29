@@ -111,6 +111,12 @@ export function passengerArrivals(game, city, day = Math.floor(game.day), enviro
   return city.population * (.005 + .006 * clamp(environment.housing / 14) + .003 * environment.amenity + .002 * clamp(environment.shops / 6)) *
     (.55 + draw * .95) * (.70 + weather.travel * .3) * (1 - environment.pollution * .22) * (actionActive(city.advertisedUntil, day) ? TOWN_ACTIONS.advertise.passengers : 1);
 }
+// Letters a town writes: about one bag a day per 400 residents, 15% more for each service building near
+// its centre (four at most). At most one bag per 12.5 residents waits; the rest is never written.
+export const MAIL_RATE = .0024, MAIL_POOL_SHARE = .08;
+/** Mean letters per day; the route forecast reads this instead of a day's sample. */
+export function mailRate(city, environment) { return Math.max(0, city.population) * MAIL_RATE * (1 + .15 * Math.min(4, environment.services)); }
+export function mailArrivals(game, city, day = Math.floor(game.day), environment = localEnvironment(game, city.x, city.y)) { return mailRate(city, environment) * (.7 + randomAt(game, day, city.id, 121) * .6); }
 
 const occupiedSites = game => new Set([...game.industries.flatMap(industryTiles), ...game.stations, ...game.cities].map(point => `${point.x},${point.y}`));
 // Road-side lots organic growth could still take; a limit stops the count early.
@@ -195,6 +201,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const connected = recentlyServed(game, city, connectedCities);
     const arrivals = passengerArrivals(game, city, day, environment, weather);
     city.passengers = clamp((city.passengers || 0) + arrivals, 0, Math.max(0, city.population * .9));
+    city.mail = clamp((city.mail || 0) + mailArrivals(game, city, day, environment), 0, Math.max(0, city.population * MAIL_POOL_SHARE));
     const activityLoss = (.013 + randomAt(game, day, city.id, 102) * .020 + environment.pollution * .008) * (1 - environment.amenity * .22);
     city.activity = Math.max(0, (city.activity || 0) * (1 - activityLoss));
     const supplyUse = (.009 + randomAt(game, day, city.id, 103) * .014) * (1 + weather.cold * .25 + environment.housing / 150) * (1 - clamp(environment.shops / 10) * .16);

@@ -24,7 +24,7 @@ const arriveAt = (vehicle, route, day, game) => { game.day = day; vehicle.progre
 test('every cargo has a transit class; pay is flat, then falls, never below the floor', () => {
   for (const [key, cargo] of Object.entries(CARGO)) assert.ok(TRANSIT_CLASSES[cargo.transit], `${key} has a class`);
   const members = cls => Object.keys(CARGO).filter(key => CARGO[key].transit === cls).sort();
-  assert.deepEqual(members('express'), ['passengers']);
+  assert.deepEqual(members('express'), ['mail', 'passengers']);
   assert.deepEqual(members('perishable'), ['fish', 'food', 'goods']);
   assert.deepEqual(members('standard'), ['cement', 'fuel', 'furniture', 'glass', 'grain', 'lumber', 'machinery', 'steel', 'wire']);
   assert.deepEqual(members('bulk'), ['coal', 'copper', 'iron', 'oil', 'sand', 'stone', 'timber']);
