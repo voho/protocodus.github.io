@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "cd1c98495d7b",
+  "strategy": "manual-commit",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/app.js",
+    "fun/transport/building-sites.js",
+    "fun/transport/cargo-icons.js",
+    "fun/transport/company-rating.js",
+    "fun/transport/construction-undo.js",
+    "fun/transport/dialogs.css",
+    "fun/transport/index.html",
+    "fun/transport/model.js",
+    "fun/transport/places.css",
+    "fun/transport/tests/company-rating-browser-check.mjs",
+    "fun/transport/tests/company-rating.test.mjs",
+    "fun/transport/tests/construction-undo.test.mjs",
+    "fun/transport/tests/expansion-model.test.mjs",
+    "fun/transport/tests/property-browser-check.mjs",
+    "fun/transport/tests/property.test.mjs",
+    "fun/transport/tests/town-market.test.mjs",
+    "fun/transport/town-market.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cd/1c98495d7b/0/metadata.json",
+      "transcript": "/cd/1c98495d7b/0/full.jsonl",
+      "context": "/cd/1c98495d7b/0/context.md",
+      "content_hash": "/cd/1c98495d7b/0/content_hash.txt",
+      "prompt": "/cd/1c98495d7b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  }
+}
