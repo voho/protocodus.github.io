@@ -21,6 +21,8 @@ export const states = [
     const id = await routes(page);
     await page.locator(`[data-edit-route="${id}"]`).click();
     await page.locator('#route-form').waitFor({ state: 'visible' });
+    // Edit scrolls the drawer to the form smoothly, reduced motion or not: capture once it has held still for 8 frames.
+    await page.evaluate(() => new Promise(resolve => { const el = document.querySelector('#panel-content'); let last = NaN, still = 0; const frame = () => { still = el.scrollTop === last ? still + 1 : 0; last = el.scrollTop; if (still < 8) requestAnimationFrame(frame); else resolve(); }; requestAnimationFrame(frame); setTimeout(resolve, 3000); }));
     await rest(page);
     await settle(page);
   } },

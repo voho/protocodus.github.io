@@ -88,7 +88,7 @@
 .connection-plan-banner .connection-build{padding:8px 16px;background:var(--ink);color:var(--on-ink);font-weight:500}
 .connection-plan-banner .connection-build:hover{background:var(--ink-2)}
 .connection-plan-banner #cancel-connection-plan{margin-left:-8px}
-#objective-card .objective-plan{min-height:34px;padding:8px 12px;border:1px solid var(--edge);border-radius:var(--r-3);background:var(--paper);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink-2)}
+#objective-card .objective-plan{min-height:34px;padding:7px 12px;border:1px solid var(--edge);border-radius:var(--r-3);background:var(--paper);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink-2)}
 #objective-card .objective-plan:hover{background:var(--well);border-color:var(--ink)}
 /* Next goal: one optional suggestion on the map. It collapses to a chip and never covers open menus. */
 #objective-card{top:12px;right:12px;width:296px;max-height:calc(100% - 96px);overflow:auto;padding:16px 16px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);backdrop-filter:none;z-index:var(--z-goal);scrollbar-width:thin;color:var(--ink)}
