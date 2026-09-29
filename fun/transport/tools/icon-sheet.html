@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Transport icon sheet</title>
+  <link rel="icon" type="image/svg+xml" href="../icon.svg">
+  <link rel="stylesheet" href="../tokens.css">
+  <style>
+    /* Dev page (DESIGN.md 16.1), not linked from the game: every glyph at 16, 20 and 24 px on paper and on ink, then every cargo pictogram on a well tile. */
+    html,body{height:auto;overflow:auto}
+    body{padding:var(--s-5);color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body)}
+    h1{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:600;margin:0 0 var(--s-2)}
+    h2{font-size:var(--fs-title);line-height:var(--lh-title);font-weight:600;margin:var(--s-6) 0 var(--s-3)}
+    p{margin:0;color:var(--ink-2)}
+    .sheet{display:grid;grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:var(--s-2)}
+    .glyph{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--rule);border-radius:var(--r-3);overflow:hidden}
+    .glyph>strong{grid-column:1/-1;padding:var(--s-1) var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;border-bottom:1px solid var(--rule)}
+    .glyph>div{display:flex;align-items:center;justify-content:center;gap:var(--s-3);padding:var(--s-3) var(--s-2)}
+    .on-paper{background:var(--paper);color:var(--ink)}
+    .on-ink{background:var(--ink);color:var(--on-ink)}
+    .in-text{grid-column:1/-1;justify-content:flex-start!important;border-top:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body);gap:var(--s-2)!important}
+    .in-text svg{display:inline-block}
+    .cargo{display:flex;flex-wrap:wrap;gap:var(--s-3)}
+    .cargo figure{margin:0;display:grid;justify-items:center;gap:var(--s-1);font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+    .cargo figure>div{display:flex;align-items:center;gap:var(--s-2)}
+    .tile{display:grid;place-items:center;background:var(--well);border-radius:var(--r-1)}
+    .tile>svg{width:80%;height:80%}
+    .t16{width:16px;height:16px}.t20{width:20px;height:20px}.t32{width:32px;height:32px}
+  </style>
+</head>
+<body>
+  <h1>Transport icons</h1>
+  <p>ui-icons.js at 16, 20 and 24 px, on paper and on ink. Cargo pictograms from cargo-icons.js sit on well tiles of 16, 20 and 32 px.</p>
+  <h2 id="glyph-count">Glyphs</h2>
+  <section class="sheet" id="glyphs"></section>
+  <h2>Cargo on well tiles</h2>
+  <section class="cargo" id="cargo"></section>
+  <script type="module">
+    import { icon, names } from '../ui-icons.js';
+    import { cargoIcon } from '../cargo-icons.js';
+    import { CARGO } from '../data.js';
+    const sizes = [16, 20, 24];
+    document.querySelector('#glyph-count').textContent = `Glyphs, ${names().length}`;
+    document.querySelector('#glyphs').innerHTML = names().map(name => `<article class="glyph" data-glyph="${name}"><strong>${name}</strong><div class="on-paper">${sizes.map(size => icon(name, { size })).join('')}</div><div class="on-ink">${sizes.map(size => icon(name, { size })).join('')}</div><div class="in-text on-paper">${icon(name, { size: 16 })}<span>Label beside a ${name}</span></div></article>`).join('');
+    document.querySelector('#cargo').innerHTML = Object.entries(CARGO).map(([key, cargo]) => `<figure data-cargo="${key}"><div>${[16, 20, 32].map(size => `<span class="tile t${size}">${cargoIcon(key, { decorative: true })}</span>`).join('')}</div><figcaption>${cargo.name}</figcaption></figure>`).join('');
+  </script>
+</body>
+</html>

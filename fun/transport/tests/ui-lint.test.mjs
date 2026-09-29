@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { parse } from '../tools/css-format.mjs';
+import { has, ALIASES, modeGlyph } from '../ui-icons.js';
 
 const dir = new URL('../', import.meta.url), read = name => readFileSync(new URL(name, dir), 'utf8');
 const stylesheets = readdirSync(dir).filter(name => name.endsWith('.css')).sort();
@@ -122,4 +123,37 @@ test('retired words and glyphs only become fewer', () => {
   const baseline = JSON.parse(readFileSync(baselineUrl, 'utf8'));
   const risen = Object.keys(GUARDS).filter(key => counts[key] > (baseline[key] ?? 0));
   assert.deepEqual(risen, [], risen.map(key => `${key}: ${counts[key]} now, ${baseline[key] ?? 0} allowed\n  ${found[key].join('\n  ')}`).join('\n'));
+});
+
+// Icon names (DESIGN.md 5.1): the literal names given to icon(), data-icon and TOOL_INFO-style icon: fields, and the
+// glyphs literal modeGlyph() calls pick. Ternary and fallback branches count; comparisons (=== 'ok') do not.
+export function iconNames() {
+  const found = [], lineOf = (source, at) => source.slice(0, at).split('\n').length;
+  const firstArgument = (source, from) => {
+    let depth = 0, quote = '';
+    for (let i = from; i < source.length; i++) {
+      const c = source[i];
+      if (quote) { if (c === '\\') i++; else if (c === quote) quote = ''; continue; }
+      if (c === '"' || c === "'" || c === '`') quote = c;
+      else if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) { if (!depth) return source.slice(from, i); depth--; }
+      else if (c === ',' && !depth) return source.slice(from, i);
+    }
+    return '';
+  };
+  const branches = text => [...text.matchAll(/(?:^|[?:(]|\|\||\?\?)\s*(['"])([\w-]+)\1/g)].map(match => match[2]);
+  for (const file of [...readdirSync(dir).filter(name => name.endsWith('.js')).sort(), 'index.html']) {
+    const source = read(file), add = (at, name) => found.push({ file, line: lineOf(source, at), name });
+    for (const match of source.matchAll(/\b(?:icon|uiIcon)\(/g)) for (const name of branches(firstArgument(source, match.index + match[0].length))) add(match.index, name);
+    for (const match of source.matchAll(/data-icon="([\w-]+)"/g)) add(match.index, match[1]);
+    for (const match of source.matchAll(/\bicon\s*:\s*(['"])([\w-]+)\1/g)) add(match.index, match[2]);
+    for (const match of source.matchAll(/\bmodeGlyph\(\s*(['"])([\w-]+)\1\s*(?:,\s*(['"])([\w-]+)\3\s*)?\)/g)) add(match.index, modeGlyph(match[2], match[4]));
+  }
+  return found;
+}
+
+test('every icon name in the sources is a glyph or a migration alias', () => {
+  const found = iconNames(), unknown = found.filter(({ name }) => !has(name) && !has(ALIASES[name]));
+  assert.ok(found.length > 60, `the scan sees the game's icons (${found.length})`);
+  assert.deepEqual(unknown.map(({ file, line, name }) => `${file}:${line} ${name}`), [], 'draw it in ui-icons.js GLYPHS or fix the name');
 });

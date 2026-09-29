@@ -1,21 +1,11 @@
 import { BIOMES } from './data.js';
 import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot, slotDate as worldDate, slotMoney as money } from './save-slots.js';
 import { showLoading, hideLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
+import { icon, has } from './ui-icons.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
-const paths = {
-  close: '<path d="m6 6 12 12M6 18 18 6"/>',
-  save: '<path d="M4 3h13l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8M14 5v2"/>',
-  load: '<path d="M12 3v12m-5-5 5 5 5-5M4 15v6h16v-6"/>',
-  overwrite: '<path d="M4 7V3h4M4 3l4 4a8 8 0 1 1-3 9"/><path d="M9 11h7v7H9Z"/>',
-  rename: '<path d="m4 15 11-11a2 2 0 0 1 3 0l2 2a2 2 0 0 1 0 3L9 20l-6 1ZM13 6l5 5M4 15l5 5"/>',
-  delete: '<path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/>',
-  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
-  tundra: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M8 4l4 3 4-3M8 20l4-3 4 3M3 11l5-1-1-5M21 13l-5 1 1 5M3 13l5 1-1 5M21 11l-5-1 1-5"/>',
-  taiga: '<path d="m12 2-5 7h3l-6 7h6v6h4v-6h6l-6-7h3Z"/>',
-  desert: '<circle cx="17" cy="6" r="3"/><path d="M2 18c4-9 8-9 13 0M9 21c4-8 8-8 13 0M2 22h20"/>',
-};
-const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.save}</svg>`;
+// Saves draw the biome's own glyph; an unknown landscape falls back to the globe.
+const biomeGlyph = biome => BIOMES[biome] && has(biome) ? biome : 'world';
 function savedDate(value, autosave = false) {
   if (value === null || value === undefined) return autosave ? 'Latest automatic save' : 'Saved date unavailable';
   const date = new Date(value);
@@ -64,7 +54,7 @@ export function mountSaves(container, game, { onLoad, onClose }) {
 
   function card(slot) {
     const readonly = slot.readonly || slot.id === 'autosave', ready = slot.status === 'ready', landscape = BIOMES[slot.biome];
-    return `<article class="save-card${readonly ? ' save-autosave' : ''}${ready ? '' : ' save-card-unavailable'}" data-save-slot="${escape(slot.id)}"><div class="save-card-main"><div class="save-landscape save-landscape-${escape(slot.biome)}">${icon(readonly ? 'clock' : slot.biome)}</div><div class="save-card-info"><h4>${escape(slot.name)}</h4><div class="save-world-details"><span>${escape(landscape?.name || 'Unknown world')}</span><span>${worldDate(slot.day)}</span><strong>${money(slot.money)}</strong></div><p class="save-timestamp">${escape(savedDate(slot.savedAt, readonly))}</p></div></div>${!ready ? `<p class="save-card-error">${escape(slot.message || 'This save is unavailable. Your current world is unchanged.')}</p>` : ''}<div class="save-card-actions"><button type="button" class="button save-load" data-save-action="load" data-save-id="${escape(slot.id)}"${ready ? '' : ' data-unavailable="true" disabled'} aria-label="Load ${escape(slot.name)}">${icon('load')} Load</button>${readonly ? '<span class="save-auto-note">Saved automatically</span>' : `<div class="save-edit-actions"><button type="button" class="save-icon-action" data-save-action="overwrite" data-save-id="${escape(slot.id)}" title="Overwrite with current world" aria-label="Overwrite ${escape(slot.name)}">${icon('overwrite')}</button><button type="button" class="save-icon-action" data-save-action="rename" data-save-id="${escape(slot.id)}" title="Rename save" aria-label="Rename ${escape(slot.name)}">${icon('rename')}</button><button type="button" class="save-icon-action save-delete" data-save-action="delete" data-save-id="${escape(slot.id)}" title="Delete save" aria-label="Delete ${escape(slot.name)}">${icon('delete')}</button></div>`}</div>${confirmation(slot)}</article>`;
+    return `<article class="save-card${readonly ? ' save-autosave' : ''}${ready ? '' : ' save-card-unavailable'}" data-save-slot="${escape(slot.id)}"><div class="save-card-main"><div class="save-landscape save-landscape-${escape(slot.biome)}">${icon(readonly ? 'clock' : biomeGlyph(slot.biome))}</div><div class="save-card-info"><h4>${escape(slot.name)}</h4><div class="save-world-details"><span>${escape(landscape?.name || 'Unknown world')}</span><span>${worldDate(slot.day)}</span><strong>${money(slot.money)}</strong></div><p class="save-timestamp">${escape(savedDate(slot.savedAt, readonly))}</p></div></div>${!ready ? `<p class="save-card-error">${escape(slot.message || 'This save is unavailable. Your current world is unchanged.')}</p>` : ''}<div class="save-card-actions"><button type="button" class="button save-load" data-save-action="load" data-save-id="${escape(slot.id)}"${ready ? '' : ' data-unavailable="true" disabled'} aria-label="Load ${escape(slot.name)}">${icon('saved')} Load</button>${readonly ? '<span class="save-auto-note">Saved automatically</span>' : `<div class="save-edit-actions"><button type="button" class="save-icon-action" data-save-action="overwrite" data-save-id="${escape(slot.id)}" title="Overwrite with current world" aria-label="Overwrite ${escape(slot.name)}">${icon('saved')}</button><button type="button" class="save-icon-action" data-save-action="rename" data-save-id="${escape(slot.id)}" title="Rename save" aria-label="Rename ${escape(slot.name)}">${icon('edit')}</button><button type="button" class="save-icon-action save-delete" data-save-action="delete" data-save-id="${escape(slot.id)}" title="Delete save" aria-label="Delete ${escape(slot.name)}">${icon('retire')}</button></div>`}</div>${confirmation(slot)}</article>`;
   }
 
   function renderSlots() {
@@ -131,7 +121,7 @@ export function mountSaves(container, game, { onLoad, onClose }) {
     });
   }
 
-  container.innerHTML = `<div class="modal-inner saves-explorer" aria-busy="false"><button type="button" class="close-modal" aria-label="Close saved games">${icon('close')}</button><div class="saves-heading"><span class="eyebrow">Your worlds</span><h2>Load / save</h2><p>Saved locally in this browser.</p></div><section class="save-current" aria-label="Current world"><span class="save-current-icon">${icon(game.biome)}</span><div><span>Current world</span><strong>${escape(BIOMES[game.biome]?.name || game.biome)} · ${worldDate(game.day)}</strong></div><b>${money(game.money)}</b></section><form id="save-new-form" class="save-new-form"><label for="save-new-name">New save<input id="save-new-name" name="saveName" maxlength="40" required autocomplete="off" value="${escape(defaultName)}" placeholder="Name this world"></label><button type="submit" id="save-new-button" class="button button-primary">${icon('save')} Save game</button></form><p id="saves-message" class="saves-message" role="status" aria-live="polite" hidden></p><section id="save-slot-list" aria-label="Saved games"></section><p class="saves-local-note">Named saves stay until you overwrite or delete them. Clearing browser storage removes saved games.</p></div>`;
+  container.innerHTML = `<div class="modal-inner saves-explorer" aria-busy="false"><button type="button" class="close-modal" aria-label="Close saved games">${icon('close')}</button><div class="saves-heading"><span class="eyebrow">Your worlds</span><h2>Load / save</h2><p>Saved locally in this browser.</p></div><section class="save-current" aria-label="Current world"><span class="save-current-icon">${icon(biomeGlyph(game.biome))}</span><div><span>Current world</span><strong>${escape(BIOMES[game.biome]?.name || game.biome)} · ${worldDate(game.day)}</strong></div><b>${money(game.money)}</b></section><form id="save-new-form" class="save-new-form"><label for="save-new-name">New save<input id="save-new-name" name="saveName" maxlength="40" required autocomplete="off" value="${escape(defaultName)}" placeholder="Name this world"></label><button type="submit" id="save-new-button" class="button button-primary">${icon('saved')} Save game</button></form><p id="saves-message" class="saves-message" role="status" aria-live="polite" hidden></p><section id="save-slot-list" aria-label="Saved games"></section><p class="saves-local-note">Named saves stay until you overwrite or delete them. Clearing browser storage removes saved games.</p></div>`;
   container.querySelector('.close-modal').addEventListener('click', close);
   container.querySelector('#save-new-form').addEventListener('submit', event => {
     event.preventDefault(); const name = container.querySelector('#save-new-name').value.trim();

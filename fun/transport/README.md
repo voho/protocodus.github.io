@@ -428,4 +428,6 @@ Raised-ground checks: `terrain-geometry.test.mjs` covers shared corners, picking
 
 UI changes follow [DESIGN.md](./DESIGN.md). With the server running, `node fun/transport/tools/ui-snapshot.mjs --out DIR` captures every UI state in `tests/ui-states/` at 1440, 1024, 390 and 320 px wide, as screenshots and computed styles, and `--diff A B` lists what changed between two captures.
 
+Every line icon comes from `ui-icons.js`. With the server running, open `/fun/transport/tools/icon-sheet.html` to see each glyph at 16, 20 and 24 px on paper and on ink, beside a label, and every cargo pictogram on its well tile; look at it at 1× and 2× after drawing or changing a glyph.
+
 Performance changes, reproducible dense-world benchmarks and remaining large-map limits are documented in [PERFORMANCE.md](./PERFORMANCE.md).

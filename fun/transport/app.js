@@ -54,57 +54,12 @@ const escapeHTML = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&'
 const integer = integerText;
 const money = value => '$' + integer(Math.abs(value));
 const compactMoney = value => value >= 1000 ? '$' + tenthsText(value / 1000) + 'k' : money(value);
-const iconPaths = {
- map:'<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2zM9 3v16M15 5v16"/>',
- route:'<circle cx="6" cy="5" r="2"/><circle cx="18" cy="19" r="2"/><path d="M8 5h7a4 4 0 0 1 0 8H9a3 3 0 0 0 0 6h7"/>',
- chains:'<rect x="2" y="3" width="6" height="6" rx="1"/><rect x="2" y="15" width="6" height="6" rx="1"/><rect x="16" y="9" width="6" height="6" rx="1"/><path d="M8 6h4v12H8m4-6h4"/>',
- factory:'<path d="M3 21V11l6 3V9l6 4V3h4v18zM7 17v1m4-1v1m4-1v1M3 21h18"/>',
- city:'<path d="M3 21V9h7V3h7v8h4v10zM6 13v1m0 3v1m7-11v1m0 3v1m0 3v1m5 0v2M10 9v12"/>',
- help:'<circle cx="12" cy="12" r="9"/><path d="M9.4 8.8a2.8 2.8 0 0 1 5.3 1c0 1.8-2.7 2-2.7 4M12 17h.01"/>',
- save:'<path d="M4 3h13l4 4v14H3V3zM7 3v6h10V3M7 21v-8h10v8"/>',
- globe:'<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>',
- pause:'<path d="M8 5v14M16 5v14" stroke-width="3"/>',
- sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/>',
- rain:'<path d="M6 14a4 4 0 0 1-.6-7.9A6 6 0 0 1 17 5a4.5 4.5 0 0 1 1 9M7 17l-1 3m6-3-1 3m6-3-1 3"/>',
- grid:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18m6-18v18M3 9h18M3 15h18"/>',
- layers:'<path d="m12 3 10 5-10 5L2 8zM2 12l10 5 10-5M2 16l10 5 10-5"/>',
- check:'<path d="m5 12 4 4L19 6"/>',
- mouse:'<rect x="6" y="2" width="12" height="20" rx="6"/><path d="M12 2v7M6 10h12"/>',
- focus:'<path d="M3 8V3h5m8 0h5v5M3 16v5h5m8 0h5v-5"/><circle cx="12" cy="12" r="3"/>',
- compass:'<circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6z"/>',
- volume:'<path d="m11 4-6 5H2v6h3l6 5zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>',
- muted:'<path d="m11 4-6 5H2v6h3l6 5zM16 9l6 6m0-6-6 6"/>',
- road:'<path d="m7 2-3 20M17 2l3 20M12 3v3m0 5v3m0 5v2"/>',
- rail:'<path d="M7 2v20M17 2v20M4 5h16M4 10h16M4 15h16M4 20h16"/>',
- bridge:'<path d="M2 17h20M4 17V5m16 12V5M4 7q8 12 16 0M8 12v5m4-3v3m4-5v5M2 21h20"/>',
- tunnel:'<path d="M2 20h20M4 20V11a8 8 0 0 1 16 0v9M8 20v-8a4 4 0 0 1 8 0v8M10 16l-1 4m5-4 1 4M2 9l3-6h14l3 6"/>',
- raise:'<path d="m2 20 5-5 5 2 5-2 5 5M12 13V3m-4 4 4-4 4 4"/>',
- level:'<path d="M3 18h18M6 5v8m-3-3 3 3 3-3M18 13V5m-3 3 3-3 3 3"/>',
- lower:'<path d="m2 18 5-3 5 5 5-5 5 3M12 3v10m-4-4 4 4 4-4"/>',
- bus:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M9 3v8M7 18v3m10-3v3M8 14h1m6 0h1"/>',
- ship:'<path d="M4 13V7h5V3h6v4h5v6M3 13l9-3 9 3-3 6H6zM8 7h8M2 21q2-2 4 0t4 0 4 0 4 0 4 0"/>',
- port:'<circle cx="12" cy="5" r="2"/><path d="M12 7v14M8 10h8M4 13v3a8 8 0 0 0 16 0v-3M2 15l2-2 2 2m12 0 2-2 2 2"/>',
- train:'<rect x="5" y="2" width="14" height="16" rx="4"/><path d="M5 11h14M12 2v9M8 15h1m6 0h1M9 18l-3 4m9-4 3 4M8 21h8"/>',
- house:'<path d="m2 11 10-8 10 8M5 9v12h14V9M9 21v-7h6v7"/>',
- shop:'<path d="m3 9 2-6h14l2 6M3 9v3a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0V9zM5 15v6h14v-6M9 21v-5h6v5"/>',
- bulldoze:'<path d="M2 17h15l4 3V10M5 17V9h7l3 8M6 9V5h5l1 4M5 21h11a2 2 0 0 0 0-4H5a2 2 0 0 0 0 4z"/>',
- inspect:'<circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M10 7v6m-3-3h6"/>',
- pencil:'<path d="m4 20 1-5L16 4l4 4L9 19zM14 6l4 4"/>',
- tree:'<path d="m12 2-6 8h3l-5 7h16l-5-7h3zM12 17v5"/>',
- mine:'<path d="m3 21 6-13 3 5 4-10 6 18zM3 4q9-5 16 4M12 4 6 16"/>',
- arrow:'<path d="M4 12h16m-5-5 5 5-5 5"/>',
- arrowup:'<path d="M6 18 18 6M6 6h12v12"/>',
- swap:'<path d="M8 4v16m-4-4 4 4 4-4M16 20V4m-4 4 4-4 4 4"/>',
- warning:'<path d="m12 3 10 18H2zM12 9v5m0 3h.01"/>',
- leaf:'<path d="M20 3C8 2 2 8 5 15s16 5 15-12zM4 21l11-11"/>',
- snow:'<path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 4l3 3 3-3M9 20l3-3 3 3"/>',
- close:'<path d="m6 6 12 12M6 18 18 6"/>'
-};
-function icon(name, cls = '') { return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.factory}</svg>`; }
+import { icon as uiIcon, modeGlyph, ALIASES } from './ui-icons.js';
+function icon(name, cls = '') { return uiIcon(ALIASES[name] || name, { cls }); }
 const transportName = mode => ({road:'Road',rail:'Rail',water:'Water'})[mode] || 'Transport';
-const transportIcon = mode => mode==='water'?'ship':mode==='rail'?'train':'bus';
+const transportIcon = (mode, cargo = formDraft.cargo) => modeGlyph(mode, cargo);
 const stopName = mode => mode==='water'?'port':mode==='rail'?'rail station':'road stop';
-function hydrateIcons(root = document) { root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = icon(el.dataset.icon); }); }
+function hydrateIcons(root = document) { root.querySelectorAll('[data-icon]').forEach(el => { el.innerHTML = uiIcon(ALIASES[el.dataset.icon] || el.dataset.icon, { size: Number(el.dataset.iconSize) || 20 }); }); }
 hydrateIcons();
 
 const TOOL_INFO = {
@@ -785,8 +740,8 @@ function entityCards() {
  const rows=entityRows(),pages=Math.ceil(rows.length/ENTITIES_PER_PAGE);entityPage=Math.min(entityPage,Math.max(0,pages-1));
  const visible=rows.slice(entityPage*ENTITIES_PER_PAGE,(entityPage+1)*ENTITIES_PER_PAGE),controls=pageControls(view==='towns'?'Town pages':'Industry pages','entity-page',entityPage,pages);
  if(!visible.length)return '';
- if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('arrowup')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${townNeedIcons(city)}</button>`).join('')+controls;}
- return controls+visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<div class="entity-title"><h3>${escapeHTML(site.name||def.name)}${icon('arrowup')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p></div></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('')+controls;
+ if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('chevronRight')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${townNeedIcons(city)}</button>`).join('')+controls;}
+ return controls+visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<div class="entity-title"><h3>${escapeHTML(site.name||def.name)}${icon('chevronRight')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p></div></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('')+controls;
 }
 function entitySearch(label) {
  return `<label class="entity-search"><span class="sr-only">${label}</span><input id="entity-search" type="search" aria-label="${label}" placeholder="${label}" value="${escapeHTML(entityFilters[view])}"></label>`;

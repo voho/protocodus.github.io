@@ -1,7 +1,6 @@
+import { icon } from './ui-icons.js';
+
 const $ = selector => document.querySelector(selector);
-const glyph = paths => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-const closeGlyph = glyph('<path d="m6 6 12 12M6 18 18 6"/>');
-const menuGlyph = glyph('<path d="M4 6h16M4 12h16M4 18h16"/>');
 
 /** Keep secondary controls available without reserving space around the map. */
 export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
@@ -13,7 +12,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
 
   const drawerHeading = document.createElement('div');
   drawerHeading.className = 'management-drawer-heading';
-  drawerHeading.innerHTML = `<span>Management</span><button id="close-management" type="button" aria-label="Close management panel" title="Close management panel (Esc)">${closeGlyph}</button>`;
+  drawerHeading.innerHTML = `<span>Management</span><button id="close-management" type="button" aria-label="Close management panel" title="Close management panel (Esc)">${icon('close')}</button>`;
   sidebar.prepend(drawerHeading);
 
   // Reuse the mobile control so its existing gesture cancellation stays intact.
@@ -23,7 +22,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
 
   const menuWrap = document.createElement('div');
   menuWrap.className = 'compact-menu-wrap';
-  menuWrap.innerHTML = `<button id="game-menu-button" type="button" class="icon-button" title="Game menu" aria-label="Game menu" aria-expanded="false" aria-controls="game-menu">${menuGlyph}</button><section id="game-menu" aria-label="Game menu" hidden><div class="compact-menu-heading"><strong>Transport</strong><span id="compact-menu-weather"></span></div><div class="compact-menu-actions"></div><div class="compact-menu-status"></div></section>`;
+  menuWrap.innerHTML = `<button id="game-menu-button" type="button" class="icon-button" title="Game menu" aria-label="Game menu" aria-expanded="false" aria-controls="game-menu">${icon('menu')}</button><section id="game-menu" aria-label="Game menu" hidden><div class="compact-menu-heading"><strong>Transport</strong><span id="compact-menu-weather"></span></div><div class="compact-menu-actions"></div><div class="compact-menu-status"></div></section>`;
   topbar.append(menuWrap);
   const menuButton = $('#game-menu-button'), menu = $('#game-menu');
   const actions = menu.querySelector('.compact-menu-actions');
@@ -33,7 +32,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
     button.classList.add('compact-menu-action');
     // Preserve existing SVG icons and handlers. Dynamic audio icons use ::after.
     if (label) {
-      const art = button.querySelector('svg')?.outerHTML || glyph('<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/>');
+      const art = button.querySelector('svg')?.outerHTML || icon('more');
       button.innerHTML = `${art}<span>${label}</span>`;
     }
     actions.append(button);
@@ -47,14 +46,14 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
     actions.append(button);
     return button;
   };
-  addAction('main-menu-button', 'Main menu', menuGlyph, () => { closeManagement(); onMenu?.(); });
+  addAction('main-menu-button', 'Main menu', icon('world'), () => { closeManagement(); onMenu?.(); });
   moveAction('#save-button', 'Save / load');
   moveAction('#world-button', 'New world');
   moveAction('.main-nav [data-open-chains]', 'Production chains');
-  if (onNews) addAction('news-button', 'News', glyph('<path d="M4 5h12v13a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2ZM16 9h4v9a2 2 0 0 1-4 0M7 9h6M7 12h6M7 15h4"/>'), onNews);
-  if (onCompany) addAction('company-button', 'Company', glyph('<path d="M4 20h16M7 16v-4M12 16V6M17 16v-7"/>'), onCompany);
-  if (onGoals) addAction('goals-button', 'Company goals', glyph('<path d="M5 21V4m0 1h12l-2.5 4L17 13H5"/>'), onGoals);
-  const overviewButton = addAction('overview-button', 'Mini map', glyph('<path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16"/>'), () => {
+  if (onNews) addAction('news-button', 'News', icon('news'), onNews);
+  if (onCompany) addAction('company-button', 'Company', icon('company'), onCompany);
+  if (onGoals) addAction('goals-button', 'Company goals', icon('flag'), onGoals);
+  const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;
     overviewButton.setAttribute('aria-pressed', String(!minimap.hidden));
     if (!minimap.hidden) { onMinimapOpen(); $('#minimap').focus({ preventScroll: true }); }
@@ -74,7 +73,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
   const miniClose = document.createElement('button');
   miniClose.id = 'close-minimap'; miniClose.type = 'button';
   miniClose.setAttribute('aria-label', 'Hide mini map'); miniClose.title = 'Hide mini map';
-  miniClose.innerHTML = closeGlyph;
+  miniClose.innerHTML = icon('close');
   minimap.append(miniClose);
   miniClose.addEventListener('click', () => {
     minimap.hidden = true; overviewButton.setAttribute('aria-pressed', 'false'); canvas.focus({ preventScroll: true });
@@ -103,7 +102,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onView, g
     sidebar.setAttribute('aria-hidden', String(!open));
     mobileToggle.classList.toggle('open', open);
     mobileToggle.setAttribute('aria-expanded', String(open));
-    mobileToggle.innerHTML = `${open ? closeGlyph : glyph('<path d="M4 21V4h7v17M11 9h9v12M7 8h1m-1 4h1m-1 4h1m7-3h1m-1 4h1"/>')}<span>Manage</span>`;
+    mobileToggle.innerHTML = `${open ? icon('close') : ''}<span>Manage</span>`;
     for (const button of document.querySelectorAll('.main-nav [data-view]')) {
       const active = open && button.dataset.view === getView();
       button.classList.toggle('active', active);

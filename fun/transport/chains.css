@@ -109,3 +109,5 @@
  .chains-explorer{padding:16px}
  .chains-heading h2{margin:8px 0}
 }
+/* The Back link carries its chevron glyph inline. */
+.chain-back{display:inline-flex;align-items:center;gap:var(--s-1)}
