@@ -40,6 +40,13 @@
       "context": "/04/2658263261/2/context.md",
       "content_hash": "/04/2658263261/2/content_hash.txt",
       "prompt": "/04/2658263261/2/prompt.txt"
+    },
+    {
+      "metadata": "/04/2658263261/3/metadata.json",
+      "transcript": "/04/2658263261/3/full.jsonl",
+      "context": "/04/2658263261/3/context.md",
+      "content_hash": "/04/2658263261/3/content_hash.txt",
+      "prompt": "/04/2658263261/3/prompt.txt"
     }
   ],
   "token_usage": {
