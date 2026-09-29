@@ -110,8 +110,8 @@
 #objective-card .progress-track{height:6px;margin:0 0 12px;background:var(--well)}
 #objective-card #goal-bar{background:var(--signal)}
 .objective-actions{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
-#objective-action{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:8px 12px;border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500}
-#objective-action:hover{background:var(--ink-2)}
+#objective-action{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:7px 12px;border-color:var(--ink);border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500}
+#objective-action:hover{border-color:var(--ink-2);background:var(--ink-2)}
 #objective-action svg{width:15px;height:15px}
 .objective-another{min-height:34px;padding:0 2px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--edge);text-underline-offset:3px}
 .objective-another:hover{color:var(--ink);text-decoration-color:currentColor}

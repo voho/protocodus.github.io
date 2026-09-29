@@ -404,7 +404,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .paused-chip .paused-touch{display:inline}
 }
 @media(max-width:1000px){
- .map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:74px}
+ .map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:88px}
  .map-section:has(#route-pick-banner) .paused-chip{top:92px}
 }
 @media(min-width:701px) and (max-width:1000px){
