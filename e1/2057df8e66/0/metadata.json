@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e12057df8e66",
+  "session_id": "3b9c315d-693f-4002-bf02-dd13bfe054fa",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-29T08:48:06.38948Z",
+  "branch": "transport-playability",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "fun/transport/ARCHITECTURE.md",
+    "fun/transport/README.md",
+    "fun/transport/achievements-view.js",
+    "fun/transport/hud.css",
+    "fun/transport/index.html",
+    "fun/transport/settlements.js",
+    "fun/transport/tests/achievements.test.mjs",
+    "fun/transport/tests/achievements-browser-check.mjs",
+    "fun/transport/app-preload.js",
+    "fun/transport/app.js",
+    "fun/transport/compact-play.js",
+    "fun/transport/dialogs.css",
+    "fun/transport/model.js",
+    "fun/transport/notices.css",
+    "fun/transport/tests/ui-states/dialogs.mjs",
+    "fun/transport/ui-notices.js",
+    "fun/transport/achievements.js"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "ff5bce9e2172",
+  "token_usage": {
+    "input_tokens": 184,
+    "cache_creation_tokens": 222747,
+    "cache_read_tokens": 6989952,
+    "output_tokens": 50046,
+    "api_call_count": 67
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-29T08:48:05.585731Z",
+    "agent_lines": 0,
+    "human_added": 971,
+    "human_modified": 18,
+    "human_removed": 0,
+    "total_committed": 971,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-vojta-Dev-protocodus-github-io/3b9c315d-693f-4002-bf02-dd13bfe054fa.jsonl"
+}
