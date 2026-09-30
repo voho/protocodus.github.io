@@ -5,7 +5,7 @@ import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
 import { isTownTraffic } from './data.js';
-import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint } from './model.js';
+import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint, shownProgress } from './model.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -27,7 +27,7 @@ import { createOverlayGrid, siteShape, insideShape } from './overlay-placement.j
 import { drawRasterIndustry } from './raster-industries.js';
 import { buildingSize, buildingFootprint, buildingAt } from './building-sites.js';
 import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
-import { surfaceChangesSince } from './change-journal.js';
+import { surfaceChangesSince, viewChangesSince } from './change-journal.js';
 import { natureObjectLayout, drawRasterTreeShadows, treeShadowCacheStats } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
 import { noise, hashNoise } from './world-noise.js';
@@ -51,6 +51,9 @@ const CHUNK_TILES=6, CHUNK_PIXELS=CHUNK_TILES*TILE, CHUNK_GUTTER=8;
 const CACHE_BASE=48*1024*1024, CACHE_MAX=256*1024*1024;
 const MINIMAP_EDGE=512;
 const SCENE_PAN_MARGIN=96;
+// An ecology day patches at most this many scene tiles; a larger change rebuilds the scene. Chunks it changed recompose
+// two a frame, keeping their last picture meanwhile, so a busy 8× day never lands in a single frame.
+const SCENE_PATCH_TILES=6000,LAZY_CHUNKS_PER_FRAME=2,EMPTY_CELLS=new Int32Array(0);
 const LANDMARKS=new Set(['forest','rock']);
 const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zones']);
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
@@ -112,7 +115,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const sceneryPrepareBudgetMs=3,sceneryPanSettleMs=90;
   let lastSceneCamera=null,lastCameraMotion=-Infinity,sceneryWaitingForCamera=false;
   const foundations=new Map();
-  let sceneBuilds=0,foundationBuilds=0,projectedOrigin=null;
+  let sceneBuilds=0,scenePatches=0,foundationBuilds=0,projectedOrigin=null,lazyChunkBudget=LAZY_CHUNKS_PER_FRAME,lazyChunksWaiting=0;
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
   const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
@@ -174,8 +177,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(cachedHouseAssets!==houseAssetsRevision()||cachedWorldAssets!==worldArtRevision()){clearChunks();updateRaster(true);cachedHouseAssets=houseAssetsRevision();cachedWorldAssets=worldArtRevision();}
     if(cachedBiome!==game.biome||cachedSeed!==game.seed){clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;}
     if(cachedRevision===(game.revision||0))return;
-    const surface=surfaceChangesSince(game,cachedRevision);if(surface){refreshSurface(surface);return;}
+    const view=viewChangesSince(game,cachedRevision);if(view){refreshSurface(view.surface,view.sites);return;}
     buildingIndex.clear();terrainObjectIndex.clear();foundations.clear();sceneryBudget.clear();sceneCache=null;gridCache=null;
+    // A structural change is the player's: every chunk it reaches recomposes on the next frame, ahead of any ecology.
+    for(const entry of chunks.values())entry.lazy=false;
     industryIndex=new Map((game.industries||[]).flatMap(item=>industryTiles(item).map(p=>[p.y*game.width+p.x,item])));
     stationIndex=new Map((game.stations||[]).map(item=>[item.y*game.width+item.x,item]));
     airports=(game.stations||[]).filter(item=>item.mode==='air');airportIndex=new Map(airports.flatMap(item=>stationTiles(item).map(p=>[p.y*game.width+p.x,item])));stationById=new Map((game.stations||[]).map(item=>[item.id,item]));
@@ -184,9 +189,19 @@ export function createRenderer(canvas, initialGame, options={}) {
   // Ecology rewrites only terrain, detail and dissolved groves, never heights,
   // water, structures or sites. Keep every index, foundation, grid and route
   // path; forget only the changed parcels and re-fingerprint only chunks whose
-  // bounds, padded by three tiles, hold a change. Scenery still rebuilds whole.
-  function refreshSurface(changes){
-    sceneryBudget.clear();sceneCache=null;
+  // bounds, padded by three tiles, hold a change. Those chunks recompose a few
+  // a frame (drawChunk). The scene marks the changed tiles and their two-tile
+  // reach (a grove's anchor, a forest's neighbours) and patches them when drawn.
+  // A town's new homes (sites) take the same path: their cells also forget cached sites and foundations, and lighting
+  // gathers its windows again on its own.
+  function refreshSurface(changes,sites=EMPTY_CELLS){
+    for(const index of sites){buildingIndex.delete(index);terrainObjectIndex.delete(index);for(let span=1;span<=3;span++)foundations.delete(index*4+span);}
+    if(sites.length)changes=Int32Array.from(new Set([...changes,...sites]));
+    if(sceneCache){
+      const within=sceneCache.bounds,dirty=sceneCache.dirty||new Set();
+      for(const index of changes){const x=index%game.width,y=(index-x)/game.width;for(let v=Math.max(within.y0,y-2);v<=Math.min(within.y1-1,y+2);v++)for(let u=Math.max(within.x0,x-2);u<=Math.min(within.x1-1,x+2);u++)dirty.add(v*game.width+u);}
+      if(dirty.size>SCENE_PATCH_TILES){sceneryBudget.clear();sceneCache=null;}else if(dirty.size)sceneCache.dirty=dirty;
+    }
     const reach=5,columns=Math.ceil(game.width/CHUNK_TILES)+2,near=new Set(),revision=game.revision||0;
     for(const index of changes){
       terrainObjectIndex.delete(index);
@@ -194,7 +209,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       for(let cy=Math.ceil((y-reach-CHUNK_TILES+1)/CHUNK_TILES);cy<=Math.floor((y+reach)/CHUNK_TILES);cy++)for(let cx=Math.ceil((x-reach-CHUNK_TILES+1)/CHUNK_TILES);cx<=Math.floor((x+reach)/CHUNK_TILES);cx++)near.add((cy+1)*columns+cx+1);
     }
     // Only a chunk current at the previous revision may skip its fingerprint.
-    for(const [key,entry] of chunks){if(entry.revision!==cachedRevision)continue;const [cx,cy]=key.split(',').map(Number);if(!near.has((cy+1)*columns+cx+1))entry.revision=revision;}
+    for(const [key,entry] of chunks){if(entry.revision!==cachedRevision)continue;const [cx,cy]=key.split(',').map(Number);if(!near.has((cy+1)*columns+cx+1))entry.revision=revision;else entry.lazy=true;}
     cachedRevision=revision;
   }
   const tile=(x,y)=> x<0||y<0||x>=game.width||y>=game.height?null:game.tiles[y*game.width+x];
@@ -598,6 +613,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(entry){
       chunks.delete(key);chunks.set(key,entry);
       if(entry.revision===cachedRevision)return entry;
+      // An ecology change waits for this frame's share; until then the chunk keeps its last picture.
+      if(entry.lazy){if(lazyChunkBudget<=0){lazyChunksWaiting++;return entry;}lazyChunkBudget--;entry.lazy=false;}
       const signature=fingerprint(b);entry.revision=cachedRevision;if(entry.signature===signature)return entry;
       entry.signature=signature;
     }else{
@@ -678,23 +695,45 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     ctx.save();ctx.translate(0,-h*HEIGHT_STEP);groundTransform(ctx);network(ctx,x,y,t,mode,true);ctx.restore();
   }
+  // A raised plot stands on a dry-stone retaining wall: coursed faces, lit along the lip and darker toward the ground,
+  // so a terraced town reads as built rather than as grey blocks. Paths, courses and shading are cached per plot.
+  const WALL={taiga:{top:'#9caa85',faces:['#7b8067','#9a9a80'],course:'#4d5243',lip:'#d9d6ba'},tundra:{top:'#bfc9b9',faces:['#858d86','#a4aba2'],course:'#555d58',lip:'#e8ece4'},desert:{top:'#c7b58d',faces:['#a88d63','#c4a878'],course:'#6f5a3c',lip:'#eadbb6'}};
   function drawFoundation(x,y,span){
     const height=foundationHeight(x,y,span),top=(u,v)=>{const p=projectPoint(u*TILE,v*TILE);p.y-=height*HEIGHT_STEP;return p;};
     const entry=foundations.get((y*game.width+x)*4+span);
-    if(entry.paths){for(const {path,color} of entry.paths){ctx.fillStyle=color;ctx.fill(path);}return;}
-    const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]],heights=corners.map(([u,v])=>surfaceHeight(game,u,v));
-    entry.paths=[];
-    if(height-Math.min(...heights)<.06)return;
-    const surface=new Path2D();corners.forEach(([u,v],i)=>{const p=top(u,v);i?surface.lineTo(p.x,p.y):surface.moveTo(p.x,p.y);});surface.closePath();
-    entry.paths.push({path:surface,color:game.biome==='desert'?'#c7b58d':game.biome==='tundra'?'#bfc9b9':'#9caa85'});
-    for(const side of [0,1]){
-      const edge=Array.from({length:span+1},(_,n)=>side?[x+n,y+span]:[x+span,y+n]);
-      const path=new Path2D();
-      edge.forEach(([u,v],i)=>{const p=top(u,v);i?path.lineTo(p.x,p.y):path.moveTo(p.x,p.y);});
-      for(const [u,v]of edge.toReversed()){const p=projectGround(game,u,v);path.lineTo(p.x,p.y);}
-      path.closePath();entry.paths.push({path,color:side?'#8d947d':'#727d6b'});
+    if(!entry.paths){
+      const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]],heights=corners.map(([u,v])=>surfaceHeight(game,u,v)),wall=WALL[game.biome]||WALL.taiga;
+      entry.paths=[];entry.walls=[];
+      if(height-Math.min(...heights)<.06)return;
+      const surface=new Path2D();corners.forEach(([u,v],i)=>{const p=top(u,v);i?surface.lineTo(p.x,p.y):surface.moveTo(p.x,p.y);});surface.closePath();
+      entry.paths.push({path:surface,color:wall.top});
+      for(const side of [0,1]){
+        const edge=Array.from({length:span+1},(_,n)=>side?[x+n,y+span]:[x+span,y+n]),tops=edge.map(([u,v])=>top(u,v)),grounds=edge.map(([u,v])=>projectGround(game,u,v));
+        const path=new Path2D();
+        tops.forEach((p,i)=>i?path.lineTo(p.x,p.y):path.moveTo(p.x,p.y));
+        for(const p of grounds.toReversed())path.lineTo(p.x,p.y);
+        path.closePath();entry.paths.push({path,color:wall.faces[side]});
+        // Courses every half level, staggered joints on alternate courses, and the lip along the top edge.
+        const drop=Math.max(...grounds.map((p,i)=>p.y-tops[i].y)),courses=new Path2D(),lip=new Path2D(),step=HEIGHT_STEP/2;
+        for(let k=1;k*step<drop;k++){
+          tops.forEach((p,i)=>i?courses.lineTo(p.x,p.y+k*step):courses.moveTo(p.x,p.y+k*step));
+          for(let i=0;i<tops.length-1;i++)for(const f of k%2?[.25,.75]:[.5]){const a=tops[i],b=tops[i+1],jx=a.x+(b.x-a.x)*f,jy=a.y+(b.y-a.y)*f+k*step;courses.moveTo(jx,jy);courses.lineTo(jx,jy-step);}
+        }
+        tops.forEach((p,i)=>i?lip.lineTo(p.x,p.y):lip.moveTo(p.x,p.y));
+        const low=Math.max(...grounds.map(p=>p.y)),high=Math.min(...tops.map(p=>p.y)),shade=ctx.createLinearGradient(0,high,0,low);
+        shade.addColorStop(0,'rgba(24,34,26,0)');shade.addColorStop(1,'rgba(24,34,26,.3)');
+        entry.walls.push({path,courses,lip,shade,wall});
+      }
     }
     for(const {path,color} of entry.paths){ctx.fillStyle=color;ctx.fill(path);}
+    if(!entry.walls?.length)return;
+    ctx.save();ctx.lineCap='butt';
+    for(const {path,courses,lip,shade,wall} of entry.walls){
+      ctx.fillStyle=shade;ctx.fill(path);
+      ctx.save();ctx.clip(path);ctx.globalAlpha=.32;ctx.strokeStyle=wall.course;ctx.lineWidth=.8;ctx.stroke(courses);ctx.restore();
+      ctx.globalAlpha=.7;ctx.strokeStyle=wall.lip;ctx.lineWidth=1.1;ctx.stroke(lip);ctx.globalAlpha=1;
+    }
+    ctx.restore();
   }
   function visibleFlat(x,y,margin=70){
     const origin=cameraPoint(),sx=((x-y)*TILE-origin.x)*camera.zoom+W/2,sy=((x+y+1)*TILE/2-origin.y)*camera.zoom+H/2;
@@ -740,24 +779,27 @@ export function createRenderer(canvas, initialGame, options={}) {
     sceneViewBounds={left:origin.x-W/(2*camera.zoom),right:origin.x+W/(2*camera.zoom),top:origin.y-H/(2*camera.zoom),bottom:origin.y+H/(2*camera.zoom)};
     const reused=sceneCache?.key===key&&Math.abs(origin.x-sceneCache.x)<=SCENE_PAN_MARGIN&&Math.abs(origin.y-sceneCache.y)<=SCENE_PAN_MARGIN;
     let objects=reused?sceneCache.objects:[],shadows=reused?sceneCache.shadows:[],cullPoint=null;
-    const add=(x,y,draw,priority=0,bounds=null)=>objects.push({depth:x+y,x,priority,draw,point:cullPoint,bounds});
+    // Static objects and shadows carry the tile that made them (-1 for none), so an ecology day can replace just its tiles.
+    let sceneTile=-1;
+    const add=(x,y,draw,priority=0,bounds=null)=>objects.push({depth:x+y,x,priority,draw,point:cullPoint,bounds,tile:sceneTile});
     const spriteBounds=(x,y,w,h)=>({left:x,top:y,right:x+w,bottom:y+h});
     const siteBounds=(x,y,span,center)=>{const b=spriteBounds(center.x-24*span,center.y-36*span-12,48*span,48*span+12);for(let n=0;n<=span;n++)for(const [u,v]of [[x+n,y],[x+n,y+span],[x,y+n],[x+span,y+n]]){const p=projectGround(game,u,v);b.left=Math.min(b.left,p.x);b.right=Math.max(b.right,p.x);b.top=Math.min(b.top,p.y);b.bottom=Math.max(b.bottom,p.y);}return b;};
-    const addShadow=draw=>shadows.push({draw,point:cullPoint});
+    const addShadow=draw=>shadows.push({draw,point:cullPoint,tile:sceneTile});
     const compare=(a,b)=>a.depth-b.depth||a.x-b.x||a.priority-b.priority;
+    // Equal keys keep the build's row-major order, which a patch must reproduce.
+    const staticCompare=(a,b)=>compare(a,b)||a.tile-b.tile;
     // An airport's tower, terminal, hangar, depot, masts and windsock are prepared images, each sorted by its front corner.
     const airportHit=(r,ap)=>{if(capturedBillboards){capturedBillboards.push({image:r.image,x:r.x,y:r.y,w:r.w,h:r.h,tx:ap.x,ty:ap.y,world:true});return;}const o=cameraPoint();objectHits.push({image:r.image,x:(r.x-o.x)*camera.zoom+W/2,y:(r.y-o.y)*camera.zoom+H/2,w:r.w*camera.zoom,h:r.h*camera.zoom,tx:ap.x,ty:ap.y});};
     const addAirport=ap=>{
+      const own=sceneTile;sceneTile=-1;
       const o=projectPoint(ap.x*TILE,ap.y*TILE);o.y-=surfaceHeight(game,ap.x,ap.y)*HEIGHT_STEP;
       for(const kind of Object.keys(PART_FRONTS)){const [u,v]=PART_FRONTS[kind],w=localToWorld(ap.axis,u,v),dx=ap.x+w.x-.5,dy=ap.y+w.y-.5,box=PART_BOXES[ap.axis][kind];cullPoint=projectTile(dx,dy);add(dx,dy,()=>airportHit(airportSprites.part(ctx,kind,ap.axis,o.x,o.y),ap),0,spriteBounds(o.x+box.left-2,o.y+box.top-2,box.width+4,box.height+4));}
+      sceneTile=own;
     };
-    if(!reused){
-    // Keep a small world-space border so a drag reuses the same scenery and
-    // depth order. Cull individual anchors below; no extra objects are drawn.
-    // The company's property among the anchors, for outlines: owned buildings and developed plots. View state; never saved.
-    b=visibleBounds(SCENE_PAN_MARGIN);const uprights=new Set(),property=[];
-    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
-      if(!visible(x,y,(180+SCENE_PAN_MARGIN)*camera.zoom))continue;
+    // One tile's static objects and shadows. A full build walks every tile in view; a patch only the tiles an ecology day changed.
+    const tileScenery=(x,y,uprights,property)=>{
+      if(!visible(x,y,(180+SCENE_PAN_MARGIN)*camera.zoom))return;
+      sceneTile=y*game.width+x;
       const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id),ap=airportIndex.get(id),p=projectTile(x,y),occupied=layers.buildings&&(ind||buildingSiteAt(x,y)),nature=terrainSiteAt(x,y);
       cullPoint=p;
       if(nature&&!occupied&&!ap&&nature.x===x&&nature.y===y&&(nature.object.kind!=='forest'||layers.trees)){
@@ -777,7 +819,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha=scenery.alpha;ctx.drawImage(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
-      if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
+      if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails']){
         if(t.bridge||t.terrain==='water')add(x+.05,y+.05,()=>drawRaisedNetwork(x,y,t,mode));
@@ -793,10 +835,34 @@ export function createRenderer(canvas, initialGame, options={}) {
         const mouth=projectTile(x+dx*.18,y+dy*.18);add(x+dx*.18,y+dy*.18,()=>infrastructureSprites.portal(ctx,mode,dx,dy,mouth.x,mouth.y),2);
       }
 
+      sceneTile=-1;
+    };
+    // A journaled ecology day marks tiles instead of dropping the scene (refreshSurface). Their objects and shadows are made
+    // again from the camera the scene was built at, so the result is the scene a rebuild would give; the depth runs they touch
+    // are regrouped, and every other prepared strip, and the shadow layer until its successor is ready, stays.
+    if(reused&&sceneCache.dirty){
+      const scene=sceneCache,dirty=scene.dirty,held={x:camera.x,y:camera.y,height:camera.height},touched=new Set(),within=scene.bounds;scene.dirty=null;
+      objects=objects.filter(o=>{if(o.tile<0||!dirty.has(o.tile))return true;touched.add(o.depth);return false;});
+      const kept=shadows.length;shadows=shadows.filter(s=>s.tile<0||!dirty.has(s.tile));let shadowsChanged=shadows.length!==kept;
+      const count=objects.length,shadowCount=shadows.length,airportsDone=new Set(airports),property=scene.property.filter(site=>!dirty.has(site.y*game.width+site.x));
+      Object.assign(camera,scene.camera);
+      try{for(const id of dirty){const x=id%game.width,y=(id-x)/game.width;if(x>=within.x0&&x<within.x1&&y>=within.y0&&y<within.y1)tileScenery(x,y,airportsDone,property);}}
+      finally{Object.assign(camera,held);cullPoint=null;}
+      scene.property=property.sort((a,b)=>a.y-b.y||a.x-b.x);
+      for(let i=count;i<objects.length;i++)touched.add(objects[i].depth);
+      if(shadows.length!==shadowCount){shadowsChanged=true;shadows.sort((a,b)=>a.tile-b.tile);}
+      objects.sort(staticCompare);scene.objects=objects;scene.shadows=shadows;
+      regroupScene(scene,touched,shadowsChanged);scenePatches++;
     }
-    objects.sort(compare);
+    if(!reused){
+    // Keep a small world-space border so a drag reuses the same scenery and
+    // depth order. Cull individual anchors below; no extra objects are drawn.
+    // The company's property among the anchors, for outlines: owned buildings and developed plots. View state; never saved.
+    b=visibleBounds(SCENE_PAN_MARGIN);const uprights=new Set(),property=[];
+    for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++)tileScenery(x,y,uprights,property);
+    objects.sort(staticCompare);
     sceneryBudget.clear();
-    sceneCache={key,x:origin.x,y:origin.y,objects,shadows,groups:null,shadow:null,batchPlanReady:false,readyGroups:0,property};sceneBuilds++;
+    sceneCache={key,x:origin.x,y:origin.y,camera:{x:camera.x,y:camera.y,height:camera.height},bounds:b,dirty:null,objects,shadows,groups:null,shadow:null,batchPlanReady:false,readyGroups:0,property};sceneBuilds++;
     }
     const staticObjects=objects;objects=[];cullPoint=null;
     if(layers.vehicles)for(const v of frameVehicles){
@@ -806,7 +872,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(route?.mode==='water'||!visible(v.x,v.y,100*camera.zoom))continue;
       if(route?.mode==='rail'&&route.path?.length>1){
         const path=route.path,max=path.length-1,direction=v.direction||1;
-        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,(v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
+        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,shownProgress(route,v,v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
       }
       add(v.x,v.y,()=>drawCar(v,route,v.x,v.y,Number.isFinite(v.angle)?v.angle:0,route?.mode==='rail'),1);
     }
@@ -837,16 +903,53 @@ export function createRenderer(canvas, initialGame, options={}) {
     while(moving<objects.length)objects[moving++].draw();
     sceneryPreparationMs=0;if(sceneryBatching&&!sceneryWaitingForCamera)warmSceneBatches(sceneCache);
   }
+  const sceneView=scene=>({left:scene.x-W/(2*camera.zoom),right:scene.x+W/(2*camera.zoom),top:scene.y-H/(2*camera.zoom),bottom:scene.y+H/(2*camera.zoom)});
+  function shadowStage(scene){const view=sceneView(scene);return{index:0,surface:null,bounds:{left:view.left-SCENE_PAN_MARGIN,top:view.top-SCENE_PAN_MARGIN,right:view.right+SCENE_PAN_MARGIN,bottom:view.bottom+SCENE_PAN_MARGIN}};}
+  // Strips still without a picture, nearest the view first.
+  function queueSceneGroups(scene){
+    const view=sceneView(scene),distance=group=>{const b=group.bounds;return b?Math.max(0,view.left-b.right,b.left-view.right)**2+Math.max(0,view.top-b.bottom,b.top-view.bottom)**2:Infinity;};
+    scene.pendingGroups=scene.groups.filter(group=>!group.image&&group.bounds&&group.objects.length>=4&&distance(group)<=(SCENE_PAN_MARGIN+96)**2).sort((a,b)=>distance(a)-distance(b));
+    scene.pendingIndex=0;
+  }
   function prepareSceneBatches(scene){
-    const view={left:scene.x-W/(2*camera.zoom),right:scene.x+W/(2*camera.zoom),top:scene.y-H/(2*camera.zoom),bottom:scene.y+H/(2*camera.zoom)};
     for(const object of scene.objects)if(typeof object.bounds==='function')object.bounds=object.bounds();
     scene.groups=partitionScenery(scene.objects,rasterScale);scene.batchPlanReady=true;
     // Stage the shadow layer off screen. Until every shadow is painted the
     // ordinary pass stays visible, so incremental preparation cannot flicker.
-    if(scene.shadows.length>8)scene.shadowPreparation={index:0,surface:null,bounds:{left:view.left-SCENE_PAN_MARGIN,top:view.top-SCENE_PAN_MARGIN,right:view.right+SCENE_PAN_MARGIN,bottom:view.bottom+SCENE_PAN_MARGIN}};
-    const distance=group=>{const b=group.bounds;return b?Math.max(0,view.left-b.right,b.left-view.right)**2+Math.max(0,view.top-b.bottom,b.top-view.bottom)**2:Infinity;};
-    scene.pendingGroups=scene.groups.filter(group=>group.bounds&&group.objects.length>=4&&distance(group)<=(SCENE_PAN_MARGIN+96)**2).sort((a,b)=>distance(a)-distance(b));
-    scene.pendingIndex=0;
+    if(scene.shadows.length>8)scene.shadowPreparation=shadowStage(scene);
+    queueSceneGroups(scene);
+  }
+  // A strip's bitmap bytes, as allocate() will ask for them; 0 for one the budget refuses at any size.
+  const stripBytes=b=>{const w=Math.ceil(b.right*rasterScale)+2-(Math.floor(b.left*rasterScale)-2),h=Math.ceil(b.bottom*rasterScale)+2-(Math.floor(b.top*rasterScale)-2);return w<1||h<1||w>8192||h>8192?0:w*h*4;};
+  // After a patch, strips hold one depth each (partitionScenery), so every run the patch left alone keeps its strips and
+  // picture; a touched run is partitioned again and queued. A changed shadow list stages a new layer while the old one
+  // stays on screen, as a rebuilt scene's first layer does. When the budget cannot hold every strip and the layer, a fresh
+  // scene's order (the layer, then strips nearest first) decides which get pictures, so the patch starts that order afresh.
+  function regroupScene(scene,touched,shadowsChanged){
+    if(!scene.batchPlanReady)return;
+    if(touched.size){
+      const kept=new Map(),groups=[],objects=scene.objects;
+      for(const group of scene.groups){const depth=group.objects[0].depth;if(touched.has(depth)){if(group.image)sceneryBudget.release(group.image);continue;}const list=kept.get(depth);if(list)list.push(group);else kept.set(depth,[group]);}
+      for(let i=0;i<objects.length;){
+        const depth=objects[i].depth;let j=i+1;while(j<objects.length&&objects[j].depth===depth)j++;
+        if(touched.has(depth)){const run=objects.slice(i,j);for(const object of run)if(typeof object.bounds==='function')object.bounds=object.bounds();groups.push(...partitionScenery(run,rasterScale));}
+        else groups.push(...(kept.get(depth)||[]));
+        i=j;
+      }
+      scene.groups=groups;
+    }
+    queueSceneGroups(scene);
+    if(scene.shadowPreparation?.surface)sceneryBudget.release(scene.shadowPreparation.surface.image);
+    const layer=scene.shadows.length>8?shadowStage(scene):null,pending=new Set(scene.pendingGroups),limit=sceneryBudget.stats().limit;
+    const need=(layer?stripBytes(layer.bounds):0)+scene.groups.reduce((n,group)=>n+(group.image||pending.has(group)?stripBytes(group.bounds):0),0);
+    if(need>limit){
+      sceneryBudget.clear();for(const group of scene.groups)group.image=null;
+      scene.shadow=null;scene.shadowPreparation=layer;queueSceneGroups(scene);
+    }else if(shadowsChanged||scene.shadowPreparation){
+      if(scene.shadow&&(!layer||need+scene.shadow.image.width*scene.shadow.image.height*4>limit)){sceneryBudget.release(scene.shadow.image);scene.shadow=null;}
+      scene.shadowPreparation=layer;
+    }
+    scene.readyGroups=scene.groups.reduce((n,group)=>n+(group.image?1:0),0);
   }
   function warmSceneBatches(scene){
     if(scene.batchPlanReady&&!scene.shadowPreparation&&scene.pendingIndex>=scene.pendingGroups.length)return;
@@ -865,12 +968,14 @@ export function createRenderer(canvas, initialGame, options={}) {
       const shadow=scene.shadowPreparation;
       if(shadow){
         shadow.surface||=allocate(shadow.bounds,true,'high');
+        // A patched scene's old layer gives way when both do not fit.
+        if(!shadow.surface&&scene.shadow){sceneryBudget.release(scene.shadow.image);scene.shadow=null;shadow.surface=allocate(shadow.bounds,true,'high');}
         if(!shadow.surface)scene.shadowPreparation=null;
         else{
           ctx=shadow.surface.context;sceneViewBounds=null;
           // Time checks also split this potentially thousands-of-trees loop.
           while(shadow.index<scene.shadows.length&&performance.now()<deadline)scene.shadows[shadow.index++].draw();
-          if(shadow.index===scene.shadows.length){scene.shadow=shadow.surface;scene.shadowPreparation=null;sceneryBatchBuilds++;}
+          if(shadow.index===scene.shadows.length){if(scene.shadow)sceneryBudget.release(scene.shadow.image);scene.shadow=shadow.surface;scene.shadowPreparation=null;sceneryBatchBuilds++;}
         }
       }
       while(!scene.shadowPreparation&&scene.pendingIndex<scene.pendingGroups.length&&performance.now()<deadline){
@@ -953,7 +1058,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const key=region?Math.floor(f.x/3)+','+Math.floor(f.y/3):f,group=shown.get(key);
       if(!group)shown.set(key,{x:f.x,y:f.y,revenue:f.revenue,cargo:f.cargo,t,air:f.air});else{group.revenue+=f.revenue;if(t<group.t)Object.assign(group,{x:f.x,y:f.y,cargo:f.cargo,t,air:f.air});}
     }
-    ctx.font='600 12px Space, system-ui, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.font=font(600,12);ctx.textAlign='left';ctx.textBaseline='middle';
     for(const {x,y,revenue,cargo,t,air} of shown.values()){
       const p=worldToScreen(x,y),label='+$'+(revenue>=10000?format.format(revenue/1000)+'k':format.format(Math.round(revenue))),image=cargoImage(cargo||'passengers',14);
       const w=ctx.measureText(label).width+35,h=23,left=Math.round(p.x-w/2);let start=p.y-(air?80:58)*Math.max(1,camera.zoom)-h/2,ceiling=-Infinity;
@@ -1090,7 +1195,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     stepCamera(now);shownBullets.clear();const hoverRef=typeof view.hoverRef==='string'?view.hoverRef:null,refAt=hoverRef?hoverRef.indexOf(':'):-1,refKind=refAt>0?hoverRef.slice(0,refAt):'',refId=refAt>0?hoverRef.slice(refAt+1):'';
     if(hoverRef!==lastHoverRef){lastHoverRef=hoverRef;hoverRefAt=now;}const locatorFade=motionPreference?.matches?1:Math.max(0,Math.min(1,(now-hoverRefAt)/MAP.locator.fadeMs));
     const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid,showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
-    ensureRevision();const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
+    // A paused game brings no new days, so it finishes every waiting chunk at once (view.settle).
+    ensureRevision();lazyChunkBudget=view.settle?Infinity:LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     // A plane may stand beside its chord or high above it, so it keeps a wider margin.
     frameVehicles.length=0;if(layers.vehicles)for(const vehicle of game.vehicles||[])if(visibleFlat(vehicle.x,vehicle.y,Math.max(70,100*camera.zoom)+(routesById.get(vehicle.routeId)?.mode==='air'?220*camera.zoom:0)))frameVehicles.push(vehicle);
     airPoses.clear();airStats={ground:0,air:0};for(const vehicle of frameVehicles){const route=routesById.get(vehicle.routeId);if(route?.mode!=='air')continue;const pose=airPose(vehicle,route);if(pose){airPoses.set(vehicle,pose);airStats[pose.pose.ground?'ground':'air']++;}}
@@ -1098,6 +1204,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     ctx.save();ctx.translate(W/2,H/2);ctx.scale(camera.zoom,camera.zoom);const projectedCamera=cameraPoint();ctx.translate(-projectedCamera.x,-projectedCamera.y);
     const {x0,y0,x1,y1}=visibleBounds();
     drawWorld(x0,y0,x1,y1);
+    // Chunks still waiting for their share ask for another frame, even on a paused map.
+    if(lazyChunksWaiting&&options.onInvalidate)queueMicrotask(options.onInvalidate);
     // Water keeps one horizontal plane while land rises above it.
     ctx.save();groundTransform(ctx);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&[tile(x,y-1),tile(x,y+1)].filter(n=>n?.terrain==='water').length>[tile(x-1,y),tile(x+1,y)].filter(n=>n?.terrain==='water').length;drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
@@ -1400,5 +1508,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     ensureRevision();const a=airPoses.get(v)||airPose(v,route);return a?{x:a.pose.x-.5,y:a.pose.y-.5}:{x:v.x,y:v.y};
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,sceneBuilds,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

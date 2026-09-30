@@ -319,3 +319,16 @@
  .achievements-dialog .close-modal{width:var(--control-touch);height:var(--control-touch)}
  .achievements-dialog .modal-actions .button,.rating-achievements .small-button,.century-achievements .small-button{min-height:var(--control-touch)}
 }
+/* Keyboard shortcuts (?): four groups of key and action rows, two columns wide, one on phones. */
+#modal:has(.shortcuts-dialog){width:min(760px,calc(100vw - 32px))}
+.shortcut-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-5) var(--s-6);margin-top:var(--s-4)}
+.shortcut-group h3{margin:0 0 var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:600;color:var(--ink)}
+.shortcut-group dl{margin:0}
+.shortcut-group dl>div{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:baseline;gap:var(--s-3);padding:var(--s-1) 0;border-top:1px solid var(--rule)}
+.shortcut-group dt{white-space:nowrap}
+.shortcut-group dd{margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.shortcut-group kbd{display:inline-block;min-width:20px;padding:0 var(--s-1);border:1px solid var(--rule);border-radius:var(--r-1);background:var(--well);font-family:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;text-align:center;color:var(--ink)}
+.shortcut-foot{display:flex;justify-content:flex-end;margin-top:var(--s-5)}
+@media(max-width:700px){
+ .shortcut-groups{grid-template-columns:1fr;gap:var(--s-4)}
+}

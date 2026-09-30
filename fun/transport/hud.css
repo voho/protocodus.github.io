@@ -222,7 +222,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .hud-report:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:var(--r-1)}
 #world.route-picking{cursor:crosshair}
 @media(max-width:1000px){
- .map-section:has(#connection-plan-banner) .paused-chip{top:92px}
 }
 @media(max-width:700px){
  .main-nav [data-open-chains]{display:none}
@@ -318,12 +317,12 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
 }
 /* A paid delivery briefly brightens this month's profit. */
-.hud-stat strong.income-pulse{animation:income-pulse .6s ease-out}
+#profit.income-pulse{animation:income-pulse .6s ease-out}
 @keyframes income-pulse{
  18%{color:var(--ink-2);text-shadow:0 0 12px var(--signal),0 0 2px var(--well)}
 }
 @media(prefers-reduced-motion:reduce){
- .hud-stat strong.income-pulse{animation:none}
+ #profit.income-pulse{animation:none}
 }
 /* Routes that cannot run stay counted beside the date, and read in its orange on their cards, until they are fixed. */
 .offline-routes{display:inline-flex;align-items:center;gap:4px;min-height:26px;padding:0 12px 0 8px;border-radius:var(--r-4);background:var(--well);color:var(--warn);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;white-space:nowrap}
@@ -392,24 +391,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .compact-play:not(.page-zoomed) :is(.map-bottomline,#active-tool-bar,.route-pick-banner,.toast-action){touch-action:none}
 .compact-play.page-zoomed #world{touch-action:pinch-zoom}
 #panel-content,#game-menu{overscroll-behavior:contain}
-/* Paused: a top-centre chip clear of the tool bar and route-pick banner (top-left) and the layers panel (top-right). */
-.paused-chip{position:absolute;top:12px;left:50%;z-index:var(--z-map-overlay);transform:translateX(-50%);min-height:44px;padding:12px 16px 12px 16px;border:1px solid var(--rule);border-radius:var(--r-round);background:var(--paper);box-shadow:var(--e1);backdrop-filter:blur(9px);color:var(--ink-2);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;white-space:nowrap}
-.paused-chip::before{content:'';display:inline-block;vertical-align:-1px;width:10px;height:12px;margin-right:12px;box-sizing:border-box;border-inline:3px solid var(--signal)}
-.paused-chip span{font-weight:400;color:var(--ink-2)}
-.paused-chip:hover{background:var(--paper)}
-.paused-chip[hidden],.paused-chip .paused-touch,:root:has(#modal[open]) .paused-chip,:root:has(#start-menu[open]) .paused-chip,:root:has(#loading-screen:not([hidden])) .paused-chip{display:none}
-.compact-play:not(.page-zoomed) .paused-chip{touch-action:none}
-@media(max-width:700px),(hover:none) and (pointer:coarse){
- .paused-chip .paused-keys{display:none}
- .paused-chip .paused-touch{display:inline}
-}
-@media(max-width:1000px){
- .map-section:has(#active-tool-bar:not([hidden])) .paused-chip{top:88px}
- .map-section:has(#route-pick-banner) .paused-chip{top:92px}
-}
-@media(min-width:701px) and (max-width:1000px){
- .map-section:has(#objective-card:not([hidden])) .paused-chip{left:calc(50% - 154px)}
-}
 /* Cargo lens: a chip beside the zoom control names the highlighted cargo; its × clears it. On phones it rises above the zoom control, clear of the goal pill. */
 .cargo-lens-chip{display:flex;align-items:center;gap:8px;min-width:0;max-width:300px;min-height:38px;margin-right:8px;padding:2px 2px 2px 8px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);box-shadow:var(--e1);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;white-space:nowrap;pointer-events:auto}
 .cargo-lens-chip .cargo-icon{flex:0 0 20px;width:20px;height:20px}
@@ -565,7 +546,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play #panel-content{padding:12px}
  .compact-play .panel-heading{min-height:34px;margin-bottom:8px;padding-right:40px}
  .compact-play .panel-heading h2{font-size:var(--fs-lead);line-height:var(--lh-lead)}
- .compact-play .map-section:has(#inspector:not([hidden])) .paused-chip{left:calc(50% + 156px + (var(--safe-l) - var(--safe-r)) / 2)}
 }
 /* The close button sits in the tab row, which already names the view, so a heading with nothing beside it gives its row to the tools. */
 @media(max-width:700px) and (max-height:500px) and (orientation:landscape){
@@ -588,4 +568,63 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 /* Game menu rows are 44 px on touch (DESIGN 12.10), so every row, Achievements included, meets the touch target. */
 @media(max-width:700px),(pointer:coarse){
  #game-menu .compact-menu-action{min-height:var(--control-touch)}
+}
+/* Instrument cluster (DESIGN.md 12.1): the balance, this month's profit under it, and the date over the weather word, which
+   reads "Paused" in orange while the game is paused. A paused map also wears a 2 px orange line along its top edge. */
+.compact-play .hud-finances{flex-direction:column;align-items:flex-end;justify-content:center;gap:0;padding:4px 8px;text-align:right}
+#balance{min-width:9.5ch;font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:600;letter-spacing:var(--tr-tight);white-space:nowrap}
+.hud-profit{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);white-space:nowrap}
+#profit{font-weight:500}
+#profit.positive{color:var(--ok)}
+#profit.negative{color:var(--error)}
+.compact-play .topbar .date-block .date-lines{display:flex;flex-direction:column;align-items:flex-end;min-width:5.2em;margin:0}
+#date{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;color:var(--ink)}
+#date-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+#date-note.paused{color:var(--signal-ink);font-weight:500}
+.compact-play .map-section::after{content:'';position:absolute;inset:0 0 auto;height:2px;background:var(--signal);z-index:var(--z-map-overlay);pointer-events:none;opacity:0}
+.compact-play.is-paused .map-section::after{opacity:1}
+:root:has(#start-menu[open]) .map-section::after{opacity:0}
+@media(max-width:900px){
+ .compact-play .topbar .date-block .date-lines{flex-direction:row;justify-content:center;align-items:baseline;gap:var(--s-1);min-width:0;margin:0 0 2px}
+ #date{font-size:var(--fs-caption);line-height:var(--lh-caption)}
+ #balance{font-size:var(--fs-body);line-height:var(--lh-body)}
+}
+@media(max-width:700px){
+ .compact-play .hud-finances{display:flex;padding:4px}
+ .compact-play .hud-finance-wrap{flex-shrink:0}
+ #balance{min-width:0}
+ .hud-period{display:none}
+}
+@media(hover:none) and (pointer:coarse){
+ #shortcuts-button{display:none}
+}
+/* The game menu's groups: company, map, help and the game itself, each row with its key on the right. */
+.compact-menu-rule{height:1px;margin:var(--s-1) var(--s-2);background:var(--rule)}
+#game-menu .compact-menu-action .kbd{margin-left:auto;padding-left:var(--s-3)}
+@media(pointer:coarse){
+ #game-menu .compact-menu-action .kbd{display:none}
+}
+/* The drawer names its view in its own heading (no eyebrow): the close button sits at the heading's right end. */
+.compact-play .management-drawer-heading{position:absolute;top:var(--s-3);right:var(--s-3);z-index:1;flex:none;padding:0;border:0}
+.compact-play .panel-heading{padding-right:40px}
+.compact-play .mobile-management{padding-right:52px}
+/* The zoom rail names its view (Region, Town, Detail); its menu adds Back to home town. */
+.zoom-caret{display:flex;transform:none}
+.zoom-caret svg{width:14px;height:14px}
+.compact-play #zoom-level{min-width:76px}
+#zoom-menu #zoom-home{border-top:1px solid var(--rule);border-radius:0 0 var(--r-2) var(--r-2)}
+/* On wider screens the drawer is only as tall as its view (DESIGN.md 12.3), up to the map's height. */
+@media(min-width:701px) and (min-height:501px){
+ .compact-play .sidebar{bottom:auto;max-height:calc(100% - 16px)}
+}
+/* The close button floats over the drawer's scrolling view: it keeps a paper disc, and a view scrolled into place stops
+   below it. */
+.compact-play #close-management{background:var(--paper);outline:4px solid var(--paper);outline-offset:0}
+.compact-play #close-management:hover{background:var(--well)}
+.compact-play #panel-content{scroll-padding-top:52px}
+/* Phones keep the top bar in one lane: the weather word goes, and "Paused" gives way to the attention count (the lit
+   pause segment and the orange line still say it). */
+@media(max-width:700px){
+ #date-note:not(.paused){display:none}
+ .date-block:has(>#offline-routes:not([hidden])) #date-note{display:none}
 }

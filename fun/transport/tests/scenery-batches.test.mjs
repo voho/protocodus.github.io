@@ -20,3 +20,7 @@ test('cache stops allocating at its cap and releases every bitmap on invalidatio
   const saved=globalThis.document;globalThis.document={createElement:()=>({width:0,height:0})};
   try {const budget=createSceneryBudget(256),a=budget.allocate(8,8);assert.ok(a);assert.equal(budget.allocate(1,1),null);assert.equal(budget.stats().bytes,256);budget.clear();assert.equal(a.width,0);assert.equal(a.height,0);assert.equal(budget.stats().bytes,0);assert.ok(budget.allocate(4,4));assert.equal(budget.allocate(9000,1),null);}finally{globalThis.document=saved;}
 });
+test('a released strip frees its bytes once and leaves the other bitmaps',()=>{
+  const saved=globalThis.document;globalThis.document={createElement:()=>({width:0,height:0})};
+  try {const budget=createSceneryBudget(256),a=budget.allocate(4,4),b=budget.allocate(4,4);budget.release(a);assert.equal(a.width,0);assert.equal(budget.stats().bytes,64);assert.equal(budget.stats().surfaces,1);budget.release(a);budget.release(null);assert.equal(budget.stats().bytes,64);assert.equal(b.width,4);assert.ok(budget.allocate(8,6));}finally{globalThis.document=saved;}
+});

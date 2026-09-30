@@ -40,6 +40,7 @@ test('nine line colours alternate deep and light, with white or ink numerals, an
 test('achievement tiers, type, weights and tracking match', () => {
   for (const [key, value] of Object.entries(TIERS)) token(`--tier-${key}`, value);
   token('--font', FONT.family);
+  token('--font-brand', FONT.brand);
   for (const [step, px] of Object.entries(FONT.size)) { token(`--fs-${step}`, px + 'px'); token(`--lh-${step}`, FONT.line[step] + 'px'); }
   assert.ok(Object.values(FONT.size).every(px => px >= 12), 'nothing is smaller than 12 px');
   for (const [key, value] of Object.entries(FONT.weight)) token(`--fw-${key}`, value);

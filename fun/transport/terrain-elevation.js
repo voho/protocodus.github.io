@@ -35,15 +35,16 @@ export function sampleTerrainHeight(game, x, y) {
   return {height, dx, dy};
 }
 const COLORS = {
-  taiga: { low:[77,111,60], high:[120,139,91], rock:[128,131,117], wet:[57,93,66], dry:[151,139,89], sand:[190,169,119], snow:[218,225,214] },
+  taiga: { low:[82,122,62], high:[128,152,92], rock:[128,131,117], wet:[66,104,70], dry:[142,144,90], sand:[190,169,119], snow:[218,225,214] },
   tundra: { low:[112,128,100], high:[156,164,139], rock:[137,145,137], wet:[81,110,100], dry:[158,143,111], sand:[179,173,145], snow:[222,229,223] },
   desert: { low:[179,140,86], high:[214,182,129], rock:[151,130,100], wet:[127,131,86], dry:[202,163,106], sand:[216,183,129], snow:[224,220,201] },
 };
 function groundColor(tile, biome, variation = 0, moisture = .5) {
   const p = COLORS[biome] || COLORS.taiga, h = terrainElevation(tile)/TERRAIN_LEVELS;
   const stone = tile.terrain === 'mountain' ? .5+h*.27 : tile.terrain === 'rock' ? .48 : 0;
-  const wet = clamp((moisture-.43)*.85+(tile.terrain==='forest'?.13:0)+(['marsh','reeds'].includes(tile.detail)?.38:0),0,.68)*(1-stone*.65);
-  const dry = clamp((.54-moisture)*1.05+Math.max(0,h-.65)*.15,0,.52)*(1-stone*.5);
+  // Moss greens stay fresh: damp hollows and dry rises tint the ground without muddying it.
+  const wet = clamp((moisture-.43)*.7+(tile.terrain==='forest'?.12:0)+(['marsh','reeds'].includes(tile.detail)?.38:0),0,.56)*(1-stone*.65);
+  const dry = clamp((.54-moisture)*.9+Math.max(0,h-.65)*.15,0,.42)*(1-stone*.5);
   const frozen = tile.terrain === 'snow' || ['glacier','ice'].includes(tile.detail) || (biome === 'tundra' && tile.detail === 'glacial');
   const alpineSnow=biome==='tundra'?clamp((h-.48)*2.15,0,.9):0;
   const surface = tile.terrain === 'sand' ? p.sand : frozen || tile.detail === 'saltflat' || alpineSnow>0 ? p.snow : null;
@@ -62,7 +63,7 @@ function light(dx, dy) {
   return 1 + clamp(((-.77*nx-.18*ny+.62)/Math.hypot(nx,ny,1)-.62)*.34, -.19, .12);
 }
 function soilVariation(x,y,seed) {
-  return (noise(x,y,seed+619,31)-.5)*17+(noise(x,y,seed+631,4.7)-.5)*11;
+  return (noise(x,y,seed+619,31)-.5)*13+(noise(x,y,seed+631,4.7)-.5)*9;
 }
 function soilMoisture(x,y,seed) {
   const bend=(noise(x,y,seed+659,19)-.5)*11;

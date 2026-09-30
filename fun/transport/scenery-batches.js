@@ -37,6 +37,12 @@ export function createSceneryBudget(limit = 96 * 1024 * 1024) {
       const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
       bytes += size; images.push(canvas); return canvas;
     },
+    // A patched scene gives back the strips and shadow layer it replaced, one at a time.
+    release(canvas) {
+      const index = canvas ? images.indexOf(canvas) : -1;
+      if (index < 0) return;
+      images.splice(index, 1); bytes -= canvas.width * canvas.height * 4; canvas.width = canvas.height = 0;
+    },
     clear() { for (const image of images) image.width = image.height = 0; images.length = 0; bytes = 0; },
     stats: () => ({ bytes, limit, surfaces: images.length }),
   };

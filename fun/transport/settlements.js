@@ -4,7 +4,8 @@ import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingSize, buildingTiles, placeBuildingSite } from './building-sites.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { stationTiles } from './station-sites.js';
-import { terrainObjectAt } from './terrain-objects.js';
+import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
+import { noteSiteChanges } from './change-journal.js';
 import { networkTerrainProblem } from './terrain-engineering.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
 import { townStopCounts, townOpinion, actionActive, fundedTown, TOWN_ACTIONS, TOWN_RADIUS } from './town-authority.js';
@@ -296,7 +297,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
   }
 
   let changed = false;
-  const claimed = new Set();
+  const claimed = new Set(), cells = [];
   for (const proposal of proposals) {
     const { x, y, tile, city, building, zone } = proposal;
     const size = buildingFootprint(building.kind), points = buildingTiles({ x, y, building: { footprint: size } });
@@ -313,7 +314,11 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const populationCityId = Object.hasOwn(tile.building || {}, 'populationCityId') ? tile.building.populationCityId : city.id;
     if (housingCapacity(building) > 0) building.populationCityId = populationCityId;
     const previousLevel = tile.building?.level || 0;
+    // The view patches only these cells (change-journal.js): the new footprint, the old one and any grove it dissolves.
+    const touched = [...points, ...(existing ? buildingTiles(existing) : [])];
+    for (const p of points) { const grove = terrainObjectAt(game, p.x, p.y); if (grove) touched.push(...terrainObjectTiles(grove)); }
     if (!placeBuildingSite(game, building.kind, x, y, { size, building, exclude: existing, allowZone: Boolean(zone) })) continue;
+    for (const p of touched) cells.push(p.y * game.width + p.x);
     for (const p of points) claimed.add(`${p.x},${p.y}`);
     const populationCity = game.cities.find(town => town.id === populationCityId);
     if (populationCity) populationCity.population = Math.max(0, populationCity.population + population);
@@ -321,7 +326,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (zone?.kind === 'industrial') city.activity += (building.level - previousLevel) * 10;
     changed = true;
   }
-  if (changed) game.revision++;
+  if (changed) { const from = game.revision || 0; game.revision = from + 1; noteSiteChanges(game, from, game.revision, cells); }
   return connectedCities;
 }
 

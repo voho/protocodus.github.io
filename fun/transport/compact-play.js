@@ -3,7 +3,7 @@ import { icon } from './ui-icons.js';
 const $ = selector => document.querySelector(selector);
 
 /** Keep secondary controls available without reserving space around the map. */
-export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {} }) {
+export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onShortcuts, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {}, shortcuts = {} }) {
   const app = $('#app'), sidebar = $('.sidebar'), mobileToggle = $('.mobile-panel-toggle');
   const topbar = $('.topbar'), canvas = $('#world'), minimap = $('.minimap-wrap');
   app.classList.add('compact-play');
@@ -12,7 +12,8 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
 
   const drawerHeading = document.createElement('div');
   drawerHeading.className = 'management-drawer-heading';
-  drawerHeading.innerHTML = `<span>Management</span><button id="close-management" type="button" aria-label="Close management panel" title="Close management panel (Esc)">${icon('close')}</button>`;
+  // The drawer's own heading names the view (DESIGN.md 6.1: no eyebrows), so this row only holds the close button.
+  drawerHeading.innerHTML = `<button id="close-management" type="button" aria-label="Close panel" title="Close panel (Esc)">${icon('close')}</button>`;
   sidebar.prepend(drawerHeading);
 
   // Reuse the mobile control so its existing gesture cancellation stays intact.
@@ -26,34 +27,38 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   topbar.append(menuWrap);
   const menuButton = $('#game-menu-button'), menu = $('#game-menu');
   const actions = menu.querySelector('.compact-menu-actions');
-  const moveAction = (selector, label) => {
+  // Rows carry their shortcut on the right (DESIGN.md 12.10); a rule separates the company, the map, help and the game.
+  const keyHint = key => key ? `<span class="kbd" aria-hidden="true">${key}</span>` : '';
+  const moveAction = (selector, label, key = '') => {
     const button = $(selector);
     if (!button) return;
     button.classList.add('compact-menu-action');
     // Preserve existing SVG icons and handlers. Dynamic audio icons use ::after.
     if (label) {
       const art = button.querySelector('svg')?.outerHTML || icon('more');
-      button.innerHTML = `${art}<span>${label}</span>`;
+      button.innerHTML = `${art}<span>${label}</span>${keyHint(key)}`;
     }
+    if (key) button.setAttribute('aria-keyshortcuts', key.replace('Ctrl+', 'Control+'));
     actions.append(button);
     button.addEventListener('click', () => closeMenu());
   };
-  const addAction = (id, label, art, callback) => {
+  const addAction = (id, label, art, callback, key = '') => {
     const button = document.createElement('button');
     button.type = 'button'; button.id = id; button.className = 'compact-menu-action';
-    button.innerHTML = `${art}<span>${label}</span>`;
+    button.innerHTML = `${art}<span>${label}</span>${keyHint(key)}`;
+    if (key) button.setAttribute('aria-keyshortcuts', key);
     button.addEventListener('click', () => { closeMenu(); callback(); });
     actions.append(button);
     return button;
   };
-  addAction('main-menu-button', 'Main menu', icon('world'), () => { closeManagement(); onMenu?.(); });
-  moveAction('#save-button', 'Save / load');
-  moveAction('#world-button', 'New world');
-  moveAction('.main-nav [data-open-chains]', 'Production chains');
-  if (onNews) addAction('news-button', 'News', icon('news'), onNews);
-  if (onCompany) addAction('company-button', 'Company', icon('company'), onCompany);
-  if (onGoals) addAction('goals-button', 'Company goals', icon('flag'), onGoals);
+  const rule = () => { const line = document.createElement('div'); line.className = 'compact-menu-rule'; line.setAttribute('role', 'separator'); actions.append(line); };
+  if (onCompany) addAction('company-button', 'Company', icon('company'), onCompany, shortcuts.company);
+  if (onGoals) addAction('goals-button', 'Company goals', icon('flag'), onGoals, shortcuts.goals);
   if (onAchievements) addAction('achievements-button', 'Achievements', icon('achievements'), onAchievements);
+  if (onNews) addAction('news-button', 'News', icon('news'), onNews, shortcuts.news);
+  rule();
+  moveAction('.main-nav [data-open-chains]', 'Production chains', 'C');
+  moveAction('#layers-button', 'Map layers', 'L');
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;
     overviewButton.setAttribute('aria-pressed', String(!minimap.hidden));
@@ -61,14 +66,19 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   });
   overviewButton.setAttribute('aria-pressed', 'false');
   overviewButton.setAttribute('aria-controls', 'mini-map-panel');
-  moveAction('#layers-button', 'Map layers');
   moveAction('#map-options-button', 'Map options');
+  rule();
   moveAction('#audio-button');
-  moveAction('#help-button', 'How to play');
-  const weather = $('#weather'), saveStatus = $('#save-status'), coordinates = $('#tile-coordinates');
+  moveAction('#help-button', 'Guide');
+  if (onShortcuts) addAction('shortcuts-button', 'Keyboard shortcuts', icon('keyboard'), onShortcuts, '?');
+  rule();
+  moveAction('#save-button', 'Saved games', 'Ctrl+S');
+  moveAction('#world-button', 'New world');
+  addAction('main-menu-button', 'Main menu', icon('world'), () => { closeManagement(); onMenu?.(); });
+  // The menu's foot keeps the save status; map coordinates stay out of sight (DESIGN.md 6.1) for the screen reader cursor.
+  const weather = $('#weather'), saveStatus = $('#save-status');
   if (weather) $('#compact-menu-weather').append(weather);
   if (saveStatus) menu.querySelector('.compact-menu-status').append(saveStatus);
-  if (coordinates) menu.querySelector('.compact-menu-status').append(coordinates);
 
   minimap.id = 'mini-map-panel'; minimap.hidden = true;
   const miniClose = document.createElement('button');

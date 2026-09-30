@@ -17,9 +17,9 @@ export async function createWorldFromMenu(page, { biome = 'taiga', size = 'squar
   await page.locator('#start-new').click();
   await page.locator(`#start-world-form [name="biome"][value="${biome}"]`).check();
   await page.locator('#start-world-form [name="size"]').selectOption(size);
+  if (!await page.locator('.start-advanced').evaluate(el => el.open)) await page.locator('.start-advanced summary').click();
   if (townCount !== undefined) await page.locator('#start-world-form [name="townCount"]').fill(String(townCount));
   if (industryDistricts !== undefined) await page.locator('#start-world-form [name="industryDistricts"]').fill(String(industryDistricts));
-  if (!await page.locator('.start-advanced').evaluate(el => el.open)) await page.locator('.start-advanced summary').click();
   await page.locator('#start-world-form [name="seed"]').fill(String(seed));
   await page.locator('#start-create').click();
   await waitForGameReady(page, { paused });

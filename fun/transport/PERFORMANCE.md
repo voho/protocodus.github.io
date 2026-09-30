@@ -266,6 +266,27 @@ node --test fun/transport/tests/change-journal.test.mjs
 node fun/transport/tests/scene-cache-browser-check.mjs
 ```
 
+## Patched ecology and growth days
+
+Journaled days no longer rebuild the scenery list or land in one frame. A day's changed tiles patch the cached scene: only their objects and shadows are made again, only the strips on the depth runs they touch are regrouped, and the shadow layer is swapped once its successor is ready. Terrain chunks a day changed keep their last picture and recompose two a frame. A day on which a town builds homes is journaled as well, so the ordinary day of a busy map, ecology plus growth, no longer discards the scene, every strip and the chunk fingerprints.
+
+Paired runs against an immutable copy of the previous build, seed 1847 taiga, 512², 1440 × 900 CSS pixels at DPR 1 in headless Chromium (software rendering), 10 seconds per row. Frame intervals and render calls in milliseconds:
+
+| Workload | Frames before → after | Frame p99 before → after | Render p90 before → after | Render max before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Region, 1× | 279 → 304 | 150 → 67 | 22.8 → 25.1 | 131 → 45 |
+| Region, 8× | 114 → 212 | 200 → 83 | 112 → 33 | 158 → 58 |
+| Town, 8× | 250 → 277 | 117 → 83 | 48.6 → 20.2 | 91 → 54 |
+
+At Region a day frame used to recompose about eight chunks and rebuild the scene together (a 77 ms render); it now recomposes one or two chunks and patches the scene (about 25 ms). On the untouched baseline 17 of 120 days on this map also grew a town and were not journaled; on the larger maps nearly every day is one. Budgeted chunks and the patch queue count toward `sceneryBatches.pending`, so checks that settle a view wait for them.
+
+The cached/fresh regression now also runs a day of new homes in view at every zoom, including a home on woodland that dissolves its grove, and every ecology and homes frame must match a new renderer in every RGBA pixel; both kinds must patch the scene without rebuilding it.
+
+```sh
+node --test fun/transport/tests/change-journal.test.mjs fun/transport/tests/scenery-batches.test.mjs
+node fun/transport/tests/scene-cache-browser-check.mjs
+```
+
 ## Mini map
 
 Ecology used to resample the whole 512 × 512 overview after every day, and the app also sampled the hidden mini map when a world loaded and on each layer change. The overview now recolours only the samples of the cells a day journals, skips pixels where a road, rail or industry overlay won, and writes only their dirty rectangle. Construction, growth and loads still resample it whole. A hidden mini map is not drawn until it opens.
