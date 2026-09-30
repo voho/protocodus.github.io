@@ -878,6 +878,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
   The footer shows "Part 1 of 4" and "All goals".
 - **Onboarding.** The first-route checklist uses the same ladder.
+- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Build drawer repeats the goal only on phones or with the Next goal layer off.
 - **With the inspector.** When the inspector opens at wide widths, the inspector starts under the goal line. The line stays one line.
 
 ### 12.3 Drawer
@@ -894,8 +895,9 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Routes row:**
   - Line 1: bullet 20, name 14/600, and money on the right (with "a month" in caption under it).
   - Line 2: cargo tile 16, "Stone by road, 2 trucks" in 13 ink-2, and the status mark on the right.
-- **Towns row:** town glyph, name, population `data-num`, growth word and served bullets.
-- **Industries row:** output cargo tile, name, "near Alderbrook", status word and served bullets.
+- **Towns row:** name and population `data-num` with the passengers glyph, then "6 tiles away · Awaiting deliveries", the Growing tag and any rent on one caption line.
+- **Industries row:** a 48 px portrait, the name, "Near Alderbrook · 6 tiles away", then the recipe tiles (24 px) and the status word. Stock and capacity live in the row's tooltip.
+- Page controls follow the list, never above it.
 - The whole row is a `.ref--row`, so hovering it lights the map.
 - **Expanded row** (`.row--expanded`, one at a time, `--well` background, no stripe). It contains:
   - the strip;
@@ -1039,7 +1041,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 - **Header:** "Build", with a segmented control "Network | Town | Industry".
 - **Network** has two groups:
-  - **Place:** sprite cards in 2 columns (Road, Rail, Stop, Port, Bridge, Tunnel, Airport). Each card has a 48 px sprite, the name in 14/600 and a price line in 13 ink-2 ("from $180 a tile"). The selected card has a 2 px ink outline.
+  - **Place:** sprite cards in 2 columns (Road, Rail, Stop, Port, Airport, Bulldozer). Each card has a 48 px sprite, the name in 14/600 and a price line in 13 ink-2 ("from $180 a tile"). The selected card has a 2 px ink outline. Airport and Bulldozer are ordinary cards; none spans the row. Airport waits greyed with "From 1952".
   - **Shape the land:** a row of line-icon buttons (Bulldoze, Raise, Lower, Level).
 - **Town:** zones, buildings (sprite cards with price and tier word), Found town and Workshop.
 - **Industry:** industry cards with output cargo tiles and prices.

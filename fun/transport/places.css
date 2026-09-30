@@ -11,10 +11,21 @@
 }
 .inspector-building{display:flex;align-items:center;gap:16px;background:var(--well);border-radius:var(--r-2);padding:4px 12px;margin-bottom:12px}
 .micro-note{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
-.entity-card{border:1px solid var(--rule);background:var(--paper);border-radius:var(--r-3);cursor:pointer;text-align:left;width:100%;transition:border .15s;padding:16px;margin-bottom:12px}
-.entity-card h3{margin:0;font-weight:500;display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:var(--fs-body);line-height:var(--lh-body)}
-.entity-card h3 svg{width:16px;height:16px;color:var(--ink-2)}
-.entity-card p{margin:8px 0 12px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+/* A list row: the name and its figure, then where it is and one status line (DESIGN.md 12). */
+.entity-card{display:block;border:1px solid var(--rule);background:var(--paper);border-radius:var(--r-3);cursor:pointer;text-align:left;width:100%;transition:border .15s;padding:12px;margin-bottom:8px}
+.entity-card h3{margin:0;font-weight:500;display:flex;gap:8px;align-items:center;font-size:var(--fs-body);line-height:var(--lh-body)}
+.entity-card h3>svg{flex:0 0 16px;width:16px;height:16px;color:var(--ink-2)}
+.entity-card .entity-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entity-figure{display:inline-flex;align-items:center;gap:4px;font-size:var(--fs-small);line-height:var(--lh-small);font-variant-numeric:tabular-nums}
+.entity-figure .cargo-icon{width:18px;height:18px}
+.entity-card p{margin:4px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.entity-card .entity-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:4px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.entity-meta>span:not(:first-child):not(.town-tag):not(.cargo-recipe):not(.site-status)::before{content:'·';margin-right:8px}
+.entity-site{display:grid;grid-template-columns:48px minmax(0,1fr);gap:12px;align-items:center}
+.entity-site .entity-art{width:48px;height:48px;object-fit:contain}
+.entity-site .cargo-recipe{margin:0;gap:4px}
+.entity-site .cargo-badge{min-height:24px;padding:0 6px;border-radius:var(--r-2);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.entity-site .cargo-badge .cargo-icon{width:18px;height:18px}
 .entity-card .entity-metric{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);gap:8px}
 .ledger-row{display:flex;justify-content:space-between;font-size:var(--fs-small);line-height:var(--lh-small);align-items:center;color:var(--ink-2);gap:12px}
 .ledger-row strong{font-weight:500;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink);white-space:nowrap}
@@ -42,7 +53,8 @@
 .entity-filters .entity-search{margin:0}
 .entity-filters .entity-sort select{width:auto;max-width:10.5rem;font-size:var(--fs-small);line-height:var(--lh-small)}
 .entity-title{flex:1;min-width:0}
-.entity-card .entity-place{margin:4px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.entity-card .entity-place{margin:4px 0 0}
+.entity-meta .entity-place{margin:0}
 .entity-place span{white-space:nowrap}
 .inspector-grid.town-figures{grid-template-columns:repeat(3,1fr)}
 .industry-destinations{border-block:1px solid var(--rule);padding:12px 0;margin:12px 0 16px}
@@ -77,7 +89,7 @@
 .need-chip[data-met="true"]{border-color:var(--edge);background:var(--well)}
 .inspector .need-hint{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:8px 0 16px}
 .condition-note{background:var(--well);color:var(--ink-2)}
-.entity-card .town-need-metric{align-items:center;margin-top:8px;padding-top:8px}
+.entity-card .town-need-metric{align-items:center;margin-top:8px;padding-top:8px;border-top:0}
 .need-icons{display:inline-flex;align-items:center;gap:4px}
 .need-icon{position:relative;display:inline-flex}
 .need-icon .cargo-icon{width:21px;height:21px}
@@ -124,7 +136,7 @@
 }
 .entity-search{display:block;margin:0 0 12px}
 .entity-search input,.entity-search select{width:100%;min-height:44px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);font:inherit;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
-.entity-card .site-status{font-size:var(--fs-small);line-height:var(--lh-small);margin:12px 0;color:var(--ink-2)}
+.entity-card .site-status{margin:0;color:var(--ink-2)}
 .site-status[data-state=waiting],.site-status[data-state=full]{color:var(--warn)}
 .industry-condition{margin:12px 0;padding:12px 12px;background:var(--well);border-radius:var(--r-3);font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .industry-condition[data-state=waiting],.industry-condition[data-state=full]{background:var(--well);color:var(--warn)}
@@ -141,7 +153,7 @@
 .town-grow>summary:hover{color:var(--ink)}
 .inspector .town-grow p{margin:4px 0 12px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .inspector .town-grow .town-room{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
-.entity-card .town-tag{float:right;margin-top:8px;padding:2px 8px;border-radius:var(--r-4);background:var(--well);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
+.entity-card .town-tag{padding:0 8px;border-radius:var(--r-4);background:var(--well);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
 .compact-play .inspector{left:12px;bottom:12px;max-height:calc(100% - 86px);margin-left:var(--safe-l);margin-bottom:var(--safe-b)}
 @media(max-width:700px){
  .compact-play .sidebar.mobile-open~.map-section .inspector{display:none}
@@ -261,7 +273,7 @@
  .property .button{min-height:var(--control-touch)}
 }
 /* A town's returns (city-investment-feedback): its card's rent row, the past year's rent, market bonus and workshop freight, and a small line of its months. */
-.entity-card .property-metric{margin-top:var(--s-2)}
+.entity-card .property-metric{color:var(--ink)}
 .town-economy .town-returns{display:flex;align-items:center;gap:var(--s-3);margin-top:var(--s-2)}
 .town-economy .town-returns .economy-foot{flex:1;min-width:0;margin:0}
 .town-returns-spark{flex:none;display:flex}

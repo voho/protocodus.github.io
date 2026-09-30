@@ -9,7 +9,7 @@ const output = process.env.TRANSPORT_OUTPUT || '/tmp/transport-next-goal';
 await mkdir(output, { recursive: true });
 const errors = [];
 const watch = page => { page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); }); };
-const steps = page => page.locator('#objective-steps .objective-step').evaluateAll(items => items.map(item => ({ label: item.children[1].firstChild.textContent, done: item.classList.contains('done'), current: item.classList.contains('current'), button: item.querySelector('button')?.textContent || '' })));
+const steps = page => page.locator('#objective-steps .objective-step').evaluateAll(items => items.map(item => ({ label: item.children[1].firstChild.textContent, done: item.classList.contains('done'), current: item.classList.contains('current'), button: item.querySelector('button')?.title || '' })));
 const box = (page, selector) => page.locator(selector).evaluate(el => { const b = el.getBoundingClientRect(); return { left: b.left, right: b.right, top: b.top, bottom: b.bottom }; });
 const overlaps = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 try {
@@ -27,6 +27,8 @@ try {
   assert.deepEqual(list.map(step => step.label), ['Stop near Stone quarry', 'Stop near Alderbrook', 'Connect them', 'Launch a stone route', 'First delivery']);
   assert.deepEqual(list.map(step => step.current), [true, false, false, false, false], 'step 1 is the open step');
   assert.equal(list.filter(step => step.button).length, 1, 'only the open step offers an action');
+  // One step, one action: while the game can plan the line, Plan road is the card's only button.
+  assert.deepEqual(await page.locator('.objective-actions > button:not([hidden])').evaluateAll(els => els.map(el => el.id)), ['objective-plan', 'objective-another']);
   assert.equal(list[1].done, true, 'the starter stop already covers Alderbrook');
   const quarry = await page.evaluate(() => { const site = transport.game.industries.find(site => site.name === 'Stone quarry' && site.x === 217 && site.y === 255); return site && { id: site.id, x: site.x, y: site.y }; });
   assert.ok(quarry, 'seed 1847 suggests the quarry at 217, 255');
@@ -38,12 +40,11 @@ try {
   const other = await page.locator('#objective-detail').textContent();
   assert.notEqual(other, detail);assert.doesNotMatch(other, /Stone quarry/);
   await page.evaluate(() => transport.setView('build'));
-  assert.match(await page.locator('.project-card p').textContent(), new RegExp(other.split('.')[0]), 'the Build drawer shows the same idea');
+  assert.equal(await page.locator('.project-card').isVisible(), false, 'wide screens leave the goal to its map card');
   await page.locator('#close-management').click();
   while (!(await page.locator('#objective-detail').textContent()).includes('Stone quarry')) await page.locator('#objective-another').click();
-  await page.locator('#objective-action').click();
-  assert.equal(await page.locator('#inspector h3').textContent(), 'Stone quarry', 'Find cargo inspects the suggested producer');
-  assert.ok(await page.locator('#inspector .industry-target').count() > 0);
+  await page.evaluate(({ x, y }) => transport.inspect(x, y), quarry);
+  assert.equal(await page.locator('#inspector h3').textContent(), 'Stone quarry');
   assert.equal(await page.locator('#objective-card').isVisible(), true, 'wide screens keep the card beside the inspector');
   await page.locator('#inspector .tiny-button').click();
 
@@ -67,6 +68,8 @@ try {
   list = await steps(page);
   assert.deepEqual(list.map(step => step.done), [true, true, true, false, false]);
   assert.equal(list[3].current, true);assert.equal(list[3].button, 'Set up route');
+  assert.equal(await page.locator('#objective-plan').isVisible(), false, 'a joined pair needs no plan');
+  assert.equal(await page.locator('#objective-action').textContent(), 'Set up route', 'the one button is the open step');
   await page.screenshot({ path: `${output}/desktop-connected.png` });
   await page.locator('[data-goal-step="3"]').click();
   const stop = await page.evaluate(() => transport.game.stations.find(stop => stop.x === 219 && stop.y === 251).id);
@@ -105,14 +108,11 @@ try {
   assert.equal(await page.locator('#objective-progress').isVisible(), true);
   await page.screenshot({ path: `${output}/desktop-progress.png` });
 
-  // Menus and layers take the corner; the Build drawer can bring a collapsed card back.
+  // Menus and layers take the corner; a folded card opens again from its chip.
   await page.locator('#dismiss-objective').click();
-  await page.evaluate(() => transport.setView('build'));
-  await page.locator('.project-card summary').click();
-  await page.locator('[data-goal-show]').click();
+  await page.locator('#objective-chip').click();
   assert.equal(await page.locator('#objective-body').isVisible(), true);
   // The Next goal layer removes the card entirely; Show on map turns it back on.
-  await page.locator('#close-management').click();
   await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
   await page.locator('[data-layer="goal"]').setChecked(false);
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the layer hides the card');

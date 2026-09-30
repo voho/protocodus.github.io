@@ -88,8 +88,9 @@
 .connection-plan-banner .connection-build{padding:8px 16px;background:var(--ink);color:var(--on-ink);font-weight:500}
 .connection-plan-banner .connection-build:hover{background:var(--ink-2)}
 .connection-plan-banner #cancel-connection-plan{margin-left:-8px}
-#objective-card .objective-plan{min-height:34px;padding:7px 12px;border:1px solid var(--edge);border-radius:var(--r-3);background:var(--paper);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink-2)}
-#objective-card .objective-plan:hover{background:var(--well);border-color:var(--ink)}
+/* The card shows one button at a time, Plan road or the open step's action, always as the primary. */
+#objective-card .objective-plan{min-height:34px;padding:7px 12px;border:1px solid var(--ink);border-radius:var(--r-3);background:var(--ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--on-ink)}
+#objective-card .objective-plan:hover{border-color:var(--ink-2);background:var(--ink-2)}
 /* Next goal: one optional suggestion on the map. It collapses to a chip and never covers open menus. */
 #objective-card{top:12px;right:12px;width:296px;max-height:calc(100% - 96px);overflow:auto;padding:16px 16px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);backdrop-filter:none;z-index:var(--z-goal);scrollbar-width:thin;color:var(--ink)}
 #objective-card .objective-heading .eyebrow,.objective-chip .eyebrow{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;letter-spacing:0;color:var(--ink-2)}
@@ -105,8 +106,11 @@
 #objective-card .step-circle{width:20px;height:20px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);background:var(--paper)}
 #objective-card .objective-step.current{color:var(--ink);font-weight:500}
 #objective-card .objective-step.current .step-circle{border-color:var(--signal);background:var(--well);color:var(--signal-ink);font-weight:600}
-#objective-card .objective-step .small-button{flex:0 0 auto;min-height:30px;padding:4px 12px;border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
-#objective-card .objective-step .small-button:hover{background:var(--well);border-color:var(--ink)}
+/* The open step is its own link: its label runs it, a chevron says it goes somewhere. */
+#objective-card .objective-step-link{display:flex;align-items:center;gap:4px;flex:1;min-width:0;min-height:32px;margin:0 -4px;padding:0 4px;border:0;border-radius:var(--r-2);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+#objective-card .objective-step-link:hover{background:var(--well)}
+@media(pointer:coarse){#objective-card .objective-step-link{min-height:44px}}
+#objective-card .objective-step-link svg{flex:0 0 16px;width:16px;height:16px;margin-left:auto;padding:0;background:none;stroke:var(--ink-2);stroke-width:2}
 #objective-card .progress-track{height:6px;margin:0 0 12px;background:var(--well)}
 #objective-card #goal-bar{background:var(--signal)}
 .objective-actions{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
