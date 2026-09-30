@@ -82,10 +82,6 @@ try {
 
     const preferences = await page.evaluate(() => {
       const fx = impactQA.effects;
-      fx.reset(); impactQA.hit(); __impactFrame();
-      document.querySelector('#quality-toggle').click(); __impactFrame(0);
-      const low = { ...impactQA.snapshot(), quality: fx.quality };
-      __impactAdvance(1); document.querySelector('#quality-toggle').click();
       fx.reset();
       const pilot = tyran.state.players[0]; pilot.invulnerableTime = 10;
       const hull = pilot.hull;
@@ -96,15 +92,14 @@ try {
       tyran.pause(); document.querySelector('#menu-button').click(); __impactFrame(0);
       const menu = impactQA.snapshot();
       tyran.launch(); tyran.state.bossSpawned = true; __impactFrame(0);
-      return { low, immune, menu, newFlight: impactQA.snapshot() };
+      return { immune, menu, newFlight: impactQA.snapshot() };
     });
-    assert.equal(preferences.low.quality, 'low'); assert.equal(preferences.low.filter, '', 'low effects quality suppresses damage blur');
     assert.equal(preferences.immune.pulse, 0, 'invulnerable pilots emit no damage pulse');
     assert.equal(preferences.immune.filter, ''); assert.equal(preferences.immune.hull, preferences.immune.previousHull);
     for (const state of [preferences.menu, preferences.newFlight]) {
       assert.equal(state.pulse, 0); assert.equal(state.filter, ''); assert.equal(state.flares, 0);
     }
-    console.log('PASS low-quality suppression, invulnerability and flight/menu reset');
+    console.log('PASS invulnerability and flight/menu reset');
 
     const flares = await page.evaluate(async () => {
       const { Effects, EFFECT_LIMITS } = await import('./effects.js');

@@ -91,8 +91,10 @@ try {
     return Math.abs(tyran.state.width - 900 * rect.width / rect.height) < 1e-7;
   });
   await page.evaluate(() => { tyran.state.pickups = tyran.state.pickups.filter(p => !p.qaResize); });
-  await page.locator('#pause-quality-toggle').click();
-  assert.equal(await page.locator('#pause-quality-toggle').getAttribute('aria-pressed'), 'false');
+  const soundBefore = await page.locator('#pause-sound-toggle').getAttribute('aria-pressed');
+  await page.locator('#pause-sound-toggle').click();
+  assert.notEqual(await page.locator('#pause-sound-toggle').getAttribute('aria-pressed'), soundBefore, 'the pause menu still toggles sound');
+  await page.locator('#pause-sound-toggle').click();
   await page.locator('#resume-button').click();
   // Destruction is real, persistent, and rewards salvage.
   const destruction = await page.evaluate(() => {

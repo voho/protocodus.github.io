@@ -116,14 +116,12 @@ try {
   // frame needs no new static art even at a different density and aspect ratio.
   await page.evaluate(() => { preflightAudit.phase = 'display-change'; });
   await page.click('#pause-button');
-  await page.click('#pause-quality-toggle');
   await page.click('#resume-button');
   await page.setViewportSize({ width: 1600, height: 1000 });
   await page.evaluate(() => { preflightAudit.phase = 'flight'; });
   await page.waitForTimeout(150);
   await page.evaluate(() => { preflightAudit.phase = 'display-change'; });
   await page.click('#pause-button');
-  await page.click('#pause-quality-toggle');
   await page.click('#resume-button');
   await page.setViewportSize({ width: 3840, height: 2160 });
   await page.evaluate(() => { preflightAudit.phase = 'flight'; });

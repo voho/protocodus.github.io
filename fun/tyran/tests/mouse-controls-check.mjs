@@ -103,9 +103,9 @@ try {
   await click('resume-button'); assert.equal(await page.evaluate(() => tyran.scene), 'playing');
   await click('pause-button'); await click('menu-button');
   assert.equal(await page.evaluate(() => tyran.scene), 'menu', 'pause/menu buttons remain clickable');
-  const quality = await page.locator('#quality-toggle').getAttribute('aria-pressed');
-  await click('quality-toggle');
-  assert.notEqual(await page.locator('#quality-toggle').getAttribute('aria-pressed'), quality, 'menu settings still accept mouse clicks');
+  const sound = await page.locator('#sound-toggle').getAttribute('aria-pressed');
+  await click('sound-toggle');
+  assert.notEqual(await page.locator('#sound-toggle').getAttribute('aria-pressed'), sound, 'menu settings still accept mouse clicks');
   assert.deepEqual(errors, [], 'no runtime errors');
   console.log('PASS arena click focus and native pause, resume and menu buttons');
 } finally { await browser.close(); }
