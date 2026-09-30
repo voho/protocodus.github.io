@@ -1,4 +1,4 @@
-import { weatherAt } from './environment.js';
+import { weatherAt, CLIMATE_YEAR, CLIMATE_SPRING } from './environment.js';
 
 const clamp = value => Math.max(0, Math.min(1, value));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
@@ -21,14 +21,22 @@ export function weatherPresentation(game, x, y, day = game.day || 0) {
 // A fixed pool is independent of map size and never allocates a second screen
 // bitmap. Color compositing grades the finished world; sprite pixels and caches
 // are untouched. HUD and map labels are painted afterwards and stay legible.
-// The year's light, 0–1 each: a winter chill peaking late January, a fresh spring in May and a golden autumn in
-// October. Days count from 1 January 1950; a year of 365.2425 days keeps the peaks in their months for centuries.
-// Deserts barely turn; the tundra's autumn is short. Pure presentation: nothing in the simulation reads it.
+// The year's light, 0–1 each, on the climate's own year (environment.js) so it agrees with the snow and the growth:
+// a fresh green 15 days after the climate warms past its midpoint, a golden autumn 80 days after its warmest and a
+// pale chill at its coldest. Deserts barely turn; the tundra's autumn is short. Pure presentation: nothing in the
+// simulation reads it.
 const SEASON_SCALE = { taiga: { winter: 1, spring: 1, autumn: 1 }, tundra: { winter: 1, spring: .6, autumn: .6 }, desert: { winter: .35, spring: .5, autumn: .25 } };
 export function seasonPresentation(game, day = game.day || 0) {
-  const at = ((day % 365.2425) + 365.2425) % 365.2425, scale = SEASON_SCALE[game.biome] || SEASON_SCALE.taiga;
-  const bump = (centre, width) => { const d = Math.abs(at - centre), wrapped = Math.min(d, 365.2425 - d); return smooth(1 - wrapped / width); };
-  return { winter: bump(25, 75) * scale.winter, spring: bump(130, 50) * scale.spring, autumn: bump(285, 48) * scale.autumn };
+  const at = (((day - CLIMATE_SPRING) % CLIMATE_YEAR) + CLIMATE_YEAR) % CLIMATE_YEAR, scale = SEASON_SCALE[game.biome] || SEASON_SCALE.taiga;
+  const bump = (centre, width) => { const d = Math.abs(at - centre), wrapped = Math.min(d, CLIMATE_YEAR - d); return smooth(1 - wrapped / width); };
+  return { winter: bump(270, 75) * scale.winter, spring: bump(15, 50) * scale.spring, autumn: bump(170, 48) * scale.autumn };
+}
+
+// Two source-over fills, [rgb, alpha] in order, as one: the same colour wherever both land.
+function layerTints(...layers) {
+  let alpha = 0, rgb = [0, 0, 0];
+  for (const [color, a] of layers) { if (!(a > 0)) continue; const next = alpha + a * (1 - alpha); rgb = rgb.map((v, i) => (v * alpha * (1 - a) + color[i] * a) / next); alpha = next; }
+  return alpha > .001 ? { alpha, color: `rgb(${rgb.map(v => Math.round(v)).join(',')})` } : null;
 }
 
 export function createWeatherEffects({ reducedMotion = () => false } = {}) {
@@ -50,18 +58,18 @@ export function createWeatherEffects({ reducedMotion = () => false } = {}) {
     const count = still || amount < .015 ? 0 : Math.min(MAX_WEATHER_PARTICLES, Math.round((width * height / 16000 + 16) * amount));
     stats = { enabled: true, rain, snow, cloud, particles: count, particleLimit: MAX_WEATHER_PARTICLES, bytes: particles.byteLength, season };
     c.save();
-    // The season first, as soft light: warm gold in autumn, a fresh green in spring, a pale chill in winter.
+    // The season first, as soft light: warm gold in autumn, a fresh green in spring.
     if (season.autumn > .01) { c.globalCompositeOperation = 'soft-light'; c.globalAlpha = season.autumn * .2; c.fillStyle = '#e0913f'; c.fillRect(0, 0, width, height); }
     if (season.spring > .01) { c.globalCompositeOperation = 'soft-light'; c.globalAlpha = season.spring * .12; c.fillStyle = '#b8e07a'; c.fillRect(0, 0, width, height); }
-    if (season.winter > .01) { c.globalCompositeOperation = 'saturation'; c.globalAlpha = season.winter * .1; c.fillStyle = '#808080'; c.fillRect(0, 0, width, height); c.globalCompositeOperation = 'source-over'; c.globalAlpha = season.winter * .05; c.fillStyle = '#e4ecef'; c.fillRect(0, 0, width, height); }
-    if (cloud < .01 && !count) { c.restore(); return; }
-    // Clouds and rain soften the palette and cool it, gently enough that the map stays clear.
-    c.globalCompositeOperation = 'saturation';
-    c.globalAlpha = cloud * .1 + amount * .12;
-    c.fillStyle = '#808080'; c.fillRect(0, 0, width, height);
-    c.globalCompositeOperation = 'source-over';
-    c.globalAlpha = cloud * .05 + rain * .06 + snow * .12;
-    c.fillStyle = snow > rain ? '#d6e6ec' : '#6b8196'; c.fillRect(0, 0, width, height);
+    // Winter's pale chill, then clouds and rain, soften the palette and cool it, gently enough that the map stays
+    // clear. Each whole-screen fill costs a software rasteriser milliseconds, so both desaturate in one fill (two
+    // greys at a and b are one at 1 − (1 − a)(1 − b)) and both tints in one ordinary fill.
+    const weathered = cloud >= .01 || count > 0, chill = season.winter > .01 ? season.winter : 0;
+    const grey = 1 - (1 - chill * .1) * (1 - (weathered ? cloud * .1 + amount * .12 : 0));
+    if (grey > .001) { c.globalCompositeOperation = 'saturation'; c.globalAlpha = grey; c.fillStyle = '#808080'; c.fillRect(0, 0, width, height); }
+    const tint = layerTints([[0xe4, 0xec, 0xef], chill * .05], [snow > rain ? [0xd6, 0xe6, 0xec] : [0x6b, 0x81, 0x96], weathered ? cloud * .05 + rain * .06 + snow * .12 : 0]);
+    if (tint) { c.globalCompositeOperation = 'source-over'; c.globalAlpha = tint.alpha; c.fillStyle = tint.color; c.fillRect(0, 0, width, height); }
+    if (!count) { c.restore(); return; }
 
     // Time belongs to the company, so pause, loading, tab suspension, save/load
     // and simulation speed all have the same effect on weather as on vehicles.
