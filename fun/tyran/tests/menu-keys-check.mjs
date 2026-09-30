@@ -12,35 +12,49 @@ page.on('pageerror', error => errors.push(error.message));
 await page.addInitScript(() => { localStorage.setItem('tyran-muted', 'true'); localStorage.removeItem('tyran-campaign'); localStorage.removeItem('tyran-difficulty'); });
 const ready = async () => { await page.goto(url); await page.waitForFunction(() => window.tyran && document.body.dataset.ready === 'true', null, { timeout: 120000 }); };
 const scene = () => page.evaluate(() => tyran.scene);
-const menuState = () => page.evaluate(() => ({ selected: Number(document.body.dataset.world), difficulty: document.querySelector('input[name="difficulty"]:checked').value, active: document.activeElement?.id || document.activeElement?.tagName }));
+const menuState = () => page.evaluate(() => ({ selected: Number(document.body.dataset.world), difficulty: document.querySelector('input[name="difficulty"]:checked').value, row: document.querySelector('#menu-list .menu-row.active')?.dataset.row, active: document.activeElement?.id || document.activeElement?.tagName }));
 try {
   await ready();
   assert.equal(await page.locator('#quality-toggle').count(), 0, 'the effects switch is gone from the top bar');
   assert.equal(await page.locator('#pause-quality-toggle').count(), 0, 'the effects switch is gone from the pause menu');
-  const copy = await page.evaluate(() => document.querySelector('.briefing-copy').textContent);
+  const copy = await page.evaluate(() => document.querySelector('#menu-screen').textContent);
   assert(!/sky is not the limit/i.test(copy) && !/fresh terrain/i.test(copy) && !/Ten worlds\./.test(copy), 'the hero copy is trimmed');
   assert.match(await page.locator('#difficulty-picker legend').textContent(), /^\s*New flights difficulty\s*$/);
+  for (const selector of ['.topbar', '.hero-stats', '.hero-description', '.campaign-hint', '.brand']) assert.equal(await page.locator(selector).count(), 0, `${selector} left the title screen`);
   assert.equal(await page.locator('.menu-keys').count(), 1, 'the menu keys are listed');
 
-  // Arrows pick the sector and difficulty from the page body.
-  await page.mouse.click(1300, 940); await page.evaluate(() => document.activeElement?.blur?.());
+  // The console menu: Left/Right change the sector, Up/Down move the highlight.
+  await page.evaluate(() => document.activeElement?.blur?.());
+  assert.equal((await menuState()).row, 'launch', 'the new-campaign row starts highlighted');
   await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
   assert.equal((await menuState()).selected, 2, 'ArrowRight advances the selected sector');
   await page.keyboard.press('KeyA');
   assert.equal((await menuState()).selected, 1, 'A steps back one sector');
-  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
-  assert.equal((await menuState()).difficulty, 'hard', 'ArrowDown raises the difficulty');
-  await page.keyboard.press('KeyW');
-  assert.equal((await menuState()).difficulty, 'medium', 'W lowers the difficulty');
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowDown');
+  assert.equal((await menuState()).row, 'sector', 'ArrowDown skips the disabled resume row');
+  await page.keyboard.press('KeyS');
+  const onDifficulty = await menuState();
+  assert.equal(onDifficulty.row, 'difficulty', 'S moves on to the difficulty row');
+  assert.equal(onDifficulty.active, 'INPUT', 'the highlighted difficulty focuses its radio');
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight');
+  assert.equal((await menuState()).difficulty, 'hard', 'Right on the difficulty row raises it');
+  assert.equal((await menuState()).selected, 1, 'the sector stays put while difficulty changes');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal((await menuState()).difficulty, 'medium', 'Left lowers it');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowLeft');
   assert.equal((await menuState()).difficulty, 'easy', 'difficulty clamps at Easy');
   assert.equal(await page.evaluate(() => localStorage.getItem('tyran-difficulty')), 'easy', 'the keyboard choice is remembered');
-  // A focused radio keeps native arrow handling: Left moves the radio, not the sector.
-  await page.focus('input[name="difficulty"][value="medium"]');
-  await page.keyboard.press('ArrowRight');
-  const radio = await menuState();
-  assert.equal(radio.selected, 1, 'arrows on a focused radio never change the sector');
-  assert.equal(radio.difficulty, 'hard', 'arrows on a focused radio move the radio');
+  await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
+  assert.equal((await menuState()).row, 'launch', 'the highlight wraps around');
+  await page.locator('#sector-next').click(); await page.locator('#sector-next').click(); await page.locator('#sector-prev').click();
+  assert.equal((await menuState()).selected, 2, 'the sector arrows step the selection');
+  await page.hover('#help-button');
+  assert.equal((await menuState()).row, 'manual', 'hovering a row highlights it');
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+  assert.equal((await menuState()).row, 'difficulty');
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('KeyA');
+  assert.equal((await menuState()).selected, 1, 'Left on the sector row steps the sector');
   await page.evaluate(() => document.activeElement.blur());
   // H opens the manual; Escape closes it.
   await page.keyboard.press('KeyH');
@@ -60,8 +74,9 @@ try {
   assert.equal(await page.locator('#help-screen').isVisible(), true, 'Enter on a focused button activates that button');
   await page.keyboard.press('Escape');
   await page.evaluate(() => document.activeElement?.blur?.());
+  await page.evaluate(() => document.querySelector('#launch-button').dispatchEvent(new PointerEvent('pointerover', { bubbles: true })));
   await page.keyboard.press('Enter');
-  assert.equal(await scene(), 'playing', 'Enter launches a new campaign');
+  assert.equal(await scene(), 'playing', 'Enter confirms the highlighted new-campaign row');
   assert.equal(await page.evaluate(() => tyran.state.level), 0);
   assert.equal(await page.evaluate(() => tyran.world.deferStrips), false, 'flight builds any late strip immediately');
   // A saved campaign resumes with C.

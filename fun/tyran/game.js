@@ -88,6 +88,8 @@ const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null, vignetteKey = 0, adaptiveResolution = true;
 let endFade = null;
+// The final fade dims instruments and arena together; the header row never lingers as a dark band.
+const fadeSurface = $('flight-layout') || canvas;
 const END_IMPACT_HOLD = .22, END_FADE_SECONDS = 1.5;
 let bonusOutro = null;
 const BONUS_FADE_SECONDS = 1.5, BONUS_BLACK_HOLD = .12;
@@ -190,7 +192,7 @@ function setScreen(next) {
   // overlay, the bonus outro and the end screen show the live arena, which may
   // still scroll and must never leave a bare row at the top.
   world.deferStrips = next === 'menu' || next === 'hangar';
-  if (next !== 'end') { endFade = null; canvas.style.opacity = ''; }
+  if (next !== 'end') { endFade = null; fadeSurface.style.opacity = ''; canvas.style.opacity = ''; }
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
   // Instruments and touch controls reserve their space even behind menus.
@@ -582,7 +584,7 @@ function showEnd(won, loading = false) {
   setScreen('end'); $('announcement').hidden = true;
   endFade = { elapsed: 0, complete: false };
   $('end-screen').hidden = true;
-  canvas.style.opacity = '1';
+  fadeSurface.style.opacity = '1';
   $('end-title').textContent = 'Signal lost.';
   $('end-description').textContent = `Your flight ended over ${environment(state.level).name} · ${sectorLabel(state.level)}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
   $('end-score').textContent = number(state.score);
@@ -599,10 +601,10 @@ function updateEndFade(dt) {
   endFade.elapsed += dt;
   const progress = clamp((endFade.elapsed - END_IMPACT_HOLD) / END_FADE_SECONDS, 0, 1);
   const opacity = String(Number((1 - progress * progress * (3 - 2 * progress)).toFixed(4)));
-  if (canvas.style.opacity !== opacity) canvas.style.opacity = opacity;
+  if (fadeSurface.style.opacity !== opacity) fadeSurface.style.opacity = opacity;
   if (progress < 1) return;
   endFade.complete = true; fx.reset(); hitstop = 0;
-  canvas.style.filter = ''; canvas.style.opacity = '0';
+  canvas.style.filter = ''; fadeSurface.style.opacity = '0';
   $('end-screen').hidden = false;
   $('retry-button').focus({ preventScroll: true });
 }
@@ -611,6 +613,7 @@ function refreshContinue() {
   const run = campaign.run, error = campaignError || campaign.error;
   $('continue-button').hidden = false; $('continue-button').disabled = !run;
   setText($('continue-label'), 'Resume campaign');
+  setText($('continue-route'), run ? `${saveDescription(run)} · ${number(run.state.credits)} credits · ${number(run.state.score)} score` : 'No saved flight in this browser');
   const status = campaignError ? 'Could not autosave in this browser. Your previous save is unchanged; you can keep playing.'
     : error === 'unavailable' ? 'Browser storage is unavailable. You can still play.'
     : error === 'corrupt' ? 'The saved campaign could not be read. You can start a new campaign.'
@@ -638,7 +641,9 @@ function selectWorld(index) {
   if ($('selected-world-description')) $('selected-world-description').textContent = WORLDS[selected].description || WORLDS[selected].subtitle;
   if ($('preview-world-number')) $('preview-world-number').textContent = `Sector ${String(selected + 1).padStart(2, '0')}`;
   document.body.dataset.world = selected;
-  $('sector-flight-button').textContent = `Practice sector ${String(selected + 1).padStart(2, '0')} ↗`;
+  const sectorNumber = String(selected + 1).padStart(2, '0');
+  if ($('selected-world-number')) $('selected-world-number').textContent = sectorNumber;
+  setText($('practice-label'), `Practice sector ${sectorNumber}`);
   renderDirty = true; requestFrame();
 }
 
@@ -1253,32 +1258,67 @@ function chooseDifficulty(value) {
 $('difficulty-picker').addEventListener('change', event => {
   if (event.target.matches('input[name="difficulty"]')) chooseDifficulty(event.target.value);
 });
-// The title screen is fully playable from the keyboard: arrows or WASD pick the
-// sector and difficulty, Enter launches, C resumes, F practices, H opens the manual.
-// A focused control keeps its native keys (radios move with arrows, buttons take Enter).
+// The title screen is a console menu: Up/Down (or W/S) move the highlight,
+// Left/Right (or A/D) change the sector, or the difficulty when that row is
+// highlighted, Enter confirms the highlighted row, and C, F and H jump to
+// resume, practice and the manual. A focused control keeps its native keys.
 const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'real'];
+const MENU_ROWS = ['launch', 'continue', 'sector', 'difficulty', 'practice', 'manual'];
+let menuRow = 0;
+const menuRowElement = row => $('menu-list').querySelector(`[data-row="${row}"]`);
+function highlightMenuRow(row, focus = false) {
+  const index = MENU_ROWS.indexOf(row);
+  if (index < 0) return;
+  menuRow = index;
+  for (const el of $('menu-list').querySelectorAll('[data-row]')) el.classList.toggle('active', el.dataset.row === row);
+  if (!focus) return;
+  const el = menuRowElement(row), target = row === 'difficulty' ? el.querySelector('input:checked') || el.querySelector('input') : el;
+  target?.focus({ preventScroll: true });
+}
+function stepMenuRow(delta) {
+  let index = menuRow;
+  for (let i = 0; i < MENU_ROWS.length; i++) {
+    index = (index + delta + MENU_ROWS.length) % MENU_ROWS.length;
+    const el = menuRowElement(MENU_ROWS[index]);
+    if (el && !el.disabled && !el.hidden) break;
+  }
+  highlightMenuRow(MENU_ROWS[index], true);
+}
+function stepSector(delta) {
+  document.body.dataset.preview = 'true';
+  selectWorld((selected + delta + WORLDS.length) % WORLDS.length);
+  $('world-list').querySelector(`[data-world="${selected}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+const stepDifficulty = delta => chooseDifficulty(DIFFICULTY_ORDER[Math.max(0, Math.min(DIFFICULTY_ORDER.length - 1, DIFFICULTY_ORDER.indexOf(selectedDifficulty) + delta))]);
+function activateMenuRow(row) {
+  if (row === 'launch') launch(0);
+  else if (row === 'continue') { if (!$('continue-button').disabled) resumeCampaign(); }
+  else if (row === 'practice') launch(selected, null, false);
+  else if (row === 'manual') $('help-button').click();
+  else if (row === 'sector') stepSector(1);
+  else if (row === 'difficulty') stepDifficulty(1);
+}
 function menuKey(event) {
   const code = event.code, active = document.activeElement;
-  const control = active && active !== document.body && active !== canvas && active.matches('button, a, input, select, textarea, [tabindex="0"]');
-  if (active?.matches?.('input[type="radio"]') && code.startsWith('Arrow')) return false;
-  const step = (list, value, delta) => list[Math.max(0, Math.min(list.length - 1, list.indexOf(value) + delta))];
+  const control = active && active !== document.body && active !== canvas && active.matches('button, a, input, select, textarea');
+  const radio = active?.matches?.('input[type="radio"]');
+  if (code === 'ArrowUp' || code === 'ArrowDown' || code === 'KeyW' || code === 'KeyS') { stepMenuRow(code === 'ArrowUp' || code === 'KeyW' ? -1 : 1); return true; }
   if (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD') {
-    const next = Math.max(0, Math.min(WORLDS.length - 1, selected + (code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1)));
-    document.body.dataset.preview = 'true'; selectWorld(next);
-    $('world-list').querySelector(`[data-world="${next}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    return true;
-  }
-  if (code === 'ArrowUp' || code === 'ArrowDown' || code === 'KeyW' || code === 'KeyS') {
-    chooseDifficulty(step(DIFFICULTY_ORDER, selectedDifficulty, code === 'ArrowUp' || code === 'KeyW' ? -1 : 1));
+    if (radio && code.startsWith('Arrow')) return false;
+    const delta = code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1;
+    if (MENU_ROWS[menuRow] === 'difficulty') stepDifficulty(delta); else stepSector(delta);
     return true;
   }
   if (event.repeat) return false;
-  if ((code === 'Enter' || code === 'Space' || code === 'NumpadEnter') && !control) { launch(0); return true; }
+  if ((code === 'Enter' || code === 'Space' || code === 'NumpadEnter') && !control) { activateMenuRow(MENU_ROWS[menuRow]); return true; }
   if (code === 'KeyC' && !$('continue-button').disabled) { resumeCampaign(); return true; }
   if (code === 'KeyF') { launch(selected, null, false); return true; }
   if (code === 'KeyH' || (code === 'Slash' && event.shiftKey)) { $('help-button').click(); return true; }
   return false;
 }
+$('menu-list').addEventListener('focusin', event => { const row = event.target.closest('[data-row]'); if (row) highlightMenuRow(row.dataset.row); });
+$('menu-list').addEventListener('pointerover', event => { const row = event.target.closest('[data-row]'); if (row && !row.disabled) highlightMenuRow(row.dataset.row); });
+on('sector-prev', () => stepSector(-1)); on('sector-next', () => stepSector(1));
 on('launch-button', () => launch(0));
 on('sector-flight-button', () => launch(selected, null, false));
 on('continue-button', resumeCampaign);
