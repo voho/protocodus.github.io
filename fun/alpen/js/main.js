@@ -1235,6 +1235,9 @@ function liveTrickName() {
   liveTrickQuery.grabTime = rider.grabTime;
   liveTrickQuery.grabKind = rider.grabKind;
   liveTrickQuery.airTime = rider.airTime;
+  // Nothing in the air changes the stance, so this is the take-off stance —
+  // the one the landing will be named and paid by. See `land` in rider.js.
+  liveTrickQuery.switchStance = rider.switchStance;
   return trickName(liveTrickQuery, CLEAN) || '';
 }
 

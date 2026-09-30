@@ -2068,6 +2068,22 @@ export class Rider {
 
   land() {
     const { vel } = this;
+    /* The stance the trick was TAKEN OFF in, read before anything below can
+       square the board and rewrite it.
+
+       Nothing in the air touches `switchStance` — only a butter on the snow
+       flips it — so at the top of this function it is still exactly what it
+       was on the lip. That is the stance the sport names a trick by: a switch
+       backside 180 is one that left the snow riding switch, wherever it came
+       down. The summary used to carry the LANDING stance instead, and that
+       was a real payout bug rather than a naming quibble — a plain regular
+       180 comes down switch by definition, so every one of them was called
+       "SWITCH + FRONTSIDE 180" and paid the ×1.5 switch premium, while a
+       rider who had genuinely set up switch and spun a 180 back to regular
+       came down regular and was paid nothing for the harder half. Measured
+       with the physics harness: a regular 180 scored as switch, a switch 180
+       scored as regular, every time. */
+    const tookOffSwitch = this.switchStance;
     // A touchdown at the centimetre before a lip must use the ramp face, not
     // a centred sample that includes the vertical drop behind it.
     const n = this._n;
@@ -2139,7 +2155,11 @@ export class Rider {
       flipTurns,
       grabTime: this.grabTime,
       grabKind: this.grabKind,
-      switchStance: isSwitch,
+      // What the trick is named and paid by — see `tookOffSwitch` above —
+      // and, kept apart from it, the stance the board came down in, which
+      // is what the next carve rides.
+      switchStance: tookOffSwitch,
+      landedSwitch: isSwitch,
       impact,
       judged,
       lipPop: this.lipPop,
@@ -2565,8 +2585,13 @@ export function trickName(s, verdict) {
     if (s.airTime > 1.25) parts.push('BIG AIR');
     else return null;
   }
-  if (s.switchStance) parts.unshift('SWITCH');
+  /* SWITCH is a prefix on the trick, not a trick of its own. It was pushed
+     into `parts` and joined like a grab, which read "SWITCH + FRONTSIDE 180"
+     — a stance announced as though it were something the rider had done in
+     addition to the spin. The sport says "switch frontside 180", one phrase,
+     and it describes the take-off stance (see `tookOffSwitch` in `land`). */
   let name = parts.join(' + ');
+  if (s.switchStance) name = `SWITCH ${name}`;
   if (verdict === SKETCHY) name += ' (SKETCHY)';
   return name;
 }

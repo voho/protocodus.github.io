@@ -1,7 +1,7 @@
 // Run with: node tests/riding-check.mjs
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
-import { Rider, CLEAN, BAIL } from '../js/rider.js';
+import { Rider, trickName, CLEAN, BAIL } from '../js/rider.js';
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
@@ -133,6 +133,41 @@ for (const tuck of [false, true]) {
   assert.equal(skewed.verdict, CLEAN);
   assert.ok(square.speed > 19.8, `a square landing keeps its run (${square.speed})`);
   assert.ok(skewed.speed < square.speed * 0.93, `a skewed one skids off speed (${skewed.speed})`);
+}
+
+// A trick is named and paid by the stance it LEFT the snow in. A regular 180
+// necessarily lands switch; it used to be announced — and paid ×1.5 — as a
+// "SWITCH + FRONTSIDE 180", while a genuine switch take-off landed regular
+// and was paid nothing for it.
+{
+  const r = rider({ height: (x, z) => z * 0.36, canStall: () => false });
+  r.grace = 0; r.vel.set(0, -8, -22);
+  const landings = [];
+  r.on('land', (s) => landings.push(s));
+  const ollieSpin = (spinFor) => {
+    const input = { ...neutral };
+    for (let i = 0; i < 180; i++) r.step(dt, input);
+    input.jump = true;
+    for (let t = 0; t < RIDER.chargeTime; t += dt) r.step(dt, input);
+    input.jump = false;
+    for (let i = 0; i < 24 && r.grounded; i++) r.step(dt, input);
+    for (let t = 0; t < 4 && !r.grounded; t += dt) {
+      input.turn = t < spinFor ? 1 : 0;
+      r.step(dt, input);
+    }
+    return landings.at(-1);
+  };
+  const regular = ollieSpin(0.55);
+  assert.equal(regular.halfTurns, 1);
+  assert.equal(regular.switchStance, false, 'a regular take-off is not a switch trick');
+  assert.equal(regular.landedSwitch, true, 'even though a 180 comes down switch');
+  assert.equal(trickName(regular, regular.verdict), 'FRONTSIDE 180');
+  assert.equal(r.switchStance, true, 'the next carve rides the landed stance');
+  const fromSwitch = ollieSpin(0.55);
+  assert.equal(fromSwitch.switchStance, true, 'a switch take-off is paid as switch');
+  assert.equal(fromSwitch.landedSwitch, false);
+  assert.equal(trickName(fromSwitch, fromSwitch.verdict), 'SWITCH FRONTSIDE 180',
+    'SWITCH prefixes the trick rather than being joined to it like a grab');
 }
 
 const buffered = rider();
