@@ -1042,13 +1042,16 @@ function buildGeometries(THREE) {
       { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
     ])), color: YELLOW, cloth: [0.6, 0] },
     // the glove: a mitt with a thumb, which at this size is one extra bump
-    // and the entire difference between a hand and a peg
+    // and the entire difference between a hand and a peg. Its fingertips
+    // are domed: the flat end of the mitt faces the snow whenever the arms
+    // hang, and the bounce light off the snow found it as a pale disc at the
+    // end of every arm.
     { geo: use(tube(THREE, [
       { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 16 },
       { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 16 },
       { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 16 },
-      { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 16 },
-    ])), color: INK, cloth: [1, 0] },
+      { y: -0.334, x: 0.008, rx: 0.051, rz: 0.046, round: 0.95, n: 16 },
+    ], [0, 0.019])), color: INK, cloth: [1, 0] },
     { geo: use(tube(THREE, [
       { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 12 },
       { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 12 },
