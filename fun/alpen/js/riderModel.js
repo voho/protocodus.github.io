@@ -129,6 +129,9 @@ const MINT = '#00d4ff';     // Alpine glacier ice goggles & collar accent
 const YELLOW = '#ffab00';   // Alpine sun gold binding straps & wrist cuffs
 const SKIN = '#c98f6a';
 const DENIM = '#162342';    // deep navy technical snow pants
+// Bare steel, pale enough that the board's green-channel trim test lights it
+// as lacquer and mirrors the sky in it — the only metal on the rider.
+const STEEL = '#aeb6c0';
 
 const RISE_TIME = RIDER.riseTime;
 const TAU = Math.PI * 2;
@@ -148,8 +151,15 @@ const smooth01 = (v) => {
    off the snow before the legs even start, so a rider standing "tall" on a
    board still has fifty degrees of knee in him — which is why he reads as a
    snowboarder standing still rather than a man standing on a plank.
+
+   `DECK_DROP` is how far the deck's top came down when the board was made
+   thin (see `DECK_COARSE`). Its base did not move, so everything standing
+   on the top — the bindings, the ankles, the hips, the grab points — is
+   lowered by exactly this and nothing else, and the rider above the deck is
+   the same rider, 33 mm nearer the snow.
    -------------------------------------------------------------------------- */
-const ANKLE_Y = 0.33;    // where the boot's cuff ends and the shin begins
+const DECK_DROP = -0.033;
+const ANKLE_Y = 0.33 + DECK_DROP;    // where the boot's cuff ends and the shin begins
 const FOOT_Z = 0.245;    // the bindings, and therefore the feet, live here
 const FOOT_X = 0.015;
 
@@ -182,7 +192,7 @@ const FLEX = {
   min: -0.030,
   max: 0.022,
 };
-const HIP_Y = 1.06;      // hips at rest, unloaded
+const HIP_Y = 1.06 + DECK_DROP;      // hips at rest, unloaded
 const HIP_Z = 0.115;     // hip sockets, narrower than the stance — legs splay
 const THIGH = 0.42;
 const SHIN = 0.40;
@@ -193,7 +203,7 @@ const NECK_Y = 0.44;
 const UPPER = 0.29;
 const FORE = 0.29;       // shoulder to hand centre is therefore 0.58
 
-const DECK_TOP = 0.076;  // where the bindings bolt on, over the waist
+const DECK_TOP = 0.076 + DECK_DROP;  // where the bindings bolt on, over the waist
 const HALF_WIDTH = 0.155;   // the widest the board gets, at the contact points
 
 /* The leg spring is never at zero. Standing still on a slope it is already
@@ -356,18 +366,21 @@ const POSE = {
      is a leading-hand grab. Routed through one arm for all of them, the method
      sent the leading arm across the body to the heel edge behind the rider,
      which is a shape nobody has ever made on a snowboard. */
+  // Every `point` height carries `DECK_DROP`: the edge the hand closes on
+  // came down with the thinner deck, and so did the boots the hips are
+  // placed from, so the solved reach is unchanged.
   grabs: [
     // INDY — the trailing hand drops onto the toe edge between the feet
-    { point: [0.155, 0.09, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0, lead: false },
+    { point: [0.155, 0.09 + DECK_DROP, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0, lead: false },
     // NOSE — the reach is along the board, so it is paid for at the waist's
     // pitch rather than at its fold: he hinges over the leading binding and
     // the hand carries on past it. Folding further instead only puts the
     // shoulder further across the board, which is the wrong axis entirely.
-    { point: [0.095, 0.085, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46, lead: true },
+    { point: [0.095, 0.085 + DECK_DROP, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46, lead: true },
     // METHOD — the weight goes the other way and the board comes up much
     // further to meet a hand that is now reaching behind him, onto the edge
     // the other two never touch. The tweak reverses with it.
-    { point: [-0.140, 0.090, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
+    { point: [-0.140, 0.090 + DECK_DROP, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
   ],
 
   /* THE PRESS.
@@ -407,8 +420,9 @@ const POSE = {
 
 /* A ring, as a superellipse: `round` = 1 is an ellipse, and below that it
    creeps towards a rectangle with bevelled corners. One knob covers a
-   snowboard's cross-section (0.4, nearly a rectangle), a jacket (0.6), a
-   sleeve (0.85) and a helmet (1). */
+   jacket (0.6), a sleeve (0.85) and a helmet (1). It used to cover the
+   snowboard too, at 0.4, and that is the one job it cannot do — see
+   `slab`. */
 const oval = (n, rx, ry, round = 1) => {
   const pts = [];
   for (let i = 0; i < n; i++) {
@@ -422,6 +436,37 @@ const oval = (n, rx, ry, round = 1) => {
   }
   return pts;
 };
+
+/* A board's section: flat top, flat base, vertical sidewalls, and a corner
+   of radius `c` between them — half-width `w`, half-thickness `t`.
+
+   A superellipse cannot be this. Its twenty points are spaced by angle, so
+   on a section twenty-three times wider than it is thick they bunch at the
+   rails and the top is carried by two long chords, and what `round` 0.4
+   produces at that aspect is a lens with soft shoulders — the surfboard.
+   Here the flat faces are single spans and the corners get the points, so
+   the normals do the right thing on their own: `computeVertexNormals` is
+   area-weighted, the top face is a hundred times the area of the corner
+   beside it, and so the top stays flat to the rail and turns in a
+   millimetre and a half. The two middle points on the top and base cost
+   nothing and keep the loft's quads from spanning the full width. */
+const slab = (w, t, c) => {
+  const k = c * (1 - Math.SQRT1_2);
+  return [
+    [w, 0], [w, t - c], [w - k, t - k], [w - c, t], [0, t],
+    [-(w - c), t], [-(w - k), t - k], [-w, t - c], [-w, 0],
+    [-w, -(t - c)], [-(w - k), -(t - k)], [-(w - c), -t], [0, -t],
+    [w - c, -t], [w - k, -(t - k)], [w, -(t - c)],
+  ];
+};
+/* …and the same idea for a thin strip laid on it, in six points: a flat
+   face each side and a chamfer at each end. A decal or a steel edge runs the
+   full length of the resampled deck, so every point on its section is paid
+   for forty times over; six keep a wide stripe flat and give a strip three
+   millimetres across a rounded bead of normals that catches a glint. */
+const strip = (w, t) => [
+  [w, 0], [w - t, t], [-(w - t), t], [-w, 0], [-(w - t), -t], [w - t, -t],
+];
 
 const ringXZ = (pts, y, cx = 0, cz = 0) => pts.map(([x, z]) => [cx + x, y, cz + z]);
 const ringXY = (pts, z, cx = 0, cy = 0) => pts.map(([x, y]) => [cx + x, cy + y, z]);
@@ -615,19 +660,90 @@ const arc = (THREE, o) => {
    ends clear of the snow. The old board was three tilted boxes and read as a
    plank with the corners cut off; the shadow of it read as three tilted
    boxes, which is what forced the issue. */
-const DECK = [
-  { z: -0.800, rx: 0.048, y: 0.150, ry: 0.010 },
-  { z: -0.715, rx: 0.100, y: 0.119, ry: 0.014 },
-  { z: -0.605, rx: 0.140, y: 0.087, ry: 0.018 },
-  { z: -0.470, rx: 0.155, y: 0.062, ry: 0.021 },
-  { z: -0.250, rx: 0.142, y: 0.052, ry: 0.023 },
-  { z: 0.000, rx: 0.131, y: 0.059, ry: 0.024 },
-  { z: 0.250, rx: 0.142, y: 0.052, ry: 0.023 },
-  { z: 0.450, rx: 0.154, y: 0.062, ry: 0.021 },
-  { z: 0.600, rx: 0.138, y: 0.088, ry: 0.018 },
-  { z: 0.705, rx: 0.098, y: 0.120, ry: 0.014 },
-  { z: 0.780, rx: 0.046, y: 0.148, ry: 0.010 },
+/* THE DECK IS A CENTIMETRE AND A BIT, and it was five.
+
+   The table used to give each station a centre and a half-thickness, and
+   the half-thicknesses ran from ten to twenty-four millimetres — a board
+   forty-eight millimetres through at the waist, with a superellipse of 0.4
+   for a section, which is a surfboard. A snowboard's core is about twelve
+   millimetres under the feet and tapers to a few at the tips, its top and
+   base are flat, and its sidewall is a crisp vertical strip: from any
+   distance that thinness *is* the object, and it is why a real board reads
+   as a blade under the boots rather than a plank.
+
+   So a station now says where its BASE is (`b`) and how thick it is (`t`).
+   The bases are exactly the ones the old table implied — centre minus half
+   the thickness — so the board meets the snow, the edge pivot and the
+   contact patch precisely where they always were, and all of the thinning
+   comes off the top. That moves the surface the bindings bolt to down by
+   33 mm, and every number that stood on it moves with it: `DECK_TOP`,
+   `ANKLE_Y`, `HIP_Y` and the three grab points, each by the same `DECK_DROP`,
+   so the legs, the IK and the grab solutions see exactly the rider they
+   were solved for, standing on a thinner board. `y` and `ry` are still
+   derived below for everything that reads a centre line. */
+const DECK_COARSE = [
+  { z: -0.800, rx: 0.048, b: 0.140, t: 0.0050 },
+  { z: -0.715, rx: 0.100, b: 0.105, t: 0.0070 },
+  { z: -0.605, rx: 0.140, b: 0.069, t: 0.0090 },
+  { z: -0.470, rx: 0.155, b: 0.041, t: 0.0110 },
+  { z: -0.250, rx: 0.142, b: 0.029, t: 0.0130 },
+  { z: 0.000, rx: 0.131, b: 0.035, t: 0.0135 },
+  { z: 0.250, rx: 0.142, b: 0.029, t: 0.0130 },
+  { z: 0.450, rx: 0.154, b: 0.041, t: 0.0110 },
+  { z: 0.600, rx: 0.138, b: 0.070, t: 0.0090 },
+  { z: 0.705, rx: 0.098, b: 0.106, t: 0.0070 },
+  { z: 0.780, rx: 0.046, b: 0.138, t: 0.0050 },
 ];
+
+/* …and eleven stations was a polygon. Lofted straight between them, the
+   nose was five flat facets meeting in a nine-centimetre-wide flat end,
+   which a sidewall a centimetre tall makes impossible to miss. So the table
+   is resampled: a Catmull-Rom through every column, three spans to each
+   interval, and then each tip is carried round a quarter-ellipse in plan
+   — four more stations that close the outline to a rounded nose while the
+   rocker carries on rising at the slope it arrived with. The coarse rows
+   remain the authored truth; everything drawn is sampled from them. */
+const DECK = (() => {
+  const C = DECK_COARSE;
+  const keys = ['z', 'rx', 'b', 't'];
+  const cr = (p0, p1, p2, p3, u) => 0.5 * (2 * p1 + (p2 - p0) * u
+    + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
+  const fine = [];
+  for (let i = 0; i + 1 < C.length; i++) {
+    const p0 = C[Math.max(0, i - 1)];
+    const p1 = C[i];
+    const p2 = C[i + 1];
+    const p3 = C[Math.min(C.length - 1, i + 2)];
+    for (let k = 0; k < 3; k++) {
+      const s = {};
+      for (const key of keys) s[key] = cr(p0[key], p1[key], p2[key], p3[key], k / 3);
+      fine.push(s);
+    }
+  }
+  fine.push({ ...C[C.length - 1] });
+  const tip = (end, inner, dir) => {
+    const rise = (end.b - inner.b) / Math.abs(end.z - inner.z);
+    const len = end.rx * 0.85;
+    const out = [];
+    for (let k = 1; k <= 4; k++) {
+      const a = (k / 5) * Math.PI / 2;
+      const dz = len * Math.sin(a);
+      out.push({
+        z: end.z + dir * dz,
+        rx: end.rx * Math.cos(a),
+        b: end.b + rise * dz,
+        t: end.t * (1 - 0.25 * Math.sin(a)),
+      });
+    }
+    return out;
+  };
+  const nose = tip(fine[0], fine[1], -1).reverse();
+  const tail = tip(fine[fine.length - 1], fine[fine.length - 2], 1);
+  return [...nose, ...fine, ...tail].map((s) => ({ ...s, y: s.b + s.t / 2, ry: s.t / 2 }));
+})();
+// The stations whose z lies in [z0, z1] — the overlays are placed by where
+// they run along the board, not by an index into a table that is resampled.
+const deckSpan = (z0, z1) => DECK.filter((s) => s.z >= z0 - 1e-6 && s.z <= z1 + 1e-6);
 
 /* The boot, in its own frame: +X is the toes, the origin is under the ankle
    and level with the deck. Six stations, because a boot is a cone with a
@@ -647,17 +763,37 @@ function buildGeometries(THREE) {
   const scrap = [];
   const use = (g) => { scrap.push(g); return g; };
 
-  const deckRings = (i0, i1, ws, ts, dy) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(20, s.rx * ws, s.ry * ts, 0.4), s.z, 0, s.y + dy,
+  /* The deck's section is a `slab` rather than an `oval`: see the note
+     there. `grow` fattens it by the same distance on every face, which is
+     how the nose and tail caps sit a hair proud of the deck all round
+     rather than scaling a millimetre-thick tip into something that
+     scaling only makes thicker. */
+  const deckRings = (z0, z1, grow = 0) => deckSpan(z0, z1).map((s) => ringXY(
+    slab(s.rx + grow, s.ry + grow, Math.min(0.0015, s.ry * 0.5)), s.z, 0, s.y,
   ));
   // A sticker: a thin slab following the deck's own curve, on the top or the
   // bottom face. It is how the board gets more than one colour without the
-  // deck becoming four separate solids that have to agree along a seam.
-  const sticker = (i0, i1, half, side, thick) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(12, half, thick, 0.35), s.z, 0, s.y + side * (s.ry + thick * 0.6),
+  // deck becoming four separate solids that have to agree along a seam. It
+  // is a millimetre and a bit now, eight tenths of it proud of the face — a
+  // decal, where the old eight-millimetre stripe was a keel.
+  const sticker = (z0, z1, half, side) => deckSpan(z0, z1).map((s) => ringXY(
+    strip(half, 0.0006), s.z, 0, s.y + side * (s.ry + 0.0002),
   ));
-  const rail = (i0, i1, sign) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(12, 0.011, 0.013, 0.35), s.z, sign * (s.rx - 0.006), s.y - s.ry + 0.008,
+  /* THE STEEL EDGES, which were rubber bumpers.
+
+     They were eleven-by-thirteen millimetre ink tubes hung under each rail,
+     proud of the sidewall and the base both, and at any distance at which
+     they could be seen they read as a fender round a dinghy. A snowboard's
+     edge is a strip of steel two or three millimetres square let into the
+     corner where the base meets the sidewall, flush with both, and the only
+     thing it ever does visually is catch the light along that one line. So
+     that is what this is: a 3.2 × 2.8 mm strip wrapped round the base's
+     corner, four tenths of a millimetre proud of each face so it wins the
+     depth test cleanly, in a grey pale enough that the board's own
+     trim test gives it the lacquer lobe and the sky mirror — which is what
+     bare steel looks like from a chairlift. */
+  const edge = (z0, z1, sign) => deckSpan(z0, z1).map((s) => ringXY(
+    strip(0.0016, 0.0014), s.z, sign * (s.rx - 0.0012), s.b + 0.0010,
   ));
 
   /* One binding: baseplate, highback and straps remain bolted to the board.
@@ -674,13 +810,19 @@ function buildGeometries(THREE) {
     { y: 0.230, x: -0.092, rx: 0.022, rz: 0.080, round: 0.85, n: 12 },
     { y: 0.320, x: -0.074, rx: 0.020, rz: 0.068, round: 0.9, n: 12 },
   ]));
+  /* The baseplate sits six millimetres higher on its bolts than it did and
+     is a little narrower, both for the thin deck. Sunk a centimetre, as it
+     was into five centimetres of board, its underside now lands on the
+     base plane itself; and at its old width its corners hung past the
+     rails, which on a deck this thin reads as the plate wrapping the edge.
+     Its top is still inside the boot's sole. */
   const plate = use(tube(THREE, [
-    { y: -0.004, rx: 0.150, rz: 0.112, round: 0.45 },
-    { y: 0.028, x: 0.010, rx: 0.146, rz: 0.108, round: 0.5 },
+    { y: -0.004, rx: 0.134, rz: 0.106, round: 0.45 },
+    { y: 0.028, x: 0.010, rx: 0.130, rz: 0.102, round: 0.5 },
   ]));
 
   const binding = (z, yaw) => [
-    { geo: plate, color: INK, pos: [0, DECK_TOP - 0.01, z], rot: [0, yaw, 0] },
+    { geo: plate, color: INK, pos: [0, DECK_TOP - 0.004, z], rot: [0, yaw, 0] },
     { geo: highback, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
     // the two straps, which are the only part of a binding anybody ever
     // notices, and the only reason a boot reads as strapped down at all
@@ -708,19 +850,20 @@ function buildGeometries(THREE) {
      trap geom.js warns about, and the one this board was in. `loft` writes a
      planar top-sheet parameterisation for every ring solid; the material
      below confines the print to the deck by its colour, which is white for
-     exactly that reason: the graphic is the deck's colour. */
+     exactly that reason: the graphic is the deck's colour. (Top, base and
+     sidewall all share that planar mapping, so the material also chooses
+     *which face* of the white deck gets the print — see `boardMat`.) */
   const board = compose(THREE, [
-    { geo: use(loft(THREE, deckRings(0, 11, 1, 1, 0))), color: '#ffffff' },
-    // a broader mint nose cap and a clipped dark tail: direction has to be
-    // legible through spray, at night, and in the middle of a spin
-    { geo: use(loft(THREE, deckRings(0, 3, 1.05, 1.18, 0))), color: MINT },
-    { geo: use(loft(THREE, deckRings(8, 11, 1.05, 1.18, 0))), color: INK },
+    { geo: use(loft(THREE, deckRings(-Infinity, Infinity))), color: '#ffffff' },
+    // a mint nose cap and a clipped dark tail: direction has to be legible
+    // through spray, at night, and in the middle of a spin
+    { geo: use(loft(THREE, deckRings(-Infinity, -0.605, 0.0008))), color: MINT },
+    { geo: use(loft(THREE, deckRings(0.600, Infinity, 0.0008))), color: INK },
     // the stripe down the base, so a spin still reads from underneath
-    { geo: use(loft(THREE, sticker(2, 9, 0.044, -1, 0.004))), color: MINT },
-    // steel edges, which also stop the deck reading as a slab of butter, and
-    // which now follow the sidecut rather than being two straight sticks
-    { geo: use(loft(THREE, rail(1, 10, -1))), color: INK },
-    { geo: use(loft(THREE, rail(1, 10, 1))), color: INK },
+    { geo: use(loft(THREE, sticker(-0.605, 0.600, 0.044, -1))), color: MINT },
+    // steel edges, following the sidecut from tip contact to tail contact
+    { geo: use(loft(THREE, edge(-0.715, 0.705, -1))), color: STEEL },
+    { geo: use(loft(THREE, edge(-0.715, 0.705, 1))), color: STEEL },
     // The feet are angled forward off the perpendicular, more at the front
     // than the back, because a duck-square stance is the one thing no
     // snowboarder rides.
@@ -1341,8 +1484,10 @@ export function createRiderModel(THREE, shading) {
       shader.uniforms.uLampGlow = lampUniform;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
-          uniform float uBend;`)
+          uniform float uBend;
+          varying float vDeckUp;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vDeckUp = normal.y;
           {
             float u = clamp(transformed.z / ${FLEX_SPAN.toFixed(3)}, -1.0, 1.0);
             transformed.y += uBend * (1.0 - u * u);
@@ -1352,15 +1497,33 @@ export function createRiderModel(THREE, shading) {
       // surface here that ought to flash as a carve rolls it through the
       // sun. The print goes on the deck alone — the deck is the one white
       // part, so the bindings and boots keep their own colours.
+      /* …and on the deck's TOP alone, which it was not. `loft` gives every
+         vertex of a ring solid the same planar (x, z) mapping, so the base
+         and the sidewall carried the top-sheet too — the base showed the
+         graphic mirrored through the board, which is exactly what a board
+         seen from underneath in a spin must not do, and the sidewall was a
+         smear of the print's edge pixels. The face is chosen by the
+         board-space normal, which `compose` has already carried through
+         every part's own transform and which the flex never touches: up is
+         the print, down is a sintered base — near-black with a little blue
+         in it, the colour every base is before it is waxed — and the rest
+         is the black ABS sidewall. The blends run over the corner's own
+         normals, so the turn from face to rail is a millimetre-wide ramp
+         rather than a seam. */
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-          uniform float uLampGlow;`)
+          uniform float uLampGlow;
+          varying float vDeckUp;`)
         .replace('#include <map_fragment>', `
           #ifdef USE_MAP
           {
             vec4 n64Sheet = texture2D( map, vMapUv );
             float n64Deck = step(2.9, vColor.r + vColor.g + vColor.b);
-            diffuseColor.rgb *= mix(vec3(1.0), n64Sheet.rgb, n64Deck);
+            vec3 n64Face = mix(vec3(0.009, 0.009, 0.011), n64Sheet.rgb,
+              smoothstep(0.30, 0.70, vDeckUp));
+            n64Face = mix(n64Face, vec3(0.017, 0.021, 0.029),
+              smoothstep(0.30, 0.70, -vDeckUp));
+            diffuseColor.rgb *= mix(vec3(1.0), n64Face, n64Deck);
           }
           #endif`)
         .replace(RIG_ANCHOR, rigLight(0.18, 0.45, false, 140, 0.35, 0.65));
