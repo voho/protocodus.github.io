@@ -512,11 +512,78 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
   return g;
 }
 
-// A stack of rings up the Y axis: limbs, torso, boots, helmet.
-const tube = (THREE, list) => loft(THREE, list.map((s) => ringXZ(
+/* A stack of rings up the Y axis: limbs, torso, boots, helmet.
+
+   `dome` is `[start, end]` in metres, and it is what a flat cap was hiding.
+   Every tube here used to stop dead in a disc, and on a limb that is only
+   ever seen end-on where it meets another one — the top of a thigh coming
+   out of the seat, the top of a sleeve coming out of a shoulder — so the
+   disc was the one thing the eye found at exactly the joints the rig bends.
+   A dome continues the end ring along the tube's own axis in four shrinking
+   rings on a quarter circle, so the solid finishes as a rounded end whose
+   profile is the ring's own superellipse. It stops a fifth of the way short
+   of the pole and keeps the ordinary flat cap on what is left, which is a
+   disc a third the width of the tube, tucked inside whatever it meets: one
+   degenerate ring at the pole would have handed `computeVertexNormals` a
+   fan of zero-area triangles for nothing.
+
+   Which way is "outward" is read off the neighbouring ring, so a table can
+   run top-down or bottom-up and still dome away from itself. */
+const DOME_STEPS = 4;
+const domed = (list, dome) => {
+  if (!dome || list.length < 2) return list;
+  const grow = (end, next, h) => {
+    if (!(h > 0)) return [];
+    const dir = Math.sign(end.y - next.y) || 1;
+    const rz = end.rz === undefined ? end.rx : end.rz;
+    const out = [];
+    for (let k = 1; k <= DOME_STEPS; k++) {
+      const a = (k / (DOME_STEPS + 1)) * Math.PI / 2;
+      out.push({
+        ...end,
+        y: end.y + dir * h * Math.sin(a),
+        rx: end.rx * Math.cos(a),
+        rz: rz * Math.cos(a),
+      });
+    }
+    return out;
+  };
+  const n = list.length;
+  return [
+    ...grow(list[0], list[1], dome[0]).reverse(),
+    ...list,
+    ...grow(list[n - 1], list[n - 2], dome[1]),
+  ];
+};
+const tube = (THREE, list, dome = null) => loft(THREE, domed(list, dome).map((s) => ringXZ(
   oval(s.n || 16, s.rx, s.rz === undefined ? s.rx : s.rz, s.round),
   s.y, s.x || 0, s.z || 0,
 )));
+
+/* THE KNEE AND THE ELBOW, which were a notch.
+
+   Both joints are two tubes meeting at a pivot, each closed by a flat cap:
+   the thigh stopped at the knee pivot and the shin began four and a half
+   centimetres above it, the upper sleeve stopped at the elbow and the
+   forearm began three above it. Straight, that is a seam nobody sees. Bent
+   — and the knee is never less than fifty degrees bent, because that is how
+   a snowboarder stands — the outside of the joint opened into a stepped
+   "cut pipe" notch with a pale disc in it, which the sun found on every
+   frame of every run.
+
+   A solid centred on the pivot is the whole cure, and it is the whole cure
+   for a reason worth stating: a ball about the hinge is unchanged by any
+   rotation about the hinge, so it covers the outside of the bend at every
+   angle the IK can produce, whichever of the two segments carries it. It is
+   lofted rather than a stock sphere so it shares the limb's own ring — the
+   same sixteen points and the same superellipse — and so its outline flows
+   into the tubes either side instead of reading as a bead threaded on
+   them. Both tubes now also end *at* the pivot, inside the ball, so no
+   corner of either can poke out through it. */
+const joint = (THREE, rx, rz, ry, round = 0.9, n = 16) => tube(THREE, [
+  { y: -0.002, rx, rz, round, n },
+  { y: 0.002, rx, rz, round, n },
+], [ry, ry]);
 
 /* A band bent round the Y axis — the goggle lens and its strap, which are the
    two things on the rider that have to follow a curve rather than sit on a
@@ -663,17 +730,39 @@ function buildGeometries(THREE) {
   ], { uv: true });
   const rearBoot = compose(THREE, boot(0, 0.10));
 
+  /* THE SEAT OF THE TROUSERS, which belongs to the hips and was welded to
+     the chest.
+
+     It used to be the first part of the torso buffer, and the torso turns
+     about the waist: counter-rotation winds the shoulders a third of a turn
+     against the pelvis, and a grab folds them past ninety degrees. Both of
+     those swung the seat of the trousers round with the jacket while the
+     thighs stayed on the hips, so the tops of the thighs came out of the
+     side of it as two flat discs and the rider's backside faced wherever
+     his chest did. The seat is its own buffer now, hung off the hips at the
+     same waist pivot and in the same coordinates it always had, so it is
+     drawn exactly where it was until the torso moves — and then it stays.
+
+     The jacket's hem stays on the torso and still overlaps it, which is the
+     order the clothes are actually worn in. The top is domed because a
+     folded torso lifts the hem clear of it, and the crotch is domed because
+     a deep crouch shows it from below. It is its own `clad`, woven and not
+     quilted like the rest of the trousers — as a part of the torso it had
+     been wearing the jacket's baffles. */
+  const pelvis = compose(THREE, [
+    { geo: use(tube(THREE, [
+      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
+      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
+      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
+    ], [0.045, 0.07])), color: DENIM },
+  ]);
+
   /* The torso: wide across Z and shallow across X, because the shoulder line
      runs nose to tail and that is the single most snowboard-shaped thing
      about him. The jacket has a waist and a hem now — it pulls in above the
      seat and flares back out at the chest — which is most of the difference
      between a jacket and a crate. */
   const torso = compose(THREE, [
-    { geo: use(tube(THREE, [
-      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
-      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
-      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
-    ])), color: DENIM },
     { geo: use(tube(THREE, [
       { y: -0.075, rx: 0.142, rz: 0.181, round: 0.6 },
       { y: 0.020, rx: 0.134, rz: 0.175, round: 0.6 },
@@ -772,17 +861,20 @@ function buildGeometries(THREE) {
      only convention the IK needs to know about. The sleeves and legs taper,
      which is what stops a limb reading as a length of pipe once it throws a
      shadow of its own. */
+  // The sleeve and its yoke band are domed at the shoulder: a raised arm
+  // swings the top of the sleeve out of the shoulder's own dome, and what
+  // came out was the flat end of a pipe.
   const upperArm = compose(THREE, [
     { geo: use(tube(THREE, [
       { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 16 },
       { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 16 },
       { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 16 },
       { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
-    ])), color: SHELL },
+    ], [0.05, 0])), color: SHELL },
     { geo: use(tube(THREE, [
       { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 16 },
       { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 16 },
-    ])), color: SHELL_DARK },
+    ], [0.05, 0])), color: SHELL_DARK },
   ]);
   /* The one buffer whose parts do not agree about what they are made of, and
      therefore the only one that carries the mask per part rather than whole:
@@ -790,8 +882,14 @@ function buildGeometries(THREE) {
      across and the baffles are ten, so a band over one is not a baffle, it is
      a stripe — the glove is woven and it is not quilted. See `clad`. */
   const foreArmParts = [
+    // The elbow: the sleeve bunched round the joint, a few millimetres
+    // proud of both tubes because that is what a padded sleeve does when it
+    // folds. It is a part of this list rather than of the upper arm so the
+    // span walk in `clad` stays in step — it takes the sleeve's default
+    // mask, quilted and woven, like the fabric either side of it.
+    { geo: use(joint(THREE, 0.068, 0.066, 0.066, 0.92)), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 16 },
+      { y: 0.000, rx: 0.065, rz: 0.063, round: 0.95, n: 16 },
       { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
       { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 16 },
     ])), color: SHELL },
@@ -813,21 +911,26 @@ function buildGeometries(THREE) {
     ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5], cloth: [1, 0] },
   ];
   const foreArm = compose(THREE, foreArmParts);
+  // Domed at the hip, where the top of the thigh comes out of the seat on
+  // the outside of every deep crouch and every grab.
   const thigh = compose(THREE, [
     { geo: use(tube(THREE, [
       { y: 0.070, rx: 0.108, rz: 0.104, round: 0.9 },
       { y: -0.080, rx: 0.116, rz: 0.112, round: 0.75 },
       { y: -0.260, rx: 0.100, rz: 0.098, round: 0.75 },
       { y: -0.420, rx: 0.086, rz: 0.086, round: 0.85 },
-    ])), color: DENIM },
+    ], [0.075, 0])), color: DENIM },
     { geo: box, color: '#24324c', pos: [0.106, -0.15, 0],
       scale: [0.025, 0.14, 0.11] },
     { geo: box, color: INK, pos: [0.122, -0.085, 0],
       scale: [0.008, 0.016, 0.105] },
   ]);
   const shin = compose(THREE, [
+    // The knee, a touch deeper front to back than across so it reads as a
+    // kneecap under the cloth rather than a ball bearing.
+    { geo: use(joint(THREE, 0.093, 0.090, 0.090, 0.88)), color: DENIM },
     { geo: use(tube(THREE, [
-      { y: 0.045, rx: 0.090, rz: 0.090, round: 0.85 },
+      { y: 0.000, rx: 0.089, rz: 0.088, round: 0.85 },
       { y: -0.120, rx: 0.084, rz: 0.082, round: 0.8 },
       { y: -0.270, rx: 0.090, rz: 0.088, round: 0.75 },
       { y: -0.340, rx: 0.101, rz: 0.099, round: 0.7 },
@@ -899,6 +1002,7 @@ function buildGeometries(THREE) {
   return {
     board,
     rearBoot: clad(rearBoot, 0, 0),
+    pelvis: clad(pelvis, 1, 0),
     torso: clad(torso, 1, 1),
     head: clad(head, 0, 0),
     upperArm: clad(upperArm, 1, 1),
@@ -1285,8 +1389,22 @@ export function createRiderModel(THREE, shading) {
   const torso = new THREE.Group();
   torso.position.set(0, WAIST, 0);
   torso.rotation.order = 'YZX';
-  torso.add(new THREE.Mesh(geo.torso, cloth));
+  /* The jacket is its own mesh inside the torso group, rather than the
+     group's only geometry, because breathing scales it — see the note at
+     `breath` — and a scale on the group would be inherited by the head and
+     both arms hanging off it. */
+  const torsoMesh = new THREE.Mesh(geo.torso, cloth);
+  torsoMesh.name = 'rider-torso';
+  torso.add(torsoMesh);
   hips.add(torso);
+  /* The seat of the trousers, at the waist pivot but on the hips' side of
+     it — see `pelvis` in `buildGeometries`. It is a mesh on the shared
+     material like every other segment, so the shadow pass and the lamp
+     spill both pick it up without being told. */
+  const pelvisMesh = new THREE.Mesh(geo.pelvis, cloth);
+  pelvisMesh.name = 'rider-pelvis';
+  pelvisMesh.position.set(0, WAIST, 0);
+  hips.add(pelvisMesh);
 
   const head = new THREE.Group();
   head.position.set(0, NECK_Y, 0);
@@ -2039,11 +2157,20 @@ export function createRiderModel(THREE, shading) {
        carrying — the depth goes the other way, because someone working hard
        breathes quickly and shallowly, and it fades out under a grab or a
        tuck where the chest is doing something else and a breath on top of it
-       reads as a wobble. */
+       reads as a wobble.
+
+       It scales the jacket's mesh and not the torso group, which is what it
+       used to do. The head and both arms hang off that group, so each breath
+       handed them a non-uniform scale in a frame the arms had already
+       rotated out of: the helmet swelled by a different amount along each
+       of its axes, and a forearm at forty-five degrees to the chest was
+       sheared rather than scaled. A breath is the chest; the shoulders'
+       sockets stay where the skeleton put them, which also leaves the torso
+       matrix the grab target is carried through a pure rotation. */
     const effort = clamp(rider.speed / 30 + (rider.gLoad - 1) * 0.5, 0, 1.6);
     const breath = Math.sin(s.clock * (1.05 + effort * 1.5)) * 0.5 + 0.5;
     const depth = (0.016 - effort * 0.005) * idle;
-    torso.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
+    torsoMesh.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
     torso.updateMatrix();
 
     /* --- head -------------------------------------------------------------- */
