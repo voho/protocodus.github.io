@@ -362,9 +362,44 @@ export function createWildlife(THREE, shading) {
   );
   furTex.colorSpace = THREE.SRGBColorSpace;
 
+  /* AN ANIMAL ARRIVES; IT DOES NOT APPEAR.
+
+     Hares are placed forty to a hundred and ninety metres down the hill, deer
+     and wolves out to three hundred — every one of them inside a clear day's
+     view, and every one of them used to exist in full on the frame it was
+     placed: a white hare switched on against the snow, a herd materialised on
+     a bank. Each instance now carries how far it has arrived, 0..1, and the
+     fragment shader dissolves it in through a screen-door dither over a
+     second — no sorting, no blending, depth still written — while the shadow
+     pass reads the same value so the silhouette on the snow arrives with the
+     animal instead of ahead of it. */
+  const REVEAL_SECONDS = 1.2;
+  const REVEAL_VERT = [`#include <common>
+        attribute float aReveal;
+        varying float vReveal;`, `#include <begin_vertex>
+        vReveal = aReveal;`];
+  const REVEAL_FRAG = [`#include <common>
+        varying float vReveal;`, `#include <clipping_planes_fragment>
+        if (vReveal < 0.999) {
+          float n64RevealDither = fract(52.9829189
+            * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+          if (n64RevealDither >= vReveal) discard;
+        }`];
+  const withReveal = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', REVEAL_VERT[0])
+      .replace('#include <begin_vertex>', REVEAL_VERT[1]);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', REVEAL_FRAG[0])
+      .replace('#include <clipping_planes_fragment>', REVEAL_FRAG[1]);
+  };
+  const revealDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  revealDepth.onBeforeCompile = withReveal;
+
   const animalMaterial = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
+      withReveal(shader);
       shader.uniforms.uFurTex = { value: furTex };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
@@ -424,6 +459,27 @@ export function createWildlife(THREE, shading) {
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     group.add(mesh);
   }
+  // One arrival value per instance, written beside its matrix every frame.
+  const revealOf = new Map();
+  for (const mesh of [rabbits, deerBodies, deerHeads, stagHeads, wolves]) {
+    const reveal = new THREE.InstancedBufferAttribute(
+      new Float32Array(mesh.instanceMatrix.count).fill(1), 1);
+    reveal.setUsage(THREE.DynamicDrawUsage);
+    mesh.geometry.setAttribute('aReveal', reveal);
+    mesh.customDepthMaterial = revealDepth;
+    revealOf.set(mesh, reveal.array);
+  }
+  const markReveal = (mesh) => {
+    mesh.geometry.attributes.aReveal.needsUpdate = true;
+  };
+  // Seconds of simulated time, for the arrival stamps.
+  let clock = 0;
+  const arrival = (born) => Math.min(1, Math.max(0, (clock - born) / REVEAL_SECONDS));
+  const rabbitReveal = revealOf.get(rabbits);
+  const deerReveal = revealOf.get(deerBodies);
+  const deerHeadReveal = revealOf.get(deerHeads);
+  const stagReveal = revealOf.get(stagHeads);
+  const wolfReveal = revealOf.get(wolves);
 
   /* EYE-SHINE. An animal caught in a head torch answers it: the tapetum
      throws the beam straight back, and two green points in the dark are how
@@ -572,6 +628,7 @@ export function createWildlife(THREE, shading) {
     r.flee = 0;
     r.alive = true;
     r.seen = false;
+    r.born = clock;
   }
 
   /* --- the far animals ---------------------------------------------------
@@ -629,6 +686,7 @@ export function createWildlife(THREE, shading) {
     herd.alert = 0;
     herd.run = 0;
     herd.alive = true;
+    herd.born = clock;
     const n = 2 + Math.floor(Math.random()
       * (WILDLIFE.deerHerd[1] - WILDLIFE.deerHerd[0] + 1));
     herd.members.length = 0;
@@ -660,6 +718,7 @@ export function createWildlife(THREE, shading) {
     // line is never exactly the horizon
     pack.yaw = spot.side * (Math.PI / 2) + (Math.random() - 0.5) * 0.5;
     pack.alive = true;
+    pack.born = clock;
     const n = WILDLIFE.wolfPack[0] + Math.floor(Math.random()
       * (WILDLIFE.wolfPack[1] - WILDLIFE.wolfPack[0] + 1));
     pack.members.length = 0;
@@ -679,6 +738,7 @@ export function createWildlife(THREE, shading) {
   /* `onNear` is called when the rider threads an animal without hitting it;
      `onHit` when a bear is not so lucky. */
   function update(dt, rider, onNear, onHit) {
+    clock += dt;
     const rx = rider.pos.x;
     const rz = rider.pos.z;
     const lampOn = lampLevel > 0.01;
@@ -750,13 +810,17 @@ export function createWildlife(THREE, shading) {
       q.setFromEuler(e);
       s.set(1 / squash, squash, 1 / squash);
       m.compose(v, q, s);
+      rabbitReveal[n] = arrival(r.born);
       rabbits.setMatrixAt(n++, m);
       if (lampOn) shineEyes(RABBIT_EYES);
     }
     rabbits.count = n;
     // Nothing changed on the GPU's side of an empty pool, so an upload is
     // only queued when there are live instances to carry.
-    if (n > 0) rabbits.instanceMatrix.needsUpdate = true;
+    if (n > 0) {
+      rabbits.instanceMatrix.needsUpdate = true;
+      markReveal(rabbits);
+    }
 
     // --- deer --------------------------------------------------------------
     /* The herd's own clock, run exactly like the bear's: it only ticks while
@@ -814,6 +878,8 @@ export function createWildlife(THREE, shading) {
         q.setFromEuler(e);
         s.set(d.scale, d.scale, d.scale);
         m.compose(v, q, s);
+        const herdIn = arrival(herd.born);
+        deerReveal[dn] = herdIn;
         deerBodies.setMatrixAt(dn++, m);
 
         /* The head, hung off the same transform. `m` is still the body's, so
@@ -826,8 +892,13 @@ export function createWildlife(THREE, shading) {
         e.set(DEER_BROWSE * feeding + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
         q.setFromEuler(e);
         m.compose(ev, q, s);
-        if (d.stag) stagHeads.setMatrixAt(sn++, m);
-        else deerHeads.setMatrixAt(dn - 1 - sn, m);
+        if (d.stag) {
+          stagReveal[sn] = herdIn;
+          stagHeads.setMatrixAt(sn++, m);
+        } else {
+          deerHeadReveal[dn - 1 - sn] = herdIn;
+          deerHeads.setMatrixAt(dn - 1 - sn, m);
+        }
       }
     }
     deerBodies.count = dn;
@@ -835,8 +906,15 @@ export function createWildlife(THREE, shading) {
     stagHeads.count = sn;
     if (dn > 0) {
       deerBodies.instanceMatrix.needsUpdate = true;
-      if (dn - sn > 0) deerHeads.instanceMatrix.needsUpdate = true;
-      if (sn > 0) stagHeads.instanceMatrix.needsUpdate = true;
+      markReveal(deerBodies);
+      if (dn - sn > 0) {
+        deerHeads.instanceMatrix.needsUpdate = true;
+        markReveal(deerHeads);
+      }
+      if (sn > 0) {
+        stagHeads.instanceMatrix.needsUpdate = true;
+        markReveal(stagHeads);
+      }
     }
 
     // --- wolves ------------------------------------------------------------
@@ -872,11 +950,15 @@ export function createWildlife(THREE, shading) {
         q.setFromEuler(e);
         s.set(w.scale, w.scale * (1 + Math.cos(w.gait * 2) * 0.03), w.scale);
         m.compose(v, q, s);
+        wolfReveal[wn] = arrival(pack.born);
         wolves.setMatrixAt(wn++, m);
       }
     }
     wolves.count = wn;
-    if (wn > 0) wolves.instanceMatrix.needsUpdate = true;
+    if (wn > 0) {
+      wolves.instanceMatrix.needsUpdate = true;
+      markReveal(wolves);
+    }
 
     eyes.count = eyeCount;
     eyes.visible = eyeCount > 0;

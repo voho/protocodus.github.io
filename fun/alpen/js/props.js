@@ -2062,7 +2062,7 @@ export function createProps(THREE, shading) {
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * barkColor * 4.75, 0.75 * treeOwn);
         }`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
   };
 
   /* Low vegetation shares one wind program and organic botanical textures */
@@ -2100,7 +2100,7 @@ export function createProps(THREE, shading) {
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * twigSample * 5.0, 0.72 * floraOwn);
         }`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
+    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
   };
 
   /* Photoscanned props wear their own scan. The baseColor map (diffuse with
@@ -2141,7 +2141,7 @@ export function createProps(THREE, shading) {
             clamp(n64Settle, 0.0, 0.96));
         }`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
+    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
   /* Boulder snow uses the same mask without wind. A separate static program
@@ -2179,7 +2179,7 @@ export function createProps(THREE, shading) {
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * rockColor * 7.2, 0.75 * rockOwn);
         }`);
     };
-    return shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
+    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_STONE });
   };
 
   /* The race panels: lit like everything else (a flag at dusk is a dusk
@@ -2208,7 +2208,7 @@ export function createProps(THREE, shading) {
           transformed.z += aFlutter * n64Ripple * (0.022 + n64Wind * 0.0045);
         }`);
     };
-    return shading.apply(m);
+    return shading.apply(m, { streamFade: true });
   })();
 
   /* The sapling cards. Lambert over the photographed atlas, cut out by its
@@ -2251,7 +2251,7 @@ export function createProps(THREE, shading) {
         normal = normalize( vNormal );
         nonPerturbedNormal = normal;`);
     };
-    shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
     const programKey = m.customProgramCacheKey();
     m.customProgramCacheKey = () => `${programKey}|sapling`;
     return m;
@@ -2465,7 +2465,7 @@ export function createProps(THREE, shading) {
           }
         }`);
     };
-    shading.apply(m, { cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
     const programKey = m.customProgramCacheKey();
     m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}`;
     return m;
@@ -2763,7 +2763,8 @@ export function createProps(THREE, shading) {
     g.translate(0, radius, 0);
     return g;
   };
-  const logStandInMat = shading.apply(new THREE.MeshLambertMaterial({ color: '#4a3f36' }));
+  const logStandInMat = shading.apply(new THREE.MeshLambertMaterial({ color: '#4a3f36' }),
+    { streamFade: true });
   const logPools = DEADWOOD.logs.map((spec) => {
     const pool = new Pool(THREE, logStandIn(spec.length, spec.radius), logStandInMat,
       bands * DEADWOOD.logCandidates + 8);
@@ -2810,7 +2811,7 @@ export function createProps(THREE, shading) {
         vec3 woodSample = texture2D(uWoodTex, vAlpineWorldPos.xy * 0.45 + vAlpineWorldPos.yz * 0.45).rgb;
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * woodSample * 5.9, 0.65);`);
     };
-    return shading.apply(m);
+    return shading.apply(m, { streamFade: true });
   })();
   const avalancheFences = new Pool(
     THREE, avalancheFenceGeometry(THREE), alpineMat, bands * ALPINE.fence.sections[1],
@@ -3835,7 +3836,22 @@ export function createProps(THREE, shading) {
      frame rather than all eighteen at once. See `reset`. */
   let staleBands = null;
 
+  /* Where the dissolve before the streaming edge finishes — see FRAG_STREAM
+     in shading.js. The nearest the far edge of the window can ever be is
+     `ahead` whole bands in front of the rider (when they are at the downhill
+     end of their own band), less the two-metre dead band on a crossing;
+     `STREAM_GUARD` sits inside that, so the fade is complete on ground that
+     has always already been filled. It moves with the rider continuously,
+     never a band at a time, which is what keeps the fade from stepping. */
+  const STREAM_GUARD = 6;
+  const STREAM_FADE = 110;
+  const streamEdge = shading.uniforms?.uStreamEdge?.value || null;
+  function setStreamEdge(riderZ) {
+    if (streamEdge) streamEdge.set(riderZ - (ahead * band - STREAM_GUARD), STREAM_FADE);
+  }
+
   function update(riderZ, spacing = 1) {
+    setStreamEdge(riderZ);
     const bi = Math.floor(riderZ / band);
     /* Drain one retarget per frame, whatever else this frame is doing. A
        reset asks every band to come back to full density, and doing that in
@@ -3894,6 +3910,7 @@ export function createProps(THREE, shading) {
      retargeted lazily: the bands the rider can actually reach are re-placed
      now, and the rest are queued for `update` to drain one per frame. */
   function reset(riderZ, spacing = 1) {
+    setStreamEdge(riderZ);
     const want = Math.max(1, spacing);
     currentBand = Math.floor(riderZ / band);
     staleBands = new Set();
