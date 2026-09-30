@@ -1622,7 +1622,20 @@ export const RIDER = {
      so it pays out identically off a kicker, a cornice and the crest of a
      roller. */
   lipWindow: 0.16,
-  lipBonus: 1.45,
+  /* Trimmed from 1.45. With the side hits beside the ribbon a perfect pop is
+     something a player now meets several times a kilometre rather than once
+     a run, and at half as much again it was two and a half to three seconds
+     of air off a one-metre drift — three seconds is not a lip pop, it is a
+     cliff, and it came down past the bail line one time in four. A quarter
+     more still reads unmistakably as the timed one: measured on the side
+     hits of three seeds the median air is 2.2 s against the plain pop's
+     1.9. */
+  lipBonus: 1.25,
+  /* How much of a rider's own pop they are braced to land — see `land` in
+     rider.js. The raised heavy line never comes nearer the bail than
+     `bracedMargin` metres a second. */
+  bracedShare: 0.6,
+  bracedMargin: 5,
   // Air control. A 540 wants to fit inside a big ramp's hang time, so the
   // spin rate is set from it.
   spinRate: 7.5,

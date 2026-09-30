@@ -348,6 +348,7 @@ export class Rider {
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
     this.offPiste = 0;       // 0..1, how deep into the unpisted boundary snow
     this.lipPop = false;     // was the last launch popped on the lip
+    this.airPop = 0;         // m/s of leg pop this air began with, see `land`
     this.lipReady = false;   // would letting go of a charge *now* be a lip pop
     this.lipAhead = false;   // …or is one coming up in the next few tenths
     this.fallReason = '';    // what put the rider down, in words, for the HUD
@@ -1868,6 +1869,7 @@ export class Rider {
     // width of a lip.
     this._bendReady = false;
     if (pop > 0) this.applyPop(n, pop);
+    this.airPop = pop > 0 ? pop : 0;
     // Scoring and telemetry read the momentum the ramp received, not the
     // optional leg impulse added afterwards.
     this.takeoffSpeed = launchSpeed;
@@ -1967,6 +1969,7 @@ export class Rider {
         const pop = (RIDER.popMin + (RIDER.popMax - RIDER.popMin) * this.charge)
           * RIDER.lipBonus;
         this.applyPop(this.normal, pop);
+        this.airPop = pop;
         this._latePopAllowed = false;
         this.lipReady = false;
         this.lipPop = true;
@@ -2302,10 +2305,36 @@ export class Rider {
        unnoticed natural hop caused a wipeout while a nearly identical landing
        was merely sketchy. Keep yaw mismatch in the sketchy branch below; hard
        impact and a rider arriving upside-down remain genuine bails. */
+    /* A RIDER IS BRACED FOR THE AIR THEY POPPED.
+
+       A flight lands on the grade with roughly the speed into the slope it
+       left with, and a charged pop alone is up to fourteen metres a second
+       of that — most of the seventeen at which a landing turns heavy. So
+       every popped air off anything with lift of its own was heavy, and the
+       lip cue on the charge bar was teaching players to do the one thing
+       the landing then marked down: measured on three seeds, not one perfect
+       pop off a side hit landed clean — three quarters came down HEAVY and
+       the rest bailed.
+
+       What decides a heavy landing on a real hill is surprise, not size. A
+       rider who popped knows how high they are going, spots the landing and
+       meets it with their legs; the one who gets hurt is the one who rolled
+       off a crest onto flat they did not see coming. So a share of the pop
+       the rider put in themselves raises the heavy line, and only that:
+       rolling off the same hit without popping is judged exactly as it was.
+       The raised line stops `bracedMargin` short of the bail, so there is
+       always a band of sketchy between a landing that was fine and one that
+       ends in the snow, and a big hit taken too fast still lands heavy —
+       checking speed before the biggest air on the run stays the decision
+       it was. Same seeds, same bot, with the trimmed `lipBonus`: seven
+       perfect pops in twelve now land clean (every one taken under about
+       26 m/s), the fast ones still land heavy, and one in twelve bails. */
+    const heavyAt = Math.min(RIDER.hardImpact - RIDER.bracedMargin,
+      RIDER.softImpact * 1.9 + RIDER.bracedShare * this.airPop);
     if (impact > RIDER.hardImpact
       || (judged && flipErr > p * 1.6)) {
       verdict = BAIL;
-    } else if (impact > RIDER.softImpact * 1.9
+    } else if (impact > heavyAt
       || (judged && (spinErr > w || flipErr > p))) {
       verdict = SKETCHY;
     }

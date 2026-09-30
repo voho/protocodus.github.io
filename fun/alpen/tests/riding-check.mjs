@@ -239,10 +239,11 @@ for (const tuck of [false, true]) {
 // A verdict carries its reason, for the banner: what went wrong, and which
 // way — a rotation stopped short is not a rotation carried past.
 {
-  const touchdown = ({ vy = -3, spin = 0, flip = 0, grab = false }) => {
+  const touchdown = ({ vy = -3, spin = 0, flip = 0, grab = false, pop = 0 }) => {
     const r = rider();
     r.pos.y = 0.05; r.vel.set(0, vy, -20);
     r.state = 'air'; r.grounded = false; r.airTime = 0.8;
+    r.airPop = pop;
     r.yaw = r.spinAccum = spin;
     r.flip = r.flipAccum = flip;
     let reason = null;
@@ -260,6 +261,17 @@ for (const tuck of [false, true]) {
   assert.deepEqual(touchdown({ spin: 4.3 }), { verdict: SKETCHY, reason: 'OVER-ROTATED' });
   assert.deepEqual(touchdown({ grab: true }), { verdict: SKETCHY, reason: 'GRAB HELD' });
   assert.deepEqual(touchdown({}), { verdict: CLEAN, reason: '' });
+  /* Braced for the air they popped: the same 22 m/s into the snow is heavy
+     off a roll-over and clean after a full pop, the raised line stops short
+     of the bail so a too-fast popped air is still heavy, and past the bail
+     line no pop saves it. */
+  assert.deepEqual(touchdown({ vy: -22 }), { verdict: SKETCHY, reason: 'HEAVY LANDING' });
+  assert.deepEqual(touchdown({ vy: -22, pop: RIDER.popMax }), { verdict: CLEAN, reason: '' });
+  const topPop = RIDER.popMax * RIDER.lipBonus;
+  assert.deepEqual(touchdown({ vy: -(RIDER.hardImpact - RIDER.bracedMargin + 1.5), pop: topPop }),
+    { verdict: SKETCHY, reason: 'HEAVY LANDING' });
+  assert.deepEqual(touchdown({ vy: -(RIDER.hardImpact + 2), pop: topPop }),
+    { verdict: BAIL, reason: 'HARD LANDING' });
 }
 
 // The snow types. The corduroy is the grippiest carving snow on the hill —

@@ -33,6 +33,12 @@ release test itself, releasing while it is lit is the lip pop, and
 `perfectPop` fires after `launch` so the launch's banner clear cannot erase
 it. Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
 UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
+Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
+off a crest is a HEAVY LANDING, but the same impact after a full pop is clean.
+The raised line stops `bracedMargin` short of the bail, so a too-fast popped
+air is still heavy, and past the bail no pop saves it. On the side hits of
+three seeds, a bot releasing on the lip cue now lands seven perfect pops in
+twelve clean, where before none of them landed clean.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
