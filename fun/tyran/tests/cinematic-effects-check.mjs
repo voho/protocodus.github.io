@@ -56,15 +56,10 @@ try {
   const stopped=await page.evaluate(()=>{
     tyran.pause();const paused=__snapshot();__advance(.5);const held=__snapshot();
     tyran.pause();__frame(0);__advance(3.2);const settled=__snapshot();
-    tyran.fx.reset();document.querySelector('#quality-toggle').click();__frame(0);
-    __work.signalCopies=0;__measure=true;tyran.fx.emit({type:'explosion',x:600,y:300,size:110,boss:true});__advance(.1);__measure=false;
-    const low={...__snapshot(),copies:__work.signalCopies};
-    tyran.fx.reset();document.querySelector('#quality-toggle').click();__frame(0);
-    return {paused,held,settled,low};
+    return {paused,held,settled};
   });
   assert.equal(stopped.paused.filter,'');assert.equal(stopped.paused.impact,stopped.held.impact,'pause freezes the impact envelope');
   assert.equal(stopped.settled.filter,'');assert.equal(stopped.settled.impact,0);assert.equal(stopped.settled.glitch,0);assert.equal(stopped.settled.delayed,0);
-  assert.equal(stopped.low.filter,'');assert.equal(stopped.low.copies,0,'low effects retain local explosions without full-screen interference');
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.waitForFunction(()=>tyran.fx.reduced,null,{polling:20});
   const reduced=await page.evaluate(()=>{__work.signalCopies=0;__measure=true;tyran.fx.emit({type:'explosion',x:600,y:300,size:110,boss:true});__advance(.1);__measure=false;return {...__snapshot(),copies:__work.signalCopies};});

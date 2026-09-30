@@ -192,7 +192,8 @@ body[data-ready=false] #menu-screen{opacity:.6}
 @media(max-width:480px){
   .topbar{padding-left:18px;padding-right:18px}.brand-copy>span{font-size:12px;letter-spacing:0}
   .briefing-main{padding:22px 20px}.eyebrow{letter-spacing:1px}.hero-description{font-size:15px;line-height:1.65}
-  .menu-controls{gap:10px;padding:12px}.menu-controls kbd{font-size:22px;padding:5px 7px}.menu-controls>span{font-size:14px}
+  .menu-controls{gap:10px;padding:12px}.menu-controls kbd{font-size:22px;padding:5px 7px}
+.menu-keys{margin-top:-10px;padding:9px 12px;border-top:0;gap:8px 14px;justify-content:flex-start;font-size:14px}.menu-keys>span{gap:3px}.menu-keys kbd{font-size:14px;padding:3px 6px;color:#d9e8df;background:#0a1a15c9}.menu-controls>span{font-size:14px}
   .launch-button{gap:16px}.launch-button small{letter-spacing:.3px}.hero-stats strong{font-size:24px}
   .sector-flight{flex-direction:column;align-items:stretch}.sector-flight p{max-width:none}.sector-flight .secondary-button{font-size:15px}
   .hud-top{display:grid;grid-template-columns:minmax(0,1fr) auto auto;padding:12px 14px 18px;gap:8px 12px}.mission-instrument{grid-column:1/3}.mission-instrument>strong{font-size:18px;max-width:none}.score-instrument{grid-row:2;grid-column:1;text-align:left}.credits-instrument{grid-row:2;grid-column:2/4}.pause-button{grid-row:1;grid-column:3;align-self:start}.boss-hud{top:150px}.hud-kicker{font-size:12px}

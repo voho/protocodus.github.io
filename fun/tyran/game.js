@@ -79,7 +79,9 @@ let campaign = campaignSummary(readCampaign()), campaignError = null, activeCamp
 let state = null, selected = 0, scene = 'menu', unlocked = campaign.run?.unlocked || 0;
 let W = 1200, H = 900, dpr = 1, previewScroll = 0, clock = 0, lastTime = 0, hudClock = 0;
 let surfaceWidth = 0, surfaceHeight = 0;
-let announcementUntil = 0, quality = 'high', helpPaused = false, helpFocus = null;
+let announcementUntil = 0, helpPaused = false, helpFocus = null;
+// Visual effects always run at full quality; adaptive resolution handles slow displays.
+const quality = 'high';
 let selectedDifficulty = 'easy';
 let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
@@ -105,7 +107,6 @@ const touch = { x: 0, y: 0, fire: false, secondary: false, bomb: false, pointer:
 let bestScore = 0;
 try {
   audio.mute(localStorage.getItem('tyran-muted') === 'true');
-  quality = localStorage.getItem('tyran-quality') === 'low' ? 'low' : 'high';
   selectedDifficulty = normalizeDifficulty(localStorage.getItem('tyran-difficulty'));
   bestScore = Math.max(0, Math.floor(Number(localStorage.getItem('tyran-best-score')) || 0));
 } catch { /* Local saves are optional in private/restricted browsing. */ }
@@ -185,8 +186,10 @@ function scaleScriptX(enemy, factor) {
 
 function setScreen(next) {
   scene = next;
-  // Only flight may build a terrain strip inside a frame; previews wait for the idle queue.
-  world.deferStrips = next !== 'playing';
+  // Only the title and shop previews wait for queued strips. Flight, the pause
+  // overlay, the bonus outro and the end screen show the live arena, which may
+  // still scroll and must never leave a bare row at the top.
+  world.deferStrips = next === 'menu' || next === 'hangar';
   if (next !== 'end') { endFade = null; canvas.style.opacity = ''; }
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
@@ -1199,6 +1202,7 @@ window.addEventListener('keydown', event => {
     return;
   }
   if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (scene === 'menu' && !modal && $('help-screen').hidden && menuKey(event)) { consumeInput(event); capturedKeys.add(event.code); return; }
   if ((event.code === 'Escape' || event.code === 'KeyP') && !event.repeat) {
     if (!$('help-screen').hidden || scene === 'pause') {
       consumeInput(event); capturedKeys.add(event.code);
@@ -1241,12 +1245,40 @@ canvas.addEventListener('pointerdown', event => {
   canvas.focus({ preventScroll: true }); consumeInput(event);
 });
 function on(id, fn) { $(id)?.addEventListener('click', fn); }
-$('difficulty-picker').addEventListener('change', event => {
-  if (!event.target.matches('input[name="difficulty"]')) return;
-  selectedDifficulty = normalizeDifficulty(event.target.value);
+function chooseDifficulty(value) {
+  selectedDifficulty = normalizeDifficulty(value);
   try { localStorage.setItem('tyran-difficulty', selectedDifficulty); } catch { /* optional */ }
   refreshDifficultyChoice();
+}
+$('difficulty-picker').addEventListener('change', event => {
+  if (event.target.matches('input[name="difficulty"]')) chooseDifficulty(event.target.value);
 });
+// The title screen is fully playable from the keyboard: arrows or WASD pick the
+// sector and difficulty, Enter launches, C resumes, F practices, H opens the manual.
+// A focused control keeps its native keys (radios move with arrows, buttons take Enter).
+const DIFFICULTY_ORDER = ['easy', 'medium', 'hard', 'real'];
+function menuKey(event) {
+  const code = event.code, active = document.activeElement;
+  const control = active && active !== document.body && active !== canvas && active.matches('button, a, input, select, textarea, [tabindex="0"]');
+  if (active?.matches?.('input[type="radio"]') && code.startsWith('Arrow')) return false;
+  const step = (list, value, delta) => list[Math.max(0, Math.min(list.length - 1, list.indexOf(value) + delta))];
+  if (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'KeyA' || code === 'KeyD') {
+    const next = Math.max(0, Math.min(WORLDS.length - 1, selected + (code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1)));
+    document.body.dataset.preview = 'true'; selectWorld(next);
+    $('world-list').querySelector(`[data-world="${next}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    return true;
+  }
+  if (code === 'ArrowUp' || code === 'ArrowDown' || code === 'KeyW' || code === 'KeyS') {
+    chooseDifficulty(step(DIFFICULTY_ORDER, selectedDifficulty, code === 'ArrowUp' || code === 'KeyW' ? -1 : 1));
+    return true;
+  }
+  if (event.repeat) return false;
+  if ((code === 'Enter' || code === 'Space' || code === 'NumpadEnter') && !control) { launch(0); return true; }
+  if (code === 'KeyC' && !$('continue-button').disabled) { resumeCampaign(); return true; }
+  if (code === 'KeyF') { launch(selected, null, false); return true; }
+  if (code === 'KeyH' || (code === 'Slash' && event.shiftKey)) { $('help-button').click(); return true; }
+  return false;
+}
 on('launch-button', () => launch(0));
 on('sector-flight-button', () => launch(selected, null, false));
 on('continue-button', resumeCampaign);
@@ -1283,17 +1315,11 @@ function syncSettings() {
   $('sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); $('sound-toggle').setAttribute('aria-label', audio.muted ? 'Unmute sound' : 'Mute sound');
   $('sound-toggle').dataset.muted = String(audio.muted); $('sound-toggle').title = audio.muted ? 'Sound off · V' : 'Sound on · V';
   if ($('sound-label')) $('sound-label').textContent = audio.muted ? 'Sound off' : 'Sound on';
-  const qualityText = quality === 'high' ? 'Effects high' : 'Effects low';
-  if ($('quality-label')) $('quality-label').textContent = qualityText; else $('quality-toggle').textContent = qualityText;
-  $('quality-toggle').setAttribute('aria-label', `Effects ${quality}. Click to switch.`); $('quality-toggle').setAttribute('aria-pressed', String(quality === 'high'));
   if ($('pause-sound-toggle')) { $('pause-sound-toggle').textContent = audio.muted ? 'Sound off · V' : 'Sound on · V'; $('pause-sound-toggle').setAttribute('aria-pressed', String(!audio.muted)); }
-  if ($('pause-quality-toggle')) { $('pause-quality-toggle').textContent = qualityText; $('pause-quality-toggle').setAttribute('aria-pressed', String(quality === 'high')); }
   fx.quality = quality;
 }
 on('sound-toggle', toggleSound);
 on('pause-sound-toggle', toggleSound);
-function toggleQuality() { quality = quality === 'high' ? 'low' : 'high'; resolutionScale = 1; lastAdapt = performance.now() / 1000; syncSettings(); resize(); try { localStorage.setItem('tyran-quality', quality); } catch { /* optional */ } }
-on('quality-toggle', toggleQuality); on('pause-quality-toggle', toggleQuality);
 on('fullscreen-toggle', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { $('fullscreen-toggle').title = 'Fullscreen is unavailable in this browser'; } });
 function closeHelp() { $('help-screen').hidden = true; if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
 on('help-button', () => { helpFocus = document.activeElement; helpPaused = scene === 'playing'; if (helpPaused) pause(); $('help-screen').hidden = false; $('help-close').focus(); }); on('help-close', closeHelp);

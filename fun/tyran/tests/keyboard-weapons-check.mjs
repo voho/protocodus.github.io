@@ -142,9 +142,10 @@ try {
   assert.deepEqual(saved, savedEnergy, 'autosave preserves energy, delay and lock');
   await focus('menu-button'); await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => tyran.scene), 'menu');
-  const qualityBefore = await page.locator('#quality-toggle').getAttribute('aria-pressed');
-  await focus('quality-toggle'); await page.keyboard.press('Space');
-  assert.notEqual(await page.locator('#quality-toggle').getAttribute('aria-pressed'), qualityBefore, 'Space activates native menu buttons');
+  const soundBefore = await page.locator('#sound-toggle').getAttribute('aria-pressed');
+  await focus('sound-toggle'); await page.keyboard.press('Space');
+  assert.notEqual(await page.locator('#sound-toggle').getAttribute('aria-pressed'), soundBefore, 'Space activates native menu buttons');
+  await focus('sound-toggle'); await page.keyboard.press('Space');
   await page.reload(); await ready(); await focus('continue-button'); await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => tyran.scene), 'pause');
   assert.deepEqual(await energy(), savedEnergy, 'reload/resume restores exact energy state');
