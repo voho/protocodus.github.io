@@ -144,6 +144,8 @@ export class WorldRenderer {
     // Evicted strips are repainted for the next row instead of allocating new
     // surfaces (and new GPU textures) during flight.
     this.tilePool=[];this.stripPool=[];this.gpu=null;this.draining=false;
+    // Strips a frame had to finish or build on demand: zero means streaming kept ahead of the viewport.
+    this.syncStrips=0;
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
     // Legacy callers may still ask for a terminal damage sprite. Share one
@@ -539,6 +541,7 @@ export class WorldRenderer {
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
     if(existing&&!dirty)return existing;
+    if(!existing)this.syncStrips++;
     if(!existing&&depth===0){
       // A strip needed now finishes its remaining staged steps in place; the
       // queued job later uploads it or finds it published.
@@ -872,7 +875,7 @@ export class WorldRenderer {
       terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
       scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),activityBytes:bytes(this.activitySprites.values()),
       detailScale:this.detailScale,viewportWidth:this.viewportWidth,mapWidth:this.mapWidth,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
-      damagedProps:this.damage.size,destroyedProps:this.destroyed.size};
+      damagedProps:this.damage.size,destroyedProps:this.destroyed.size,syncStrips:this.syncStrips,pendingStrips:this.pendingTiles.size+this.pendingScenery.size,pooledStrips:this.tilePool.length+this.stripPool.length};
   }
   makeDamagedFallback(type,variant,stage) {
     if(stage>=3)return this.emptyScenerySprite;
