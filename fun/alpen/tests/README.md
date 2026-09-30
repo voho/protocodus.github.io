@@ -84,7 +84,8 @@ matrix stays finite, both ankles stay in their bindings, the indy hand still
 lands on the toe edge, the head leads each turn by less than the cap, a hard
 stop pitches the chest forwards and settles, and breathing never scales or
 shears the head. Deer and wolves are checked standing on the real terrain
-(fore and hind feet on the snow, most of the cross slope taken up), the
+(fore and hind feet on the snow, most of the cross slope taken up, and the
+tilt capped on ground steeper than an animal carries its spine), the
 shared texture cache hands every caller one texture per file, the forest's
 gust field is sampled at the wavelengths its drift wraps at, and the other
 riders respawn beyond the clear-day fog and get up from a tumble without a
