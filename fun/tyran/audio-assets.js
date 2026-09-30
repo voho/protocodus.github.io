@@ -2,18 +2,27 @@
 // Songs remain compressed; complete tracks are cached without decoding them all into PCM.
 export const SAMPLE_GROUPS = Object.fromEntries(['laser-small', 'laser-retro', 'laser-heavy', 'explosion', 'impact', 'pickup'].map(group =>
   [group, [1, 2, 3].map(index => `${group}-${index}`)]));
+// Byte counts identify the shipped files: a cached or HTTP-cached copy of a
+// different size is a stale soundtrack and is fetched again from the network.
 export const SONGS = {
-  flight: { file: '1.mp3', gain: .245 },
-  flight2: { file: '2.mp3', gain: .251 },
-  flight3: { file: '3.mp3', gain: .237 },
-  boss: { file: '4.mp3', gain: .235 },
-  challenge: { file: '5.mp3', gain: .249 }
+  flight: { file: '1.mp3', gain: .245, bytes: 4843073 },
+  flight2: { file: '2.mp3', gain: .251, bytes: 4740751 },
+  flight3: { file: '3.mp3', gain: .237, bytes: 4683897 },
+  boss: { file: '4.mp3', gain: .235, bytes: 4682716 },
+  challenge: { file: '5.mp3', gain: .249, bytes: 4509453 }
 };
+export const SAMPLE_BYTES = Object.freeze({
+  'laser-small-1': 10500, 'laser-small-2': 10858, 'laser-small-3': 15260, 'laser-retro-1': 10460, 'laser-retro-2': 10464, 'laser-retro-3': 11326,
+  'laser-heavy-1': 29918, 'laser-heavy-2': 31874, 'laser-heavy-3': 32870, 'explosion-1': 34364, 'explosion-2': 59912, 'explosion-3': 55458,
+  'impact-1': 28078, 'impact-2': 30400, 'impact-3': 20854, 'pickup-1': 20622, 'pickup-2': 22990, 'pickup-3': 24142,
+});
+// Bump when the shipped audio changes shape; older caches are removed on open.
+export const AUDIO_CACHE = 'tyran-audio-v3';
 export const audioAssets = { samples: new Map(), songs: new Map(), players: new Map(), ready: false };
 
 const assets = [
-  ...Object.values(SAMPLE_GROUPS).flat().map(key => ({ key, path: `sfx/${key}.wav`, sample: true })),
-  ...Object.entries(SONGS).map(([key, song]) => ({ key, path: `music/${song.file}`, sample: false }))
+  ...Object.values(SAMPLE_GROUPS).flat().map(key => ({ key, path: `sfx/${key}.wav`, sample: true, bytes: SAMPLE_BYTES[key] })),
+  ...Object.entries(SONGS).map(([key, song]) => ({ key, path: `music/${song.file}`, sample: false, bytes: song.bytes }))
 ];
 const progress = { ready: false, completed: 0, total: assets.length, loaded: 0, failed: 0 };
 const listeners = new Set();
@@ -85,27 +94,40 @@ export function preloadAudio(onProgress) {
       const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       decoder = new OfflineContext(1, 1, 22050);
     } catch { /* SFX will use the synthesizer if offline decoding is unavailable. */ }
-    try { cache = await wait(globalThis.caches?.open('tyran-audio-v2')); } catch { /* Storage is optional. */ }
+    try {
+      cache = await wait(globalThis.caches?.open(AUDIO_CACHE));
+      // Earlier versions cached by URL alone, so a replaced soundtrack kept playing.
+      for (const name of await wait(globalThis.caches?.keys()) || []) if (name.startsWith('tyran-audio-') && name !== AUDIO_CACHE) globalThis.caches.delete(name).catch(() => {});
+    } catch { /* Storage is optional. */ }
     const queue = [...assets];
     const worker = async () => {
       while (queue.length) {
         const asset = queue.shift(), url = new URL(`./assets/audio/${asset.path}`, import.meta.url).href;
         try {
           if (signal.aborted) throw new Error('Audio preflight timed out');
-          let response;
-          try { response = await wait(cache?.match(url)); } catch { /* Fall through to HTTP cache/network. */ }
-          if (!response) {
+          const download = async mode => {
             if (signal.aborted) throw new Error('Audio preflight timed out');
-            response = await wait(fetch(url, { signal, cache: 'force-cache' }));
-            if (!response.ok) throw new Error('Audio asset unavailable');
+            const fetched = await wait(fetch(url, { signal, cache: mode }));
+            if (!fetched.ok) throw new Error('Audio asset unavailable');
+            return fetched;
+          };
+          const read = async response => asset.sample ? wait(response.arrayBuffer()) : wait(response.blob());
+          const size = body => body.size ?? body.byteLength;
+          let response, source = 'cache';
+          try { response = await wait(cache?.match(url)); } catch { /* Fall through to HTTP cache/network. */ }
+          if (!response) { response = await download('force-cache'); source = 'http'; }
+          let copy = response.clone(), body = await read(response);
+          // A stale copy of a replaced file, from either cache, is replaced from the network.
+          if (asset.bytes && size(body) !== asset.bytes) { response = await download('reload'); source = 'network'; copy = response.clone(); body = await read(response); }
+          if (source !== 'cache' && (!asset.bytes || size(body) === asset.bytes)) {
             // Finish persistent cache writes during preflight too, never mid-flight.
-            try { await wait(cache?.put(url, response.clone())); } catch { /* The in-memory copy still works. */ }
+            try { await wait(cache?.put(url, copy)); } catch { /* The in-memory copy still works. */ }
           }
           if (asset.sample) {
             if (!decoder) throw new Error('Offline audio decoder unavailable');
-            audioAssets.samples.set(asset.key, await wait(decoder.decodeAudioData(await wait(response.arrayBuffer()))));
+            audioAssets.samples.set(asset.key, await wait(decoder.decodeAudioData(body)));
           } else {
-            const blob = await wait(response.blob());
+            const blob = body;
             if (!blob.size) throw new Error('Empty song');
             const songUrl = URL.createObjectURL(blob);
             try {

@@ -176,7 +176,8 @@
 #flight-layout #touch-bomb{grid-column:3;background:#302c1c}
 #flight-layout .touch-fire svg{width:20px;height:20px}
 #flight-layout .touch-fire>span{font-size:11px;line-height:13px;letter-spacing:0}
-body:not([data-scene=playing]):not([data-scene=bonus-outro]) #flight-header,body:not([data-scene=playing]):not([data-scene=bonus-outro]) #touch-controls{visibility:hidden}
+/* Instruments stay on screen behind the pause overlay and through the final fade, so the reserved header row never reads as a bare band above the arena. */
+body:is([data-scene=menu],[data-scene=hangar]) #flight-header,body:not([data-scene=playing]):not([data-scene=bonus-outro]) #touch-controls{visibility:hidden}
 @media(pointer:coarse){
   #flight-layout{--flight-dock:92px}
   #flight-layout #touch-controls:not([hidden]){display:flex}

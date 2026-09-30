@@ -14,7 +14,7 @@ Open `http://127.0.0.1:8773/fun/tyran/`.
 
 - **Single player:** WASD to move; **Space** fires your primary gun, **Q** fires secondary plasma, **E** detonates a nova charge.
 - **Pause:** Escape, P or Tab. **Sound:** V, also in the pause menu.
-- **Title screen:** ← → (or A/D) pick the sector, ↑ ↓ (or W/S) the difficulty, **Enter** starts a new campaign, **C** resumes a saved one, **F** practices the selected sector and **H** opens the flight manual. Tab, Enter and Space still work on every control.
+- **Title screen:** a console menu. ↑ ↓ (or W/S) move the highlight, ← → (or A/D) change the sector, or the difficulty while that row is highlighted, **Enter** confirms the highlighted row, **C** resumes a saved campaign, **F** practices the selected sector and **H** opens the flight manual. Tab, Enter and Space still work on every control.
 - **Weapons:** your ship carries one primary gun (Pulse Array, Scatter Cannon or Lance Driver) and the Plasma Mortar. Each fire key uses its own weapon directly; there is no weapon-switch key. The six-tier Ion armament upgrade improves every gun and drone.
 - **Touch:** drag the left control to steer, hold Pulse or Plasma on the right to fire and tap Nova to detonate.
 
