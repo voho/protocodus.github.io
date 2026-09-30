@@ -14,9 +14,11 @@ try {
  await page.goto(url);await createWorldFromMenu(page);
  assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[512,512,48]);
  await page.locator('.main-nav [data-view="build"]').click();
- await page.locator('.project-card summary').click();
- assert.match(await page.locator('.project-card').innerText(),/first cargo route/);
- await page.locator('[data-project-action="source"]').click();
+ // Wide screens leave the goal to its map card; the drawer copy stays for phones and a hidden goal layer.
+ assert.equal(await page.locator('.project-card').isVisible(),false);
+ assert.match(await page.locator('#objective-title').textContent(),/first cargo route/);
+ await page.locator('#close-management').click();
+ await page.evaluate(()=>{const id=document.querySelector('[data-project-action="source"]').dataset.projectTarget,site=transport.game.industries.find(site=>site.id===id);transport.inspect(site.x,site.y);});
  assert.equal(await page.locator('#inspector').isVisible(),true);
  assert.ok(await page.locator('.industry-target').count()>0);
  await page.screenshot({path:`${output}/first-cargo-project.png`});

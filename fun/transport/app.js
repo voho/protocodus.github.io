@@ -359,10 +359,14 @@ function renderGoal() {
  const figure=project.figure||'';$('#objective-chip-figure').textContent=figure;$('#objective-chip-figure').hidden=!figure;
  $('#objective-chip-progress').hidden=!project.progress;$('#objective-chip-progress').style.width=(project.progress?Math.min(1,project.progress.value/project.progress.max)*100:0)+'%';
  $('#objective-steps').hidden=!steps.length;
- $('#objective-steps').innerHTML=steps.map((step,index)=>`<li class="objective-step${step.done?' done':''}${index===current?' current':''}">${step.done?icon('check'):`<span class="step-circle">${index+1}</span>`}<span>${escapeHTML(step.label)}${step.done?'<span class="sr-only"> · done</span>':''}</span>${index===current&&step.button?`<button type="button" class="small-button" data-goal-step="${index}">${escapeHTML(step.button)}</button>`:''}</li>`).join('');
+ // One step, one action: the open step's own label runs it (its action names it in the title); the card's single button
+ // is Plan road when the game can plan the line, else that step's action, else the goal's own.
+ $('#objective-steps').innerHTML=steps.map((step,index)=>{const mark=step.done?icon('check'):`<span class="step-circle">${index+1}</span>`,label=`${escapeHTML(step.label)}${step.done?'<span class="sr-only"> · done</span>':''}`;return `<li class="objective-step${step.done?' done':''}${index===current?' current':''}">${mark}${index===current&&step.button?`<button type="button" class="objective-step-link" data-goal-step="${index}" title="${escapeHTML(step.button)}">${label}${icon('chevronRight')}</button>`:`<span>${label}</span>`}</li>`;}).join('');
  $('#objective-progress').hidden=!project.progress;$('#goal-bar').style.width=(project.progress?project.progress.value/project.progress.max*100:0)+'%';
- $('#objective-action').innerHTML=escapeHTML(project.button)+icon('arrow');$('#objective-another').hidden=!(project.choices?.length>1);$('#guide-button').hidden=true;$('#objective-goals').hidden=steps.length>0;
+ const primary=project.plan?'':steps.length?steps[current]?.button||'':project.button;
+ $('#objective-action').hidden=!primary;$('#objective-action').innerHTML=escapeHTML(primary)+icon('arrow');$('#objective-another').hidden=!(project.choices?.length>1);$('#guide-button').hidden=true;$('#objective-goals').hidden=steps.length>0;
  $('#objective-plan').hidden=!project.plan;$('#objective-plan').textContent=project.plan==='rail'?'Plan rail':'Plan road';
+ $('#app').classList.toggle('goal-layer-off',!visible);
  if(connectionPlan&&!(project.plan&&project.choices[project.choice].source.id===connectionPlan.source.id))cancelConnectionPlan(); // Another idea or a joined pair ends a waiting plan.
 }
 function goalClick(e) {
@@ -371,7 +375,10 @@ function goalClick(e) {
  if(button.id==='dismiss-objective'){storeGoalFolded(true);goalOpen=false;}
  else if(button.id==='objective-chip'){storeGoalFolded(false);goalOpen=true;}
  else if(button.id==='objective-another'){const next=project.choices[(project.choice+1)%project.choices.length];goalChoice=next.source?.id??next;if(view==='build')renderPanel();}
- else if(button.id==='objective-action'){goalOpen=false;runProjectAction(project.action,project.target,{tool:project.tool});}
+ else if(button.id==='objective-action'){
+  goalOpen=false;const steps=project.steps||[],step=steps.find(step=>!step.done);
+  if(steps.length&&step?.action)runProjectAction(step.action,project.target,{...step,choice:project.choices[project.choice]});else runProjectAction(project.action,project.target,{tool:project.tool});
+ }
  else if(button.id==='objective-plan'){goalOpen=false;planFirstConnection(project);}
  else if(button.id==='objective-goals')openGoals();
  else if(button.dataset.goalStep){const step=project.steps[Number(button.dataset.goalStep)];goalOpen=false;if(step?.action)runProjectAction(step.action,project.target,{...step,choice:project.choices[project.choice]});}
@@ -997,11 +1004,12 @@ function entityRows() {
  return rows.sort(sort==='name'?(a,b)=>byName(name(a.entity),name(b.entity))||a.d-b.d:(a,b)=>a.rank-b.rank||a.d-b.d);
 }
 function entityCards() {
+ // One row per place: its name and key figure, where it is and one status line. Page controls follow the list.
  const rows=entityRows(),pages=Math.ceil(rows.length/ENTITIES_PER_PAGE);entityPage=Math.min(entityPage,Math.max(0,pages-1));
  const visible=rows.slice(entityPage*ENTITIES_PER_PAGE,(entityPage+1)*ENTITIES_PER_PAGE),controls=pageControls(view==='towns'?'Town pages':'Industry pages','entity-page',entityPage,pages);
  if(!visible.length)return '';
- if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return controls+visible.map(({entity:city,d})=>`<button class="entity-card" data-city="${city.id}"><h3>${escapeHTML(city.name)}${icon('chevronRight')}</h3><p class="entity-place">${tilesAway(Math.sqrt(d))}</p><p>${cargoBadge('passengers',{count:Math.floor(city.population)})} <span>residents</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}</p><div class="entity-metric"><span>Transport</span><span>${townService(game,city,activeStops).label}</span></div>${city.market?.rent>0?`<div class="entity-metric property-metric"><span>Your property</span><span data-num>${money(city.market.rent)} a month</span></div>`:''}${townNeedIcons(city)}</button>`).join('')+controls;}
- return controls+visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site);return `<button class="entity-card" data-industry="${site.id}"><div class="entity-heading">${industryPortrait(site.kind)}<div class="entity-title"><h3>${escapeHTML(site.name||def.name)}${icon('chevronRight')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p></div></div>${cargoRecipe(def.inputs,def.outputs)}<p class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</p><div class="entity-metric"><span>${integer(Object.values(site.inventory||{}).reduce((a,b)=>a+b,0))} stored</span><span>${Math.round((site.capacity||1)*100)}% capacity</span></div></button>`;}).join('')+controls;
+ if(view==='towns'){const active=new Set(game.routes.filter(route=>route.active).flatMap(route=>route.stops)),activeStops=game.stations.filter(stop=>active.has(stop.id));return visible.map(({entity:city,d})=>{const population=Math.floor(city.population),rent=city.market?.rent>0?city.market.rent:0;return `<button class="entity-card" data-city="${city.id}"><h3><span class="entity-name">${escapeHTML(city.name)}</span><span class="entity-figure" title="${integer(population)} residents">${cargoIcon('passengers',{decorative:true})}<span data-num>${integer(population)}</span></span>${icon('chevronRight')}</h3><p class="entity-meta"><span class="entity-place">${tilesAway(Math.sqrt(d))}</span><span>${townService(game,city,activeStops).label}</span>${townGrowth(game,city)?.change>0?'<span class="town-tag">Growing</span>':''}${rent?`<span class="property-metric">Your property <span data-num>${money(rent)} a month</span></span>`:''}</p>${townNeedIcons(city)}</button>`;}).join('')+controls;}
+ return visible.map(({entity:site,d})=>{const def=INDUSTRIES[site.kind],status=industryStatus(site),town=nearTown(site),stored=Object.values(site.inventory||{}).reduce((a,b)=>a+b,0);return `<button class="entity-card entity-site" data-industry="${site.id}" title="${integer(stored)} stored · ${Math.round((site.capacity||1)*100)}% capacity">${industryPortrait(site.kind)}<span class="entity-title"><h3><span class="entity-name">${escapeHTML(site.name||def.name)}</span>${icon('chevronRight')}</h3><p class="entity-place">${town?`Near ${escapeHTML(town.name)} · `:''}${tilesAway(Math.sqrt(d))}</p><span class="entity-meta">${cargoRecipe(def.inputs,def.outputs)}<span class="site-status" data-state="${status.state}">${escapeHTML(status.label)}</span></span></span></button>`;}).join('')+controls;
 }
 function entitySearch(label) {
  return `<label class="entity-search"><span class="sr-only">${label}</span><input id="entity-search" type="search" aria-label="${label}" placeholder="${label}" value="${escapeHTML(entityFilters[view])}"></label>`;

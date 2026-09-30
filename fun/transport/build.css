@@ -92,10 +92,6 @@
 .tool-grid .tool-card .tool-title{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600}
 .tool-grid .tool-card .tool-cost{font-size:var(--fs-small);line-height:var(--lh-small);margin-top:4px;color:var(--ink-2)}
 .tool-grid .tool-card.active{background:var(--well);border-color:var(--ink);box-shadow:none;outline:1px solid var(--ink);outline-offset:-1px}
-.tool-grid .tool-card[data-tool=bulldoze]{grid-column:1/-1;display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:60px}
-.tool-grid .tool-card[data-tool=bulldoze] svg,.tool-grid .tool-card[data-tool=bulldoze] .tool-cost{margin:0}
-.tool-grid .tool-card[data-tool=bulldoze] .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-.tool-grid .tool-card[data-tool=bulldoze] .shortcut{display:none}
 .stop-mode-picker{display:flex;align-items:center;gap:4px;padding:4px;background:var(--well);border-radius:var(--r-3);margin:12px 0}
 .stop-mode-picker>span{flex:0 0 auto;max-width:78px;padding:0 4px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .stop-mode-picker button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;min-height:44px;border-radius:var(--r-2);padding:8px 8px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
@@ -128,8 +124,6 @@
  #cancel-tool-button{min-width:58px;padding:12px 12px;margin-left:2px}
  .tool-grid .tool-card{min-height:92px;padding:12px}
  .tool-grid .tool-card .tool-title{font-size:var(--fs-body);line-height:var(--lh-body)}
- .tool-grid .tool-card[data-tool=bulldoze]{padding:12px 12px;gap:8px}
- .tool-grid .tool-card[data-tool=bulldoze] .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
 }
 .tool-card .tool-art{display:block;width:60px;height:38px;margin:0 0 4px;object-fit:contain}
 .building-card canvas,.industry-art{image-rendering:auto;object-fit:contain}
@@ -140,6 +134,8 @@
 .tip-place:hover{background:var(--ink-2)}
 .tip-place:disabled{background:var(--well);color:var(--ink-3);cursor:default}
 .compact-play:not(.page-zoomed) .tip-place{touch-action:none}
+/* The drawer repeats the goal only where the map cannot show it: on phones, or with the Next goal layer off. */
+@media(min-width:701px){#app:not(.goal-layer-off) .project-card{display:none}}
 .project-card{margin:16px 0 4px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .project-card summary{cursor:pointer;min-height:24px;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500}
 .project-card p{line-height:1.6;margin:12px 0;color:var(--ink-2)}
@@ -188,8 +184,6 @@
  .compact-play .tool-grid .tool-card svg{width:20px;height:20px;margin-bottom:4px}
  .compact-play .tool-grid .tool-card .tool-title{font-size:var(--fs-small);line-height:var(--lh-small)}
  .compact-play .tool-grid .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption);margin-top:1px;white-space:nowrap}
- .compact-play .tool-grid .tool-card[data-tool=bulldoze]{min-height:44px;padding:8px 12px}
- .compact-play .tool-grid .tool-card[data-tool=bulldoze] svg{margin:0}
 }
 @media(hover:none) and (pointer:coarse){
  .tool-card .shortcut,.compact-tool>span{display:none}
@@ -217,13 +211,6 @@
 #active-tool-turn[hidden]{display:none}
 #active-tool-turn:not([hidden])+#cancel-tool-button{margin-left:0}
 /* The Airport card takes its own row between the places and Bulldozer: portrait, then name over price. */
-.tool-grid .tool-card[data-tool=airport]{grid-column:1/-1;display:grid;grid-template-columns:60px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;column-gap:12px;min-height:72px}
-.tool-grid .tool-card[data-tool=airport] .tool-art{grid-row:1/3;margin:0}
-.tool-grid .tool-card[data-tool=airport] .tool-title{align-self:end}
-.tool-grid .tool-card[data-tool=airport] .tool-cost{align-self:start}
-@media(max-height:500px) and (orientation:landscape){
- .compact-play .tool-grid .tool-card[data-tool=airport]{grid-template-columns:40px minmax(0,1fr);min-height:44px;padding:8px 12px}
-}
 /* On a phone the Airport tool's Turn takes the recent-tools dock's place, so its hint keeps room. */
 .compact-play #active-tool-bar:has(#active-tool-turn:not([hidden])) #active-tool-dock{display:none}
 /* A placement's forecast (city-investment-feedback): what a zone stroke or a placed home, shop or workshop would bring, as the tip's second line. */
