@@ -219,7 +219,8 @@ export function createAudio() {
   /* `carveLoad` is optional only so that a caller which has not been updated
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
-  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null) {
+  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null,
+    chatter = 0) {
     /* Not gated on `muted`: the master gain is already zero, so the voices
        are silent either way, and the gains have to keep tracking the run —
        frozen at their pre-mute values, unmuting at a standstill replayed a
@@ -254,9 +255,12 @@ export function createAudio() {
     whistle.gain.gain.setTargetAtTime(fast * fast * 0.10 * gust * (grounded ? 1 : 0.9), t, 0.15);
     whistle.filter.frequency.setTargetAtTime(950 + fast * 1750, t, 0.25);
 
-    // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock
-    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150;
-    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08) * on, t, 0.09);
+    // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock.
+    // An icy edge skipping under load (`chatter`) opens it up and drives it
+    // higher — the rattle through the board, heard as well as felt.
+    const rattle = clamp01(chatter);
+    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150 + rattle * 260;
+    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08 + rattle * 0.07) * on, t, 0.09);
     rumble.filter.frequency.setTargetAtTime(rumbleFreq, t, 0.15);
 
     // The edge, holding. High-pitched metallic chime on ice, soft swoosh on powder
@@ -360,6 +364,24 @@ export function createAudio() {
     jump(power) {
       tone(180 + power * 90, 70, 0.20, 0.18);
       burst(0.13, 2400, 0.10, 'highpass', null, 0, whiteBuf);
+    },
+
+    /* The lip pop, confirmed. It plays on top of `jump`, a beat later, so it
+       has to be a different material rather than a louder pop: a short,
+       bright fifth that rises — a click of the tongue rather than a fanfare,
+       because it fires on a timing the player is still in the middle of and
+       anything longer would land on top of the spin blips. */
+    perfectPop() {
+      tone(880, 1320, 0.09, 0.10, 'triangle', 0.015);
+      tone(1320, 1760, 0.12, 0.07, 'sine', 0.06);
+    },
+
+    /* A run of gates broken. Quiet and falling, the chime's own voice run
+       backwards: the ladder the player was climbing just went, and the ear
+       should hear it go without being told off. */
+    gateMiss() {
+      tone(523.25, 392, 0.22, 0.08, 'triangle');
+      tone(392, 311.13, 0.26, 0.05, 'sine', 0.09);
     },
 
     // A synthesized chime for slalom gate streaks. Pitch increases with the streak.

@@ -87,6 +87,8 @@ const momentumStability = (speed) => {
    remains centred, so carving across a lip still reads the ramp's real camber.
    The launch look-ahead then sees the missing ground and does its own job. */
 const CONTACT_EPS = 0.35;
+// Seconds ahead the HUD's "lip ahead" prediction asks about — see `lipAhead`.
+const LIP_AHEAD = [0.13, 0.2, 0.28];
 function trailingNormalFrom(fn, x, z, vel, out) {
   const speed = Math.hypot(vel.x, vel.z);
   if (speed < 0.25) return normalFrom(fn, x, z, out);
@@ -172,6 +174,15 @@ export const CLEAN = 0;
 export const SKETCHY = 1;
 export const BAIL = 2;
 
+/* What the WIPEOUT banner says for a fall that is not a landing. A landing
+   names its own reason (see `land`); these are the other ways down. */
+const FALL_REASONS = {
+  stall: 'STALLED OUT',
+  hit: 'CAUGHT AN OBSTACLE',
+  npc: 'COLLISION',
+  land: 'HARD LANDING',
+};
+
 /* The three reaches, indexing `RIDER.grabs`. Named rather than numbered
    because the pose book in `riderModel.js` indexes the same table and a bare
    2 in two files is how a nose grab quietly becomes a method. */
@@ -182,6 +193,23 @@ export const GRAB_METHOD = 2;
 // What the board stands on when the world cannot say: plain groomed piste.
 // Hoisted so the hot path never carries an object literal.
 const GROOMED_FALLBACK = { rock: 0, groomed: 1, ice: 0, powder: 0 };
+
+/* The top speed a surface will carry, in m/s, at a given share of flow.
+
+   Flow opens the ceiling continuously from `baseMaxSpeed` to `maxSpeed`, and
+   the snow decides how much of that is available: the groomed ribbon runs a
+   little over it, open snow well under, talus under that — see `pisteSpeed`
+   in the config. The 0.42–1.15 band is the one main.js always applied; it is
+   here now because the rider is where it is enforced (see `groundStep`). */
+export function speedCeiling(flow, surf = GROOMED_FALLBACK) {
+  const share = clamp(
+    surf.groomed * RIDER.pisteSpeed + surf.powder * RIDER.powderSpeed
+      + surf.ice * RIDER.iceSpeed + surf.rock * RIDER.rockSpeed,
+    0.42, 1.15,
+  );
+  return (RIDER.baseMaxSpeed
+    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * clamp(flow || 0, 0, 1)) * share;
+}
 
 export class Rider {
   /* `world.height(x, z)` is the hill plus whatever kickers sit on it.
@@ -227,14 +255,14 @@ export class Rider {
     return this;
   }
 
-  emit(name, a, b) {
+  emit(name, a, b, c) {
     const list = this.events[name];
     // An event nobody registered must be a no-op, not a TypeError: this runs
     // inside the physics step, where one bad name used to crash the frame —
     // `perfectPop` fired on exactly the pop it was named after and its list
     // was missing from the registry above.
     if (!list) return;
-    for (let i = 0; i < list.length; i++) list[i](a, b);
+    for (let i = 0; i < list.length; i++) list[i](a, b, c);
   }
 
   reset(z = 0, x = null) {
@@ -282,6 +310,7 @@ export class Rider {
     this._jumpBuffer = 0;
     this._bufferCharge = 0;
     this.tucking = false;
+    this.tuckAmount = 0;        // 0..1, how far the tuck trigger is squeezed
     this.pushing = false;       // rear foot is out of the binding and skating
     this.pushPhase = 0;         // 0..1 authored cycle, shared by physics and rig
     this.pushStroke = 0;        // completed plants in this run, for diagnostics
@@ -311,11 +340,18 @@ export class Rider {
     this.balance = 1;        // 1 when the body is where the turn needs it
     this.leanErr = 0;        // signed: + is under-leaned, − is over-leaned
     this.slide = 0;          // m/s of sideways wash, for spray and sound
+    this.scrub = 0;          // …of which the surface ceiling's plough, see `groundStep`
     this.lateral = 0;        // signed, so the spray knows which way to fly
     this.carveLoad = 0;      // 0..1, how hard the edge is working
+    this.chatter = 0;        // 0..1, an icy edge skipping under load
+    this._chatterPhase = 0;
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
     this.offPiste = 0;       // 0..1, how deep into the unpisted boundary snow
     this.lipPop = false;     // was the last launch popped on the lip
+    this.airPop = 0;         // m/s of leg pop this air began with, see `land`
+    this.lipReady = false;   // would letting go of a charge *now* be a lip pop
+    this.lipAhead = false;   // …or is one coming up in the next few tenths
+    this.fallReason = '';    // what put the rider down, in words, for the HUD
     this.takeoffSpeed = 0;   // speed committed to the current trick
     this.fallTimer = 0;
     this.fallElapsed = 0;
@@ -462,9 +498,15 @@ export class Rider {
           ? Math.sign(this.edge)
           : (this.switchStance ? -1 : 1);
     }
+    /* How hard, too. `brake` was always a 0..1 pressure that builds and
+       releases, but the only thing it was ever asked for was all of it; an
+       analogue trigger now asks for as much as it is squeezed (see
+       `brakeAmount` in input.js), so a light squeeze is a speed check and
+       a full one is the stop. Keys and buttons still ask for 1. */
+    const brakeWant = input.brake ? clamp(input.brakeAmount ?? 1, 0, 1) : 0;
     this.brake = approach(
-      this.brake, input.brake ? 1 : 0,
-      input.brake ? RIDER.brakeEngage : RIDER.brakeRelease, dt,
+      this.brake, brakeWant,
+      brakeWant > this.brake ? RIDER.brakeEngage : RIDER.brakeRelease, dt,
     );
     const braking = this.brake;
     const brakeActive = braking > 0.02;
@@ -631,8 +673,12 @@ export class Rider {
     const hillPull = travelling > 0.5
       ? RIDER.gravity * Math.max(0, -this.climbRate) / travelling
       : 0;
+    // …and a half-squeezed trigger is half a tuck: the floor it buys, and
+    // what it spends from the meter (see flow.js), scale with the squeeze.
+    this.tuckAmount = this.tucking ? clamp(input.tuckAmount ?? 1, 0, 1) : 0;
     const poweredSpeed = this.tucking && hillPull > 0
-      ? poweredEntrySpeed + Math.min(RIDER.tuckAcceleration, hillPull) * drive * dt
+      ? poweredEntrySpeed + Math.min(RIDER.tuckAcceleration, hillPull) * drive
+        * this.tuckAmount * dt
       : 0;
 
     /* THE BEND — how hard the shape of the ground is pressing the board into
@@ -767,8 +813,41 @@ export class Rider {
        washes out and goes down the fall line, which on the containment wall
        points back at the run. See `RIDER.wallWash`. */
     const surf = this.world.surfaceAt?.(pos.x, pos.z) || GROOMED_FALLBACK;
-    const matGrip = surf.groomed * 1.0 + surf.powder * 1.25 + surf.ice * 0.65 + surf.rock * 0.70;
-    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip
+    /* WHAT EACH SNOW HOLDS, and the corduroy holds the most.
+
+       Powder was weighted at 1.25 here — a quarter MORE edge than the piste —
+       which contradicted the rest of the model twice over: `stormGrip` says
+       fresh snow weakens the edge, and the whole course is built on the
+       groomed ribbon being the fast, reliable line. Measured on the flat at
+       full lock, powder turned 112°/s at 25 m/s against the corduroy's 86 —
+       the deepest snow on the hill was the stickiest. A carving edge needs
+       something firm to bite into, and machine-packed snow is the firmest
+       thing a board meets that is not ice; unconsolidated powder lets it
+       slice through and slide. So the ribbon is the reference and everything
+       else is under it: powder soft (it loses its line and scrubs — see the
+       powder terms further down), ice lower still, and rock is rock. */
+    const matGrip = surf.groomed * RIDER.snowGrip.groomed
+      + surf.powder * RIDER.snowGrip.powder
+      + surf.ice * RIDER.snowGrip.ice + surf.rock * RIDER.snowGrip.rock;
+    /* ICE CHATTER. Hardpack does not simply hold less; under a loaded edge
+       it holds unevenly. The edge bites, skips a few centimetres, bites
+       again — a rattle through the board at ten to twenty cycles a second
+       that every rider who has carved an icy pitch knows in their knees.
+       Modelled as a ripple in the grip, driven by distance so its pitch
+       rises with speed, and only where it happens: on ice, with the edge
+       working near its limit (last step's `carveLoad`, because this step's
+       is computed from the grip being rippled). `chatter` is published 0..1
+       for the camera, the pad and the mix; the ripple itself is small
+       enough that it reads as a buzz and an occasional slip, not a fall. */
+    this._chatterPhase += (speed * dt) / RIDER.chatterWave;
+    if (this._chatterPhase > 1) this._chatterPhase -= Math.floor(this._chatterPhase);
+    const iceLoad = surf.ice
+      * clamp((this.carveLoad - RIDER.chatterFrom) / (1 - RIDER.chatterFrom), 0, 1)
+      * clamp(speed / RIDER.chatterSpeed, 0, 1);
+    this.chatter = approach(this.chatter, iceLoad, 14, dt);
+    const ripple = 1 - RIDER.chatterGrip * this.chatter
+      * (0.5 + 0.5 * Math.sin(this._chatterPhase * TAU));
+    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip * ripple
       * (1 - RIDER.wallWash * this.offPiste);
 
     /* THE CARVE.
@@ -1172,8 +1251,12 @@ export class Rider {
        going. So both terms are scaled out with the pressure. What is left is
        the plough below, which is the honest cost and is a fifth of the size. */
     const pressGlide = 1 - 0.86 * this.press;
+    /* Powder buries a sliding board rather than letting it skate, so the
+       same wash costs more of the run there: the snow piles up against the
+       base and has to be pushed aside. See `powderScrub`. */
+    const deep = surf.powder;
     let forwardLoss = Math.abs(held) * RIDER.carveDrag
-      + this.slide * RIDER.slideScrub * pressGlide * dt;
+      + this.slide * RIDER.slideScrub * (1 + RIDER.powderScrub * deep) * pressGlide * dt;
     /* And cutting the trench is not free either. A carved edge is slicing
        through snow rather than gliding over it, and the further it is rolled
        over the more of it is buried — which is why a run held on a hard edge
@@ -1207,6 +1290,18 @@ export class Rider {
       forwardLoss += RIDER.wallDrag * this.offPiste * this.offPiste
         * clamp(this.climbRate / speed, 0, 1) * dt;
     }
+    /* …and powder has to be ridden fast enough to float. A board planes on
+       deep snow once it has the speed to, and below that it sinks and
+       ploughs — which is what "deep" feels like from on top of it, and the
+       opposite of the sticky, tight-turning surface this used to be. The
+       plough fades out over `powderFloat`, so a committed line through the
+       powder floats and a slow one bogs down. */
+    if (deep > 0) {
+      const sinking = 1 - clamp(
+        (speed - RIDER.powderFloat[0]) / (RIDER.powderFloat[1] - RIDER.powderFloat[0]), 0, 1,
+      );
+      forwardLoss += RIDER.powderSink * deep * sinking * dt;
+    }
     const forwardSign = Math.sign(vFwd) || (this.switchStance ? -1 : 1);
     vFwd = forwardSign * Math.max(0, Math.abs(vFwd) - forwardLoss);
 
@@ -1214,7 +1309,9 @@ export class Rider {
     // accidental wash catches its edge and aligns much faster. Kinetic base
     // friction below supplies the rest of the stop.
     const slideDamping = (2.6
-      + (RIDER.brakeSlideDamping - 2.6) * braking) * pressGlide;
+      + (RIDER.brakeSlideDamping - 2.6) * braking) * pressGlide
+      // A board skidding sideways through deep snow is stopped by it.
+      * (1 + RIDER.powderWash * deep);
     vLat *= Math.exp(-slideDamping * dt);
 
     // Pressure progressively moves from a waxed base to an edged speed check.
@@ -1362,6 +1459,41 @@ export class Rider {
       }
     }
 
+    /* THE SURFACE CEILING, shed rather than clamped, and only on the snow.
+
+       This used to live in main.js as a rescale applied after every step,
+       and it was wrong in two ways that a player could feel.
+
+       It ran in the air. The limit was read off the surface *under* the
+       rider, so a forty-metre-a-second jump launched from the corduroy over
+       the powder shoulder had its horizontal speed cut to the powder's
+       ceiling in mid-flight — measured, about ten metres a second gone
+       between the lip and the landing, with nothing touching the board. An
+       airborne rider has no surface; the only things that can change their
+       horizontal speed up there are the air (charged in `airStep`) and a
+       little wind, so the air now has no ceiling at all and the snow they
+       land on collects whatever excess they bring.
+
+       And it was a wall. Every step the speed was written straight back to
+       the limit, so drifting off the ribbon into deep snow at speed felt
+       like a governor rather than a plough: no spray, no sound, the number
+       in the corner simply stopped. Now the excess over the ceiling is
+       bled away exponentially at `ceilingShed` per second — the board sinks
+       and ploughs its way down to what the surface will carry — and what is
+       shed is booked as `scrub`, a share of `slide`, so the spray, the wash
+       in the mix and the trench all answer it the way they answer a skid.
+       Flow reads the edge's own slide without it (see flow.js): losing speed
+       to deep snow is a cost, not a washed-out edge. */
+    this.scrub = 0;
+    const ceiling = speedCeiling(this.flowDrive, surf);
+    const running = vel.length();
+    if (running > ceiling) {
+      const shed = (running - ceiling) * (1 - Math.exp(-RIDER.ceilingShed * dt));
+      vel.multiplyScalar((running - shed) / running);
+      this.scrub = Math.min(RIDER.scrubSlideMax, (shed / dt) * RIDER.scrubSlide);
+      this.slide += this.scrub;
+    }
+
     // Charging an ollie loads the legs; releasing it unloads them
     if (input.jump) {
       this.charging = true;
@@ -1470,6 +1602,44 @@ export class Rider {
       previousDistance = distance;
     }
 
+    /* The lip-pop test below, published every step whether or not anything
+       is released, so the HUD can tell a rider holding a charge that letting
+       go NOW would be the lip pop. The timing bonus was the one skill in the
+       game with no read-out at all: the player learned it had happened from
+       a word on a banner a second later and never learned what "now" felt
+       like. It IS the release condition, so the tint and the payout cannot
+       disagree; `airStep` keeps it lit through the late-release window. */
+    this.lipReady = !blocked && clearance > -0.25;
+
+    /* …and a longer, coarser look ahead, for the HUD alone and only while a
+       charge is being held.
+
+       Measured on a pitch break and on a rounded crest, the release test
+       below is true on the snow for at most the step that launches — the
+       ground has to be falling away faster than gravity *now*, which is
+       the launch condition itself — and the rest of the lip window is the
+       sixth of a second after it in the air (see `airStep`). A cue that
+       lights only once the lip has arrived is a cue a human reaction cannot
+       use. So the same ballistic question is asked two to three tenths of a
+       second out, three samples, and `lipAhead` says "hold it — the lip is
+       coming" before `lipReady` says "now". Measured off the pitch break in
+       riding-check it leads the launch by 0.09 s at 12 m/s, 0.13 s at 18
+       and 0.18 s at 30, so with the late window behind it the cue is lit
+       for a quarter to a third of a second in all. It never pays anything
+       and never launches anyone; it is a prediction for the read-out. */
+    this.lipAhead = false;
+    if (input.jump && horizontalSpeed > 4 && !this.lipReady) {
+      for (let k = 0; k < LIP_AHEAD.length; k++) {
+        const t = LIP_AHEAD[k];
+        const ground = this.world.height(pos.x + vel.x * t, pos.z + vel.z * t);
+        const ballistic = pos.y + predictorVy * t - 0.5 * RIDER.gravity * t * t;
+        if (ballistic - ground > RIDER.launchGap) {
+          this.lipAhead = true;
+          break;
+        }
+      }
+    }
+
     /* Popping, and popping at the right moment.
 
        The clearance above is read *before* the pop is resolved, which is
@@ -1485,7 +1655,7 @@ export class Rider {
       const held = this.charging ? this.charge : this._bufferCharge;
       this._jumpBuffer = 0;
       pop = RIDER.popMin + (RIDER.popMax - RIDER.popMin) * held;
-      if (!blocked && clearance > -0.25) {
+      if (this.lipReady) {
         pop *= RIDER.lipBonus;
         this.lipPop = true;
       } else if (this.bend > RIDER.pumpFrom) {
@@ -1699,6 +1869,7 @@ export class Rider {
     // width of a lip.
     this._bendReady = false;
     if (pop > 0) this.applyPop(n, pop);
+    this.airPop = pop > 0 ? pop : 0;
     // Scoring and telemetry read the momentum the ramp received, not the
     // optional leg impulse added afterwards.
     this.takeoffSpeed = launchSpeed;
@@ -1786,6 +1957,10 @@ export class Rider {
     // spinVel. A release must reach that damping and landing help immediately.
     const turn = input.turnIntent ?? input.turn;
     this.airTime += dt;
+    // The late half of the lip window: a charge carried off a natural launch
+    // and released inside `lipWindow` is still the lip pop (see below).
+    this.lipReady = this._latePopAllowed && this.airTime <= RIDER.lipWindow;
+    this.lipAhead = false;
     if (input.jump) {
       this.charging = true;
       this.charge = Math.min(1, this.charge + dt / RIDER.chargeTime);
@@ -1794,7 +1969,9 @@ export class Rider {
         const pop = (RIDER.popMin + (RIDER.popMax - RIDER.popMin) * this.charge)
           * RIDER.lipBonus;
         this.applyPop(this.normal, pop);
+        this.airPop = pop;
         this._latePopAllowed = false;
+        this.lipReady = false;
         this.lipPop = true;
         this.compressionVel = -14;
         this.emit('perfectPop');
@@ -1810,7 +1987,10 @@ export class Rider {
     this.pushing = false;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
     this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
+    this.tuckAmount = this.tucking ? clamp(input.tuckAmount ?? 1, 0, 1) : 0;
     this.slide = 0;
+    this.scrub = 0;
+    this.chatter = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
     // Air is air, wherever it is over. Deep snow only exists under a board.
@@ -2068,6 +2248,22 @@ export class Rider {
 
   land() {
     const { vel } = this;
+    /* The stance the trick was TAKEN OFF in, read before anything below can
+       square the board and rewrite it.
+
+       Nothing in the air touches `switchStance` — only a butter on the snow
+       flips it — so at the top of this function it is still exactly what it
+       was on the lip. That is the stance the sport names a trick by: a switch
+       backside 180 is one that left the snow riding switch, wherever it came
+       down. The summary used to carry the LANDING stance instead, and that
+       was a real payout bug rather than a naming quibble — a plain regular
+       180 comes down switch by definition, so every one of them was called
+       "SWITCH + FRONTSIDE 180" and paid the ×1.5 switch premium, while a
+       rider who had genuinely set up switch and spun a 180 back to regular
+       came down regular and was paid nothing for the harder half. Measured
+       with the physics harness: a regular 180 scored as switch, a switch 180
+       scored as regular, every time. */
+    const tookOffSwitch = this.switchStance;
     // A touchdown at the centimetre before a lip must use the ramp face, not
     // a centred sample that includes the vertical drop behind it.
     const n = this._n;
@@ -2109,10 +2305,36 @@ export class Rider {
        unnoticed natural hop caused a wipeout while a nearly identical landing
        was merely sketchy. Keep yaw mismatch in the sketchy branch below; hard
        impact and a rider arriving upside-down remain genuine bails. */
+    /* A RIDER IS BRACED FOR THE AIR THEY POPPED.
+
+       A flight lands on the grade with roughly the speed into the slope it
+       left with, and a charged pop alone is up to fourteen metres a second
+       of that — most of the seventeen at which a landing turns heavy. So
+       every popped air off anything with lift of its own was heavy, and the
+       lip cue on the charge bar was teaching players to do the one thing
+       the landing then marked down: measured on three seeds, not one perfect
+       pop off a side hit landed clean — three quarters came down HEAVY and
+       the rest bailed.
+
+       What decides a heavy landing on a real hill is surprise, not size. A
+       rider who popped knows how high they are going, spots the landing and
+       meets it with their legs; the one who gets hurt is the one who rolled
+       off a crest onto flat they did not see coming. So a share of the pop
+       the rider put in themselves raises the heavy line, and only that:
+       rolling off the same hit without popping is judged exactly as it was.
+       The raised line stops `bracedMargin` short of the bail, so there is
+       always a band of sketchy between a landing that was fine and one that
+       ends in the snow, and a big hit taken too fast still lands heavy —
+       checking speed before the biggest air on the run stays the decision
+       it was. Same seeds, same bot, with the trimmed `lipBonus`: seven
+       perfect pops in twelve now land clean (every one taken under about
+       26 m/s), the fast ones still land heavy, and one in twelve bails. */
+    const heavyAt = Math.min(RIDER.hardImpact - RIDER.bracedMargin,
+      RIDER.softImpact * 1.9 + RIDER.bracedShare * this.airPop);
     if (impact > RIDER.hardImpact
       || (judged && flipErr > p * 1.6)) {
       verdict = BAIL;
-    } else if (impact > RIDER.softImpact * 1.9
+    } else if (impact > heavyAt
       || (judged && (spinErr > w || flipErr > p))) {
       verdict = SKETCHY;
     }
@@ -2130,8 +2352,43 @@ export class Rider {
     const halfTurns = Math.round(Math.abs(this.spinAccum) / Math.PI);
     const flipTurns = Math.round(Math.abs(this.flipAccum) / TAU);
 
+    /* WHY, in words — because a verdict with no reason teaches nothing.
+
+       "SKETCHY" and "WIPEOUT" were the whole of the feedback, and the four
+       ways a landing actually goes wrong want four different corrections:
+       came down too hard (pick a gentler landing or absorb it), stopped the
+       rotation short (commit earlier), carried it past (let go sooner), or
+       still had the hand on the board. Every one of them is already measured
+       above, so this is only a question of which one decided the verdict,
+       asked in the same order the verdict was: impact first for a bail, then
+       the flip, then the spin, then the grab, then a merely heavy touchdown.
+
+       Short versus long is the sign of the leftover against the direction of
+       rotation. Both `yaw` and `flip` move with their accumulators, so a
+       residual that points the way the rider was turning is rotation carried
+       past the stance, and one pointing back against it is rotation that
+       never arrived. A board that came down across its travel without having
+       spun at all was not under- or over-anything — it landed sideways. */
+    let reason = '';
+    const stanceErr = isSwitch ? wrapPi(off - Math.PI) : off;
+    const rotated = (residual, accum) => (
+      Math.abs(accum) < 0.3 ? 'LANDED SIDEWAYS'
+        : residual * accum > 0 ? 'OVER-ROTATED' : 'UNDER-ROTATED'
+    );
+    if (verdict === BAIL) {
+      reason = impact > RIDER.hardImpact ? 'HARD LANDING'
+        : flipErr > RIDER.upsideDown ? 'UPSIDE DOWN'
+          : rotated(wrapPi(this.flip), this.flipAccum);
+    } else if (verdict === SKETCHY) {
+      reason = judged && flipErr > p ? rotated(wrapPi(this.flip), this.flipAccum)
+        : judged && spinErr > w ? rotated(stanceErr, this.spinAccum)
+          : judged && this.grabbing ? 'GRAB HELD'
+            : 'HEAVY LANDING';
+    }
+
     const summary = {
       verdict,
+      reason,
       airTime: this.airTime,
       spin: this.spinAccum,
       flips: this.flipAccum,
@@ -2139,7 +2396,11 @@ export class Rider {
       flipTurns,
       grabTime: this.grabTime,
       grabKind: this.grabKind,
-      switchStance: isSwitch,
+      // What the trick is named and paid by — see `tookOffSwitch` above —
+      // and, kept apart from it, the stance the board came down in, which
+      // is what the next carve rides.
+      switchStance: tookOffSwitch,
+      landedSwitch: isSwitch,
       impact,
       judged,
       lipPop: this.lipPop,
@@ -2170,7 +2431,7 @@ export class Rider {
     this.compressionVel += Math.min(impact, 30) * 0.85;
 
     if (verdict === BAIL) {
-      this.fall('land', impact);
+      this.fall('land', impact, reason);
     } else {
       /* Snap the board straight — forward or switch, whichever was closer —
          but only if this was actually a jump.
@@ -2236,9 +2497,15 @@ export class Rider {
   /* `into` is the speed that went into whatever caused this, in m/s. It is
      what decides how far the rider is thrown: a bail off a bad landing hands
      over the impact, a tree hands over the closing speed, and a spill at
-     walking pace hands over almost nothing and is over in a second. */
-  fall(cause = 'land', into = 0) {
+     walking pace hands over almost nothing and is over in a second.
+
+     `reason` is the same event in words, for the WIPEOUT banner. A landing
+     supplies its own (see `land`); everything else is named by its cause. */
+  fall(cause = 'land', into = 0, reason = '') {
     if (this.state === 'fall') return;
+    this.fallReason = reason || FALL_REASONS[cause] || '';
+    this.lipReady = false;
+    this.lipAhead = false;
     this.state = 'fall';
     this.grounded = false;
     this.airborne = true;
@@ -2284,7 +2551,7 @@ export class Rider {
     // mix, powder plume and camera response all need the same physical number
     // that launched the body; throwing it away here made every wipeout read
     // identically, from a walking-speed washout to a full-speed tree hit.
-    this.emit('fall', cause, into);
+    this.emit('fall', cause, into, this.fallReason);
   }
 
   /* A tumble is a body, not a timer. While it is off the ground it is
@@ -2295,6 +2562,8 @@ export class Rider {
   fallStep(dt) {
     const { pos, vel } = this;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
+    this.scrub = 0;
+    this.chatter = 0;
 
     if (this.state === 'fall') {
       this.fallElapsed += dt;
@@ -2565,8 +2834,13 @@ export function trickName(s, verdict) {
     if (s.airTime > 1.25) parts.push('BIG AIR');
     else return null;
   }
-  if (s.switchStance) parts.unshift('SWITCH');
+  /* SWITCH is a prefix on the trick, not a trick of its own. It was pushed
+     into `parts` and joined like a grab, which read "SWITCH + FRONTSIDE 180"
+     — a stance announced as though it were something the rider had done in
+     addition to the spin. The sport says "switch frontside 180", one phrase,
+     and it describes the take-off stance (see `tookOffSwitch` in `land`). */
   let name = parts.join(' + ');
+  if (s.switchStance) name = `SWITCH ${name}`;
   if (verdict === SKETCHY) name += ' (SKETCHY)';
   return name;
 }

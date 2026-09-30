@@ -212,7 +212,7 @@ export const SNOWPACK = {
 
 const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
   ridges, rolls, moguls, chatter, warp, bulgeVary, character,
-  chapters } = TERRAIN;
+  chapters, sideHits } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
 
@@ -524,6 +524,146 @@ export function gateSlotsIn(zLo, zHi, out = []) {
   return out;
 }
 
+/* ==========================================================================
+   Side hits — the air the racing line was never offered.
+
+   Measured with the physics harness before these existed: a rider steering
+   the racing line on three seeds left the ground 0.3 times per four
+   kilometres. Everything on this mountain that throws a rider — the knolls,
+   the drops — is multiplied by `beyondF` in `heightIn` and so lives outside
+   the corridor, for the good reason given there: a hidden ledge on the run
+   is an ambush. The cost was that the only air on the piste was the ollie,
+   so the lip pop, the flips and anything past a 360 were things the game
+   described and a player almost never met.
+
+   A side hit is the piste's own answer, and it is the thing real pistes
+   actually have: a wind lip or a groomer's leftover drift just off the
+   corduroy, which everybody who rides the run knows is there and aims for.
+   One per gate slot at most, hashed off the slot index like the gates
+   themselves, placed between one gate and the next so that taking it is a
+   line — swing out off the ribbon after a gate, hit it, land, and make the
+   next gate or do not — and never ON the ribbon: the corduroy within
+   `guide.tol` of the line is masked flat, so riding the line alone is still
+   exactly as smooth (and exactly as airless) as it was, and the flow
+   meter's "the line alone never fills the bar" rule is untouched.
+
+   The shape is what makes it throw rather than roll. The windward face is
+   concave — a transition, its slope over the grade growing to `lip` at the
+   crest — and the crest is then rolled over on a cubic that keeps the
+   slope continuous (no crease for the normals to trip on) but curves away
+   at ten times the face's rise over the lee's length squared, far faster
+   than gravity can follow at any speed worth arriving with. So the rider
+   leaves on the face's own angle, which is a property of the hit, and how
+   far they go is a question of how fast they came: a pure function of
+   (x, z, seed) like every other term here, cached per slot because the
+   physics asks about the same one twenty-odd times a step.
+
+   Measured on the same three seeds and the same steering bot: the racing
+   line is untouched (still 0.3 launches per four kilometres, to the metre
+   of distance covered), about ten hits stand in every four kilometres, and
+   a rider who swings out to them leaves the ground 18.5 times per four
+   kilometres — nine or ten of those for more than 0.8 s, median 0.87 s,
+   longest 1.26 s, no falls. A charged pop released on the lip roughly
+   doubles the flight, which is room for a cork, and lands heavy: that is
+   the landing model's verdict on a two-second air onto the grade, and it
+   holds for every lip on the mountain, not only these.
+   ========================================================================== */
+
+const SIDE_HIT_CACHE = [0, 1, 2, 3].map(() => ({
+  seed: NaN, k: -1, on: false, zc: 0, x: 0, rx: 1, h: 0, face: 1, lee: 1, side: 1,
+}));
+
+function sideHitFor(k) {
+  const seed = getWorldSeed();
+  const e = SIDE_HIT_CACHE[k & 3];
+  if (e.k === k && e.seed === seed) return e.on ? e : null;
+  e.k = k;
+  e.seed = seed;
+  e.on = false;
+  const S = sideHits;
+  if (k < S.from || hash2(k, S.seed, 101) > S.chance) return null;
+  const zA = gateSlotZ(k);
+  const zB = gateSlotZ(k + 1);
+  const zc = zA + (zB - zA) * (S.between[0]
+    + (S.between[1] - S.between[0]) * hash2(k, S.seed, 102));
+  const line = guideAt(zc);
+  const centre = nearestCenter(line, zc);
+  const half = corridorHalfAt(zc);
+  const wantR = S.halfWidth[0] + (S.halfWidth[1] - S.halfWidth[0]) * hash2(k, S.seed, 103);
+  const wantOff = S.offset[0] + (S.offset[1] - S.offset[0]) * hash2(k, S.seed, 104);
+  /* The roomier side of the line, when the line has been swung to one side
+     of the corridor; either, by hash, when it runs down the middle. And
+     never so far out that the crest's working middle leaves the groomed
+     corridor: the trees begin a couple of metres past its edge, and a rider
+     who takes a hit must land on the run, not in the forest. A couloir is
+     narrow, so where the hashed hit does not fit it is tried narrower —
+     which also brings it in towards the ribbon, since its offset is partly
+     its own width — and on the other side, before the slot is given up. */
+  const lean = line - centre;
+  const first = Math.abs(lean) > 2 ? -Math.sign(lean)
+    : (hash2(k, S.seed, 105) < 0.5 ? -1 : 1);
+  let side = 0;
+  let x = 0;
+  let rx = 0;
+  for (let attempt = 0; attempt < 4 && !side; attempt++) {
+    const trySide = attempt < 2 ? first : -first;
+    const tryR = attempt % 2 === 0 ? wantR : S.halfWidth[0] * 0.8;
+    const off = guide.tol + Math.max(wantOff, S.clear * tryR);
+    const tryX = line + trySide * off;
+    if (Math.abs(tryX - centre) + S.inside * tryR <= half) {
+      side = trySide;
+      x = tryX;
+      rx = tryR;
+    }
+  }
+  if (!side) return null;
+  const h = S.rise[0] + (S.rise[1] - S.rise[0]) * hash2(k, S.seed, 106);
+  const lip = S.lip[0] + (S.lip[1] - S.lip[0]) * hash2(k, S.seed, 107);
+  e.zc = zc;
+  e.x = x;
+  e.rx = rx;
+  e.h = h;
+  // A quadratic face reaching slope `lip` at the crest is 2h/lip long.
+  e.face = (2 * h) / lip;
+  e.lee = e.face * S.lee;
+  e.side = side;
+  e.on = true;
+  return e;
+}
+
+/* The along-slope profile of a hit, as a share of its height. `s` is metres
+   past the crest down the fall line: the face below zero, the lee above. */
+function sideHitProfile(hit, s) {
+  if (s <= -hit.face || s >= hit.lee) return 0;
+  if (s <= 0) {
+    const u = 1 + s / hit.face;
+    return u * u;
+  }
+  /* Cubic Hermite from (crest, height 1, the face's slope) to (end of the
+     lee, 0, flat): slope-continuous at both ends, so the normals never see
+     a crease, and never below zero on the way down. */
+  const t = s / hit.lee;
+  const r = (2 * hit.lee) / hit.face;
+  return 2 * t * t * t - 3 * t * t + 1 + r * (t * t * t - 2 * t * t + t);
+}
+
+/* Every side hit whose crest lies inside [zLo, zHi), for whoever marks them
+   (the waymarks in props.js) and for the checks. */
+export function sideHitsIn(zLo, zHi, out = []) {
+  out.length = 0;
+  const kLo = Math.max(sideHits.from, Math.floor(-zHi / guide.every) - 2);
+  const kHi = Math.floor(-zLo / guide.every) + 1;
+  for (let k = kLo; k <= kHi; k++) {
+    const hit = sideHitFor(k);
+    if (!hit || hit.zc < zLo || hit.zc >= zHi) continue;
+    out.push({
+      k, z: hit.zc, x: hit.x, halfWidth: hit.rx, height: hit.h,
+      face: hit.face, lee: hit.lee, side: hit.side,
+    });
+  }
+  return out;
+}
+
 /* Where the middle of the piste is. When the run has forked there are two of
    them, and this is the line between — which is the island, not the piste.
    Anything placing itself on rideable ground wants `nearestCenter`. */
@@ -674,6 +814,10 @@ function makeContext() {
     krx: [0, 0, 0, 0],
     kdz: [0, 0, 0, 0],   // the along-axis distance, already leaned and scaled
     kh: [0, 0, 0, 0],
+    nHits: 0,            // side hits whose face or lee crosses this row
+    hitX: [0, 0],
+    hitR: [1, 1],
+    hitP: [0, 0],        // …and their height at this row, profile applied
     // What this stretch of mountain is made of: one multiplier per octave,
     // mixed from the three characters. See `TERRAIN.character`.
     mix: [1, 1, 1, 1, 1],
@@ -884,6 +1028,24 @@ function rowContext(z, ctx) {
     ctx.kdz[ctx.nKnolls] = dz;
     ctx.kh[ctx.nKnolls] = height;
     ctx.nKnolls += 1;
+  }
+
+  /* Side hits crossing this row. A hit stands between its own gate and the
+     next, so only the three slots at and above this row can reach it; the
+     along-slope profile is a row fact and is resolved here, leaving the
+     vertex loop one lateral falloff per hit. */
+  ctx.nHits = 0;
+  const kz = Math.floor(-z / guide.every);
+  for (let k = kz - 2; k <= kz && ctx.nHits < 2; k++) {
+    if (k < sideHits.from) continue;
+    const hit = sideHitFor(k);
+    if (!hit) continue;
+    const p = sideHitProfile(hit, hit.zc - z);
+    if (p <= 0) continue;
+    ctx.hitX[ctx.nHits] = hit.x;
+    ctx.hitR[ctx.nHits] = hit.rx;
+    ctx.hitP[ctx.nHits] = hit.h * p;
+    ctx.nHits += 1;
   }
   return ctx;
 }
@@ -1132,6 +1294,21 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
         h -= R.depth * flankDetail * steep * steep * t * t;
       }
     }
+  }
+
+  /* Side hits, which are the exception to the rule below and are allowed to
+     be one because they are not hidden: each stands beside the ribbon, on
+     the skied-in snow between the corduroy and the corridor's edge, marked
+     by a waymark. The lateral falloff is the knolls' squared dome; the mask
+     is what keeps the ribbon itself exactly as groomed as it was — zero
+     within `guide.tol` of the line, released over `sideHits.mask` metres. */
+  for (let i = 0; i < ctx.nHits; i++) {
+    const dx = (x - ctx.hitX[i]) / ctx.hitR[i];
+    if (dx <= -1 || dx >= 1) continue;
+    const q = 1 - dx * dx;
+    const keep = smoothstep(guide.tol, guide.tol + sideHits.mask,
+      Math.abs(x - ctx.guideX));
+    h += ctx.hitP[i] * q * q * keep;
   }
 
   /* Knolls and cliffs live outside the corridor entirely — a rideable run
@@ -1863,11 +2040,23 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   neutralSurface.colorSpace = THREE.NoColorSpace;
   neutralSurface.needsUpdate = true;
 
+  /* The photographs' stand-ins are not the data plates' half grey. They are
+     colour, decoded like the photographs they stand in for (see
+     `colourSurface`), so each is one pixel of its own plate's mean colour:
+     the cliff renders at the tone the loaded photograph averages to, rather
+     than at a grey the shader's per-plate gain would push to nearly twice
+     it while the JPEG is still on the wire. */
+  const plateMean = (r, g, b) => {
+    const t = new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1, THREE.RGBAFormat);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  };
   const powderSurface = { value: neutralSurface };
   const groomedSurface = { value: neutralSurface };
-  const rockSurface = { value: neutralSurface };
-  const sandstoneSurface = { value: neutralSurface };
-  const iceSurface = { value: neutralSurface };
+  const rockSurface = { value: plateMean(67, 71, 76) };        // rock-slate.jpg
+  const sandstoneSurface = { value: plateMean(89, 89, 86) };   // rock-granite.jpg
+  const iceSurface = { value: plateMean(136, 181, 200) };      // ice-glacier.jpg
   const snowReady = { value: new THREE.Vector2() };
   const snowReadyTarget = new THREE.Vector2();
 
@@ -1980,11 +2169,32 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       settle,
     );
   });
+  /* THE PHOTOGRAPHS ARE COLOUR, AND COLOUR ARRIVES ENCODED.
+
+     The snow plates are data — heights and baked slopes in their channels —
+     and `prepareSurface` rightly tags them as having no colour space. The
+     rock and glacier plates went through the same door, and they are not
+     data: they are photographs, stored with the sRGB transfer curve like
+     every photograph. Read as linear, a crevice stored at 0.14 was used as
+     0.14 instead of the 0.018 of light it actually is — dark fissures came
+     out up to six times too bright, the whole face compressed into a milky
+     middle grey, and the mip chain averaged the plate in gamma space, which
+     is why cliffs went flat and pale with distance faster than the snow in
+     front of them. Tagged as sRGB, the GPU decodes on fetch and filters
+     in linear light, and the face gets back the contrast its photograph
+     had. The shader rescales each plate to the mean it used to have, so
+     the average tone of a cliff — which the palette was tuned against —
+     is unchanged, and only the spread about it is corrected. */
+  const colourSurface = (texture) => {
+    prepareSurface(texture);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  };
   const loadRock = (name, target) => new Promise((settle) => {
     surfaceLoader.load(
       new URL(`../assets/textures/rock/${name}`, import.meta.url).href,
       (texture) => {
-        target.value = prepareSurface(texture);
+        target.value = colourSurface(texture);
         settle();
       },
       undefined,
@@ -2004,7 +2214,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     loadRock('rock-granite.jpg', sandstoneSurface),
     // The glacier plate, finally earning its place on disk: blue compressed
     // hard-pack for the chapters whose ground is ice rather than snow.
-    loadSurface('ice-glacier.jpg', (t) => { iceSurface.value = t; }),
+    loadSurface('ice-glacier.jpg', (t) => { iceSurface.value = colourSurface(t); }),
   ]);
 
   /* Surface detail, in the fragment shader rather than in the mesh.
@@ -2261,7 +2471,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              derivative. Taken implicitly it picked an unstable mip and the
              far flanks shimmered. The uv is the powder plate's own, scaled,
              so its gradients are that plate's gradients scaled to match. */
-          vec3 n64IceSample = texture2DGradEXT(uIceTex, powderUv * 2.2,
+          /* Decoded to linear on fetch now (see colourSurface); 1.54
+             returns the plate's mean luminance to the encoded mean the
+             tint below was tuned on, and leaves it the bluer, deeper
+             colour the photograph actually is. */
+          vec3 n64IceSample = 1.54 * texture2DGradEXT(uIceTex, powderUv * 2.2,
             n64MacroDx * 2.2, n64MacroDy * 2.2).rgb;
           diffuseColor.rgb = mix(diffuseColor.rgb,
             diffuseColor.rgb * (0.52 + 1.05 * n64IceSample), n64IceW * 0.8);
@@ -2390,7 +2604,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
                 n64WorldDx.xz * 0.04, n64WorldDy.xz * 0.04) * n64TriW.y
             + texture2DGradEXT(uSandstoneTex, vWorld.xy * 0.04,
                 n64WorldDx.xy * 0.04, n64WorldDy.xy * 0.04) * n64TriW.z;
-          vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
+          /* Both plates are decoded to linear on fetch (see colourSurface),
+             and each is scaled back to the mean it had as an encoded value
+             — slate 0.278 over a linear 0.076, granite 0.347 over 0.129 —
+             so the tint, the contact threshold and the ledge rule below
+             keep their tuned meaning and only the contrast inside a plate
+             changes. The two need separate factors because the two
+             photographs are not equally bright. */
+          vec3 n64RockTexel = mix(n64RockSample.rgb * 3.66,
+            n64GraniteSample.rgb * 2.69, clamp(vRockKind, 0.0, 1.0));
           /* THE CONTACT. The vertex field says how much of this cell is
              rock; the plate says where on the face it breaks through. Snow
              settles in the plate's dark seams and the bright ribs shed it,
@@ -2636,7 +2858,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      way. It costs one cached fetch on the largest surface in the frame, and
      it deletes the entire second code path — one march, one consumer, one
      way for the mountain and everything standing on it to be shaded. */
-  shading.apply(material, { sheen: 1 });
+  shading.apply(material, { sheen: 1, canopy: true });
   material.userData.snowSurfaces = {
     powder: powderSurface,
     groomed: groomedSurface,

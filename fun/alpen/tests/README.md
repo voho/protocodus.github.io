@@ -19,24 +19,125 @@ as the snow did, the tuck gains nothing on the flat or up a climb, an ollie
 never brakes the run along the slope, the board lands matched to the slope it
 lands on (never level over a pitch), and a landing skewed off its travel skids
 off speed while a square one keeps it.
+It also pins trick stance: a trick is named and paid by the stance it took off
+in (a regular 180 lands switch but is a plain FRONTSIDE 180; a switch take-off
+is SWITCH FRONTSIDE 180), with the landed stance kept separately as
+`landedSwitch`. The surface speed ceiling is checked on both sides of the
+lip: a flight over powder loses only its own air drag (it used to be cut to
+the powder's ceiling in mid-air), and a board carried into powder above the
+ceiling ploughs the excess off over about a second instead of snapping to it,
+booking the plough as `scrub` inside `slide` so spray and sound answer it.
+Timing feedback is pinned too: holding a charge towards a pitch break lights
+`lipAhead` a few tenths early and never on the open pitch, `lipReady` is the
+release test itself, releasing while it is lit is the lip pop, and
+`perfectPop` fires after `launch` so the launch's banner clear cannot erase
+it. Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
+UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
+Landings are braced for the rider's own pop. At 22 m/s into the snow, rolling
+off a crest is a HEAVY LANDING, but the same impact after a full pop is clean.
+The raised line stops `bracedMargin` short of the bail, so a too-fast popped
+air is still heavy, and past the bail no pop saves it. On the side hits of
+three seeds, a bot releasing on the lip cue now lands seven perfect pops in
+twelve clean, where before none of them landed clean.
+The HUD check covers the charge bar's lip states, banners queueing instead of
+overwriting within a step, a mid-air callout riding the kicker line without
+hiding the air clock or live trick, and a wipeout showing its reason.
+Snow types are pinned as well: at 20 and 28 m/s the corduroy out-carves
+powder (it used to be the other way round by a third), deep snow bogs a
+slow board down on a pitch the corduroy runs away on, and a loaded edge on
+ice chatters (`rider.chatter`, which the camera, the pad and the mix read)
+while the corduroy does not.
+The camera check also holds the chase frame's speed curve: exactly the old
+framing at 20 m/s, and the lens and boom still opening between 42, 60 and
+96 m/s (they used to stop at 42) without the lens passing 76°.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone
 must stay a low multiplier and never fill the bar, while a rider landing a
 trick every few seconds must still reach it within a minute. It also pins the
 hold, fade and tuck-spend rules in `flow.js`.
+The trick payout itself now lives in `flow.js` (`scoreTrick`) and both
+`main.js` and this check use it: the switch bonus follows the take-off
+stance, and the factors it names for the banner's kicker (Off-axis, Switch,
+Fast, Lip) are checked against the multipliers they stand for. The third
+identical trick inside five landings pays `SCORE.repeatShare` of its points
+(`repeatShare`); flow is still fed the full figure.
+It also checks the side hits `terrain.js` plants beside the ribbon: about ten
+per four kilometres on every seed, each off the corduroy and inside the
+corridor, a pure function of the seed, and — compared exactly against the
+same mountain with hits switched off — carrying no height at all within
+`guide.tol` of the line while the crest stands its full height proud. A bot
+that swings out to them must fly at least 70% of them for 0.6–1.6 s without
+a fall, and the line bot must still leave the ground at most twice a minute.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+For the rider it pins a 10,500-triangle budget across every segment; the knee
+and elbow joint fills and the domed thigh tops; the seat of the trousers as a
+separate, unquilted pelvis buffer on the hips; the jacket's flutter weights
+(free at the hem, rigid at the chest and under the pack, a third on the upper
+sleeves, zero everywhere else); and the thin board — 11–15 mm at the waist,
+tapering to the tips, bindings bolted to the new deck top, nothing below the
+base and steel edges flush with the rails. It then drives the real rig
+headlessly through a carve, a hard stop, all three grabs and a landing: every
+matrix stays finite, both ankles stay in their bindings, the indy hand still
+lands on the toe edge, the head leads each turn by less than the cap, a hard
+stop pitches the chest forwards and settles, and breathing never scales or
+shears the head. Deer and wolves are checked standing on the real terrain
+(fore and hind feet on the snow, most of the cross slope taken up, and the
+tilt capped on ground steeper than an animal carries its spine), the
+shared texture cache hands every caller one texture per file, the forest's
+gust field is sampled at the wavelengths its drift wraps at, and the other
+riders respawn beyond the clear-day fog and get up from a tumble without a
+cut (both of those fail against the previous `mountainLife.js`).
 The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
 16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
 a revealed photograph retires the relief shell.
 Input regressions include releasing a spin before touchdown, controller menu
-edges, and discarding stale jump gestures across pause and focus loss.
+edges, and discarding stale jump gestures across pause and focus loss. The
+triggers pass their analogue travel through (`brakeAmount`/`tuckAmount`) and
+a half-squeezed brake is half a speed check; the pad's Back button restarts
+once per press; and `rumble` falls back to `navigator.vibrate` only on a
+bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 It exercises all six snowfall bands across nine times of day, cloud extinction,
 night-storm visibility, panorama skyline occlusion and photograph fallbacks.
+It also pins the sun's depth-map box half a box ahead of the rider along the
+camera heading (and dropped onto the slope it covers), and the glint grid's
+camera origin wrapped into its 64 m period on the CPU, so no shader forms a
+26 km coordinate. The canopy field (`canopy.js`) is checked too. A crown hides
+about half the sky at its trunk and nothing beyond its reach. A thicket is
+darker than one tree but never black, and a bare snag hides much less. It takes
+direct light only as the sun's shadows fade. The window stays on the world's
+metre lattice and is reused across short moves. A redraw stores the same value
+at the same world point. The terrain shader check applies the production
+`canopy` option, so the field's fetch is covered by the fog-exit rule.
+
+The realism pass on light was compared in Chromium against the previous commit
+from fixed, deterministic-time captures (golden hour and midday; chase, rider
+close-up, into the sun and across the slope) with no shader or console errors.
+Highlights above the shoulder now keep their hue when saturated — alpenglow
+and the orange shell stay orange — while near-neutral snow still rolls to white
+per channel. Clear air turns dark distant trees blue before it pales them, and a
+storm removes that tint. The bloom's bright pass weights taps against
+fireflies, and crepuscular rays only take light from near the sun rather than
+from sunlit snow. Snow has a blue subsurface band at its terminator and a thin
+blue fringe on shadow edges. The rider's highlights, sheen and the light
+through spruce crowns now respect the depth map, the mountain's own horizon
+shadow and cloud shadow. The rider's snow bounce now comes from world down, not
+from the bottom of the screen. Rock and glacier photographs are decoded as sRGB,
+each rescaled to its old mean, so cliffs regain their photographed contrast.
+
+The gameplay pass (switch stance, speed ceiling, timing feedback, side hits,
+snow types, start/restart, camera at speed, score factors) was checked in
+headless Chromium on SwiftShader at 640×360 with physics stepped inside the
+page: dropping in with the attract demo 1.4 km down started the run at the
+top with the 1 km milestone still ahead; a side hit lit "lip ahead" 4 m
+before its crest, popped on the lip and showed PERFECT POP on the kicker
+over the air clock; the landing banner carried its reason and factors; the
+wipeout banner its reason; and the pause screen's restart button resumed a
+playing run with audio running. No console or shader errors were reported.
 
 For browser checks, serve the repository root and open
 `/fun/alpen/?seed=alpine-review`. Exercise carve, charged pop, grab/spin, landing,

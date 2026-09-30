@@ -8,6 +8,24 @@ import { SCORE } from './config.js';
 export const HUD_WIDTH = 640;
 export const HUD_HEIGHT = 360;
 const BANNER_HOLD = 2.2;
+/* THE BANNER IS A QUEUE, not a slot.
+
+   Two awards in one physics step — a gate threaded on the landing of a
+   trick, MAX FLOW arriving on the trick that filled it, a cocoa stop and a
+   milestone — used to overwrite each other, so the player was paid for two
+   things and told about one. Now a banner that arrives while another is up
+   waits its turn, and the one on screen is cut to `BANNER_MIN` so a backlog
+   drains rather than stacking up two seconds at a time; the last in line
+   keeps its full hold. `QUEUE_MAX` bounds it: past four, the oldest waiting
+   callout is dropped, because a read-out running five seconds behind the
+   run is describing a different run. */
+const BANNER_MIN = 0.8;
+const QUEUE_MAX = 4;
+/* In the air the band belongs to the flight — the air clock and the live
+   trick name are the read-out a rider in the middle of a spin needs — so a
+   callout that arrives up there (a perfect pop, a gate crossed mid-flight)
+   rides the kicker line above them for this long instead of replacing them. */
+const FLASH_HOLD = 1.3;
 const HINT_SECONDS = 7;
 const fmt = new Intl.NumberFormat('en-US');
 
@@ -52,8 +70,10 @@ export function createHud(root) {
   const menuDistance = curtain?.querySelector('[data-menu-distance]');
   const menuDrop = curtain?.querySelector('[data-menu-drop]');
   let shownScore = 0;
-  let bannerName = '', bannerPoints = '', bannerTone = '';
-  let bannerTimer = 0, hintTime = 0, drawIn = 0, sayIn = 0;
+  let bannerName = '', bannerPoints = '', bannerTone = '', bannerKicker = '';
+  let bannerTimer = 0, bannerShown = 0, hintTime = 0, drawIn = 0, sayIn = 0;
+  const queue = [];
+  let flashText = '', flashTone = '', flashTimer = 0;
   let bestPassed = false;
   let lastMode = '';
   let last = null;
@@ -130,13 +150,35 @@ export function createHud(root) {
     text('weather', `${g.weather.phase} · ${g.weather.conditions} · ${slope}°`);
     const inAir = !rider.grounded && rider.airTime > 0.25;
     const showingBanner = bannerTimer > 0;
-    hidden('event', !showingBanner && !inAir);
-    if (showingBanner || inAir) {
-      text('event-kicker', showingBanner ? (bannerPoints ? 'Run score' : 'Freeride') : `${rider.airTime.toFixed(1)} s airtime`);
-      text('event-name', showingBanner ? bannerName : (g.liveTrick || 'Find your landing'));
+    const flashing = flashTimer > 0;
+    hidden('event', !showingBanner && !inAir && !flashing);
+    if (showingBanner || inAir || flashing) {
+      /* Three read-outs share one band, in this order: a banner (what the
+         last thing was worth, and — in the kicker — why: the multiplier and
+         the factors that paid it, or what went wrong); the flight (air clock
+         and live trick name, with any mid-air callout riding the kicker);
+         and a lone callout with the snow under it. */
+      const air = `${rider.airTime.toFixed(1)} s airtime`;
+      let kicker;
+      let name;
+      let tone;
+      if (showingBanner) {
+        kicker = bannerKicker || (bannerPoints ? 'Run score' : 'Freeride');
+        name = bannerName;
+        tone = bannerTone;
+      } else if (inAir) {
+        kicker = flashing ? `${flashText} · ${air}` : air;
+        name = g.liveTrick || 'Find your landing';
+        tone = flashing && flashTone ? flashTone : 'air';
+      } else {
+        kicker = 'Freeride';
+        name = flashText;
+        tone = flashTone;
+      }
+      text('event-kicker', kicker);
+      text('event-name', name);
       text('event-points', showingBanner ? bannerPoints : '');
       hidden('event-points', !showingBanner || !bannerPoints);
-      const tone = showingBanner ? bannerTone : 'air';
       if (fields.event.dataset.tone !== tone) fields.event.dataset.tone = tone;
     }
     const offset = g.pisteOffset || 0;
@@ -170,7 +212,21 @@ export function createHud(root) {
       shownScore += (g.score - shownScore) * Math.min(1, dt * 8);
       if (Math.abs(g.score - shownScore) < 1) shownScore = g.score;
     }
-    if (g.mode !== 'paused') bannerTimer = Math.max(0, bannerTimer - dt);
+    if (g.mode !== 'paused') {
+      if (bannerTimer > 0) {
+        bannerTimer = Math.max(0, bannerTimer - dt);
+        bannerShown += dt;
+      }
+      if (bannerTimer <= 0 && queue.length) {
+        show(queue.shift());
+        // Still a backlog behind this one: it gets its minimum, not the hold.
+        if (queue.length) bannerTimer = Math.min(bannerTimer, BANNER_MIN);
+      }
+      if (flashTimer > 0) {
+        flashTimer = Math.max(0, flashTimer - dt);
+        if (flashTimer === 0) drawIn = 0;
+      }
+    }
     if (!bestPassed && playing && g.bestAtStart > 0 && g.score >= g.bestAtStart) {
       bestPassed = true;
       if (callout) callout.textContent = 'New personal best.';
@@ -180,7 +236,18 @@ export function createHud(root) {
     hidden('charge', !g.rider.charging);
     if (g.rider.charging) {
       meter('charge-fill', g.rider.charge);
-      text('charge-label', g.rider.charge > 0.995 ? 'Release to fly' : 'Load the legs');
+      /* …but it does change colour, for the one moment it matters: when
+         letting go now would be the lip pop. `lipReady` is the rider's own
+         release test, published every step (see `groundStep`), so the tint
+         and the payout are the same condition; `lipAhead` is its prediction
+         a few tenths out, which is what gives a human hand time to be ready
+         for it. An attribute, written only on change; the colour is the
+         stylesheet's. */
+      const lip = g.rider.lipReady ? 'ready' : g.rider.lipAhead ? 'ahead' : 'none';
+      text('charge-label', lip === 'ready' ? 'Pop now — on the lip'
+        : lip === 'ahead' ? 'Hold it — lip ahead'
+          : g.rider.charge > 0.995 ? 'Release to fly' : 'Load the legs');
+      if (fields.charge.dataset.lip !== lip) fields.charge.dataset.lip = lip;
     }
     drawIn -= dt;
     if (drawIn <= 0) {
@@ -190,23 +257,62 @@ export function createHud(root) {
     sayIn -= dt;
     if (readout && sayIn <= 0 && playing) {
       sayIn = 1;
-      readout.textContent = `Score ${Math.round(g.score)}, best ${Math.round(g.best)}, multiplier ${Math.round(g.combo)}, `
+      // Written only on change, like every other field: a stationary run
+      // should cost the DOM nothing, and this line was the one exception.
+      const say = `Score ${Math.round(g.score)}, best ${Math.round(g.best)}, multiplier ${Math.round(g.combo)}, `
         + `${Math.round(g.rider.speed * 3.6)} kilometres per hour, `
         + `${(g.rider.distance / 1000).toFixed(2)} kilometres and ${Math.round(g.rider.drop)} metres down.`;
+      if (readout.textContent !== say) readout.textContent = say;
     }
   }
 
-  function banner(name, points, tone = '') {
-    bannerName = name;
-    bannerPoints = points ? `+${fmt.format(Math.round(points))}` : '';
-    bannerTone = tone;
-    bannerTimer = BANNER_HOLD;
+  function show(item) {
+    bannerName = item.name;
+    bannerPoints = item.points;
+    bannerTone = item.tone;
+    bannerKicker = item.kicker;
+    bannerTimer = item.hold;
+    bannerShown = 0;
     drawIn = 0;
-    if (callout) callout.textContent = points ? `${name}, plus ${Math.round(points)}` : name;
+    if (callout) callout.textContent = item.say;
+  }
+
+  /* `opts.kicker` is the small line above the name — the factors that paid
+     a trick, or what went wrong with it — and `opts.hold` how long it stays
+     up when nothing is waiting behind it. */
+  function banner(name, points, tone = '', opts = null) {
+    const shownPoints = points ? `+${fmt.format(Math.round(points))}` : '';
+    const kicker = opts?.kicker || '';
+    const item = {
+      name,
+      points: shownPoints,
+      tone,
+      kicker,
+      hold: opts?.hold || BANNER_HOLD,
+      say: [name, kicker, points ? `plus ${Math.round(points)}` : '']
+        .filter(Boolean).join(', '),
+    };
+    if (last?.rider?.state === 'air') {
+      flashText = shownPoints ? `${name} ${shownPoints}` : name;
+      flashTone = tone;
+      flashTimer = FLASH_HOLD;
+      drawIn = 0;
+      if (callout) callout.textContent = item.say;
+      return;
+    }
+    if (bannerTimer > 0) {
+      if (queue.length >= QUEUE_MAX) queue.shift();
+      queue.push(item);
+      bannerTimer = Math.min(bannerTimer, Math.max(0, BANNER_MIN - bannerShown));
+      return;
+    }
+    show(item);
   }
 
   function clearBanner() {
     bannerTimer = 0;
+    queue.length = 0;
+    flashTimer = 0;
     drawIn = 0;
   }
 
@@ -217,6 +323,8 @@ export function createHud(root) {
   function resetScore() {
     shownScore = 0;
     bannerTimer = 0;
+    queue.length = 0;
+    flashTimer = 0;
     hintTime = 0;
     bestPassed = false;
     drawIn = sayIn = 0;

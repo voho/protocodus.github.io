@@ -103,13 +103,14 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
-  chapterTreesAt, gateSlotsIn, guideAt,
+  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
+import { sharedTexture } from './textures.js';
 
 const {
   band, ahead, behind, biomes: BIOMES,
@@ -451,25 +452,85 @@ const OWN_MIX = `#include <color_vertex>
 
    Height squared keeps the trunk planted and spends the whole travel on the
    crown, which is how a conifer actually moves — the stem is a spring loaded
-   from the top. The shadow does not sway: the depth pass uses three's own
-   depth material, which never sees this patch, and a static shadow under a
-   lashing crown is invisible next to the cost of a custom depth material for
-   every variant. */
+   from the top.
+
+   THAT USED TO BE ALL OF IT, and all of it was one rigid shear on one
+   clock: every tree on the mountain, a knee-high sapling and a thirty-metre
+   spruce alike, rocked at the same 0.3 Hz with nothing but a hashed phase
+   between them, so a stand of forest in a gale read as a field of
+   metronomes. Three things now, each the cheapest honest version of what a
+   forest in wind does.
+
+   THE GUST TRAVELS. Wind arrives in cells that the wind itself carries
+   downwind, so a gust is something you watch cross a hillside. The field
+   is two plane waves, 64 and 88 metres long, sampled at each tree and
+   shifted by `uAirDrift` — the wind integrated over time on the CPU. It is
+   integrated there, rather than written as dot(position, direction) − t in
+   here, for two reasons that are both about this mountain. The weather's
+   wind swings through direction and reverses on a half-minute period, and
+   the positions are kilometres from the origin: a phase built from the
+   live direction spins a distant tree's gust at k·r·dθ/dt, which at ten
+   kilometres is several turns a second. And a drift is continuous by
+   construction, so a change of wind changes where the cells go and never
+   where they are. Each axis wraps at its own wavelength on the CPU, in
+   double precision, and the waves are sampled through `mod` of the same
+   length, so neither the wrap nor a float the size of the run ever shows.
+   The gust sets how far the crown leans off true and how hard it rocks
+   about that lean; between gusts a tree stands nearly still.
+
+   A TALL TREE IS SLOWER. A cantilever's natural frequency falls with its
+   length, so the rate is scaled by 1/√(height / 20 m) — a sapling nods at
+   about a hertz, a thirty-metre spruce sways at a quarter of one — using
+   the instance's own scale on the variant's grown height. Each rate is
+   rounded to a hundredth of a radian a second, which is what keeps the
+   200π wrap of `uAirTime` invisible now that the rates are no longer the
+   two constants that were chosen for it.
+
+   AND THE BRANCH TIPS FLUTTER, a little and quickly, in proportion to the
+   square of how far out along the crown the vertex sits — measured against
+   a crown radius of a quarter of the tree's height, which is what
+   `spruce.js` grows — so the trunk and the inner boughs hold still and the
+   ends of the branches are what move, out of step with each other by their
+   own position.
+
+   The shadow keeps up: `spruceDepth` runs this same block, so the card
+   trees' depth pass sways, leans and flutters with the colour pass, and a
+   tree never stands still in its own shadow. The grown fallback trees still
+   cast through three's own depth material, as they always have. */
 const AIR_DECL = `
 uniform float uAirTime;
 uniform vec2 uAirWind;
+uniform vec2 uAirDrift;
 uniform float uSwayHeight;`;
+
+// The gust field's two wavelengths, in metres. `setAir` wraps the drift at
+// exactly these, and SWAY samples the field through `mod` of the same.
+const GUST_X = 64;
+const GUST_Z = 88;
 
 const SWAY = `#include <begin_vertex>
 #ifdef USE_INSTANCING
 {
+  vec3 n64Rest = transformed;
   vec3 n64Gust = (vec4(uAirWind.x, 0.0, uAirWind.y, 0.0) * instanceMatrix).xyz;
-  float n64Up = clamp(transformed.y / uSwayHeight, 0.0, 1.0);
+  float n64Up = clamp(n64Rest.y / uSwayHeight, 0.0, 1.0);
   n64Up *= n64Up;
+  vec2 n64At = instanceMatrix[3].xz - uAirDrift;
+  float n64Cell = 0.5
+    + 0.25 * sin(mod(n64At.x, ${GUST_X.toFixed(1)}) * ${(Math.PI * 2 / GUST_X).toFixed(7)})
+    + 0.25 * sin(mod(n64At.y, ${GUST_Z.toFixed(1)}) * ${(Math.PI * 2 / GUST_Z).toFixed(7)} + 1.3);
+  float n64Tall = uSwayHeight * length(instanceMatrix[1].xyz);
+  float n64Rate = floor(190.0 * clamp(inversesqrt(max(n64Tall, 0.3) / 20.0), 0.6, 2.2) + 0.5) * 0.01;
+  float n64Rate2 = floor(n64Rate * 195.0 + 0.5) * 0.01;
   float n64Ph = fract(dot(instanceMatrix[3].xz, vec2(0.0913, 0.0527))) * 6.2832;
-  float n64Wave = sin(uAirTime * 1.9 + n64Ph)
-    + 0.5 * sin(uAirTime * 3.7 + n64Ph * 1.7);
-  transformed.xz += n64Gust.xz * (0.02 * n64Wave * n64Up);
+  float n64Wave = sin(uAirTime * n64Rate + n64Ph)
+    + 0.5 * sin(uAirTime * n64Rate2 + n64Ph * 1.7);
+  transformed.xz += n64Gust.xz * (0.02 * n64Up
+    * (0.65 * n64Cell + (0.35 + 0.65 * n64Cell) * 0.7 * n64Wave));
+  float n64Reach = length(n64Rest.xz) / (0.25 * uSwayHeight);
+  float n64Tip = min(n64Reach * n64Reach, 1.0);
+  transformed.y += n64Tip * n64Cell * min(length(uAirWind), 12.0) * 0.0006 * uSwayHeight
+    * sin(uAirTime * 6.1 + dot(n64Rest.xz, vec2(3.1, 2.3)) + n64Rest.y * 1.7 + n64Ph);
 }
 #endif`;
 
@@ -1895,6 +1956,9 @@ export function createProps(THREE, shading) {
   const air = {
     uAirTime: { value: 0 },
     uAirWind: { value: new THREE.Vector2() },
+    // how far the wind has carried the gust field, wrapped per axis at its
+    // wavelength — see the note beside `SWAY`
+    uAirDrift: { value: new THREE.Vector2() },
   };
 
   /* The same, plus the one thing a tree needs that nothing else on the
@@ -1944,16 +2008,18 @@ export function createProps(THREE, shading) {
     new URL('../assets/textures/tree/weathered-tree-bark.jpg', import.meta.url).href,
     photoPlate(barkTex),
   );
+  /* The slate and the planks are the huts' plates as well (and the slate the
+     gondola's), so these two come through the shared cache and are decoded
+     and uploaded once for the whole mountain; `sharedTexture` applies the
+     same three settings `photoPlate` does. */
   const rockTex = { value: neutralTreeTex };
-  texLoader.load(
+  sharedTexture(THREE,
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    photoPlate(rockTex),
-  );
+    photoPlate(rockTex));
   const woodPlanksTex = { value: neutralTreeTex };
-  texLoader.load(
+  sharedTexture(THREE,
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
-    photoPlate(woodPlanksTex),
-  );
+    photoPlate(woodPlanksTex));
 
   const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
@@ -2384,6 +2450,16 @@ export function createProps(THREE, shading) {
                 directionalLightShadows[ 0 ].shadowRadius,
                 vDirectionalShadowCoord[ 0 ] );
             #endif
+            /* The depth map is only one of the three things that take the
+               sun off a crown. A backlit spruce standing in the wall's
+               evening shadow, or under a cloud, glowed as if the sun were
+               on it — at low sun, which is exactly when the leak is
+               strongest and the wall's shadow longest. The shade patch
+               publishes the horizon and cloud terms it applied; the leak
+               takes them too. */
+            #ifdef N64_SUN_VIS
+              n64Lit *= n64SunVis;
+            #endif
             reflectedLight.directDiffuse += diffuseColor.rgb * uSunTint
               * (uSunLevel * n64Lit * n64Leak * n64Needle * RECIPROCAL_PI);
           }
@@ -2739,8 +2815,9 @@ export function createProps(THREE, shading) {
   const avalancheFences = new Pool(
     THREE, avalancheFenceGeometry(THREE), alpineMat, bands * ALPINE.fence.sections[1],
   );
+  // One edge marker a band at most, plus one for a side hit's crest.
   const waymarks = new Pool(
-    THREE, waymarkGeometry(THREE), alpineMat, bands,
+    THREE, waymarkGeometry(THREE), alpineMat, bands * 2,
   );
   // Two panels a gate, at most one gate slot a band.
   const gatePanels = new Pool(THREE, raceGatePanelGeometry(THREE), gateMat, bands * 2 + 8, true);
@@ -2817,6 +2894,7 @@ export function createProps(THREE, shading) {
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
   const gateSlots = [];
+  const sideHitMarks = [];
   // Race red and race blue, a little under full saturation so a panel in
   // full sun on snow does not clip to a flat disc of hue.
   const gateRed = new THREE.Color('#c01d27');
@@ -3175,7 +3253,15 @@ export function createProps(THREE, shading) {
       if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
       if (!treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour)) continue;
-      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
+      /* `canopy` is the crown's radius, for the occlusion field the snow
+         reads (canopy.js): a conifer's lowest whorl reaches about a quarter
+         of its height out from the trunk. A bare snag hides much less sky
+         than a needled crown of the same size. */
+      solids.push({
+        x, z, r: radius, kind: HARD, top: 99,
+        canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
+        canopyDensity: treeBare[v] ? 0.35 : 1,
+      });
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -3361,6 +3447,8 @@ export function createProps(THREE, shading) {
       solids.push({
         x, z, r: Math.max(0.28, crown * 0.55), type: 'sapling', kind: SOFT,
         top: y + spec.H * sy, drag: PROPS.shrubDrag * 0.85,
+        // A young tree's crown shades the snow under it too (canopy.js).
+        canopy: crown, canopyDensity: 0.7,
       });
     }
 
@@ -3532,6 +3620,23 @@ export function createProps(THREE, shading) {
         x: slot.x, z: slot.z, half: PROPS.gateHalf,
         taken: takenGates.has(slot.z),
       });
+    }
+
+    // --- side-hit markers ----------------------------------------------------
+    /* A side hit is the one piece of the run that invites a rider off the
+       corduroy (see `sideHitFor` in terrain.js), and a lip you cannot see
+       coming is the ambush the knolls were banished from the corridor for.
+       So each carries a waymark — the same red-and-white pole the groomed
+       edge already uses, from the same pool — planted just outside the
+       crest's outer end, a board length above it, where it reads from the
+       approach and stands clear of the line anyone would ride over the lip.
+       Pass-through like every waymark, and positioned by the terrain's own
+       slot hash, so a rebuild plants it exactly where it was. */
+    for (const hit of sideHitsIn(z0, z0 + band, sideHitMarks)) {
+      const x = hit.x + hit.side * (hit.halfWidth * 0.9 + 0.8);
+      const z = hit.z + 1.5;
+      const dx = guideAt(z - 2) - guideAt(z + 2);
+      waymarks.add(x, heightAt(x, z) + 0.03, z, Math.atan2(-dx, 4), 1, 1, 1);
     }
   }
 
@@ -3811,6 +3916,13 @@ export function createProps(THREE, shading) {
   function setAir(dt, windX, windZ) {
     air.uAirTime.value = (air.uAirTime.value + dt) % 628.3185307;
     air.uAirWind.value.set(windX, windZ);
+    // The gust cells ride the wind at its own speed. Each axis wraps at the
+    // wavelength its wave is sampled with, so the wrap is a whole cycle.
+    const d = air.uAirDrift.value;
+    d.set(
+      (((d.x + windX * dt) % GUST_X) + GUST_X) % GUST_X,
+      (((d.y + windZ * dt) % GUST_Z) + GUST_Z) % GUST_Z,
+    );
   }
 
   /* Everything downhill of a point is an unridden course again.

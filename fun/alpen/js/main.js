@@ -23,9 +23,10 @@ import * as THREE from 'three';
 import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
-  getTerrainMaterialAt, guideAt,
+  getTerrainMaterialAt, guideAt, chapterNameAt,
 } from './terrain.js';
 import { createProps, HARD, SOFT } from './props.js';
+import { createCanopy } from './canopy.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
@@ -46,7 +47,7 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import {
-  comboFor, feedFlow, flowFromPoints, stepFlowMeter,
+  comboFor, feedFlow, flowFromPoints, stepFlowMeter, scoreTrick, repeatShare,
 } from './flow.js';
 import {
   randomWorldSeed, setWorldSeed, worldSeedCode,
@@ -204,6 +205,9 @@ const shading = createShading(THREE);
 const weather = createWeather(THREE);
 const terrain = createTerrain(THREE, shading, renderer.capabilities.getMaxAnisotropy());
 const props = createProps(THREE, shading);
+// The sky the forest hides from the snow under it — see canopy.js.
+const canopy = createCanopy(THREE, shading);
+const canopyHeading = new THREE.Vector3();
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
 // The particles share the shading block's sun uniforms by reference, so a
@@ -416,6 +420,8 @@ const game = {
   maxSpeedAnnounced: 0,
   manualWeather: 0,
   pisteOffset: 0,
+  recentTricks: [],      // the previous landings' names — see `repeatShare`
+  chapter: '',           // the stretch of range the run is in, once announced
 };
 bootGameRef = game;
 
@@ -435,6 +441,8 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 
 const demo = { t: 0, turn: 0, stall: 0 };
 let sparkCarry = 0;   // fractional overdrive sparks owed — see the emit below
+let chatterBuzz = 0;  // seconds until the next ice-chatter pulse on the pad
+let chapterCheck = 0; // seconds until the chapter is next looked up
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
@@ -494,7 +502,14 @@ function begin() {
   audio.start();
   showMuted(audio.muted);
   if (!bootReady) return;
-  if (game.mode === 'attract') restart();
+  /* A run starts at the top of the mountain. `restart()` alone resumes from
+     wherever the rider is standing, and on the title screen that is wherever
+     the attract demo has carved to — so a player who read the controls for
+     a minute dropped in kilometres down the hill, with the 1,000 m milestone
+     already behind them and nothing above them but a mountain they never
+     rode. The full reset forgets any checkpoint and puts them on the start
+     line at z = 0, where the seeded mountain begins. */
+  if (game.mode === 'attract') restart(true);
   game.mode = 'playing';
   pausedRendered = false;
   curtain.classList.remove('on');
@@ -525,7 +540,9 @@ function restart(fullReset = false) {
      and a course has checkpoints — and always on the groomed piste line:
      no spawn or reset can ever land off piste or on a mogul. */
   if (fullReset) lastPassedGate = null;
-  const start = lastPassedGate ? lastPassedGate.z : (rider.pos.z !== 0 ? rider.pos.z : 0);
+  // No checkpoint yet: a full reset is the top of the mountain, and an `R`
+  // before the first gate is a respawn where the rider stands.
+  const start = lastPassedGate ? lastPassedGate.z : (fullReset ? 0 : rider.pos.z);
   const rawX = lastPassedGate ? lastPassedGate.x : guideAt(start);
   const center = nearestCenter(rawX, start);
   const half = corridorHalfAt(start);
@@ -555,6 +572,10 @@ function restart(fullReset = false) {
   game.maxDistanceAnnounced = resumeDist >= 5000 ? 5000
     : resumeDist >= 1000 ? 1000 : 0;
   game.maxSpeedAnnounced = 0;
+  game.recentTricks.length = 0;
+  // Where the run resumes is not news; only crossing into the next one is.
+  game.chapter = chapterNameAt(rider.pos.z);
+  chapterCheck = 0;
   chase.reset();
   spray.clear();
   trail.clear();
@@ -618,13 +639,29 @@ function onKey(e) {
     return;
   }
   if (e.code === 'KeyR' && game.mode !== 'attract') {
-    restart();
-    game.mode = 'playing';
-    curtain.classList.remove('on');
-    retro.fade(1);
+    restartRun();
     return;
   }
   if (game.mode !== 'playing') begin();
+}
+
+/* Back to the last gate, from anywhere a run can be: R on the keyboard, the
+   pad's Back/View button (see `input.js`), and the pause screen's own button
+   for touch, which had no way to restart at all.
+
+   It wakes the audio as well, which the keyboard path never did — a pause
+   parks the context (see `audio.quiet`), and R pressed from the pause
+   screen used to resume the run in silence until something else happened
+   to call `begin`. */
+function restartRun() {
+  if (game.mode === 'attract' || !bootReady) return;
+  audio.start();
+  showMuted(audio.muted);
+  restart();
+  game.mode = 'playing';
+  pausedRendered = false;
+  curtain.classList.remove('on');
+  retro.fade(1);
 }
 
 /* Any key starts via onKey's fallthrough; the curtain overlays the whole
@@ -632,6 +669,12 @@ function onKey(e) {
    Chrome grants touch user activation on the synthesized click, not always on
    pointerdown, which is why the tap path starts from this click handler. */
 curtain.addEventListener('click', begin);
+// The pause screen's restart. It must not also reach the curtain's
+// click-anywhere resume, which would run `begin` on top of it.
+curtain.querySelector('.restart-run')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  restartRun();
+});
 touchPause?.addEventListener('click', (e) => {
   e.preventDefault();
   pause();
@@ -687,55 +730,48 @@ function persistBest(force = false) {
 
 window.addEventListener('pagehide', () => persistBest(true));
 
-function award(points, name, tone) {
+function award(points, name, tone, opts = null) {
   game.score += points;
   if (game.score > game.best) {
     game.best = game.score;
     bestDirty = true;
     persistBest();
   }
-  if (name) hud.banner(name, points, tone);
+  if (name) hud.banner(name, points, tone, opts);
 }
 
 function scoreLanding(s) {
   if (!s.judged || s.verdict === BAIL) return;
   // The same numbers the banner shows, so a landed 540 is always paid as a
-  // 540 — the label and the score used to round in different directions
-  const deg = s.halfTurns * 180;
-  const flips = s.flipTurns;
-  // A grab pays for how far out of shape you had to get to hold it, which is
-  // the `reach` beside its name in the config and nothing else.
-  const reach = (RIDER.grabs[s.grabKind] || RIDER.grabs[0]).reach;
-  let pts = deg * SCORE.perDegree
-    + flips * SCORE.perFlip
-    + s.grabTime * SCORE.grabPerSecond * reach
-    + s.airTime * SCORE.airPerSecond;
-  /* And taking the whole thing off its axis is worth more than the two
-     rotations were worth separately, because it is one trick and a harder
-     one: the horizon leaves the frame and the landing has to be found
-     without it. Multiplied, so it scales with whatever was attempted —
-     the same reason `switchBonus` is. */
-  if (flips >= 1 && deg >= 360) pts *= 1 + SCORE.corkBonus;
-  if (s.switchStance) pts *= SCORE.switchBonus;
-  const fast = Math.max(0, Math.min(1,
-    (s.takeoffSpeed - SCORE.speedBonusFrom) / (SCORE.speedBonusFull - SCORE.speedBonusFrom)));
-  pts *= 1 + fast * SCORE.speedBonus;
-  if (s.lipPop) pts *= SCORE.lipBonus;
-  if (s.verdict === SKETCHY) pts *= 0.5;
-
+  // 540 — the label and the score used to round in different directions.
+  // The sum itself, and the factors that shaped it, are `scoreTrick`'s.
+  const trick = scoreTrick(s);
   const name = trickName(s, s.verdict);
-  if (!name || pts < SCORE.minTrickScore) return;
+  if (!name || trick.points < SCORE.minTrickScore) return;
 
-  const earned = pts;   // before the multiplier: the meter pays for the trick
-  pts *= game.combo;
-  const callout = s.lipPop && s.verdict === CLEAN ? `PERFECT POP · ${name}` : name;
-  award(pts, callout, s.verdict === SKETCHY ? 'warn' : '');
+  const earned = trick.points;   // before the multiplier: the meter pays for the trick
+  // The same move a third time in five pays less (see `repeatShare`). Its
+  // identity is its clean name — SWITCH, the grab and all.
+  const repeat = repeatShare(game.recentTricks, trickName(s, CLEAN));
+  const pts = earned * repeat * game.combo;
+  /* The kicker says why the number is what it is: what went wrong first,
+     if anything, then the multiplier and every factor that paid. "×7 · LIP
+     · FAST · SWITCH" is the scoring rules taught one landing at a time;
+     the old banner's "PERFECT POP · " prefix is now the LIP factor, and the
+     pop itself was announced as it happened. */
+  const kicker = [
+    s.reason,
+    game.combo > 1 ? `×${game.combo}` : '',
+    ...trick.factors,
+    repeat < 1 ? `Repeat ×${repeat}` : '',
+  ].filter(Boolean).join(' · ');
+  award(pts, name, s.verdict === SKETCHY ? 'warn' : '', kicker ? { kicker } : null);
   /* The trick is what fills the meter now, and it fills it by how good the
      trick was rather than by the fact that one happened. A tidy 180 nudges
      it; a switch cork 900 held to the snow is most of a bar. The multiplier
      is deliberately NOT in that number — paying flow on the already-
      multiplied score would compound, and a meter that fills faster the
-     fuller it is has no middle. */
+     fuller it is has no middle. Nor is the repeat share: see `repeatShare`. */
   feedFlow(game, flowFromPoints(earned)
     * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy));
   syncCombo();
@@ -775,7 +811,25 @@ rider.on('launch', (vy) => {
   hud.clearBanner();
 });
 
-rider.on('fall', (cause, into = 0) => {
+/* The lip pop, told as it happens rather than a second later.
+
+   `perfectPop` has been emitted from both release paths (on the lip, and in
+   the late window just past it) since the timing bonus was written, and
+   nothing was listening — so the one piece of timing the game asks for was
+   confirmed only by a prefix on the landing banner, after the fact and only
+   if the landing was clean. Now it is a callout, a sound and a pulse at the
+   moment of release. It is emitted AFTER `launch` in the same step, so the
+   banner clear above cannot take it back, and in the air the HUD puts it on
+   the kicker line over the air clock instead of hiding the flight's own
+   read-out (see `FLASH_HOLD` in hud.js). */
+rider.on('perfectPop', () => {
+  if (game.mode !== 'playing') return;
+  hud.banner('PERFECT POP', 0, 'near');
+  audio.perfectPop();
+  input.rumble(0.35, 0.12, 90);
+});
+
+rider.on('fall', (cause, into = 0, reason = '') => {
   /* A wipeout costs most of the meter, not all of it. Flow is the
      multiplier now, and zeroing it on one caught edge is the punishment
      that stops people trying tricks at all — which is the opposite of what
@@ -809,7 +863,9 @@ rider.on('fall', (cause, into = 0) => {
   const push = 1.0 + severity * 2.3;
   spray.burst(rider.pos, backX * push, backZ * push,
     Math.round(34 + severity * 58), plume);
-  hud.banner('WIPEOUT', 0, 'bad');
+  // …and why, on the kicker: HARD LANDING, UNDER-ROTATED, UPSIDE DOWN, a
+  // stall or a tree. "WIPEOUT" alone told the player what, never what to fix.
+  hud.banner('WIPEOUT', 0, 'bad', reason ? { kicker: reason } : null);
 });
 
 rider.on('impact', (v) => {
@@ -927,37 +983,13 @@ function stepFlow() {
     }
   }
 
-  /* Flow opens the speed ceiling continuously from the base 50 m/s limit to
-     `RIDER.maxSpeed` at a full meter. Flow holds steady through a clean jump,
-     so the horizontal cap cannot brake a ballistic arc merely because the
-     board left the snow; a fall resets it instead. Falls keep their impact
-     momentum and already recover at a bounded 6–12 m/s. */
-  /* …and the surface decides how much of that ceiling is available. The
-     groomed ribbon runs slightly over it, open snow well under, talus under
-     that; see the note on `pisteSpeed` in the config. The ceiling is read
-     at the rider's own position, so drifting off the corduroy costs top
-     speed the moment the board leaves it rather than at some boundary. */
-  const surf = world.surfaceAt
-    ? world.surfaceAt(rider.pos.x, rider.pos.z)
-    : null;
-  const surfaceCeil = surf
-    ? Math.max(0.42, Math.min(1.15,
-      surf.groomed * RIDER.pisteSpeed + surf.powder * RIDER.powderSpeed
-      + surf.ice * RIDER.iceSpeed + surf.rock * RIDER.rockSpeed))
-    : 1;
-  const limit = (RIDER.baseMaxSpeed
-    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * game.flow) * surfaceCeil;
-  if (rider.state === 'ride') {
-    const speed = rider.speed;
-    if (speed > limit) rider.vel.multiplyScalar(limit / speed);
-  } else if (rider.state === 'air') {
-    const horizontal = Math.hypot(rider.vel.x, rider.vel.z);
-    if (horizontal > limit) {
-      const scale = limit / horizontal;
-      rider.vel.x *= scale;
-      rider.vel.z *= scale;
-    }
-  }
+  /* The speed ceiling that used to be enforced here — flow opening it, the
+     surface under the board deciding how much of it is available — now
+     lives in the rider (`speedCeiling` and the shed in `groundStep`),
+     because it was wrong here in two ways: it rescaled an airborne rider to
+     the ceiling of whatever surface they happened to be flying over, and it
+     snapped the speed back every step instead of letting the snow plough it
+     off. `rider.flowDrive`, written above, is the flow share it reads. */
 }
 
 /* Near miss encounters with wildlife. */
@@ -1006,6 +1038,16 @@ function checkGates() {
     const t = (zFrom - g.z) / (zFrom - zTo || 1);
     const x = prev.x + (rider.pos.x - prev.x) * t;
     if (Math.abs(x - g.x) > g.half) {
+      /* A run of gates broken is news; a single gate missed is not. The
+         ladder resetting silently was the only rule in the scoring nobody
+         was ever told about — the next gate simply paid a third of what the
+         player expected. A quiet callout and a falling blip, only once the
+         run was worth something (two or more linked). */
+      if (game.gateRun > 1) {
+        hud.banner('GATE MISSED', 0, 'warn',
+          { kicker: `Run of ${game.gateRun} ended`, hold: 1.1 });
+        audio.gateMiss();
+      }
       game.gateRun = 0;
       continue;
     }
@@ -1231,6 +1273,9 @@ function liveTrickName() {
   liveTrickQuery.grabTime = rider.grabTime;
   liveTrickQuery.grabKind = rider.grabKind;
   liveTrickQuery.airTime = rider.airTime;
+  // Nothing in the air changes the stance, so this is the take-off stance —
+  // the one the landing will be named and paid by. See `land` in rider.js.
+  liveTrickQuery.switchStance = rider.switchStance;
   return trickName(liveTrickQuery, CLEAN) || '';
 }
 
@@ -1431,6 +1476,23 @@ function frame(now) {
         input.rumble(0.5, 0.2, 220);
       }
       
+      /* THE CHAPTER, announced. The range changes character every couple
+         of kilometres — glacier shelf, walled couloir, forest vale, powder
+         bowls, wind crest (see `CHAPTERS` in terrain.js) — and the only
+         place that was ever written down was the debugger. A quiet banner
+         at the crossing, which is the blend's midpoint where the name
+         flips, says what kind of mountain the next stretch is. Looked up
+         twice a second: it changes once in a couple of minutes. */
+      chapterCheck -= dt;
+      if (chapterCheck <= 0) {
+        chapterCheck = 0.5;
+        const chapter = chapterNameAt(rider.pos.z);
+        if (chapter !== game.chapter) {
+          game.chapter = chapter;
+          hud.banner(chapter.toUpperCase(), 0, '', { kicker: 'Entering', hold: 2.4 });
+        }
+      }
+
       const dist = Math.floor(-rider.pos.z);
       if (dist >= 1000 && game.maxDistanceAnnounced < 1000) {
         game.maxDistanceAnnounced = 1000;
@@ -1483,6 +1545,8 @@ function frame(now) {
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
     shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    camera.getWorldDirection(canopyHeading);
+    canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
     /* THE BISECT, applied after every system that writes these, so a switch
        actually holds for the frame. Four things can change how a mountain
        looks between one frame and the next, and telling them apart by eye is
@@ -1556,7 +1620,16 @@ function frame(now) {
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
     const surfMat = getTerrainMaterialAt(rider.pos.x, rider.pos.z);
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
-      rider.carveLoad, tumbleSlide, surfMat);
+      rider.carveLoad, tumbleSlide, surfMat, rider.chatter);
+    /* The icy edge's rattle, in the hands. A pulse every tenth of a second
+       while it lasts rather than a rumble per frame: the pad's own motor
+       smooths the train into a buzz, and a request every frame at 144 Hz
+       is a request the actuator mostly drops. */
+    chatterBuzz -= dt;
+    if (game.mode === 'playing' && rider.chatter > 0.25 && chatterBuzz <= 0) {
+      chatterBuzz = 0.1;
+      input.rumble(0.12 + rider.chatter * 0.28, 0.04, 90);
+    }
     retro.setSpeed(rider.speed);
     riderScreen.copy(rider.pos).addScaledVector(rider.normal, 0.9).project(camera);
     retro.setFocus(riderScreen.x * 0.5 + 0.5, riderScreen.y * 0.5 + 0.5);
@@ -1770,7 +1843,7 @@ window.__alpen = {
      them off one at a time. `mountainLife` is here for the same reason —
      its riders are the only things on the hill that move under their own
      steam, and a pose that is wrong is a pose you have to be able to stop. */
-  shading, mountainLife,
+  shading, mountainLife, canopy,
   config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,
@@ -1793,6 +1866,8 @@ window.__alpen = {
     contactFootprint: +rider.contactFootprint.toFixed(2),
     compression: +rider.compression.toFixed(3),
     slide: +rider.slide.toFixed(2),
+    scrub: +rider.scrub.toFixed(2),
+    chatter: +rider.chatter.toFixed(2),
     brake: +rider.brake.toFixed(2),
     pushing: rider.pushing,
     pushPhase: +rider.pushPhase.toFixed(3),

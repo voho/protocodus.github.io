@@ -320,6 +320,24 @@ const SHADOW_DIST = 340;
 const SHADOW_DEPTH = 280;
 // Wide 32m gradual boundary fade so shadow remapping at far distance is invisible
 const SHADOW_EDGE_FADE = 32;
+/* HOW FAR AHEAD OF THE RIDER THE BOX IS CENTRED, and why it is not zero.
+
+   The chase camera sits six metres behind the rider looking down the run,
+   so a box centred on the rider spends half of its area — a hundred and
+   eighty metres of it — on mountain behind the lens that no pixel will
+   ever show. Meanwhile the forest from a hundred and fifty metres out is in
+   plain sight on a clear day (the curtain only begins at a hundred and
+   twenty and is barely a third of the way in at three hundred) and cast no
+   shadow at all, so every stand past the box's edge stood on the snow like
+   a cut-out laid on a photograph, and the line where shadows began swept up
+   the slope towards the rider as the run carried them in.
+
+   Moving the centre half a box along the camera's heading costs nothing:
+   the map, its texel size and its refresh are unchanged, so the rider's own
+   shadow keeps exactly the resolution it had. Coverage goes from ±180 m to
+   roughly −90 m behind and +270 m ahead, and the rider is still ninety
+   metres inside the near edge, well clear of its fade. */
+const SHADOW_LEAD = SHADOW_REACH * 0.5;
 
 /* Three's mapped-light helper deliberately returns fully lit the instant a
    receiver leaves the orthographic projection. DirectionalLightShadow has no
@@ -2870,6 +2888,8 @@ export function createSky(THREE) {
   let shadowElapsed = 0;
   const shadowSun = new THREE.Vector3();
   const shadowPosition = new THREE.Vector3();
+  // The point the box is centred on: the rider, led along the camera heading.
+  const shadowCentre = new THREE.Vector3();
   let shadowPrimed = false;
   let time = 0;
   let pitch = -1;
@@ -3399,10 +3419,26 @@ export function createSky(THREE) {
       shadowElapsed %= 1 / 30;
       shadowSun.copy(sunDir);
       shadowPosition.copy(pos);
+      /* Led along where the camera looked last frame (`project` runs after
+         the chase camera settles, so this is one frame old, and a box that
+         only moves on refresh frames cannot see the difference). Before the
+         first projection there is no heading and the box stays centred,
+         which is also what the headless checks exercise. The lead point is
+         dropped by the fall of the ground between the rider and it, so the
+         box sits on the slope it is meant to cover rather than hanging
+         thirty metres over it; the rider's own height above the snow is
+         kept, so a jump lifts the whole box with them as it always did. */
+      shadowCentre.copy(pos);
+      const heading = Math.hypot(camFwd.x, camFwd.z);
+      if (heading > 0.2) {
+        const lx = pos.x + (camFwd.x / heading) * SHADOW_LEAD;
+        const lz = pos.z + (camFwd.z / heading) * SHADOW_LEAD;
+        shadowCentre.set(lx, pos.y + heightAt(lx, lz) - heightAt(pos.x, pos.z), lz);
+      }
       shadowWorld.copy(shadowRight)
-        .multiplyScalar(Math.round(pos.dot(shadowRight) / texel) * texel)
-        .addScaledVector(shadowUp, Math.round(pos.dot(shadowUp) / texel) * texel)
-        .addScaledVector(sunDir, pos.dot(sunDir));
+        .multiplyScalar(Math.round(shadowCentre.dot(shadowRight) / texel) * texel)
+        .addScaledVector(shadowUp, Math.round(shadowCentre.dot(shadowUp) / texel) * texel)
+        .addScaledVector(sunDir, shadowCentre.dot(sunDir));
     }
     shadowAt.copy(shadowWorld).sub(pos);
     key.target.position.copy(shadowAt);

@@ -172,7 +172,8 @@ const streamed = makeTerrain();
 const cold = makeTerrain();
 // A fogged fragment still supplies its neighbours' texture gradients. An
 // early shader exit breaks those quads and can seed NaN into the HDR scene.
-createShading(THREE).apply(streamed.mesh.material, { sheen: 1 });
+// The same options the terrain asks for in production, canopy field included.
+createShading(THREE).apply(streamed.mesh.material, { sheen: 1, canopy: true });
 const terrainShader = { ...THREE.ShaderLib.lambert, uniforms: {} };
 streamed.mesh.material.onBeforeCompile(terrainShader);
 const terrainMain = terrainShader.fragmentShader

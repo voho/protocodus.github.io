@@ -87,6 +87,39 @@ hud.resetScore(); hud.update(g, .1);
 assert.equal(f.score.textContent, '0'); assert.equal(f.event.hidden, true); assert.equal(f.combo.hidden, true); assert.equal(f.gates.hidden, true);
 for (let i=0; i<100;i++) hud.update(g,.1);
 assert.equal(f.hint.hidden, true);
+// The charge bar says when the lip is coming and when releasing is the pop.
+g.rider.charging = true; g.rider.charge = .6; g.rider.lipAhead = true; hud.update(g, .01);
+assert.equal(f['charge-label'].textContent, 'Hold it — lip ahead');
+assert.equal(f.charge.dataset.lip, 'ahead');
+g.rider.lipAhead = false; g.rider.lipReady = true; hud.update(g, .01);
+assert.equal(f['charge-label'].textContent, 'Pop now — on the lip');
+assert.equal(f.charge.dataset.lip, 'ready');
+g.rider.lipReady = false; hud.update(g, .01);
+assert.equal(f.charge.dataset.lip, 'none');
+assert.equal(f['charge-label'].textContent, 'Load the legs');
+g.rider.charging = false;
+// Awards in one step queue rather than overwrite; the kicker carries why.
+hud.banner('GATE ×3', 360, 'near'); hud.banner('BACKSIDE 360', 900, '', { kicker: '×3 · Lip' });
+hud.update(g, .05);
+assert.equal(f['event-name'].textContent, 'GATE ×3', 'the first award is shown first');
+for (let i = 0; i < 10; i++) hud.update(g, .1);
+assert.equal(f['event-name'].textContent, 'BACKSIDE 360', '…and the second is not lost');
+assert.equal(f['event-kicker'].textContent, '×3 · Lip');
+assert.equal(f['event-points'].textContent, '+900');
+// A mid-air callout rides the kicker and leaves the flight its read-out.
+hud.clearBanner();
+g.rider.grounded = false; g.rider.state = 'air'; g.rider.airTime = .4; g.liveTrick = 'BACKSIDE 180';
+hud.banner('PERFECT POP', 0, 'near'); hud.update(g, .01);
+assert.equal(f['event-name'].textContent, 'BACKSIDE 180');
+assert.equal(f['event-kicker'].textContent, 'PERFECT POP · 0.4 s airtime');
+// A wipeout says why.
+g.rider.state = 'fall'; hud.banner('WIPEOUT', 0, 'bad', { kicker: 'UNDER-ROTATED' }); hud.update(g, .01);
+assert.equal(f['event-name'].textContent, 'WIPEOUT');
+assert.equal(f['event-kicker'].textContent, 'UNDER-ROTATED');
+assert.match(root.nodes['[data-callout]'].textContent, /WIPEOUT, UNDER-ROTATED/);
+g.rider.grounded = true; g.rider.state = 'ride'; g.rider.airTime = 0; g.liveTrick = '';
+for (let i = 0; i < 30; i++) hud.update(g, .1);
+assert.equal(f.event.hidden, true, 'every callout clears itself');
 let stopped = false, prevented = false;
 guide.listeners.click({ stopPropagation() { stopped = true; } });
 assert.equal(stopped, true, 'help click cannot start the ride');

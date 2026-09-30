@@ -48,6 +48,53 @@ const range = ([lo, hi]) => lo + Math.random() * (hi - lo);
    uniform scatter puts most of the rabbits somewhere the rider is never
    going to be, and the mountain reads as emptier than its animal count. */
 const spread = () => Math.random() + Math.random() - 1;
+
+/* THE GROUND UNDER FOUR FEET.
+
+   Deer and wolves were composed level and stood level, on a mountain whose
+   gentlest pitch is seven degrees: grazing across the fall line, the
+   uphill legs were buried to the knee and the downhill ones hung in the
+   air, and a pack traversing the hill walked along it like a row of
+   cut-outs on a shelf. So each body is pitched to the ground between its
+   own front and hind feet and rolled to the ground between its left and
+   right ones, sampled along the heading it is actually facing — the same
+   yaw convention as the hares, (sin yaw, cos yaw) forward, which puts the
+   body's +X at (−cos yaw, sin yaw).
+
+   The roll is three quarters of the ground's, not all of it. A quadruped
+   standing across a slope lengthens its downhill legs and keeps its spine
+   nearer level than the ground under it; rolled the whole way, a deer on a
+   twenty-degree traverse reads as an animal about to fall over, and the
+   quarter that is left is a few centimetres of hoof sunk in snow, which is
+   where hooves are anyway. Pitch is taken whole — along the body the legs
+   cannot hide the difference, and a deer facing uphill does stand nose-up.
+
+   And both stop somewhere. The pack is spawned off the piste, which on
+   this mountain can be the boundary's quarterpipe wall, and a wolf rolled
+   three quarters of the way onto a sixty-degree wall is a wolf clinging to
+   it like a gecko — measured in the first capture of this, and worse than
+   the buried legs it replaced. No animal carries its spine steeper than
+   this across a slope or along one; past it the snow takes the legs, as
+   it would.
+
+   `half` and `side` are half the spacing of the feet along and across the
+   body, already multiplied by the animal's scale. Four height samples an
+   animal, for a handful of animals, once a frame. */
+const SLOPE_ROLL = 0.75;
+const SLOPE_PITCH_MAX = 0.5;
+const SLOPE_ROLL_MAX = 0.4;
+const slopeUnder = (x, z, yaw, half, side, out) => {
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  out.pitch = clamp(Math.atan2(
+    heightAt(x + fx * half, z + fz * half) - heightAt(x - fx * half, z - fz * half), 2 * half,
+  ), -SLOPE_PITCH_MAX, SLOPE_PITCH_MAX);
+  out.roll = clamp(SLOPE_ROLL * Math.atan2(
+    heightAt(x - fz * side, z + fx * side) - heightAt(x + fz * side, z - fx * side), 2 * side,
+  ), -SLOPE_ROLL_MAX, SLOPE_ROLL_MAX);
+  return out;
+};
+const slope = { pitch: 0, roll: 0 };
 const centersScratch = [0, 0];
 const farSpotSpot = { x: 0, side: 1 };
 
@@ -761,8 +808,9 @@ export function createWildlife(THREE, shading) {
         const bob = Math.sin(gait) * 0.055 * herd.alert;
         // A running herd all faces the way it is going; a grazing one does not
         const yaw = lerp(d.yaw, Math.atan2(herd.dir, -0.45), herd.alert);
+        slopeUnder(x, z, yaw, 0.37 * d.scale, 0.20 * d.scale, slope);
         v.set(x, y + Math.abs(bob), z);
-        e.set(Math.sin(gait * 2) * 0.05 * herd.alert, yaw + Math.PI, 0, 'YXZ');
+        e.set(Math.sin(gait * 2) * 0.05 * herd.alert + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
         q.setFromEuler(e);
         s.set(d.scale, d.scale, d.scale);
         m.compose(v, q, s);
@@ -773,7 +821,9 @@ export function createWildlife(THREE, shading) {
            the neck attached whatever the body's yaw, scale and gait pitch are
            doing, and costs one matrix apply instead of a second compose. */
         ev.set(DEER_WITHERS[0], DEER_WITHERS[1], DEER_WITHERS[2]).applyMatrix4(m);
-        e.set(DEER_BROWSE * feeding, yaw + Math.PI, 0, 'YXZ');
+        // The head carries the body's lie on the slope too, or the neck
+        // would leave the withers at a kink on every hillside.
+        e.set(DEER_BROWSE * feeding + slope.pitch, yaw + Math.PI, slope.roll, 'YXZ');
         q.setFromEuler(e);
         m.compose(ev, q, s);
         if (d.stag) stagHeads.setMatrixAt(sn++, m);
@@ -816,8 +866,9 @@ export function createWildlife(THREE, shading) {
         const x = pack.x - hx * w.file - hz * w.drift;
         const z = pack.z - hz * w.file + hx * w.drift;
         const bob = Math.abs(Math.sin(w.gait)) * 0.045;
+        slopeUnder(x, z, pack.yaw, 0.32 * w.scale, 0.17 * w.scale, slope);
         v.set(x, heightAt(x, z) + bob, z);
-        e.set(0, pack.yaw + Math.PI, Math.sin(w.gait) * 0.045, 'YXZ');
+        e.set(slope.pitch, pack.yaw + Math.PI, Math.sin(w.gait) * 0.045 + slope.roll, 'YXZ');
         q.setFromEuler(e);
         s.set(w.scale, w.scale * (1 + Math.cos(w.gait * 2) * 0.03), w.scale);
         m.compose(v, q, s);

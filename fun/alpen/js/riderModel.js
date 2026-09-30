@@ -111,6 +111,7 @@ import { compose } from './geom.js';
 import { RIDER } from './config.js';
 import { GRAB_NOSE, GRAB_METHOD } from './rider.js';
 import { createHeadlamp } from './headlamp.js';
+import { sharedTexture } from './textures.js';
 
 /* The rider is the only saturated thing in the frame, and that is the job.
 
@@ -129,6 +130,9 @@ const MINT = '#00d4ff';     // Alpine glacier ice goggles & collar accent
 const YELLOW = '#ffab00';   // Alpine sun gold binding straps & wrist cuffs
 const SKIN = '#c98f6a';
 const DENIM = '#162342';    // deep navy technical snow pants
+// Bare steel, pale enough that the board's green-channel trim test lights it
+// as lacquer and mirrors the sky in it — the only metal on the rider.
+const STEEL = '#aeb6c0';
 
 const RISE_TIME = RIDER.riseTime;
 const TAU = Math.PI * 2;
@@ -148,8 +152,15 @@ const smooth01 = (v) => {
    off the snow before the legs even start, so a rider standing "tall" on a
    board still has fifty degrees of knee in him — which is why he reads as a
    snowboarder standing still rather than a man standing on a plank.
+
+   `DECK_DROP` is how far the deck's top came down when the board was made
+   thin (see `DECK_COARSE`). Its base did not move, so everything standing
+   on the top — the bindings, the ankles, the hips, the grab points — is
+   lowered by exactly this and nothing else, and the rider above the deck is
+   the same rider, 33 mm nearer the snow.
    -------------------------------------------------------------------------- */
-const ANKLE_Y = 0.33;    // where the boot's cuff ends and the shin begins
+const DECK_DROP = -0.033;
+const ANKLE_Y = 0.33 + DECK_DROP;    // where the boot's cuff ends and the shin begins
 const FOOT_Z = 0.245;    // the bindings, and therefore the feet, live here
 const FOOT_X = 0.015;
 
@@ -182,7 +193,7 @@ const FLEX = {
   min: -0.030,
   max: 0.022,
 };
-const HIP_Y = 1.06;      // hips at rest, unloaded
+const HIP_Y = 1.06 + DECK_DROP;      // hips at rest, unloaded
 const HIP_Z = 0.115;     // hip sockets, narrower than the stance — legs splay
 const THIGH = 0.42;
 const SHIN = 0.40;
@@ -193,7 +204,7 @@ const NECK_Y = 0.44;
 const UPPER = 0.29;
 const FORE = 0.29;       // shoulder to hand centre is therefore 0.58
 
-const DECK_TOP = 0.076;  // where the bindings bolt on, over the waist
+const DECK_TOP = 0.076 + DECK_DROP;  // where the bindings bolt on, over the waist
 const HALF_WIDTH = 0.155;   // the widest the board gets, at the contact points
 
 /* The leg spring is never at zero. Standing still on a slope it is already
@@ -356,18 +367,21 @@ const POSE = {
      is a leading-hand grab. Routed through one arm for all of them, the method
      sent the leading arm across the body to the heel edge behind the rider,
      which is a shape nobody has ever made on a snowboard. */
+  // Every `point` height carries `DECK_DROP`: the edge the hand closes on
+  // came down with the thinner deck, and so did the boots the hips are
+  // placed from, so the solved reach is unchanged.
   grabs: [
     // INDY — the trailing hand drops onto the toe edge between the feet
-    { point: [0.155, 0.09, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0, lead: false },
+    { point: [0.155, 0.09 + DECK_DROP, -0.16], fold: 1.75, hip: 0.26, lift: 0.32, tweak: 0.15, hinge: 0, lead: false },
     // NOSE — the reach is along the board, so it is paid for at the waist's
     // pitch rather than at its fold: he hinges over the leading binding and
     // the hand carries on past it. Folding further instead only puts the
     // shoulder further across the board, which is the wrong axis entirely.
-    { point: [0.095, 0.085, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46, lead: true },
+    { point: [0.095, 0.085 + DECK_DROP, -0.46], fold: 1.44, hip: 0.30, lift: 0.34, tweak: 0.05, hinge: 0.46, lead: true },
     // METHOD — the weight goes the other way and the board comes up much
     // further to meet a hand that is now reaching behind him, onto the edge
     // the other two never touch. The tweak reverses with it.
-    { point: [-0.140, 0.090, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
+    { point: [-0.140, 0.090 + DECK_DROP, 0.06], fold: 1.66, hip: 0.23, lift: 0.42, tweak: -0.30, hinge: -0.26, lead: false },
   ],
 
   /* THE PRESS.
@@ -407,8 +421,9 @@ const POSE = {
 
 /* A ring, as a superellipse: `round` = 1 is an ellipse, and below that it
    creeps towards a rectangle with bevelled corners. One knob covers a
-   snowboard's cross-section (0.4, nearly a rectangle), a jacket (0.6), a
-   sleeve (0.85) and a helmet (1). */
+   jacket (0.6), a sleeve (0.85) and a helmet (1). It used to cover the
+   snowboard too, at 0.4, and that is the one job it cannot do — see
+   `slab`. */
 const oval = (n, rx, ry, round = 1) => {
   const pts = [];
   for (let i = 0; i < n; i++) {
@@ -422,6 +437,37 @@ const oval = (n, rx, ry, round = 1) => {
   }
   return pts;
 };
+
+/* A board's section: flat top, flat base, vertical sidewalls, and a corner
+   of radius `c` between them — half-width `w`, half-thickness `t`.
+
+   A superellipse cannot be this. Its twenty points are spaced by angle, so
+   on a section twenty-three times wider than it is thick they bunch at the
+   rails and the top is carried by two long chords, and what `round` 0.4
+   produces at that aspect is a lens with soft shoulders — the surfboard.
+   Here the flat faces are single spans and the corners get the points, so
+   the normals do the right thing on their own: `computeVertexNormals` is
+   area-weighted, the top face is a hundred times the area of the corner
+   beside it, and so the top stays flat to the rail and turns in a
+   millimetre and a half. The two middle points on the top and base cost
+   nothing and keep the loft's quads from spanning the full width. */
+const slab = (w, t, c) => {
+  const k = c * (1 - Math.SQRT1_2);
+  return [
+    [w, 0], [w, t - c], [w - k, t - k], [w - c, t], [0, t],
+    [-(w - c), t], [-(w - k), t - k], [-w, t - c], [-w, 0],
+    [-w, -(t - c)], [-(w - k), -(t - k)], [-(w - c), -t], [0, -t],
+    [w - c, -t], [w - k, -(t - k)], [w, -(t - c)],
+  ];
+};
+/* …and the same idea for a thin strip laid on it, in six points: a flat
+   face each side and a chamfer at each end. A decal or a steel edge runs the
+   full length of the resampled deck, so every point on its section is paid
+   for forty times over; six keep a wide stripe flat and give a strip three
+   millimetres across a rounded bead of normals that catches a glint. */
+const strip = (w, t) => [
+  [w, 0], [w - t, t], [-(w - t), t], [-w, 0], [-(w - t), -t], [w - t, -t],
+];
 
 const ringXZ = (pts, y, cx = 0, cz = 0) => pts.map(([x, z]) => [cx + x, y, cz + z]);
 const ringXY = (pts, z, cx = 0, cy = 0) => pts.map(([x, y]) => [cx + x, cy + y, z]);
@@ -512,11 +558,78 @@ function loft(THREE, rings, capStart = true, capEnd = true) {
   return g;
 }
 
-// A stack of rings up the Y axis: limbs, torso, boots, helmet.
-const tube = (THREE, list) => loft(THREE, list.map((s) => ringXZ(
+/* A stack of rings up the Y axis: limbs, torso, boots, helmet.
+
+   `dome` is `[start, end]` in metres, and it is what a flat cap was hiding.
+   Every tube here used to stop dead in a disc, and on a limb that is only
+   ever seen end-on where it meets another one — the top of a thigh coming
+   out of the seat, the top of a sleeve coming out of a shoulder — so the
+   disc was the one thing the eye found at exactly the joints the rig bends.
+   A dome continues the end ring along the tube's own axis in four shrinking
+   rings on a quarter circle, so the solid finishes as a rounded end whose
+   profile is the ring's own superellipse. It stops a fifth of the way short
+   of the pole and keeps the ordinary flat cap on what is left, which is a
+   disc a third the width of the tube, tucked inside whatever it meets: one
+   degenerate ring at the pole would have handed `computeVertexNormals` a
+   fan of zero-area triangles for nothing.
+
+   Which way is "outward" is read off the neighbouring ring, so a table can
+   run top-down or bottom-up and still dome away from itself. */
+const DOME_STEPS = 4;
+const domed = (list, dome) => {
+  if (!dome || list.length < 2) return list;
+  const grow = (end, next, h) => {
+    if (!(h > 0)) return [];
+    const dir = Math.sign(end.y - next.y) || 1;
+    const rz = end.rz === undefined ? end.rx : end.rz;
+    const out = [];
+    for (let k = 1; k <= DOME_STEPS; k++) {
+      const a = (k / (DOME_STEPS + 1)) * Math.PI / 2;
+      out.push({
+        ...end,
+        y: end.y + dir * h * Math.sin(a),
+        rx: end.rx * Math.cos(a),
+        rz: rz * Math.cos(a),
+      });
+    }
+    return out;
+  };
+  const n = list.length;
+  return [
+    ...grow(list[0], list[1], dome[0]).reverse(),
+    ...list,
+    ...grow(list[n - 1], list[n - 2], dome[1]),
+  ];
+};
+const tube = (THREE, list, dome = null) => loft(THREE, domed(list, dome).map((s) => ringXZ(
   oval(s.n || 16, s.rx, s.rz === undefined ? s.rx : s.rz, s.round),
   s.y, s.x || 0, s.z || 0,
 )));
+
+/* THE KNEE AND THE ELBOW, which were a notch.
+
+   Both joints are two tubes meeting at a pivot, each closed by a flat cap:
+   the thigh stopped at the knee pivot and the shin began four and a half
+   centimetres above it, the upper sleeve stopped at the elbow and the
+   forearm began three above it. Straight, that is a seam nobody sees. Bent
+   — and the knee is never less than fifty degrees bent, because that is how
+   a snowboarder stands — the outside of the joint opened into a stepped
+   "cut pipe" notch with a pale disc in it, which the sun found on every
+   frame of every run.
+
+   A solid centred on the pivot is the whole cure, and it is the whole cure
+   for a reason worth stating: a ball about the hinge is unchanged by any
+   rotation about the hinge, so it covers the outside of the bend at every
+   angle the IK can produce, whichever of the two segments carries it. It is
+   lofted rather than a stock sphere so it shares the limb's own ring — the
+   same sixteen points and the same superellipse — and so its outline flows
+   into the tubes either side instead of reading as a bead threaded on
+   them. Both tubes now also end *at* the pivot, inside the ball, so no
+   corner of either can poke out through it. */
+const joint = (THREE, rx, rz, ry, round = 0.9, n = 16) => tube(THREE, [
+  { y: -0.002, rx, rz, round, n },
+  { y: 0.002, rx, rz, round, n },
+], [ry, ry]);
 
 /* A band bent round the Y axis — the goggle lens and its strap, which are the
    two things on the rider that have to follow a curve rather than sit on a
@@ -548,19 +661,90 @@ const arc = (THREE, o) => {
    ends clear of the snow. The old board was three tilted boxes and read as a
    plank with the corners cut off; the shadow of it read as three tilted
    boxes, which is what forced the issue. */
-const DECK = [
-  { z: -0.800, rx: 0.048, y: 0.150, ry: 0.010 },
-  { z: -0.715, rx: 0.100, y: 0.119, ry: 0.014 },
-  { z: -0.605, rx: 0.140, y: 0.087, ry: 0.018 },
-  { z: -0.470, rx: 0.155, y: 0.062, ry: 0.021 },
-  { z: -0.250, rx: 0.142, y: 0.052, ry: 0.023 },
-  { z: 0.000, rx: 0.131, y: 0.059, ry: 0.024 },
-  { z: 0.250, rx: 0.142, y: 0.052, ry: 0.023 },
-  { z: 0.450, rx: 0.154, y: 0.062, ry: 0.021 },
-  { z: 0.600, rx: 0.138, y: 0.088, ry: 0.018 },
-  { z: 0.705, rx: 0.098, y: 0.120, ry: 0.014 },
-  { z: 0.780, rx: 0.046, y: 0.148, ry: 0.010 },
+/* THE DECK IS A CENTIMETRE AND A BIT, and it was five.
+
+   The table used to give each station a centre and a half-thickness, and
+   the half-thicknesses ran from ten to twenty-four millimetres — a board
+   forty-eight millimetres through at the waist, with a superellipse of 0.4
+   for a section, which is a surfboard. A snowboard's core is about twelve
+   millimetres under the feet and tapers to a few at the tips, its top and
+   base are flat, and its sidewall is a crisp vertical strip: from any
+   distance that thinness *is* the object, and it is why a real board reads
+   as a blade under the boots rather than a plank.
+
+   So a station now says where its BASE is (`b`) and how thick it is (`t`).
+   The bases are exactly the ones the old table implied — centre minus half
+   the thickness — so the board meets the snow, the edge pivot and the
+   contact patch precisely where they always were, and all of the thinning
+   comes off the top. That moves the surface the bindings bolt to down by
+   33 mm, and every number that stood on it moves with it: `DECK_TOP`,
+   `ANKLE_Y`, `HIP_Y` and the three grab points, each by the same `DECK_DROP`,
+   so the legs, the IK and the grab solutions see exactly the rider they
+   were solved for, standing on a thinner board. `y` and `ry` are still
+   derived below for everything that reads a centre line. */
+const DECK_COARSE = [
+  { z: -0.800, rx: 0.048, b: 0.140, t: 0.0050 },
+  { z: -0.715, rx: 0.100, b: 0.105, t: 0.0070 },
+  { z: -0.605, rx: 0.140, b: 0.069, t: 0.0090 },
+  { z: -0.470, rx: 0.155, b: 0.041, t: 0.0110 },
+  { z: -0.250, rx: 0.142, b: 0.029, t: 0.0130 },
+  { z: 0.000, rx: 0.131, b: 0.035, t: 0.0135 },
+  { z: 0.250, rx: 0.142, b: 0.029, t: 0.0130 },
+  { z: 0.450, rx: 0.154, b: 0.041, t: 0.0110 },
+  { z: 0.600, rx: 0.138, b: 0.070, t: 0.0090 },
+  { z: 0.705, rx: 0.098, b: 0.106, t: 0.0070 },
+  { z: 0.780, rx: 0.046, b: 0.138, t: 0.0050 },
 ];
+
+/* …and eleven stations was a polygon. Lofted straight between them, the
+   nose was five flat facets meeting in a nine-centimetre-wide flat end,
+   which a sidewall a centimetre tall makes impossible to miss. So the table
+   is resampled: a Catmull-Rom through every column, three spans to each
+   interval, and then each tip is carried round a quarter-ellipse in plan
+   — four more stations that close the outline to a rounded nose while the
+   rocker carries on rising at the slope it arrived with. The coarse rows
+   remain the authored truth; everything drawn is sampled from them. */
+const DECK = (() => {
+  const C = DECK_COARSE;
+  const keys = ['z', 'rx', 'b', 't'];
+  const cr = (p0, p1, p2, p3, u) => 0.5 * (2 * p1 + (p2 - p0) * u
+    + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (3 * p1 - p0 - 3 * p2 + p3) * u * u * u);
+  const fine = [];
+  for (let i = 0; i + 1 < C.length; i++) {
+    const p0 = C[Math.max(0, i - 1)];
+    const p1 = C[i];
+    const p2 = C[i + 1];
+    const p3 = C[Math.min(C.length - 1, i + 2)];
+    for (let k = 0; k < 3; k++) {
+      const s = {};
+      for (const key of keys) s[key] = cr(p0[key], p1[key], p2[key], p3[key], k / 3);
+      fine.push(s);
+    }
+  }
+  fine.push({ ...C[C.length - 1] });
+  const tip = (end, inner, dir) => {
+    const rise = (end.b - inner.b) / Math.abs(end.z - inner.z);
+    const len = end.rx * 0.85;
+    const out = [];
+    for (let k = 1; k <= 4; k++) {
+      const a = (k / 5) * Math.PI / 2;
+      const dz = len * Math.sin(a);
+      out.push({
+        z: end.z + dir * dz,
+        rx: end.rx * Math.cos(a),
+        b: end.b + rise * dz,
+        t: end.t * (1 - 0.25 * Math.sin(a)),
+      });
+    }
+    return out;
+  };
+  const nose = tip(fine[0], fine[1], -1).reverse();
+  const tail = tip(fine[fine.length - 1], fine[fine.length - 2], 1);
+  return [...nose, ...fine, ...tail].map((s) => ({ ...s, y: s.b + s.t / 2, ry: s.t / 2 }));
+})();
+// The stations whose z lies in [z0, z1] — the overlays are placed by where
+// they run along the board, not by an index into a table that is resampled.
+const deckSpan = (z0, z1) => DECK.filter((s) => s.z >= z0 - 1e-6 && s.z <= z1 + 1e-6);
 
 /* The boot, in its own frame: +X is the toes, the origin is under the ankle
    and level with the deck. Six stations, because a boot is a cone with a
@@ -580,17 +764,37 @@ function buildGeometries(THREE) {
   const scrap = [];
   const use = (g) => { scrap.push(g); return g; };
 
-  const deckRings = (i0, i1, ws, ts, dy) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(20, s.rx * ws, s.ry * ts, 0.4), s.z, 0, s.y + dy,
+  /* The deck's section is a `slab` rather than an `oval`: see the note
+     there. `grow` fattens it by the same distance on every face, which is
+     how the nose and tail caps sit a hair proud of the deck all round
+     rather than scaling a millimetre-thick tip into something that
+     scaling only makes thicker. */
+  const deckRings = (z0, z1, grow = 0) => deckSpan(z0, z1).map((s) => ringXY(
+    slab(s.rx + grow, s.ry + grow, Math.min(0.0015, s.ry * 0.5)), s.z, 0, s.y,
   ));
   // A sticker: a thin slab following the deck's own curve, on the top or the
   // bottom face. It is how the board gets more than one colour without the
-  // deck becoming four separate solids that have to agree along a seam.
-  const sticker = (i0, i1, half, side, thick) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(12, half, thick, 0.35), s.z, 0, s.y + side * (s.ry + thick * 0.6),
+  // deck becoming four separate solids that have to agree along a seam. It
+  // is a millimetre and a bit now, eight tenths of it proud of the face — a
+  // decal, where the old eight-millimetre stripe was a keel.
+  const sticker = (z0, z1, half, side) => deckSpan(z0, z1).map((s) => ringXY(
+    strip(half, 0.0006), s.z, 0, s.y + side * (s.ry + 0.0002),
   ));
-  const rail = (i0, i1, sign) => DECK.slice(i0, i1).map((s) => ringXY(
-    oval(12, 0.011, 0.013, 0.35), s.z, sign * (s.rx - 0.006), s.y - s.ry + 0.008,
+  /* THE STEEL EDGES, which were rubber bumpers.
+
+     They were eleven-by-thirteen millimetre ink tubes hung under each rail,
+     proud of the sidewall and the base both, and at any distance at which
+     they could be seen they read as a fender round a dinghy. A snowboard's
+     edge is a strip of steel two or three millimetres square let into the
+     corner where the base meets the sidewall, flush with both, and the only
+     thing it ever does visually is catch the light along that one line. So
+     that is what this is: a 3.2 × 2.8 mm strip wrapped round the base's
+     corner, four tenths of a millimetre proud of each face so it wins the
+     depth test cleanly, in a grey pale enough that the board's own
+     trim test gives it the lacquer lobe and the sky mirror — which is what
+     bare steel looks like from a chairlift. */
+  const edge = (z0, z1, sign) => deckSpan(z0, z1).map((s) => ringXY(
+    strip(0.0016, 0.0014), s.z, sign * (s.rx - 0.0012), s.b + 0.0010,
   ));
 
   /* One binding: baseplate, highback and straps remain bolted to the board.
@@ -607,13 +811,19 @@ function buildGeometries(THREE) {
     { y: 0.230, x: -0.092, rx: 0.022, rz: 0.080, round: 0.85, n: 12 },
     { y: 0.320, x: -0.074, rx: 0.020, rz: 0.068, round: 0.9, n: 12 },
   ]));
+  /* The baseplate sits six millimetres higher on its bolts than it did and
+     is a little narrower, both for the thin deck. Sunk a centimetre, as it
+     was into five centimetres of board, its underside now lands on the
+     base plane itself; and at its old width its corners hung past the
+     rails, which on a deck this thin reads as the plate wrapping the edge.
+     Its top is still inside the boot's sole. */
   const plate = use(tube(THREE, [
-    { y: -0.004, rx: 0.150, rz: 0.112, round: 0.45 },
-    { y: 0.028, x: 0.010, rx: 0.146, rz: 0.108, round: 0.5 },
+    { y: -0.004, rx: 0.134, rz: 0.106, round: 0.45 },
+    { y: 0.028, x: 0.010, rx: 0.130, rz: 0.102, round: 0.5 },
   ]));
 
   const binding = (z, yaw) => [
-    { geo: plate, color: INK, pos: [0, DECK_TOP - 0.01, z], rot: [0, yaw, 0] },
+    { geo: plate, color: INK, pos: [0, DECK_TOP - 0.004, z], rot: [0, yaw, 0] },
     { geo: highback, color: INK, pos: [FOOT_X, DECK_TOP + 0.02, z], rot: [0, yaw, 0] },
     // the two straps, which are the only part of a binding anybody ever
     // notices, and the only reason a boot reads as strapped down at all
@@ -641,19 +851,20 @@ function buildGeometries(THREE) {
      trap geom.js warns about, and the one this board was in. `loft` writes a
      planar top-sheet parameterisation for every ring solid; the material
      below confines the print to the deck by its colour, which is white for
-     exactly that reason: the graphic is the deck's colour. */
+     exactly that reason: the graphic is the deck's colour. (Top, base and
+     sidewall all share that planar mapping, so the material also chooses
+     *which face* of the white deck gets the print — see `boardMat`.) */
   const board = compose(THREE, [
-    { geo: use(loft(THREE, deckRings(0, 11, 1, 1, 0))), color: '#ffffff' },
-    // a broader mint nose cap and a clipped dark tail: direction has to be
-    // legible through spray, at night, and in the middle of a spin
-    { geo: use(loft(THREE, deckRings(0, 3, 1.05, 1.18, 0))), color: MINT },
-    { geo: use(loft(THREE, deckRings(8, 11, 1.05, 1.18, 0))), color: INK },
+    { geo: use(loft(THREE, deckRings(-Infinity, Infinity))), color: '#ffffff' },
+    // a mint nose cap and a clipped dark tail: direction has to be legible
+    // through spray, at night, and in the middle of a spin
+    { geo: use(loft(THREE, deckRings(-Infinity, -0.605, 0.0008))), color: MINT },
+    { geo: use(loft(THREE, deckRings(0.600, Infinity, 0.0008))), color: INK },
     // the stripe down the base, so a spin still reads from underneath
-    { geo: use(loft(THREE, sticker(2, 9, 0.044, -1, 0.004))), color: MINT },
-    // steel edges, which also stop the deck reading as a slab of butter, and
-    // which now follow the sidecut rather than being two straight sticks
-    { geo: use(loft(THREE, rail(1, 10, -1))), color: INK },
-    { geo: use(loft(THREE, rail(1, 10, 1))), color: INK },
+    { geo: use(loft(THREE, sticker(-0.605, 0.600, 0.044, -1))), color: MINT },
+    // steel edges, following the sidecut from tip contact to tail contact
+    { geo: use(loft(THREE, edge(-0.715, 0.705, -1))), color: STEEL },
+    { geo: use(loft(THREE, edge(-0.715, 0.705, 1))), color: STEEL },
     // The feet are angled forward off the perpendicular, more at the front
     // than the back, because a duck-square stance is the one thing no
     // snowboarder rides.
@@ -663,17 +874,39 @@ function buildGeometries(THREE) {
   ], { uv: true });
   const rearBoot = compose(THREE, boot(0, 0.10));
 
+  /* THE SEAT OF THE TROUSERS, which belongs to the hips and was welded to
+     the chest.
+
+     It used to be the first part of the torso buffer, and the torso turns
+     about the waist: counter-rotation winds the shoulders a third of a turn
+     against the pelvis, and a grab folds them past ninety degrees. Both of
+     those swung the seat of the trousers round with the jacket while the
+     thighs stayed on the hips, so the tops of the thighs came out of the
+     side of it as two flat discs and the rider's backside faced wherever
+     his chest did. The seat is its own buffer now, hung off the hips at the
+     same waist pivot and in the same coordinates it always had, so it is
+     drawn exactly where it was until the torso moves — and then it stays.
+
+     The jacket's hem stays on the torso and still overlaps it, which is the
+     order the clothes are actually worn in. The top is domed because a
+     folded torso lifts the hem clear of it, and the crotch is domed because
+     a deep crouch shows it from below. It is its own `clad`, woven and not
+     quilted like the rest of the trousers — as a part of the torso it had
+     been wearing the jacket's baffles. */
+  const pelvis = compose(THREE, [
+    { geo: use(tube(THREE, [
+      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
+      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
+      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
+    ], [0.045, 0.07])), color: DENIM },
+  ]);
+
   /* The torso: wide across Z and shallow across X, because the shoulder line
      runs nose to tail and that is the single most snowboard-shaped thing
      about him. The jacket has a waist and a hem now — it pulls in above the
      seat and flares back out at the chest — which is most of the difference
      between a jacket and a crate. */
   const torso = compose(THREE, [
-    { geo: use(tube(THREE, [
-      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
-      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
-      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
-    ])), color: DENIM },
     { geo: use(tube(THREE, [
       { y: -0.075, rx: 0.142, rz: 0.181, round: 0.6 },
       { y: 0.020, rx: 0.134, rz: 0.175, round: 0.6 },
@@ -772,17 +1005,20 @@ function buildGeometries(THREE) {
      only convention the IK needs to know about. The sleeves and legs taper,
      which is what stops a limb reading as a length of pipe once it throws a
      shadow of its own. */
+  // The sleeve and its yoke band are domed at the shoulder: a raised arm
+  // swings the top of the sleeve out of the shoulder's own dome, and what
+  // came out was the flat end of a pipe.
   const upperArm = compose(THREE, [
     { geo: use(tube(THREE, [
       { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 16 },
       { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 16 },
       { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 16 },
       { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
-    ])), color: SHELL },
+    ], [0.05, 0])), color: SHELL },
     { geo: use(tube(THREE, [
       { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 16 },
       { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 16 },
-    ])), color: SHELL_DARK },
+    ], [0.05, 0])), color: SHELL_DARK },
   ]);
   /* The one buffer whose parts do not agree about what they are made of, and
      therefore the only one that carries the mask per part rather than whole:
@@ -790,8 +1026,14 @@ function buildGeometries(THREE) {
      across and the baffles are ten, so a band over one is not a baffle, it is
      a stripe — the glove is woven and it is not quilted. See `clad`. */
   const foreArmParts = [
+    // The elbow: the sleeve bunched round the joint, a few millimetres
+    // proud of both tubes because that is what a padded sleeve does when it
+    // folds. It is a part of this list rather than of the upper arm so the
+    // span walk in `clad` stays in step — it takes the sleeve's default
+    // mask, quilted and woven, like the fabric either side of it.
+    { geo: use(joint(THREE, 0.068, 0.066, 0.066, 0.92)), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: 0.030, rx: 0.066, rz: 0.064, round: 0.95, n: 16 },
+      { y: 0.000, rx: 0.065, rz: 0.063, round: 0.95, n: 16 },
       { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
       { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 16 },
     ])), color: SHELL },
@@ -800,34 +1042,42 @@ function buildGeometries(THREE) {
       { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
     ])), color: YELLOW, cloth: [0.6, 0] },
     // the glove: a mitt with a thumb, which at this size is one extra bump
-    // and the entire difference between a hand and a peg
+    // and the entire difference between a hand and a peg. Its fingertips
+    // are domed: the flat end of the mitt faces the snow whenever the arms
+    // hang, and the bounce light off the snow found it as a pale disc at the
+    // end of every arm.
     { geo: use(tube(THREE, [
       { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 16 },
       { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 16 },
       { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 16 },
-      { y: -0.352, x: 0.006, rx: 0.040, rz: 0.038, round: 0.95, n: 16 },
-    ])), color: INK, cloth: [1, 0] },
+      { y: -0.334, x: 0.008, rx: 0.051, rz: 0.046, round: 0.95, n: 16 },
+    ], [0, 0.019])), color: INK, cloth: [1, 0] },
     { geo: use(tube(THREE, [
       { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 12 },
       { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 12 },
     ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5], cloth: [1, 0] },
   ];
   const foreArm = compose(THREE, foreArmParts);
+  // Domed at the hip, where the top of the thigh comes out of the seat on
+  // the outside of every deep crouch and every grab.
   const thigh = compose(THREE, [
     { geo: use(tube(THREE, [
       { y: 0.070, rx: 0.108, rz: 0.104, round: 0.9 },
       { y: -0.080, rx: 0.116, rz: 0.112, round: 0.75 },
       { y: -0.260, rx: 0.100, rz: 0.098, round: 0.75 },
       { y: -0.420, rx: 0.086, rz: 0.086, round: 0.85 },
-    ])), color: DENIM },
+    ], [0.075, 0])), color: DENIM },
     { geo: box, color: '#24324c', pos: [0.106, -0.15, 0],
       scale: [0.025, 0.14, 0.11] },
     { geo: box, color: INK, pos: [0.122, -0.085, 0],
       scale: [0.008, 0.016, 0.105] },
   ]);
   const shin = compose(THREE, [
+    // The knee, a touch deeper front to back than across so it reads as a
+    // kneecap under the cloth rather than a ball bearing.
+    { geo: use(joint(THREE, 0.093, 0.090, 0.090, 0.88)), color: DENIM },
     { geo: use(tube(THREE, [
-      { y: 0.045, rx: 0.090, rz: 0.090, round: 0.85 },
+      { y: 0.000, rx: 0.089, rz: 0.088, round: 0.85 },
       { y: -0.120, rx: 0.084, rz: 0.082, round: 0.8 },
       { y: -0.270, rx: 0.090, rz: 0.088, round: 0.75 },
       { y: -0.340, rx: 0.101, rz: 0.099, round: 0.7 },
@@ -863,7 +1113,7 @@ function buildGeometries(THREE) {
      So `x` is how woven the surface is and `y` is how quilted, and the glossy
      trim inside a garment is still taken out downstream by the same
      green-channel test that gives it its highlight. */
-  const clad = (geometry, sheen, baffle, parts) => {
+  const clad = (geometry, sheen, baffle, parts, flap = null) => {
     const n = geometry.attributes.position.count;
     const a = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) {
@@ -894,14 +1144,57 @@ function buildGeometries(THREE) {
       }
     }
     geometry.setAttribute('aCloth', new THREE.BufferAttribute(a, 2));
+    /* A third question, and a third attribute: how free the cloth is to
+       move. Every segment gets one — the material is shared, and a program
+       reading an attribute a geometry does not carry is reading whatever
+       the driver left in that slot — and all but two of them are zero. See
+       `flapTorso`, `flapSleeve` and the flutter in the material. */
+    const f = new Float32Array(n);
+    if (flap) {
+      const p = geometry.attributes.position;
+      for (let i = 0; i < n; i++) f[i] = flap(p.getX(i), p.getY(i), p.getZ(i));
+    }
+    geometry.setAttribute('aFlap', new THREE.BufferAttribute(f, 1));
     return geometry;
   };
+
+  /* WHERE THE JACKET IS LOOSE, which is at the bottom.
+
+     A shell is held at the shoulders and hangs, so the hem is the one edge
+     of it with nothing holding it down: weight 1 at the hem, easing to
+     nothing by the chest (0.16 m up the torso), where the jacket is lying
+     on the rider rather than standing off him. The back is pinned — that is
+     where the pack's hip belt crosses it — so the weight fades out as the
+     surface turns from the side of the body to the back of it, which also
+     keeps the flutter from pushing the jacket out through the pack.
+
+     It is written over the whole torso buffer rather than per part because
+     everything on the front of the jacket in that band — the mint stripe,
+     the zip, the pocket — has to move with the shell it is sewn to, or the
+     shell would bulge out through its own trim. The displacement is radial
+     in the garment's own XZ (see the material), so a box on the front moves
+     as one piece instead of splitting along its face normals. */
+  const flapTorso = (x, y, z) => {
+    const r = Math.hypot(x, z);
+    const facing = r > 1e-5 ? x / r : 0;
+    return (1 - smooth01((y + 0.095) / 0.255)) * smooth01((facing + 0.55) / 0.45);
+  };
+  /* …and a little down the outside of each upper sleeve: nothing at the
+     shoulder seam, a third of the hem's freedom through the middle of the
+     sleeve, and nothing again by the elbow so the sleeve cannot peel away
+     from the ball it meets there. The two arms share this geometry and the
+     IK rolls each one freely about its own bone, so there is no "outer"
+     side to single out; the inner one is against the ribs, where nobody can
+     see it move. */
+  const flapSleeve = (x, y) => 0.32 * smooth01(-y / 0.08) * (1 - smooth01((-y - 0.20) / 0.06));
+
   return {
     board,
     rearBoot: clad(rearBoot, 0, 0),
-    torso: clad(torso, 1, 1),
+    pelvis: clad(pelvis, 1, 0),
+    torso: clad(torso, 1, 1, null, flapTorso),
     head: clad(head, 0, 0),
-    upperArm: clad(upperArm, 1, 1),
+    upperArm: clad(upperArm, 1, 1, null, flapSleeve),
     foreArm: clad(foreArm, 1, 1, foreArmParts),
     thigh: clad(thigh, 1, 0),
     shin: clad(shin, 1, 0),
@@ -974,8 +1267,49 @@ export function createRiderModel(THREE, shading) {
     float n64Spec = pow(max(dot(normal, n64H), 0.0), ${power.toFixed(1)}) * n64NoL
       * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim) * n64Fabric;
     float n64Rim = pow(1.0 - n64NoV, 2.5);
-    float n64GroundBounce = max(-normal.y, 0.0) * 0.18;
-    vec3 n64SnowBounceColor = vec3(0.85, 0.92, 1.0) * uSunLevel * n64GroundBounce;
+    /* WHETHER THE SUN IS ACTUALLY ON THIS PIXEL.
+
+       Everything added here is added after the light loop, so none of it
+       went through the shadow test: a rider carving through the shade of a
+       spruce, or down the bar the containment wall lays across the piste at
+       dusk, kept a full sun highlight on the topsheet and a sunlit sheen on
+       both sleeves — lit from a sun the rest of the picture said was gone.
+       The loop has already paid for the answer, though. With one
+       directional light, direct diffuse is albedo · NoL · sun · shadow / π,
+       and every factor but the shadow is in scope here, so dividing them
+       out recovers the depth map, the mountain's own horizon and the cloud
+       deck together — the same recovery the snow uses, and no second
+       shadow-map lookup. Near the terminator the ratio is undefined, but
+       every term it gates is multiplied by NoL and has already gone to
+       nothing there. */
+    float n64Open = clamp(
+      dot(reflectedLight.directDiffuse, vec3(0.2126, 0.7152, 0.0722))
+        / max(max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 1e-3)
+          * n64NoL * uSunLevel * dot(uSunTint, vec3(0.2126, 0.7152, 0.0722))
+          * RECIPROCAL_PI, 1e-5),
+      0.0, 1.0);
+    n64Spec *= n64Open;
+    /* The snow's bounce comes up from below — from the world's below. This
+       read the view-space y of the normal, which is "down the screen", so
+       it lit whichever surfaces faced the bottom of the frame: the rider's
+       back when the camera was high, nothing at all when it was low. World
+       up in view space is the view matrix's second column, the same axis
+       the terrain's strata test uses. And the snow under the rider is only
+       sunlit if the ground there is, so it dims with the mountain's shadow
+       and the cloud deck (not with the rider's own shadow, which falls on
+       the snow beside him rather than all of it). */
+    float n64GroundBounce = max(-dot(normal, viewMatrix[1].xyz), 0.0) * 0.18;
+    #ifdef N64_SUN_VIS
+      n64GroundBounce *= n64SunVis;
+    #endif
+    /* …and it is light arriving at the surface, so the surface's own
+       colour decides how much of it comes back. It was added as if the
+       garment were white: every downward face gained the same pale blue
+       whatever it was made of, so a black glove, the ink sole of a boot and
+       the dark sintered base of the board all went milky from below — most
+       visibly the base, in every grab and spin that shows it to the lens. */
+    vec3 n64SnowBounceColor = diffuseColor.rgb * vec3(0.85, 0.92, 1.0)
+      * uSunLevel * n64GroundBounce;
     vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
     float n64Fres = 0.04 + 0.96 * pow(1.0 - n64NoV, 5.0);
     vec3 n64Mirror = n64SkyReflect(n64R)
@@ -1002,7 +1336,7 @@ export function createRiderModel(THREE, shading) {
        cools with the day like everything else on this mountain. */
     float n64Graze = 1.0 - abs(dot(normal, uSunView));
     reflectedLight.directDiffuse += uSunTint
-      * (uSunLevel * n64NoL * n64Graze * n64Graze * n64Graze * 0.085
+      * (uSunLevel * n64NoL * n64Open * n64Graze * n64Graze * n64Graze * 0.085
         * vCloth.x * (1.0 - n64Trim));` : ''}
   }`;
 
@@ -1089,21 +1423,42 @@ export function createRiderModel(THREE, shading) {
      it — `shading.apply` keeps a prior hook and folds its text into the
      program cache key, so this material cannot collide with the plain
      Lambert everything else on the mountain compiles to. */
-  const fabricTex = new THREE.TextureLoader().load(
-    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  fabricTex.colorSpace = THREE.SRGBColorSpace;
-  fabricTex.anisotropy = 8;
+  // The same decoded plate the other skiers wear — see textures.js.
+  const fabricTex = sharedTexture(THREE,
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href);
+
+  /* THE WIND IN HIS JACKET. Nothing on the rider moved in the wind: at a
+     hundred and twenty km/h he was a man in a coat carved out of wood. The
+     cloth material now pushes every vertex out by `aFlap` (see `clad`) times
+     this many metres, rippling on two sines whose phases are these two
+     numbers.
+
+     The amplitude is a speed and nothing else — two millimetres of stir
+     standing still, half a millimetre more for every metre a second, capped
+     at two centimetres — because the air a rider feels is almost entirely
+     his own speed through it; the weather's wind is a few metres a second
+     against thirty. The phases are advanced here, wrapped to a turn each in
+     double precision, rather than handed to the shader as a clock: the two
+     rates are deliberately incommensurate so the ripple never repeats, which
+     means there is no time at which a shared clock could wrap invisibly, and
+     a float clock left to grow turns a fine ripple into shimmer an hour into
+     a session. A phase that is always inside one turn cannot do either. */
+  const flapUniform = { value: 0 };
+  const flapPhase = { value: new THREE.Vector2() };
 
   const cloth = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uLampGlow = lampUniform;
       shader.uniforms.uFabricTex = { value: fabricTex };
+      shader.uniforms.uFlap = flapUniform;
+      shader.uniforms.uFlapPhase = flapPhase;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
           attribute vec2 aCloth;
+          attribute float aFlap;
+          uniform float uFlap;
+          uniform vec2 uFlapPhase;
           varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;
@@ -1127,7 +1482,36 @@ export function createRiderModel(THREE, shading) {
              into the tens of thousands, where float precision turns a
              fine weave into shimmer. Local coordinates travel with the
              cloth and stay small forever. */
-          vClothWorld = transformed;`);
+          vClothWorld = transformed;
+          /* The flutter, after every varying above has been written from
+             the rest shape — the baffles and the weave are sewn into the
+             cloth, so they ride on it rather than sliding over it.
+
+             Outwards only, radially from the garment's own axis. Radially
+             because the zip and the pocket on the front are boxes, whose
+             corners carry three different face normals each: pushed along
+             those they would come apart at every edge, and pushed along the
+             one radial direction they move as a piece with the shell they
+             are sewn to. Outwards only — the ripple runs from none to full
+             rather than either side of rest — for the shadow's sake. The
+             depth pass is three's own depth material and never sees this,
+             so the cast shadow is the jacket at rest; that is two
+             centimetres of hem on the snow, which nobody can see, and it is
+             deliberately left rigid rather than paying for a custom depth
+             material on eleven meshes. What would show is the jacket
+             shadowing *itself*: a fragment pushed inwards would sit behind
+             its own rest depth and fall into its own shadow in moving
+             blotches. Pushed outwards it is always nearer the light than the
+             surface that cast the map, so it can only ever be lit. */
+          if (aFlap > 0.0 && uFlap > 0.0) {
+            vec3 n64Out = vec3(position.x, 0.0, position.z);
+            float n64OutLen = length(n64Out);
+            if (n64OutLen > 1e-4) {
+              float n64Ripple = 0.6 * sin(uFlapPhase.x + position.y * 23.0 + position.z * 11.0)
+                + 0.4 * sin(uFlapPhase.y - position.y * 9.0 + position.x * 19.0);
+              transformed += n64Out * (aFlap * uFlap * (0.5 + 0.5 * n64Ripple) / n64OutLen);
+            }
+          }`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;
@@ -1203,8 +1587,10 @@ export function createRiderModel(THREE, shading) {
       shader.uniforms.uLampGlow = lampUniform;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
-          uniform float uBend;`)
+          uniform float uBend;
+          varying float vDeckUp;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vDeckUp = normal.y;
           {
             float u = clamp(transformed.z / ${FLEX_SPAN.toFixed(3)}, -1.0, 1.0);
             transformed.y += uBend * (1.0 - u * u);
@@ -1214,15 +1600,33 @@ export function createRiderModel(THREE, shading) {
       // surface here that ought to flash as a carve rolls it through the
       // sun. The print goes on the deck alone — the deck is the one white
       // part, so the bindings and boots keep their own colours.
+      /* …and on the deck's TOP alone, which it was not. `loft` gives every
+         vertex of a ring solid the same planar (x, z) mapping, so the base
+         and the sidewall carried the top-sheet too — the base showed the
+         graphic mirrored through the board, which is exactly what a board
+         seen from underneath in a spin must not do, and the sidewall was a
+         smear of the print's edge pixels. The face is chosen by the
+         board-space normal, which `compose` has already carried through
+         every part's own transform and which the flex never touches: up is
+         the print, down is a sintered base — near-black with a little blue
+         in it, the colour every base is before it is waxed — and the rest
+         is the black ABS sidewall. The blends run over the corner's own
+         normals, so the turn from face to rail is a millimetre-wide ramp
+         rather than a seam. */
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
-          uniform float uLampGlow;`)
+          uniform float uLampGlow;
+          varying float vDeckUp;`)
         .replace('#include <map_fragment>', `
           #ifdef USE_MAP
           {
             vec4 n64Sheet = texture2D( map, vMapUv );
             float n64Deck = step(2.9, vColor.r + vColor.g + vColor.b);
-            diffuseColor.rgb *= mix(vec3(1.0), n64Sheet.rgb, n64Deck);
+            vec3 n64Face = mix(vec3(0.009, 0.009, 0.011), n64Sheet.rgb,
+              smoothstep(0.30, 0.70, vDeckUp));
+            n64Face = mix(n64Face, vec3(0.017, 0.021, 0.029),
+              smoothstep(0.30, 0.70, -vDeckUp));
+            diffuseColor.rgb *= mix(vec3(1.0), n64Face, n64Deck);
           }
           #endif`)
         .replace(RIG_ANCHOR, rigLight(0.18, 0.45, false, 140, 0.35, 0.65));
@@ -1251,8 +1655,22 @@ export function createRiderModel(THREE, shading) {
   const torso = new THREE.Group();
   torso.position.set(0, WAIST, 0);
   torso.rotation.order = 'YZX';
-  torso.add(new THREE.Mesh(geo.torso, cloth));
+  /* The jacket is its own mesh inside the torso group, rather than the
+     group's only geometry, because breathing scales it — see the note at
+     `breath` — and a scale on the group would be inherited by the head and
+     both arms hanging off it. */
+  const torsoMesh = new THREE.Mesh(geo.torso, cloth);
+  torsoMesh.name = 'rider-torso';
+  torso.add(torsoMesh);
   hips.add(torso);
+  /* The seat of the trousers, at the waist pivot but on the hips' side of
+     it — see `pelvis` in `buildGeometries`. It is a mesh on the shared
+     material like every other segment, so the shadow pass and the lamp
+     spill both pick it up without being told. */
+  const pelvisMesh = new THREE.Mesh(geo.pelvis, cloth);
+  pelvisMesh.name = 'rider-pelvis';
+  pelvisMesh.position.set(0, WAIST, 0);
+  hips.add(pelvisMesh);
 
   const head = new THREE.Group();
   head.position.set(0, NECK_Y, 0);
@@ -1454,7 +1872,13 @@ export function createRiderModel(THREE, shading) {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
     twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0, airTuck: 0,
     edge: 0, load: 0, steer: 0, switched: 0,
+    // the head's lead into a turn, and the follow-through spring's state:
+    // the slow copies of the two accelerations, then position and velocity
+    // along the travel and across the board
+    yawLast: 0, yawRate: 0, aF: 0, aL: 0, fx: 0, fv: 0, lx: 0, lv: 0,
   };
+  const velPrev = new THREE.Vector3();
+  const _acc = new THREE.Vector3();
   let seen = false;
 
   function update(rider, dt, weather = null, camera = null) {
@@ -1631,6 +2055,85 @@ export function createRiderModel(THREE, shading) {
     // rather than a body, and this is the one place that is reconciled.
     s.lean = approach(s.lean, -rider.roll, 8, sdt);
     if (fallen <= 0) s.tumbleLag = rider.tumble;
+
+    /* --- anticipation and follow-through --------------------------------- */
+
+    /* Every signal above is a first-order approach, and a first-order
+       approach can only ever arrive late and never go past: nothing on the
+       rider looked into a turn before his body was in it, and nothing
+       carried on after the board stopped. Those are the two oldest tricks
+       in animation for a reason, and both are cheap here.
+
+       THE HEAD LEADS. A rider looks where he is going, and where he is going
+       is round the turn he is already in, so the head is turned into it by
+       how fast the board is yawing — differenced from the yaw the model is
+       drawn with, wrapped, because a landed 720 hands this file a heading
+       whole turns away from the last one. Anything bigger than a third of a
+       radian in a frame is a snap or a teleport, not a turn, and is thrown
+       away. Only on the snow: in the air the rate is a spin, which the
+       shoulders already trail, and the smoothed rate is let go to zero so
+       that nothing of the spin is left in the neck at touchdown. The sign is
+       the model's: the rig turns by −yaw, so a positive rate turns the head
+       negative. It is capped at a fifth of a turn, and three tenths of it is
+       carried in the chest, because nobody turns their head that far
+       without their shoulders coming with it. */
+    let dyaw = rider.yaw - s.yawLast;
+    dyaw -= TAU * Math.round(dyaw / TAU);
+    s.yawLast = rider.yaw;
+    if (snap || Math.abs(dyaw) > 0.35) dyaw = 0;
+    s.yawRate = approach(s.yawRate,
+      rider.grounded && step > 1e-4 ? dyaw / step : 0, 6, sdt);
+    const lead = clamp(-0.4 * s.yawRate, -0.35, 0.35)
+      * upright * (1 - s.air) * (1 - skate);
+
+    /* THE BODY FOLLOWS THROUGH. The root's acceleration, in the travel frame
+       — along the direction he is going and across the board — drives a
+       small, underdamped spring (ω = 14, ζ = 0.35: it rings about twice and
+       is gone inside half a second), and the spring's displacement is the
+       body's inertia: the hands and the chest lag an acceleration and
+       overshoot when it stops. A braking scrub pitches him over the nose
+       and lets him back; a carve reversal swings the hands across and back;
+       a skidded landing throws everything forward and recovers.
+
+       Six tenths of a slow copy of the acceleration is taken back out of
+       the input, so a *sustained* pull — the centripetal load of a long
+       carve, the downhill pull of the slope itself — leaves only a small
+       standing offset and the authored poses stay where they were put. It
+       is the changes that ring. The physics velocity is read rather than
+       the drawn position twice differenced, which is noise, and the input
+       is clamped, because a landing is a velocity change in one step and the
+       spring would otherwise read it as fifty g. It is integrated in
+       substeps so the spring means the same thing at 30 Hz as at 144. */
+    if (snap) {
+      velPrev.copy(rider.vel);
+      s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
+    }
+    _acc.copy(rider.vel).sub(velPrev).multiplyScalar(1 / Math.max(step, 1e-3));
+    velPrev.copy(rider.vel);
+    {
+      const cyaw = Math.cos(rider.yaw);
+      const syaw = Math.sin(rider.yaw);
+      const aF = clamp((_acc.x * syaw - _acc.z * cyaw) * sw, -25, 25);
+      const aL = clamp(_acc.x * cyaw + _acc.z * syaw, -25, 25);
+      s.aF = approach(s.aF, aF, 1.5, sdt);
+      s.aL = approach(s.aL, aL, 1.5, sdt);
+      const inF = aF - 0.6 * s.aF;
+      const inL = aL - 0.6 * s.aL;
+      const W = 14;
+      const D = 2 * 0.35 * W;
+      const sub = Math.max(1, Math.ceil(step * 240));
+      const h = step / sub;
+      for (let i = 0; i < sub; i++) {
+        s.fv += (-W * W * s.fx - D * s.fv - inF) * h;
+        s.fx += s.fv * h;
+        s.lv += (-W * W * s.lx - D * s.lv - inL) * h;
+        s.lx += s.lv * h;
+      }
+    }
+    // Metres of lag along the travel and across the board; positive along
+    // is the body carried forwards, positive across is towards the toe edge.
+    const lagF = clamp(s.fx, -0.05, 0.05) * (1 - s.down);
+    const lagL = clamp(s.lx, -0.05, 0.05) * (1 - s.down);
 
     /* --- the whole rider, on the hill ------------------------------------ */
 
@@ -1983,10 +2486,16 @@ export function createRiderModel(THREE, shading) {
        exactly one plane still reads as a rigid thing being turned; it is the
        second axis, arriving on a different clock from the first, that makes
        it read as a person who has stopped holding himself up. */
+    /* …and the follow-through spring pitches and tips the chest the way the
+       body's mass is being carried — over the leading foot as he brakes,
+       towards the heel edge as the board is pulled towards the toes — while
+       three tenths of the head's lead turns the shoulders into the turn.
+       All of it is scaled by `upright`, so a grab's fold and a tumble's
+       flop are left exactly as they were solved. */
     torso.rotation.set(
-      pitch - s.down * (0.55 + lag * 0.5) * sw,
-      s.twist - hips.rotation.y + s.down * Math.sin(s.clock * 3.4) * 0.30,
-      fold + s.down * (lag * 0.45 + Math.sin(s.clock * 4.6 + 1.2) * 0.22),
+      pitch - s.down * (0.55 + lag * 0.5) * sw - lagF * 2.2 * sw * upright,
+      s.twist - hips.rotation.y + s.down * Math.sin(s.clock * 3.4) * 0.30 + lead * 0.3,
+      fold + s.down * (lag * 0.45 + Math.sin(s.clock * 4.6 + 1.2) * 0.22) - lagL * 1.8 * upright,
     );
 
     /* Breathing.
@@ -2005,12 +2514,33 @@ export function createRiderModel(THREE, shading) {
        carrying — the depth goes the other way, because someone working hard
        breathes quickly and shallowly, and it fades out under a grab or a
        tuck where the chest is doing something else and a breath on top of it
-       reads as a wobble. */
+       reads as a wobble.
+
+       It scales the jacket's mesh and not the torso group, which is what it
+       used to do. The head and both arms hang off that group, so each breath
+       handed them a non-uniform scale in a frame the arms had already
+       rotated out of: the helmet swelled by a different amount along each
+       of its axes, and a forearm at forty-five degrees to the chest was
+       sheared rather than scaled. A breath is the chest; the shoulders'
+       sockets stay where the skeleton put them, which also leaves the torso
+       matrix the grab target is carried through a pure rotation. */
     const effort = clamp(rider.speed / 30 + (rider.gLoad - 1) * 0.5, 0, 1.6);
     const breath = Math.sin(s.clock * (1.05 + effort * 1.5)) * 0.5 + 0.5;
     const depth = (0.016 - effort * 0.005) * idle;
-    torso.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
+    torsoMesh.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
     torso.updateMatrix();
+
+    /* The jacket in the wind — see `flapUniform`. The ripple quickens with
+       speed as well as growing, from about three cycles a second standing
+       to six and a half at thirty metres a second, which is the difference
+       between a hem stirring and a hem snapping; the two rates stay in the
+       same irrational ratio at every speed, so it never falls into step
+       with itself. A tumbling rider is mostly snow and flailing limbs, so
+       the flutter all but stops while he is down. */
+    const flapRate = 0.5 + rider.speed / 30;
+    flapPhase.value.x = (flapPhase.value.x + step * 17.0 * flapRate) % TAU;
+    flapPhase.value.y = (flapPhase.value.y + step * 27.3 * flapRate) % TAU;
+    flapUniform.value = clamp(0.002 + 0.0005 * rider.speed, 0, 0.02) * (1 - s.down * 0.8);
 
     /* --- head -------------------------------------------------------------- */
 
@@ -2021,12 +2551,19 @@ export function createRiderModel(THREE, shading) {
     // its own clock. The tilt is *against* the lean while he is riding: a
     // head that rolls with the body reads as unconscious, which is exactly
     // what it is once he is down.
+    /* The head takes the rest of the lead into the turn — the chest has
+       already carried three tenths of it — and nods with the follow-through:
+       the face is the head's +X, so a nod is about its own Z, which under
+       'YXZ' is the innermost rotation and therefore the head's own lateral
+       axis whatever the yaw. Carried forwards by a braking board, it dips;
+       left behind by an accelerating one, it comes up. */
     head.rotation.set(
       -0.05 + s.air * 0.22 + s.thump * 0.30
         - s.down * (lag * 0.6 + Math.sin(s.clock * 5.2) * 0.25),
       POSE.look * sw - s.twist * 0.55 + Math.sin(s.clock * 0.41) * 0.05 * idle
-        + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35,
-      s.lean * 0.18 + s.down * (0.4 + Math.sin(s.clock * 4.4 + 0.7) * 0.25),
+        + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35 + lead * 0.7,
+      s.lean * 0.18 + s.down * (0.4 + Math.sin(s.clock * 4.4 + 0.7) * 0.25)
+        - lagF * 2.6 * upright,
     );
 
     /* --- legs -------------------------------------------------------------- */
@@ -2197,6 +2734,18 @@ export function createRiderModel(THREE, shading) {
       other.applyAxisAngle(UP, wind).multiplyScalar(tight);
     }
 
+    /* The hands are the heaviest thing on the end of the longest lever, so
+       they carry the most follow-through: carried on forwards and across by
+       exactly the lag the chest took, a little more than one for one. It is
+       written in the travel frame like everything else here (−Z is the way
+       he is going) and it goes on *before* the grab and the fall, which both
+       lerp to where the hand has to be — so a grab still lands exactly on
+       the board's edge, however hard the landing that preceded it. */
+    hand.z -= lagF * 1.4;
+    other.z -= lagF * 1.4;
+    hand.x += lagL * 1.1;
+    other.x += lagL * 1.1;
+
     // Elbows back and down while riding; up and back in a grab, so the arm
     // hangs off the shoulder rather than hinging through the ribs
     pole.set(-0.75, -0.55, -0.15);
@@ -2347,6 +2896,8 @@ export function createRiderModel(THREE, shading) {
     s.charge = 0;
     s.wash = 0;
     s.switched = 0;
+    s.yawRate = 0;
+    s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
     headlamp.reset();
   }
 

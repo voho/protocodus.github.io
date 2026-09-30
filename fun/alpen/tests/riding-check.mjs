@@ -1,12 +1,13 @@
 // Run with: node tests/riding-check.mjs
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
-import { Rider, CLEAN, BAIL } from '../js/rider.js';
+import { Rider, trickName, speedCeiling, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
 
 const dt = 1 / 120;
+const TAU = Math.PI * 2;
 const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
 const flat = { height: () => 0, canStall: () => false };
 const rider = (world = flat) => new Rider(THREE, world);
@@ -133,6 +134,181 @@ for (const tuck of [false, true]) {
   assert.equal(skewed.verdict, CLEAN);
   assert.ok(square.speed > 19.8, `a square landing keeps its run (${square.speed})`);
   assert.ok(skewed.speed < square.speed * 0.93, `a skewed one skids off speed (${skewed.speed})`);
+}
+
+// A trick is named and paid by the stance it LEFT the snow in. A regular 180
+// necessarily lands switch; it used to be announced — and paid ×1.5 — as a
+// "SWITCH + FRONTSIDE 180", while a genuine switch take-off landed regular
+// and was paid nothing for it.
+{
+  const r = rider({ height: (x, z) => z * 0.36, canStall: () => false });
+  r.grace = 0; r.vel.set(0, -8, -22);
+  const landings = [];
+  r.on('land', (s) => landings.push(s));
+  const ollieSpin = (spinFor) => {
+    const input = { ...neutral };
+    for (let i = 0; i < 180; i++) r.step(dt, input);
+    input.jump = true;
+    for (let t = 0; t < RIDER.chargeTime; t += dt) r.step(dt, input);
+    input.jump = false;
+    for (let i = 0; i < 24 && r.grounded; i++) r.step(dt, input);
+    for (let t = 0; t < 4 && !r.grounded; t += dt) {
+      input.turn = t < spinFor ? 1 : 0;
+      r.step(dt, input);
+    }
+    return landings.at(-1);
+  };
+  const regular = ollieSpin(0.55);
+  assert.equal(regular.halfTurns, 1);
+  assert.equal(regular.switchStance, false, 'a regular take-off is not a switch trick');
+  assert.equal(regular.landedSwitch, true, 'even though a 180 comes down switch');
+  assert.equal(trickName(regular, regular.verdict), 'FRONTSIDE 180');
+  assert.equal(r.switchStance, true, 'the next carve rides the landed stance');
+  const fromSwitch = ollieSpin(0.55);
+  assert.equal(fromSwitch.switchStance, true, 'a switch take-off is paid as switch');
+  assert.equal(fromSwitch.landedSwitch, false);
+  assert.equal(trickName(fromSwitch, fromSwitch.verdict), 'SWITCH FRONTSIDE 180',
+    'SWITCH prefixes the trick rather than being joined to it like a grab');
+}
+
+// The surface's speed ceiling is a plough on the snow, never a clamp in the
+// air. It used to rescale an airborne rider to the ceiling of whatever they
+// were flying over — a 40 m/s jump off the piste lost 10 m/s over powder —
+// and on the snow it snapped the speed back in one step, silently.
+{
+  const powder = { rock: 0, groomed: 0, ice: 0, powder: 1 };
+  const powderCap = speedCeiling(0, powder);
+  const flier = rider({ height: () => -1000, surfaceAt: () => powder, canStall: () => false });
+  flier.pos.y = 0; flier.vel.set(0, 6, -40);
+  flier.state = 'air'; flier.grounded = false;
+  let dragOnly = 40;
+  for (let i = 0; i < 60; i++) {
+    flier.step(dt, neutral);
+    const v = Math.hypot(dragOnly, flier.vel.y);
+    dragOnly /= 1 + RIDER.drag * RIDER.airDrag * v * dt;
+  }
+  const flying = Math.hypot(flier.vel.x, flier.vel.z);
+  assert.ok(Math.abs(flying - dragOnly) < 0.05 && flying > powderCap + 5,
+    `nothing but the air slows a flight over powder (${flying.toFixed(2)} vs ${dragOnly.toFixed(2)})`);
+
+  const plough = rider({ height: (x, z) => z * 0.3, surfaceAt: () => powder, canStall: () => false });
+  plough.grace = 0; plough.vel.set(0, -45 * 0.287, -45 * 0.958);
+  plough.step(dt, neutral);
+  assert.ok(plough.speed > 44, `the snow ploughs the excess off, it does not snap it (${plough.speed})`);
+  assert.ok(plough.scrub > 3 && plough.slide >= plough.scrub,
+    'the plough throws snow: it is booked into the slide the spray and sound read');
+  for (let i = 0; i < 119; i++) plough.step(dt, neutral);
+  assert.ok(plough.speed < powderCap + 2.5 && plough.speed > powderCap - 1,
+    `…and a second later the board is down to the powder's pace (${plough.speed.toFixed(2)} / ${powderCap})`);
+  const piste = rider({ height: (x, z) => z * 0.3, canStall: () => false });
+  piste.grace = 0; piste.vel.set(0, -45 * 0.287, -45 * 0.958);
+  piste.step(dt, neutral);
+  assert.equal(piste.scrub, 0, 'under the ceiling nothing is shed');
+}
+
+// The lip is readable while it matters. Holding a charge towards a pitch
+// break lights `lipAhead` a few tenths early (never on the open pitch), then
+// `lipReady` for the release window itself — which, off a real edge, is the
+// launch step and the late sixth of a second after it. Releasing while lit
+// is the lip pop, and `perfectPop` fires after `launch`, so the launch's
+// banner clear cannot eat the callout it is meant to trigger.
+{
+  const h = (x, z) => (z > -8 ? z * 0.27 : -8 * 0.27 + (z + 8) * 0.7);
+  const r = rider({ height: h, canStall: () => false });
+  r.vel.set(0, -18 * 0.26, -18 * 0.965);
+  const order = [];
+  r.on('launch', () => order.push('launch'));
+  r.on('perfectPop', () => order.push('perfectPop'));
+  let aheadAt = null;
+  let earlyCue = false;
+  for (let i = 0; i < 240 && !r.lipReady; i++) {
+    r.step(dt, { ...neutral, jump: true });
+    if (r.pos.z > -2 && (r.lipAhead || r.lipReady)) earlyCue = true;
+    if (r.lipAhead && aheadAt === null) aheadAt = r.pos.z;
+  }
+  assert.equal(earlyCue, false, 'an open pitch six metres short of the break is not a lip');
+  assert.ok(aheadAt !== null && aheadAt > -7.5,
+    `the lip is announced before it arrives (${aheadAt})`);
+  assert.ok(r.lipReady, 'and lit when it does');
+  r.step(dt, neutral);
+  assert.equal(r.state, 'air');
+  assert.equal(r.lipPop, true, 'releasing while lit is the lip pop');
+  assert.deepEqual(order, ['launch', 'perfectPop'], 'the callout follows the launch that clears the band');
+}
+
+// A verdict carries its reason, for the banner: what went wrong, and which
+// way — a rotation stopped short is not a rotation carried past.
+{
+  const touchdown = ({ vy = -3, spin = 0, flip = 0, grab = false, pop = 0 }) => {
+    const r = rider();
+    r.pos.y = 0.05; r.vel.set(0, vy, -20);
+    r.state = 'air'; r.grounded = false; r.airTime = 0.8;
+    r.airPop = pop;
+    r.yaw = r.spinAccum = spin;
+    r.flip = r.flipAccum = flip;
+    let reason = null;
+    r.on('fall', (cause, into, why) => { reason = why; });
+    for (let i = 0; i < 20 && r.state === 'air'; i++) {
+      r.step(dt, { ...neutral, turnIntent: 0.5, trickGrab: grab });
+    }
+    return r.landing ? { verdict: r.landing.verdict, reason: r.landing.reason }
+      : { verdict: BAIL, reason };
+  };
+  assert.deepEqual(touchdown({ vy: -40 }), { verdict: BAIL, reason: 'HARD LANDING' });
+  assert.deepEqual(touchdown({ flip: -Math.PI }), { verdict: BAIL, reason: 'UPSIDE DOWN' });
+  assert.deepEqual(touchdown({ flip: -(TAU - 1.5) }), { verdict: BAIL, reason: 'UNDER-ROTATED' });
+  assert.deepEqual(touchdown({ spin: 2.0 }), { verdict: SKETCHY, reason: 'UNDER-ROTATED' });
+  assert.deepEqual(touchdown({ spin: 4.3 }), { verdict: SKETCHY, reason: 'OVER-ROTATED' });
+  assert.deepEqual(touchdown({ grab: true }), { verdict: SKETCHY, reason: 'GRAB HELD' });
+  assert.deepEqual(touchdown({}), { verdict: CLEAN, reason: '' });
+  /* Braced for the air they popped: the same 22 m/s into the snow is heavy
+     off a roll-over and clean after a full pop, the raised line stops short
+     of the bail so a too-fast popped air is still heavy, and past the bail
+     line no pop saves it. */
+  assert.deepEqual(touchdown({ vy: -22 }), { verdict: SKETCHY, reason: 'HEAVY LANDING' });
+  assert.deepEqual(touchdown({ vy: -22, pop: RIDER.popMax }), { verdict: CLEAN, reason: '' });
+  const topPop = RIDER.popMax * RIDER.lipBonus;
+  assert.deepEqual(touchdown({ vy: -(RIDER.hardImpact - RIDER.bracedMargin + 1.5), pop: topPop }),
+    { verdict: SKETCHY, reason: 'HEAVY LANDING' });
+  assert.deepEqual(touchdown({ vy: -(RIDER.hardImpact + 2), pop: topPop }),
+    { verdict: BAIL, reason: 'HARD LANDING' });
+}
+
+// The snow types. The corduroy is the grippiest carving snow on the hill —
+// powder used to out-turn it by a third — deep snow bogs a slow board down
+// rather than holding it, and a loaded edge on ice chatters.
+{
+  const snow = {
+    groomed: { rock: 0, groomed: 1, ice: 0, powder: 0 },
+    powder: { rock: 0, groomed: 0, ice: 0, powder: 1 },
+    ice: { rock: 0, groomed: 0, ice: 1, powder: 0 },
+  };
+  const carve = (mat, v) => {
+    const r = rider({ height: () => 0, surfaceAt: () => mat, canStall: () => false });
+    r.grace = 0; r.vel.set(0, 0, -v);
+    const input = { ...neutral, turn: 1 };
+    let chatter = 0;
+    for (let i = 0; i < 48; i++) r.step(dt, input);
+    const from = Math.atan2(r.vel.x, -r.vel.z);
+    for (let i = 0; i < 36; i++) { r.step(dt, input); chatter = Math.max(chatter, r.chatter); }
+    return { rate: (Math.atan2(r.vel.x, -r.vel.z) - from) / (36 * dt), chatter };
+  };
+  for (const v of [20, 28]) {
+    const groomed = carve(snow.groomed, v).rate;
+    const powder = carve(snow.powder, v).rate;
+    assert.ok(groomed > powder * 1.08,
+      `the corduroy out-carves powder at ${v} m/s (${groomed.toFixed(2)} vs ${powder.toFixed(2)} rad/s)`);
+  }
+  assert.ok(carve(snow.ice, 25).chatter > 0.5, 'a loaded edge on ice chatters');
+  assert.equal(carve(snow.groomed, 25).chatter, 0, 'the corduroy does not');
+  const glide = (mat) => {
+    const r = rider({ height: (x, z) => z * 0.2, surfaceAt: () => mat, canStall: () => false });
+    r.grace = 0; r.vel.set(0, -1, -5);
+    for (let i = 0; i < 240; i++) r.step(dt, neutral);
+    return r.speed;
+  };
+  assert.ok(glide(snow.powder) < glide(snow.groomed) - 3,
+    `deep snow bogs a slow board down (${glide(snow.powder).toFixed(1)} vs ${glide(snow.groomed).toFixed(1)} m/s)`);
 }
 
 const buffered = rider();
@@ -295,6 +471,49 @@ assert.ok(menuInput.state.turnIntent > 0 && menuInput.state.turnIntent < 0.8,
   'stick intent remains analog after dead-zone rescaling');
 menuInput.dispose();
 
+// Triggers are analogue and the rider's brake is a pressure: a half squeeze
+// asks for about half of it, keys and d-pad buttons for all of it. Back is
+// the pad's R — one restart per press — and a phone without a pad buzzes.
+{
+  const pad = { axes: [0], buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })) };
+  pads = [pad];
+  const keys = [];
+  const analog = createInput(new Target(), { key: (e) => keys.push(e.code) });
+  pad.buttons[6].value = 0.5;
+  pad.buttons[7].value = 1; pad.buttons[7].pressed = true;
+  analog.update(dt);
+  assert.equal(analog.state.brake, true);
+  assert.ok(Math.abs(analog.state.brakeAmount - 0.44 / 0.94) < 1e-9, `LT passes its travel (${analog.state.brakeAmount})`);
+  assert.equal(analog.state.tuckAmount, 1);
+  const r = rider({ height: (x, z) => z * 0.3, canStall: () => false });
+  r.vel.set(0, -6, -20);
+  for (let i = 0; i < 90; i++) r.step(dt, { ...neutral, brake: true, brakeAmount: analog.state.brakeAmount });
+  assert.ok(Math.abs(r.brake - analog.state.brakeAmount) < 0.02, `a half squeeze is half a speed check (${r.brake})`);
+  pad.buttons[6].value = 0; pad.buttons[7].value = 0; pad.buttons[7].pressed = false;
+  pad.buttons[8].pressed = true;
+  for (let i = 0; i < 30; i++) analog.update(dt);
+  assert.deepEqual(keys, ['KeyR'], 'holding Back restarts once');
+  pad.buttons[8].pressed = false;
+  analog.update(dt);
+  analog.dispose();
+
+  pads = [];
+  const buzzes = [];
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    getGamepads: () => pads, vibrate: (ms) => { buzzes.push(ms); return true; },
+    userActivation: { hasBeenActive: true },
+  } });
+  const phone = createInput(new Target());
+  phone.rumble(0.5, 0.2, 240);
+  assert.equal(buzzes.length, 0, 'no touch pad bound: a laptop never buzzes');
+  phone.bindTouch(new Target());
+  phone.rumble(0.5, 0.2, 240);
+  phone.rumble(0.1, 0.05, 90);
+  assert.deepEqual(buzzes, [110], 'a touch device buzzes for strength, and skips the faint ones');
+  phone.dispose();
+  Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => pads }, configurable: true });
+}
+
 // Spinning the board must not orbit the chase view away from its landing.
 const flying = rider();
 flying.pos.y = 20; flying.vel.set(0, 0, -20);
@@ -307,4 +526,24 @@ flying.yaw = Math.PI / 2;
 for (let i = 0; i < 60; i++) chase.update(flying, 1 / 60, flat);
 assert.ok(camera.position.distanceTo(original) < 0.02, 'camera tracks flight instead of board rotation');
 assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z) + 1.5);
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, landing assist, input taps/pads, release intent, controller menus and camera.');
+
+// The frame keeps opening past the old 42 m/s stop — the whole top half of
+// the flow range used to look exactly like 151 km/h — while the range
+// everybody rides in is framed exactly as before.
+{
+  const settle = (v) => {
+    const cam = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 2000);
+    const view = createChaseCamera(THREE, cam);
+    const r = rider();
+    r.vel.set(0, 0, -v);
+    for (let i = 0; i < 600; i++) view.update(r, 1 / 60, flat);
+    return { fov: cam.fov, back: cam.position.distanceTo(r.pos) };
+  };
+  const slow = settle(20);
+  assert.ok(Math.abs(slow.fov - (65 + 7 * (20 / 42) ** 2)) < 0.05, `20 m/s is framed as before (${slow.fov})`);
+  const at = [42, 60, 96].map(settle);
+  assert.ok(at[0].fov < at[1].fov && at[1].fov < at[2].fov, `the lens keeps opening (${at.map((s) => s.fov.toFixed(1))})`);
+  assert.ok(at[0].back < at[1].back && at[1].back < at[2].back, 'and the boom keeps pulling back');
+  assert.ok(at[2].fov < 76, 'without running away');
+}
+console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, and camera framing at speed.');

@@ -37,6 +37,11 @@ import {
   heightAt, nearestCenter, centersAt, rockBandAt,
 } from './terrain.js';
 import { compose } from './geom.js';
+import { RENDER } from './config.js';
+import { sharedTexture } from './textures.js';
+
+// Seconds a tumbled figure takes to come back round to its riding pose.
+const RECOVER = 0.5;
 
 const PYLON_SPACING = 200;
 /* Seven, so the span's ends stand ±600 m from the rider — past the 560 m
@@ -64,18 +69,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _e = new THREE.Euler();
   const _one = new THREE.Vector3(1, 1, 1);
   const _s = new THREE.Vector3();
+  const _qRide = new THREE.Quaternion();
 
-  const texLoader = new THREE.TextureLoader();
-  const fabricTex = texLoader.load(
-    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  fabricTex.colorSpace = THREE.SRGBColorSpace;
-  const metalTex = texLoader.load(
-    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  metalTex.colorSpace = THREE.SRGBColorSpace;
+  // Both plates are shared with the modules that also wear them — the
+  // rider's weave and the boulders' slate — so each is decoded and uploaded
+  // once for the whole mountain. See textures.js.
+  const fabricTex = sharedTexture(THREE,
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href);
+  const metalTex = sharedTexture(THREE,
+    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href);
 
   /* --- the line: towers, ropes, cabins ---------------------------------- */
 
@@ -664,6 +666,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       vz: -(11 + (i % 4) * 3),
       tumbled: false,
       tumbleTimer: 0,
+      // the getting-up blend: seconds left, and the attitude it starts from
+      recover: 0,
+      recoverFrom: new THREE.Quaternion(),
+      bodyFrom: new THREE.Quaternion(),
       sPhase: Math.random() * Math.PI * 2,
     });
   }
@@ -817,13 +823,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       for (let i = 0; i < NUM_NPCS; i++) {
         const npc = npcs[i];
 
-        // Fallen far behind (uphill of the rider): return well ahead.
+        /* Fallen far behind (uphill of the rider): return well ahead — and
+           out of sight. They used to come back 180 to 260 metres down the
+           hill, which on a clear day is well inside the 560 metres the fog
+           lets you see: a skier simply appeared on the piste in front of
+           you. Now they return past wherever the curtain is this frame,
+           plus a margin, so they ride out of the haze the way everything
+           else on the mountain arrives. In a storm the curtain is close and
+           they come back close, which keeps the piste peopled in exactly the
+           weather where it most needs to be. */
         if (npc.z > rz + 60) {
-          npc.z = rz - 180 - Math.random() * 80;
+          const fogFar = w && Number.isFinite(w.fogFar) ? w.fogFar : RENDER.fogFar;
+          npc.z = rz - Math.max(180, fogFar + 30) - Math.random() * 80;
           npc.x = nearestCenter(rider.pos.x, npc.z)
             + (Math.random() - 0.5) * 30.0;
           npc.tumbled = false;
           npc.tumbleTimer = 0;
+          npc.recover = 0;
           npc.vz = -(11 + (i % 4) * 3);
           npc.mesh.rotation.set(0, 0, 0);
         }
@@ -846,7 +862,15 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
             npc.tumbled = false;
             npc.vz = -(11 + (i % 4) * 3);
             npc.vx = 0;
-            npc.mesh.rotation.set(0, 0, 0);
+            /* Getting up is not a cut. This used to write the rotation
+               straight back to zero, so a figure three and a half seconds
+               into a cartwheel — fifteen radians round on one axis and ten
+               on another — was standing on its skis in the next frame. The
+               attitude it is in is kept instead, and the riding branch
+               below swings it round to the riding pose over `RECOVER`. */
+            npc.recoverFrom.copy(npc.mesh.quaternion);
+            npc.bodyFrom.copy(npc.body.quaternion);
+            npc.recover = RECOVER;
           }
           continue;
         }
@@ -859,10 +883,20 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const targetX = nearestCenter(npc.x, npc.z) + sTurn;
         npc.vx = (targetX - npc.x) * 2.2;
 
+        // How far back onto their feet they are: 0 the frame the tumble
+        // ends, 1 once they are riding. Speed returns with it rather than
+        // in one frame, since nobody stands up already doing forty km/h.
+        let up = 1;
+        if (npc.recover > 0) {
+          npc.recover = Math.max(0, npc.recover - dt);
+          const t = 1 - npc.recover / RECOVER;
+          up = t * t * (3 - 2 * t);
+        }
+
         npc.x += npc.vx * dt;
-        npc.z += npc.vz * dt;
+        npc.z += npc.vz * dt * (0.25 + 0.75 * up);
         npc.y = heightAt(npc.x, npc.z);
-        npc.mesh.position.set(npc.x, npc.y, npc.z);
+        npc.mesh.position.set(npc.x, npc.y + 0.25 * (1 - up), npc.z);
 
         // Direction of travel (yaw) where 0 = straight downhill (-Z)
         const yaw = Math.atan2(npc.vx, -npc.vz);
@@ -891,9 +925,21 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
            between a rider and a decal. */
         const load = Math.abs(edge);
         const b = npc.body;
-        b.position.y = npc.hip - 0.055 * load;
+        b.position.y = npc.hip - 0.055 * load - 0.05 * (1 - up);
         b.rotation.set(0.055 * Math.cos(npc.sPhase * 2.0),
           yaw * npc.counter, -bank * 0.55);
+
+        /* …and while they are still getting up, both halves of the figure
+           are swung from the attitude the tumble left them in towards the
+           pose just written. A slerp takes the short way round whatever the
+           tumble's angles added up to, so the recovery is at most half a
+           turn and usually far less. */
+        if (up < 1) {
+          _qRide.copy(npc.mesh.quaternion);
+          npc.mesh.quaternion.copy(npc.recoverFrom).slerp(_qRide, up);
+          _qRide.copy(b.quaternion);
+          b.quaternion.copy(npc.bodyFrom).slerp(_qRide, up);
+        }
 
         // A little carve spray off their turns
         if (spray && Math.random() < 15 * dt) {
@@ -938,6 +984,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.mesh.position.set(npc.x, npc.y, npc.z);
         npc.tumbled = false;
         npc.tumbleTimer = 0;
+        npc.recover = 0;
         npc.vx = 0;
         npc.vz = -(11 + (i % 4) * 3);
         npc.mesh.rotation.set(0, 0, 0);
