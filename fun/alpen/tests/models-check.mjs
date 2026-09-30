@@ -37,18 +37,263 @@ function valid(name, geo) {
 }
 
 const wildlifeNames = ['rabbitGeometry', 'deerBodyGeometry', 'deerHeadGeometry', 'wolfGeometry'];
-const wildlife = await load('wildlife.js', wildlifeNames);
+const wildlife = await load('wildlife.js', [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL']);
 const triangleBudgets = [4500, 2000, 1200, 3200];
 for (const key of wildlifeNames) {
   const triangles = valid(key, wildlife[key](THREE, true));
   assert.ok(triangles <= triangleBudgets[wildlifeNames.indexOf(key)], key + ': triangle budget');
 }
 
+/* Deer and wolves stand on the slope under them. Composed the way the herd
+   and the pack are drawn — pitch and roll about the animal's own axes after
+   its yaw — the fore and hind feet land on the real terrain, and the left
+   and right ones on the share of the cross slope the roll is allowed. */
+{
+  const { heightAt } = await import(new URL('js/terrain.js', base).href);
+  const out = { pitch: 0, roll: 0 };
+  let tilted = 0;
+  for (const [x, z] of [[0, -400], [38, -1250], [-52, -2600], [12, -5100]]) {
+    for (const yaw of [0.2, 1.4, -1.7, 3.0]) {
+      wildlife.slopeUnder(x, z, yaw, 0.37, 0.20, out);
+      if (Math.abs(out.pitch) + Math.abs(out.roll) > 0.05) tilted++;
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(out.pitch, yaw + Math.PI, out.roll, 'YXZ'));
+      const y0 = heightAt(x, z);
+      const foot = (px, pz) => {
+        const v = new THREE.Vector3(px, 0, pz).applyQuaternion(q);
+        return y0 + v.y - heightAt(x + v.x, z + v.z);
+      };
+      assert.ok(Math.abs(foot(0, -0.37)) < 0.01 && Math.abs(foot(0, 0.37)) < 0.01, 'fore and hind feet on the snow');
+      const cross = Math.abs(foot(0.2, 0)) + Math.abs(foot(-0.2, 0));
+      const level = 2 * 0.2 * Math.abs(Math.tan(out.roll / wildlife.SLOPE_ROLL));
+      assert.ok(cross <= (1 - wildlife.SLOPE_ROLL) * level + 0.01, 'the cross slope is mostly taken up');
+    }
+  }
+  assert.ok(tilted > 8, 'the mountain actually tilts them');
+}
+
+/* One decode per photograph: the same URL hands every caller the same
+   Texture, readiness callbacks fire once the image lands (and at once for a
+   caller who arrives after), and a different loader class never shares. */
+{
+  const { sharedTexture } = await import(new URL('js/textures.js', base).href);
+  const pending = [];
+  const Loader = class { load(url, onLoad) { const t = new THREE.Texture(); pending.push(() => onLoad(t)); return t; } };
+  const ns = { ...THREE, TextureLoader: Loader };
+  const seen = [];
+  const a = sharedTexture(ns, 'test://slate.jpg', (t) => seen.push(t));
+  const b = sharedTexture(ns, 'test://slate.jpg', (t) => seen.push(t));
+  assert.equal(a, b, 'one texture per file');
+  assert.equal(pending.length, 1, 'one load per file');
+  assert.equal(a.colorSpace, THREE.SRGBColorSpace);
+  assert.equal(a.wrapS, THREE.RepeatWrapping);
+  assert.equal(seen.length, 0, 'nothing is ready before the image is');
+  pending[0]();
+  assert.deepEqual(seen, [a, a], 'every waiting caller is told once');
+  sharedTexture(ns, 'test://slate.jpg', (t) => seen.push(t));
+  assert.equal(seen.length, 3, 'a late caller is told at once');
+  const other = sharedTexture({ ...THREE, TextureLoader: class extends Loader {} }, 'test://slate.jpg');
+  assert.notEqual(other, a, 'a stubbed namespace never shares with a real one');
+}
+
 const huts = await load('huts.js', ['hutGeometry', 'paneGeometry']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
-const rider = await load('riderModel.js', ['buildGeometries']);
-for (const [key, geo] of Object.entries(rider.buildGeometries(THREE))) {
-  if (geo?.isBufferGeometry) valid('rider.' + key, geo);
+const rider = await load('riderModel.js',
+  ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH']);
+const riderGeo = rider.buildGeometries(THREE);
+let riderTriangles = 0;
+for (const [key, geo] of Object.entries(riderGeo)) {
+  if (!geo?.isBufferGeometry) continue;
+  riderTriangles += valid('rider.' + key, geo);
+  // Every segment shares one material, so every one carries every attribute
+  // that material reads — a missing one is whatever the driver left there.
+  if (key !== 'board') {
+    assert.ok(geo.attributes.aCloth && geo.attributes.aFlap, 'rider.' + key + ': cloth attributes');
+  }
+}
+assert.ok(riderTriangles <= 10500, 'rider triangle budget: ' + riderTriangles);
+
+/* The joint fills. The knee and the elbow are balls about the pivot, so the
+   shin and forearm now reach a ball's radius above their own origin, and the
+   tube beside each starts at the pivot rather than poking past it. */
+const top = (geo) => { geo.computeBoundingBox(); return geo.boundingBox.max.y; };
+assert.ok(top(riderGeo.shin) > 0.085 && top(riderGeo.shin) < 0.095, 'knee fill covers the bend');
+assert.ok(top(riderGeo.foreArm) > 0.06 && top(riderGeo.foreArm) < 0.07, 'elbow fill covers the bend');
+assert.ok(top(riderGeo.thigh) > 0.12, 'thigh top is domed, not capped flat');
+
+/* The seat of the trousers is its own buffer on the hips: no trouser navy is
+   left in the torso, and the pelvis is woven but never quilted. */
+const navy = new THREE.Color('#162342');
+const hasColour = (geo, c) => {
+  const col = geo.attributes.color;
+  for (let i = 0; i < col.count; i++) {
+    if (Math.abs(col.getX(i) - c.r) + Math.abs(col.getY(i) - c.g) + Math.abs(col.getZ(i) - c.b) < 1e-4) return true;
+  }
+  return false;
+};
+assert.ok(!hasColour(riderGeo.torso, navy), 'the seat no longer rides with the chest');
+assert.ok(hasColour(riderGeo.pelvis, navy), 'the pelvis is trouser cloth');
+assert.ok(riderGeo.pelvis.attributes.aCloth.array.every((v, i) => (i % 2 ? v === 0 : v === 1)),
+  'the pelvis is woven, not baffled');
+
+/* Flutter weights: only the jacket's hem and the upper sleeves are loose;
+   the hem is fully free, the chest and the back under the pack are not. */
+for (const [key, geo] of Object.entries(riderGeo)) {
+  if (!geo?.attributes?.aFlap) continue;
+  const f = geo.attributes.aFlap.array;
+  assert.ok(f.every((v) => v >= 0 && v <= 1), key + ': flap weight in range');
+  if (key !== 'torso' && key !== 'upperArm') assert.ok(f.every((v) => v === 0), key + ': rigid');
+}
+{
+  const p = riderGeo.torso.attributes.position;
+  const f = riderGeo.torso.attributes.aFlap;
+  let hem = 0;
+  for (let i = 0; i < p.count; i++) {
+    if (p.getY(i) > 0.17) assert.equal(f.getX(i), 0, 'the chest does not flap');
+    if (p.getX(i) < -0.12 && Math.abs(p.getZ(i)) < 0.05) assert.equal(f.getX(i), 0, 'the pack pins the back');
+    if (p.getY(i) < -0.08 && p.getX(i) > 0.1) hem = Math.max(hem, f.getX(i));
+  }
+  assert.ok(hem > 0.9, 'the front hem is free');
+  const s = riderGeo.upperArm.attributes.aFlap.array;
+  assert.ok(Math.max(...s) > 0.25 && Math.max(...s) < 0.4, 'the sleeves stir a little');
+}
+
+/* The board: a deck about a centimetre thick, whose top is where the
+   bindings and feet were moved to, whose base is where it always was, and
+   whose steel edges sit flush in the base corners instead of hanging below. */
+{
+  const { DECK, DECK_TOP, HALF_WIDTH } = rider;
+  const at = (z) => DECK.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
+  const waist = at(0);
+  assert.ok(waist.t >= 0.011 && waist.t <= 0.015, 'deck thickness at the waist');
+  assert.ok(at(-0.8).t < waist.t * 0.5, 'deck tapers towards the tips');
+  const binding = at(rider.FOOT_Z);
+  assert.ok(Math.abs(binding.b + binding.t - (DECK_TOP - 0.001)) < 0.002, 'bindings bolt onto the deck top');
+  for (let i = 1; i < DECK.length; i++) assert.ok(DECK[i].z > DECK[i - 1].z, 'stations run nose to tail');
+  const b = riderGeo.board;
+  b.computeBoundingBox();
+  const lowest = Math.min(...DECK.map((s) => s.b));
+  assert.ok(b.boundingBox.min.y > lowest - 0.001, 'nothing hangs below the base');
+  const steel = new THREE.Color('#aeb6c0');
+  const pos = b.attributes.position;
+  const col = b.attributes.color;
+  let edges = 0;
+  for (let i = 0; i < pos.count; i++) {
+    if (Math.abs(col.getX(i) - steel.r) + Math.abs(col.getY(i) - steel.g) < 1e-4) {
+      edges++;
+      assert.ok(Math.abs(pos.getX(i)) <= HALF_WIDTH + 0.002, 'the steel edges are flush with the rails');
+    }
+  }
+  assert.ok(edges > 100, 'the board has steel edges');
+}
+
+/* The rig itself, driven headlessly through a carve, a hard stop, three
+   grabs, a skidded landing and a left and right turn. Every matrix stays
+   finite; the ankles stay in the bindings on the thinner deck; the indy's
+   hand still arrives on the toe edge; the head leads the turn it is in; a
+   hard stop pitches the chest over the nose and lets it back; and a breath
+   never shears the head. */
+{
+  const prevDocument = globalThis.document;
+  globalThis.document = { createElement: () => ({
+    getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
+  }) };
+  const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+  const model = rider.createRiderModel(headless, { apply: (m) => m });
+  globalThis.document = prevDocument;
+  const V = THREE.Vector3;
+  const r = {
+    pos: new V(), vel: new V(0, 0, -15), yaw: 0, state: 'ride', grounded: true, fallTimer: 0,
+    touchdownIn: Infinity, grab: 0, grabKind: 0, tucking: false, pushing: false, charging: false,
+    charge: 0, lateral: 0, switchStance: false, press: 0, pressEnd: -1, compression: 0.33,
+    carveLoad: 0, edge: 0, bend: 0, slide: 0, spinVel: 0, tumble: 0, flip: 0, flipGlide: 0,
+    normal: new V(0, 1, 0), airUp: null, airTime: 0, roll: 0, gLoad: 1, pushPhase: 0,
+    world: { height: () => 0 },
+    get speed() { return this.vel.length(); },
+  };
+  const find = (pred) => {
+    let hit = null;
+    model.root.traverse((o) => {
+      if (hit || !o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      if (pred(o.geometry.boundingBox)) hit = o;
+    });
+    return hit;
+  };
+  const board = model.root.children.find((c) => c.name === 'rider-board');
+  const headMesh = find((bb) => Math.abs(bb.max.y - 0.298) < 1e-3);
+  const torsoMesh = model.root.getObjectByName('rider-torso');
+  const fores = [];
+  const shins = [];
+  model.root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.geometry.computeBoundingBox();
+    if (Math.abs(o.geometry.boundingBox.min.y + 0.352) < 1e-3) fores.push(o.parent);
+    if (Math.abs(o.geometry.boundingBox.min.y + 0.372) < 1e-3) shins.push(o.parent);
+  });
+  assert.equal(fores.length, 2, 'two forearms');
+  assert.equal(shins.length, 2, 'two shins');
+  assert.ok(model.root.getObjectByName('rider-pelvis')?.parent === torsoMesh.parent.parent,
+    'the pelvis hangs off the hips, not the torso');
+  const dt = 1 / 60;
+  const run = (n, f) => {
+    for (let i = 0; i < n; i++) {
+      if (f) f(i);
+      r.pos.addScaledVector(r.vel, dt);
+      model.update(r, dt);
+      model.root.updateMatrixWorld(true);
+      model.root.traverse((o) => assert.ok(o.matrixWorld.elements.every(Number.isFinite), 'finite rig'));
+    }
+  };
+  const turn = (rate) => (i) => {
+    r.yaw += rate * dt;
+    r.vel.set(Math.sin(r.yaw) * 15, 0, -Math.cos(r.yaw) * 15);
+  };
+  run(60);
+  // ankles on the bindings
+  for (const shin of shins) {
+    const ankle = shin.localToWorld(new V(0, -0.40, 0));
+    const want = [-1, 1].map((s) => board.localToWorld(new V(rider.FOOT_X, rider.ANKLE_Y, s * rider.FOOT_Z)));
+    assert.ok(Math.min(...want.map((w) => w.distanceTo(ankle))) < 0.005, 'ankle in its binding');
+  }
+  // a breath scales the jacket only: the head's frame stays orthonormal
+  const e = headMesh.matrixWorld.elements;
+  const col = (k) => new V(e[k], e[k + 1], e[k + 2]);
+  for (const k of [0, 4, 8]) assert.ok(Math.abs(col(k).length() - 1) < 1e-6, 'head unscaled');
+  assert.ok(Math.abs(col(0).dot(col(4))) < 1e-6 && Math.abs(col(4).dot(col(8))) < 1e-6, 'head unsheared');
+  assert.ok(torsoMesh.scale.x !== 1 || torsoMesh.scale.z !== 1, 'the chest still breathes');
+  // The head leads a turn, and by no more than the cap. The rig is turned
+  // by −yaw, so a rising physics yaw turns the rig clockwise from above and
+  // a head leading it sits further clockwise still: its own Y rotation goes
+  // negative. Both turns are compared so the stance's own offset cancels.
+  const head = headMesh.parent;
+  run(40, turn(0.8));
+  const rising = head.rotation.y;
+  run(80, turn(-0.8));
+  const falling = head.rotation.y;
+  assert.ok(falling - rising > 0.3 && falling - rising < 0.75,
+    'the head turns into the turn: ' + (falling - rising));
+  run(60, turn(0));
+  // a hard stop throws the chest over the leading foot, then lets it back
+  const torso = torsoMesh.parent;
+  const cruise = torso.rotation.x;
+  let deepest = 0;
+  run(12, () => { r.vel.multiplyScalar(0.9); deepest = Math.min(deepest, torso.rotation.x - cruise); });
+  assert.ok(deepest < -0.02, 'braking pitches him forwards: ' + deepest);
+  r.vel.set(0, 0, -2);
+  run(120);
+  const settled = torso.rotation.x;
+  run(30);
+  assert.ok(Math.abs(torso.rotation.x - settled) < 0.01, 'the follow-through settles');
+  // the indy still lands on the toe edge on the thinner board
+  r.state = 'air'; r.grounded = false; r.grab = 1; r.grabKind = 0;
+  run(60);
+  const P = rider.POSE.grabs[0].point;
+  const edge = board.localToWorld(new V(P[0], P[1], P[2]));
+  const reach = Math.min(...fores.map((f) => f.localToWorld(new V(0, -0.29, 0)).distanceTo(edge)));
+  assert.ok(reach < 0.01, 'the indy hand reaches the toe edge: ' + reach);
+  for (const kind of [1, 2]) { r.grabKind = kind; run(30); }
+  r.grab = 0; r.state = 'ride'; r.grounded = true; r.vel.set(0, 0, -6);
+  run(60);
 }
 
 const { growCardSpruce, SPRUCE_LAYOUT } = await load('spruce.js');
@@ -135,7 +380,13 @@ assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
    thing that flutters, and pinned at both poles; each sapling is three cards
    of eight triangles whose texture rectangles sit inside the atlas and keep
    the aspect ratio of the frame the tree was drawn in (1024 × 2048). */
-const props = await load('props.js', ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL']);
+const props = await load('props.js',
+  ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL', 'SWAY', 'GUST_X', 'GUST_Z']);
+// The forest's gust field is sampled at the same wavelengths `setAir` wraps
+// its drift at — otherwise the wrap is a visible jump across every tree.
+assert.ok(props.SWAY.includes(`mod(n64At.x, ${props.GUST_X.toFixed(1)})`)
+  && props.SWAY.includes(`mod(n64At.y, ${props.GUST_Z.toFixed(1)})`), 'gust wavelengths agree');
+assert.ok(props.SWAY.includes('uAirDrift') && props.SWAY.includes('inversesqrt'), 'travelling, height-tuned sway');
 const panel = props.raceGatePanelGeometry(THREE);
 assert.ok(valid('race gate panel', panel) <= 400, 'race gate triangle budget');
 const flutter = panel.attributes.aFlutter;
@@ -177,4 +428,31 @@ resort.traverse(node => {
   if (node.isInstancedMesh) assert.ok(node.instanceMatrix.array.every(Number.isFinite));
 });
 assert.ok(meshes <= 24, 'resort draw-call budget');
+
+/* The other riders. Everyone started uphill of the player, so the first
+   update sent them all back down the hill — and past the fog, which on the
+   clear day this falls back to is 560 m, so none of them popped into view.
+   Then one is run into: it tumbles, and gets up again without a cut — the
+   figure's attitude never jumps by more than its own tumble does in a frame. */
+{
+  const figures = [];
+  resort.traverse((node) => {
+    if (node.isGroup && node.rotation.order === 'YXZ' && node.children.filter((c) => c.isMesh).length === 2) figures.push(node);
+  });
+  assert.equal(figures.length, 8, 'eight riders on the piste');
+  for (const f of figures) assert.ok(f.position.z <= player.pos.z - 589, 'respawned beyond the fog: ' + f.position.z);
+  const victim = figures[0];
+  player.pos.copy(victim.position);
+  life.update(1 / 60, player, { night: 0, snow: 0 });
+  player.pos.x += 60;
+  const last = victim.quaternion.clone();
+  let worst = 0;
+  for (let i = 0; i < 300; i++) {
+    life.update(1 / 60, player, { night: 0, snow: 0 });
+    worst = Math.max(worst, last.angleTo(victim.quaternion));
+    last.copy(victim.quaternion);
+  }
+  assert.ok(worst > 0.05, 'the tumble happened');
+  assert.ok(worst < 0.35, 'getting up is a movement, not a cut: ' + worst);
+}
 console.log('All model geometry checks passed.');

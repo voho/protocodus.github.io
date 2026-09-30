@@ -72,6 +72,23 @@ a fall, and the line bot must still leave the ground at most twice a minute.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
+For the rider it pins a 10,500-triangle budget across every segment; the knee
+and elbow joint fills and the domed thigh tops; the seat of the trousers as a
+separate, unquilted pelvis buffer on the hips; the jacket's flutter weights
+(free at the hem, rigid at the chest and under the pack, a third on the upper
+sleeves, zero everywhere else); and the thin board — 11–15 mm at the waist,
+tapering to the tips, bindings bolted to the new deck top, nothing below the
+base and steel edges flush with the rails. It then drives the real rig
+headlessly through a carve, a hard stop, all three grabs and a landing: every
+matrix stays finite, both ankles stay in their bindings, the indy hand still
+lands on the toe edge, the head leads each turn by less than the cap, a hard
+stop pitches the chest forwards and settles, and breathing never scales or
+shears the head. Deer and wolves are checked standing on the real terrain
+(fore and hind feet on the snow, most of the cross slope taken up), the
+shared texture cache hands every caller one texture per file, the forest's
+gust field is sampled at the wavelengths its drift wraps at, and the other
+riders respawn beyond the clear-day fog and get up from a tumble without a
+cut (both of those fail against the previous `mountainLife.js`).
 The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
 16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
 a revealed photograph retires the relief shell.
