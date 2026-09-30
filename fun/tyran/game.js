@@ -88,8 +88,13 @@ const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
 let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null, vignetteKey = 0, adaptiveResolution = true;
 let endFade = null;
-// The final fade dims instruments and arena together; the header row never lingers as a dark band.
-const fadeSurface = $('flight-layout') || canvas;
+// The final fade dims the arena and the instrument row in step, so the reserved
+// header never lingers as a dark band above a fading arena.
+const fadeInstruments = $('flight-header');
+function setEndFade(opacity) {
+  canvas.style.opacity = opacity;
+  if (fadeInstruments) fadeInstruments.style.opacity = opacity;
+}
 const END_IMPACT_HOLD = .22, END_FADE_SECONDS = 1.5;
 let bonusOutro = null;
 const BONUS_FADE_SECONDS = 1.5, BONUS_BLACK_HOLD = .12;
@@ -192,7 +197,7 @@ function setScreen(next) {
   // overlay, the bonus outro and the end screen show the live arena, which may
   // still scroll and must never leave a bare row at the top.
   world.deferStrips = next === 'menu' || next === 'hangar';
-  if (next !== 'end') { endFade = null; fadeSurface.style.opacity = ''; canvas.style.opacity = ''; }
+  if (next !== 'end') { endFade = null; setEndFade(''); }
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
   // Instruments and touch controls reserve their space even behind menus.
@@ -584,7 +589,7 @@ function showEnd(won, loading = false) {
   setScreen('end'); $('announcement').hidden = true;
   endFade = { elapsed: 0, complete: false };
   $('end-screen').hidden = true;
-  fadeSurface.style.opacity = '1';
+  setEndFade('1');
   $('end-title').textContent = 'Signal lost.';
   $('end-description').textContent = `Your flight ended over ${environment(state.level).name} · ${sectorLabel(state.level)}. Retry with your current equipment or return to the main menu.${activeCampaign && campaign.run ? ' Your last autosave is ready to resume.' : ''}`;
   $('end-score').textContent = number(state.score);
@@ -601,10 +606,10 @@ function updateEndFade(dt) {
   endFade.elapsed += dt;
   const progress = clamp((endFade.elapsed - END_IMPACT_HOLD) / END_FADE_SECONDS, 0, 1);
   const opacity = String(Number((1 - progress * progress * (3 - 2 * progress)).toFixed(4)));
-  if (fadeSurface.style.opacity !== opacity) fadeSurface.style.opacity = opacity;
+  if (canvas.style.opacity !== opacity) setEndFade(opacity);
   if (progress < 1) return;
   endFade.complete = true; fx.reset(); hitstop = 0;
-  canvas.style.filter = ''; fadeSurface.style.opacity = '0';
+  canvas.style.filter = ''; setEndFade('0');
   $('end-screen').hidden = false;
   $('retry-button').focus({ preventScroll: true });
 }

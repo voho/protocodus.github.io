@@ -6,6 +6,11 @@ import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+// Each pumped frame below is a full WebGL frame the GPU still has to finish.
+// On a software GPU (headless SwiftShader) a burst of pumped frames can leave
+// the renderer draining for half a minute, and the next locator call waits for
+// it, so give every action room beyond Playwright's 30 s default.
+page.setDefaultTimeout(120_000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
