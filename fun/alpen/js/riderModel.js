@@ -1864,7 +1864,13 @@ export function createRiderModel(THREE, shading) {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
     twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0, airTuck: 0,
     edge: 0, load: 0, steer: 0, switched: 0,
+    // the head's lead into a turn, and the follow-through spring's state:
+    // the slow copies of the two accelerations, then position and velocity
+    // along the travel and across the board
+    yawLast: 0, yawRate: 0, aF: 0, aL: 0, fx: 0, fv: 0, lx: 0, lv: 0,
   };
+  const velPrev = new THREE.Vector3();
+  const _acc = new THREE.Vector3();
   let seen = false;
 
   function update(rider, dt, weather = null, camera = null) {
@@ -2041,6 +2047,85 @@ export function createRiderModel(THREE, shading) {
     // rather than a body, and this is the one place that is reconciled.
     s.lean = approach(s.lean, -rider.roll, 8, sdt);
     if (fallen <= 0) s.tumbleLag = rider.tumble;
+
+    /* --- anticipation and follow-through --------------------------------- */
+
+    /* Every signal above is a first-order approach, and a first-order
+       approach can only ever arrive late and never go past: nothing on the
+       rider looked into a turn before his body was in it, and nothing
+       carried on after the board stopped. Those are the two oldest tricks
+       in animation for a reason, and both are cheap here.
+
+       THE HEAD LEADS. A rider looks where he is going, and where he is going
+       is round the turn he is already in, so the head is turned into it by
+       how fast the board is yawing — differenced from the yaw the model is
+       drawn with, wrapped, because a landed 720 hands this file a heading
+       whole turns away from the last one. Anything bigger than a third of a
+       radian in a frame is a snap or a teleport, not a turn, and is thrown
+       away. Only on the snow: in the air the rate is a spin, which the
+       shoulders already trail, and the smoothed rate is let go to zero so
+       that nothing of the spin is left in the neck at touchdown. The sign is
+       the model's: the rig turns by −yaw, so a positive rate turns the head
+       negative. It is capped at a fifth of a turn, and three tenths of it is
+       carried in the chest, because nobody turns their head that far
+       without their shoulders coming with it. */
+    let dyaw = rider.yaw - s.yawLast;
+    dyaw -= TAU * Math.round(dyaw / TAU);
+    s.yawLast = rider.yaw;
+    if (snap || Math.abs(dyaw) > 0.35) dyaw = 0;
+    s.yawRate = approach(s.yawRate,
+      rider.grounded && step > 1e-4 ? dyaw / step : 0, 6, sdt);
+    const lead = clamp(-0.4 * s.yawRate, -0.35, 0.35)
+      * upright * (1 - s.air) * (1 - skate);
+
+    /* THE BODY FOLLOWS THROUGH. The root's acceleration, in the travel frame
+       — along the direction he is going and across the board — drives a
+       small, underdamped spring (ω = 14, ζ = 0.35: it rings about twice and
+       is gone inside half a second), and the spring's displacement is the
+       body's inertia: the hands and the chest lag an acceleration and
+       overshoot when it stops. A braking scrub pitches him over the nose
+       and lets him back; a carve reversal swings the hands across and back;
+       a skidded landing throws everything forward and recovers.
+
+       Six tenths of a slow copy of the acceleration is taken back out of
+       the input, so a *sustained* pull — the centripetal load of a long
+       carve, the downhill pull of the slope itself — leaves only a small
+       standing offset and the authored poses stay where they were put. It
+       is the changes that ring. The physics velocity is read rather than
+       the drawn position twice differenced, which is noise, and the input
+       is clamped, because a landing is a velocity change in one step and the
+       spring would otherwise read it as fifty g. It is integrated in
+       substeps so the spring means the same thing at 30 Hz as at 144. */
+    if (snap) {
+      velPrev.copy(rider.vel);
+      s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
+    }
+    _acc.copy(rider.vel).sub(velPrev).multiplyScalar(1 / Math.max(step, 1e-3));
+    velPrev.copy(rider.vel);
+    {
+      const cyaw = Math.cos(rider.yaw);
+      const syaw = Math.sin(rider.yaw);
+      const aF = clamp((_acc.x * syaw - _acc.z * cyaw) * sw, -25, 25);
+      const aL = clamp(_acc.x * cyaw + _acc.z * syaw, -25, 25);
+      s.aF = approach(s.aF, aF, 1.5, sdt);
+      s.aL = approach(s.aL, aL, 1.5, sdt);
+      const inF = aF - 0.6 * s.aF;
+      const inL = aL - 0.6 * s.aL;
+      const W = 14;
+      const D = 2 * 0.35 * W;
+      const sub = Math.max(1, Math.ceil(step * 240));
+      const h = step / sub;
+      for (let i = 0; i < sub; i++) {
+        s.fv += (-W * W * s.fx - D * s.fv - inF) * h;
+        s.fx += s.fv * h;
+        s.lv += (-W * W * s.lx - D * s.lv - inL) * h;
+        s.lx += s.lv * h;
+      }
+    }
+    // Metres of lag along the travel and across the board; positive along
+    // is the body carried forwards, positive across is towards the toe edge.
+    const lagF = clamp(s.fx, -0.05, 0.05) * (1 - s.down);
+    const lagL = clamp(s.lx, -0.05, 0.05) * (1 - s.down);
 
     /* --- the whole rider, on the hill ------------------------------------ */
 
@@ -2393,10 +2478,16 @@ export function createRiderModel(THREE, shading) {
        exactly one plane still reads as a rigid thing being turned; it is the
        second axis, arriving on a different clock from the first, that makes
        it read as a person who has stopped holding himself up. */
+    /* …and the follow-through spring pitches and tips the chest the way the
+       body's mass is being carried — over the leading foot as he brakes,
+       towards the heel edge as the board is pulled towards the toes — while
+       three tenths of the head's lead turns the shoulders into the turn.
+       All of it is scaled by `upright`, so a grab's fold and a tumble's
+       flop are left exactly as they were solved. */
     torso.rotation.set(
-      pitch - s.down * (0.55 + lag * 0.5) * sw,
-      s.twist - hips.rotation.y + s.down * Math.sin(s.clock * 3.4) * 0.30,
-      fold + s.down * (lag * 0.45 + Math.sin(s.clock * 4.6 + 1.2) * 0.22),
+      pitch - s.down * (0.55 + lag * 0.5) * sw - lagF * 2.2 * sw * upright,
+      s.twist - hips.rotation.y + s.down * Math.sin(s.clock * 3.4) * 0.30 + lead * 0.3,
+      fold + s.down * (lag * 0.45 + Math.sin(s.clock * 4.6 + 1.2) * 0.22) - lagL * 1.8 * upright,
     );
 
     /* Breathing.
@@ -2452,12 +2543,19 @@ export function createRiderModel(THREE, shading) {
     // its own clock. The tilt is *against* the lean while he is riding: a
     // head that rolls with the body reads as unconscious, which is exactly
     // what it is once he is down.
+    /* The head takes the rest of the lead into the turn — the chest has
+       already carried three tenths of it — and nods with the follow-through:
+       the face is the head's +X, so a nod is about its own Z, which under
+       'YXZ' is the innermost rotation and therefore the head's own lateral
+       axis whatever the yaw. Carried forwards by a braking board, it dips;
+       left behind by an accelerating one, it comes up. */
     head.rotation.set(
       -0.05 + s.air * 0.22 + s.thump * 0.30
         - s.down * (lag * 0.6 + Math.sin(s.clock * 5.2) * 0.25),
       POSE.look * sw - s.twist * 0.55 + Math.sin(s.clock * 0.41) * 0.05 * idle
-        + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35,
-      s.lean * 0.18 + s.down * (0.4 + Math.sin(s.clock * 4.4 + 0.7) * 0.25),
+        + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35 + lead * 0.7,
+      s.lean * 0.18 + s.down * (0.4 + Math.sin(s.clock * 4.4 + 0.7) * 0.25)
+        - lagF * 2.6 * upright,
     );
 
     /* --- legs -------------------------------------------------------------- */
@@ -2628,6 +2726,18 @@ export function createRiderModel(THREE, shading) {
       other.applyAxisAngle(UP, wind).multiplyScalar(tight);
     }
 
+    /* The hands are the heaviest thing on the end of the longest lever, so
+       they carry the most follow-through: carried on forwards and across by
+       exactly the lag the chest took, a little more than one for one. It is
+       written in the travel frame like everything else here (−Z is the way
+       he is going) and it goes on *before* the grab and the fall, which both
+       lerp to where the hand has to be — so a grab still lands exactly on
+       the board's edge, however hard the landing that preceded it. */
+    hand.z -= lagF * 1.4;
+    other.z -= lagF * 1.4;
+    hand.x += lagL * 1.1;
+    other.x += lagL * 1.1;
+
     // Elbows back and down while riding; up and back in a grab, so the arm
     // hangs off the shoulder rather than hinging through the ribs
     pole.set(-0.75, -0.55, -0.15);
@@ -2778,6 +2888,8 @@ export function createRiderModel(THREE, shading) {
     s.charge = 0;
     s.wash = 0;
     s.switched = 0;
+    s.yawRate = 0;
+    s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
     headlamp.reset();
   }
 
