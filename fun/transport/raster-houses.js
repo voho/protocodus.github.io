@@ -10,48 +10,6 @@ export const HOUSE_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.ma
 const SOURCE_CELL = 256;
 const LOD_CELLS = Object.freeze([16, 32, 64, 128, 256]);
 const indices = new Map(HOUSE_KINDS.map((kind, index) => [kind, index]));
-// Hand-measured glass panes on each final 256² original. Store source pixel
-// boxes for easy art review, then convert [left, top, width, height] to the
-// 32-unit square used by drawRasterHouse. No roof/garden color guessing.
-const sourceWindows = {
-  taiga: {
-    "house-cheap-1": [[69,145,4,7],[122,169,4,7],[173,154,4,7]],
-    "house-cheap-2": [[84,147,4,7],[166,150,4,7]],
-    "house-cheap-3": [[67,144,4,7],[130,169,4,7],[177,158,4,7]],
-    "house-normal-1": [[51,145,4,9],[122,135,4,7],[187,173,4,8]],
-    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
-    "house-normal-3": [[130,168,4,7],[186,166,4,7]],
-    "house-expensive-1": [[56,111,4,8],[89,125,4,8],[177,140,4,8]],
-    "house-expensive-2": [[67,104,4,8],[96,117,4,8],[175,118,4,9]],
-    "house-expensive-3": [[43,124,4,8],[94,140,4,8],[209,130,4,8]],
-  },
-  tundra: {
-    "house-cheap-1": [[73,145,4,7],[124,163,4,7],[171,153,4,7]],
-    "house-cheap-2": [[86,138,4,7],[168,141,4,7]],
-    "house-cheap-3": [[67,141,4,7],[132,163,4,7],[175,151,4,7]],
-    "house-normal-1": [[51,144,4,9],[122,134,4,7],[187,172,4,8]],
-    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
-    "house-normal-3": [[132,163,4,7],[187,161,4,7]],
-    "house-expensive-1": [[57,111,4,8],[89,125,4,8],[177,140,4,8]],
-    "house-expensive-2": [[68,104,4,8],[97,116,4,8],[175,117,4,9]],
-    "house-expensive-3": [[42,123,4,8],[93,139,4,8],[208,129,4,8]],
-  },
-  desert: {
-    "house-cheap-1": [[72,147,4,7],[125,164,4,7],[173,155,4,7]],
-    "house-cheap-2": [[86,144,4,7],[168,145,4,7]],
-    "house-cheap-3": [[65,146,4,7],[130,171,4,7],[174,159,4,7]],
-    "house-normal-1": [[51,144,4,9],[122,134,4,7],[187,172,4,8]],
-    "house-normal-2": [[56,104,4,9],[178,139,4,8],[127,188,4,9]],
-    "house-normal-3": [[131,166,4,7],[187,164,4,7]],
-    "house-expensive-1": [[56,111,4,8],[89,125,4,8],[176,140,4,8]],
-    "house-expensive-2": [[67,103,4,8],[96,116,4,8],[174,117,4,9]],
-    "house-expensive-3": [[42,123,4,8],[93,139,4,8],[208,129,4,8]],
-  },
-};
-const windowAnchors = Object.fromEntries(Object.entries(sourceWindows).map(([biome, houses]) => [biome,
-  Object.fromEntries(Object.entries(houses).map(([kind, panes]) => [kind, Object.freeze(panes.map(pane => Object.freeze(pane.map(value => value / 8))))])),
-]));
-const noWindows = Object.freeze([]);
 const biomes = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map(), awaited = new Set();
 let status = 'idle', revision = 0, lastCellSize = 0, lastBiome = null, unpublished = false, quiet = 0, latest = 0;
 
@@ -60,7 +18,6 @@ export const houseAssetsRevision = () => revision;
 
 const resolveBiome = biome => biomes.has(biome) ? biome : biomes.has('taiga') ? 'taiga' : biomes.keys().next().value || null;
 export const hasRasterHouse = (kind, biome = 'taiga') => indices.has(kind) && resolveBiome(biome) !== null;
-export const houseWindowAnchors = (kind, biome = 'taiga') => windowAnchors[resolveBiome(biome)]?.[kind] || noWindows;
 
 export function getHouseAssetStats(biome = 'taiga') {
   const activeBiome = resolveBiome(biome), levels = biomes.get(activeBiome);

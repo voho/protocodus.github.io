@@ -27,7 +27,7 @@ try {
       }
       for (let x = 36; x <= 63; x++) { const t = game.tiles[51 * game.width + x]; t.road = true; if (x >= 43 && x <= 45) Object.assign(t, { bridge: true, structureAxis: 'x', structureLevel: 8 }); }
       game.revision++;game.day=0;
-      const layers = { trees: false, buildings: false, zones: false, names: false, industryIcons: false, stations: false, vehicles: false, vehicleLoads: false, lighting: false, routes: false, grid: false, roads: true, rails: true };
+      const layers = { trees: false, buildings: false, zones: false, names: false, industryIcons: false, stations: false, vehicles: false, vehicleLoads: false, routes: false, grid: false, roads: true, rails: true };
       const renderer = createRenderer(canvas, game, { layers });
       window.elevationQA = { game, control: game, canvas, renderer, createGame, geometry, layers };
     });

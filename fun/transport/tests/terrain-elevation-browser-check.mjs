@@ -20,7 +20,7 @@ try{
       const game=createGame({biome:'taiga',size:'regional',seed:418});
       game.cities=[];game.industries=[];game.stations=[];game.routes=[];game.vehicles=[];game.zones=[];game.day=0;
       for(const tile of game.tiles)Object.assign(tile,{terrain:'grass',elevation:.25,detail:'',road:false,rail:false,building:null,zone:null,bridge:false,tunnel:false});
-      const renderer=createRenderer(canvas,game,{layers:{trees:false,buildings:false,names:false,industryIcons:false,lighting:false}});
+      const renderer=createRenderer(canvas,game,{layers:{trees:false,buildings:false,names:false,industryIcons:false}});
       renderer.focus(48,36);renderer.setZoom(1);renderer.render(0);
       const hash=()=>{let h=2166136261;for(const byte of canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data)h=Math.imul(h^byte,16777619);return h>>>0;};
       const sample=(x,y)=>{const point=renderer.worldToScreen(x,y),px=point.x*devicePixelRatio,py=point.y*devicePixelRatio;return Array.from(canvas.getContext('2d').getImageData(Math.round(px),Math.round(py),1,1).data);};

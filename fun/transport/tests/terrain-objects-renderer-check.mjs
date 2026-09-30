@@ -28,7 +28,7 @@ try {
           for(let dy=0;dy<span;dy++)for(let dx=0;dx<span;dx++)Object.assign(g.tiles[(f.y+dy)*g.width+f.x+dx],{terrain:kind,detail:f.detail,variant:f.variant});
           if(span>1)g.tiles[f.y*g.width+f.x].terrainObject={kind,detail:f.detail,variant:f.variant,footprint:span};
         }
-        q.game=g;q.fixtures=fixtures;q.renderer=q.createRenderer(q.canvas,g,{layers:{lighting:false,names:false,industryIcons:false}});
+        q.game=g;q.fixtures=fixtures;q.renderer=q.createRenderer(q.canvas,g,{layers:{names:false,industryIcons:false}});
         q.hash=()=>{let h=2166136261;for(const n of q.canvas.getContext('2d').getImageData(0,0,q.canvas.width,q.canvas.height).data)h=Math.imul(h^n,16777619);return h>>>0;};
       },biome);
       for(const zoom of [.5,1,2]){
@@ -63,7 +63,7 @@ try {
             const bulldoze=outlines(()=>r.render(0,{tool:'bulldoze',hover:{x:f.x+f.span-1,y:f.y+f.span-1}})).filter(s=>['#f4d090','#d7725f','#e3aa6d'].includes(s.color)).at(-1),bulldozeExpected=own;
             r.render(0);const composed=r.getStats().composedChunks;r.render(0);const warm=composed===r.getStats().composedChunks;
             const anchor=g.tiles[f.y*g.width+f.x],saved=anchor.terrainObject;delete anchor.terrainObject;g.revision++;r.render(0);const released=q.hash();
-            const fresh=q.createRenderer(canvas,g,{zoom,layers:{lighting:false,names:false,industryIcons:false}});fresh.focus(centerTile.x,centerTile.y);fresh.render(0);const clean=q.hash();
+            const fresh=q.createRenderer(canvas,g,{zoom,layers:{names:false,industryIcons:false}});fresh.focus(centerTile.x,centerTile.y);fresh.render(0);const clean=q.hash();
             anchor.terrainObject=saved;g.revision++;r.render(0);const restored=q.hash();
             // Ignore the explicit revision increments made by this test itself.
             const before=JSON.parse(original);before.revision=g.revision;

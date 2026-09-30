@@ -2,8 +2,8 @@
 // strip regrouping may round a few channel values; geometry and picks must match.
 // This catches stale culling, depth order, foundations and invalidation on pans.
 // Journaled ecology days keep chunks, indexes and route paths and patch only the
-// scene tiles they changed: those frames must match a fresh renderer exactly, by
-// day and night, at DPR 1 and 2.
+// scene tiles they changed: those frames must match a fresh renderer exactly, at
+// DPR 1 and 2.
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {installBusyScenes} from './busy-scenes-fixture.mjs';
@@ -60,7 +60,7 @@ async function open(deviceScaleFactor){
       return{from,before,restore,placed:placed.length,forest:placed.filter(p=>p.terrain==='forest').length,journaled:viewChangesSince(g,from)?.sites.length??null};
     }
     window.sceneQA={
-      async start(scene,zoom,condition='night'){busyQA.select(scene,zoom,condition);initialZoom=zoom;initialPoint={...busyQA.point};operations=[];layers=busyQA.renderer.getLayers();await settle(busyQA.renderer);},
+      async start(scene,zoom,condition='day'){busyQA.select(scene,zoom,condition);initialZoom=zoom;initialPoint={...busyQA.point};operations=[];layers=busyQA.renderer.getLayers();await settle(busyQA.renderer);},
       async change(action){const q=busyQA,r=q.renderer,g=q.game;let before=r.getStats(),surface=null;
         if(action==='small-pan'){r.pan(-6,3);operations.push(['pan',-6,3]);}
         if(action==='long-pan'){r.pan(-240,130);operations.push(['pan',-240,130]);}
@@ -81,8 +81,8 @@ async function open(deviceScaleFactor){
         for(let i=0;i<a.length;i+=4){let diff=0;for(let c=0;c<4;c++){const d=Math.abs(a[i+c]-b[i+c]);diff=Math.max(diff,d);sum+=d;max=Math.max(max,d);}if(diff){count++;first??={x:i/4%source.width,y:Math.floor(i/4/source.width),cached:[...a.slice(i,i+4)],fresh:[...b.slice(i,i+4)]};}}
         const picks=[];if(['long-pan','world-revision','ecology','trees-on','buildings-on'].includes(action)){for(let py=80;py<560;py+=100)for(let px=80;px<800;px+=160){const a=r.screenToInspectTile(px,py),b=fresh.screenToInspectTile(px+1000,py);if(JSON.stringify(a)!==JSON.stringify(b))picks.push({px,py,cached:a,fresh:b});}}
         const stats=r.getStats(),result={pickDifferences:picks,action,differentPixels:count,maxChannelDifference:max,totalChannelDifference:sum,meanChannelDifference:sum/a.length,first,camera:r.getCamera(),freshCamera:fresh.getCamera(),sceneBuilds:stats.sceneBuilds,beforeBuilds:before.sceneBuilds,scenePatches:stats.scenePatches,beforePatches:before.scenePatches,routePathBuilds:stats.routePathBuilds-before.routePathBuilds};
-        if(surface&&action==='homes')Object.assign(result,{journaled:surface.journaled,placed:surface.placed,forest:surface.forest,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
-        else if(surface)Object.assign(result,{journaled:surface.journaled,edited:surface.edited,grown:surface.grown,grove:surface.grove,groveInView:surface.groveInView,seamsInView:surface.seamsInView,insideInView:surface.insideInView,outsideOfView:surface.outsideOfView,emitterBuilds:stats.lighting.emitterBuilds-before.lighting.emitterBuilds,staticEmitters:stats.lighting.staticEmitters,foundationBuilds:stats.foundationBuilds-before.foundationBuilds,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
+        if(surface&&action==='homes')Object.assign(result,{journaled:surface.journaled,placed:surface.placed,forest:surface.forest,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount,overlayBuilds:stats.overlays.builds-before.overlays.builds});
+        else if(surface)Object.assign(result,{journaled:surface.journaled,edited:surface.edited,grown:surface.grown,grove:surface.grove,groveInView:surface.groveInView,seamsInView:surface.seamsInView,insideInView:surface.insideInView,outsideOfView:surface.outsideOfView,foundationBuilds:stats.foundationBuilds-before.foundationBuilds,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
         freshCanvas.remove();if(surface?.restore){surface.restore();await settle(r);}return result;
       }
     };
@@ -100,6 +100,7 @@ function check(row){
     const label=`${row.scene}/${row.zoom}/${row.condition}/dpr ${row.dpr}`;
     assert.ok(row.placed>=1&&row.journaled>=row.placed,`${label}: new homes in view are journaled`);
     assert.ok(row.scenePatches>row.beforePatches&&row.sceneBuilds===row.beforeBuilds,`${label}: a day of new homes patches the prepared scene`);
+    assert.ok(row.overlayBuilds>0,`${label}: markers and nameplates are placed again around the new homes`);
     assert.equal(row.differentPixels,0,`${label}: patched homes match a fresh renderer in every pixel`);
     assert.equal(row.chunkCount,row.chunksBefore,`${label}: no chunk is discarded`);
     return;
@@ -110,22 +111,22 @@ function check(row){
   assert.ok(row.journaled>=row.edited&&row.seamsInView>0&&row.insideInView>0&&row.outsideOfView>0,`${label}: in-view, seam and out-of-view edits are journaled`);assert.ok(row.grown>0,`${label}: real ecology days changed the world`);
   if(row.scene!=='mixed')assert.ok(row.groveInView,`${label}: a 3×3 grove dissolves in view`);
   assert.equal(row.chunkCount,row.chunksBefore,`${label}: no chunk is discarded`);
-  if(row.scene==='mixed'){assert.equal(row.routePathBuilds,0,`${label}: route paths survive an ecology day`);assert.equal(row.foundationBuilds,0,`${label}: foundations survive an ecology day`);if(row.condition==='night'){assert.ok(row.staticEmitters>0);assert.equal(row.emitterBuilds,0,`${label}: static light emitters survive an ecology day`);}}
+  if(row.scene==='mixed'){assert.equal(row.routePathBuilds,0,`${label}: route paths survive an ecology day`);assert.equal(row.foundationBuilds,0,`${label}: foundations survive an ecology day`);}
 }
 try{
   const page=await open(2);
   for(const scene of(process.env.TRANSPORT_SCENES||'forest,mixed,generated-forest').split(','))for(const zoom of[.5,1,2]){
     await page.evaluate(({scene,zoom})=>sceneQA.start(scene,zoom),{scene,zoom});
     for(const action of['warm','small-pan','small-pan','long-pan','reverse-pan','trees-off','trees-on','buildings-off','buildings-on','world-revision','ecology','homes','zoom-return',...(scene==='mixed'&&zoom===2?['art-revision']:[])]){
-      const row={scene,zoom,condition:'night',dpr:2,...await page.evaluate(action=>sceneQA.change(action),action)};rows.push(row);console.log(JSON.stringify(row));
+      const row={scene,zoom,condition:'day',dpr:2,...await page.evaluate(action=>sceneQA.change(action),action)};rows.push(row);console.log(JSON.stringify(row));
       if(row.maxChannelDifference>4||row.meanChannelDifference>.02||(['ecology','homes'].includes(action)&&row.differentPixels)){await page.locator('#cached').screenshot({path:`${out}/${scene}-${zoom}-${action}-cached.png`});await writeFile(`${out}/results.json`,JSON.stringify({rows,errors},null,2));}
       check(row);
     }
   }
-  // The remaining day/night and density combinations for journaled ecology days.
-  for(const dpr of[1,2]){
-    const view=dpr===2?page:await open(dpr);
-    for(const condition of['day','night'])if(dpr!==2||condition!=='night')for(const scene of(process.env.TRANSPORT_SCENES||'forest,mixed,generated-forest').split(','))for(const zoom of[.5,1,2]){
+  // Journaled ecology days again at DPR 1.
+  for(const dpr of[1]){
+    const view=await open(dpr),condition='day';
+    for(const scene of(process.env.TRANSPORT_SCENES||'forest,mixed,generated-forest').split(','))for(const zoom of[.5,1,2]){
       await view.evaluate(({scene,zoom,condition})=>sceneQA.start(scene,zoom,condition),{scene,zoom,condition});
       for(const action of['warm','ecology']){
         const row={scene,zoom,condition,dpr,...await view.evaluate(action=>sceneQA.change(action),action)};rows.push(row);console.log(JSON.stringify(row));

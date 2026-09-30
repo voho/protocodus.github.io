@@ -22,7 +22,7 @@ const dense=await page.evaluate(async()=>{
   const paths=Array.from({length:100},(_,row)=>Array.from({length:2048},(_,x)=>({x,y:(row+10)*16})));
   for(let n=0;n<1000;n++){game.routes.push({id:n,mode:'road',path:paths[n%100],cargo:'passengers',color:'#be955e'});for(let v=0;v<10;v++)game.vehicles.push({routeId:n,x:(n*13+v*197)%2048,y:paths[n%100][0].y,angle:0,vehicleKind:'bus',load:v*4,capacity:40});}
   for(let i=0;i<90;i++)Object.assign(game.vehicles[i],{x:1010+i%30,y:784+Math.floor(i/30)*16,routeId:39+Math.floor(i/30)});
-  const renderer=createRenderer(document.querySelector('canvas'),game,{layers:{names:false,industryIcons:false,lighting:false}});renderer.resize();renderer.setZoom(1);renderer.focus(1024,800);
+  const renderer=createRenderer(document.querySelector('canvas'),game,{layers:{names:false,industryIcons:false}});renderer.resize();renderer.setZoom(1);renderer.focus(1024,800);
   const views=[];
   for(const zoom of [.5,1,2]){
     renderer.setZoom(zoom);renderer.focus(1024,800);
@@ -33,9 +33,7 @@ const dense=await page.evaluate(async()=>{
   }
   const minimap=document.createElement('canvas');minimap.style.cssText='width:180px;height:115px';document.body.append(minimap);
   let t=performance.now();renderer.drawMinimap(minimap);const minimapColdMs=performance.now()-t;t=performance.now();renderer.drawMinimap(minimap);const minimapWarmMs=performance.now()-t,minimapStats=renderer.getStats(),index=networkIndex(game);
-  // At night, offscreen vehicles must not sample distant terrain chunks.
-  renderer.setLayers({lighting:true});game.day=30.75;const fieldsBefore=terrainGeometryStats(game).builtChunks;t=performance.now();renderer.render(1000);const nightMs=performance.now()-t,nightFields=terrainGeometryStats(game).builtChunks-fieldsBefore;
-  return{width:game.width,tiles:game.tiles.length,routes:game.routes.length,vehicles:game.vehicles.length,networkTiles:index.count,networkBytes:index.bytes,views,logicalPathSegments:1000*2047,minimapColdMs,minimapWarmMs,minimapIndexBytes:minimapStats.minimapNetworkBytes,nightMs,nightFields};
+  return{width:game.width,tiles:game.tiles.length,routes:game.routes.length,vehicles:game.vehicles.length,networkTiles:index.count,networkBytes:index.bytes,views,logicalPathSegments:1000*2047,minimapColdMs,minimapWarmMs,minimapIndexBytes:minimapStats.minimapNetworkBytes};
 });
-for(const view of dense.views){assert.equal(view.warmComposed,0);assert.equal(view.warmRouteSegments,0);assert.equal(view.warmRouteBuilds,0);assert.ok(view.pannedSegments<dense.logicalPathSegments/10);assert.ok(view.visibleVehicles>=10&&view.visibleVehicles<dense.vehicles/10);assert.ok(view.cacheBytes<=view.cacheLimit);}assert.equal(dense.networkBytes,512*1024);assert.equal(dense.minimapIndexBytes,dense.networkBytes);assert.ok(dense.nightFields<16,'nighttime lights only sample the viewport');console.log(JSON.stringify({dense}));await page.locator('canvas').first().screenshot({path:`${out}/dense-2048.png`});await page.close();
+for(const view of dense.views){assert.equal(view.warmComposed,0);assert.equal(view.warmRouteSegments,0);assert.equal(view.warmRouteBuilds,0);assert.ok(view.pannedSegments<dense.logicalPathSegments/10);assert.ok(view.visibleVehicles>=10&&view.visibleVehicles<dense.vehicles/10);assert.ok(view.cacheBytes<=view.cacheLimit);}assert.equal(dense.networkBytes,512*1024);assert.equal(dense.minimapIndexBytes,dense.networkBytes);console.log(JSON.stringify({dense}));await page.locator('canvas').first().screenshot({path:`${out}/dense-2048.png`});await page.close();
 await writeFile(`${out}/results.json`,JSON.stringify({profiles:rows,dense},null,2));}finally{await browser.close();}

@@ -16,7 +16,6 @@ import { outputFill } from './industry-simulation.js';
 import { landscapeScenery } from './landscape-scenery.js';
 import { DEFAULT_LAYERS, normalizeLayers } from './visibility.js';
 import { createMarineSprites, drawShipWake, MARINE_SIZE } from './marine-sprites.js';
-import { createLighting } from './lighting.js';
 import { createWeatherEffects } from './weather-effects.js';
 import { paintWaterRelief, paintCoast, drawWaterMotion } from './water-art.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
@@ -98,7 +97,6 @@ export function createRenderer(canvas, initialGame, options={}) {
   // 6×6 chunks receive artwork at the current physical-pixel density. Small
   // chunks keep Detail's retina surfaces bounded; atlas terrain is capped at 512².
   const chunks=new Map(), minimapLayer=document.createElement('canvas'), codes=new Map(), cargoImages=new Map(),loadBadges=new Map();
-  const drawLighting=createLighting();
   const motionPreference=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const drawWeather=createWeatherEffects({reducedMotion:()=>Boolean(motionPreference?.matches)});
   if(options.onInvalidate)motionPreference?.addEventListener('change',options.onInvalidate);
@@ -120,7 +118,8 @@ export function createRenderer(canvas, initialGame, options={}) {
   let routeSegmentsConsidered=0,routePathBuilds=0;
   const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
   function routeBreak(r){const key=`${game.networkRevision||0}:${r.path.length}`;let entry=routeBreakPoints.get(r);if(entry?.key!==key)routeBreakPoints.set(r,entry={key,at:routeBreakPoint(game,r)});return entry.at;}
-  let structureRevision=0;
+  // New homes move markers and nameplates without touching the network, so overlays also follow the site journal.
+  let structureRevision=0,siteRevision=0;
   const frameVehicles=[];
   // Planes: one pose per visible plane per frame (air-flight.js), in projected world px, the body at its height over
   // the ground point beneath it. Each route keeps its flight geometry and cruise level until its path or ground changes.
@@ -192,10 +191,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   // bounds, padded by three tiles, hold a change. Those chunks recompose a few
   // a frame (drawChunk). The scene marks the changed tiles and their two-tile
   // reach (a grove's anchor, a forest's neighbours) and patches them when drawn.
-  // A town's new homes (sites) take the same path: their cells also forget cached sites and foundations, and lighting
-  // gathers its windows again on its own.
+  // A town's new homes (sites) take the same path: their cells also forget cached sites and foundations.
   function refreshSurface(changes,sites=EMPTY_CELLS){
     for(const index of sites){buildingIndex.delete(index);terrainObjectIndex.delete(index);for(let span=1;span<=3;span++)foundations.delete(index*4+span);}
+    if(sites.length)siteRevision++;
     if(sites.length)changes=Int32Array.from(new Set([...changes,...sites]));
     if(sceneCache){
       const within=sceneCache.bounds,dirty=sceneCache.dirty||new Set();
@@ -390,7 +389,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     ensureRevision();
     // Only places within half a view (and a margin for tall art) of any view the cell can show are placed, so the choices
     // in view never depend on the cell. They are found on the flat grid first: remote terrain is never sampled.
-    const z=camera.zoom,o=cameraPoint(),cellX=Math.floor(o.x*z/(W/2)),cellY=Math.floor(o.y*z/(H/2)),key=[z,W,H,dpr,cellX,cellY,layers.names,layers.stations,layers.industryIcons,layers.buildings,structureRevision,cachedWorldAssets,document.fonts?.status].join();
+    const z=camera.zoom,o=cameraPoint(),cellX=Math.floor(o.x*z/(W/2)),cellY=Math.floor(o.y*z/(H/2)),key=[z,W,H,dpr,cellX,cellY,layers.names,layers.stations,layers.industryIcons,layers.buildings,structureRevision,siteRevision,cachedWorldAssets,document.fonts?.status].join();
     if(overlays?.key===key&&overlays.game===game)return overlays;
     const x0=(cellX-2)*W/2-256,x1=(cellX+3)*W/2+256,y0=(cellY-2)*H/2-256,y1=(cellY+3)*H/2+256+MAX_HEIGHT*HEIGHT_STEP*z,near=(site,span=1)=>{const x=(site.x-site.y)*TILE*z,y=(site.x+site.y+span)*TILE/2*z;return x>x0&&x<x1&&y>y0&&y<y1;};
     const grid=createOverlayGrid(64),labels=new Map(),signs=new Map(),markers=new Map(),stats={labels:0,signs:0,movedSigns:0,front:0,own:0,side:0},size=signSize();
@@ -480,7 +479,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     return picked;
   }
-  function setGame(next){lastSceneCamera=null;lastCameraMotion=-Infinity;game=next;clearChunks();drawLighting.clear?.();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();}
+  function setGame(next){lastSceneCamera=null;lastCameraMotion=-Infinity;game=next;clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();}
   function natureVariant(x,y,t) {
     let h=(game.seed||0)^Math.imul(x+1,374761393)^Math.imul(y+1,668265263)^Math.imul((t.variant||0)+1,1274126177);
     h=Math.imul(h^(h>>>13),1274126177);return (h^(h>>>16))>>>26;
@@ -923,8 +922,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   const stripBytes=b=>{const w=Math.ceil(b.right*rasterScale)+2-(Math.floor(b.left*rasterScale)-2),h=Math.ceil(b.bottom*rasterScale)+2-(Math.floor(b.top*rasterScale)-2);return w<1||h<1||w>8192||h>8192?0:w*h*4;};
   // After a patch, strips hold one depth each (partitionScenery), so every run the patch left alone keeps its strips and
   // picture; a touched run is partitioned again and queued. A changed shadow list stages a new layer while the old one
-  // stays on screen, as a rebuilt scene's first layer does. When the budget cannot hold every strip and the layer, a fresh
-  // scene's order (the layer, then strips nearest first) decides which get pictures, so the patch starts that order afresh.
+  // stays on screen, as a rebuilt scene's first layer does; if a new layer was already on its way, the one on screen is
+  // two patches old and gives way to the direct pass. An unchanged list keeps both layers, and any painting continues
+  // where it was. When the budget cannot hold every strip and the layer, a fresh scene's order (the layer, then strips
+  // nearest first) decides which get pictures, so the patch starts that order afresh.
   function regroupScene(scene,touched,shadowsChanged){
     if(!scene.batchPlanReady)return;
     if(touched.size){
@@ -939,14 +940,15 @@ export function createRenderer(canvas, initialGame, options={}) {
       scene.groups=groups;
     }
     queueSceneGroups(scene);
-    if(scene.shadowPreparation?.surface)sceneryBudget.release(scene.shadowPreparation.surface.image);
     const layer=scene.shadows.length>8?shadowStage(scene):null,pending=new Set(scene.pendingGroups),limit=sceneryBudget.stats().limit;
     const need=(layer?stripBytes(layer.bounds):0)+scene.groups.reduce((n,group)=>n+(group.image||pending.has(group)?stripBytes(group.bounds):0),0);
     if(need>limit){
       sceneryBudget.clear();for(const group of scene.groups)group.image=null;
       scene.shadow=null;scene.shadowPreparation=layer;queueSceneGroups(scene);
-    }else if(shadowsChanged||scene.shadowPreparation){
-      if(scene.shadow&&(!layer||need+scene.shadow.image.width*scene.shadow.image.height*4>limit)){sceneryBudget.release(scene.shadow.image);scene.shadow=null;}
+    }else if(shadowsChanged){
+      const behind=Boolean(scene.shadowPreparation);
+      if(scene.shadowPreparation?.surface)sceneryBudget.release(scene.shadowPreparation.surface.image);
+      if(scene.shadow&&(!layer||behind||need+scene.shadow.image.width*scene.shadow.image.height*4>limit)){sceneryBudget.release(scene.shadow.image);scene.shadow=null;}
       scene.shadowPreparation=layer;
     }
     scene.readyGroups=scene.groups.reduce((n,group)=>n+(group.image?1:0),0);
@@ -1383,7 +1385,6 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(refused)for(const issue of spanQuote.issues)if(issue.at)highlight(issue.at,'#d7725f',false);
     for(const stop of routeStops){const s=typeof stop==='object'?stop:(game.stations||[]).find(st=>st.id===stop);if(s?.mode==='air')outline(s,stationSpan(s),{color:'#f4d397',width:2});else if(s){ctx.strokeStyle='#f4d397';ctx.lineWidth=2/camera.zoom;ring(s.x,s.y,21/TILE);ctx.stroke();}}
     ctx.restore();ctx.restore();
-    drawLighting(ctx,{game,layers,camera,dpr,artRevision:`${cachedWorldAssets}:${cachedHouseAssets}`,width:W,height:H,bounds:{x0:Math.max(0,x0-1),y0:Math.max(0,y0-1),x1,y1},industryIndex,stationIndex,routesById,vehicles:frameVehicles,project:worldToScreen,projectVehicle:vehicleToScreen,projectBuilding:buildingToScreen,projected:true,airports,airPoses,projectAirport:s=>gridPointToScreen(s.x,s.y),screen:p=>screenPoint(p),now,reducedMotion:Boolean(motionPreference?.matches),detailLevel});
     drawWeather(ctx,{game,layers,camera,width:W,height:H});
     if(hover&&(tool==='raise'||tool==='lower')){
       const t=tile(hover.x,hover.y);if(t){const p=gridPointToScreen(hover.x,hover.y),level=surfaceHeight(game,hover.x,hover.y),allowed=previewValid(hover);pill(p.x,p.y-28*camera.zoom,allowed?`Level ${level} → ${level+(tool==='raise'?1:-1)}`:`Level ${level}`,{h:25,color:allowed?COLORS.ink:STATES.error.color});}
@@ -1508,5 +1509,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     ensureRevision();const a=airPoses.get(v)||airPose(v,route);return a?{x:a.pose.x-.5,y:a.pose.y-.5}:{x:v.x,y:v.y};
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),lighting:drawLighting.getStats?.(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setLayers,getLayers,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:HEIGHT_STEP,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

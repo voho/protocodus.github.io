@@ -109,15 +109,12 @@ try {
     sprite('hospital'); const civic = q.calls.at(-1).src;
     sprite('iron-mine'); const industry = q.calls.at(-1).src;
     q.createSprites('desert')('house-cheap-1');
-    return { civic, industry, house: q.houses.getHouseAssetStats('desert').activeBiome,
-      civicWindows: JSON.stringify(q.civic.rasterBuildingWindows('hospital', 'tundra')) === JSON.stringify(q.civic.rasterBuildingWindows('hospital', 'desert')),
-      industryWindows: JSON.stringify(q.industries.rasterIndustryWindows('iron-mine', 'tundra')) === JSON.stringify(q.industries.rasterIndustryWindows('iron-mine', 'taiga')) };
+    return { civic, industry, house: q.houses.getHouseAssetStats('desert').activeBiome };
   });
   assert.match(fallback.civic, /buildings-civic\/desert\/atlas-/);
   assert.match(fallback.industry, /industries-taiga\/atlas-/);
   assert.equal(fallback.house, 'tundra');
-  assert.equal(fallback.civicWindows, true); assert.equal(fallback.industryWindows, true);
   await fallbackContext.close();
   assert.deepEqual(errors, [], 'no browser exceptions from missing densities or climate fallbacks');
-  console.log(JSON.stringify({ aliases: coverage.aliases.length, woodland: coverage.woodland, partialDensity: 'healthy imagery retained; retry upgrades cached sprite', fallback: 'same generated identity and measured windows from a healthy climate' }, null, 2));
+  console.log(JSON.stringify({ aliases: coverage.aliases.length, woodland: coverage.woodland, partialDensity: 'healthy imagery retained; retry upgrades cached sprite', fallback: 'same generated identity from a healthy climate' }, null, 2));
 } finally { await browser.close(); }

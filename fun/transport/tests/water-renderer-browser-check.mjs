@@ -17,7 +17,7 @@ try {
       const [{ createGame }, { createRenderer }, { preloadWorldArt }] = await Promise.all([import('./model.js'), import('./renderer.js'), import('./atlas-runtime.js')]);
       await preloadWorldArt({ waitMs: 12000 });
       const canvas = document.querySelector('canvas'), game = createGame({ biome: 'tundra', size: 'square512', seed: 1847 });
-      const renderer = createRenderer(canvas, game, { layers: { trees: false, buildings: false, stations: false, names: false, industryIcons: false, zones: false, roads: false, rails: false, vehicles: false, vehicleLoads: false, lighting: false, routes: false, grid: false } });
+      const renderer = createRenderer(canvas, game, { layers: { trees: false, buildings: false, stations: false, names: false, industryIcons: false, zones: false, roads: false, rails: false, vehicles: false, vehicleLoads: false, routes: false, grid: false } });
       window.waterQA = { createGame, renderer, canvas };
     });
     for (const biome of ['taiga', 'tundra', 'desert']) {

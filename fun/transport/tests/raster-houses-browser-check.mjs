@@ -37,7 +37,7 @@ async function harness(context) {
       const game = createGame({ biome, size: 'regional', seed: 1847 });
       const view = canvas(1040, 720); view.className = 'world';
       document.querySelector('#gallery').replaceChildren(view);
-      const renderer = createRenderer(view, game, { layers: { names: false, industryIcons: false, routes: false, lighting: false } });
+      const renderer = createRenderer(view, game, { layers: { names: false, industryIcons: false, routes: false } });
       renderer.focus(game.cities[0].x + 3, game.cities[0].y); renderer.render(0);
       return { game, renderer, view };
     };

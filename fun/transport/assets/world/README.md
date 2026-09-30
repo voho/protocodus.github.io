@@ -43,4 +43,4 @@ The runtime fetches only the display atlases, never source sheets or masters. Ea
 
 New industries reserve 2×2 tiles for placement, inspection, selection and demolition. Roads, houses, trees and settlement growth cannot occupy the site. Catchment, infrastructure access and operating-cost service benefits measure from every site edge. Recipe 4 preserves natural elevation beneath these sites and settlements. Recipes 1–3 and one-tile saved industries retain their original geography and footprint.
 
-Browser checks: `tests/world-art-browser-check.mjs`, `tests/vehicle-directions-browser-check.mjs`, `tests/raster-houses-browser-check.mjs`, `tests/shipping-renderer-check.mjs`, and `tests/daynight-renderer-check.mjs`. Source/contact-sheet screenshots are written outside the shipped asset directories.
+Browser checks: `tests/world-art-browser-check.mjs`, `tests/vehicle-directions-browser-check.mjs`, `tests/raster-houses-browser-check.mjs`, and `tests/shipping-renderer-check.mjs`. Source/contact-sheet screenshots are written outside the shipped asset directories.

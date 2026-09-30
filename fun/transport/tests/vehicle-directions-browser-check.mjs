@@ -153,7 +153,7 @@ try {
       for(const key of ['cities','industries','stations','routes','vehicles','zones'])game[key]=[];game.revision++;
       game.routes=[{id:'curve',mode:'rail',cargo:'passengers',active:true,path:[{x:10,y:10},{x:11,y:10},{x:12,y:10},{x:12,y:11},{x:12,y:12}]}];
       game.vehicles=[{id:'train',routeId:'curve',x:12,y:10.4,progress:2.4,direction:1,angle:Math.PI/2,load:40,capacity:100,level:1}];
-      const renderer=q.createRenderer(canvas,game,{layers:{names:false,industryIcons:false,stations:false,buildings:false,roads:false,rails:false,trees:false,routes:false,lighting:false,vehicleLoads:true}});renderer.focus(11,10);
+      const renderer=q.createRenderer(canvas,game,{layers:{names:false,industryIcons:false,stations:false,buildings:false,roads:false,rails:false,trees:false,routes:false,vehicleLoads:true}});renderer.focus(11,10);
       const runs=[];
       for(const zoom of [.5,1,2]){
         renderer.setZoom(zoom);renderer.focus(11,10);const draw=CanvasRenderingContext2D.prototype.drawImage,observed=[];

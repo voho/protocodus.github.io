@@ -221,8 +221,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .hud-report:hover{color:var(--ink)}
 .hud-report:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:var(--r-1)}
 #world.route-picking{cursor:crosshair}
-@media(max-width:1000px){
-}
 @media(max-width:700px){
  .main-nav [data-open-chains]{display:none}
  .mobile-management button{flex:1;border-radius:var(--r-1);font-size:var(--fs-caption);line-height:var(--lh-caption);padding:12px 4px;color:var(--ink-2);min-height:35px}
@@ -239,11 +237,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .hud-finance-wrap{position:relative;margin-left:auto;flex-shrink:0}
 .hud-finances{display:flex;align-items:center;gap:24px;text-align:left;padding:8px;border-radius:var(--r-2);color:var(--ink)}
 .hud-finances:hover,.hud-finances:focus-visible{background:var(--well)}
-.hud-stat{display:block;white-space:nowrap}
-.hud-stat>span{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin-bottom:4px}
-.hud-stat strong{font-size:var(--fs-title);line-height:var(--lh-title);font-weight:500;letter-spacing:var(--tr-tight);font-variant-numeric:tabular-nums}
-.hud-stat .positive{color:var(--ok)}
-.hud-stat .negative{color:var(--error)}
 .hud-tooltip{display:none;position:absolute;top:calc(100% + 7px);right:0;min-width:232px;padding:16px;background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);color:var(--ink-2);pointer-events:none}
 .hud-finance-wrap:hover .hud-tooltip,.hud-finances:focus-visible+.hud-tooltip,.hud-finances[aria-expanded=true]+.hud-tooltip{display:block}
 .hud-tooltip>div{display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:var(--fs-small);line-height:var(--lh-small)}
@@ -278,23 +271,18 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .topbar .header-actions .icon-button{display:none}
  .nav-button{font-size:var(--fs-small);line-height:var(--lh-small)}
  .topbar .header-actions .button{padding:8px}
- .hud-stat strong{font-size:var(--fs-lead);line-height:var(--lh-lead)}
 }
 @media(max-width:800px){
  .topbar{gap:12px}
  .main-nav{gap:12px}
  .main-nav .nav-button[data-view=industry],.main-nav .nav-button[data-view=towns]{display:none}
  .hud-finances{gap:12px;padding:4px}
- .hud-stat strong{font-size:var(--fs-lead);line-height:var(--lh-lead)}
- .hud-stat>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .workspace{height:calc(100dvh - 97px)}
 }
 @media(max-width:700px){
  .topbar{height:60px;padding:0 12px;gap:12px}
  .hud-finance-wrap{margin-left:auto}
  .hud-finances{gap:12px}
- .hud-stat strong{font-size:var(--fs-lead);line-height:var(--lh-lead)}
- .hud-stat>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .topbar .speed-control{gap:1px;padding:2px}
  .topbar .speed-control button{width:21px;height:21px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
@@ -310,8 +298,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .topbar{gap:8px;padding:0 8px}
  .topbar .brand-symbol{width:23px;font-size:var(--fs-display);line-height:var(--lh-display)}
  .hud-finances{gap:8px;padding:4px 0}
- .hud-stat strong{font-size:var(--fs-body);line-height:var(--lh-body);letter-spacing:var(--tr-tight)}
- .hud-stat>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .topbar .header-actions .button{padding:4px}
  .topbar .speed-control button{width:19px}
  .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
@@ -423,8 +409,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .compact-play .main-nav .nav-button svg{display:block;width:16px;height:16px}
 .compact-play .main-nav .nav-button:hover,.compact-play .main-nav .nav-button.active{background:var(--well);color:var(--ink)}
 .compact-play .hud-finances{gap:16px;padding:4px 8px}
-.compact-play .hud-stat>span{font-size:var(--fs-caption);line-height:var(--lh-caption);margin-bottom:1px}
-.compact-play .hud-stat strong{font-size:var(--fs-lead);line-height:var(--lh-lead);letter-spacing:var(--tr-tight)}
 .compact-play .topbar .date-block{display:flex;align-items:center;gap:8px}
 .compact-play .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption);margin:0}
 .compact-play .topbar .speed-control{padding:2px;gap:1px}
@@ -493,7 +477,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .speed-control button{width:23px;height:20px}
  .compact-play .topbar .speed-control{padding:1px}
  .compact-play .hud-finances{gap:12px}
- .compact-play .hud-stat strong{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
 @media(max-width:700px){
  .compact-play .topbar{gap:8px;padding:0 8px}
@@ -501,9 +484,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .mobile-panel-toggle{display:flex;flex:0 0 auto}
  .compact-play .hud-finance-wrap{margin-left:auto;min-width:0;flex-shrink:1}
  .compact-play .hud-finances{display:block;padding:4px;line-height:1.25}
- .compact-play .hud-stat>span{display:none}
- .compact-play .hud-stat:first-child strong{font-size:var(--fs-body);line-height:var(--lh-body)}
- .compact-play .hud-stat:last-child strong{font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0}
  .compact-play .hud-tooltip{top:calc(var(--play-header) + 4px)}
  .compact-play .mobile-management{display:flex;padding:4px;border-bottom:1px solid var(--rule);background:var(--paper)}
  .compact-play .mobile-management button{min-height:38px;font-size:var(--fs-caption);line-height:var(--lh-caption);padding:8px 4px}
@@ -519,7 +499,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .wordmark{display:none}
  .compact-play .mobile-panel-toggle{padding:8px}
  .compact-play .topbar .speed-control button{width:22px}
- .compact-play .hud-stat:first-child strong{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
 @media(prefers-reduced-motion:reduce){
  .compact-play .sidebar{transition:none}

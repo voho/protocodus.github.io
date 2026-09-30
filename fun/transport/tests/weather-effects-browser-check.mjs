@@ -18,7 +18,7 @@ try{
    const {preloadHouses}=await import('./raster-houses.js'),{preloadWorldArt}=await import('./atlas-runtime.js');
    const game=createGame({biome:'taiga',size:'square512',seed:1847});
    await Promise.all([preloadHouses({biome:game.biome,waitMs:15000}),preloadWorldArt({biome:game.biome,waitMs:15000})]);
-   const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{lighting:false,names:false,industryIcons:false,grid:false,routes:false}});renderer.focus(game.cities[0].x,game.cities[0].y);renderer.setZoom(1);
+   const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{names:false,industryIcons:false,grid:false,routes:false}});renderer.focus(game.cities[0].x,game.cities[0].y);renderer.setZoom(1);
    const camera=renderer.getCamera(),c=canvas.getContext('2d'),hash=()=>{let value=2166136261;for(const b of c.getImageData(0,0,canvas.width,canvas.height).data)value=Math.imul(value^b,16777619);return value>>>0;};
    const scenarios={};for(let day=0;day<360;day++){const w=weatherPresentation(game,camera.x/32,camera.y/32,day);for(const kind of ['rain','snow'])if(!scenarios[kind]||scenarios[kind].strength<w[kind])scenarios[kind]={day,strength:w[kind]};}
    const climates={};for(const biome of ['taiga','tundra','desert']){const sample={...game,biome},peak={rain:0,snow:0};for(let day=0;day<360;day++){const w=weatherPresentation(sample,camera.x/32,camera.y/32,day);peak.rain=Math.max(peak.rain,w.rain);peak.snow=Math.max(peak.snow,w.snow);}climates[biome]=peak;}
@@ -26,7 +26,7 @@ try{
    game.day=scenarios.rain.day;for(let n=0;n<60;n++){renderer.render(0);const batches=renderer.getStats().sceneryBatches;if(!batches.waitingForCamera&&!batches.pending)break;await new Promise(resolve=>setTimeout(resolve,20));}
    renderer.render(0);const rainy=hash(),stats=renderer.getStats().weather,saved=JSON.stringify(game);renderer.render(10000);const paused=hash();renderer.setLayers({weather:false});renderer.render(0);const off=hash();renderer.setLayers({weather:true});renderer.render(0);const restored=hash();
    let took=0;for(let i=0;i<8;i++){const start=performance.now();renderer.render(i);took+=performance.now()-start;}
-   // Isolate compositing and particles from normal water and lighting animation.
+   // Isolate compositing and particles from normal water animation.
    let reduced=false;const draw=createWeatherEffects({reducedMotion:()=>reduced});
    function effect(time,on=true){game.day=time;c.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);c.fillStyle='#699741';c.fillRect(0,0,1280,850);draw(c,{game,layers:{weather:on},camera,width:1280,height:850});return{hash:hash(),sample:Array.from(c.getImageData(2,2,1,1).data),stats:draw.getStats()};}
    const plain=effect(scenarios.rain.day,false),rain=effect(scenarios.rain.day),moved=effect(scenarios.rain.day+.2);reduced=true;const quiet=effect(scenarios.rain.day);
