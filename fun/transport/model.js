@@ -124,7 +124,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   game.money=funds; game.monthlyExpenses=0; game.totalExpenses=0;
   if(funds!==400000)game.startingFunds=funds;
   game.notifications=[];
-  notify(game,`Welcome to ${BIOMES[biome].name}. Your first passenger route is running. Connect an industry to grow your company.`,'success');
+  notify(game,`Welcome to ${BIOMES[biome].name}. Your first bus is running.`,'success');
   return game;
 }
 
@@ -1040,6 +1040,16 @@ function arriveVehicle(game,route,vehicle,arrivalDay,context){
   // A full-load wait holds the vehicle here; the dwell just drawn runs once the wait is over.
   beginFullLoadWait(route,vehicle,stopIndex,sources,arrivalDay);
 }
+// Buses, trucks, trains and ships pull away from a stop and brake into the next: where a vehicle is drawn eases over
+// the first and last stretch of each trip (s(u) = 2u² − u³, so it leaves from rest and rejoins the steady pace), and
+// makes up the lag just after. Progress, arrivals, travel days and fares keep the steady pace; only x and y ease.
+const EASE_TILES={road:.8,rail:1.6,water:1.2};
+export function shownProgress(route,vehicle,progress=vehicle.progress){
+  const max=route.path.length-1,ease=Math.min(EASE_TILES[route.mode]||0,max/3);if(!(ease>0))return progress;
+  const forward=vehicle.direction!==-1,travelled=forward?progress:max-progress,left=max-travelled,s=u=>u*u*(2-u);
+  const shown=travelled<ease?ease*s(Math.max(0,travelled)/ease):left<ease?max-ease*s(Math.max(0,left)/ease):travelled;
+  return forward?shown:max-shown;
+}
 function moveVehicles(game,days) {
   for(const route of game.routes)updateRoutePath(game,route);
   const routeIndex=fleetIndex(game).routeById;
@@ -1066,7 +1076,7 @@ function moveVehicles(game,days) {
   for(const item of fleet)if(item.finalState)Object.assign(item.vehicle,item.finalState);
   for(const {vehicle,route}of fleet){
     if(route.mode==='air'){const max=route.path.length-1,first=route.path[0],last=route.path[max],f=vehicle.progress/max;vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*vehicle.direction,(last.x-first.x)*vehicle.direction);continue;}
-    const max=route.path.length-1,index=Math.min(Math.floor(vehicle.progress),max-1),fraction=vehicle.progress-index,a=route.path[index],b=route.path[index+1];
+    const max=route.path.length-1,shown=shownProgress(route,vehicle),index=Math.min(Math.floor(shown),max-1),fraction=shown-index,a=route.path[index],b=route.path[index+1];
     vehicle.x=a.x+(b.x-a.x)*fraction;vehicle.y=a.y+(b.y-a.y)*fraction;vehicle.angle=Math.atan2((b.y-a.y)*vehicle.direction,(b.x-a.x)*vehicle.direction);
   }
 }

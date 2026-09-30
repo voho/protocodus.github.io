@@ -21,6 +21,16 @@ export function weatherPresentation(game, x, y, day = game.day || 0) {
 // A fixed pool is independent of map size and never allocates a second screen
 // bitmap. Color compositing grades the finished world; sprite pixels and caches
 // are untouched. HUD and map labels are painted afterwards and stay legible.
+// The year's light, 0–1 each: a winter chill peaking late January, a fresh spring in May and a golden autumn in
+// October. Days count from 1 January 1950; a year of 365.2425 days keeps the peaks in their months for centuries.
+// Deserts barely turn; the tundra's autumn is short. Pure presentation: nothing in the simulation reads it.
+const SEASON_SCALE = { taiga: { winter: 1, spring: 1, autumn: 1 }, tundra: { winter: 1, spring: .6, autumn: .6 }, desert: { winter: .35, spring: .5, autumn: .25 } };
+export function seasonPresentation(game, day = game.day || 0) {
+  const at = ((day % 365.2425) + 365.2425) % 365.2425, scale = SEASON_SCALE[game.biome] || SEASON_SCALE.taiga;
+  const bump = (centre, width) => { const d = Math.abs(at - centre), wrapped = Math.min(d, 365.2425 - d); return smooth(1 - wrapped / width); };
+  return { winter: bump(25, 75) * scale.winter, spring: bump(130, 50) * scale.spring, autumn: bump(285, 48) * scale.autumn };
+}
+
 export function createWeatherEffects({ reducedMotion = () => false } = {}) {
   const particles = new Float32Array(MAX_WEATHER_PARTICLES * 4);
   let state = 0x4f2a7b19;
@@ -35,24 +45,29 @@ export function createWeatherEffects({ reducedMotion = () => false } = {}) {
     const day = Number(game.day) || 0;
     const x = Math.max(0, Math.min(game.width - 1, camera.x / 32));
     const y = Math.max(0, Math.min(game.height - 1, camera.y / 32));
-    const weather = weatherPresentation(game, x, y, day), { rain, snow, cloud } = weather;
+    const weather = weatherPresentation(game, x, y, day), { rain, snow, cloud } = weather, season = seasonPresentation(game, day);
     const amount = rain + snow, still = reducedMotion();
     const count = still || amount < .015 ? 0 : Math.min(MAX_WEATHER_PARTICLES, Math.round((width * height / 16000 + 16) * amount));
-    stats = { enabled: true, rain, snow, cloud, particles: count, particleLimit: MAX_WEATHER_PARTICLES, bytes: particles.byteLength };
-    if (cloud < .01 && !count) return;
+    stats = { enabled: true, rain, snow, cloud, particles: count, particleLimit: MAX_WEATHER_PARTICLES, bytes: particles.byteLength, season };
     c.save();
+    // The season first, as soft light: warm gold in autumn, a fresh green in spring, a pale chill in winter.
+    if (season.autumn > .01) { c.globalCompositeOperation = 'soft-light'; c.globalAlpha = season.autumn * .2; c.fillStyle = '#e0913f'; c.fillRect(0, 0, width, height); }
+    if (season.spring > .01) { c.globalCompositeOperation = 'soft-light'; c.globalAlpha = season.spring * .12; c.fillStyle = '#b8e07a'; c.fillRect(0, 0, width, height); }
+    if (season.winter > .01) { c.globalCompositeOperation = 'saturation'; c.globalAlpha = season.winter * .1; c.fillStyle = '#808080'; c.fillRect(0, 0, width, height); c.globalCompositeOperation = 'source-over'; c.globalAlpha = season.winter * .05; c.fillStyle = '#e4ecef'; c.fillRect(0, 0, width, height); }
+    if (cloud < .01 && !count) { c.restore(); return; }
+    // Clouds and rain soften the palette and cool it, gently enough that the map stays clear.
     c.globalCompositeOperation = 'saturation';
-    c.globalAlpha = cloud * .20 + amount * .16;
+    c.globalAlpha = cloud * .1 + amount * .12;
     c.fillStyle = '#808080'; c.fillRect(0, 0, width, height);
     c.globalCompositeOperation = 'source-over';
-    c.globalAlpha = cloud * .065 + rain * .065 + snow * .13;
+    c.globalAlpha = cloud * .05 + rain * .06 + snow * .12;
     c.fillStyle = snow > rain ? '#d6e6ec' : '#6b8196'; c.fillRect(0, 0, width, height);
 
     // Time belongs to the company, so pause, loading, tab suspension, save/load
     // and simulation speed all have the same effect on weather as on vehicles.
     const rainCount = amount ? Math.round(count * rain / amount) : 0, snowCount = count - rainCount;
     if (rainCount) {
-      c.strokeStyle = '#d6e5ed'; c.globalAlpha = .16 + rain * .21; c.lineWidth = .75;
+      c.strokeStyle = '#d6e5ed'; c.globalAlpha = .12 + rain * .18; c.lineWidth = .75;
       c.beginPath();
       for (let i = 0; i < rainCount; i++) {
         const n = i * 4, pace = .7 + particles[n + 2] * .7;

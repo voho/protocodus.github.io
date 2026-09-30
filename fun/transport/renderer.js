@@ -5,7 +5,7 @@ import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { INDUSTRIES, BUILD_COSTS } from './data.js';
 import { isTownTraffic } from './data.js';
-import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint } from './model.js';
+import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint, shownProgress } from './model.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
 import { ZOOM_VIEWS, nearestZoom, stepZoom } from './zoom.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -695,23 +695,45 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     ctx.save();ctx.translate(0,-h*HEIGHT_STEP);groundTransform(ctx);network(ctx,x,y,t,mode,true);ctx.restore();
   }
+  // A raised plot stands on a dry-stone retaining wall: coursed faces, lit along the lip and darker toward the ground,
+  // so a terraced town reads as built rather than as grey blocks. Paths, courses and shading are cached per plot.
+  const WALL={taiga:{top:'#9caa85',faces:['#7b8067','#9a9a80'],course:'#4d5243',lip:'#d9d6ba'},tundra:{top:'#bfc9b9',faces:['#858d86','#a4aba2'],course:'#555d58',lip:'#e8ece4'},desert:{top:'#c7b58d',faces:['#a88d63','#c4a878'],course:'#6f5a3c',lip:'#eadbb6'}};
   function drawFoundation(x,y,span){
     const height=foundationHeight(x,y,span),top=(u,v)=>{const p=projectPoint(u*TILE,v*TILE);p.y-=height*HEIGHT_STEP;return p;};
     const entry=foundations.get((y*game.width+x)*4+span);
-    if(entry.paths){for(const {path,color} of entry.paths){ctx.fillStyle=color;ctx.fill(path);}return;}
-    const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]],heights=corners.map(([u,v])=>surfaceHeight(game,u,v));
-    entry.paths=[];
-    if(height-Math.min(...heights)<.06)return;
-    const surface=new Path2D();corners.forEach(([u,v],i)=>{const p=top(u,v);i?surface.lineTo(p.x,p.y):surface.moveTo(p.x,p.y);});surface.closePath();
-    entry.paths.push({path:surface,color:game.biome==='desert'?'#c7b58d':game.biome==='tundra'?'#bfc9b9':'#9caa85'});
-    for(const side of [0,1]){
-      const edge=Array.from({length:span+1},(_,n)=>side?[x+n,y+span]:[x+span,y+n]);
-      const path=new Path2D();
-      edge.forEach(([u,v],i)=>{const p=top(u,v);i?path.lineTo(p.x,p.y):path.moveTo(p.x,p.y);});
-      for(const [u,v]of edge.toReversed()){const p=projectGround(game,u,v);path.lineTo(p.x,p.y);}
-      path.closePath();entry.paths.push({path,color:side?'#8d947d':'#727d6b'});
+    if(!entry.paths){
+      const corners=[[x,y],[x+span,y],[x+span,y+span],[x,y+span]],heights=corners.map(([u,v])=>surfaceHeight(game,u,v)),wall=WALL[game.biome]||WALL.taiga;
+      entry.paths=[];entry.walls=[];
+      if(height-Math.min(...heights)<.06)return;
+      const surface=new Path2D();corners.forEach(([u,v],i)=>{const p=top(u,v);i?surface.lineTo(p.x,p.y):surface.moveTo(p.x,p.y);});surface.closePath();
+      entry.paths.push({path:surface,color:wall.top});
+      for(const side of [0,1]){
+        const edge=Array.from({length:span+1},(_,n)=>side?[x+n,y+span]:[x+span,y+n]),tops=edge.map(([u,v])=>top(u,v)),grounds=edge.map(([u,v])=>projectGround(game,u,v));
+        const path=new Path2D();
+        tops.forEach((p,i)=>i?path.lineTo(p.x,p.y):path.moveTo(p.x,p.y));
+        for(const p of grounds.toReversed())path.lineTo(p.x,p.y);
+        path.closePath();entry.paths.push({path,color:wall.faces[side]});
+        // Courses every half level, staggered joints on alternate courses, and the lip along the top edge.
+        const drop=Math.max(...grounds.map((p,i)=>p.y-tops[i].y)),courses=new Path2D(),lip=new Path2D(),step=HEIGHT_STEP/2;
+        for(let k=1;k*step<drop;k++){
+          tops.forEach((p,i)=>i?courses.lineTo(p.x,p.y+k*step):courses.moveTo(p.x,p.y+k*step));
+          for(let i=0;i<tops.length-1;i++)for(const f of k%2?[.25,.75]:[.5]){const a=tops[i],b=tops[i+1],jx=a.x+(b.x-a.x)*f,jy=a.y+(b.y-a.y)*f+k*step;courses.moveTo(jx,jy);courses.lineTo(jx,jy-step);}
+        }
+        tops.forEach((p,i)=>i?lip.lineTo(p.x,p.y):lip.moveTo(p.x,p.y));
+        const low=Math.max(...grounds.map(p=>p.y)),high=Math.min(...tops.map(p=>p.y)),shade=ctx.createLinearGradient(0,high,0,low);
+        shade.addColorStop(0,'rgba(24,34,26,0)');shade.addColorStop(1,'rgba(24,34,26,.3)');
+        entry.walls.push({path,courses,lip,shade,wall});
+      }
     }
     for(const {path,color} of entry.paths){ctx.fillStyle=color;ctx.fill(path);}
+    if(!entry.walls?.length)return;
+    ctx.save();ctx.lineCap='butt';
+    for(const {path,courses,lip,shade,wall} of entry.walls){
+      ctx.fillStyle=shade;ctx.fill(path);
+      ctx.save();ctx.clip(path);ctx.globalAlpha=.32;ctx.strokeStyle=wall.course;ctx.lineWidth=.8;ctx.stroke(courses);ctx.restore();
+      ctx.globalAlpha=.7;ctx.strokeStyle=wall.lip;ctx.lineWidth=1.1;ctx.stroke(lip);ctx.globalAlpha=1;
+    }
+    ctx.restore();
   }
   function visibleFlat(x,y,margin=70){
     const origin=cameraPoint(),sx=((x-y)*TILE-origin.x)*camera.zoom+W/2,sy=((x+y+1)*TILE/2-origin.y)*camera.zoom+H/2;
@@ -850,7 +872,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(route?.mode==='water'||!visible(v.x,v.y,100*camera.zoom))continue;
       if(route?.mode==='rail'&&route.path?.length>1){
         const path=route.path,max=path.length-1,direction=v.direction||1;
-        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,(v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
+        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,shownProgress(route,v,v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
       }
       add(v.x,v.y,()=>drawCar(v,route,v.x,v.y,Number.isFinite(v.angle)?v.angle:0,route?.mode==='rail'),1);
     }
@@ -1036,7 +1058,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const key=region?Math.floor(f.x/3)+','+Math.floor(f.y/3):f,group=shown.get(key);
       if(!group)shown.set(key,{x:f.x,y:f.y,revenue:f.revenue,cargo:f.cargo,t,air:f.air});else{group.revenue+=f.revenue;if(t<group.t)Object.assign(group,{x:f.x,y:f.y,cargo:f.cargo,t,air:f.air});}
     }
-    ctx.font='600 12px Space, system-ui, sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.font=font(600,12);ctx.textAlign='left';ctx.textBaseline='middle';
     for(const {x,y,revenue,cargo,t,air} of shown.values()){
       const p=worldToScreen(x,y),label='+$'+(revenue>=10000?format.format(revenue/1000)+'k':format.format(Math.round(revenue))),image=cargoImage(cargo||'passengers',14);
       const w=ctx.measureText(label).width+35,h=23,left=Math.round(p.x-w/2);let start=p.y-(air?80:58)*Math.max(1,camera.zoom)-h/2,ceiling=-Infinity;
@@ -1173,7 +1195,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     stepCamera(now);shownBullets.clear();const hoverRef=typeof view.hoverRef==='string'?view.hoverRef:null,refAt=hoverRef?hoverRef.indexOf(':'):-1,refKind=refAt>0?hoverRef.slice(0,refAt):'',refId=refAt>0?hoverRef.slice(refAt+1):'';
     if(hoverRef!==lastHoverRef){lastHoverRef=hoverRef;hoverRefAt=now;}const locatorFade=motionPreference?.matches?1:Math.max(0,Math.min(1,(now-hoverRefAt)/MAP.locator.fadeMs));
     const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid,showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
-    ensureRevision();lazyChunkBudget=LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
+    // A paused game brings no new days, so it finishes every waiting chunk at once (view.settle).
+    ensureRevision();lazyChunkBudget=view.settle?Infinity:LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     // A plane may stand beside its chord or high above it, so it keeps a wider margin.
     frameVehicles.length=0;if(layers.vehicles)for(const vehicle of game.vehicles||[])if(visibleFlat(vehicle.x,vehicle.y,Math.max(70,100*camera.zoom)+(routesById.get(vehicle.routeId)?.mode==='air'?220*camera.zoom:0)))frameVehicles.push(vehicle);
     airPoses.clear();airStats={ground:0,air:0};for(const vehicle of frameVehicles){const route=routesById.get(vehicle.routeId);if(route?.mode!=='air')continue;const pose=airPose(vehicle,route);if(pose){airPoses.set(vehicle,pose);airStats[pose.pose.ground?'ground':'air']++;}}
