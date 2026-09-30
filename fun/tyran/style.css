@@ -353,10 +353,10 @@ body[data-scene=end] #end-screen{backdrop-filter:none}
 #p1-shield-label[data-recharge=firing]{color:#d6bc91}
 
 /* Game menu: the title screen is a console menu over the sector preview, not a landing page. */
-.menu-screen{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;grid-template-columns:minmax(0,1fr);padding:clamp(14px,2.2vw,30px) clamp(18px,4.4vw,68px) clamp(12px,1.8vw,22px);gap:0}
+.menu-screen{display:grid;grid-template-rows:auto minmax(auto,1fr) auto auto;grid-template-columns:minmax(0,1fr);padding:clamp(14px,2.2vw,30px) clamp(18px,4.4vw,68px) clamp(12px,1.8vw,22px);gap:0}
 .menu-corner{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:18px;min-width:0}
 .menu-utilities{display:flex;align-items:center;gap:16px}
-.menu-body{position:relative;display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);align-items:center;gap:24px;min-height:0;padding:clamp(6px,1.4vh,18px) 0}
+.menu-body{position:relative;display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);align-items:center;gap:24px;padding:clamp(6px,1.4vh,18px) 0}
 .menu-column{display:grid;gap:clamp(10px,2.2vh,24px);min-width:0}
 .title-block h1{font:700 clamp(68px,8.2vw,124px)/.94 var(--display);letter-spacing:-.035em;margin:0;text-shadow:0 6px 44px #000a}
 .hero-tagline{font-size:clamp(17px,1.55vw,24px);font-weight:500;letter-spacing:-.3px;color:#d7e4dc;margin-top:6px;text-shadow:0 2px 18px #000c}
