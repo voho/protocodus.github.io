@@ -298,6 +298,8 @@ uniform sampler2D uShadeHeightMap;
 uniform float uShadeSlice;
 uniform float uShadeLevel;
 uniform vec2 uCamWrap;
+uniform sampler2D uCanopyMap;
+uniform vec4 uCanopyWin;
 
 ${SKY_GLSL}
 
@@ -628,6 +630,30 @@ const FRAG_SHADE_TINT = `
         mix(vec3(1.0), n64ShadeSky, 0.42) * 0.88, n64ShadeAmt);
     }`;
 
+/* THE SKY THE FOREST TAKES AWAY — see canopy.js for the field and why it
+   exists. Only the ground asks for it (`opts.canopy`): a crown does not
+   occlude itself, and a rider or a rock standing in a wood already has the
+   depth map for the one light that matters to a figure.
+
+   It runs first after the light loop, ahead of the snow response, so the
+   recovered shadow that response divides out of the direct light already
+   includes it — the sun's lobe and glints go down under a crown in exactly
+   the proportion the diffuse did. The fetch is at a fixed mip level because
+   the terrain's fog exit has already happened by this point, and the window
+   fades out over its last eight per cent so its edge is never a line. */
+const FRAG_CANOPY = `
+  {
+    vec3 n64CanW = cameraPosition + vN64View * mat3(viewMatrix);
+    vec2 n64CanUv = (n64CanW.xz - uCanopyWin.xy) * uCanopyWin.z;
+    vec2 n64CanEdge = min(n64CanUv, 1.0 - n64CanUv);
+    float n64CanIn = smoothstep(0.0, 0.08, min(n64CanEdge.x, n64CanEdge.y));
+    if (n64CanIn > 0.0) {
+      float n64Can = texture2DLodEXT(uCanopyMap, n64CanUv, 0.0).r * n64CanIn;
+      reflectedLight.indirectDiffuse *= 1.0 - n64Can;
+      reflectedLight.directDiffuse *= 1.0 - n64Can * uCanopyWin.w;
+    }
+  }`;
+
 /* Recover the light-loop shadow before adding the snow response. */
 function lightPatch(sheen) {
   return FRAG_SUN
@@ -948,6 +974,11 @@ export function createShading(THREE) {
   );
   neutralShadeHeight.colorSpace = THREE.NoColorSpace;
   neutralShadeHeight.needsUpdate = true;
+  const neutralCanopy = new THREE.DataTexture(
+    new Uint8Array([0]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType,
+  );
+  neutralCanopy.colorSpace = THREE.NoColorSpace;
+  neutralCanopy.needsUpdate = true;
   const uniforms = {
     uSkyZenith: { value: new THREE.Color('#07297a') },
     uSkyMid: { value: new THREE.Color('#2f79d6') },
@@ -990,6 +1021,11 @@ export function createShading(THREE) {
     uShadeLevel: { value: 0 },
     // The camera's XZ modulo the glint period — see FRAG_SHEEN_GRADIENTS.
     uCamWrap: { value: new THREE.Vector2() },
+    /* The forest's occlusion of the sky over the snow — canopy.js owns both.
+       The neutral pixel is zero occlusion, so the ground is exactly what it
+       was until the first field is drawn. */
+    uCanopyMap: { value: neutralCanopy },
+    uCanopyWin: { value: new THREE.Vector4(0, 0, 1 / 256, 0) },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -1028,6 +1064,7 @@ export function createShading(THREE) {
     const sheen = opts.sheen === undefined ? 0 : opts.sheen;
     const wantFog = opts.fog !== false;
     const cameraFade = opts.cameraFade === true;
+    const canopy = opts.canopy === true;
     // Only the ground opts out, because the ground already has this per
     // vertex. Everything else that has a light loop to patch gets it.
     const wantShade = opts.shade !== false;
@@ -1071,6 +1108,11 @@ export function createShading(THREE) {
           `${LIGHT_ANCHOR}${lightPatch(true)}`)
           .replace(GRADIENT_ANCHOR, `${FRAG_SHEEN_GRADIENTS}${GRADIENT_ANCHOR}`);
       }
+      // Inserted second so that it lands first, directly under the anchor
+      // and ahead of the snow response — see FRAG_CANOPY for why.
+      if (canopy && frag.indexOf(LIGHT_ANCHOR) !== -1) {
+        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_CANOPY}`);
+      }
       if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
         frag = frag.replace(FOG_ANCHOR, FRAG_FOG);
       }
@@ -1078,7 +1120,7 @@ export function createShading(THREE) {
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 

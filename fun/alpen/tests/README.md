@@ -40,7 +40,13 @@ night-storm visibility, panorama skyline occlusion and photograph fallbacks.
 It also pins the sun's depth-map box half a box ahead of the rider along the
 camera heading (and dropped onto the slope it covers), and the glint grid's
 camera origin wrapped into its 64 m period on the CPU, so no shader forms a
-26 km coordinate.
+26 km coordinate. The canopy field (`canopy.js`) is checked too. A crown hides
+about half the sky at its trunk and nothing beyond its reach. A thicket is
+darker than one tree but never black, and a bare snag hides much less. It takes
+direct light only as the sun's shadows fade. The window stays on the world's
+metre lattice and is reused across short moves. A redraw stores the same value
+at the same world point. The terrain shader check applies the production
+`canopy` option, so the field's fetch is covered by the fog-exit rule.
 
 The realism pass on light was compared in Chromium against the previous commit
 from fixed, deterministic-time captures (golden hour and midday; chase, rider

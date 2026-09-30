@@ -135,6 +135,40 @@ for (const fps of [30, 60, 144]) {
   shading.update(w, lens, 0);
   close(shading.uniforms.uCamWrap.value.x, 51.75, 'camera x wraps into the glint period');
   close(shading.uniforms.uCamWrap.value.y, 16.5, 'camera z wraps into the glint period');
+
+  /* The canopy field: deepest at a trunk, gone past the crown's reach, a
+     thicket darker than one tree but never black, direct light taken only as
+     the sun's shadows fade, and every texel a fact about the world — a
+     redraw from a moved window stores the same value at the same place. */
+  const { createCanopy, CANOPY } = await import('../js/canopy.js');
+  const canopy = createCanopy(THREE, shading);
+  assert.equal(shading.uniforms.uCanopyMap.value, canopy.texture, 'ground reads the drawn field');
+  const trees = [
+    { x: 10.3, z: -40.6, canopy: 3 },
+    { x: -20, z: -60, canopy: 3 }, { x: -18.5, z: -60, canopy: 3 },
+    { x: 30, z: -50, canopy: 3, canopyDensity: 0.35 },
+    { x: 0, z: -48, r: 1 },   // a rock: no crown, no occlusion
+  ];
+  const ahead = new THREE.Vector3(0, 0, -1);
+  canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 1);
+  const trunk = canopy.sample(10.3, -40.6);
+  assert.ok(Math.abs(trunk - CANOPY.DEPTH) < 0.03, `a crown hides about half the sky at its trunk: ${trunk}`);
+  assert.equal(canopy.sample(10.3 + 3 * CANOPY.REACH + 1, -40.6), 0, 'nothing past the crown reach');
+  const pair = canopy.sample(-19.25, -60);
+  assert.ok(pair > trunk && pair < 0.9, `two crowns are darker than one and never black: ${pair}`);
+  assert.ok(canopy.sample(30, -50) < trunk * 0.5, 'a bare snag hides much less sky');
+  assert.equal(canopy.sample(0, -48), 0, 'solids without a crown do not occlude');
+  assert.equal(shading.uniforms.uCanopyWin.value.w, 0, 'full sun shadows keep the direct light');
+  canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 0.25);
+  close(shading.uniforms.uCanopyWin.value.w, 0.75, 'faded sun shadows hand the crown the direct light');
+  const before = canopy.origin.slice();
+  canopy.update(trees, new THREE.Vector3(0, 0, -5), ahead, 1);
+  assert.deepEqual(canopy.origin, before, 'a short move reuses the drawn field');
+  canopy.update(trees, new THREE.Vector3(3.4, 0, -37.2), ahead, 1);
+  assert.notDeepEqual(canopy.origin, before, 'a long move redraws the window');
+  assert.ok(Number.isInteger(canopy.origin[0]) && Number.isInteger(canopy.origin[1]),
+    'the window sits on the world metre lattice');
+  close(canopy.sample(10.3, -40.6), trunk, 'a redraw stores the same value at the same place');
 }
 
 const ranges = sky.group.children.filter(mesh => mesh.name === 'far-range' || mesh.name === 'mid-distance massifs');

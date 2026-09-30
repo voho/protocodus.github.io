@@ -3185,7 +3185,15 @@ export function createProps(THREE, shading) {
       if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
       if (!treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour)) continue;
-      solids.push({ x, z, r: radius, kind: HARD, top: 99 });
+      /* `canopy` is the crown's radius, for the occlusion field the snow
+         reads (canopy.js): a conifer's lowest whorl reaches about a quarter
+         of its height out from the trunk. A bare snag hides much less sky
+         than a needled crown of the same size. */
+      solids.push({
+        x, z, r: radius, kind: HARD, top: 99,
+        canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
+        canopyDensity: treeBare[v] ? 0.35 : 1,
+      });
     }
 
     /* --- continuous vegetation biomes -----------------------------------
@@ -3371,6 +3379,8 @@ export function createProps(THREE, shading) {
       solids.push({
         x, z, r: Math.max(0.28, crown * 0.55), type: 'sapling', kind: SOFT,
         top: y + spec.H * sy, drag: PROPS.shrubDrag * 0.85,
+        // A young tree's crown shades the snow under it too (canopy.js).
+        canopy: crown, canopyDensity: 0.7,
       });
     }
 

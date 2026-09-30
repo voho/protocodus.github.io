@@ -2681,7 +2681,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      way. It costs one cached fetch on the largest surface in the frame, and
      it deletes the entire second code path — one march, one consumer, one
      way for the mountain and everything standing on it to be shaded. */
-  shading.apply(material, { sheen: 1 });
+  shading.apply(material, { sheen: 1, canopy: true });
   material.userData.snowSurfaces = {
     powder: powderSurface,
     groomed: groomedSurface,

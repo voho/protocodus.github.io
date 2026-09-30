@@ -26,6 +26,7 @@ import {
   getTerrainMaterialAt, guideAt,
 } from './terrain.js';
 import { createProps, HARD, SOFT } from './props.js';
+import { createCanopy } from './canopy.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
 import { createWeather } from './weather.js';
@@ -204,6 +205,9 @@ const shading = createShading(THREE);
 const weather = createWeather(THREE);
 const terrain = createTerrain(THREE, shading, renderer.capabilities.getMaxAnisotropy());
 const props = createProps(THREE, shading);
+// The sky the forest hides from the snow under it — see canopy.js.
+const canopy = createCanopy(THREE, shading);
+const canopyHeading = new THREE.Vector3();
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
 // The particles share the shading block's sun uniforms by reference, so a
@@ -1483,6 +1487,8 @@ function frame(now) {
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
     shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    camera.getWorldDirection(canopyHeading);
+    canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
     /* THE BISECT, applied after every system that writes these, so a switch
        actually holds for the frame. Four things can change how a mountain
        looks between one frame and the next, and telling them apart by eye is
@@ -1770,7 +1776,7 @@ window.__alpen = {
      them off one at a time. `mountainLife` is here for the same reason —
      its riders are the only things on the hill that move under their own
      steam, and a pose that is wrong is a pose you have to be able to stop. */
-  shading, mountainLife,
+  shading, mountainLife, canopy,
   config: { RENDER, RIDER, SCORE, PROPS, GRADE },
   debug: () => ({
     mode: game.mode,
