@@ -106,6 +106,9 @@ function weatherSample(game, cache, xx, yy) {
   return values[0] * (1 - cache.eased) + values[1] * cache.eased;
 }
 
+// The climate's year: 360 days, warming through day 30, warmest at 120 and coldest at 300. It runs on its own
+// clock, not the calendar's, and the map's seasonal light (weather-effects.js) follows it.
+export const CLIMATE_YEAR = 360, CLIMATE_SPRING = 30;
 // Weather fronts cross 24-tile cells and evolve over twelve days. Seasonal
 // daylight, elevation and biome keep oases, highlands and lowlands distinct.
 export function weatherAt(game, x, y, day = game.day || 0) {
@@ -118,7 +121,7 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   if (cache.day !== wholeDay) {
     cache.day = wholeDay;
     cache.eased = progress * progress * (3 - 2 * progress);
-    cache.summer = Math.sin((wholeDay - 30) / 360 * Math.PI * 2);
+    cache.summer = Math.sin((wholeDay - CLIMATE_SPRING) / CLIMATE_YEAR * Math.PI * 2);
   }
   const gx = Math.floor(x / 24), gy = Math.floor(y / 24), fx = x / 24 - gx, fy = y / 24 - gy;
   const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
