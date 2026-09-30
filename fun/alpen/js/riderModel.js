@@ -974,7 +974,41 @@ export function createRiderModel(THREE, shading) {
     float n64Spec = pow(max(dot(normal, n64H), 0.0), ${power.toFixed(1)}) * n64NoL
       * (${base.toFixed(3)} + ${gloss.toFixed(3)} * n64Trim) * n64Fabric;
     float n64Rim = pow(1.0 - n64NoV, 2.5);
-    float n64GroundBounce = max(-normal.y, 0.0) * 0.18;
+    /* WHETHER THE SUN IS ACTUALLY ON THIS PIXEL.
+
+       Everything added here is added after the light loop, so none of it
+       went through the shadow test: a rider carving through the shade of a
+       spruce, or down the bar the containment wall lays across the piste at
+       dusk, kept a full sun highlight on the topsheet and a sunlit sheen on
+       both sleeves — lit from a sun the rest of the picture said was gone.
+       The loop has already paid for the answer, though. With one
+       directional light, direct diffuse is albedo · NoL · sun · shadow / π,
+       and every factor but the shadow is in scope here, so dividing them
+       out recovers the depth map, the mountain's own horizon and the cloud
+       deck together — the same recovery the snow uses, and no second
+       shadow-map lookup. Near the terminator the ratio is undefined, but
+       every term it gates is multiplied by NoL and has already gone to
+       nothing there. */
+    float n64Open = clamp(
+      dot(reflectedLight.directDiffuse, vec3(0.2126, 0.7152, 0.0722))
+        / max(max(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 1e-3)
+          * n64NoL * uSunLevel * dot(uSunTint, vec3(0.2126, 0.7152, 0.0722))
+          * RECIPROCAL_PI, 1e-5),
+      0.0, 1.0);
+    n64Spec *= n64Open;
+    /* The snow's bounce comes up from below — from the world's below. This
+       read the view-space y of the normal, which is "down the screen", so
+       it lit whichever surfaces faced the bottom of the frame: the rider's
+       back when the camera was high, nothing at all when it was low. World
+       up in view space is the view matrix's second column, the same axis
+       the terrain's strata test uses. And the snow under the rider is only
+       sunlit if the ground there is, so it dims with the mountain's shadow
+       and the cloud deck (not with the rider's own shadow, which falls on
+       the snow beside him rather than all of it). */
+    float n64GroundBounce = max(-dot(normal, viewMatrix[1].xyz), 0.0) * 0.18;
+    #ifdef N64_SUN_VIS
+      n64GroundBounce *= n64SunVis;
+    #endif
     vec3 n64SnowBounceColor = vec3(0.85, 0.92, 1.0) * uSunLevel * n64GroundBounce;
     vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
     float n64Fres = 0.04 + 0.96 * pow(1.0 - n64NoV, 5.0);
@@ -1002,7 +1036,7 @@ export function createRiderModel(THREE, shading) {
        cools with the day like everything else on this mountain. */
     float n64Graze = 1.0 - abs(dot(normal, uSunView));
     reflectedLight.directDiffuse += uSunTint
-      * (uSunLevel * n64NoL * n64Graze * n64Graze * n64Graze * 0.085
+      * (uSunLevel * n64NoL * n64Open * n64Graze * n64Graze * n64Graze * 0.085
         * vCloth.x * (1.0 - n64Trim));` : ''}
   }`;
 

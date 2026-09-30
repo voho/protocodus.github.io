@@ -2384,6 +2384,16 @@ export function createProps(THREE, shading) {
                 directionalLightShadows[ 0 ].shadowRadius,
                 vDirectionalShadowCoord[ 0 ] );
             #endif
+            /* The depth map is only one of the three things that take the
+               sun off a crown. A backlit spruce standing in the wall's
+               evening shadow, or under a cloud, glowed as if the sun were
+               on it — at low sun, which is exactly when the leak is
+               strongest and the wall's shadow longest. The shade patch
+               publishes the horizon and cloud terms it applied; the leak
+               takes them too. */
+            #ifdef N64_SUN_VIS
+              n64Lit *= n64SunVis;
+            #endif
             reflectedLight.directDiffuse += diffuseColor.rgb * uSunTint
               * (uSunLevel * n64Lit * n64Leak * n64Needle * RECIPROCAL_PI);
           }

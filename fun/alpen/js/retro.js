@@ -34,7 +34,23 @@ const SCENE_SAMPLE = `
 /* Pass one of the light: everything above the shoulder, at a quarter size,
    with the sun's own disc allowed through hardest. Four taps a fetch, so the
    downsample is a box filter rather than a point sample — point-sampling a
-   bright pass is how you get bloom that crawls. */
+   bright pass is how you get bloom that crawls.
+
+   AND EACH TAP IS WEIGHTED BY ITS OWN BRIGHTNESS, INVERSELY. A plain box
+   lets one texel own the whole quarter-res cell, and the snow is full of
+   texels that are allowed to: a crystal glint reaches five or six times the
+   sunlit snow around it, the lacquered topsheet flashes as a carve rolls it
+   through the sun, and each of those is one or two pixels that come and go
+   as the camera moves. Averaged plainly, a single glint lit a quarter-res
+   cell, the blur spread it over a dozen full-res pixels, and the bloom
+   pulsed with the sparkle — a halo switching on and off beside the board.
+   The 1/(1 + luma) weight is Karis's answer from the same problem in
+   production engines: a cell that is uniformly bright keeps exactly its
+   brightness (every weight is equal), so the sun's disc, a lit ridge and
+   the snowfield bloom as they did, and only the isolated firefly is
+   out-voted by its three darker neighbours. The clamp is the backstop for
+   a value no weighting can tame: half-float reaches 65504 and a sun that
+   close to a grazing lacquer lobe has produced numbers in the hundreds. */
 const BRIGHT_FRAG = `
   precision highp float;
   uniform sampler2D tDiffuse;
@@ -43,12 +59,20 @@ const BRIGHT_FRAG = `
   varying vec2 vUv;
   ${SCENE_SAMPLE}
 
+  float karis(vec3 c) {
+    return 1.0 / (1.0 + dot(c, vec3(0.2126, 0.7152, 0.0722)));
+  }
+
   void main() {
-    vec3 c = sceneColor(vUv + vec2(-uTexel.x, -uTexel.y))
-           + sceneColor(vUv + vec2( uTexel.x, -uTexel.y))
-           + sceneColor(vUv + vec2(-uTexel.x,  uTexel.y))
-           + sceneColor(vUv + vec2( uTexel.x,  uTexel.y));
-    c *= 0.25;
+    vec3 a = min(sceneColor(vUv + vec2(-uTexel.x, -uTexel.y)), vec3(24.0));
+    vec3 b = min(sceneColor(vUv + vec2( uTexel.x, -uTexel.y)), vec3(24.0));
+    vec3 d = min(sceneColor(vUv + vec2(-uTexel.x,  uTexel.y)), vec3(24.0));
+    vec3 e = min(sceneColor(vUv + vec2( uTexel.x,  uTexel.y)), vec3(24.0));
+    float wa = karis(a);
+    float wb = karis(b);
+    float wd = karis(d);
+    float we = karis(e);
+    vec3 c = (a * wa + b * wb + d * wd + e * we) / (wa + wb + wd + we);
     float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
     gl_FragColor = vec4(c * smoothstep(uThreshold, uThreshold + 0.35, l), 1.0);
   }
@@ -71,6 +95,7 @@ const RAY_FRAG = `
   uniform float uStrength;
   uniform float uDecay;
   uniform float uDensity;
+  uniform float uAspect;
   varying vec2 vUv;
 
   void main() {
@@ -95,7 +120,20 @@ const RAY_FRAG = `
          re-reads the edge texel over and over, which accumulated into hard
          spokes anchored to the frame's edge whenever the sun sat near it. */
       float inside = step(abs(uv.x - 0.5), 0.5) * step(abs(uv.y - 0.5), 0.5);
-      sum += texture2D(tBright, uv).rgb * (weight * inside);
+      /* …AND ONLY LIGHT NEAR THE SUN IS A SOURCE. A shaft is the sun's
+         light in the air, cut up by whatever stands between it and the eye,
+         so what it is made of is the disc and the glowing sky around it.
+         The bright buffer does not know that: sunlit snow sits at 0.9–1.2
+         and passes the threshold too, so the march used to pick up the
+         whole lit snowfield and smear it into streaks rising out of the
+         ground towards a sun that was nowhere near it. Weighting each
+         sample by its own distance from the sun (measured on a square, so
+         the window is round on a wide screen) leaves the sky around the
+         disc as the only thing that casts rays, which is what gets a trunk
+         or a ridge to cut dark spokes through them. */
+      vec2 fromSun = (uv - uSun) * vec2(uAspect, 1.0);
+      float source = 1.0 - smoothstep(0.12, 0.42, length(fromSun));
+      sum += texture2D(tBright, uv).rgb * (weight * inside * source);
       weight *= uDecay;
     }
     /* Tinted by the sun's own stop: rays are the sun's light in the air, so
@@ -330,9 +368,50 @@ const FRAG = `
        the film answer: everything under the knee is untouched and the range
        above it is compressed asymptotically towards one, so a lit face keeps
        rolling and never quite arrives. */
+    /* …PER CHANNEL FOR THE SNOW, AND BY THE PEAK FOR EVERYTHING WITH A HUE.
+
+       Run on each channel separately the curve is exactly right for a
+       near-neutral surface and quietly wrong for a coloured one. Three
+       channels of one colour sit at three different heights on the knee, so
+       they are compressed by three different amounts: the one that was
+       brightest loses the most, and the colour slides towards whichever
+       channel was dimmest. An amber sun glow at (2.0, 1.2, 0.6) came out
+       yellow, the alpenglow on the far faces went salmon, and the orange
+       shell of the one violently coloured human being in the frame lost its
+       chroma exactly when the sun was on it — the moments a low sun is for.
+
+       Scaling the whole colour by what the curve does to its brightest
+       channel keeps the ratios, and therefore the hue, exactly (the Khronos
+       neutral operator's construction). But it is the wrong answer for snow,
+       which is where this shoulder does most of its work: sunlit snow is
+       (1.8, 1.9, 2.0) and a photograph renders it *white*, not as a
+       compressed pale blue. Film gets there because its dyes do compress per
+       channel, and the look of this mountain was tuned against that.
+
+       So the two are blended by how saturated the colour is. Snow, cloud and
+       haze sit under a saturation of about 0.2 and keep the per-channel
+       curve untouched; the jacket, the glow and the dusk sky sit well above
+       it and keep their hue. Nothing under the knee is affected by either,
+       and both halves share the knee, so the blend cannot move a mid-tone.
+       (No back-ticks in here: this comment is inside a template literal.) */
     vec3 knee = min(lin, vec3(uShoulder));
     vec3 over = max(lin - vec3(uShoulder), vec3(0.0));
-    lin = knee + (1.0 - uShoulder) * (over / (over + vec3(1.0 - uShoulder)));
+    float room = 1.0 - uShoulder;
+    vec3 perChannel = knee + room * (over / (over + vec3(room)));
+    float peak = max(lin.r, max(lin.g, lin.b));
+    vec3 byPeak = lin;
+    if (peak > uShoulder) {
+      float peakOver = peak - uShoulder;
+      float newPeak = uShoulder + room * (peakOver / (peakOver + room));
+      byPeak = lin * (newPeak / peak);
+      /* A colour that is a long way over the top still has to arrive at
+         white eventually — a saturated highlight that never desaturates is
+         a neon sign, not light. Same rate as the Khronos operator. */
+      float toWhite = 1.0 - 1.0 / (0.15 * (peak - newPeak) + 1.0);
+      byPeak = mix(byPeak, vec3(newPeak), toWhite);
+    }
+    float chroma = (peak - min(lin.r, min(lin.g, lin.b))) / max(peak, 1e-4);
+    lin = mix(perChannel, byPeak, smoothstep(0.22, 0.55, chroma));
 
     vec3 c = linearToSrgb(lin);
 
@@ -529,6 +608,7 @@ export function createRetro(THREE, renderer) {
       uStrength: { value: 0 },
       uDecay: { value: GRADE.rayDecay },
       uDensity: { value: GRADE.rayDensity },
+      uAspect: { value: BASE_W / BASE_H },
     },
     vertexShader: VERT,
     fragmentShader: RAY_FRAG,
@@ -643,6 +723,7 @@ export function createRetro(THREE, renderer) {
     sixteenthTexel.set(1 / ww, 1 / wh);
 
     material.uniforms.uResolution.value.set(width, height);
+    rayMat.uniforms.uAspect.value = width / height;
     brightMat.uniforms.uTexel.value.set(1 / width, 1 / height);
     downMat.uniforms.uTexel.value = quarterTexel;
     blurMat.uniforms.uTexel.value = quarterTexel;

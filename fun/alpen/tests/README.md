@@ -37,6 +37,25 @@ HUD checks cover mode transitions, controls disclosure, focus and idle DOM write
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 It exercises all six snowfall bands across nine times of day, cloud extinction,
 night-storm visibility, panorama skyline occlusion and photograph fallbacks.
+It also pins the sun's depth-map box half a box ahead of the rider along the
+camera heading (and dropped onto the slope it covers), and the glint grid's
+camera origin wrapped into its 64 m period on the CPU, so no shader forms a
+26 km coordinate.
+
+The realism pass on light was compared in Chromium against the previous commit
+from fixed, deterministic-time captures (golden hour and midday; chase, rider
+close-up, into the sun and across the slope) with no shader or console errors.
+Highlights above the shoulder now keep their hue when saturated — alpenglow
+and the orange shell stay orange — while near-neutral snow still rolls to white
+per channel. Clear air turns dark distant trees blue before it pales them, and a
+storm removes that tint. The bloom's bright pass weights taps against
+fireflies, and crepuscular rays only take light from near the sun rather than
+from sunlit snow. Snow has a blue subsurface band at its terminator and a thin
+blue fringe on shadow edges. The rider's highlights, sheen and the light
+through spruce crowns now respect the depth map, the mountain's own horizon
+shadow and cloud shadow. The rider's snow bounce now comes from world down, not
+from the bottom of the screen. Rock and glacier photographs are decoded as sRGB,
+each rescaled to its old mean, so cliffs regain their photographed contrast.
 
 For browser checks, serve the repository root and open
 `/fun/alpen/?seed=alpine-review`. Exercise carve, charged pop, grab/spin, landing,

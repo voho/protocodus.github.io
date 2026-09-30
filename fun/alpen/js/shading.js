@@ -297,6 +297,7 @@ uniform sampler2D uShadeMap;
 uniform sampler2D uShadeHeightMap;
 uniform float uShadeSlice;
 uniform float uShadeLevel;
+uniform vec2 uCamWrap;
 
 ${SKY_GLSL}
 
@@ -421,10 +422,20 @@ const FRAG_RECOVER = `
    a cliff face keeps the matte read that makes it look like rock. */
 // These derivatives run before clipping/material/fog exits. The expensive
 // facet hashes and lighting still run only on nearby, lit snow.
+/* THE CRYSTAL GRID IS ADDRESSED FROM A WRAPPED CAMERA, never from the world
+   coordinate itself. `cameraPosition + offset` is the obvious way to find
+   where a fragment is, and it is the trap `terrain.js` explains beside its
+   own vLocal: the run goes to twenty-six kilometres, a float32 holding that
+   has an ulp of two millimetres, and the glint cells are three centimetres —
+   so far down a run every cell edge stair-stepped across a fifteenth of its
+   own width and the sparkles swam as the camera moved. The modulo is linear,
+   so wrapping the camera on the CPU in double precision first and adding the
+   small view offset afterwards addresses exactly the same cells, and no
+   operand here is ever larger than the 64-metre period. */
 const FRAG_SHEEN_GRADIENTS = `
     float n64GDist = length(vN64View);
     vec3 n64WDir = normalize(vN64View * mat3(viewMatrix));
-    vec2 n64GPos = mod((cameraPosition + n64WDir * n64GDist).xz, 64.0);
+    vec2 n64GPos = mod(uCamWrap + (n64WDir * n64GDist).xz, 64.0);
     vec2 n64CrystalUV = n64GPos * 32.0;
     float n64Footprint = max(length(dFdx(n64CrystalUV)), length(dFdy(n64CrystalUV)));
 `;
@@ -477,6 +488,63 @@ const FRAG_SHEEN = `
       float n64Fwd = clamp(-dot(uSunView, n64V), 0.0, 1.0);
       n64Add += n64Sun * (RECIPROCAL_PI * ${asFloat(SHEEN.wrapGain)}
         * n64Back * n64Fwd * n64Fwd * n64Fwd);
+
+      /* THE LIGHT THAT GOES INTO THE SNOW AND COMES BACK OUT BLUE.
+
+         The forward scatter above is the rim on a ridge seen against the sun.
+         This is the other half of the same physics, and the half that is
+         visible from every direction: sunlight enters the top few centimetres
+         of the pack, scatters between grains, and leaves again somewhere
+         else — a little further round the curve of the slope than Lambert
+         says light can reach, and bluer than it went in, because ice absorbs
+         the red end of the spectrum over exactly those path lengths. A
+         snowfield's terminator is therefore never the hard grey line a
+         cosine draws; it is a soft band that goes cyan as it goes dark, and
+         the edge of a cast shadow on snow carries a thin blue fringe for the
+         same reason. Both are among the first things that say "snow" in a
+         photograph and neither was here.
+
+         The band is wrap lighting minus the Lambert the light loop already
+         paid for, so it adds only what a cosine could not reach — zero on a
+         fully lit face, zero a long way round the back, a peak at the
+         terminator. It cannot use the recovered shadow: on the far side of
+         the terminator the light loop contributed nothing to recover it
+         from, which is where this term lives. So the one depth-map lookup it
+         needs is taken here, inside the band only, together with the
+         horizon and cloud terms the shade patch left in n64SunVis — a slope
+         in the wall's shadow does not glow blue at its terminator either.
+
+         The fringe is the penumbra's share: where the recovered openness is
+         neither 0 nor 1, the lit side of a shadow edge takes a little extra
+         of the same blue. Both terms are tinted by the snow's own albedo and
+         weighted towards blue, so they stay in whatever palette the hour has
+         put the snow in. */
+      {
+        float n64SssWrap = clamp((n64NL + 0.45) / 1.45, 0.0, 1.0);
+        float n64Sss = max(n64SssWrap * n64SssWrap - n64Lit, 0.0);
+        float n64Pen = 4.0 * n64Open * (1.0 - n64Open)
+          * smoothstep(0.05, 0.30, n64Lit);
+        float n64SssAmt = 0.45 * n64Sss + 0.10 * n64Pen * n64Lit;
+        if (n64SssAmt > 0.002) {
+          float n64SssVis = 1.0;
+          #ifdef N64_SUN_VIS
+            n64SssVis = n64SunVis;
+          #endif
+          #if defined( USE_SHADOWMAP ) && ( NUM_DIR_LIGHT_SHADOWS > 0 )
+            if (n64Sss > 0.002 && receiveShadow) {
+              n64SssVis *= getShadow( directionalShadowMap[ 0 ],
+                directionalLightShadows[ 0 ].shadowMapSize,
+                directionalLightShadows[ 0 ].shadowIntensity,
+                directionalLightShadows[ 0 ].shadowBias,
+                directionalLightShadows[ 0 ].shadowRadius,
+                vDirectionalShadowCoord[ 0 ] );
+            }
+          #endif
+          n64Add += n64Sun * diffuseColor.rgb * vec3(0.50, 0.78, 1.0)
+            * (RECIPROCAL_PI * (0.45 * n64Sss * n64SssVis
+              + 0.10 * n64Pen * n64Lit));
+        }
+      }
 
       /* GLINTS — the sun caught in individual surface crystals.
 
@@ -624,8 +692,35 @@ const FRAG_FOG = `
        for the full sky evaluation — gradient, sun lobe and three octaves of
        cloud deck — to be multiplied by zero. Fog is monotonic in depth, so
        the branch is coherent across a warp and near fragments simply leave. */
-    if (n64Fog > 0.003) {
-      gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64Fog);
+    /* THE AIR IS BLUE BEFORE IT IS WHITE.
+
+       One fog factor for all three channels is a grey scattering medium,
+       which is what a storm is and what clear mountain air is not. Clear air
+       scatters short wavelengths several times more strongly than long ones,
+       so a dark forest or a rock band two hundred metres off does not simply
+       pale towards the haze — it goes blue first, and only then dissolves.
+       That shift is the oldest depth cue a landscape painter has, and the
+       single mix made every distant tree the same milky grey whatever the
+       sky was doing.
+
+       So in clear weather the blue channel is given a head start on the
+       curtain and the red channel a late one: the same smoothstep, raised to
+       slightly different powers per channel. Every channel is still exactly
+       0 at the near edge and exactly 1 at the far one, which is the property
+       everything else depends on — the terrain's fully fogged early exit,
+       the seam against the painted massifs, and the sky it all ends in are
+       untouched. Falling snow scatters every wavelength alike, so the storm
+       dial takes the whole effect away; a whiteout is grey on purpose.
+       Snow is already nearly the colour of the haze, so almost all of the
+       change lands where it belongs: on dark things at range.
+
+       The branch tests the blue factor, the largest of the three, or the
+       nearest band of it would switch on with a step. */
+    float n64Air = 0.28 * (1.0 - smoothstep(0.15, 0.65, uSnowFresh));
+    vec3 n64FogRgb = pow(vec3(n64Fog),
+      vec3(1.0 + n64Air, 1.0 + n64Air * 0.25, 1.0 - n64Air));
+    if (n64FogRgb.b > 0.003) {
+      gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64FogRgb);
     }
   }`;
 
@@ -715,7 +810,18 @@ const FRAG_ALPHA_HASH = `
    already been through instancing, batching and skinning and a world one has
    not. */
 // Cloud mip selection also needs the neighbours that terrain fog can skip.
+/* `n64SunVis` is declared here, at the top of main, because two kinds of
+   light arrive *after* the light loop and both of them used to ignore the
+   mountain's shadow entirely: the rider's lacquer and fabric highlights and
+   the sun leaking through a spruce crown. Both are the sun, so both have to
+   go out when the wall or a cloud takes the sun off the ground they are on.
+   FRAG_SHADE below writes the product of the horizon and cloud terms into it
+   as it applies them; a material without the shade patch keeps the 1.0 and
+   is exactly what it was. The define is how a material's own hook can ask
+   whether the value exists without having to know how it was compiled. */
 const FRAG_SHADE_GRADIENTS = `
+    #define N64_SUN_VIS
+    float n64SunVis = 1.0;
     float n64ShadeD = length(vN64View);
     vec3 n64ShadeW = cameraPosition
       + (vN64View * (1.0 / max(n64ShadeD, 1e-4)) * mat3(viewMatrix)) * n64ShadeD;
@@ -789,6 +895,7 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
       n64ShadeGroundLit, n64ShadeRaisedLit, n64ShadeUp);
     reflectedLight.directDiffuse *= 1.0
       - n64ShadeAmount * n64ShadeIn * uShadeLevel;
+    n64SunVis = 1.0 - n64ShadeAmount * n64ShadeIn * uShadeLevel;
 
     /* CLOUD SHADOWS, projected over the mountain rather than painted into the
        sky. The deck already has an amount and a wind; this is its consequence
@@ -811,6 +918,7 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
       float n64CloudShade = n64CloudCover * uCloud
         * mix(0.18, 0.50, uCloud) * uShadeLevel;
       reflectedLight.directDiffuse *= 1.0 - n64CloudShade;
+      n64SunVis *= 1.0 - n64CloudShade;
     }
   }`;
 
@@ -880,6 +988,8 @@ export function createShading(THREE) {
     uShadeHeightMap: { value: neutralShadeHeight },
     uShadeSlice: { value: 0 },
     uShadeLevel: { value: 0 },
+    // The camera's XZ modulo the glint period — see FRAG_SHEEN_GRADIENTS.
+    uCamWrap: { value: new THREE.Vector2() },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -1069,6 +1179,10 @@ export function createShading(THREE) {
     camera.updateMatrixWorld();
     viewInv.copy(camera.matrixWorld).invert();
     uniforms.uSunView.value.copy(sunDir).transformDirection(viewInv);
+    // Wrapped here, in doubles, so the shader never forms the big number.
+    const cam = camera.matrixWorld.elements;
+    const wrap64 = (v) => v - Math.floor(v / 64) * 64;
+    uniforms.uCamWrap.value.set(wrap64(cam[12]), wrap64(cam[14]));
   }
 
   function reset() {

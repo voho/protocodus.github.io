@@ -103,6 +103,40 @@ for (const fps of [30, 60, 144]) {
   assert.equal(key.shadow.needsUpdate, true, 'a large light change refreshes immediately');
 }
 
+// Once a camera heading exists, the shadow box is centred half a box ahead of
+// the rider along it — on the forest in view rather than the slope behind the
+// lens — and on the ground there rather than at the rider's height.
+{
+  const { heightAt } = await import('../js/terrain.js');
+  const leadSky = createSky(TestTHREE);
+  const key = leadSky.lights.children.find(object => object.isDirectionalLight);
+  const lens = new THREE.PerspectiveCamera(RENDER.fov, 16 / 9, RENDER.near, RENDER.far);
+  const at = new THREE.Vector3(0, heightAt(0, -600) + 1, -600);
+  lens.position.set(at.x, at.y + 3, at.z + 6);
+  lens.lookAt(at.x, at.y - 8, at.z - 60);
+  leadSky.update(at, w, 1 / 60);
+  leadSky.project(lens);
+  leadSky.update(at, w, 1 / 60);
+  leadSky.lights.updateMatrixWorld(true);
+  const target = key.target.getWorldPosition(new THREE.Vector3());
+  assert.ok(Math.abs(target.x - at.x) < 0.5 && Math.abs(target.z - (at.z - 90)) < 0.5,
+    `the shadow box leads the camera heading: ${target.toArray()}`);
+  const fall = heightAt(at.x, at.z - 90) - heightAt(at.x, at.z);
+  assert.ok(Math.abs(target.y - (at.y + fall)) < 0.5, 'the led box sits on the slope it covers');
+}
+
+// The glint grid is addressed from a camera wrapped on the CPU, so the shader
+// never forms a 26 km coordinate (see FRAG_SHEEN_GRADIENTS in shading.js).
+{
+  const { createShading } = await import('../js/shading.js');
+  const shading = createShading(THREE);
+  const lens = new THREE.PerspectiveCamera();
+  lens.position.set(-12.25, 50, -26031.5);
+  shading.update(w, lens, 0);
+  close(shading.uniforms.uCamWrap.value.x, 51.75, 'camera x wraps into the glint period');
+  close(shading.uniforms.uCamWrap.value.y, 16.5, 'camera z wraps into the glint period');
+}
+
 const ranges = sky.group.children.filter(mesh => mesh.name === 'far-range' || mesh.name === 'mid-distance massifs');
 assert.ok(ranges.length >= 3);
 const rotations = ranges.map(mesh => mesh.quaternion.clone());

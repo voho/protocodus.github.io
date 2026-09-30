@@ -1863,11 +1863,23 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   neutralSurface.colorSpace = THREE.NoColorSpace;
   neutralSurface.needsUpdate = true;
 
+  /* The photographs' stand-ins are not the data plates' half grey. They are
+     colour, decoded like the photographs they stand in for (see
+     `colourSurface`), so each is one pixel of its own plate's mean colour:
+     the cliff renders at the tone the loaded photograph averages to, rather
+     than at a grey the shader's per-plate gain would push to nearly twice
+     it while the JPEG is still on the wire. */
+  const plateMean = (r, g, b) => {
+    const t = new THREE.DataTexture(new Uint8Array([r, g, b, 255]), 1, 1, THREE.RGBAFormat);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  };
   const powderSurface = { value: neutralSurface };
   const groomedSurface = { value: neutralSurface };
-  const rockSurface = { value: neutralSurface };
-  const sandstoneSurface = { value: neutralSurface };
-  const iceSurface = { value: neutralSurface };
+  const rockSurface = { value: plateMean(67, 71, 76) };        // rock-slate.jpg
+  const sandstoneSurface = { value: plateMean(89, 89, 86) };   // rock-granite.jpg
+  const iceSurface = { value: plateMean(136, 181, 200) };      // ice-glacier.jpg
   const snowReady = { value: new THREE.Vector2() };
   const snowReadyTarget = new THREE.Vector2();
 
@@ -1980,11 +1992,32 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       settle,
     );
   });
+  /* THE PHOTOGRAPHS ARE COLOUR, AND COLOUR ARRIVES ENCODED.
+
+     The snow plates are data — heights and baked slopes in their channels —
+     and `prepareSurface` rightly tags them as having no colour space. The
+     rock and glacier plates went through the same door, and they are not
+     data: they are photographs, stored with the sRGB transfer curve like
+     every photograph. Read as linear, a crevice stored at 0.14 was used as
+     0.14 instead of the 0.018 of light it actually is — dark fissures came
+     out up to six times too bright, the whole face compressed into a milky
+     middle grey, and the mip chain averaged the plate in gamma space, which
+     is why cliffs went flat and pale with distance faster than the snow in
+     front of them. Tagged as sRGB, the GPU decodes on fetch and filters
+     in linear light, and the face gets back the contrast its photograph
+     had. The shader rescales each plate to the mean it used to have, so
+     the average tone of a cliff — which the palette was tuned against —
+     is unchanged, and only the spread about it is corrected. */
+  const colourSurface = (texture) => {
+    prepareSurface(texture);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  };
   const loadRock = (name, target) => new Promise((settle) => {
     surfaceLoader.load(
       new URL(`../assets/textures/rock/${name}`, import.meta.url).href,
       (texture) => {
-        target.value = prepareSurface(texture);
+        target.value = colourSurface(texture);
         settle();
       },
       undefined,
@@ -2004,7 +2037,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     loadRock('rock-granite.jpg', sandstoneSurface),
     // The glacier plate, finally earning its place on disk: blue compressed
     // hard-pack for the chapters whose ground is ice rather than snow.
-    loadSurface('ice-glacier.jpg', (t) => { iceSurface.value = t; }),
+    loadSurface('ice-glacier.jpg', (t) => { iceSurface.value = colourSurface(t); }),
   ]);
 
   /* Surface detail, in the fragment shader rather than in the mesh.
@@ -2261,7 +2294,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              derivative. Taken implicitly it picked an unstable mip and the
              far flanks shimmered. The uv is the powder plate's own, scaled,
              so its gradients are that plate's gradients scaled to match. */
-          vec3 n64IceSample = texture2DGradEXT(uIceTex, powderUv * 2.2,
+          /* Decoded to linear on fetch now (see colourSurface); 1.54
+             returns the plate's mean luminance to the encoded mean the
+             tint below was tuned on, and leaves it the bluer, deeper
+             colour the photograph actually is. */
+          vec3 n64IceSample = 1.54 * texture2DGradEXT(uIceTex, powderUv * 2.2,
             n64MacroDx * 2.2, n64MacroDy * 2.2).rgb;
           diffuseColor.rgb = mix(diffuseColor.rgb,
             diffuseColor.rgb * (0.52 + 1.05 * n64IceSample), n64IceW * 0.8);
@@ -2390,7 +2427,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
                 n64WorldDx.xz * 0.04, n64WorldDy.xz * 0.04) * n64TriW.y
             + texture2DGradEXT(uSandstoneTex, vWorld.xy * 0.04,
                 n64WorldDx.xy * 0.04, n64WorldDy.xy * 0.04) * n64TriW.z;
-          vec3 n64RockTexel = mix(n64RockSample.rgb, n64GraniteSample.rgb, clamp(vRockKind, 0.0, 1.0));
+          /* Both plates are decoded to linear on fetch (see colourSurface),
+             and each is scaled back to the mean it had as an encoded value
+             — slate 0.278 over a linear 0.076, granite 0.347 over 0.129 —
+             so the tint, the contact threshold and the ledge rule below
+             keep their tuned meaning and only the contrast inside a plate
+             changes. The two need separate factors because the two
+             photographs are not equally bright. */
+          vec3 n64RockTexel = mix(n64RockSample.rgb * 3.66,
+            n64GraniteSample.rgb * 2.69, clamp(vRockKind, 0.0, 1.0));
           /* THE CONTACT. The vertex field says how much of this cell is
              rock; the plate says where on the face it breaks through. Snow
              settles in the plate's dark seams and the bright ribs shed it,
