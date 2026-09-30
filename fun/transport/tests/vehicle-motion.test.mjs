@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shownProgress } from '../model.js';
-import { twoTownFixture, advance } from './helpers.mjs';
-import { tick } from '../model.js';
+import { shownProgress, tick, build, buildPath, addRoute } from '../model.js';
+import { twoTownFixture, advance, emptyGame, line } from './helpers.mjs';
 
 const route = (mode, length) => ({ mode, path: Array.from({ length: length + 1 }, (_, x) => ({ x, y: 0 })) });
 
@@ -32,4 +31,42 @@ test('easing moves only where vehicles are drawn: progress and deliveries keep t
     assert.ok(Math.abs(vehicle.x - (a.x + (b.x - a.x) * f)) < 1e-9 && Math.abs(vehicle.y - (a.y + (b.y - a.y) * f)) < 1e-9, 'x and y follow the eased place');
   }
   assert.ok(route.delivered > 0, 'the buses still deliver');
+});
+
+// A coal line from (10,20) to (40,20) with a one-row detour over x 24–28, straightened later.
+function detourLine() {
+  const game = emptyGame();
+  assert.ok(build(game, 'coal-mine', 8, 16).ok && build(game, 'steel-mill', 38, 16).ok);
+  assert.ok(buildPath(game, 'rail', [...line(10, 24, 20), { x: 24, y: 21 }, ...line(25, 27, 21), { x: 27, y: 20 }, ...line(28, 40, 20)]).ok);
+  build(game, 'train-stop', 10, 20); build(game, 'train-stop', 40, 20);
+  const added = addRoute(game, { mode: 'rail', stops: game.stations.map(s => s.id), cargo: 'coal' });
+  assert.ok(added.ok, added.message);
+  return { game, route: added.route, train: game.vehicles[0] };
+}
+
+test('a rerouted vehicle steps from its steady-pace place, not from where it is drawn braking', () => {
+  const { game, route, train } = detourLine();
+  Object.assign(train, { progress: route.path.length - 1.55, direction: 1, dwellRemaining: 0, fullLoadSince: null });
+  tick(game, 1e-7);
+  const trips = train.tripSerial;
+  assert.ok(train.x > 39.6, 'the braking train is drawn ahead of its steady place at x 39.45');
+  assert.ok(buildPath(game, 'rail', line(24, 28, 20)).ok);
+  tick(game, 1e-7);
+  assert.equal(route.path.length, 31, 'the straight line replaces the detour');
+  assert.ok(Math.abs(train.progress - 29) < 1e-3, `x 39.45 is nearest the tile at x 39 (progress ${train.progress})`);
+  assert.equal(train.tripSerial, trips, 'the train still has a tile to run before it arrives');
+});
+
+test('the simulation never reads where a vehicle is drawn', () => {
+  const run = scramble => {
+    const { game } = detourLine();
+    for (let day = 0; day < 40; day++) {
+      if (day === 12) assert.ok(buildPath(game, 'rail', line(24, 28, 20)).ok);
+      tick(game, .25); tick(game, .25); tick(game, .25); tick(game, .25);
+      if (scramble) for (const vehicle of game.vehicles) { vehicle.x = 0; vehicle.y = 0; }
+    }
+    const [train] = game.vehicles;
+    return { money: game.money, progress: train.progress, direction: train.direction, trips: train.tripSerial, load: train.load };
+  };
+  assert.deepEqual(run(true), run(false));
 });
