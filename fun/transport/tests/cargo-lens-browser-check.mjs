@@ -33,13 +33,15 @@ try {
   // Samples a marker's pale left edge while rendering in one task: plain, without industry icons (the ground beneath) and as the app draws it now.
   await page.evaluate(() => {
     window.lensQA = {
-      pending: () => transport.renderer.getStats().sceneryBatches?.pending || 0,
+      // A paused game draws only when asked, so waiting draws frames: strips and the shadow layer finish, and a
+      // pixel read before and after a lens compares the same finished scenery.
+      pending: () => { transport.renderer.render(1000, {}); return transport.renderer.getStats().sceneryBatches?.pending || 0; },
       read(point) { const canvas = document.querySelector('#world'), density = devicePixelRatio || 1; transport.renderer.render(1000, {}); return Array.from(canvas.getContext('2d').getImageData(Math.round(point.x * density), Math.round(point.y * density), 1, 1).data).slice(0, 3); },
       ground(point) { const renderer = transport.renderer; renderer.setLayers({ industryIcons: false }); const pixel = lensQA.read(point); renderer.setLayers({ industryIcons: true }); return pixel; },
       onScreen(kind) { const canvas = document.querySelector('#world'); return transport.game.industries.filter(site => site.kind === kind).map(site => transport.renderer.industryMarker(site)).filter(m => m.x >= 0 && m.y >= 0 && m.x <= canvas.clientWidth && m.y <= canvas.clientHeight).length; },
     };
   });
-  for (let attempt = 0; attempt < 40 && await page.evaluate(() => lensQA.pending()); attempt++) await page.waitForTimeout(200);
+  for (let attempt = 0; attempt < 200 && await page.evaluate(() => lensQA.pending()); attempt++) await page.waitForTimeout(50);
   // A marker without an iron role, clear of the drawer and the screen edges.
   const other = await page.evaluate(() => {
     const canvas = document.querySelector('#world'), drawer = document.querySelector('.sidebar').getBoundingClientRect().right - canvas.getBoundingClientRect().left;
@@ -139,6 +141,14 @@ try {
   assert.equal((await lens(page))?.cargo, 'steel', 'locating a listed site keeps the lens');
   await page.locator('.main-nav [data-view="routes"]').click();
   await cleared(page, 'another view clears an Industries lens');
+  // Shift+I closes the drawer as its tab does, and the lens goes with it.
+  await page.locator('.main-nav [data-view="industry"]').click();
+  await page.locator('#industry-kind').selectOption('iron-mine');
+  await showing(page, 'iron');
+  await page.locator('#world').focus();
+  await page.keyboard.press('Shift+I');
+  await cleared(page, 'Shift+I closes Industries and clears its lens');
+  await page.locator('.main-nav [data-view="routes"]').click();
 
   // Chains: Locate lights the site's output and the lens outlives the dialog and later view changes.
   await page.locator('#world').focus();

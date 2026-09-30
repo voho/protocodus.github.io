@@ -186,6 +186,26 @@ async function strokeInput() {
   await layoutKey('+', 'BracketRight');
   assert.match(await toolName(), /Residential/);
   assert.equal(await page.evaluate(() => transport.renderer.getCamera().zoom), zoom * 2, 'a printed + still zooms in');
+  // Speed, F and the Shift panel keys follow the printed character on every layout.
+  const typed = (key, code, shiftKey = false) => page.evaluate(([key, code, shiftKey]) => document.querySelector('#world').dispatchEvent(new KeyboardEvent('keydown', { key, code, shiftKey, bubbles: true, cancelable: true })), [key, code, shiftKey]);
+  await page.locator('#cancel-tool-button').click();
+  await page.evaluate(() => transport.setSpeed(1));
+  await typed('.', 'Comma', true);
+  assert.equal(await speed(), 3, 'AZERTY: Shift+; types a full stop, which speeds up');
+  await typed(',', 'KeyM');
+  assert.equal(await speed(), 1, 'AZERTY: the comma on the M key slows down');
+  await typed('?', 'Comma', true);
+  await page.locator('#modal .shortcuts-dialog').waitFor();
+  assert.equal(await speed(), 0, 'Czech QWERTZ: ? on the comma key opens the shortcuts sheet (a dialog pauses)');
+  await page.keyboard.press('Escape'); await page.locator('#modal').waitFor({ state: 'hidden' });
+  await typed('t', 'KeyF');
+  assert.match(await toolName(), /^Rail/, 'Colemak: t on the F key picks Rail');
+  await page.locator('#cancel-tool-button').click();
+  await typed('G', 'KeyT', true);
+  await page.locator('#modal').waitFor();
+  assert.match(await page.locator('#modal h2').first().innerText(), /Company goals/, 'Colemak: Shift+G on the T key opens Company goals');
+  await page.keyboard.press('Escape'); await page.locator('#modal').waitFor({ state: 'hidden' });
+  await page.evaluate(() => transport.setSpeed(0));
   await keyTool(page, 'KeyE', /Level land/);
   await page.locator('.main-nav [data-view="build"]').click();
   await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);

@@ -38,7 +38,6 @@
 .start-advanced summary{font-size:var(--fs-caption);line-height:var(--lh-caption);cursor:pointer;color:var(--ink-2);margin-bottom:12px}
 .start-primary{width:100%;display:flex;align-items:center;justify-content:space-between;background:var(--ink);color:var(--on-ink);font-size:var(--fs-lead);line-height:var(--lh-lead);border-radius:var(--r-3);padding:16px 20px;margin-top:24px}
 .start-primary:hover{background:var(--ink-2)}
-.start-save-note{color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption);margin:12px 0 0}
 .start-load-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .start-save{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:16px 12px;border:1px solid var(--rule);border-radius:var(--r-3);text-align:left;background:var(--well);margin:12px 0}
 .start-save strong{display:block;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500}
@@ -51,7 +50,7 @@
  .start-shell{display:block;min-height:0;max-width:460px}
  .start-intro{display:block}
  .start-wordmark{font-size:var(--fs-hero);line-height:var(--lh-hero);margin-bottom:24px}
- .start-art,.start-kicker,.start-intro h1,.start-intro>p{display:none}
+ .start-art,.start-intro h1,.start-intro>p{display:none}
  .start-content{padding:24px 20px}
  .start-tabs{gap:20px}
  .start-content h2{font-size:var(--fs-display);line-height:var(--lh-display)}
@@ -62,24 +61,20 @@
 #start-continue strong{display:block;font-size:var(--fs-lead);line-height:var(--lh-lead);font-weight:500}
 #start-continue small{display:block;margin-top:4px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--on-ink)}
 #start-continue>span:last-child{flex:none}
-.start-kicker{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:600;color:var(--ink-2);text-transform:none;letter-spacing:0}
 @media(max-height:500px) and (orientation:landscape){
  #start-menu{padding:12px max(20px,var(--safe-r)) max(12px,var(--safe-b)) max(20px,var(--safe-l))}
  .start-shell{display:block;min-height:0;max-width:760px;padding:0}
  .start-intro{display:block}
  .start-wordmark{font-size:var(--fs-display);line-height:var(--lh-display);margin-bottom:12px}
  .start-wordmark i{width:28px;height:30px;font-size:var(--fs-hero);line-height:var(--lh-hero);margin-right:8px;border-radius:var(--r-3)}
- .start-art,.start-kicker,.start-intro h1,.start-intro>p,#start-new-panel>h2{display:none}
+ .start-art,.start-intro h1,.start-intro>p,#start-new-panel>h2{display:none}
  .start-content{padding:16px 20px 16px}
  .start-tabs{margin-bottom:16px}
  #start-continue{margin-bottom:16px;padding:12px 16px}
- #start-world-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"biomes size" "biomes population" "note advanced" "save create";column-gap:24px;align-items:start}
+ #start-world-form{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"biomes size" "biomes advanced" "biomes create";column-gap:24px;align-items:start}
  .start-biomes{grid-area:biomes;margin:0}
  #start-world-form>.start-field{grid-area:size;margin-bottom:8px}
- .start-population{grid-area:population}
- .start-count-note{grid-area:note;margin:4px 0 0}
  .start-advanced{grid-area:advanced}
  .start-advanced summary{margin:4px 0 8px}
  #start-create{grid-area:create;margin-top:8px;padding:12px 20px}
- .start-save-note{grid-area:save;align-self:center;margin:8px 0 0}
 }

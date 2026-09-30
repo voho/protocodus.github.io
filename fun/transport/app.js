@@ -1056,7 +1056,7 @@ function renderPanel() {
  if($('#upgrade-fleet'))$('#upgrade-fleet').onclick=()=>performUpgrade();
  if($('#route-search'))$('#route-search').addEventListener('input',e=>{routeFilters.query=e.target.value;routePage=0;refreshRouteList();});
  for(const key of ['mode','status','cargo'])if($(`#route-filter-${key}`))$(`#route-filter-${key}`).addEventListener('change',e=>{routeFilters[key]=e.target.value;routePage=0;refreshRouteList();});
- if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();};
+ if($('#clear-route-filters'))$('#clear-route-filters').onclick=()=>{routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};$('#route-search').value='';for(const key of ['mode','status','cargo'])$(`#route-filter-${key}`).value='all';refreshRouteList();$('#route-search').focus({preventScroll:true});};
  if($('#new-route-button'))$('#new-route-button').onclick=()=>{if(formDraft.editing){cancelRoutePicking();leaveRouteEdit(true);renderPanel();}formDraft.open=true;$('#route-planner').open=true;scrollIntoViewSafe($('#route-planner'),{block:'start'});$('#route-form [name=name]').focus({preventScroll:true});};
  const planner=panel.querySelector('#route-planner');if(planner){planner.querySelector('summary').onclick=()=>{formDraft.open=!planner.open;};planner.addEventListener('toggle',()=>{if(planner.isConnected)formDraft.open=planner.open;});}
  panel.querySelector('.forecast-details')?.addEventListener('toggle',e=>{try{localStorage.setItem('transport-forecast-details',e.currentTarget.open?'open':'closed');}catch{}});
@@ -2123,6 +2123,9 @@ canvas.addEventListener('pointermove',e=>{
    touchGesture.x=next.x;touchGesture.y=next.y;
   }e.preventDefault();return;
  }
+ // Chrome replays a resting mouse as a move without movement when the layout shifts under it; that is not the player
+ // taking the map back from the keyboard cursor; a real move drops the cursor first (the capturing listener below).
+ if(!pointer&&!e.movementX&&!e.movementY&&keyOwned())return;
  // A move within the hovered tile keeps its object, so a paused map does not repaint.
  const next=pickMapTile(e.clientX,e.clientY,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));if(!hover||hover.x!==next.x||hover.y!==next.y)hover=next;$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
  if(pointer&&pointer.id===e.pointerId){
@@ -2156,7 +2159,8 @@ canvas.addEventListener('pointerup',e=>{
 });
 canvas.addEventListener('pointercancel',cancelGesture);
 canvas.addEventListener('lostpointercapture',e=>{if(pointer?.id===e.pointerId||touchPoints.has(e.pointerId))cancelGesture();});
-canvas.addEventListener('pointerleave',()=>{if(liveAim())return;if(!pointer)hover=null;$('#placement-tip').hidden=true;});
+// The keyboard cursor stays when the mouse leaves, or when a panel opens under a resting mouse.
+canvas.addEventListener('pointerleave',()=>{if(liveAim()||hover?.keyboard)return;if(!pointer)hover=null;$('#placement-tip').hidden=true;});
 canvas.addEventListener('contextmenu',e=>{e.preventDefault();if(pointer&&!pointer.pan&&!touchPoints.has(pointer.id)&&(e.pointerType||'mouse')==='mouse'){pointer.cancelled=true;preview=[];$('#placement-tip').hidden=true;}});
 // A tap opens the inspector under the finger, so the browser's click that follows it must not press a button there.
 canvas.addEventListener('touchend',e=>{if(e.cancelable)e.preventDefault();},{passive:false});
@@ -2288,12 +2292,13 @@ canvas.addEventListener('wheel',()=>{if(keyCursor&&hover===keyCursor)showKeyCurs
 let spaceStarted=0;
 const SPEEDS=[0,1,3,8];
 function stepSpeed(direction) { const at=Math.max(0,SPEEDS.indexOf(speed)),next=SPEEDS[Math.max(0,Math.min(SPEEDS.length-1,at+direction))];if(next!==speed)changeSpeed(next); }
-// Shift+B, R, T and I open or close their drawer view as their tab does; Shift+N, C and G open News, Company and Goals.
-const SHIFT_KEYS={KeyB:'build',KeyR:'routes',KeyT:'towns',KeyI:'industry'};
-function shiftShortcut(code) {
- const panel=SHIFT_KEYS[code];
- if(panel){if(compactUI)compactUI.toggleManagement(panel);else setView(panel);return true;}
- const open={KeyN:openNews,KeyC:openCompany,KeyG:openGoals}[code];if(open){open();return true;}
+// Shift+B, R, T and I press their drawer tab, so closing the drawer also clears a Routes or Industries lens;
+// Shift+N, C and G open News, Company and Goals. Letters are the printed ones, as for the tool keys.
+const SHIFT_KEYS={b:'build',r:'routes',t:'towns',i:'industry'};
+function shiftShortcut(key) {
+ const panel=SHIFT_KEYS[key];
+ if(panel){const tab=$(`.nav-button[data-view="${panel}"]`);if(tab)tab.click();else setView(panel);return true;}
+ const open={n:openNews,c:openCompany,g:openGoals}[key];if(open){open();return true;}
  return false;
 }
 // F frames what the inspector shows: a vehicle starts or stops Follow, anything else glides back into view.
@@ -2348,11 +2353,13 @@ document.addEventListener('keydown',e=>{
   setCargoLens(null);return;
  }
  // Shift with a letter opens the panel or dialog it names, while the letter alone picks a tool (see the shortcuts sheet).
- if(e.shiftKey&&!pointer&&shiftShortcut(e.code)){e.preventDefault();return;}
+ if(e.shiftKey&&!pointer&&shiftShortcut(key)){e.preventDefault();return;}
  // Comma and full stop step the speed down and up, pause included; F shows the selection, or follows the selected vehicle.
- if(e.code==='Comma'||e.code==='Period'){e.preventDefault();stepSpeed(e.code==='Period'?1:-1);return;}
- if(e.code==='KeyF'&&!e.shiftKey){e.preventDefault();frameSelection();return;}
- if(e.key==='Home'||e.key==='PageUp'||e.key==='PageDown'){e.preventDefault();$(e.key==='Home'?'#home-view':e.key==='PageUp'?'#zoom-in':'#zoom-out').click();return;}
+ // All three are the printed characters: on AZERTY a full stop is Shift+; and on Czech QWERTZ ? sits on the comma key.
+ if(key===','||key==='.'){e.preventDefault();stepSpeed(key==='.'?1:-1);return;}
+ if(key==='f'&&!e.shiftKey){e.preventDefault();frameSelection();return;}
+ // Inside the drawer, the inspector or the game menu these keys keep scrolling the panel.
+ if((e.key==='Home'||e.key==='PageUp'||e.key==='PageDown')&&!e.target.closest('.sidebar,#inspector,#game-menu')){e.preventDefault();$(e.key==='Home'?'#home-view':e.key==='PageUp'?'#zoom-in':'#zoom-out').click();return;}
  // Physical keys keep brackets and digits reachable on QWERTZ and AZERTY layouts; a printed + still zooms.
  const rail=preferredMode==='rail',keys={r:'road',t:'rail',s:'stop',p:'port',a:'airport',b:rail?'railbridge':'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'},codes={KeyE:'level',BracketLeft:'lower',BracketRight:key==='+'?null:'raise',KeyN:rail?'railtunnel':'tunnel',Digit1:'residential',Digit2:'commercial',Digit3:'industrial'},next=keys[key]||codes[e.code];
  // A again turns the runway; before 1952 it only says when air travel arrives.

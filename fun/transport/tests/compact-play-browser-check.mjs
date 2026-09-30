@@ -159,7 +159,11 @@ try {
   assert.ok(drawer.left >= 47 && drawer.bottom >= 21, 'the drawer clears the notch and the home indicator');
   assert.ok(await phone.locator('#panel-content .tool-grid .tool-card').evaluateAll(cards => { const panel=cards[0].closest('#panel-content').getBoundingClientRect(); return cards.filter(card => { const b=card.getBoundingClientRect(); return b.top >= panel.top-1 && b.bottom <= panel.bottom+1; }).length; }) >= 4, 'at least four Build tools show without scrolling');
   assert.equal(await phone.locator('#panel-content [data-tool="road"] .shortcut').isVisible(), false, 'touch hides keyboard letters');
-  assert.equal(await phone.locator('.build-bottom-tools .compact-tool>span').first().isVisible(), false, 'touch hides the Esc hint');
+  // The Bulldozer and its key hint sit under the Town and Industry tools.
+  await phone.locator('#panel-content [data-category="towns"]').click();
+  assert.ok(await phone.locator('.build-bottom-tools .compact-tool>span').count() > 0, 'the Town tab has the Bulldozer');
+  assert.equal(await phone.locator('.build-bottom-tools .compact-tool>span').first().isVisible(), false, 'touch hides the Bulldozer key hint');
+  await phone.locator('#panel-content [data-category="network"]').click();
   assert.equal(await phone.locator('#panel-content [data-tool="road"]').getAttribute('aria-keyshortcuts'), 'R');
   assert.ok(await contrast('.tool-grid .tool-card .tool-cost') >= 4.5, 'tool costs read at 4.5:1');
   await phone.screenshot({ path:`${output}/landscape-build.png`, animations:'disabled' });
