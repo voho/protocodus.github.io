@@ -268,7 +268,7 @@ node fun/transport/tests/scene-cache-browser-check.mjs
 
 ## Patched ecology and growth days
 
-Journaled days no longer rebuild the scenery list or land in one frame. A day's changed tiles patch the cached scene: only their objects and shadows are made again, only the strips on the depth runs they touch are regrouped, and the shadow layer is swapped once its successor is ready. Terrain chunks a day changed keep their last picture and recompose two a frame. A day on which a town builds homes is journaled as well, so the ordinary day of a busy map, ecology plus growth, no longer discards the scene, every strip and the chunk fingerprints.
+Journaled days no longer rebuild the scenery list or land in one frame. A day's changed tiles patch the cached scene: only their objects and shadows are made again, only the strips on the depth runs they touch are regrouped, and the shadow layer is swapped once its successor is ready. A day that leaves the shadows alone lets a layer still being painted carry on; a second shadow change before it is ready draws shadows directly rather than show a layer two days old. Terrain chunks a day changed keep their last picture and recompose two a frame. A day on which a town builds homes is journaled as well, so the ordinary day of a busy map, ecology plus growth, no longer discards the scene, every strip and the chunk fingerprints.
 
 Paired runs against an immutable copy of the previous build, seed 1847 taiga, 512², 1440 × 900 CSS pixels at DPR 1 in headless Chromium (software rendering), 10 seconds per row. Frame intervals and render calls in milliseconds:
 

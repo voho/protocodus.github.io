@@ -81,7 +81,7 @@ async function open(deviceScaleFactor){
         for(let i=0;i<a.length;i+=4){let diff=0;for(let c=0;c<4;c++){const d=Math.abs(a[i+c]-b[i+c]);diff=Math.max(diff,d);sum+=d;max=Math.max(max,d);}if(diff){count++;first??={x:i/4%source.width,y:Math.floor(i/4/source.width),cached:[...a.slice(i,i+4)],fresh:[...b.slice(i,i+4)]};}}
         const picks=[];if(['long-pan','world-revision','ecology','trees-on','buildings-on'].includes(action)){for(let py=80;py<560;py+=100)for(let px=80;px<800;px+=160){const a=r.screenToInspectTile(px,py),b=fresh.screenToInspectTile(px+1000,py);if(JSON.stringify(a)!==JSON.stringify(b))picks.push({px,py,cached:a,fresh:b});}}
         const stats=r.getStats(),result={pickDifferences:picks,action,differentPixels:count,maxChannelDifference:max,totalChannelDifference:sum,meanChannelDifference:sum/a.length,first,camera:r.getCamera(),freshCamera:fresh.getCamera(),sceneBuilds:stats.sceneBuilds,beforeBuilds:before.sceneBuilds,scenePatches:stats.scenePatches,beforePatches:before.scenePatches,routePathBuilds:stats.routePathBuilds-before.routePathBuilds};
-        if(surface&&action==='homes')Object.assign(result,{journaled:surface.journaled,placed:surface.placed,forest:surface.forest,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
+        if(surface&&action==='homes')Object.assign(result,{journaled:surface.journaled,placed:surface.placed,forest:surface.forest,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount,overlayBuilds:stats.overlays.builds-before.overlays.builds});
         else if(surface)Object.assign(result,{journaled:surface.journaled,edited:surface.edited,grown:surface.grown,grove:surface.grove,groveInView:surface.groveInView,seamsInView:surface.seamsInView,insideInView:surface.insideInView,outsideOfView:surface.outsideOfView,emitterBuilds:stats.lighting.emitterBuilds-before.lighting.emitterBuilds,staticEmitters:stats.lighting.staticEmitters,foundationBuilds:stats.foundationBuilds-before.foundationBuilds,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
         freshCanvas.remove();if(surface?.restore){surface.restore();await settle(r);}return result;
       }
@@ -100,6 +100,7 @@ function check(row){
     const label=`${row.scene}/${row.zoom}/${row.condition}/dpr ${row.dpr}`;
     assert.ok(row.placed>=1&&row.journaled>=row.placed,`${label}: new homes in view are journaled`);
     assert.ok(row.scenePatches>row.beforePatches&&row.sceneBuilds===row.beforeBuilds,`${label}: a day of new homes patches the prepared scene`);
+    assert.ok(row.overlayBuilds>0,`${label}: markers and nameplates are placed again around the new homes`);
     assert.equal(row.differentPixels,0,`${label}: patched homes match a fresh renderer in every pixel`);
     assert.equal(row.chunkCount,row.chunksBefore,`${label}: no chunk is discarded`);
     return;

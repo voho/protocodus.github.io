@@ -120,7 +120,8 @@ export function createRenderer(canvas, initialGame, options={}) {
   let routeSegmentsConsidered=0,routePathBuilds=0;
   const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
   function routeBreak(r){const key=`${game.networkRevision||0}:${r.path.length}`;let entry=routeBreakPoints.get(r);if(entry?.key!==key)routeBreakPoints.set(r,entry={key,at:routeBreakPoint(game,r)});return entry.at;}
-  let structureRevision=0;
+  // New homes move markers and nameplates without touching the network, so overlays also follow the site journal.
+  let structureRevision=0,siteRevision=0;
   const frameVehicles=[];
   // Planes: one pose per visible plane per frame (air-flight.js), in projected world px, the body at its height over
   // the ground point beneath it. Each route keeps its flight geometry and cruise level until its path or ground changes.
@@ -196,6 +197,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   // gathers its windows again on its own.
   function refreshSurface(changes,sites=EMPTY_CELLS){
     for(const index of sites){buildingIndex.delete(index);terrainObjectIndex.delete(index);for(let span=1;span<=3;span++)foundations.delete(index*4+span);}
+    if(sites.length)siteRevision++;
     if(sites.length)changes=Int32Array.from(new Set([...changes,...sites]));
     if(sceneCache){
       const within=sceneCache.bounds,dirty=sceneCache.dirty||new Set();
@@ -390,7 +392,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     ensureRevision();
     // Only places within half a view (and a margin for tall art) of any view the cell can show are placed, so the choices
     // in view never depend on the cell. They are found on the flat grid first: remote terrain is never sampled.
-    const z=camera.zoom,o=cameraPoint(),cellX=Math.floor(o.x*z/(W/2)),cellY=Math.floor(o.y*z/(H/2)),key=[z,W,H,dpr,cellX,cellY,layers.names,layers.stations,layers.industryIcons,layers.buildings,structureRevision,cachedWorldAssets,document.fonts?.status].join();
+    const z=camera.zoom,o=cameraPoint(),cellX=Math.floor(o.x*z/(W/2)),cellY=Math.floor(o.y*z/(H/2)),key=[z,W,H,dpr,cellX,cellY,layers.names,layers.stations,layers.industryIcons,layers.buildings,structureRevision,siteRevision,cachedWorldAssets,document.fonts?.status].join();
     if(overlays?.key===key&&overlays.game===game)return overlays;
     const x0=(cellX-2)*W/2-256,x1=(cellX+3)*W/2+256,y0=(cellY-2)*H/2-256,y1=(cellY+3)*H/2+256+MAX_HEIGHT*HEIGHT_STEP*z,near=(site,span=1)=>{const x=(site.x-site.y)*TILE*z,y=(site.x+site.y+span)*TILE/2*z;return x>x0&&x<x1&&y>y0&&y<y1;};
     const grid=createOverlayGrid(64),labels=new Map(),signs=new Map(),markers=new Map(),stats={labels:0,signs:0,movedSigns:0,front:0,own:0,side:0},size=signSize();
@@ -923,8 +925,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   const stripBytes=b=>{const w=Math.ceil(b.right*rasterScale)+2-(Math.floor(b.left*rasterScale)-2),h=Math.ceil(b.bottom*rasterScale)+2-(Math.floor(b.top*rasterScale)-2);return w<1||h<1||w>8192||h>8192?0:w*h*4;};
   // After a patch, strips hold one depth each (partitionScenery), so every run the patch left alone keeps its strips and
   // picture; a touched run is partitioned again and queued. A changed shadow list stages a new layer while the old one
-  // stays on screen, as a rebuilt scene's first layer does. When the budget cannot hold every strip and the layer, a fresh
-  // scene's order (the layer, then strips nearest first) decides which get pictures, so the patch starts that order afresh.
+  // stays on screen, as a rebuilt scene's first layer does; if a new layer was already on its way, the one on screen is
+  // two patches old and gives way to the direct pass. An unchanged list keeps both layers, and any painting continues
+  // where it was. When the budget cannot hold every strip and the layer, a fresh scene's order (the layer, then strips
+  // nearest first) decides which get pictures, so the patch starts that order afresh.
   function regroupScene(scene,touched,shadowsChanged){
     if(!scene.batchPlanReady)return;
     if(touched.size){
@@ -939,14 +943,15 @@ export function createRenderer(canvas, initialGame, options={}) {
       scene.groups=groups;
     }
     queueSceneGroups(scene);
-    if(scene.shadowPreparation?.surface)sceneryBudget.release(scene.shadowPreparation.surface.image);
     const layer=scene.shadows.length>8?shadowStage(scene):null,pending=new Set(scene.pendingGroups),limit=sceneryBudget.stats().limit;
     const need=(layer?stripBytes(layer.bounds):0)+scene.groups.reduce((n,group)=>n+(group.image||pending.has(group)?stripBytes(group.bounds):0),0);
     if(need>limit){
       sceneryBudget.clear();for(const group of scene.groups)group.image=null;
       scene.shadow=null;scene.shadowPreparation=layer;queueSceneGroups(scene);
-    }else if(shadowsChanged||scene.shadowPreparation){
-      if(scene.shadow&&(!layer||need+scene.shadow.image.width*scene.shadow.image.height*4>limit)){sceneryBudget.release(scene.shadow.image);scene.shadow=null;}
+    }else if(shadowsChanged){
+      const behind=Boolean(scene.shadowPreparation);
+      if(scene.shadowPreparation?.surface)sceneryBudget.release(scene.shadowPreparation.surface.image);
+      if(scene.shadow&&(!layer||behind||need+scene.shadow.image.width*scene.shadow.image.height*4>limit)){sceneryBudget.release(scene.shadow.image);scene.shadow=null;}
       scene.shadowPreparation=layer;
     }
     scene.readyGroups=scene.groups.reduce((n,group)=>n+(group.image?1:0),0);
