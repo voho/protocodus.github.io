@@ -2140,6 +2140,17 @@ export const CAMERA = {
   height: 2.9,
   airHeight: 4.0,
   lookAhead: 9.0,
+  /* The speed curve the frame reads (see `update` in camera.js): linear
+     over `speedSpan` m/s up to `speedKnee` of it — exactly the old
+     `speed / 42` — then bending over towards `speedReach`, so the boom, the
+     lens and the shake keep opening past the old 151 km/h stop instead of
+     freezing for the whole top half of the flow range. */
+  speedSpan: 42,
+  speedKnee: 0.7,
+  speedReach: 1.6,
+  // …and past a certain speed the look point is this many seconds ahead
+  // rather than a fixed nine metres (0.22 s is where the two meet at 42 m/s).
+  lookLead: 0.22,
   /* How tightly the camera follows, and it had to go up when the speeds did.
 
      A lagging camera settles roughly speed/lag further back than its nominal

@@ -514,4 +514,24 @@ flying.yaw = Math.PI / 2;
 for (let i = 0; i < 60; i++) chase.update(flying, 1 / 60, flat);
 assert.ok(camera.position.distanceTo(original) < 0.02, 'camera tracks flight instead of board rotation');
 assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z) + 1.5);
+
+// The frame keeps opening past the old 42 m/s stop — the whole top half of
+// the flow range used to look exactly like 151 km/h — while the range
+// everybody rides in is framed exactly as before.
+{
+  const settle = (v) => {
+    const cam = new THREE.PerspectiveCamera(65, 16 / 9, 0.1, 2000);
+    const view = createChaseCamera(THREE, cam);
+    const r = rider();
+    r.vel.set(0, 0, -v);
+    for (let i = 0; i < 600; i++) view.update(r, 1 / 60, flat);
+    return { fov: cam.fov, back: cam.position.distanceTo(r.pos) };
+  };
+  const slow = settle(20);
+  assert.ok(Math.abs(slow.fov - (65 + 7 * (20 / 42) ** 2)) < 0.05, `20 m/s is framed as before (${slow.fov})`);
+  const at = [42, 60, 96].map(settle);
+  assert.ok(at[0].fov < at[1].fov && at[1].fov < at[2].fov, `the lens keeps opening (${at.map((s) => s.fov.toFixed(1))})`);
+  assert.ok(at[0].back < at[1].back && at[1].back < at[2].back, 'and the boom keeps pulling back');
+  assert.ok(at[2].fov < 76, 'without running away');
+}
 console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, landing assist, input taps/pads, release intent, controller menus and camera.');

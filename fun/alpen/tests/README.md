@@ -41,6 +41,9 @@ powder (it used to be the other way round by a third), deep snow bogs a
 slow board down on a pitch the corduroy runs away on, and a loaded edge on
 ice chatters (`rider.chatter`, which the camera, the pad and the mix read)
 while the corduroy does not.
+The camera check also holds the chase frame's speed curve: exactly the old
+framing at 20 m/s, and the lens and boom still opening between 42, 60 and
+96 m/s (they used to stop at 42) without the lens passing 76°.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone

@@ -229,7 +229,27 @@ export function createChaseCamera(THREE, camera) {
 
   function update(rider, dt, world) {
     const speed = rider.speed;
-    const ratio = clamp(speed / 42, 0, 1);
+    /* HOW FAST, AS FAR AS THE FRAME IS CONCERNED — and it no longer stops at
+       151 km/h.
+
+       This was `clamp(speed / 42, 0, 1)`: the boom, the lens and the look
+       point all finished opening at 42 m/s, while flow lets a run reach 96.
+       So everything past the old terminal speed — the half of the speed
+       range the flow meter exists to unlock — looked exactly like 151 km/h,
+       and the only thing that said otherwise was the number in the corner.
+       The motion blur already solved this with an asymptote (see `setSpeed`
+       in retro.js); this does the same without disturbing the range
+       everybody rides in. Below `speedKnee` of the old span it is the old
+       line exactly; past it the same slope bends over towards
+       `speedReach`, so it never stops rising and never runs away:
+       0.95 at 42 m/s (was 1), 1.20 at 60, 1.44 at 96. The terms that read it
+       cap their own share where more would stop reading as speed. */
+    const linear = speed / CAMERA.speedSpan;
+    const knee = CAMERA.speedKnee;
+    const reach = CAMERA.speedReach - knee;
+    const ratio = linear <= knee ? Math.max(0, linear)
+      : knee + reach * (1 - Math.exp(-(linear - knee) / reach));
+    const openRatio = Math.min(1, ratio);
     // A flight, not merely an absence of ground: a wipeout also leaves the
     // ground, and framing the tumble with the flight's opened boom and lens
     // made every crash look like a soaring air.
@@ -351,8 +371,16 @@ export function createChaseCamera(THREE, camera) {
     const floor = world.height(want.x, want.z) + FLOOR;
     if (want.y < floor) want.y = floor;
 
+    /* The look point is a distance ahead at ordinary speed and a TIME ahead
+       at high speed, whichever is further. Nine metres is a fifth of a
+       second at 42 m/s and under a tenth at 96, where the frame was looking
+       at the rider's boots while the next gate arrived from nowhere; a
+       fixed lead in seconds keeps the same amount of the future on screen
+       however fast it is coming. */
+    const lookAhead = Math.max(CAMERA.lookAhead * (0.6 + 0.4 * openRatio),
+      speed * CAMERA.lookLead);
     wantLook.copy(rider.pos)
-      .addScaledVector(dir, CAMERA.lookAhead * (0.6 + 0.4 * ratio) + airT * AIR_REACH);
+      .addScaledVector(dir, lookAhead + airT * AIR_REACH);
     // In the air the look point sinks towards the snow the rider is falling
     // at — partly with the flight, and partly with how fast they are coming
     // down, so a long float looks ahead and a plummet looks under itself
@@ -404,7 +432,7 @@ export function createChaseCamera(THREE, camera) {
        on blue ice rattles at fifty km/h as surely as at a hundred. */
     const chatter = rider.state === 'fall'
       ? 0
-      : (1 - airBlend) * (ratio * ratio * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad)
+      : (1 - airBlend) * (Math.min(ratio, 1.2) ** 2 * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad)
         + (rider.chatter || 0) * CAMERA.iceShake);
     shake = Math.max(0, shake - dt * 4.5);
     const amp = (chatter + shake) * 0.06;
@@ -451,8 +479,11 @@ export function createChaseCamera(THREE, camera) {
     // without collapsing back into the old telephoto view. A long flight opens
     // out again to keep the landing in view, and a hard touchdown still gets
     // its brief lens punch.
+    // Squared up to the old full opening, then linear with the asymptote:
+    // 72° at 42 m/s as before, about 75° at the flow ceiling.
+    const lens = openRatio * openRatio + Math.max(0, ratio - 1);
     const wantFov = RENDER.fov
-      + (RENDER.fovAtSpeed - RENDER.fov) * ratio * ratio
+      + (RENDER.fovAtSpeed - RENDER.fov) * lens
       + tuck * CAMERA.tuckFov
       + airBlend * -3 + airT * AIR_FOV;
     fov += (wantFov - fov) * (1 - Math.exp(-3.5 * dt));
