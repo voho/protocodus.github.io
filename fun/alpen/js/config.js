@@ -1068,6 +1068,20 @@ export const RIDER = {
   powderSpeed: 0.60,
   iceSpeed: 1.10,
   rockSpeed: 0.50,
+  /* How the ceiling above is enforced: on the snow only, and as a plough
+     rather than a wall — see the note in `groundStep`. `ceilingShed` is the
+     rate the excess is bled off at (exponentially), so a rider who carries
+     forty-five metres a second into powder capped at thirty is measured at
+     41.5 after a tenth of a second, 34 after half a second and 31.4 after a
+     full one — a firm plough, where the old clamp was one step from 45 to
+     30 and felt like a governor. The shed is also written into
+     `slide` for the spray and the wash voice: `scrubSlide` metres a second
+     of slide per m/s² of shed, capped at `scrubSlideMax`, which is where the
+     trail's own wash saturates (5.5), so a real plough throws a real wall of
+     snow and a hot landing a metre a second over the limit barely a dusting. */
+  ceilingShed: 2.5,
+  scrubSlide: 0.2,
+  scrubSlideMax: 6,
   friction: 0.045,
   brakeFriction: 0.62,
   /* A one-button heel-side speed check.

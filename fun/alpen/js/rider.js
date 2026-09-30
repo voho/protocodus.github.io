@@ -183,6 +183,23 @@ export const GRAB_METHOD = 2;
 // Hoisted so the hot path never carries an object literal.
 const GROOMED_FALLBACK = { rock: 0, groomed: 1, ice: 0, powder: 0 };
 
+/* The top speed a surface will carry, in m/s, at a given share of flow.
+
+   Flow opens the ceiling continuously from `baseMaxSpeed` to `maxSpeed`, and
+   the snow decides how much of that is available: the groomed ribbon runs a
+   little over it, open snow well under, talus under that — see `pisteSpeed`
+   in the config. The 0.42–1.15 band is the one main.js always applied; it is
+   here now because the rider is where it is enforced (see `groundStep`). */
+export function speedCeiling(flow, surf = GROOMED_FALLBACK) {
+  const share = clamp(
+    surf.groomed * RIDER.pisteSpeed + surf.powder * RIDER.powderSpeed
+      + surf.ice * RIDER.iceSpeed + surf.rock * RIDER.rockSpeed,
+    0.42, 1.15,
+  );
+  return (RIDER.baseMaxSpeed
+    + (RIDER.maxSpeed - RIDER.baseMaxSpeed) * clamp(flow || 0, 0, 1)) * share;
+}
+
 export class Rider {
   /* `world.height(x, z)` is the hill plus whatever kickers sit on it.
      `world.canStall(x, z)`, when supplied, distinguishes a committed wall
@@ -311,6 +328,7 @@ export class Rider {
     this.balance = 1;        // 1 when the body is where the turn needs it
     this.leanErr = 0;        // signed: + is under-leaned, − is over-leaned
     this.slide = 0;          // m/s of sideways wash, for spray and sound
+    this.scrub = 0;          // …of which the surface ceiling's plough, see `groundStep`
     this.lateral = 0;        // signed, so the spray knows which way to fly
     this.carveLoad = 0;      // 0..1, how hard the edge is working
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
@@ -1362,6 +1380,41 @@ export class Rider {
       }
     }
 
+    /* THE SURFACE CEILING, shed rather than clamped, and only on the snow.
+
+       This used to live in main.js as a rescale applied after every step,
+       and it was wrong in two ways that a player could feel.
+
+       It ran in the air. The limit was read off the surface *under* the
+       rider, so a forty-metre-a-second jump launched from the corduroy over
+       the powder shoulder had its horizontal speed cut to the powder's
+       ceiling in mid-flight — measured, about ten metres a second gone
+       between the lip and the landing, with nothing touching the board. An
+       airborne rider has no surface; the only things that can change their
+       horizontal speed up there are the air (charged in `airStep`) and a
+       little wind, so the air now has no ceiling at all and the snow they
+       land on collects whatever excess they bring.
+
+       And it was a wall. Every step the speed was written straight back to
+       the limit, so drifting off the ribbon into deep snow at speed felt
+       like a governor rather than a plough: no spray, no sound, the number
+       in the corner simply stopped. Now the excess over the ceiling is
+       bled away exponentially at `ceilingShed` per second — the board sinks
+       and ploughs its way down to what the surface will carry — and what is
+       shed is booked as `scrub`, a share of `slide`, so the spray, the wash
+       in the mix and the trench all answer it the way they answer a skid.
+       Flow reads the edge's own slide without it (see flow.js): losing speed
+       to deep snow is a cost, not a washed-out edge. */
+    this.scrub = 0;
+    const ceiling = speedCeiling(this.flowDrive, surf);
+    const running = vel.length();
+    if (running > ceiling) {
+      const shed = (running - ceiling) * (1 - Math.exp(-RIDER.ceilingShed * dt));
+      vel.multiplyScalar((running - shed) / running);
+      this.scrub = Math.min(RIDER.scrubSlideMax, (shed / dt) * RIDER.scrubSlide);
+      this.slide += this.scrub;
+    }
+
     // Charging an ollie loads the legs; releasing it unloads them
     if (input.jump) {
       this.charging = true;
@@ -1811,6 +1864,7 @@ export class Rider {
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
     this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
     this.slide = 0;
+    this.scrub = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
     // Air is air, wherever it is over. Deep snow only exists under a board.
@@ -2315,6 +2369,7 @@ export class Rider {
   fallStep(dt) {
     const { pos, vel } = this;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
+    this.scrub = 0;
 
     if (this.state === 'fall') {
       this.fallElapsed += dt;

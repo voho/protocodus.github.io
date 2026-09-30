@@ -74,13 +74,19 @@ export function stepFlowMeter(game, rider, dt) {
   const cruise = SCORE.flowCruise;
   game.flowHold = Math.max(0, (game.flowHold || 0) - dt);
 
-  const clean = rider.state === 'ride' && rider.slide < 1.2;
+  /* The edge's own wash, not the surface ceiling's plough. `slide` carries
+     both so that the spray and the sound answer both, but a rider who has
+     carried speed into deep snow has not lost their edge — they are paying
+     for the snow in speed already, and charging them meter for it too would
+     make one mistake cost twice. See `scrub` in rider.js. */
+  const wash = rider.slide - (rider.scrub || 0);
+  const clean = rider.state === 'ride' && wash < 1.2;
   if (clean && rider.speed > 6) {
     const fast = clamp01((rider.speed - 6) / (RIDER.baseMaxSpeed - 6));
     const room = clamp01((cruise - game.flow) / (cruise * SCORE.flowCruiseEase));
     game.flow += (0.058 + fast * 0.06 + rider.carveLoad * 0.40) * room * dt;
-  } else if (rider.slide > 2.0) {
-    game.flow -= rider.slide * 0.1 * dt;
+  } else if (wash > 2.0) {
+    game.flow -= wash * 0.1 * dt;
   }
 
   if (game.flow <= cruise) {

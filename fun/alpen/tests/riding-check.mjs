@@ -1,7 +1,7 @@
 // Run with: node tests/riding-check.mjs
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
-import { Rider, trickName, CLEAN, BAIL } from '../js/rider.js';
+import { Rider, trickName, speedCeiling, CLEAN, BAIL } from '../js/rider.js';
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
@@ -168,6 +168,41 @@ for (const tuck of [false, true]) {
   assert.equal(fromSwitch.landedSwitch, false);
   assert.equal(trickName(fromSwitch, fromSwitch.verdict), 'SWITCH FRONTSIDE 180',
     'SWITCH prefixes the trick rather than being joined to it like a grab');
+}
+
+// The surface's speed ceiling is a plough on the snow, never a clamp in the
+// air. It used to rescale an airborne rider to the ceiling of whatever they
+// were flying over — a 40 m/s jump off the piste lost 10 m/s over powder —
+// and on the snow it snapped the speed back in one step, silently.
+{
+  const powder = { rock: 0, groomed: 0, ice: 0, powder: 1 };
+  const powderCap = speedCeiling(0, powder);
+  const flier = rider({ height: () => -1000, surfaceAt: () => powder, canStall: () => false });
+  flier.pos.y = 0; flier.vel.set(0, 6, -40);
+  flier.state = 'air'; flier.grounded = false;
+  let dragOnly = 40;
+  for (let i = 0; i < 60; i++) {
+    flier.step(dt, neutral);
+    const v = Math.hypot(dragOnly, flier.vel.y);
+    dragOnly /= 1 + RIDER.drag * RIDER.airDrag * v * dt;
+  }
+  const flying = Math.hypot(flier.vel.x, flier.vel.z);
+  assert.ok(Math.abs(flying - dragOnly) < 0.05 && flying > powderCap + 5,
+    `nothing but the air slows a flight over powder (${flying.toFixed(2)} vs ${dragOnly.toFixed(2)})`);
+
+  const plough = rider({ height: (x, z) => z * 0.3, surfaceAt: () => powder, canStall: () => false });
+  plough.grace = 0; plough.vel.set(0, -45 * 0.287, -45 * 0.958);
+  plough.step(dt, neutral);
+  assert.ok(plough.speed > 44, `the snow ploughs the excess off, it does not snap it (${plough.speed})`);
+  assert.ok(plough.scrub > 3 && plough.slide >= plough.scrub,
+    'the plough throws snow: it is booked into the slide the spray and sound read');
+  for (let i = 0; i < 119; i++) plough.step(dt, neutral);
+  assert.ok(plough.speed < powderCap + 2.5 && plough.speed > powderCap - 1,
+    `…and a second later the board is down to the powder's pace (${plough.speed.toFixed(2)} / ${powderCap})`);
+  const piste = rider({ height: (x, z) => z * 0.3, canStall: () => false });
+  piste.grace = 0; piste.vel.set(0, -45 * 0.287, -45 * 0.958);
+  piste.step(dt, neutral);
+  assert.equal(piste.scrub, 0, 'under the ceiling nothing is shed');
 }
 
 const buffered = rider();

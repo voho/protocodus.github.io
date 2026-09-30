@@ -22,7 +22,11 @@ off speed while a square one keeps it.
 It also pins trick stance: a trick is named and paid by the stance it took off
 in (a regular 180 lands switch but is a plain FRONTSIDE 180; a switch take-off
 is SWITCH FRONTSIDE 180), with the landed stance kept separately as
-`landedSwitch`.
+`landedSwitch`. The surface speed ceiling is checked on both sides of the
+lip: a flight over powder loses only its own air drag (it used to be cut to
+the powder's ceiling in mid-air), and a board carried into powder above the
+ceiling ploughs the excess off over about a second instead of snapping to it,
+booking the plough as `scrub` inside `slide` so spray and sound answer it.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone
