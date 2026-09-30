@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { noteSurfaceChanges, surfaceChangesSince } from '../change-journal.js';
+import { noteSurfaceChanges, noteSiteChanges, surfaceChangesSince, viewChangesSince } from '../change-journal.js';
 import { createGame, build, buildPath, addRoute } from '../model.js';
 import { stepEcology } from '../environment.js';
 import { stepSettlements } from '../settlements.js';
@@ -125,4 +125,33 @@ test('terrain geometry keeps its height fields across ecology revisions only',()
   game.tiles[5].elevation=.9;game.revision++;
   sample();assert.ok(terrainGeometryStats(game).builtChunks>0&&terrainGeometryStats(game).builtChunks<=built,'an unjournaled revision starts a new cache');
   const fresh=structuredClone(game);assert.deepEqual(sample(),Array.from({length:40},(_,n)=>surfaceHeight(fresh,n%game.width+.25,(n*5)%game.height+.5)));
+});
+
+test('the view reads surface and site entries together; everything else still breaks its span',()=>{
+  const game=world();
+  note(game,[40,7]);let from=game.revision;game.revision++;noteSiteChanges(game,from,game.revision,[9,9,3]);note(game,[3,300]);
+  const view=viewChangesSince(game,0);
+  assert.deepEqual([list(view.surface),list(view.sites)],[[3,7,40,300],[3,9]]);
+  assert.equal(surfaceChangesSince(game,0),null,'surface-only readers still see a site day as a gap');
+  assert.deepEqual(list(surfaceChangesSince(game,2)),[3,300]);
+  assert.deepEqual([list(viewChangesSince(game,3).surface),list(viewChangesSince(game,3).sites)],[[],[]]);
+  game.revision++;assert.equal(viewChangesSince(game,0),null,'an unjournaled revision');
+  assert.equal(viewChangesSince(world(),-1),null);
+});
+
+test('a town journals exactly the cells its new homes change',()=>{
+  const town=emptyGame();build(town,'city',10,10);build(town,'residential',18,10);town.zones[0].progress=.99;build(town,'city',21,10);
+  buildPath(town,'road',line(10,21,11));build(town,'bus-stop',10,11);build(town,'bus-stop',21,11);
+  assert.equal(addRoute(town,{mode:'road',cargo:'passengers',stops:town.stations.map(stop=>stop.id)}).ok,true);
+  let grown=0;
+  for(let day=1;day<=90;day++){
+    town.day=day;for(const city of town.cities){city.activity=20;city.lastServiceDay=day;}
+    const before=town.tiles.map(tile=>JSON.stringify(tile)),r0=town.revision;stepSettlements(town);
+    if(town.revision===r0)continue;
+    const view=viewChangesSince(town,r0),sites=new Set(view.sites),changed=before.flatMap((json,index)=>json!==JSON.stringify(town.tiles[index])?[index]:[]);
+    assert.equal(view.surface.length,0);
+    for(const index of changed)assert.ok(sites.has(index),`day ${day}: changed cell ${index} is journaled`);
+    grown++;
+  }
+  assert.ok(grown>0,'the towns built homes');
 });

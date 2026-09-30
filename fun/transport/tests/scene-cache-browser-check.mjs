@@ -1,8 +1,9 @@
 // A reused scene must match a fully prepared fresh renderer. Transparent
 // strip regrouping may round a few channel values; geometry and picks must match.
 // This catches stale culling, depth order, foundations and invalidation on pans.
-// Journaled ecology days keep chunks, indexes and route paths: those frames must
-// match a fresh renderer exactly, by day and night, at DPR 1 and 2.
+// Journaled ecology days keep chunks, indexes and route paths and patch only the
+// scene tiles they changed: those frames must match a fresh renderer exactly, by
+// day and night, at DPR 1 and 2.
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {installBusyScenes} from './busy-scenes-fixture.mjs';
@@ -40,6 +41,24 @@ async function open(deviceScaleFactor){
       const day=g.day;let grown=0;for(let n=1;n<=3;n++){g.day=day+n;grown+=stepEcology(g);}g.day=day;
       return{from,before,journaled:surfaceChangesSince(g,from)?.length??null,edited:cells.length,grown,grove:grove?(grove.placed?'placed':'existing'):null,groveInView:Boolean(grove&&inView([grove.x+1,grove.y+1])),seamsInView:seams.filter(inView).length,insideInView:inside.filter(inView).length,outsideOfView:outside.filter(p=>!inView(p)).length};
     }
+    // A town's day of new homes, journaled like stepSettlements: up to three cottages on open ground or woodland in view.
+    async function homes(g,r){
+      const [{noteSiteChanges,viewChangesSince},{placeBuildingSite,buildingSiteProblem,buildingAt,buildingTiles},{residentialKind},{terrainObjectAt,terrainObjectTiles}]=await Promise.all([import('./change-journal.js'),import('./building-sites.js'),import('./buildings.js'),import('./terrain-objects.js')]);
+      const at=(x,y)=>g.tiles[y*g.width+x],inView=([x,y])=>{const p=r.worldToScreen(x,y);return p.x>=40&&p.y>=40&&p.x<760&&p.y<520;},px=Math.round(initialPoint.x),py=Math.round(initialPoint.y);
+      const taken=new Set([...g.industries,...g.stations,...g.cities].map(p=>`${p.x},${p.y}`)),placed=[],cells=[],undo=[],from=g.revision,before=r.getStats();
+      for(let d=0;d<=24&&placed.length<3;d++)for(let dy=-d;dy<=d&&placed.length<3;dy++)for(let dx=-d;dx<=d&&placed.length<3;dx++){
+        const x=px+dx,y=py+dy,t=Math.max(Math.abs(dx),Math.abs(dy))===d&&x>0&&y>0&&x<g.width-1&&y<g.height-1&&at(x,y);
+        if(!t||t.road||t.rail||t.zone||t.building||buildingAt(g,x,y)||taken.has(`${x},${y}`)||!inView([x,y])||!['grass','forest','sand','snow'].includes(t.terrain))continue;
+        const kind=residentialKind(t.variant||0,1);if(buildingSiteProblem(g,kind,x,y,1))continue;
+        const touched=[{x,y}],grove=terrainObjectAt(g,x,y);if(grove)touched.push(...terrainObjectTiles(grove));
+        const terrain=t.terrain,saved=touched.map(p=>[p.y*g.width+p.x,structuredClone(at(p.x,p.y))]);if(!placeBuildingSite(g,kind,x,y,{size:1,building:{kind,level:1}}))continue;undo.push(...saved);
+        for(const p of touched)cells.push(p.y*g.width+p.x);placed.push({x,y,terrain});
+      }
+      g.revision++;noteSiteChanges(g,from,g.revision,cells);
+      // Later steps search this view for open ground again, so the homes go once they are compared.
+      const restore=()=>{for(const [index,tile] of undo.toReversed()){const cell=g.tiles[index];for(const key of Object.keys(cell))delete cell[key];Object.assign(cell,tile);}g.revision++;};
+      return{from,before,restore,placed:placed.length,forest:placed.filter(p=>p.terrain==='forest').length,journaled:viewChangesSince(g,from)?.sites.length??null};
+    }
     window.sceneQA={
       async start(scene,zoom,condition='night'){busyQA.select(scene,zoom,condition);initialZoom=zoom;initialPoint={...busyQA.point};operations=[];layers=busyQA.renderer.getLayers();await settle(busyQA.renderer);},
       async change(action){const q=busyQA,r=q.renderer,g=q.game;let before=r.getStats(),surface=null;
@@ -52,6 +71,7 @@ async function open(deviceScaleFactor){
         if(action==='buildings-on'){layers={...layers,buildings:true};r.setLayers(layers);}
         if(action==='world-revision'){const x=Math.round(initialPoint.x+6),y=Math.round(initialPoint.y+6),t=g.tiles[y*g.width+x];t.building={kind:'house-cheap-3',footprint:1,level:1};t.terrain='grass';t.detail='';delete t.terrainObject;t.elevation=5/7;g.revision++;}
         if(action==='ecology'){surface=await ecology(g,r);before=surface.before;}
+        if(action==='homes'){surface=await homes(g,r);before=surface.before;}
         if(action==='zoom-return'){const alt=initialZoom===2?1:2;r.setZoom(alt);r.render(1000);r.setZoom(initialZoom);operations.push(['setZoom',alt],['setZoom',initialZoom]);}
         if(action==='art-revision'){const a=await import('./atlas-runtime.js');a.registerAtlas({id:'qa-late-pine',path:'./assets/world/nature-trees-taiga/atlas',maxCell:256,entries:[null,'nature-trees-taiga:pine',null,null,null,null,null,null,null]});await a.preloadWorldArt({waitMs:10000,biome:'taiga'});}
         await settle(r);
@@ -60,9 +80,10 @@ async function open(deviceScaleFactor){
         const a=source.getContext('2d').getImageData(0,0,source.width,source.height).data,b=freshCanvas.getContext('2d').getImageData(0,0,freshCanvas.width,freshCanvas.height).data;let count=0,max=0,sum=0,first=null;
         for(let i=0;i<a.length;i+=4){let diff=0;for(let c=0;c<4;c++){const d=Math.abs(a[i+c]-b[i+c]);diff=Math.max(diff,d);sum+=d;max=Math.max(max,d);}if(diff){count++;first??={x:i/4%source.width,y:Math.floor(i/4/source.width),cached:[...a.slice(i,i+4)],fresh:[...b.slice(i,i+4)]};}}
         const picks=[];if(['long-pan','world-revision','ecology','trees-on','buildings-on'].includes(action)){for(let py=80;py<560;py+=100)for(let px=80;px<800;px+=160){const a=r.screenToInspectTile(px,py),b=fresh.screenToInspectTile(px+1000,py);if(JSON.stringify(a)!==JSON.stringify(b))picks.push({px,py,cached:a,fresh:b});}}
-        const stats=r.getStats(),result={pickDifferences:picks,action,differentPixels:count,maxChannelDifference:max,totalChannelDifference:sum,meanChannelDifference:sum/a.length,first,camera:r.getCamera(),freshCamera:fresh.getCamera(),sceneBuilds:stats.sceneBuilds,beforeBuilds:before.sceneBuilds,routePathBuilds:stats.routePathBuilds-before.routePathBuilds};
-        if(surface)Object.assign(result,{journaled:surface.journaled,edited:surface.edited,grown:surface.grown,grove:surface.grove,groveInView:surface.groveInView,seamsInView:surface.seamsInView,insideInView:surface.insideInView,outsideOfView:surface.outsideOfView,emitterBuilds:stats.lighting.emitterBuilds-before.lighting.emitterBuilds,staticEmitters:stats.lighting.staticEmitters,foundationBuilds:stats.foundationBuilds-before.foundationBuilds,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
-        freshCanvas.remove();return result;
+        const stats=r.getStats(),result={pickDifferences:picks,action,differentPixels:count,maxChannelDifference:max,totalChannelDifference:sum,meanChannelDifference:sum/a.length,first,camera:r.getCamera(),freshCamera:fresh.getCamera(),sceneBuilds:stats.sceneBuilds,beforeBuilds:before.sceneBuilds,scenePatches:stats.scenePatches,beforePatches:before.scenePatches,routePathBuilds:stats.routePathBuilds-before.routePathBuilds};
+        if(surface&&action==='homes')Object.assign(result,{journaled:surface.journaled,placed:surface.placed,forest:surface.forest,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
+        else if(surface)Object.assign(result,{journaled:surface.journaled,edited:surface.edited,grown:surface.grown,grove:surface.grove,groveInView:surface.groveInView,seamsInView:surface.seamsInView,insideInView:surface.insideInView,outsideOfView:surface.outsideOfView,emitterBuilds:stats.lighting.emitterBuilds-before.lighting.emitterBuilds,staticEmitters:stats.lighting.staticEmitters,foundationBuilds:stats.foundationBuilds-before.foundationBuilds,chunkCount:stats.chunkCount,chunksBefore:before.chunkCount});
+        freshCanvas.remove();if(surface?.restore){surface.restore();await settle(r);}return result;
       }
     };
   });
@@ -71,8 +92,18 @@ async function open(deviceScaleFactor){
 function check(row){
   assert.deepEqual(row.pickDifferences,[],'cached scenery retains identical picking');assert.ok(row.maxChannelDifference<=4&&row.meanChannelDifference<=.02,`${row.scene}/${row.zoom}/${row.action}: only tiny transparent-compositing roundoff is allowed`);
   if(row.action==='small-pan'&&row.sceneBuilds!==undefined)assert.equal(row.sceneBuilds,row.beforeBuilds,'small pan reuses prepared scenery');
-  if(['world-revision','ecology','art-revision','trees-off','trees-on','buildings-off','buildings-on','zoom-return'].includes(row.action)&&row.sceneBuilds!==undefined)assert.ok(row.sceneBuilds>row.beforeBuilds,'changed scenery is rebuilt before drawing');
+  if(['world-revision','art-revision','trees-off','trees-on','buildings-off','buildings-on','zoom-return'].includes(row.action)&&row.sceneBuilds!==undefined)assert.ok(row.sceneBuilds>row.beforeBuilds,'changed scenery is rebuilt before drawing');
+  // An ecology day patches the tiles it changed instead of rebuilding the scene.
+  if(row.action==='ecology'&&row.sceneBuilds!==undefined)assert.ok(row.scenePatches>row.beforePatches&&row.sceneBuilds===row.beforeBuilds,'an ecology day patches the prepared scene');
   if(row.scene==='mixed'&&row.action==='world-revision')assert.ok(row.routePathBuilds>0,'visible route paths rebuild after a structural revision');
+  if(row.action==='homes'){
+    const label=`${row.scene}/${row.zoom}/${row.condition}/dpr ${row.dpr}`;
+    assert.ok(row.placed>=1&&row.journaled>=row.placed,`${label}: new homes in view are journaled`);
+    assert.ok(row.scenePatches>row.beforePatches&&row.sceneBuilds===row.beforeBuilds,`${label}: a day of new homes patches the prepared scene`);
+    assert.equal(row.differentPixels,0,`${label}: patched homes match a fresh renderer in every pixel`);
+    assert.equal(row.chunkCount,row.chunksBefore,`${label}: no chunk is discarded`);
+    return;
+  }
   if(row.action!=='ecology')return;
   const label=`${row.scene}/${row.zoom}/${row.condition}/dpr ${row.dpr}`;
   assert.equal(row.differentPixels,0,`${label}: a patched ecology day matches a fresh renderer in every pixel`);
@@ -85,9 +116,9 @@ try{
   const page=await open(2);
   for(const scene of(process.env.TRANSPORT_SCENES||'forest,mixed,generated-forest').split(','))for(const zoom of[.5,1,2]){
     await page.evaluate(({scene,zoom})=>sceneQA.start(scene,zoom),{scene,zoom});
-    for(const action of['warm','small-pan','small-pan','long-pan','reverse-pan','trees-off','trees-on','buildings-off','buildings-on','world-revision','ecology','zoom-return',...(scene==='mixed'&&zoom===2?['art-revision']:[])]){
+    for(const action of['warm','small-pan','small-pan','long-pan','reverse-pan','trees-off','trees-on','buildings-off','buildings-on','world-revision','ecology','homes','zoom-return',...(scene==='mixed'&&zoom===2?['art-revision']:[])]){
       const row={scene,zoom,condition:'night',dpr:2,...await page.evaluate(action=>sceneQA.change(action),action)};rows.push(row);console.log(JSON.stringify(row));
-      if(row.maxChannelDifference>4||row.meanChannelDifference>.02||(action==='ecology'&&row.differentPixels)){await page.locator('#cached').screenshot({path:`${out}/${scene}-${zoom}-${action}-cached.png`});await writeFile(`${out}/results.json`,JSON.stringify({rows,errors},null,2));}
+      if(row.maxChannelDifference>4||row.meanChannelDifference>.02||(['ecology','homes'].includes(action)&&row.differentPixels)){await page.locator('#cached').screenshot({path:`${out}/${scene}-${zoom}-${action}-cached.png`});await writeFile(`${out}/results.json`,JSON.stringify({rows,errors},null,2));}
       check(row);
     }
   }
