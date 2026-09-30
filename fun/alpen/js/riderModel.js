@@ -1109,7 +1109,7 @@ function buildGeometries(THREE) {
      So `x` is how woven the surface is and `y` is how quilted, and the glossy
      trim inside a garment is still taken out downstream by the same
      green-channel test that gives it its highlight. */
-  const clad = (geometry, sheen, baffle, parts) => {
+  const clad = (geometry, sheen, baffle, parts, flap = null) => {
     const n = geometry.attributes.position.count;
     const a = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) {
@@ -1140,15 +1140,57 @@ function buildGeometries(THREE) {
       }
     }
     geometry.setAttribute('aCloth', new THREE.BufferAttribute(a, 2));
+    /* A third question, and a third attribute: how free the cloth is to
+       move. Every segment gets one — the material is shared, and a program
+       reading an attribute a geometry does not carry is reading whatever
+       the driver left in that slot — and all but two of them are zero. See
+       `flapTorso`, `flapSleeve` and the flutter in the material. */
+    const f = new Float32Array(n);
+    if (flap) {
+      const p = geometry.attributes.position;
+      for (let i = 0; i < n; i++) f[i] = flap(p.getX(i), p.getY(i), p.getZ(i));
+    }
+    geometry.setAttribute('aFlap', new THREE.BufferAttribute(f, 1));
     return geometry;
   };
+
+  /* WHERE THE JACKET IS LOOSE, which is at the bottom.
+
+     A shell is held at the shoulders and hangs, so the hem is the one edge
+     of it with nothing holding it down: weight 1 at the hem, easing to
+     nothing by the chest (0.16 m up the torso), where the jacket is lying
+     on the rider rather than standing off him. The back is pinned — that is
+     where the pack's hip belt crosses it — so the weight fades out as the
+     surface turns from the side of the body to the back of it, which also
+     keeps the flutter from pushing the jacket out through the pack.
+
+     It is written over the whole torso buffer rather than per part because
+     everything on the front of the jacket in that band — the mint stripe,
+     the zip, the pocket — has to move with the shell it is sewn to, or the
+     shell would bulge out through its own trim. The displacement is radial
+     in the garment's own XZ (see the material), so a box on the front moves
+     as one piece instead of splitting along its face normals. */
+  const flapTorso = (x, y, z) => {
+    const r = Math.hypot(x, z);
+    const facing = r > 1e-5 ? x / r : 0;
+    return (1 - smooth01((y + 0.095) / 0.255)) * smooth01((facing + 0.55) / 0.45);
+  };
+  /* …and a little down the outside of each upper sleeve: nothing at the
+     shoulder seam, a third of the hem's freedom through the middle of the
+     sleeve, and nothing again by the elbow so the sleeve cannot peel away
+     from the ball it meets there. The two arms share this geometry and the
+     IK rolls each one freely about its own bone, so there is no "outer"
+     side to single out; the inner one is against the ribs, where nobody can
+     see it move. */
+  const flapSleeve = (x, y) => 0.32 * smooth01(-y / 0.08) * (1 - smooth01((-y - 0.20) / 0.06));
+
   return {
     board,
     rearBoot: clad(rearBoot, 0, 0),
     pelvis: clad(pelvis, 1, 0),
-    torso: clad(torso, 1, 1),
+    torso: clad(torso, 1, 1, null, flapTorso),
     head: clad(head, 0, 0),
-    upperArm: clad(upperArm, 1, 1),
+    upperArm: clad(upperArm, 1, 1, null, flapSleeve),
     foreArm: clad(foreArm, 1, 1, foreArmParts),
     thigh: clad(thigh, 1, 0),
     shin: clad(shin, 1, 0),
@@ -1377,14 +1419,38 @@ export function createRiderModel(THREE, shading) {
   fabricTex.colorSpace = THREE.SRGBColorSpace;
   fabricTex.anisotropy = 8;
 
+  /* THE WIND IN HIS JACKET. Nothing on the rider moved in the wind: at a
+     hundred and twenty km/h he was a man in a coat carved out of wood. The
+     cloth material now pushes every vertex out by `aFlap` (see `clad`) times
+     this many metres, rippling on two sines whose phases are these two
+     numbers.
+
+     The amplitude is a speed and nothing else — two millimetres of stir
+     standing still, half a millimetre more for every metre a second, capped
+     at two centimetres — because the air a rider feels is almost entirely
+     his own speed through it; the weather's wind is a few metres a second
+     against thirty. The phases are advanced here, wrapped to a turn each in
+     double precision, rather than handed to the shader as a clock: the two
+     rates are deliberately incommensurate so the ripple never repeats, which
+     means there is no time at which a shared clock could wrap invisibly, and
+     a float clock left to grow turns a fine ripple into shimmer an hour into
+     a session. A phase that is always inside one turn cannot do either. */
+  const flapUniform = { value: 0 };
+  const flapPhase = { value: new THREE.Vector2() };
+
   const cloth = (() => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uLampGlow = lampUniform;
       shader.uniforms.uFabricTex = { value: fabricTex };
+      shader.uniforms.uFlap = flapUniform;
+      shader.uniforms.uFlapPhase = flapPhase;
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
           attribute vec2 aCloth;
+          attribute float aFlap;
+          uniform float uFlap;
+          uniform vec2 uFlapPhase;
           varying vec2 vCloth;
           varying float vLocalY;
           varying vec3 vClothAxis;
@@ -1408,7 +1474,36 @@ export function createRiderModel(THREE, shading) {
              into the tens of thousands, where float precision turns a
              fine weave into shimmer. Local coordinates travel with the
              cloth and stay small forever. */
-          vClothWorld = transformed;`);
+          vClothWorld = transformed;
+          /* The flutter, after every varying above has been written from
+             the rest shape — the baffles and the weave are sewn into the
+             cloth, so they ride on it rather than sliding over it.
+
+             Outwards only, radially from the garment's own axis. Radially
+             because the zip and the pocket on the front are boxes, whose
+             corners carry three different face normals each: pushed along
+             those they would come apart at every edge, and pushed along the
+             one radial direction they move as a piece with the shell they
+             are sewn to. Outwards only — the ripple runs from none to full
+             rather than either side of rest — for the shadow's sake. The
+             depth pass is three's own depth material and never sees this,
+             so the cast shadow is the jacket at rest; that is two
+             centimetres of hem on the snow, which nobody can see, and it is
+             deliberately left rigid rather than paying for a custom depth
+             material on eleven meshes. What would show is the jacket
+             shadowing *itself*: a fragment pushed inwards would sit behind
+             its own rest depth and fall into its own shadow in moving
+             blotches. Pushed outwards it is always nearer the light than the
+             surface that cast the map, so it can only ever be lit. */
+          if (aFlap > 0.0 && uFlap > 0.0) {
+            vec3 n64Out = vec3(position.x, 0.0, position.z);
+            float n64OutLen = length(n64Out);
+            if (n64OutLen > 1e-4) {
+              float n64Ripple = 0.6 * sin(uFlapPhase.x + position.y * 23.0 + position.z * 11.0)
+                + 0.4 * sin(uFlapPhase.y - position.y * 9.0 + position.x * 19.0);
+              transformed += n64Out * (aFlap * uFlap * (0.5 + 0.5 * n64Ripple) / n64OutLen);
+            }
+          }`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
           uniform float uLampGlow;
@@ -2335,6 +2430,18 @@ export function createRiderModel(THREE, shading) {
     const depth = (0.016 - effort * 0.005) * idle;
     torsoMesh.scale.set(1 + breath * depth * 0.8, 1 + breath * depth * 0.5, 1 + breath * depth);
     torso.updateMatrix();
+
+    /* The jacket in the wind — see `flapUniform`. The ripple quickens with
+       speed as well as growing, from about three cycles a second standing
+       to six and a half at thirty metres a second, which is the difference
+       between a hem stirring and a hem snapping; the two rates stay in the
+       same irrational ratio at every speed, so it never falls into step
+       with itself. A tumbling rider is mostly snow and flailing limbs, so
+       the flutter all but stops while he is down. */
+    const flapRate = 0.5 + rider.speed / 30;
+    flapPhase.value.x = (flapPhase.value.x + step * 17.0 * flapRate) % TAU;
+    flapPhase.value.y = (flapPhase.value.y + step * 27.3 * flapRate) % TAU;
+    flapUniform.value = clamp(0.002 + 0.0005 * rider.speed, 0, 0.02) * (1 - s.down * 0.8);
 
     /* --- head -------------------------------------------------------------- */
 
