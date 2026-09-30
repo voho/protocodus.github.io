@@ -1,6 +1,6 @@
 /* Batched WebGL2 flight renderer. Source artwork is prepared once with Canvas2D. */
 import {installGeometry,parseColor} from './geometry.js';
-const STRIDE=11, CAPACITY=49152, MAX_BYTES=256*1024*1024, MAX_TEXTURES=256, TEXTURE_UNITS=8;
+const STRIDE=11, CAPACITY=49152, MAX_BYTES=256*1024*1024, MAX_TEXTURES=1024, TEXTURE_UNITS=8;
 const MAX_SOFT_LAYER_BYTES=32*1024*1024;
 // A fixed guarded annulus keeps large, thin rings off their empty centers.
 const ELLIPSE_SEGMENTS=16,ELLIPSE_OUTER_SCALE=1/Math.cos(Math.PI/ELLIPSE_SEGMENTS);
@@ -119,12 +119,14 @@ void main(){outputColor=sampleImage(vMode==0?0:vMode-3)*vColor;}
 `;
 function state(){return {matrix:[1,0,0,1,0,0],globalAlpha:1,composite:'source-over',fillStyle:'#000000',strokeStyle:'#000000',lineWidth:1,lineCap:'butt',lineJoin:'miter',miterLimit:10,dash:[],lineDashOffset:0,shadowColor:'rgba(0,0,0,0)',shadowBlur:0,shadowOffsetX:0,shadowOffsetY:0,imageSmoothingEnabled:true,imageSmoothingQuality:'low'};}
 const DEFAULT_STATE=state(), MAX_POOLED_STATES=64;
+const STATE_KEYS=['globalAlpha','composite','fillStyle','strokeStyle','lineWidth','lineCap','lineJoin','miterLimit','lineDashOffset','shadowColor','shadowBlur','shadowOffsetX','shadowOffsetY','imageSmoothingEnabled','imageSmoothingQuality'];
 function copyState(target,source){
  // Styles (including gradient objects) retain identity; mutable arrays belong
- // to one saved state and are copied into its reusable storage.
- for(const key in source)if(key!=='matrix'&&key!=='dash')target[key]=source[key];
- const matrix=target.matrix,from=source.matrix;for(let i=0;i<6;i++)matrix[i]=from[i];
- const dash=target.dash;dash.length=source.dash.length;for(let i=0;i<dash.length;i++)dash[i]=source.dash[i];
+ // to one saved state and are copied into its reusable storage. A fixed key
+ // list keeps every save/restore monomorphic instead of enumerating the object.
+ for(let i=0;i<STATE_KEYS.length;i++){const key=STATE_KEYS[i];target[key]=source[key];}
+ const matrix=target.matrix,from=source.matrix;matrix[0]=from[0];matrix[1]=from[1];matrix[2]=from[2];matrix[3]=from[3];matrix[4]=from[4];matrix[5]=from[5];
+ const dash=target.dash,fromDash=source.dash;if(dash.length!==fromDash.length)dash.length=fromDash.length;for(let i=0;i<dash.length;i++)dash[i]=fromDash[i];
  return target;
 }
 const finiteTransform=(a,b,c,d,e,f)=>Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(c)&&Number.isFinite(d)&&Number.isFinite(e)&&Number.isFinite(f);
@@ -137,7 +139,7 @@ export class GPUCanvas2D {
   this.gl=this.canvas.getContext('webgl2',{alpha:false,antialias:false,depth:false,stencil:false,premultipliedAlpha:true,preserveDrawingBuffer:false,powerPreference:'high-performance'});
   if(!this.gl)throw Error('WebGL2 unavailable');
   this._vertices=new Float32Array(CAPACITY*STRIDE);this._count=0;this._batchStart=0;this._batchTextures=[];this._commands=[];this._commandCount=0;this._gradientSnapshots=new WeakMap();this._cache=new Map();this._textureUse=0;this._dirty=new WeakMap();this._lost=false;this._failure=null;this._restoreEpoch=0;
-  this._softLayer=null;this._softLayerScale=0;this._softDrawing=false;this._softState=state();this._softStack=[];
+  this._softLayer=null;this._softLayerScale=0;this._softDrawing=false;this._softState=state();this._softStack=[];this._clearColor=[0,0,0];this._pendingReleases=[];
   this._disposed=false;this._contextAvailable=true;this._recoveryActive=false;this._recoverySources=new Map();this._recoveryPending=new Map();this._recoveryBytes=0;this._recoveryPrewarm=null;this._recoveryPromise=null;
   this._errors=[];this._metrics={frames:0,drawCalls:0,frameDrawCalls:0,vertices:0,uploads:0,partialUploads:0,uploadedBytes:0,textureBytes:0,evictions:0,restores:0,vertexUploads:0,vertexUploadBytes:0,frameSegments:0,vertexOrphans:0,vertexOrphanBytes:0,frameVertexOrphans:0};
   try{this._initialize();this.reset();}catch(error){this.fail(error);throw error;}
@@ -254,7 +256,18 @@ export class GPUCanvas2D {
   if(this._softDrawing&&!this._lost){this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,null);this.gl.viewport(0,0,this.canvas.width,this.canvas.height);}this._softDrawing=false;
  }
  resize(width,height){width=Math.max(1,Math.round(width));height=Math.max(1,Math.round(height));const changed=this.canvas.width!==width||this.canvas.height!==height,recovering=this._recoveryActive;this.reset();if(changed){this._restoreEpoch++;this.canvas.width=width;this.canvas.height=height;}if(this.usable){this.gl.viewport(0,0,width,height);this._setProgramSizes(width,height);if(this._softLayerScale)this.prepareSoftLayer(this._softLayerScale);}else if(changed&&recovering&&this._contextAvailable&&!this._disposed)this._recoveryPromise=this._restore(false);return this;}
- beginFrame(){if(!this.usable)return false;this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
+ beginFrame(){if(!this.usable)return false;if(this._pendingReleases.length)this._flushReleases();this._gpuVertexCursor=0;this._vertexBufferNeedsOrphan=true;this._count=0;this._batchStart=0;this._commandCount=0;this._batchTextures.length=0;this._batchUsesGradient=false;this._metrics.frames++;this._metrics.frameDrawCalls=0;this._metrics.frameSegments=0;this._metrics.frameVertexOrphans=0;this._batchKind=null;const gl=this.gl,clear=this._clearColor;gl.bindVertexArray(this._vao);gl.bindBuffer(gl.ARRAY_BUFFER,this._buffer);gl.viewport(0,0,this.canvas.width,this.canvas.height);this._setProgramSizes(this.canvas.width,this.canvas.height);gl.clearColor(clear[0],clear[1],clear[2],1);gl.clear(gl.COLOR_BUFFER_BIT);return true;}
+ /** Opaque frame background. The world's terrain covers every pixel, so the
+  * clear replaces a blended full-screen fill without changing the picture. */
+ setClearColor(value){const c=parseColor(value),target=this._clearColor;target[0]=c[0];target[1]=c[1];target[2]=c[2];this.clearColorValue=value;}
+ /** Forget a source that will no longer be drawn. Its texture is deleted at the
+  * next frame boundary rather than splitting the current frame's submission. */
+ release(source){if(!source||!this._cache.has(source))return false;this._pendingReleases.push(source);return true;}
+ _flushReleases(){
+  const gl=this.gl,valid=this._contextAvailable&&!gl.isContextLost();
+  for(const source of this._pendingReleases){const entry=this._cache.get(source);if(!entry)continue;this._forgetTexture(entry.texture);if(valid)gl.deleteTexture(entry.texture);this._cache.delete(source);this._metrics.textureBytes-=entry.bytes;this._recoverySources.delete(source);this._recoveryPending.delete(source);}
+  this._pendingReleases.length=0;
+ }
  endFrame(){this.flush();if(this.gl.isContextLost())this._loseContext();return this.usable;}
  present(display){if(!this.usable||!this.endFrame())return false;if(this.direct)return true;display.save();display.setTransform(1,0,0,1,0,0);display.globalAlpha=1;display.globalCompositeOperation='copy';display.drawImage(this.canvas,0,0);display.restore();return true;}
  _releaseSoftLayer(){
@@ -297,7 +310,7 @@ export class GPUCanvas2D {
   const gl=this.gl;this._forgetTexture(layer.texture);gl.bindFramebuffer(gl.FRAMEBUFFER,layer.framebuffer);gl.viewport(0,0,layer.width,layer.height);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT);this._softDrawing=true;
   let result;
   try{result=callback(this);}finally{
-   try{this.flush();}finally{gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(0,0,0,1);this._softDrawing=false;this._finishSoftState(caller,stack);}
+   try{this.flush();}finally{const clear=this._clearColor;gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,this.canvas.width,this.canvas.height);gl.clearColor(clear[0],clear[1],clear[2],1);this._softDrawing=false;this._finishSoftState(caller,stack);}
   }
   if(!this.usable)return result;
   // The callback already included its alpha. Composite its premultiplied RGBA
@@ -452,7 +465,7 @@ export class GPUCanvas2D {
  markTextureDirty(source,bounds=null){
   const previous=this._dirty.get(source),entry=this._cache.get(source),pending=previous&&previous.revision!==entry?.revision,revision=(previous?.revision||0)+1;let region=bounds;
   if(pending){if(!previous.bounds||!bounds)region=null;else {const a=previous.bounds,x=Math.min(a.x,bounds.x),y=Math.min(a.y,bounds.y);region={x,y,width:Math.max(a.x+a.width,bounds.x+bounds.width)-x,height:Math.max(a.y+a.height,bounds.y+bounds.height)-y};}}
-  this._dirty.set(source,{revision,bounds:region});if(this._lost)this._queueRecoverySource(source);
+  this._dirty.set(source,{revision,bounds:region});if(entry)entry.dirtyRevision=revision;if(this._lost)this._queueRecoverySource(source);
  }
  _evict(protectedSource){
   while(this._metrics.textureBytes>MAX_BYTES||this._cache.size>MAX_TEXTURES){
@@ -463,8 +476,10 @@ export class GPUCanvas2D {
  }
  _texture(source,restoring=false,width,height){
   if(!source||this._disposed||this._failure||!this._contextAvailable||(!this.usable&&!restoring))return null;if(width===undefined||height===undefined)[width,height]=sizeOf(source);if(!width||!height)return null;if(width>this.maxTextureSize||height>this.maxTextureSize){this.fail(`Source ${width}x${height} exceeds MAX_TEXTURE_SIZE ${this.maxTextureSize}`);return null;}
-  const version=source._tyranTextureVersion||0,dirty=this._dirty.get(source),revision=dirty?.revision||0;let entry=this._cache.get(source);
-  if(entry&&entry.width===width&&entry.height===height&&entry.version===version&&entry.revision===revision){entry.lastUse=++this._textureUse;return entry;}
+  const version=source._tyranTextureVersion||0;let entry=this._cache.get(source);
+  if(entry&&entry.width===width&&entry.height===height&&entry.version===version&&entry.revision===entry.dirtyRevision){entry.lastUse=++this._textureUse;return entry;}
+  const dirty=this._dirty.get(source),revision=dirty?.revision||0;
+  if(entry&&entry.width===width&&entry.height===height&&entry.version===version&&entry.revision===revision){entry.dirtyRevision=revision;entry.lastUse=++this._textureUse;return entry;}
   if(width*height*4>MAX_BYTES){this.fail(`Source ${width}x${height} exceeds the texture budget`);return null;}
   this.flush();const gl=this.gl;let bounds=null;
   try{
@@ -476,9 +491,9 @@ export class GPUCanvas2D {
     bounds=rectangle(region,width,height);
   }
   const allocated=!entry||entry.width!==width||entry.height!==height;
-  if(allocated){if(entry){this._forgetTexture(entry.texture);gl.deleteTexture(entry.texture);this._metrics.textureBytes-=entry.bytes;this._cache.delete(source);}entry={texture:gl.createTexture(),width,height,bytes:width*height*4};if(!entry.texture)throw Error('Texture allocation failed');this._cache.set(source,entry);this._metrics.textureBytes+=entry.bytes;this._bindTextureUnit(0,entry.texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,source);}
+  if(allocated){if(entry){this._forgetTexture(entry.texture);gl.deleteTexture(entry.texture);this._metrics.textureBytes-=entry.bytes;this._cache.delete(source);}entry={texture:gl.createTexture(),width,height,bytes:width*height*4,version:0,revision:0,dirtyRevision:0,lastUse:0};if(!entry.texture)throw Error('Texture allocation failed');this._cache.set(source,entry);this._metrics.textureBytes+=entry.bytes;this._bindTextureUnit(0,entry.texture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,source);}
   else {this._bindTextureUnit(0,entry.texture);if(bounds&&bounds.width&&bounds.height){gl.pixelStorei(gl.UNPACK_SKIP_PIXELS,bounds.x);gl.pixelStorei(gl.UNPACK_SKIP_ROWS,bounds.y);gl.texSubImage2D(gl.TEXTURE_2D,0,bounds.x,bounds.y,bounds.width,bounds.height,gl.RGBA,gl.UNSIGNED_BYTE,source);gl.pixelStorei(gl.UNPACK_SKIP_PIXELS,0);gl.pixelStorei(gl.UNPACK_SKIP_ROWS,0);this._metrics.partialUploads++;}else gl.texSubImage2D(gl.TEXTURE_2D,0,0,0,gl.RGBA,gl.UNSIGNED_BYTE,source);}
-  this._actualTexture=entry.texture;entry.version=version;entry.revision=revision;entry.lastUse=++this._textureUse;if(dirty)this._dirty.set(source,{revision,bounds:null});this._metrics.uploads++;this._metrics.uploadedBytes+=bounds?bounds.width*bounds.height*4:entry.bytes;this._cache.set(source,entry);
+  this._actualTexture=entry.texture;entry.version=version;entry.revision=revision;entry.dirtyRevision=revision;entry.lastUse=++this._textureUse;if(dirty)this._dirty.set(source,{revision,bounds:null});this._metrics.uploads++;this._metrics.uploadedBytes+=bounds?bounds.width*bounds.height*4:entry.bytes;this._cache.set(source,entry);
   // Validate new storage before displaying it. Existing, dimension-checked
   // subimage updates stay asynchronous: getError would serialize every small
   // scenery patch with the GPU. Exceptions and context loss still fall back.
@@ -492,10 +507,14 @@ export class GPUCanvas2D {
   if(Array.isArray(source)){for(const item of source)this.prewarm(item);return this.usable;}
   if(this._lost)this._queueRecoverySource(source);else this._texture(source);return this.usable;
  }
- drawImage(source,...args){
-  if(!this.usable)return;const [width,height]=sizeOf(source);let sx=0,sy=0,sw=width,sh=height,dx,dy,dw,dh;
-  if(args.length===2){[dx,dy]=args;dw=sw;dh=sh;}else if(args.length===4){[dx,dy,dw,dh]=args;}else if(args.length===8){[sx,sy,sw,sh,dx,dy,dw,dh]=args;}else throw new TypeError('drawImage expects3,5 or9 arguments');
-  if(!finite(sx,sy,sw,sh,dx,dy,dw,dh)||!sw||!sh||!dw||!dh)return;if(sw<0){sx+=sw;sw=-sw;}if(sh<0){sy+=sh;sh=-sh;}if(dw<0){dx+=dw;dw=-dw;}if(dh<0){dy+=dh;dh=-dh;}
+ drawImage(source,p0,p1,p2,p3,p4,p5,p6,p7){
+  if(!this.usable)return;
+  // Fixed parameters keep every call allocation free; the three Canvas forms are told apart by which arguments exist.
+  const width=source.width||source.naturalWidth||source.videoWidth||0,height=source.height||source.naturalHeight||source.videoHeight||0;
+  let sx=0,sy=0,sw=width,sh=height,dx,dy,dw,dh;
+  if(p4===undefined){if(p2===undefined){if(p1===undefined)throw new TypeError('drawImage expects3,5 or9 arguments');dx=p0;dy=p1;dw=sw;dh=sh;}else{if(p3===undefined)throw new TypeError('drawImage expects3,5 or9 arguments');dx=p0;dy=p1;dw=p2;dh=p3;}}
+  else{if(p7===undefined)throw new TypeError('drawImage expects3,5 or9 arguments');sx=p0;sy=p1;sw=p2;sh=p3;dx=p4;dy=p5;dw=p6;dh=p7;}
+  if(!sw||!sh||!dw||!dh||!(Number.isFinite(sx)&&Number.isFinite(sy)&&Number.isFinite(sw)&&Number.isFinite(sh)&&Number.isFinite(dx)&&Number.isFinite(dy)&&Number.isFinite(dw)&&Number.isFinite(dh)))return;if(sw<0){sx+=sw;sw=-sw;}if(sh<0){sy+=sh;sh=-sh;}if(dw<0){dx+=dw;dw=-dw;}if(dh<0){dy+=dh;dh=-dh;}
   const right=Math.min(width,sx+sw),bottom=Math.min(height,sy+sh),left=Math.max(0,sx),top=Math.max(0,sy);if(right<=left||bottom<=top)return;dx+=(left-sx)*dw/sw;dy+=(top-sy)*dh/sh;dw*=(right-left)/sw;dh*=(bottom-top)/sh;sx=left;sy=top;sw=right-left;sh=bottom-top;
   const m=this._state.matrix,ex=dx+dw,ey=dy+dh;
   const x0=m[0]*dx+m[2]*dy+m[4],y0=m[1]*dx+m[3]*dy+m[5],x1=m[0]*ex+m[2]*dy+m[4],y1=m[1]*ex+m[3]*dy+m[5];

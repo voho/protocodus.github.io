@@ -108,23 +108,43 @@ export function projectileLayout(bullet) {
   return layouts.get(key);
 }
 
+// Each live round resolves its texture, layout and heading once and reuses them
+// every frame; a round's appearance never changes and most fly straight.
+const bulletArt = new WeakMap();
+function artFor(bullet) {
+  let art = bulletArt.get(bullet);
+  if (art === undefined || art.revision !== revision) {
+    art = { revision, layout: projectileLayout(bullet), texture: projectileTexture(bullet), vx: NaN, vy: NaN, cos: 0, sin: 0 };
+    bulletArt.set(bullet, art);
+  }
+  if (art.vx !== bullet.vx || art.vy !== bullet.vy) {
+    const angle = Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2;
+    art.vx = bullet.vx; art.vy = bullet.vy; art.cos = Math.cos(angle); art.sin = Math.sin(angle);
+  }
+  return art;
+}
+
 /** Submit a volley in painter order, retaining the camera transform only once. */
 export function drawProjectiles(ctx, bullets, alpha = 1, width = Infinity, height = Infinity) {
   if (!bullets.length) return;
+  if (revision !== spriteRevision) { textures.clear(); revision = spriteRevision; }
   const { a, b, c, d, e, f } = ctx.getTransform();
   ctx.save(); ctx.globalCompositeOperation = 'source-over';
+  let dimmed = false;
   for (const bullet of bullets) {
-    const layout = projectileLayout(bullet);
+    const art = artFor(bullet), layout = art.layout;
+    // Fused bombs blink as they near their burst; other rounds stay solid.
+    if (bullet.fuse !== undefined) { ctx.globalAlpha = bullet.fuse < .6 && Math.floor(bullet.fuse * 14) % 2 ? .35 : 1; dimmed = true; }
+    else if (dimmed) { ctx.globalAlpha = 1; dimmed = false; }
     const x = (bullet.px ?? bullet.x) + (bullet.x - (bullet.px ?? bullet.x)) * alpha;
     const y = (bullet.py ?? bullet.y) + (bullet.y - (bullet.py ?? bullet.y)) * alpha;
     // Account for the entire rotated glow and the flight camera's shake margin.
     const pad = (layout.width + layout.height) * .5 + Math.abs(layout.offsetY) + 32;
     if (!b && !c && (x < -pad || x > width + pad || y < -pad || y > height + pad)) continue;
-    const angle = Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2;
-    const cos = Math.cos(angle), sin = Math.sin(angle);
+    const cos = art.cos, sin = art.sin;
     ctx.setTransform(a * cos + c * sin, b * cos + d * sin, c * cos - a * sin, d * cos - b * sin,
       a * x + c * y + e, b * x + d * y + f);
-    ctx.drawImage(projectileTexture(bullet), -layout.width / 2, -layout.height / 2 + layout.offsetY, layout.width, layout.height);
+    ctx.drawImage(art.texture, -layout.width / 2, -layout.height / 2 + layout.offsetY, layout.width, layout.height);
   }
   ctx.restore();
 }

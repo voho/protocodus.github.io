@@ -102,17 +102,16 @@ try {
       const power = [1, .52, .19][stage], phase = prop.variant * 1.79 + prop.x * .009, clock = motion ? time : 0;
       const pulse = .76 + Math.sin(clock * 1.6 + phase) * .24, s = prop.size, x = prop.x, y = prop.y;
       c.save();
-      const lx = x + s * .22, ly = y - s * .16, r = Math.round(s * .13);
-      c.globalAlpha = power * pulse * .2; c.drawImage(world.lightSprite, Math.round(lx - r), Math.round(ly - r), r * 2, r * 2);
-      c.globalAlpha = power * pulse * .65; c.fillStyle = world.palette.fog;
-      c.fillRect(Math.round(lx), Math.round(ly), Math.max(1, Math.round(s * .022)), 1);
+      // Service light, lit core and tower halo are one cached composite per type,
+      // authored in the 100-unit footprint space and drawn at the core's alpha.
+      const composite = world.getActivitySprite(prop.type, quality === 'low'), b = composite._tyranBounds, k = s * .01;
+      c.globalAlpha = power * pulse * .65;
+      c.drawImage(composite, b.x, b.y, b.width, b.height, x + (b.x - 120) * k, y + (b.y - 120) * k, b.width * k, b.height * k);
       if (quality !== 'low') {
         if (prop.type === 'radar' || prop.type === 'satellite') {
           const angle = clock * .72 + phase, reach = s * .19;
           c.save(); c.translate(x, y - s * .07); c.rotate(angle); c.globalAlpha = power * .24;
           c.drawImage(world.radarSweepSprite, -reach, -reach, reach * 2, reach * 2); c.restore();
-        } else if (['pylon', 'tower', 'dome'].includes(prop.type)) {
-          c.globalAlpha = power * pulse * .13; c.drawImage(world.lightSprite, x - s * .23, y - s * .29, s * .46, s * .46);
         }
         if (motion && ['station', 'refinery', 'building', 'fortress'].includes(prop.type)) for (let n = 0; n < 2; n++) {
           const age = ((clock * .22 + phase + n * .5) % 1 + 1) % 1, radius = s * (.12 + age * .17);

@@ -1,8 +1,10 @@
 import { normalizeLevel, combatTier, cycleScale } from './campaign.js';
 import { ENEMY_TYPES } from './ships.js';
 import { normalizeDifficulty, difficultyProfile } from './difficulty.js';
-import { waveTactics, applyTactics } from './tactics.js';
-import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, updateChallenge, tractorReach, startDive, DIVE_LOOP } from './waves.js';
+import { waveTactics, applyTactics, FORMATION_KINDS } from './tactics.js';
+import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, updateChallenge, tractorReach, startDive, DIVE_LOOP, ENCOUNTER_WAVE } from './waves.js';
+import { applyRole, roleScoreScale, roleCreditScale, roleCollisionDamage, healable, HAZARD_ROLES, MINE_LIFETIME, PHANTOM_CYCLE, PHANTOM_VISIBLE } from './roles.js';
+export { applyRole } from './roles.js';
 
 export const UPGRADES = [
   { id: 'weapon', name: 'Ion armament', subtitle: 'More firepower for every weapon and drone.', base: 420, icon: '⌁' },
@@ -165,14 +167,33 @@ export function selectWeapon(s, id, playerId = 0) {
   return true;
 }
 
-export const FORMATIONS = ['vee', 'wall', 'orbit', 'escort', 'pincer'];
+export const FORMATIONS = [...FORMATION_KINDS];
 const FORMATION_LAYOUTS = {
   vee: [[0, -58], [-58, -22], [58, -22], [-116, 22], [116, 22]],
   wall: [[-150, 0], [-90, 8], [-30, 14], [30, 14], [90, 8], [150, 0]],
   orbit: [[0, -92], [80, -45], [80, 45], [0, 92], [-80, 45], [-80, -45]],
   escort: [[0, -18], [-74, 22], [74, 22], [-118, 70], [118, 70]],
   pincer: [[-150, -20], [-188, 35], [-218, 90], [150, -20], [188, 35], [218, 90]],
+  // Newer shapes. Their motion families are listed below; offsets stay authored
+  // (and saved) while the anchor's age drives every rotation, wave and pulse.
+  diamond: [[0, -96], [84, 0], [0, 96], [-84, 0], [0, 0]],
+  column: [[0, -150], [0, -90], [0, -30], [0, 30], [0, 90], [0, 150]],
+  crescent: [[-170, -40], [-105, -84], [-36, -104], [36, -104], [105, -84], [170, -40]],
+  ring: [[0, -110], [78, -78], [110, 0], [78, 78], [0, 110], [-78, 78], [-110, 0], [-78, -78]],
+  spear: [[0, -120], [-42, -64], [42, -64], [-84, -8], [84, -8], [-126, 48], [126, 48]],
+  helix: [[0, -46], [0, 46], [-104, -40], [104, -40], [-104, 40], [104, 40]],
 };
+// orbit: members circle the anchor; spin: the whole shape turns rigidly;
+// breathe: the shape expands and contracts; snake: members weave laterally by
+// index; helix: an inner pair and an outer ring turn against each other; hold
+// and depart: how long the anchor keeps its lane before a fast charge through it.
+const FORMATION_MOTION = {
+  vee: {}, wall: {}, escort: {}, orbit: { orbit: .75 }, pincer: { wiggle: 15 },
+  diamond: { spin: .55 }, ring: { spin: -.8, breathe: .12, rate: 1.1 },
+  column: { snake: 55, rate: 1.6, phase: .7 }, crescent: { breathe: .18, rate: .9 },
+  spear: { hold: 1.6, depart: 260 }, helix: { helix: true },
+};
+const RADIAL_FORMATIONS = new Set(['orbit', 'diamond', 'ring', 'helix']);
 const formationName = kind => kind[0].toUpperCase() + kind.slice(1);
 
 export function bossWeakPointPosition(enemy, point, index = 0) {
@@ -260,11 +281,16 @@ function segmentHits(b, body, radius) {
   return gapX * gapX + gapY * gapY < radius * radius;
 }
 
-const newStats = () => ({ shots: 0, hits: 0, squads: 0, dives: 0, rescues: 0 });
+const newStats = () => ({ shots: 0, hits: 0, squads: 0, dives: 0, rescues: 0, encounters: 0, aces: 0, convoys: 0, hazards: 0 });
+/** A fresh campaign salt; zero keeps the authored reference choreography. */
+export const freshSalt = () => Math.floor(Math.random() * 4294967296) >>> 0;
 
-export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy') {
+export function createCampaign(level = 0, checkpoint = null, difficulty = 'easy', salt = 0) {
   const state = {
     mode: 1, level: normalizeLevel(level), status: 'playing', difficulty: normalizeDifficulty(checkpoint?.difficulty === undefined ? difficulty : checkpoint.difficulty),
+    // The salt varies wave order, tactics and encounters between campaigns;
+    // retries and saves keep it so a sector replays the same choices.
+    salt: checkpoint && Number.isFinite(checkpoint.salt) ? checkpoint.salt >>> 0 : Number.isFinite(salt) ? salt >>> 0 : 0,
     upgrades: { weapon: 0, fireRate: 0, firePower: 0, shield: 0, hull: 0, recharge: 0 }, credits: 0, score: 0,
     width: 1200, height: 900, time: 0, scroll: 0, scrollSpeed: 0, enemies: [], bullets: [], pickups: [], players: [], turrets: [],
     events: [], kills: 0, destroyed: 0, totalKills: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '',
@@ -304,7 +330,8 @@ export function beginLevel(s, level) {
   const weapon = normalizeWeapon(previous.weapon ?? s.weapon);
   Object.assign(s, { mode: 1, level: normalizeLevel(level), time: 0, scroll: 0, status: 'playing', enemies: [], bullets: [], pickups: [], turrets: [], events: [], formations: [], kills: 0, destroyed: 0, combo: 0, comboTime: 0, comboDamage: 1, comboBlast: 1, comboLabel: '', bossSpawned: false, bossDefeated: false, bossDeathTime: 0, spawnTimer: 1.5, showcase: 0, formationTimer: 10.5 });
   s.duration = sectorDuration(s.level);
-  s.director = createDirector(s.level); s.hive = { age: 0 }; s.squadrons = []; s.nextSquadId = 1;
+  s.salt = Number.isFinite(s.salt) ? s.salt >>> 0 : 0;
+  s.director = createDirector(s.level, s.salt); s.hive = { age: 0 }; s.squadrons = []; s.nextSquadId = 1;
   s.challenge = null; s.beams = []; s.respawn = 0; s.stats = newStats();
   s.primary = normalizePrimary(s.primary); s.owned = s.owned?.length ? s.owned : ['pulse'];
   s.lives = clamp(Number.isFinite(s.lives) ? s.lives : START_LIVES, 0, MAX_LIVES);
@@ -382,12 +409,23 @@ export function spawnEnemy(s, type, x, y = -100) {
 const formationGeometry = new WeakMap();
 const formationMotion = { x: 0, y: 0 };
 function fitFormation(s, formation, radii) {
-  const offsets = formation.offsets, orbit = formation.kind === 'orbit', wiggle = formation.kind === 'pincer' ? 15 : 0;
+  const offsets = formation.offsets, orbit = RADIAL_FORMATIONS.has(formation.kind), wiggle = formation.kind === 'pincer' ? 15 : 0;
   const maxRadius = formation.hullRadius || Math.max(...radii, 12), available = Math.max(1, s.width * .5 - maxRadius - wiggle - 20);
   let extent = 0;
   for (const offset of offsets) extent = Math.max(extent, orbit ? Math.hypot(offset.x, offset.y) : Math.abs(offset.x));
   const fit = Math.min(1, available / Math.max(1, extent));
   if (fit < 1) for (const offset of offsets) { offset.x *= fit; if (orbit) offset.y *= fit; }
+  if (orbit) {
+    // Turning shapes keep their member order; heavy hulls simply need a wider
+    // circle. A narrow arena grows the shape upward into a tall ellipse instead.
+    let closest = Infinity;
+    for (let i = 0; i < offsets.length; i++) for (let j = i + 1; j < offsets.length; j++) closest = Math.min(closest, Math.hypot(offsets[i].x - offsets[j].x, offsets[i].y - offsets[j].y));
+    const growth = (maxRadius * 2 + 12) / Math.max(1, closest);
+    if (growth > 1 + 1e-6) {
+      const across = Math.max(1, Math.min(growth, available / Math.max(1, extent * fit)));
+      for (const offset of offsets) { offset.x *= across; offset.y *= growth; }
+    }
+  }
   if (!orbit && (formation.entry || fit < 1)) {
     // Compressing a wide rank is not enough: six large hulls still need their
     // physical space. Reflow crowded groups into depth without changing their
@@ -433,7 +471,7 @@ function fitFormation(s, formation, radii) {
 }
 
 export function spawnFormation(s, kind = null, wave = null, order = 0) {
-  const tactic = wave == null ? null : waveTactics(s.level, wave), slot = Math.abs(Math.floor(order)) % 2;
+  const tactic = wave == null ? null : waveTactics(s.level, wave, s.salt || 0), slot = Math.abs(Math.floor(order)) % 2;
   kind = kind || (tactic ? tactic.formationKinds[slot] : FORMATIONS[Math.floor((s.nextFormationId - 1) % FORMATIONS.length)]);
   if (s.bossSpawned || !FORMATION_LAYOUTS[kind] || (wave == null && s.enemies.length > 15)) return null;
   const offsets = FORMATION_LAYOUTS[kind].map(([x, y]) => ({ x, y }));
@@ -445,7 +483,8 @@ export function spawnFormation(s, kind = null, wave = null, order = 0) {
   const tier = wave == null ? clamp(Math.floor(s.time / 14) + Math.floor(combatTier(s.level) / 3), 0, 6) : clamp(1 + Math.floor(combatTier(s.level) / 2) + tactic.formationTier, 0, 5);
   const members = [], radii = [];
   offsets.forEach((offset, index) => {
-    const escort = kind === 'escort' && index === 0;
+    // Escorts and diamonds fly a heavier leader; spears carry a heavy tip.
+    const escort = (kind === 'escort' && index === 0) || (kind === 'diamond' && index === 4) || (kind === 'spear' && index === 0);
     const type = clamp(tier + (escort ? 2 : index % 3 === 0 ? 1 : 0), 0, 8);
     const enemy = spawnEnemy(s, type, anchor.x + offset.x, anchor.y + offset.y);
     enemy.formation = anchor; enemy.formationOffset = offset; enemy.formationIndex = index;
@@ -531,6 +570,74 @@ function hostileShot(s, e, angle, speed = 220, radius = 5, origin = null) {
   s.hostileCount++;
 }
 
+// A bomb is a slow, blinking hostile round; its fuse turns it into a ring of
+// six ordinary rounds, all within the hostile projectile budget.
+const BOMB_PROFILE = Object.freeze({ radius: 22, type: 3, boss: false });
+function dropBomb(s, e, target) {
+  if (s.hostileCount >= MAX_HOSTILE_BULLETS) return;
+  const drift = target ? clamp((target.x - e.x) * .12, -50, 50) : 0;
+  s.bullets.push({ x: e.x, y: e.y + e.radius * .7, px: e.x, py: e.y, vx: drift, vy: 150 * difficultyProfile(s.difficulty).shotSpeed, damage: 8 * difficultyProfile(s.difficulty).damage,
+    radius: 9, team: -1, life: 7, color: '#ffb36b', kind: 'hostile', variant: 5, sourceRadius: e.radius, age: 0, fuse: 1.5 });
+  s.hostileCount++;
+}
+function burstBomb(s, bomb) {
+  const origin = { x: bomb.x, y: bomb.y };
+  for (let i = 0; i < 6; i++) hostileShot(s, BOMB_PROFILE, i * TAU / 6 + .3, 175, 4.5, origin);
+  s.events.push({ type: 'blast', x: bomb.x, y: bomb.y, size: 24, color: '#ff9a4b' });
+}
+
+// Splitters release three diving needles when destroyed; the bounded enemy
+// list and the dive's own departure keep a hive wipe from snowballing.
+function splitEnemy(s, e) {
+  if (s.enemies.length > 60) return;
+  const pilot = s.players.find(p => p.alive) || null;
+  for (const side of [-1, 0, 1]) {
+    const child = spawnEnemy(s, 0, clamp(e.x + side * 24, 30, s.width - 30), e.y + 8);
+    child.wave = e.wave; child.hp = child.maxHp = child.maxHp * .8; child.age = 0;
+    if (pilot) { startDive(s, child, pilot); child.returnToHive = false; child.diveSide = side || 1; }
+    else child.ai = 'leave';
+  }
+  s.events.push({ type: 'split', x: e.x, y: e.y, size: e.radius });
+}
+
+// Per-tick role behaviour: barriers recharge, phantoms cycle their cloak,
+// medics repair neighbours, minelayers drop mines and mines expire.
+function updateRole(s, e, dt) {
+  if (e.shieldMax && e.shieldHp < e.shieldMax && s.time - (e.shieldHit ?? -10) > 3) e.shieldHp = Math.min(e.shieldMax, e.shieldHp + e.shieldMax * .08 * dt);
+  const role = e.role;
+  if (role === 'phantom') {
+    e.cloak = (e.cloak || 0) + dt;
+    const phase = e.cloak % PHANTOM_CYCLE;
+    e.cloaked = phase >= PHANTOM_VISIBLE;
+  } else if (role === 'medic') {
+    e.healClock = (e.healClock ?? .4) - dt;
+    if (e.healClock <= 0) {
+      e.healClock = .4;
+      let patient = null, best = 190 * 190;
+      for (const other of s.enemies) {
+        if (other === e || !healable(other) || isDormant(other)) continue;
+        const dx = other.x - e.x, dy = other.y - e.y, squared = dx * dx + dy * dy;
+        if (squared < best) { best = squared; patient = other; }
+      }
+      if (patient) {
+        patient.hp = Math.min(patient.maxHp, patient.hp + Math.max(4, patient.maxHp * .04));
+        s.events.push({ type: 'arc', x: e.x, y: e.y, toX: patient.x, toY: patient.y, size: 8, color: '#8affd7' });
+      }
+    }
+  } else if (role === 'miner') {
+    e.dropTimer = (e.dropTimer ?? 1) - dt;
+    if (e.dropTimer <= 0 && (e.mineBudget ?? 0) > 0 && e.y > 40 && e.y < s.height * .6 && e.x > 20 && e.x < s.width - 20) {
+      e.dropTimer = 1.05; e.mineBudget--;
+      const mine = spawnEnemy(s, 0, e.x, e.y + e.radius + 6);
+      applyRole(mine, 'mine', { driftX: rand(-24, 24) });
+      mine.wave = ENCOUNTER_WAVE; mine.ai = 'drift';
+    }
+  } else if (role === 'mine' && e.age > MINE_LIFETIME) {
+    e.gone = true;
+    s.events.push({ type: 'blast', x: e.x, y: e.y, size: 12, color: '#ff8b78' });
+  }
+}
+
 function resetCombo(s, emit = false) {
   if (emit && s.combo >= 2) s.events.push({ type: 'combo-end', combo: s.combo });
   s.combo = 0; s.comboTime = 0; s.comboDamage = 1; s.comboBlast = 1; s.comboLabel = '';
@@ -539,7 +646,7 @@ function resetCombo(s, emit = false) {
 function nearestEnemy(s, x, y, maxDistance = Infinity, exclude = null) {
   let found = null, nearest = maxDistance * maxDistance;
   for (const enemy of s.enemies) {
-    if (enemy.dead || enemy === exclude || isDormant(enemy)) continue;
+    if (enemy.dead || enemy === exclude || enemy.cloaked || isDormant(enemy)) continue;
     const dx = enemy.x - x, dy = enemy.y - y, squared = dx * dx + dy * dy;
     if (squared < nearest) { nearest = squared; found = enemy; }
   }
@@ -549,7 +656,7 @@ function nearestEnemy(s, x, y, maxDistance = Infinity, exclude = null) {
 function plasmaTarget(s, bullet) {
   let found = null, priority = Infinity;
   for (const enemy of s.enemies) {
-    if (enemy.dead || enemy.hp <= 0 || isDormant(enemy)
+    if (enemy.dead || enemy.hp <= 0 || enemy.cloaked || isDormant(enemy)
       || enemy.x < 0 || enemy.x > s.width || enemy.y < 0 || enemy.y > s.height) continue;
     const dx = enemy.x - bullet.x, dy = enemy.y - bullet.y, squared = dx * dx + dy * dy;
     if (squared > 650 * 650 || dx * bullet.vx + dy * bullet.vy < 0) continue;
@@ -601,6 +708,20 @@ function bossHit(s, bullet, enemy) {
   return { damage: bullet.damage * (weak ? 1.85 : 1.65), blocked: false, weak };
 }
 
+/** Apply hull damage after any energy barrier; returns the hull damage dealt. */
+export function damageEnemy(s, enemy, amount) {
+  if (!(amount > 0)) return 0;
+  if (enemy.shieldMax && enemy.shieldHp > 0) {
+    enemy.shieldHit = s.time;
+    const absorbed = Math.min(enemy.shieldHp, amount);
+    enemy.shieldHp -= absorbed; amount -= absorbed;
+    s.events.push({ type: 'blocked', x: enemy.x, y: enemy.y - enemy.radius * .4, size: 10, shield: true });
+    if (amount <= 0) return 0;
+  }
+  enemy.hp -= amount;
+  return amount;
+}
+
 function damageSplash(s, bullet, origin) {
   const radius = bullet.splash * (bullet.comboBlast || 1);
   if (!radius) return;
@@ -611,7 +732,7 @@ function damageSplash(s, bullet, origin) {
     if (squared >= radiusSquared) continue;
     const falloff = 1 - Math.sqrt(squared) / radius;
     const damage = bullet.damage * bullet.splashFactor * Math.max(.2, falloff);
-    enemy.hp -= damage; enemy.hurt = .09;
+    damageEnemy(s, enemy, damage); enemy.hurt = .09;
     s.events.push({ type: 'spark', x: enemy.x, y: enemy.y, size: 6, splash: true });
     if (enemy.hp <= 0) killEnemy(s, enemy);
   }
@@ -623,7 +744,7 @@ function chainDamage(s, bullet, origin) {
   const target = nearestEnemy(s, origin.x, origin.y, bullet.chainRange || 155, origin);
   if (!target || (target.boss && !target.vulnerable)) return;
   const damage = bullet.damage * (bullet.chainFactor || .6);
-  target.hp -= damage; target.hurt = .1;
+  damageEnemy(s, target, damage); target.hurt = .1;
   bullet.chain--;
   s.events.push({ type: 'arc', x: origin.x, y: origin.y, toX: target.x, toY: target.y, size: 8, color: bullet.weaponColor || bullet.color });
   if (target.hp <= 0) killEnemy(s, target);
@@ -651,9 +772,10 @@ function updateFormationAnchors(s, dt) {
   for (const formation of s.formations) {
     formation.age += dt;
     const geometry = formationGeometry.get(formation);
+    const motion = FORMATION_MOTION[formation.kind] || {};
     if (formation.entry) {
       const beforeX = formation.x, beforeY = formation.y, time = formation.age * (formation.motionSpeed || 1);
-      const entry = geometry.entryTime, departure = entry + 4.5, drift = formation.drift || 0;
+      const entry = geometry.entryTime, departure = entry + (motion.hold ?? 4.5), drift = formation.drift || 0;
       const lane = clamp(formation.baseX, geometry.minX, geometry.maxX);
       const excursion = Math.min(80, Math.max(0, (geometry.maxX - geometry.minX) * .25));
       if (time < entry) {
@@ -664,7 +786,7 @@ function updateFormationAnchors(s, dt) {
       } else {
         const travel = time - entry;
         formation.x = clamp(lane + Math.sin(travel * .6) * excursion * drift, geometry.minX, geometry.maxX);
-        formation.y = time < departure ? 300 + Math.sin(travel * Math.PI / 4.5) * 28 : 300 + (time - departure) * 135;
+        formation.y = time < departure ? 300 + Math.sin(travel * Math.PI / 4.5) * 28 : 300 + (time - departure) * (motion.depart ?? 135);
       }
       geometry.vx = dt > 0 ? (formation.x - beforeX) / dt : 0;
       geometry.vy = dt > 0 ? (formation.y - beforeY) / dt : 0;
@@ -677,25 +799,31 @@ function updateFormationAnchors(s, dt) {
     formation.x = clamp(formation.baseX + sway, Math.max(margin, geometry.minX), Math.min(s.width - margin, geometry.maxX));
     // Enter together, sweep the combat lane, then fly through. A stationary
     // anchor leaves surviving ships behind and eventually blocks new waves.
-    const entry = 480 / 84, departure = 11;
+    const entry = 480 / 84, departure = motion.hold != null ? entry + motion.hold : 11;
     formation.y = formation.age < entry ? -150 + formation.age * 84
       : formation.age < departure ? 330 + Math.sin((formation.age - entry) * Math.PI / (departure - entry)) * 32
-      : 330 + (formation.age - departure) * 105;
+      : 330 + (formation.age - departure) * (motion.depart ?? 105);
   }
 }
 
 function formationVelocity(enemy) {
   const formation = enemy.formation;
   if (!formation) return null;
-  const offset = enemy.formationOffset || { x: 0, y: 0 };
+  const offset = enemy.formationOffset || { x: 0, y: 0 }, motion = FORMATION_MOTION[formation.kind] || {}, age = formation.age, index = enemy.formationIndex;
   let x = offset.x, y = offset.y;
-  if (formation.kind === 'orbit') {
-    const angle = formation.age * .75 + enemy.formationIndex * TAU / formation.offsets.length;
+  if (motion.orbit) {
+    const angle = age * motion.orbit + index * TAU / formation.offsets.length;
     const radius = Math.hypot(offset.x, offset.y);
     x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
-  } else if (formation.kind === 'pincer') {
-    x += Math.sin(formation.age * 1.3 + enemy.formationIndex) * 15;
-    y += Math.cos(formation.age * .7 + enemy.formationIndex) * 10;
+  } else if (motion.spin || motion.helix) {
+    const angle = age * (motion.helix ? (index < 2 ? 1.2 : -.5) : motion.spin), cos = Math.cos(angle), sin = Math.sin(angle);
+    x = offset.x * cos - offset.y * sin; y = offset.x * sin + offset.y * cos;
+  }
+  if (motion.breathe) { const scale = 1 + motion.breathe * Math.sin(age * motion.rate); x *= scale; y *= scale; }
+  if (motion.snake) x += Math.sin(age * motion.rate + index * motion.phase) * motion.snake;
+  if (motion.wiggle) {
+    x += Math.sin(age * 1.3 + index) * motion.wiggle;
+    y += Math.cos(age * .7 + index) * 10;
   }
   const desiredX = formation.x + x, desiredY = formation.y + y;
   const response = .14;
@@ -753,6 +881,17 @@ function enemyFire(s, e) {
   if (!e.boss && e.y > target.y - e.radius - 55) { e.fire = .25; return; }
   const aimed = Math.atan2(target.y - e.y, target.x - e.x);
   const speed = 175 + combatTier(s.level) * 7 + e.type * 4;
+  if (e.role === 'bomber') {
+    dropBomb(s, e, target); e.fire = 2.1; return;
+  } else if (e.role === 'ace') {
+    // Tight aimed triple with two wide sentinels; quicker than any regular hull.
+    for (let i = -1; i <= 1; i++) hostileShot(s, e, aimed + i * .11, speed * 1.15, 5);
+    for (const side of [-1, 1]) hostileShot(s, e, aimed + side * .55, speed * .9, 4.5);
+    e.fire = .95; return;
+  } else if (e.role === 'elite') {
+    for (let i = -1; i <= 1; i++) hostileShot(s, e, aimed + i * .1, speed * 1.1, 5);
+    e.fire = Math.max(.75, (Number(ENEMY_TYPES[e.type].fireRate) || 2.2) * .7 / (1 + combatTier(s.level) * .035)); return;
+  }
   if (e.boss) {
     const phase = e.hp / e.maxHp < .3 ? 2 : e.hp / e.maxHp < .65 ? 1 : 0;
     if (phase > e.phase) { e.phase = phase; s.events.push({ type: 'phase', x: e.x, y: e.y }); }
@@ -830,8 +969,8 @@ function detonateNova(s, p) {
   for (const e of s.enemies) {
     if (e.dead || isDormant(e) || e.y < -e.radius || e.y > s.height + e.radius || e.x < -e.radius || e.x > s.width + e.radius) continue;
     if (e.boss) { if (!e.vulnerable) continue; e.hp -= Math.min(damage * 3, e.maxHp * .05); }
-    else e.hp -= e.role === 'midboss' ? damage * .6 : damage;
-    e.hurt = .12;
+    else damageEnemy(s, e, e.role === 'midboss' ? damage * .6 : damage);
+    e.hurt = .12; e.cloaked = false; e.cloak = 0;
     if (e.ai === 'captor' && e.capState > 0 && e.capState < 3) { e.capState = 0; e.capTimer = 2.6; }
     if (e.hp <= 0) killEnemy(s, e);
   }
@@ -847,7 +986,7 @@ function squadronCleared(s, e, squad) {
     return;
   }
   s.stats.squads++;
-  const bonus = Math.round(squad.size * 90 * (1 + combatTier(s.level) * .15) * cycleScale(s.level, .3));
+  const bonus = Math.round(squad.size * 90 * (squad.bonusFlight ? 2 : 1) * (1 + combatTier(s.level) * .15) * cycleScale(s.level, .3));
   s.score += bonus; s.credits += Math.round(bonus * .06);
   s.events.push({ type: 'squadron', x: e.x, y: e.y, bonus, size: squad.size });
   // Every third wiped squadron (starting with the first) releases a power core.
@@ -862,19 +1001,33 @@ export function killEnemy(s, e, cause = 'shot') {
   s.kills++; s.totalKills++; s.combo = chain; s.comboTime = Math.min(5.2, 3 + comboTier(chain) * .55);
   s.comboDamage = comboDamageFor(chain); s.comboBlast = comboBlastFor(chain); s.comboLabel = comboLabel(chain);
   const multiplier = Math.min(4, 1 + Math.floor(chain / 10));
-  // Galaga rule: a ship shot down mid-dive is worth double.
+  // Galaga rule: a ship shot down mid-dive is worth double. Specialist roles
+  // scale their prizes: elites and aces double, hazards pay a token.
   const diving = e.ai === 'dive';
-  const reward = Math.round((ENEMY_TYPES[e.type].score || 100) * (1 + combatTier(s.level) * .15) * cycleScale(s.level, .3)) * (diving ? 2 : 1);
+  const reward = Math.round((ENEMY_TYPES[e.type].score || 100) * roleScoreScale(e) * (1 + combatTier(s.level) * .15) * cycleScale(s.level, .3)) * (diving ? 2 : 1);
   s.score += reward * multiplier;
   // Salvage grows more gently than score so late sectors do not flood the shop.
-  s.credits += Math.round((ENEMY_TYPES[e.type].score || 100) * (diving ? 2 : 1) * .09 * (1 + combatTier(s.level) * .06) * cycleScale(s.level, .3));
+  s.credits += Math.round((ENEMY_TYPES[e.type].score || 100) * roleCreditScale(e) * (diving ? 2 : 1) * .09 * (1 + combatTier(s.level) * .06) * cycleScale(s.level, .3));
   if (diving && s.stats) s.stats.dives++;
+  if (s.stats) {
+    if (e.role === 'ace') s.stats.aces = (s.stats.aces || 0) + 1;
+    if (e.role === 'convoy') s.stats.convoys = (s.stats.convoys || 0) + 1;
+    if (HAZARD_ROLES.has(e.role) && cause !== 'ram') s.stats.hazards = (s.stats.hazards || 0) + 1;
+  }
   s.events.push({ type: 'explosion', x: e.x, y: e.y, size: e.radius * 1.3 * s.comboBlast, boss: e.boss, value: reward * multiplier, shipType: e.type, blast: s.comboBlast, dive: diving, midboss: e.role === 'midboss', cause });
   if (chain >= 2) s.events.push({ type: 'combo', x: e.x, y: e.y, combo: chain, label: s.comboLabel, damageBoost: s.comboDamage, blastBoost: s.comboBlast, time: s.comboTime });
   if (e.challenge && s.challenge) s.challenge.hits++;
   if (e.squad) {
     const squad = s.squadrons?.find(item => item.id === e.squad);
     if (squad) { squad.killed++; if (squad.killed >= squad.size && !squad.broken) squadronCleared(s, e, squad); }
+  }
+  if (e.role === 'splitter' && cause !== 'clear') splitEnemy(s, e);
+  if (e.role === 'convoy') s.pickups.push({ x: e.x, y: e.y, age: 0, kind: 'credit', value: Math.round(110 * cycleScale(s.level, .3)) });
+  if (e.role === 'ace') {
+    const pilot = s.players[0];
+    s.pickups.push({ x: e.x - 34, y: e.y, age: 0, kind: 'power', value: 0 }, { x: e.x + 34, y: e.y, age: 0, kind: (pilot?.bombs || 0) < MAX_BOMBS ? 'bomb' : 'repair', value: 0 },
+      { x: e.x, y: e.y + 30, age: 0, kind: 'credit', value: Math.round(260 * cycleScale(s.level, .3)) });
+    s.events.push({ type: 'ace-down', x: e.x, y: e.y, aceName: e.aceName });
   }
   if (e.captive) {
     // Rescue: the captured drone flies home and rejoins the wing.
@@ -893,6 +1046,7 @@ export function killEnemy(s, e, cause = 'shot') {
     s.bullets = s.bullets.filter(b => b.team !== -1);
     if (s.beams) s.beams.length = 0;
     for (const other of s.enemies) if (!other.boss && !other.dead) { other.dead = true; s.events.push({ type: 'explosion', x: other.x, y: other.y, size: other.radius }); }
+    for (const other of s.enemies) if (other.role === 'splitter') other.role = null;
   } else if (e.role === 'midboss') {
     const pilot = s.players[0];
     s.pickups.push({ x: e.x - 30, y: e.y, age: 0, kind: 'power', value: 0 });
@@ -912,7 +1066,7 @@ export const MAX_SCROLL_SPEED = 300; // Bonus rounds outrun the normal final-app
 export function missionScrollSpeed(s, time = s.time) {
   let count = 0;
   for (const enemy of s.enemies) {
-    if (enemy.dead || enemy.gone || enemy.hp <= 0 || isDormant(enemy) || (s.bossSpawned && enemy.boss)) continue;
+    if (enemy.dead || enemy.gone || enemy.hp <= 0 || isDormant(enemy) || (s.bossSpawned && enemy.boss) || HAZARD_ROLES.has(enemy.role)) continue;
     const r = enemy.radius || 0;
     if (enemy.x + r <= 0 || enemy.x - r >= s.width || enemy.y + r <= 0 || enemy.y - r >= s.height) continue;
     count++;
@@ -1108,6 +1262,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       }
     }
     const response = .07 + Math.sqrt(e.mass) * .09, midpoint = e.age - dt * .5;
+    if (e.role) { updateRole(s, e, dt); if (e.gone) continue; }
     if (e.ai && e.ai !== 'drift') {
       steerScripted(s, e, dt, pilot);
       if (e.gone) continue;
@@ -1116,6 +1271,9 @@ export function update(s, dt, input = [], environmentHit = null) {
       if (e.boss) {
         targetX = Math.cos(midpoint * .48) * Math.min(235, s.width * .24) * .48;
         targetY = (155 - e.y) * .7;
+      } else if (HAZARD_ROLES.has(e.role)) {
+        // Hazards tumble straight down with a fixed sideways drift.
+        targetX = e.driftX || 0;
       } else {
         const formationTarget = formationVelocity(e);
         if (formationTarget) { targetX = formationTarget.x; targetY = formationTarget.y; }
@@ -1147,7 +1305,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       e.potshot = 0;
       if (e.y < target.y - 160) hostileShot(s, e, Math.atan2(target.y - e.y, target.x - e.x), 190 + combatTier(s.level) * 7);
     }
-    const volleys = !e.noFire && (!e.ai || e.ai === 'drift' || e.ai === 'station' || (e.ai === 'captor' && e.capState === 0) || (e.ai === 'entry' && !e.slotCount));
+    const volleys = !e.noFire && !e.cloaked && (!e.ai || e.ai === 'drift' || e.ai === 'station' || (e.ai === 'captor' && e.capState === 0) || (e.ai === 'entry' && !e.slotCount));
     if (volleys) {
       const formation = e.formation, geometry = formation?.entry && formationGeometry.get(formation);
       const ready = !geometry || (formation.age * (formation.motionSpeed || 1) >= geometry.entryTime && e.x >= e.radius && e.x <= s.width - e.radius);
@@ -1156,7 +1314,7 @@ export function update(s, dt, input = [], environmentHit = null) {
     }
     if (e.harmless) continue;
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) {
-      hurtPlayer(s, p, (e.boss ? 55 : 22) * difficultyProfile(s.difficulty).damage);
+      hurtPlayer(s, p, (e.boss ? 55 : roleCollisionDamage(e)) * difficultyProfile(s.difficulty).damage);
       // Light craft are destroyed by the collision; heavy hulls shrug it off.
       if (!e.boss && e.radius < 36 && e.role !== 'midboss') killEnemy(s, e, 'ram');
     }
@@ -1173,11 +1331,15 @@ export function update(s, dt, input = [], environmentHit = null) {
     // Calculate each segment's bounds once, then reuse for every candidate.
     b.left = Math.min(b.px, b.x); b.right = Math.max(b.px, b.x);
     b.top = Math.min(b.py, b.y); b.bottom = Math.max(b.py, b.y);
+    if (b.fuse !== undefined && b.team < 0) {
+      b.fuse -= dt;
+      if (b.fuse <= 0) { b.life = 0; burstBomb(s, b); continue; }
+    }
     if (b.team >= 0) {
       const hitIds = b.hitIds || (b.hitIds = []);
       let target = null, result = null;
       for (const e of s.enemies) {
-        if (e.dead || hitIds.includes(e.id) || (e.ai === 'entry' && e.pathD < 0)) continue;
+        if (e.dead || e.cloaked || hitIds.includes(e.id) || (e.ai === 'entry' && e.pathD < 0)) continue;
         const candidate = bossHit(s, b, e);
         if (candidate) { target = e; result = candidate; break; }
       }
@@ -1188,8 +1350,8 @@ export function update(s, dt, input = [], environmentHit = null) {
           b.life = 0;
           s.events.push({ type: 'blocked', x: b.x, y: b.y, size: 8 });
         } else {
-          target.hp -= result.damage; target.hurt = .07;
-          s.events.push({ type: result.weak ? 'weak-hit' : 'spark', x: b.x, y: b.y, size: result.weak ? 10 : 5, boss: target.boss });
+          const dealt = damageEnemy(s, target, result.damage); target.hurt = .07;
+          if (dealt > 0) s.events.push({ type: result.weak ? 'weak-hit' : 'spark', x: b.x, y: b.y, size: result.weak ? 10 : 5, boss: target.boss });
           if (result.weak) {
             result.weak.hp -= result.damage;
             if (result.weak.hp <= 0 && result.weak.alive) {

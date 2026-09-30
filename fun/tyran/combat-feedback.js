@@ -7,10 +7,10 @@ const NOTICE_LABELS = new Map([
   ['power', 'Power core'], ['drone', 'Wing drone'], ['bomb', 'Nova charge'],
   ['squadron', 'Squadron cleared'], ['rescue', 'Drone rescued'], ['nova', 'Nova'],
   ['power-lost', 'Power lost'], ['captured', 'Drone captured'], ['extra-life', 'Extra ship'],
-  ['reserve-bonus', 'Reserve bonus'],
+  ['reserve-bonus', 'Reserve bonus'], ['ace-down', 'Ace destroyed'],
 ]);
 const PICKUPS = new Set(['repair', 'rapid', 'invulnerable', 'power', 'drone', 'bomb']);
-const EVENT_NOTICES = new Set(['squadron', 'rescue', 'nova', 'power-lost', 'captured']);
+const EVENT_NOTICES = new Set(['squadron', 'rescue', 'nova', 'power-lost', 'captured', 'ace-down']);
 function noticeKey(event) {
   if (!event || typeof event !== 'object') return null;
   if (event.type === 'pickup') return PICKUPS.has(event.bonus) ? event.bonus : null;

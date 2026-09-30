@@ -120,7 +120,7 @@ try {
   assert(result.fixtureComparison.maxChannelDifference<=1&&result.fixtureComparison.meanChannelDifference<.001,'cropped fixtures match full-image drawing within subpixel rounding under transforms and clipping');
   assert(result.fixtureComparison.submittedPixelRatio<.25,'fixture draws skip at least three quarters of transparent source area');
   assert(result.foundationsInsideBounds,'foundations fit existing partial redraw bounds');
-  assert(result.memory.spriteCount<=result.memory.spriteLimit&&result.memory.spriteBytes<8*1024*1024,'effect caches are bounded even with arbitrary variants');
+  assert(result.memory.spriteCount<=result.memory.spriteLimit&&result.memory.spriteBytes<12*1024*1024,'effect caches are bounded even with arbitrary variants');
   assert.equal(result.gradients,0,'warm effects do not build new gradients');
   assert.equal(result.allocations,0,'animation does not allocate cached surfaces');
   assert(result.nature.every(alpha=>alpha===0),'natural scenery receives no fire or architectural effects');

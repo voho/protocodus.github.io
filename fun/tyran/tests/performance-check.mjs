@@ -41,7 +41,7 @@ const sampleGpu = (samples = hardwareGpuSamples) => {
 };
 const cpuRate = Math.max(1, Number(process.env.TYRAN_CPU_RATE) || 1);
 await mkdir(out, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const page = await browser.newPage({ viewport, deviceScaleFactor: dpr });
 const errors = [];
 const browserCdp = await browser.newBrowserCDPSession();

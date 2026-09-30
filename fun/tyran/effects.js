@@ -207,7 +207,7 @@ export class Effects {
         this.particle(x + (event.toX - x) * t, y + (event.toY - y) * t, random(-32, 32), random(-32, 32), .16, random(1.5, 3.5), event.color || '#ffe88d');
       }
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
-      this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type === 'blocked' ? '#ff8b78' : '#fff1a6' });
+      this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type !== 'blocked' ? '#fff1a6' : event.shield ? '#8ad7ff' : '#ff8b78' });
     } else if (event.type === 'weak-break') {
       this.emit({ type: 'explosion', x, y, size: size * 1.35, color: '#ffe36d' });
     } else if (event.type === 'nova') {
@@ -234,6 +234,13 @@ export class Effects {
       this.rings.push({ x, y, age: 0, life: .6, radius: 180, color: '#a4ffee' }, { x, y, age: 0, life: .9, radius: 320, color: '#e7fff8' });
     } else if (event.type === 'power-lost') {
       this.rings.push({ x, y, age: 0, life: .35, radius: 60, color: '#ffb36b' });
+    } else if (event.type === 'split') {
+      // A splitter bursting into needles: a short gold flash and shards.
+      this.reserveParticles(10);
+      for (let i = 0; i < 10; i++) { const angle = random(0, TAU), speed = random(60, 220); this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.2, .45), random(1.5, 3), '#ffd27a'); }
+      this.rings.push({ x, y, age: 0, life: .35, radius: size * 2.4, color: '#ffd27a' });
+    } else if (event.type === 'ace-down') {
+      this.rings.push({ x, y, age: 0, life: .9, radius: 170, color: '#ffe36d' }, { x, y, age: 0, life: 1.2, radius: 260, color: '#fff6d0' });
     } else if (event.type === 'beam') {
       this.lights.push({ x, y, age: 0, life: .35, radius: 120, color: '#ff9ab8', fire: false });
       this.shake = Math.min(18, this.shake + 3);
@@ -265,10 +272,12 @@ export class Effects {
   shouldUseSoftLights(W, H) {
     // At half resolution, the light quads cost roughly one quarter as many
     // fragments, but clearing/compositing the layer adds a full-surface cost.
-    // Require two visible screens of additive image coverage before paying it.
-    // Gameplay caps this scan at 48 lights; crowded bursts exit early.
+    // Require three visible screens of additive image coverage before paying it:
+    // below that, the layer's clear, framebuffer switch and composite cost more
+    // than the quarter-resolution fill saves. Gameplay caps this scan at 48
+    // lights; crowded bursts exit early.
     if (!(W > 0 && H > 0)) return false;
-    const threshold = 2 * W * H;
+    const threshold = 3 * W * H;
     let area = 0;
     for (const l of this.lights) {
       const a = 1 - l.age / l.life, r = l.radius * (.5 + l.age / l.life);

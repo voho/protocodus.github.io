@@ -171,6 +171,7 @@ export class AudioEngine {
     for (const channel of this.musicChannels.values()) channel.gain.setValueAtTime(0, this.context.currentTime);
     for (const player of this.musicPlayers.values()) player.pause();
     if (this.musicGain) this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
+    this.musicTarget = 0;
   }
   updateMusic(playing, mood, level = 0) {
     if (!this.musicGain || this.musicUnavailable) return false;
@@ -190,7 +191,9 @@ export class AudioEngine {
     const channel = this.musicChannels.get(key);
     if (channel.gain.value !== 1) channel.gain.setValueAtTime(1, this.context.currentTime);
     this.playMusic();
-    this.musicGain.gain.setTargetAtTime(SONGS[key].gain, this.context.currentTime, .12);
+    // One automation event per change, not one per rendered frame.
+    const target = SONGS[key].gain;
+    if (this.musicTarget !== target) { this.musicTarget = target; this.musicGain.gain.setTargetAtTime(target, this.context.currentTime, .12); }
     return this.musicPlaying && !this.music.paused && this.music.readyState >= 2;
   }
   tone(frequency, end, duration, volume, type = 'sine', when = null) {
@@ -256,6 +259,13 @@ export class AudioEngine {
     if (type === 'midboss' || type === 'captor') { [0, .22].forEach(offset => this.tone(240, 190, .2, .14, 'sawtooth', t + offset)); }
     if (type === 'wave' && size > 1) { [587, 880].forEach((f, i) => this.tone(f, f, .16, .06, 'triangle', t + i * .09)); }
     if (type === 'challenge') { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, f, .22, .1, 'triangle', t + i * .12)); }
+    if (type === 'encounter') {
+      // Opportunities chime upward; hazards and hunters warn with a low pulse.
+      const calm = variant === 'convoy' || variant === 'bonusFlight';
+      (calm ? [659, 988, 1318] : [330, 262, 330]).forEach((f, i) => this.tone(f, f, calm ? .18 : .22, calm ? .08 : .11, calm ? 'triangle' : 'sawtooth', t + i * .11));
+    }
+    if (type === 'ace-down') { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, f, .18, .11, 'square', t + i * .08)); }
+    if (type === 'split') { this.tone(980, 320, .14, .07, 'square'); this.burst(.1, .08, 5200); }
     if (type === 'challenge-result') {
       const notes = variant === 'perfect' ? [523, 659, 784, 1046, 1318, 1568] : [392, 523, 659];
       notes.forEach((f, i) => this.tone(f, f, .22, .11, 'square', t + i * .1));
