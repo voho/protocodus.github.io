@@ -17,7 +17,7 @@ try{
     g.industries=[];g.cities=[];g.stations=[];g.routes=[];g.vehicles=[];
     const canvas=document.createElement('canvas'),mini=document.createElement('canvas');
     canvas.style='width:1200px;height:800px';mini.style='width:512px;height:512px';document.body.append(canvas,mini);
-    const r=createRenderer(canvas,g,{layers:{names:false,industryIcons:false,routes:false,lighting:false}});
+    const r=createRenderer(canvas,g,{layers:{names:false,industryIcons:false,routes:false}});
     const color=(x,y)=>Array.from(mini.getContext('2d').getImageData(x,y,1,1).data).slice(0,3);
     r.drawMinimap(mini);const initial=r.getStats(),thinRoad=color(25,225);
     r.setLayers({roads:false});r.drawMinimap(mini);const hiddenRoad=color(25,225);

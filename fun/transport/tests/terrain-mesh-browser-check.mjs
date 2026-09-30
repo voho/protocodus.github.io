@@ -94,7 +94,7 @@ try{
     const game=createGame({biome:'taiga',size:'compact',seed:418});
     for(const tile of game.tiles){Object.assign(tile,{terrain:'grass',elevation:4/7,detail:'',road:false,rail:false,bridge:false,tunnel:false,building:null,zone:null});delete tile.terrainObject;delete tile.structureAxis;delete tile.structureLevel;}
     game.cities=[];game.industries=[];game.stations=[];game.routes=[];game.vehicles=[];game.zones=[];game.revision++;
-    const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{lighting:false,names:false,industryIcons:false,routes:false,grid:false,trees:false}});
+    const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{names:false,industryIcons:false,routes:false,grid:false,trees:false}});
     renderer.resize();renderer.setZoom(2);renderer.focus(24,22);
     function frame(){
       const before=renderer.getStats().composedChunks;renderer.render(0);const stats=renderer.getStats();

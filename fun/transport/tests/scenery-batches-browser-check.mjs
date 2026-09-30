@@ -14,7 +14,7 @@ try {
     await page.evaluate(async()=>{const{createRenderer}=await import('./renderer.js');busyQA.select('forest',1,'day');window.directRenderer=createRenderer(document.querySelector('#direct'),busyQA.game,{sceneryBatching:false});});
     for(const scene of (process.env.TRANSPORT_SCENES||'forest,city,mixed').split(','))for(const zoom of (process.env.TRANSPORT_ZOOMS||'.5,1,2').split(',').map(Number)){
       const result=await page.evaluate(async({scene,zoom})=>{
-        const q=busyQA,direct=directRenderer,condition=scene==='mixed'?'night':'day';q.renderer.setLayers({trees:true,buildings:true});q.select(scene,zoom,condition);direct.setGame(q.game);direct.setZoom(zoom);direct.focus(q.point.x,q.point.y);direct.setLayers(q.renderer.getLayers());
+        const q=busyQA,direct=directRenderer,condition='day';q.renderer.setLayers({trees:true,buildings:true});q.select(scene,zoom,condition);direct.setGame(q.game);direct.setZoom(zoom);direct.focus(q.point.x,q.point.y);direct.setLayers(q.renderer.getLayers());
         const pair=()=>{q.renderer.render(1000);direct.render(1000);};pair();await new Promise(r=>setTimeout(r,70));pair();
         const compare=stage=>{
           const a=document.querySelector('#batched'),b=document.querySelector('#direct'),aa=a.getContext('2d').getImageData(0,0,a.width,a.height).data,bb=b.getContext('2d').getImageData(0,0,b.width,b.height).data;
@@ -47,7 +47,7 @@ try {
       assert.equal(result.warmBuilds,0,'small pans and vehicle motion must reuse prepared scenery');
       for(const stage of result.stages){assert.ok(stage.large<=Math.ceil(stage.pixels*.00001)&&stage.max<64,`${scene}/${zoom}/DPR${dpr}/${stage.stage}: geometry/occlusion differs ${JSON.stringify(stage.largest)}`);assert.ok(stage.mean<.5,'transparent compositing must remain visually equivalent');assert.deepEqual(stage.picks,[],`${scene}/${zoom}/${stage.stage}: picking differs`);assert.ok(stage.stats.bytes<=stage.stats.limit);}
       rows.push({dpr,...result});console.log(JSON.stringify({dpr,scene,zoom,max:Math.max(...result.stages.map(s=>s.max)),checks:result.stages.length}));
-      if(dpr===2&&zoom===1){await page.evaluate(({scene,zoom})=>{busyQA.renderer.setLayers({trees:true,buildings:true});busyQA.select(scene,zoom,scene==='mixed'?'night':'day');busyQA.renderer.render(1000);},{scene,zoom});const data=await page.locator('#batched').evaluate(canvas=>canvas.toDataURL().split(',')[1]);await writeFile(`${out}/${scene}.png`,Buffer.from(data,'base64'));}
+      if(dpr===2&&zoom===1){await page.evaluate(({scene,zoom})=>{busyQA.renderer.setLayers({trees:true,buildings:true});busyQA.select(scene,zoom,'day');busyQA.renderer.render(1000);},{scene,zoom});const data=await page.locator('#batched').evaluate(canvas=>canvas.toDataURL().split(',')[1]);await writeFile(`${out}/${scene}.png`,Buffer.from(data,'base64'));}
     }
     await page.close();
   }

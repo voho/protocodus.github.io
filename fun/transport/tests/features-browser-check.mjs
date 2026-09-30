@@ -1061,7 +1061,7 @@ try {
     const game = { width:96, height:96, seed:1847, biome:'taiga', day:10, revision:1, industries:[], cities:[], vehicles:[], routes:[], stations:[{id:'a',name:'A',x:30,y:40,mode:'road'},{id:'b',name:'B',x:62,y:40,mode:'road'},{id:'c',name:'C',x:30,y:44,mode:'road'},{id:'d',name:'D',x:62,y:44,mode:'road'}], tiles:Array.from({length:96*96},(_,index)=>({terrain:'grass',elevation:.2,detail:'',variant:0,road:[40,44].includes(Math.floor(index/96)),rail:false,bridge:false,tunnel:false,building:null,zone:null})) };
     const line = y => Array.from({ length:33 }, (_, n) => ({ x:30 + n, y }));
     game.routes.push({ id:'lit', mode:'road', cargo:'coal', color:'#69c6bc', stops:['a','b'], path:line(40), active:true }, { id:'other', mode:'road', cargo:'passengers', color:'#efc16f', stops:['c','d'], path:line(44), active:true });
-    const renderer = createRenderer(canvas, game, { layers:{ lighting:false, weather:false, names:false } }), scale = canvas.width / canvas.getBoundingClientRect().width;
+    const renderer = createRenderer(canvas, game, { layers:{ weather:false, names:false } }), scale = canvas.width / canvas.getBoundingClientRect().width;
     const sample = (y, view) => { renderer.render(1000, view); const context = canvas.getContext('2d'); return [44, 46, 48].flatMap(x => { const p = renderer.worldToScreen(x, y); return Array.from(context.getImageData(Math.round(p.x * scale), Math.round((p.y - 5) * scale), 1, Math.round(10 * scale)).data); }); };
     const distance = (a, b) => a.reduce((sum, value, index) => sum + Math.abs(value - b[index]), 0);
     const zooms = [];

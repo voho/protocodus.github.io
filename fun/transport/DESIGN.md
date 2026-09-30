@@ -317,7 +317,7 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
 | States | `ok`, `warn`, `error`, `broken` (a line cut by two slashes, identical to the strip cut), `info`, `lock`, `clock`, `trendUp`, `trendDown` |
 | Modes and things | `bus`, `truck`, `train`, `ship`, `plane`, `stop` (roundel on a post), `flag` (goals), `stock` (crates), `coin` (income), `house`, `shop`, `workshop`, `tree`, `leaf`, `label` |
 | Tools (land family) | `road`, `rail`, `bridge`, `tunnel`, `bulldoze`, `raise`, `lower`, `level`, `zones`, `pointer` |
-| Weather | `sun`, `cloud`, `rain`, `snow`, `fog`, `moon` |
+| Weather | `sun`, `cloud`, `rain`, `snow`, `fog` |
 | Biomes | `taiga`, `tundra`, `desert` |
 
 `modeGlyph(mode, cargo)` picks the vehicle glyph:
@@ -677,7 +677,7 @@ The strip shows a route's state at a glance, left to right from the first stop t
 | Keyboard cursor | Dashed orange footprint outline over paper | The keyboard map cursor |
 | Hover | Paper outline, 1.5 px at 85% | The pointer is over something clickable |
 | Reach ring | Dashed paper ring with an ink casing at 35% | A stop's catchment (stop tool, selected stop) |
-| Property outline | `--ok` footprint outline (2 px) over a 4 px paper casing at 75%: solid for a building you own, dashed for a plot developers built on your zone. Town and Detail views only, while building in towns or inspecting a town or property. The casing keeps it legible on grass and at night. | Your property |
+| Property outline | `--ok` footprint outline (2 px) over a 4 px paper casing at 75%: solid for a building you own, dashed for a plot developers built on your zone. Town and Detail views only, while building in towns or inspecting a town or property. The casing keeps it legible on grass. | Your property |
 | Context lines | Thin dashed paper lines with an ink casing at 35% | Nearest targets of a selected industry |
 | Edge pointer | Ink tag at the band edge: mark, name, "177 tiles", orange chevron | A hovered target that is off screen |
 | Floaters | Paper pill: cargo tile and "+$1,356" in ok | Income from a delivery (world label) |

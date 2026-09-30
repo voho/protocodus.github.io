@@ -62,9 +62,7 @@ try {
       assert.notDeepEqual(result.outsideWithShip, result.outsideWithoutShip, 'ship remains visible outside the bridge deck');
       assert.ok(result.indicators.empty > 0 && result.indicators.full > 0 && result.indicators.partial > 0, 'marine carriers retain readable cargo meters');
     }
-    await page.evaluate(() => { shippingFixture.day = 30; transport.renderer.setLayers({ lighting: true }); transport.renderer.focus(39, 43); transport.renderer.render(1200); });
-    await page.screenshot({ path: `${output}/harbor-night-dpr${dpr}.png` });
-    await page.evaluate(() => { shippingFixture.day = 0; transport.renderer.render(1200); });
+    await page.evaluate(() => { shippingFixture.day = 0; transport.renderer.focus(39, 43); transport.renderer.render(1200); });
     await page.screenshot({ path: `${output}/harbor-day-dpr${dpr}.png` });
     await page.close();
   }
