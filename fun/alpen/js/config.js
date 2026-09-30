@@ -1996,7 +1996,15 @@ export const SCORE = {
 
 export const PROPS = {
   band: 40,           // metres of hill filled at a time
-  ahead: 11,          // bands kept in front of the rider
+  /* Bands kept in front of the rider. Thirteen, from eleven: the window's far
+     edge used to sit at 440 m, where a clear day's curtain is only about
+     four-fifths drawn, so every band that arrived put a strip of forest on
+     the horizon in one frame. At 520 m the curtain is 0.97 of the way in,
+     and the props dissolve fully into it over the last 110 m before the
+     edge (FRAG_STREAM in shading.js), so a band arriving is never seen. Two
+     bands more of instances is the price; the pools size themselves from
+     this number. */
+  ahead: 13,          // bands kept in front of the rider
   /* …and behind, which is the forest's half of the same fix the terrain's
      `behind` is. Two bands was eighty metres, against thirty metres of ground
      — so the two disagreed, and the fifty metres where they disagreed was a

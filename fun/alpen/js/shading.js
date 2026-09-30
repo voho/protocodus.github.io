@@ -300,6 +300,7 @@ uniform float uShadeLevel;
 uniform vec2 uCamWrap;
 uniform sampler2D uCanopyMap;
 uniform vec4 uCanopyWin;
+uniform vec2 uStreamEdge;
 
 ${SKY_GLSL}
 
@@ -703,6 +704,7 @@ const FRAG_FOG = `
        crest punches clear. The distance ramp is what keeps it out of the
        rider's own snow — mist two metres of path away is no mist at all. */
     vec3 n64Dir = vN64View * (1.0 / max(n64Dist, 1e-4)) * mat3(viewMatrix);
+    // n64:stream
     if (uMistLevel > 0.002) {
       float n64H = max(cameraPosition.y + n64Dir.y * n64Dist - uMistFloor, 0.0);
       float n64Mist = uMistLevel * exp(n64H * -${asFloat(MIST.scale)})
@@ -749,6 +751,29 @@ const FRAG_FOG = `
       gl_FragColor.rgb = mix(gl_FragColor.rgb, n64Sky(n64Dir), n64FogRgb);
     }
   }`;
+
+/* THE FAR EDGE OF THE FOREST IS NEVER SEEN ARRIVING.
+
+   Everything standing on the mountain is streamed in forty-metre bands, and
+   a band is placed whole: thirty-odd trees, their saplings, rocks and deadwood
+   appear in one frame at the far edge of the window. On a clear day that edge
+   is inside the visible range — the curtain is only four-fifths of the way in
+   there — so every band boundary the rider crossed put a new strip of forest
+   on the horizon in a single frame, which is the definition of a pop.
+
+   So every streamed prop is dissolved into the backdrop over the last stretch
+   before the edge, exactly as the fog would dissolve it, and is completely
+   gone by the edge itself. `uStreamEdge.x` is the world z at which the fade is
+   complete and `.y` is how long it is; `props.js` moves the edge continuously
+   with the rider rather than a band at a time, so the fade itself never steps
+   either. Only props ask for it (`opts.streamFade`): the ground and the huts
+   are generated past the curtain already. */
+const FRAG_STREAM = `
+    {
+      float n64StreamZ = cameraPosition.z + n64Dir.z * n64Dist;
+      n64Fog = max(n64Fog,
+        1.0 - smoothstep(0.0, uStreamEdge.y, n64StreamZ - uStreamEdge.x));
+    }`;
 
 /* Camera collision can put the lens inside a conifer even after the boom has
    shortened as far as composition allows. Fade only the geometry inside a
@@ -1026,6 +1051,10 @@ export function createShading(THREE) {
        was until the first field is drawn. */
     uCanopyMap: { value: neutralCanopy },
     uCanopyWin: { value: new THREE.Vector4(0, 0, 1 / 256, 0) },
+    /* Where streamed props finish dissolving (world z) and over how many
+       metres — see FRAG_STREAM. Parked far downhill until `props.js` writes
+       it, so nothing is faded before the forest exists. */
+    uStreamEdge: { value: new THREE.Vector2(-1e7, 100) },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -1065,6 +1094,7 @@ export function createShading(THREE) {
     const wantFog = opts.fog !== false;
     const cameraFade = opts.cameraFade === true;
     const canopy = opts.canopy === true;
+    const streamFade = opts.streamFade === true;
     // Only the ground opts out, because the ground already has this per
     // vertex. Everything else that has a light loop to patch gets it.
     const wantShade = opts.shade !== false;
@@ -1114,13 +1144,14 @@ export function createShading(THREE) {
         frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_CANOPY}`);
       }
       if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
-        frag = frag.replace(FOG_ANCHOR, FRAG_FOG);
+        frag = frag.replace(FOG_ANCHOR, FRAG_FOG
+          .replace('// n64:stream', streamFade ? FRAG_STREAM : ''));
       }
       shader.fragmentShader = frag;
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 

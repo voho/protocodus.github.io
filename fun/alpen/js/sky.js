@@ -306,6 +306,14 @@ const SHADOW_REACH = 180;
 const SHADOW_MAP_NEAR = 4096;
 const SHADOW_MAP_FAR = 2048;
 
+/* How long the distant range takes to hand over from one photograph to the
+   next — dawn, day, dusk and night each have their own plate. Fourteen
+   seconds is under half of the shortest window a plate is chosen for (dawn,
+   about 36 s of a 180 s day), long enough that two different mountain
+   ranges dissolve into each other the way light changes rather than the
+   way a slide changes. */
+const PLATE_CROSSFADE = 14;
+
 /* And the bias in texels rather than in metres, which is the unit it is
    actually in. */
 const SHADOW_BIAS_TEXELS = 2.0;
@@ -1690,6 +1698,8 @@ export function createSky(THREE) {
   const panoStorm = { value: panoFallback };
   const panoStrength = { value: 0 };
   const panoFade = { value: 1 };
+  /* Seconds into the current plate crossfade — see PLATE_CROSSFADE. */
+  let panoFadeClock = PLATE_CROSSFADE;
   let clearPlate = null;
   let stormPlate = null;
   let clearSettled = false;
@@ -3000,7 +3010,12 @@ export function createSky(THREE) {
        ramp is sent back to zero, the sampler is exchanged only once the
        plate's contribution has actually reached nothing, and the same ramp
        then brings the new picture up through the procedural sky. */
-    if (panoStage === 0 && panoTarget > 0) {
+    /* A swap is only ever begun from a settled picture. Starting a second
+       one halfway through the first made the half-shown outgoing plate the
+       new "previous" at full strength — the distant range jumped back to a
+       photograph it had half left — so a change of wish waits for the fade
+       in flight to finish, and is taken up on the frame it does. */
+    if (panoStage === 0 && panoTarget > 0 && panoFadeClock >= PLATE_CROSSFADE) {
       /* With hysteresis on both gates so an hour hovering exactly at a
          boundary — a pinned dusk, a night whose depth is still building —
          cannot strobe the swap back and forth. Dawn and dusk each have
@@ -3030,13 +3045,24 @@ export function createSky(THREE) {
         panoPrev.value = panoClear.value;
         panoClear.value = want;
         panoFade.value = 0;
+        panoFadeClock = 0;
         plateChoice = choice;
       } else {
         plateChoice = choice;
       }
       panoWish = 1;
     }
-    panoFade.value += (1 - panoFade.value) * (1 - Math.exp(-1.1 * dt));
+    /* Eased over a fixed span rather than chased exponentially. The old
+       rate did most of its work in its first second — a third of the way
+       from one photographed range to a different one before the eye had
+       registered anything was changing — which is exactly what reads as the
+       background being replaced. A smoothstep in time starts and ends at
+       rest and spreads the change evenly across the span. */
+    panoFadeClock = Math.min(PLATE_CROSSFADE, panoFadeClock + Math.max(0, dt));
+    {
+      const t = panoFadeClock / PLATE_CROSSFADE;
+      panoFade.value = t * t * (3 - 2 * t);
+    }
     // Each sampler is placed by its own plate's layout, whichever is bound.
     bindLayout(panoClear.value, layoutClear, sizeClear);
     bindLayout(panoPrev.value, layoutPrev, sizePrev);

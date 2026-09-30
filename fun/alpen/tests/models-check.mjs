@@ -87,6 +87,23 @@ for (const key of wildlifeNames) {
   assert.ok(capped < spots.length * 4, 'most spots are ordinary ground');
 }
 
+/* Animals dissolve in over a second instead of switching on where they are
+   placed, and their shadow pass reads the same arrival value. */
+{
+  const StubTHREE = { ...THREE, TextureLoader: class {
+    load() { return new THREE.Texture(); }
+  } };
+  const life = (await load('wildlife.js')).createWildlife(StubTHREE, { apply: (m) => m, uniforms: {} });
+  const rabbits = life.group.children[0];
+  const reveal = rabbits.geometry.attributes.aReveal;
+  assert.ok(reveal && rabbits.customDepthMaterial, 'hares carry an arrival value into both passes');
+  const rider = { pos: new THREE.Vector3(0, 0, -600), distance: 0, speed: 0, vel: new THREE.Vector3() };
+  life.update(1 / 60, rider, () => {}, () => {});
+  assert.ok(rabbits.count > 0 && reveal.array[0] < 0.1, 'a hare placed this frame has not yet arrived');
+  for (let i = 0; i < 80; i++) life.update(1 / 60, rider, () => {}, () => {});
+  assert.equal(reveal.array[0], 1, 'a hare is fully there after its arrival time');
+}
+
 /* One decode per photograph: the same URL hands every caller the same
    Texture, readiness callbacks fire once the image lands (and at once for a
    caller who arrives after), and a different loader class never shares. */

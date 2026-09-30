@@ -106,7 +106,16 @@ night-storm visibility, panorama skyline occlusion and photograph fallbacks.
 It also pins the sun's depth-map box half a box ahead of the rider along the
 camera heading (and dropped onto the slope it covers), and the glint grid's
 camera origin wrapped into its 64 m period on the CPU, so no shader forms a
-26 km coordinate. The canopy field (`canopy.js`) is checked too. A crown hides
+26 km coordinate. Nothing in the distance may change abruptly. A backdrop
+photograph hands over to the next over an eased 14 s crossfade. That fade is
+still gentle after its first second and still running at seven, and a new wish
+cannot restart it from a half-shown plate. Streamed props (trees, saplings,
+rocks, deadwood, gates) dissolve into the haze before the forest window's far
+edge. That edge is now 13 bands (520 m) out and moves with the rider
+continuously. Only props carry the fade term, and it reads the view direction
+after it is declared. The model check also covers wildlife arrival: a hare
+placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
+passes read the same value, so its shadow arrives with it. The canopy field (`canopy.js`) is checked too. A crown hides
 about half the sky at its trunk and nothing beyond its reach. A thicket is
 darker than one tree but never black, and a bare snag hides much less. It takes
 direct light only as the sun's shadows fade. The window stays on the world's

@@ -136,6 +136,23 @@ for (const fps of [30, 60, 144]) {
   close(shading.uniforms.uCamWrap.value.x, 51.75, 'camera x wraps into the glint period');
   close(shading.uniforms.uCamWrap.value.y, 16.5, 'camera z wraps into the glint period');
 
+  /* Streamed props dissolve into the backdrop before the window's far edge;
+     only materials that ask for it carry the term, it reads the view
+     direction after it is declared, and it has its own program key. */
+  const streamed = shading.apply(new THREE.MeshLambertMaterial(), { streamFade: true });
+  const plain = shading.apply(new THREE.MeshLambertMaterial());
+  const compiled = (material) => {
+    const shader = { ...THREE.ShaderLib.lambert, uniforms: {} };
+    material.onBeforeCompile(shader);
+    return shader.fragmentShader;
+  };
+  const streamedFrag = compiled(streamed);
+  assert.ok(streamedFrag.includes('uStreamEdge.x'), 'streamed props fade before the edge');
+  assert.ok(streamedFrag.indexOf('vec3 n64Dir') < streamedFrag.indexOf('n64StreamZ'),
+    'the stream fade reads the view direction after it is declared');
+  assert.ok(!compiled(plain).includes('n64StreamZ'), 'ground and figures do not fade at the edge');
+  assert.notEqual(streamed.customProgramCacheKey(), plain.customProgramCacheKey());
+
   /* The canopy field: deepest at a trunk, gone past the crown's reach, a
      thicket darker than one tree but never black, direct light taken only as
      the sun's shadows fade, and every texel a fact about the world — a
@@ -270,7 +287,20 @@ assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun above the ridge 
 const sunset = { ...daylight, tod: 0.66 };
 plateSky.update(skyPosition, sunset, 0.5);
 assert.equal(disc.material.uniforms.uOpacity.value, 0, 'an outgoing high ridge still hides the sun');
-for (let i = 0; i < 40; i++) plateSky.update(skyPosition, sunset, 1 / 6);
+/* The crossfade is eased over a fixed span: still under way at half of it,
+   no faster at its start than anywhere else, and a new wish cannot restart
+   it from a half-shown photograph. */
+const plateDome = plateSky.group.getObjectByName('sky-dome');
+const plateFade = () => plateDome.material.uniforms.uPanoFade.value;
+for (let i = 0; i < 6; i++) plateSky.update(skyPosition, sunset, 1 / 6);
+assert.ok(plateFade() < 0.2, `a plate swap does not rush its first second: ${plateFade()}`);
+for (let i = 0; i < 36; i++) plateSky.update(skyPosition, sunset, 1 / 6);
+const halfway = plateFade();
+assert.ok(halfway > 0.3 && halfway < 0.95, `a plate swap is still under way after seven seconds: ${halfway}`);
+plateSky.update(skyPosition, { ...daylight, tod: 0.45 }, 1 / 6);
+assert.ok(plateFade() >= halfway, 'a new wish does not restart a crossfade in flight');
+for (let i = 0; i < 60; i++) plateSky.update(skyPosition, sunset, 1 / 6);
+assert.equal(plateFade(), 1, 'the crossfade settles');
 assert.ok(disc.material.uniforms.uOpacity.value > 0.9, 'the sun clears the incoming lower ridge');
 for (const tod of [0, 0.09, 0.86, 0.95]) {
   const mode = modeWeather.check(tod, 0);
