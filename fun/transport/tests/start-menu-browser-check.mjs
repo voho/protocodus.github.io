@@ -18,7 +18,13 @@ try{
  const preload=await page.evaluate(()=>({head:[...document.head.querySelectorAll('link[rel=modulepreload]')].map(link=>link.getAttribute('href')),worker:performance.getEntriesByType('resource').some(e=>e.name.includes('world-worker')),transport:Boolean(window.transport)}));
  assert.deepEqual(preload,{head:APP_PRELOAD.map(path=>new URL(path,base).href),worker:false,transport:false});
  await page.locator('#start-load').click();assert.match(await page.locator('#start-saves').innerText(),/No saved worlds/);
- await page.locator('#start-new').click();await page.locator('input[name=biome][value=desert]').check();await page.locator('.start-advanced summary').click();await page.locator('[name=townCount]').fill('6');await page.locator('[name=industryDistricts]').fill('2');
+ await page.locator('#start-new').click();await page.locator('input[name=biome][value=desert]').check();
+ // A value out of range under a folded More options unfolds it and points at the field instead of blocking Create in silence.
+ await page.locator('.start-advanced summary').click();await page.locator('[name=townCount]').fill('500');await page.locator('.start-advanced summary').click();
+ await page.locator('#start-create').click();await page.waitForFunction(()=>document.querySelector('.start-advanced').open);
+ assert.equal(await page.evaluate(()=>document.activeElement?.name),'townCount','the browser points at the out-of-range field');
+ assert.ok(await page.locator('#start-menu').evaluate(el=>el.open)&&await page.locator('#loading-screen').evaluate(el=>!el.open),'no world is created');
+ await page.locator('[name=townCount]').fill('6');await page.locator('[name=industryDistricts]').fill('2');
  await page.locator('[name=seed]').fill('1847');await page.screenshot({path:`${out}/desktop-menu.png`});
  await page.locator('#start-create').click();await ready(page);
  const company=await page.evaluate(()=>({biome:transport.game.biome,towns:transport.game.cities.length,industries:transport.game.industries.length,options:transport.game.generationOptions,seed:transport.game.seed}));

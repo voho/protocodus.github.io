@@ -482,6 +482,7 @@ try {
   await namePage.locator('#route-search').fill('harbour');
   assert.equal(await namePage.locator('.route-card[data-route-id]').count(), 1, 'route search finds the renamed stop');
   await namePage.locator('#clear-route-filters').click();
+  assert.equal(await namePage.evaluate(() => document.activeElement?.id), 'route-search', 'Clear filters hides itself and hands focus to the search field');
   const starterName = await cardTitle.textContent();
   await namePage.mouse.move(0, 0);
   assert.equal(await nameCard.locator('.rename-button').evaluate(el => getComputedStyle(el).opacity), '0', 'the card pencil stays out of sight until pointed at');

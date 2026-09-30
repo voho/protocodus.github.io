@@ -37,6 +37,8 @@ export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
   options();form.elements.size.addEventListener('change',()=>options());
   for(const radio of form.querySelectorAll('[name=biome]'))radio.addEventListener('change',()=>options(false));
   form.elements.industryDistricts.addEventListener('input',()=>options(false));
+  // A value out of range under a folded More options unfolds it, so the browser can point at the field.
+  form.addEventListener('invalid',event=>event.target.closest('details')?.setAttribute('open',''),true);
   function finish(game){dialog.close();dialog.remove();resolve(game);}
   async function run(label,operation){
    if(busy)return;busy=true;message('');dialog.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);

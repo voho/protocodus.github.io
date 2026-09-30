@@ -9,7 +9,6 @@
 .tool-card svg{width:21px;height:21px;color:var(--ink-2);margin-bottom:12px;stroke-width:1.35}
 .tool-card .tool-title{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500}
 .tool-card .tool-cost{display:block;color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption);margin-top:4px}
-.tool-description{background:var(--well);color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption);margin-top:12px;padding:12px 12px;border-radius:var(--r-2);min-height:47px}
 .section-divider{height:1px;background:var(--rule);margin:20px 0}
 .tool-list{display:grid;gap:8px}
 .industry-tool:hover,.industry-tool.active{background:var(--well);border-color:var(--ink)}
@@ -29,7 +28,6 @@
  .tool-card svg{width:18px;height:18px;margin-bottom:8px}
  .tool-card .tool-title{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .tool-description{font-size:var(--fs-caption);line-height:var(--lh-caption);padding:8px}
 }
 .building-card{position:relative;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);text-align:left;padding:0 8px 12px;transition:background .15s,border .15s;min-height:133px;overflow:hidden}
 .building-card:hover{background:var(--well);border-color:var(--ink)}
@@ -50,7 +48,6 @@
 .tool-card .tool-title{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500}
 .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin-top:4px}
 .tool-card .shortcut{position:absolute;right:7px;top:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
-.tool-description{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);padding:12px;min-height:0}
 .compact-tool{display:flex;align-items:center;background:var(--well);border:1px solid var(--rule);border-radius:var(--r-2);flex:1;font-size:var(--fs-small);line-height:var(--lh-small);gap:8px;min-height:39px;padding:8px}
 .compact-tool>span{margin-left:auto;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .compact-tool svg{color:var(--ink-2);width:18px;height:18px}
@@ -78,7 +75,6 @@
  .tool-card{min-height:89px;padding:12px}
  .tool-card svg{width:24px;height:24px;margin-bottom:8px}
  .tool-card .tool-title{font-size:var(--fs-small);line-height:var(--lh-small)}
- .tool-description{font-size:var(--fs-small);line-height:var(--lh-small);padding:12px}
  .building-card{padding:0 8px 12px;min-height:146px}
  .building-card canvas{height:77px}
 }
