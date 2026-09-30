@@ -684,12 +684,15 @@ async function gestures(page, send, touch) {
   await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
   await pinch(await center('.sidebar'), 12, 140);
   assert.equal(await scale(), 1, 'a spread on the drawer never zooms the page');
+  // The Town category's building catalogue is taller than any phone, so the drawer has something to scroll.
+  await page.locator('#panel-content [data-category="towns"]').click();
   const panel = await page.locator('#panel-content').boundingBox(), swipeX = panel.x + panel.width / 2, swipeY = panel.y + panel.height - 30;
   await page.locator('#panel-content').evaluate(el => { el.scrollTop = 0; });
   await send('touchStart', [touch(1, swipeX, swipeY)]);
   for (let i = 1; i <= 8; i++) await send('touchMove', [touch(1, swipeX, swipeY - i * 30)]);
   await send('touchEnd', []);
   assert.ok(await page.locator('#panel-content').evaluate(el => el.scrollTop) > 0, 'one finger still scrolls the drawer');
+  await page.locator('#panel-content [data-category="network"]').click();
   await page.locator('#panel-content [data-tool="road"]').click(); await page.locator('#active-tool-bar').waitFor();
   await pinch(await center('#active-tool-bar'), 12, 140);
   assert.equal(await scale(), 1, 'a spread on the active tool bar never zooms the page');
@@ -726,7 +729,7 @@ try {
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
   assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'airport', 'bulldoze'], 'six primary network tools stay visible; engineering choices are expandable');
-  assert.match(await page.locator('.build-bottom-tools [data-tool="inspect"]').innerText(), /Explore/);
+  assert.equal(await page.locator('#panel-content [data-tool="inspect"]').count(), 0, 'no Explore box: Done and Esc end a tool (DESIGN.md 11.2)');
   await menus(page);
   const site = await fixture(page);
   for (const [mode, key, label, start] of [['road', 'r', /Road/, site.road], ['rail', 't', /Rail/, site.rail]]) {

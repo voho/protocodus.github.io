@@ -1,5 +1,6 @@
 /* Tokens (DESIGN.md 4), the font, element defaults, focus and reduced motion. Every other stylesheet reads its values from here; design-tokens.js carries the same values for the canvas. */
 @font-face{font-family:Space;src:url('/assets/fonts/space-grotesk-latin.woff2') format('woff2');font-style:normal;font-weight:300 700;font-display:swap}
+@font-face{font-family:Inter;src:url('/assets/fonts/inter-latin.woff2') format('woff2');font-style:normal;font-weight:100 900;font-display:swap}
 /* Surfaces and ink (4.1). */
 :root{--paper:#F7F6EF;--well:#EEEFE5;--rule:#DDE0D3;--edge:#7F8A80;--ink:#1E3228;--ink-2:#56665B;--ink-3:#8B958B;--on-ink:#F7F6EF;--on-ink-2:#B9C4B5;--signal:#E17B4A;--signal-ink:#A94B1A;--focus:#B5501F;--scrim:rgb(15 27 21 / .35)}
 /* States (4.2): the colour on paper, then on ink. */
@@ -12,8 +13,8 @@
 :root{--art-land:#B3B993;--art-land-deep:#7D966B;--art-land-side:#66795A;--art-rail-tie:#CFC4A3;--art-rail-bed:#718065;--art-glow:#78977333;--art-grid:#D0DFBA06;--art-track:#B6B49665;--art-shade:#263C3030;--art-train-shade:#071B2440;--art-rail:#C5C4A579;--art-steam:#E5E5D938;--art-smoke:#E5E5D926;--art-haze:#E5E5D910}
 /* The overview map's ground and legend swatches, matching the colours the canvas draws. */
 :root{--art-map-ground:#859672;--art-map-town:#CABB79;--art-map-industry:#C3915B;--art-map-source:#4E7747;--art-map-buyer:#3F7F88}
-/* Type (4.5): one family, seven sizes with their line heights, three weights (700 for numerals and the wordmark), two trackings. */
-:root{--font:Space,system-ui,sans-serif;--fs-caption:12px;--lh-caption:16px;--fs-small:13px;--lh-small:18px;--fs-body:14px;--lh-body:20px;--fs-lead:16px;--lh-lead:22px;--fs-title:18px;--lh-title:24px;--fs-display:22px;--lh-display:28px;--fs-hero:32px;--lh-hero:36px;--fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--tr-tight:-0.01em;--tr-hero:-0.02em}
+/* Type (4.5): Inter for every word and figure, Space Grotesk for the brand; seven sizes with their line heights, three weights (700 for numerals and the wordmark), two trackings. */
+:root{--font:Inter,system-ui,sans-serif;--font-brand:Space,system-ui,sans-serif;--fs-caption:12px;--lh-caption:16px;--fs-small:13px;--lh-small:18px;--fs-body:14px;--lh-body:20px;--fs-lead:16px;--lh-lead:22px;--fs-title:18px;--lh-title:24px;--fs-display:22px;--lh-display:28px;--fs-hero:32px;--lh-hero:36px;--fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--tr-tight:-0.01em;--tr-hero:-0.02em}
 /* Space and size (4.6). */
 :root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:32px;--control-dense:28px;--control-touch:44px;--rail-h:48px;--goal-h:40px;--tabbar-h:56px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px;--row-touch:48px}
 /* Radii (4.7), elevation and stacking (4.8), focus (4.9), motion (4.10). */
@@ -35,7 +36,9 @@
 @media(max-width:700px){
  :root{--sidebar-width:min(270px,calc(100vw - 48px))}
 }
-:root{color-scheme:light;font-family:var(--font);color:var(--ink);font-synthesis:none}
+:root{color-scheme:light;font-family:var(--font);color:var(--ink);font-synthesis:none;font-optical-sizing:auto;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+/* The brand keeps Space Grotesk: the wordmark and the hero titles of the start menu and loading screen. */
+.wordmark,.start-wordmark,.start-intro h1,.loading-brand,#loading-title{font-family:var(--font-brand)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);overflow:hidden;font-size:var(--fs-small);line-height:var(--lh-small)}
 html,body{width:100%;height:100%;overflow:clip;overscroll-behavior:none}

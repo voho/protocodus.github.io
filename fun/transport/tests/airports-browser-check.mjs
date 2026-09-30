@@ -151,9 +151,9 @@ try {
   // 7. Routes: Air joins the form, both airports picked by their signs, a straight flight.
   await chooseView(page, 'routes');
   await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
-  assert.ok((await page.locator('#route-form [name="mode"] option').allTextContents()).includes('Air, plane'));
+  assert.ok((await page.locator('#route-form [name="mode"] option').allTextContents()).includes('Air'));
   await page.locator('#route-form [name="mode"]').selectOption('air');
-  await page.waitForFunction(() => /Planes fly straight between two airports/.test(document.querySelector('#route-form').textContent));
+  await page.waitForFunction(() => /Planes fly straight between two airports/.test(document.querySelector('#route-form [name="mode"]').title));
   await page.locator('[data-pick-route="from"]').click();
   const road = await page.evaluate(() => { const g = transport.game; for (let y = 190; y < 230; y++) for (let x = 180; x < 230; x++) if (g.tiles[y * g.width + x].road) return { x, y }; return null; });
   const roadAt = await hoverTile(page, road); await page.mouse.click(roadAt.x, roadAt.y);

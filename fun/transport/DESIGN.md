@@ -16,7 +16,7 @@ The players know Transport Tycoon, OpenTTD, Mini Motorways and Cities, and they 
 
 Transport Tycoon touches appear only where they fit: numbered routes, a newspaper for big moments, company records. Towns are the second pillar and get the same visual rigour as routes.
 
-The brand is Protocodus: Space Grotesk, dark green ink, one orange accent (the orange t tile) and warm light paper.
+The brand is Protocodus: Space Grotesk for the wordmark, dark green ink, one orange accent (the orange t tile) and warm light paper. Everything the player reads is set in Inter.
 
 ## 2. Principles
 
@@ -59,7 +59,7 @@ Two of three judges chose quiet instrument as the base, and all three wanted par
 | Map labels | Keep the paper nameplate pills. Replace the lettered B/T stop sign with a roundel that carries route bullets. | Atlas's stroke-halo labels looked crude over roofs. The B sign collided with town names. |
 | Selection | Orange footprint outline on a paper casing, plus an ink name tag. | Quiet instrument's pale outline was too faint. Orange means here. |
 | Panel ↔ map | Linked state on every matching reference, a map highlight, and an edge pointer for off-screen targets. | Atlas's leader lines were restless and looked like rendering glitches. |
-| Type | Space Grotesk only. 14 px body. 12 px floor everywhere, canvas included. | Quiet instrument's 11 px floor was marginal on phones. |
+| Type | Inter for words and figures, Space Grotesk for the brand. 14 px body. 12 px floor everywhere, canvas included. | Quiet instrument's 11 px floor was marginal on phones. Space Grotesk's narrow counters and quirky figures read poorly at 12–13 px in ink-2, so text moved to Inter, which was drawn for small screen sizes. |
 | Speed | Text segments: pause, 1×, 3×, 8×. | Play-glyph variants were harder to read. |
 | Paused | Lit pause segment, "Paused" under the date, and a 2 px orange line along the top edge of the map. | A lit segment alone could read as an error. |
 | Goal | One line by default. The ladder opens on demand, on paper, with the current step's priced action. | The dark expanded ladder was a heavy slab. |
@@ -173,7 +173,12 @@ Money:
 
 ### 4.5 Type
 
-One family: Space Grotesk, loaded locally from `/assets/fonts/space-grotesk-latin.woff2` (variable, 300–700). It is registered as `Space`, with the fallback `system-ui, sans-serif`. Canvas labels use it too.
+Two families, both loaded locally and both variable:
+
+- **Inter** (`/assets/fonts/inter-latin.woff2`, 100–900, registered as `Inter`) sets every word and figure, on the canvas too. Its tall x-height and open shapes stay readable at the 12 px floor; `font-variant-numeric: tabular-nums` keeps figures aligned.
+- **Space Grotesk** (`/assets/fonts/space-grotesk-latin.woff2`, 300–700, registered as `Space`) is the brand: the wordmark and the start menu and loading screen hero titles, through `--font-brand`.
+
+Both fall back to `system-ui, sans-serif`.
 
 | Token | Size / line | Weight | Tracking | Use |
 |---|---|---|---|---|
@@ -307,7 +312,7 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
 
 | Group | Glyphs |
 |---|---|
-| Navigation | `build` (iso tile with a plus), `routes` (two roundels joined by a stepped line), `town` (two gables), `industry` (sawtooth roof), `news` (folded paper), `menu`, `guide` (open book), `chains` (two boxes feeding one), `overview` (folded map), `layers` (stacked iso tiles), `company` (ledger), `achievements` (medal roundel), `saved` (disk), `world` (globe, for New world), `sound`, `soundOff`, `search` |
+| Navigation | `build` (iso tile with a plus), `routes` (two roundels joined by a stepped line), `town` (two gables), `industry` (sawtooth roof), `news` (folded paper), `menu`, `guide` (open book), `chains` (two boxes feeding one), `overview` (folded map), `layers` (stacked iso tiles), `company` (ledger), `achievements` (medal roundel), `saved` (disk), `world` (globe, for New world), `sound`, `soundOff`, `search`, `keyboard` (Keyboard shortcuts) |
 | Actions | `close`, `plus`, `minus`, `locate` (roundel with four ticks, used by every Show on map), `chevronRight` (opens something deeper), `chevronLeft` (Back), `chevronDown`, `chevronUp`, `more`, `edit`, `retire`, `undo`, `swap`, `check`, `pause`, `play` |
 | States | `ok`, `warn`, `error`, `broken` (a line cut by two slashes, identical to the strip cut), `info`, `lock`, `clock`, `trendUp`, `trendDown` |
 | Modes and things | `bus`, `truck`, `train`, `ship`, `plane`, `stop` (roundel on a post), `flag` (goals), `stock` (crates), `coin` (income), `house`, `shop`, `workshop`, `tree`, `leaf`, `label` |
@@ -805,7 +810,7 @@ Working state (wide):
 - The Fleet upgrades box. It becomes a line in the route row, and a News entry.
 - Three filter selects, "Clear filters" and "n of n routes".
 - The Explore / Done box in Build.
-- Keyboard letters on cards. They move into tooltips.
+- Keyboard letters on cards stay, as a small corner hint on desktop (hidden on touch), and every card's tooltip names its key too: players asked for convenient shortcuts, and the corner letter is where they learn them. Rails and menu rows carry theirs in tooltips and `.kbd` hints; the whole set lives on the Keyboard shortcuts sheet (12.11).
 - The terrain tip paragraph.
 - Coordinates, "Activity", "Coverage 5 tiles", the numbered target list and the minimap by default.
 - About 196 dead selectors.
@@ -980,10 +985,13 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Menu:** paper, `--e2`, `--r-4`, 280 px wide.
   - Header line: weather and "Saved 2 min ago" in 13 ink-2.
   - Rows: icon 20, label 14/500, and a shortcut hint in 12 ink-2 on the right (`.kbd`). Rows are 40 px tall, 44 on touch.
-  - Order: Company, Production chains (C), Guide (?), Achievements, Saved games (Ctrl+S), Sound, a rule, New world.
+  - Order, in four groups split by rules: Company (Shift+C), Company goals (Shift+G), Achievements, News (Shift+N); Production chains (C), Map layers (L), Mini map, Map options; Sound effects, Guide, Keyboard shortcuts (?); Saved games (Ctrl+S), New world, Main menu. Keys are hidden on touch.
+  - The footer keeps the save status only; coordinates stay out of sight (6.1 rule 11).
 - **Popover** (layers, zoom menu, overview): paper, `--e2`, anchored to its button, closed by Esc and by clicking outside.
 
 ### 12.11 Dialogs
+
+- **Keyboard shortcuts** (?): four groups (Time, Map, Build, Panels), each a list of `kbd` keys and a 13 ink-2 action, two columns wide and one on phones, with "Open the guide" at its foot. A letter picks a tool; Shift with a letter opens a panel; comma and full stop step the speed; F shows the selection or follows a vehicle.
 
 - **Surface:** native `<dialog>`, paper, `--r-4`, `--e4` over `--scrim`.
 - **Size:** maximum width 720 (Production chains and Company 960), padding 24.
@@ -1065,6 +1073,8 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - The loading screen shows "Step 1 of 3" and the train loop (paused under reduced motion). Errors offer "Try again".
 
 ## 13. Phones and small screens
+
+At 700 px or narrower the weather word under the date goes, and "Paused" gives way to the attention count when routes need attention; the lit pause segment and the orange line still say it.
 
 - **Top bar** (700 px or narrower): docked, 52 px plus `safe-area-inset-top`, paper, with a `--rule` bottom hairline. Contents:
   - the t tile;

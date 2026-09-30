@@ -49,8 +49,9 @@ try {
 
   // Picking still resolves the unmoved sign beneath the raised label.
   const [from, to] = await page.evaluate(() => { transport.renderer.setZoom(.5); transport.setView('routes'); return transport.game.stations.filter(station => station.mode === 'road').slice(0, 2); });
-  await page.waitForFunction(() => document.querySelector('.management-drawer-heading')?.innerText);
-  assert.equal(await page.locator('.management-drawer-heading').innerText(), 'Management', 'the drawer heading uses sentence case');
+  await page.locator('#close-management').waitFor({ state: 'visible' });
+  assert.equal((await page.locator('.management-drawer-heading').innerText()).trim(), '', 'no eyebrow over the drawer: its view heading names it');
+  assert.equal(await page.locator('.panel-heading h2').first().innerText(), 'Routes', 'the drawer heading uses sentence case');
   await page.locator('#route-form [name="mode"]').selectOption('road');
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
