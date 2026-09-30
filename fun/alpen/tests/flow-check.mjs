@@ -1,7 +1,7 @@
 // Run with: node tests/flow-check.mjs
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
-import { Rider, trickName, CLEAN, BAIL } from '../js/rider.js';
+import { Rider, trickName, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
 import { RIDER, SCORE, PROPS, TERRAIN } from '../js/config.js';
 import {
   heightAt, getTerrainMaterialAt, nearestCenter, corridorHalfAt, beyondLipAt,
@@ -9,7 +9,7 @@ import {
 } from '../js/terrain.js';
 import { setWorldSeed } from '../js/noise.js';
 import {
-  comboFor, feedFlow, flowFromPoints, stepFlowMeter,
+  comboFor, feedFlow, flowFromPoints, stepFlowMeter, scoreTrick, repeatShare,
 } from '../js/flow.js';
 
 const dt = 1 / 120;
@@ -19,6 +19,33 @@ assert.equal(comboFor(0), 1);
 assert.equal(comboFor(0.989), SCORE.comboMax - 1);
 assert.equal(comboFor(0.99), SCORE.comboMax, 'a meter called full pays the top step');
 assert.equal(comboFor(1), SCORE.comboMax);
+
+// What a landed trick pays before the multiplier, and the factors the
+// banner names: the take-off stance is the switch one (see rider.js).
+{
+  const base = {
+    verdict: CLEAN, halfTurns: 1, flipTurns: 0, spin: 3, flips: 0, grabTime: 0,
+    grabKind: 0, airTime: 1, switchStance: false, takeoffSpeed: 18, lipPop: false,
+  };
+  const plain = scoreTrick(base);
+  assert.equal(plain.points, 180 * SCORE.perDegree + SCORE.airPerSecond);
+  assert.deepEqual(plain.factors, []);
+  const sw = scoreTrick({ ...base, switchStance: true });
+  assert.equal(sw.points, plain.points * SCORE.switchBonus, 'a switch take-off pays the switch bonus');
+  assert.deepEqual(sw.factors, ['Switch']);
+  const hot = scoreTrick({ ...base, lipPop: true, takeoffSpeed: SCORE.speedBonusFull });
+  assert.deepEqual(hot.factors, ['Fast', 'Lip']);
+  assert.ok(Math.abs(hot.points - plain.points * (1 + SCORE.speedBonus) * SCORE.lipBonus) < 1e-9);
+  const cork = scoreTrick({ ...base, halfTurns: 4, flipTurns: 1, flips: -6.3 });
+  assert.deepEqual(cork.factors, ['Off-axis']);
+  assert.equal(scoreTrick({ ...base, verdict: SKETCHY }).points, plain.points * 0.5);
+  // The third identical trick in five pays less; variety resets nothing
+  // but the window does.
+  const recent = [];
+  assert.deepEqual(['A', 'A', 'B', 'A', 'C', 'D', 'A'].map((k) => repeatShare(recent, k)),
+    [1, 1, 1, SCORE.repeatShare, 1, 1, 1]);
+  assert.equal(recent.length, SCORE.repeatWindow - 1);
+}
 
 // Awards cap at a full bar; a gate pays without holding the meter.
 {
@@ -88,9 +115,9 @@ function ride(seed, seconds, tricks) {
   rider.on('launch', () => launches++);
   rider.on('land', (s) => {
     if (!s.judged || s.verdict === BAIL) return;
-    const reach = (RIDER.grabs[s.grabKind] || RIDER.grabs[0]).reach;
-    const pts = s.halfTurns * 180 * SCORE.perDegree + s.flipTurns * SCORE.perFlip
-      + s.grabTime * SCORE.grabPerSecond * reach + s.airTime * SCORE.airPerSecond;
+    // The real payout rule main.js uses, cork, switch, speed and lip terms
+    // and all — this check used to carry a copy of the sum without them.
+    const pts = scoreTrick(s).points;
     if (!trickName(s, s.verdict) || pts < SCORE.minTrickScore) return;
     landed += 1;
     feedFlow(game, flowFromPoints(pts) * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy));

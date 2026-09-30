@@ -1900,6 +1900,12 @@ export const SCORE = {
   speedBonusFull: 45,
   speedBonus: 0.5,
   lipBonus: 1.25,
+  /* The third identical trick inside the last five landings pays 0.6 of
+     its points (see `repeatShare` in flow.js). Points only; flow is fed the
+     full figure. */
+  repeatWindow: 5,
+  repeatAt: 3,
+  repeatShare: 0.6,
   // Scales the three one-shot milestone awards (100 km/h, 1,000 m, 5,000 m)
   // in main.js — the only thing it still does. The old "multiplier per clean
   // landing" mechanism it once named is gone: the combo is derived from the

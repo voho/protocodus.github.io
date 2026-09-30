@@ -50,6 +50,12 @@ either side of the racing line on every guide slot): steering the line alone
 must stay a low multiplier and never fill the bar, while a rider landing a
 trick every few seconds must still reach it within a minute. It also pins the
 hold, fade and tuck-spend rules in `flow.js`.
+The trick payout itself now lives in `flow.js` (`scoreTrick`) and both
+`main.js` and this check use it: the switch bonus follows the take-off
+stance, and the factors it names for the banner's kicker (Off-axis, Switch,
+Fast, Lip) are checked against the multipliers they stand for. The third
+identical trick inside five landings pays `SCORE.repeatShare` of its points
+(`repeatShare`); flow is still fed the full figure.
 It also checks the side hits `terrain.js` plants beside the ribbon: about ten
 per four kilometres on every seed, each off the corduroy and inside the
 corridor, a pure function of the seed, and — compared exactly against the

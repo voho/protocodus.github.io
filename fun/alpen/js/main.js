@@ -23,7 +23,7 @@ import * as THREE from 'three';
 import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
-  getTerrainMaterialAt, guideAt,
+  getTerrainMaterialAt, guideAt, chapterNameAt,
 } from './terrain.js';
 import { createProps, HARD, SOFT } from './props.js';
 import { createCanopy } from './canopy.js';
@@ -47,7 +47,7 @@ import { createInput } from './input.js';
 import { createAudio } from './audio.js';
 import { createHud } from './hud.js';
 import {
-  comboFor, feedFlow, flowFromPoints, stepFlowMeter,
+  comboFor, feedFlow, flowFromPoints, stepFlowMeter, scoreTrick, repeatShare,
 } from './flow.js';
 import {
   randomWorldSeed, setWorldSeed, worldSeedCode,
@@ -420,6 +420,8 @@ const game = {
   maxSpeedAnnounced: 0,
   manualWeather: 0,
   pisteOffset: 0,
+  recentTricks: [],      // the previous landings' names — see `repeatShare`
+  chapter: '',           // the stretch of range the run is in, once announced
 };
 bootGameRef = game;
 
@@ -440,6 +442,7 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 const demo = { t: 0, turn: 0, stall: 0 };
 let sparkCarry = 0;   // fractional overdrive sparks owed — see the emit below
 let chatterBuzz = 0;  // seconds until the next ice-chatter pulse on the pad
+let chapterCheck = 0; // seconds until the chapter is next looked up
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
@@ -569,6 +572,10 @@ function restart(fullReset = false) {
   game.maxDistanceAnnounced = resumeDist >= 5000 ? 5000
     : resumeDist >= 1000 ? 1000 : 0;
   game.maxSpeedAnnounced = 0;
+  game.recentTricks.length = 0;
+  // Where the run resumes is not news; only crossing into the next one is.
+  game.chapter = chapterNameAt(rider.pos.z);
+  chapterCheck = 0;
   chase.reset();
   spray.clear();
   trail.clear();
@@ -736,44 +743,35 @@ function award(points, name, tone, opts = null) {
 function scoreLanding(s) {
   if (!s.judged || s.verdict === BAIL) return;
   // The same numbers the banner shows, so a landed 540 is always paid as a
-  // 540 — the label and the score used to round in different directions
-  const deg = s.halfTurns * 180;
-  const flips = s.flipTurns;
-  // A grab pays for how far out of shape you had to get to hold it, which is
-  // the `reach` beside its name in the config and nothing else.
-  const reach = (RIDER.grabs[s.grabKind] || RIDER.grabs[0]).reach;
-  let pts = deg * SCORE.perDegree
-    + flips * SCORE.perFlip
-    + s.grabTime * SCORE.grabPerSecond * reach
-    + s.airTime * SCORE.airPerSecond;
-  /* And taking the whole thing off its axis is worth more than the two
-     rotations were worth separately, because it is one trick and a harder
-     one: the horizon leaves the frame and the landing has to be found
-     without it. Multiplied, so it scales with whatever was attempted —
-     the same reason `switchBonus` is. */
-  if (flips >= 1 && deg >= 360) pts *= 1 + SCORE.corkBonus;
-  if (s.switchStance) pts *= SCORE.switchBonus;
-  const fast = Math.max(0, Math.min(1,
-    (s.takeoffSpeed - SCORE.speedBonusFrom) / (SCORE.speedBonusFull - SCORE.speedBonusFrom)));
-  pts *= 1 + fast * SCORE.speedBonus;
-  if (s.lipPop) pts *= SCORE.lipBonus;
-  if (s.verdict === SKETCHY) pts *= 0.5;
-
+  // 540 — the label and the score used to round in different directions.
+  // The sum itself, and the factors that shaped it, are `scoreTrick`'s.
+  const trick = scoreTrick(s);
   const name = trickName(s, s.verdict);
-  if (!name || pts < SCORE.minTrickScore) return;
+  if (!name || trick.points < SCORE.minTrickScore) return;
 
-  const earned = pts;   // before the multiplier: the meter pays for the trick
-  pts *= game.combo;
-  const callout = s.lipPop && s.verdict === CLEAN ? `PERFECT POP · ${name}` : name;
-  // A sketchy landing says what made it sketchy — see `reason` in `land`.
-  award(pts, callout, s.verdict === SKETCHY ? 'warn' : '',
-    s.reason ? { kicker: s.reason } : null);
+  const earned = trick.points;   // before the multiplier: the meter pays for the trick
+  // The same move a third time in five pays less (see `repeatShare`). Its
+  // identity is its clean name — SWITCH, the grab and all.
+  const repeat = repeatShare(game.recentTricks, trickName(s, CLEAN));
+  const pts = earned * repeat * game.combo;
+  /* The kicker says why the number is what it is: what went wrong first,
+     if anything, then the multiplier and every factor that paid. "×7 · LIP
+     · FAST · SWITCH" is the scoring rules taught one landing at a time;
+     the old banner's "PERFECT POP · " prefix is now the LIP factor, and the
+     pop itself was announced as it happened. */
+  const kicker = [
+    s.reason,
+    game.combo > 1 ? `×${game.combo}` : '',
+    ...trick.factors,
+    repeat < 1 ? `Repeat ×${repeat}` : '',
+  ].filter(Boolean).join(' · ');
+  award(pts, name, s.verdict === SKETCHY ? 'warn' : '', kicker ? { kicker } : null);
   /* The trick is what fills the meter now, and it fills it by how good the
      trick was rather than by the fact that one happened. A tidy 180 nudges
      it; a switch cork 900 held to the snow is most of a bar. The multiplier
      is deliberately NOT in that number — paying flow on the already-
      multiplied score would compound, and a meter that fills faster the
-     fuller it is has no middle. */
+     fuller it is has no middle. Nor is the repeat share: see `repeatShare`. */
   feedFlow(game, flowFromPoints(earned)
     * (s.verdict === CLEAN ? 1 : SCORE.flowSketchy));
   syncCombo();
@@ -1478,6 +1476,23 @@ function frame(now) {
         input.rumble(0.5, 0.2, 220);
       }
       
+      /* THE CHAPTER, announced. The range changes character every couple
+         of kilometres — glacier shelf, walled couloir, forest vale, powder
+         bowls, wind crest (see `CHAPTERS` in terrain.js) — and the only
+         place that was ever written down was the debugger. A quiet banner
+         at the crossing, which is the blend's midpoint where the name
+         flips, says what kind of mountain the next stretch is. Looked up
+         twice a second: it changes once in a couple of minutes. */
+      chapterCheck -= dt;
+      if (chapterCheck <= 0) {
+        chapterCheck = 0.5;
+        const chapter = chapterNameAt(rider.pos.z);
+        if (chapter !== game.chapter) {
+          game.chapter = chapter;
+          hud.banner(chapter.toUpperCase(), 0, '', { kicker: 'Entering', hold: 2.4 });
+        }
+      }
+
       const dist = Math.floor(-rider.pos.z);
       if (dist >= 1000 && game.maxDistanceAnnounced < 1000) {
         game.maxDistanceAnnounced = 1000;
