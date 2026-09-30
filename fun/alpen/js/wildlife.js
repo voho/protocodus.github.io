@@ -69,19 +69,29 @@ const spread = () => Math.random() + Math.random() - 1;
    where hooves are anyway. Pitch is taken whole — along the body the legs
    cannot hide the difference, and a deer facing uphill does stand nose-up.
 
+   And both stop somewhere. The pack is spawned off the piste, which on
+   this mountain can be the boundary's quarterpipe wall, and a wolf rolled
+   three quarters of the way onto a sixty-degree wall is a wolf clinging to
+   it like a gecko — measured in the first capture of this, and worse than
+   the buried legs it replaced. No animal carries its spine steeper than
+   this across a slope or along one; past it the snow takes the legs, as
+   it would.
+
    `half` and `side` are half the spacing of the feet along and across the
    body, already multiplied by the animal's scale. Four height samples an
    animal, for a handful of animals, once a frame. */
 const SLOPE_ROLL = 0.75;
+const SLOPE_PITCH_MAX = 0.5;
+const SLOPE_ROLL_MAX = 0.4;
 const slopeUnder = (x, z, yaw, half, side, out) => {
   const fx = Math.sin(yaw);
   const fz = Math.cos(yaw);
-  out.pitch = Math.atan2(
+  out.pitch = clamp(Math.atan2(
     heightAt(x + fx * half, z + fz * half) - heightAt(x - fx * half, z - fz * half), 2 * half,
-  );
-  out.roll = SLOPE_ROLL * Math.atan2(
+  ), -SLOPE_PITCH_MAX, SLOPE_PITCH_MAX);
+  out.roll = clamp(SLOPE_ROLL * Math.atan2(
     heightAt(x - fz * side, z + fx * side) - heightAt(x + fz * side, z - fx * side), 2 * side,
-  );
+  ), -SLOPE_ROLL_MAX, SLOPE_ROLL_MAX);
   return out;
 };
 const slope = { pitch: 0, roll: 0 };

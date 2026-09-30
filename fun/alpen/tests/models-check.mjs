@@ -37,7 +37,8 @@ function valid(name, geo) {
 }
 
 const wildlifeNames = ['rabbitGeometry', 'deerBodyGeometry', 'deerHeadGeometry', 'wolfGeometry'];
-const wildlife = await load('wildlife.js', [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL']);
+const wildlife = await load('wildlife.js',
+  [...wildlifeNames, 'slopeUnder', 'SLOPE_ROLL', 'SLOPE_PITCH_MAX', 'SLOPE_ROLL_MAX']);
 const triangleBudgets = [4500, 2000, 1200, 3200];
 for (const key of wildlifeNames) {
   const triangles = valid(key, wildlife[key](THREE, true));
@@ -47,15 +48,29 @@ for (const key of wildlifeNames) {
 /* Deer and wolves stand on the slope under them. Composed the way the herd
    and the pack are drawn — pitch and roll about the animal's own axes after
    its yaw — the fore and hind feet land on the real terrain, and the left
-   and right ones on the share of the cross slope the roll is allowed. */
+   and right ones on the share of the cross slope the roll is allowed; on
+   ground steeper than an animal carries its spine (the boundary wall) the
+   tilt stops at its cap instead of pinning the animal to the wall. */
 {
   const { heightAt } = await import(new URL('js/terrain.js', base).href);
   const out = { pitch: 0, roll: 0 };
   let tilted = 0;
-  for (const [x, z] of [[0, -400], [38, -1250], [-52, -2600], [12, -5100]]) {
+  let capped = 0;
+  const spots = [[0, -400], [38, -1250], [-52, -2600], [12, -5100], [140, -2600], [-160, -900]];
+  for (const [x, z] of spots) {
     for (const yaw of [0.2, 1.4, -1.7, 3.0]) {
       wildlife.slopeUnder(x, z, yaw, 0.37, 0.20, out);
+      assert.ok(Math.abs(out.pitch) <= wildlife.SLOPE_PITCH_MAX && Math.abs(out.roll) <= wildlife.SLOPE_ROLL_MAX,
+        'the tilt is capped');
       if (Math.abs(out.pitch) + Math.abs(out.roll) > 0.05) tilted++;
+      const fx = Math.sin(yaw);
+      const fz = Math.cos(yaw);
+      const rawPitch = Math.atan2(heightAt(x + fx * 0.37, z + fz * 0.37) - heightAt(x - fx * 0.37, z - fz * 0.37), 0.74);
+      const rawRoll = Math.atan2(heightAt(x - fz * 0.2, z + fx * 0.2) - heightAt(x + fz * 0.2, z - fx * 0.2), 0.4);
+      if (Math.abs(rawPitch) > wildlife.SLOPE_PITCH_MAX || Math.abs(rawRoll * wildlife.SLOPE_ROLL) > wildlife.SLOPE_ROLL_MAX) {
+        capped++;
+        continue;
+      }
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(out.pitch, yaw + Math.PI, out.roll, 'YXZ'));
       const y0 = heightAt(x, z);
       const foot = (px, pz) => {
@@ -64,11 +79,12 @@ for (const key of wildlifeNames) {
       };
       assert.ok(Math.abs(foot(0, -0.37)) < 0.01 && Math.abs(foot(0, 0.37)) < 0.01, 'fore and hind feet on the snow');
       const cross = Math.abs(foot(0.2, 0)) + Math.abs(foot(-0.2, 0));
-      const level = 2 * 0.2 * Math.abs(Math.tan(out.roll / wildlife.SLOPE_ROLL));
+      const level = 2 * 0.2 * Math.abs(Math.tan(rawRoll));
       assert.ok(cross <= (1 - wildlife.SLOPE_ROLL) * level + 0.01, 'the cross slope is mostly taken up');
     }
   }
   assert.ok(tilted > 8, 'the mountain actually tilts them');
+  assert.ok(capped < spots.length * 4, 'most spots are ordinary ground');
 }
 
 /* One decode per photograph: the same URL hands every caller the same
