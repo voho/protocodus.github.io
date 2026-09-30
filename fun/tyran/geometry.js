@@ -20,10 +20,19 @@ export function parseColor(value) {
   if(colors.size>=MAX_COLORS)colors.delete(colors.keys().next().value);
   colors.set(value,result);return result;
 }
-const paint=value=>value?.gradient?value:{color:parseColor(value)};
+const paints=new Map();
+function paint(value){
+  if(value?.gradient)return value;
+  let cached=paints.get(value);
+  if(cached)return cached;
+  cached={color:parseColor(value)};
+  if(paints.size>=MAX_COLORS)paints.delete(paints.keys().next().value);
+  if(typeof value==='string')paints.set(value,cached);
+  return cached;
+}
 const area=points=>{let sum=0,n=points.length;for(let i=0,j=n-2;i<n;j=i,i+=2)sum+=points[j]*points[i+1]-points[i]*points[j+1];return sum*.5;};
 function point(points,x,y,m){points.push(m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]);}
-function data(ctx){return ctx._geometry ||= {paths:[],pool:[],current:null,vertices:[],local:[],indices:[],outline:[],left:[],right:[],run:[],contours:[[],[],[],[]]};}
+function data(ctx){return ctx._geometry ||= {paths:[],pool:[],current:null,vertices:[],local:[],indices:[],outline:[],left:[],right:[],run:[],rect:[],contours:[[],[],[],[]],xs:[0,0,0,0],ys:[0,0,0,0],xc:[0,0,0,0],yc:[0,0,0,0]};}
 function newPath(ctx,x,y){const g=data(ctx),path=g.pool.pop()||{points:[],closed:false};path.points.length=0;path.closed=false;path.ellipse=null;path.points.push(x,y);g.paths.push(path);g.current=path;return path;}
 function append(ctx,x,y){const g=data(ctx);if(!g.current)return newPath(ctx,x,y);materialize(g.current);const p=g.current.points,n=p.length;if(n<2||Math.abs(p[n-2]-x)>EPS||Math.abs(p[n-1]-y)>EPS)p.push(x,y);return g.current;}
 const ellipseUnits=new Map();
@@ -153,6 +162,20 @@ function strokeSides(p,closed,width,s,scale){
 }
 function emitStroke(ctx,points,closed,style){
   const s=ctx._state,m=s.matrix,g=data(ctx),p=clean(points);if(p.length<4||!(s.lineWidth>0))return;
+  if(p.length===4&&!closed&&s.lineCap!=='round'){
+    // A single segment (weather streaks, dashes, beams) is one rectangle. This
+    // produces exactly the corners of the general path without its per-side
+    // arrays, spread copies and join tests.
+    const dx=p[2]-p[0],dy=p[3]-p[1],length=Math.hypot(dx,dy);if(length<EPS)return;
+    const ux=dx/length,uy=dy/length,half=s.lineWidth/2,nx=-uy*half,ny=ux*half;
+    const ex=s.lineCap==='square'?ux*half:0,ey=s.lineCap==='square'?uy*half:0;
+    const q=g.rect;q.length=0;
+    point(q,p[0]-ex+nx,p[1]-ey+ny,m);point(q,p[2]+ex+nx,p[3]+ey+ny,m);point(q,p[2]+ex-nx,p[3]+ey-ny,m);point(q,p[0]-ex-nx,p[1]-ey-ny,m);
+    emitShadow(ctx,q,style);
+    const physicalLength=Math.hypot(m[0]*dx+m[2]*dy,m[1]*dx+m[3]*dy);
+    emitFilled(ctx,q,style,physicalLength>EPS?s.lineWidth*Math.abs(m[0]*m[3]-m[1]*m[2])*length/physicalLength:null);
+    return;
+  }
   const scale=Math.max(Math.hypot(m[0],m[1]),Math.hypot(m[2],m[3]));
   const {left,right}=strokeSides(p,closed,s.lineWidth,s,scale),half=s.lineWidth/2,n=p.length;
   if(closed&&left.length===right.length){
@@ -217,15 +240,17 @@ export function installGeometry(GPUCanvas2D){
   proto.closePath=function(){const p=data(this).current;if(p)p.closed=true;};
   proto.rect=function(x,y,w,h){this.moveTo(x,y);this.lineTo(x+w,y);this.lineTo(x+w,y+h);this.lineTo(x,y+h);this.closePath();};
   proto.fillRect=function(x,y,w,h){
-    if(![x,y,w,h].every(Number.isFinite)||!w||!h)return;
-    const s=this._state,m=s.matrix,style=paint(s.fillStyle),p=[];
+    if(!(Number.isFinite(x)&&Number.isFinite(y)&&Number.isFinite(w)&&Number.isFinite(h))||!w||!h)return;
+    const s=this._state,m=s.matrix,style=paint(s.fillStyle),g=data(this),p=g.rect;p.length=0;
     point(p,x,y,m);point(p,x+w,y,m);point(p,x+w,y+h,m);point(p,x,y+h,m);
     emitShadow(this,p,style);
     if(Math.abs(m[1])+Math.abs(m[2])>EPS){emitFilled(this,p,style);return;}
     const left=Math.min(p[0],p[4]),right=Math.max(p[0],p[4]),top=Math.min(p[1],p[5]),bottom=Math.max(p[1],p[5]);
-    const width=right-left,height=bottom-top,xs=width<1?[left-.5,right-.5,left+.5,right+.5]:[left-.5,left+.5,right-.5,right+.5];
-    const ys=height<1?[top-.5,bottom-.5,top+.5,bottom+.5]:[top-.5,top+.5,bottom-.5,bottom+.5];
-    const xc=[0,Math.min(1,width),Math.min(1,width),0],yc=[0,Math.min(1,height),Math.min(1,height),0],v=data(this).vertices;v.length=0;
+    const width=right-left,height=bottom-top,xs=g.xs,ys=g.ys,xc=g.xc,yc=g.yc;
+    if(width<1){xs[0]=left-.5;xs[1]=right-.5;xs[2]=left+.5;xs[3]=right+.5;}else{xs[0]=left-.5;xs[1]=left+.5;xs[2]=right-.5;xs[3]=right+.5;}
+    if(height<1){ys[0]=top-.5;ys[1]=bottom-.5;ys[2]=top+.5;ys[3]=bottom+.5;}else{ys[0]=top-.5;ys[1]=top+.5;ys[2]=bottom-.5;ys[3]=bottom+.5;}
+    const cw=Math.min(1,width),ch=Math.min(1,height);xc[0]=0;xc[1]=cw;xc[2]=cw;xc[3]=0;yc[0]=0;yc[1]=ch;yc[2]=ch;yc[3]=0;
+    const v=g.vertices;v.length=0;
     for(let row=0;row<3;row++)for(let col=0;col<3;col++){
       const a=xc[col]*yc[row],b=xc[col+1]*yc[row],c=xc[col]*yc[row+1],d=xc[col+1]*yc[row+1];
       triangle(v,xs[col],ys[row],a,xs[col+1],ys[row],b,xs[col],ys[row+1],c);

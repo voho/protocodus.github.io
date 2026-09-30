@@ -48,7 +48,7 @@ function halo(color) {
 export class StructureEffects {
   constructor(index,palette,accent='#b7ffcc') {
     this.index=index;this.palette=palette;this.accent=accent;
-    this.foundations=new Map();this.fixtures=new Map();this.fixtureBounds=new Map();
+    this.foundations=new Map();this.fixtures=new Map();this.fixtureBounds=new Map();this.fixtureGlows=new Map();this.glowBounds=new Map();
     this.light=halo(accent);this.heat=halo('#ff8339');
     this.fire=this.makeFire();this.smoke=this.makeSmoke();
   }
@@ -144,6 +144,24 @@ export class StructureEffects {
     this.fixtureBounds.set(type,{x,y,width:Math.min(DETAIL_SIZE,Math.ceil(right+120)+2)-x,height:Math.min(DETAIL_SIZE,Math.ceil(bottom+120)+2)-y});
     this.fixtures.set(type,out);return out;
   }
+  /** Fixtures with their point halos baked at the same ratio the high-quality
+   * pass used to draw them (.16 against .8): one image per structure per frame. */
+  getFixtureGlow(type) {
+    const fixture=this.getFixtures(type);if(!fixture)return null;
+    if(this.fixtureGlows.has(type))return this.fixtureGlows.get(type);
+    const out=canvas(DETAIL_SIZE,DETAIL_SIZE),c=out.getContext('2d'),source=this.fixtureBounds.get(type);
+    let left=source.x,top=source.y,right=source.x+source.width,bottom=source.y+source.height;
+    c.globalAlpha=.2;
+    for(const [x,y]of FIXTURES[type]){
+      // The halo radius is .18 of the footprint, i.e. 18 px in this 100-unit sprite.
+      const r=18,cx=120+x,cy=120+y;c.drawImage(this.light,cx-r,cy-r,r*2,r*2);
+      left=Math.min(left,cx-r);top=Math.min(top,cy-r);right=Math.max(right,cx+r);bottom=Math.max(bottom,cy+r);
+    }
+    c.globalAlpha=1;c.drawImage(fixture,0,0);
+    const x=Math.max(0,Math.floor(left)-2),y=Math.max(0,Math.floor(top)-2);
+    this.glowBounds.set(type,{x,y,width:Math.min(DETAIL_SIZE,Math.ceil(right)+2)-x,height:Math.min(DETAIL_SIZE,Math.ceil(bottom)+2)-y});
+    this.fixtureGlows.set(type,out);return out;
+  }
   makeFire() {
     const out=canvas(FIRE_W*FIRE_FRAMES,FIRE_H),c=out.getContext('2d'),pixels=c.createImageData(out.width,out.height);
     const clamp=value=>Math.max(0,Math.min(1,value));
@@ -195,20 +213,12 @@ export class StructureEffects {
     // These overlays change only opacity and, for embers, fill color. Keeping
     // those values avoids a full Canvas state-stack copy for every structure.
     const alpha=c.globalAlpha;
-    const fixtures=this.getFixtures(prop.type);
+    const fixtures=low?this.getFixtures(prop.type):this.getFixtureGlow(prop.type);
     if(fixtures) {
-      const pulse=.9+Math.sin(clock*1.4+phase)*.1,bounds=this.fixtureBounds.get(prop.type),scale=s*.01;
+      const pulse=.9+Math.sin(clock*1.4+phase)*.1,bounds=(low?this.fixtureBounds:this.glowBounds).get(prop.type),scale=s*.01;
       c.globalAlpha=power*pulse*.8;
       c.drawImage(fixtures,bounds.x,bounds.y,bounds.width,bounds.height,
         x+(bounds.x-120)*scale,y+(bounds.y-120)*scale,bounds.width*scale,bounds.height*scale);
-      if(!low) {
-        const r=s*.18;
-        c.globalAlpha=power*pulse*.16;
-        for(const point of FIXTURES[prop.type]) {
-          const lx=x+point[0]*s*.01,ly=y+point[1]*s*.01;
-          c.drawImage(this.light,lx-r,ly-r,r*2,r*2);
-        }
-      }
     }
     // Live refinery stacks have a small pilot flare; damaged structures burn
     // only while standing. Supply markers remain clearly visible.
@@ -247,7 +257,7 @@ export class StructureEffects {
     c.globalAlpha=alpha;
   }
   memoryStats() {
-    const images=[this.light,this.heat,this.fire,this.smoke,...this.foundations.values(),...this.fixtures.values()];
-    return {spriteCount:images.length,spriteLimit:32,spriteBytes:images.reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0)};
+    const images=[this.light,this.heat,this.fire,this.smoke,...this.foundations.values(),...this.fixtures.values(),...this.fixtureGlows.values()];
+    return {spriteCount:images.length,spriteLimit:48,spriteBytes:images.reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0)};
   }
 }

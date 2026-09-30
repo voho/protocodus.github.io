@@ -80,26 +80,40 @@ function connectedCells(name, image, [columns, rows]) {
   const width = image.naturalWidth, height = image.naturalHeight, count = width * height;
   const source = surface(width, height), c = source.getContext('2d', { willReadFrequently: true });
   c.drawImage(image, 0, 0);
-  const pixels = c.getImageData(0, 0, width, height).data;
-  const labels = new Int32Array(count), queue = new Uint32Array(count), owners = [0];
+  const pixels = c.getImageData(0, 0, width, height).data, words = new Uint32Array(pixels.buffer, pixels.byteOffset, count);
+  // One byte of coverage per pixel: the flood fill below never re-reads RGBA.
+  const solid = new Uint8Array(count);
+  for (let i = 0, p = 3; i < count; i++, p += 4) if (pixels[p] >= 8) solid[i] = 1;
+  const labels = new Int32Array(count), queue = new Int32Array(count), owners = [0];
   const bounds = Array.from({ length: columns * rows }, () => ({ left: width, top: height, right: -1, bottom: -1 }));
   let label = 0;
-  for (let pixel = 0; pixel < count; pixel++) {
-    if (labels[pixel] || pixels[pixel * 4 + 3] < 8) continue;
+  for (let start = 0; start < count; start++) {
+    if (!solid[start] || labels[start]) continue;
     label++;
     let head = 0, tail = 1, sumX = 0, sumY = 0;
     let left = width, top = height, right = -1, bottom = -1;
-    queue[0] = pixel; labels[pixel] = label;
+    queue[0] = start; labels[start] = label;
+    // Eight-connected fill with the neighbourhood unrolled; membership,
+    // centroid and bounds are identical to a generic neighbour loop.
     while (head < tail) {
-      const current = queue[head++], x = current % width, y = Math.floor(current / width);
+      const current = queue[head++], y = (current / width) | 0, x = current - y * width;
       sumX += x; sumY += y;
-      left = Math.min(left,x); right = Math.max(right,x); top = Math.min(top,y); bottom = Math.max(bottom,y);
-      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const nx = x + dx, ny = y + dy;
-        if ((!dx && !dy) || nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        const next = ny * width + nx;
-        if (labels[next] || pixels[next * 4 + 3] < 8) continue;
-        labels[next] = label; queue[tail++] = next;
+      if (x < left) left = x; if (x > right) right = x; if (y < top) top = y; if (y > bottom) bottom = y;
+      const west = x > 0, east = x < width - 1;
+      let n;
+      if (west && solid[n = current - 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
+      if (east && solid[n = current + 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
+      if (y > 0) {
+        const up = current - width;
+        if (solid[up] && !labels[up]) { labels[up] = label; queue[tail++] = up; }
+        if (west && solid[n = up - 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
+        if (east && solid[n = up + 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
+      }
+      if (y < height - 1) {
+        const down = current + width;
+        if (solid[down] && !labels[down]) { labels[down] = label; queue[tail++] = down; }
+        if (west && solid[n = down - 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
+        if (east && solid[n = down + 1] && !labels[n]) { labels[n] = label; queue[tail++] = n; }
       }
     }
     const col = Math.min(columns - 1, Math.floor(sumX / tail / width * columns));
@@ -116,13 +130,15 @@ function connectedCells(name, image, [columns, rows]) {
     const unusedPlayer = index === 0 && name.startsWith('fleet') && name !== 'fleet';
     if (unusedPlayer || right < left) { cells.set(key,null); continue; }
     const out = surface(right-left+5,bottom-top+5), context = cellContext(out, name);
-    const crop = context.createImageData(out.width,out.height);
-    for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
-      const sourcePixel = y * width + x;
-      if (owners[labels[sourcePixel]] !== index + 1) continue;
-      const from = sourcePixel * 4, to = ((y-top+2)*out.width+x-left+2)*4;
-      crop.data[to] = pixels[from]; crop.data[to+1] = pixels[from+1];
-      crop.data[to+2] = pixels[from+2]; crop.data[to+3] = pixels[from+3];
+    const crop = context.createImageData(out.width,out.height), cropWords = new Uint32Array(crop.data.buffer, crop.data.byteOffset, out.width * out.height);
+    const owner = index + 1;
+    // Owned pixels copy as whole RGBA words into the padded cell.
+    for (let y = top; y <= bottom; y++) {
+      const rowStart = y * width, outStart = (y - top + 2) * out.width + 2 - left;
+      for (let x = left; x <= right; x++) {
+        const sourcePixel = rowStart + x;
+        if (owners[labels[sourcePixel]] === owner) cropWords[outStart + x] = words[sourcePixel];
+      }
     }
     context.putImageData(crop,0,0); cells.set(key,out);
   }

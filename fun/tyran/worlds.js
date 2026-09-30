@@ -25,6 +25,14 @@ const MARGIN = MAP_TILE_SIZE; // Actual offscreen cells cover lateral drift.
 const PAD = 140;
 const HIT_CELL = 160;
 const MAX_DAMAGE_SPRITES = 80; // 20.7 MiB: every damage appearance in the active sector, never all ten sectors.
+const STRIP_POOL = 1; // Spare strips per plane: the row leaving the screen becomes the next row ahead.
+const SCENERY_STEPS = 6; // terrain blit, three neighbouring bands, publish, GPU upload
+// The light shaft is a slanted band inside a mostly transparent sprite. Each
+// horizontal slice submits only the band's own columns (plus a filter guard).
+const SHAFT_SLICES = Array.from({length:8},(_,k)=>{
+  const y0=k*64,y1=y0+64,left=Math.max(0,Math.floor(120*y0/512)-2),right=Math.min(256,Math.ceil(32+224*y1/512)+2);
+  return {sx:left,sy:y0,sw:right-left,sh:64};
+});
 const TAU = Math.PI * 2;
 export const PARALLAX_LAYERS = Object.freeze([
   { id:'ground', label:'Terrain and scenery', speed:1, x:1 },
@@ -132,15 +140,15 @@ export class WorldRenderer {
   constructor() {
     this.detailScale=1;this.preferredDetailScale=1;this.viewportWidth=WIDTH;this.mapWidth=WIDTH;
     this.tiles=new Map();this.pendingTiles=new Map();this.bands=new Map();this.sprites=new Map();this.damageSpriteKeys=new Set();
-    this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();
+    this.sceneryLayers=[new Map()];this.sceneryDirty=new Map();this.pendingScenery=new Map();
+    // Evicted strips are repainted for the next row instead of allocating new
+    // surfaces (and new GPU textures) during flight.
+    this.tilePool=[];this.stripPool=[];this.gpu=null;this.draining=false;
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
     this.hitBuckets=new Map();this.visibleProps=[];this.damage=new Map();this.destroyed=new Set();this.turretActivity=new Map();
     // Legacy callers may still ask for a terminal damage sprite. Share one
     // transparent pixel instead of allocating or rendering destroyed-site art.
     this.emptyScenerySprite=canvas(1,1);
-    this.softCloudPass={h:0,scroll:0,time:0,motion:true};
-    this.softCloudShadows=c=>{const p=this.softCloudPass;this.drawCloudShadowSprites(c,p.h,p.scroll,p.time,p.motion);};
-    this.softClouds=c=>{const p=this.softCloudPass;this.drawCloudSprites(c,p.h,p.scroll,p.time,p.motion);};
     this.setWorld(0);
   }
   setWorld(index, seed='tyran-v2') {
@@ -151,14 +159,14 @@ export class WorldRenderer {
     this.seed=seed;this.levelHash=nextHash;
     if(!reuse||this.damage.size||this.destroyed.size){
       this.bands.clear();this.hitBuckets.clear();
-      for(const layers of this.sceneryLayers)layers.clear();
+      this.resetSceneryLayers();
     }
     this.damage.clear();this.destroyed.clear();this.visibleProps.length=0;this.turretActivity.clear();this.sceneryDirty.clear();
     this.scale=1;this.scroll=0;this.parallaxX=0;
     // A preview or retry reuses immutable artwork while resetting destruction.
     if(reuse)return;
-    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
-    this.terrain=new TerrainSprites(this.index,this.palette);this.tiles.clear();this.sprites.clear();this.damageSpriteKeys.clear();this.clouds=[];
+    this.warmEpoch=(this.warmEpoch||0)+1;this.warmJobs=[];this.warmKeys=new Set();this.warmPending=false;this.flightAssetsQueued=false;this.resetTiles();
+    this.terrain=new TerrainSprites(this.index,this.palette);this.sprites.clear();this.damageSpriteKeys.clear();this.activitySprites=new Map();this.clouds=[];
     this.extendClouds();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.lightSprite=this.makeLight();this.radarSweepSprite=this.makeRadarSweep();
     this.structureEffects=new StructureEffects(this.index,this.palette,this.world.accent);
@@ -176,15 +184,15 @@ export class WorldRenderer {
     gpu.prewarm([...this.sceneryLayers[0].values(), this.cloudSprite, this.cloudShadowSprite,
       this.lightSprite, this.radarSweepSprite, this.shaftSprite, this.vignetteSprite,
       this.structureEffects.light, this.structureEffects.heat, this.structureEffects.fire,
-      this.structureEffects.smoke, ...this.structureEffects.fixtures.values(),
-      this.siteSprites.supplyHalo, ...Object.values(this.siteSprites.badges)]);
+      this.structureEffects.smoke, ...this.structureEffects.fixtures.values(), ...this.structureEffects.fixtureGlows.values(),
+      ...this.activitySprites.values(), this.siteSprites.supplyHalo, ...Object.values(this.siteSprites.badges)]);
   }
   warmScenery(damage=false) {
     const types=new Set([...this.palette.props,...DISTRICTS[this.index].flat(),...GROUND_DETAILS[this.index],'crawler','hauler']);
     for(const type of types)for(let variant=0;variant<5;variant++){
       this.queueWarm(`sprite:${type}:${variant}:0`,()=>this.getSprite(type,variant));
       this.queueWarm(`foundation:${type}:${variant}`,()=>this.structureEffects.getFoundation(type,variant));
-      if(variant===0)this.queueWarm(`fixture:${type}`,()=>this.structureEffects.getFixtures(type));
+      if(variant===0)this.queueWarm(`fixture:${type}`,()=>{this.structureEffects.getFixtures(type);this.structureEffects.getFixtureGlow(type);this.getActivitySprite(type,false);this.getActivitySprite(type,true);});
       if(damage&&BUILDINGS.has(type))for(let stage=1;stage<=2;stage++){
         this.queueWarm(`sprite:${type}:${variant}:${stage}`,()=>this.getSprite(type,variant,stage));
       }
@@ -202,20 +210,44 @@ export class WorldRenderer {
   refreshSpriteAssets() {
     if(this.assetRevision===spriteRevision)return;
     this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
-    this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;this.pendingTiles.clear();
-    this.tiles.clear();this.terrain.materials.clear();this.terrain.edges.clear();
-    for(const layer of this.sceneryLayers)layer.clear();
-    this.sceneryDirty.clear();
+    this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;
+    this.resetTiles();this.terrain.materials.clear();this.terrain.edges.clear();
+    this.resetSceneryLayers();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.warmScenery();
   }
   clearStripCaches(geometry=false) {
-    this.tiles.clear();this.pendingTiles.clear();
+    this.resetTiles();
     this.warmJobs=this.warmJobs.filter(job=>!job.key.startsWith('terrain:')&&!job.key.startsWith('scenery:'));
     this.warmKeys=new Set(this.warmJobs.map(job=>job.key));
-    for(const layer of this.sceneryLayers)layer.clear();
-    this.sceneryDirty.clear();this.sceneryScratch=null;
+    this.resetSceneryLayers();this.sceneryScratch=null;
+    // Pooled surfaces only fit the dimensions they were made for.
+    for(const pool of [this.tilePool,this.stripPool]){for(const surface of pool)this.gpu?.release(surface);pool.length=0;}
     if(geometry){this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;}
   }
+  stripWidth() {return (this.mapWidth+MARGIN*2)*this.detailScale;}
+  /** A strip surface for the current dimensions, reusing an evicted one when possible. */
+  takeStrip(pool) {
+    const width=this.stripWidth(),height=TILE*this.detailScale;
+    while(pool.length){const surface=pool.pop();if(surface.width===width&&surface.height===height)return surface;this.gpu?.release(surface);}
+    return canvas(width,height);
+  }
+  recycleStrip(pool,surface) {
+    if(!surface)return;
+    if(surface.width===this.stripWidth()&&surface.height===TILE*this.detailScale&&pool.length<STRIP_POOL)pool.push(surface);
+    else this.gpu?.release(surface);
+  }
+  resetTiles() {
+    for(const surface of this.tiles.values())this.recycleStrip(this.tilePool,surface);
+    for(const state of this.pendingTiles.values())this.recycleStrip(this.tilePool,state.out);
+    this.tiles.clear();this.pendingTiles.clear();
+  }
+  resetSceneryLayers() {
+    for(const layer of this.sceneryLayers){for(const surface of layer.values())this.recycleStrip(this.stripPool,surface);layer.clear();}
+    for(const state of this.pendingScenery.values())this.recycleStrip(this.stripPool,state.out);
+    this.pendingScenery.clear();this.sceneryDirty.clear();
+  }
+  /** True while the row ahead is within half a strip of entering the viewport. */
+  rowImminent(row) {return -this.scroll-(row+1)*TILE<TILE*.45;}
   updateDetailScale() {
     // Keep native detail through 32:9. Extremely wide canvases fall back before
     // a strip would exceed the 8192-pixel backing-width portability boundary.
@@ -255,8 +287,7 @@ export class WorldRenderer {
     }
     this.turretActivity.clear();
     this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;
-    for(const layer of this.sceneryLayers)layer.clear();
-    this.sceneryDirty.clear();
+    this.resetSceneryLayers();
     if(sceneryVersion<3){
       // Versions 1 and 2 used linear health and the previous size-based armor.
       // Preserve remaining-health percentages when upgrading to tougher buildings.
@@ -298,7 +329,9 @@ export class WorldRenderer {
   /** Complete preparation before entering play; menu/shop idle work usually did it already. */
   prepareFlight(width,height,scroll=0) {
     this.refreshSpriteAssets();this.prepare(width,height,scroll);
-    while(this.warmJobs.length){const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
+    this.draining=true;
+    try{while(this.warmJobs.length){const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}}
+    finally{this.draining=false;}
   }
   /** Yield between small batches while loading, independent of browser idle support. */
   async prepareReady(width,height,scroll=0) {
@@ -306,17 +339,32 @@ export class WorldRenderer {
     const epoch=this.warmEpoch;this.prepare(width,height,scroll);
     while(epoch===this.warmEpoch&&this.warmJobs.length){
       const start=performance.now();
-      do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
-      while(this.warmJobs.length&&performance.now()-start<6);
+      this.draining=true;
+      try{
+        do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();}
+        while(this.warmJobs.length&&performance.now()-start<6);
+      }finally{this.draining=false;}
       if(this.warmJobs.length)await new Promise(resolve=>setTimeout(resolve,0));
     }
   }
+  /** Spend a frame's spare time on queued preparation; each job runs at most once per slice. */
+  runWarmSlice(budgetMs=1.5) {
+    let remaining=this.warmJobs.length;
+    if(!remaining)return 0;
+    const start=performance.now();let ran=0;
+    do{const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();ran++;}
+    while(--remaining>0&&this.warmJobs.length&&performance.now()-start<budgetMs);
+    return ran;
+  }
   queueTerrain(row) {
     if(this.tiles.has(row)||this.pendingTiles.has(row))return;
-    const state={out:null,next:0};this.pendingTiles.set(row,state);
+    const state={out:null,next:0,waits:0};this.pendingTiles.set(row,state);
     const work=()=>{
       if(this.pendingTiles.get(row)!==state)return;
-      if(!state.out)state.out=canvas((this.mapWidth+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+      // In flight, wait briefly for the strip leaving the screen instead of
+      // allocating (and later uploading into) a brand new surface.
+      if(!state.out&&!this.tilePool.length&&!this.draining&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(`terrain:${row}`,work);return;}
+      if(!state.out)state.out=this.takeStrip(this.tilePool);
       this.paintTerrainRow(state.out,row,state.next++);
       if(state.next===TILE/MAP_TILE_SIZE){this.tiles.set(row,state.out);this.pendingTiles.delete(row);}
       else this.queueWarm(`terrain:${row}`,work);
@@ -325,27 +373,71 @@ export class WorldRenderer {
   }
   queueScenery(row) {
     const key=`scenery:0:${row}`;
+    if(this.pendingScenery.has(row))return;
+    const state={out:null,step:0,waits:0};
+    if(!this.sceneryLayers[0].has(row))this.pendingScenery.set(row,state);
     const work=()=>{
-      if(row<this.warmFirst||row>this.warmLast)return;
-      // A fused strip needs finished terrain. Let the existing row jobs finish
-      // instead of synchronously baking the remaining terrain during flight.
-      if(!this.tiles.has(row)){this.queueTerrain(row);this.queueWarm(key,work);return;}
-      this.getSceneryLayer(row,this.getBand(row));
+      const staged=this.pendingScenery.get(row)===state;
+      if(row<this.warmFirst||row>this.warmLast){
+        if(staged){this.pendingScenery.delete(row);this.recycleStrip(this.stripPool,state.out);}
+        return;
+      }
+      if(!staged){
+        // A damage refresh of a resident strip, or a build superseded by a reset.
+        if(this.sceneryDirty.has(row)&&this.sceneryLayers[0].has(row))this.getSceneryLayer(row,this.getBand(row));
+        return;
+      }
+      if(state.step<=4){
+        // A fused strip needs finished terrain. Let the existing row jobs finish
+        // instead of synchronously baking the remaining terrain during flight.
+        if(!this.tiles.has(row)){this.queueTerrain(row);this.queueWarm(key,work);return;}
+        if(!state.out&&!this.stripPool.length&&!this.draining&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(key,work);return;}
+      }
+      this.advanceScenery(row,state);
+      if(state.step<SCENERY_STEPS)this.queueWarm(key,work);
+      else this.pendingScenery.delete(row);
     };
     this.queueWarm(key,work);
+  }
+  /** One small step of a fused strip: blit, three neighbouring bands, publish, upload. */
+  advanceScenery(row,state) {
+    const d=this.detailScale,width=this.mapWidth+MARGIN*2,step=state.step++;
+    if(step===0){
+      const out=state.out=this.takeStrip(this.stripPool),c=out.getContext('2d',{alpha:false});
+      c.setTransform(d,0,0,d,0,0);
+      if(c.getContextAttributes?.().alpha===false)out._tyranOpaque=true;
+      c.drawImage(this.getTile(row),0,0,width,TILE);
+      return;
+    }
+    if(step<=3){
+      const c=state.out.getContext('2d',{alpha:false});c.setTransform(d,0,0,d,0,0);
+      this.paintSceneryBand(c,row,row-2+step,null);
+      return;
+    }
+    if(step===4){
+      const out=state.out;
+      this.sceneryDirty.delete(row);this.sceneryLayers[0].set(row,out);
+      out._tyranTextureVersion=(out._tyranTextureVersion||0)+1;out._tyranTextureDirty=null;
+      return;
+    }
+    if(this.gpu)this.gpu.prewarm(state.out);
   }
   runWarmQueue() {
     if(this.warmPending||!this.warmJobs.length)return;
     this.warmPending=true;const epoch=this.warmEpoch;
     const run=deadline=>{
       if(epoch!==this.warmEpoch)return;
-      this.warmPending=false;const start=performance.now();
-      while(this.warmJobs.length&&(deadline.didTimeout||deadline.timeRemaining()>3)&&performance.now()-start<3) {
+      this.warmPending=false;const start=performance.now();let remaining=this.warmJobs.length;
+      // A forced (timed-out) callback runs one job, so a saturated frame loop
+      // still progresses without inheriting a long task. Jobs that wait for
+      // a pooled surface re-queue themselves and run at most once per pass.
+      while(remaining-->0&&this.warmJobs.length){
         const job=this.warmJobs.shift();this.warmKeys.delete(job.key);job.work();
+        if(deadline.didTimeout||deadline.timeRemaining()<=3||performance.now()-start>=3)break;
       }
       this.runWarmQueue();
     };
-    if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:80});
+    if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:250});
     else setTimeout(()=>run({didTimeout:true,timeRemaining:()=>6}),0);
   }
   tileAt(col,row) {return tileAt(this.levelHash,this.index,col,row);}
@@ -381,7 +473,7 @@ export class WorldRenderer {
   getTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);
     const state=this.pendingTiles.get(row);
-    const out=state?.out||canvas((this.mapWidth+MARGIN*2)*this.detailScale,TILE*this.detailScale);
+    const out=state?.out||this.takeStrip(this.tilePool);
     for(let y=state?.next||0;y<TILE/MAP_TILE_SIZE;y++)this.paintTerrainRow(out,row,y);
     this.pendingTiles.delete(row);this.tiles.set(row,out);return out;
   }
@@ -447,8 +539,14 @@ export class WorldRenderer {
   getSceneryLayer(row,band,depth=0) {
     const cache=this.sceneryLayers[depth],existing=cache.get(row),dirty=this.sceneryDirty.get(row);
     if(existing&&!dirty)return existing;
+    if(!existing&&depth===0){
+      // A strip needed now finishes its remaining staged steps in place; the
+      // queued job later uploads it or finds it published.
+      const pending=this.pendingScenery.get(row);
+      if(pending){while(pending.step<=4)this.advanceScenery(row,pending);return pending.out;}
+    }
     const d=this.detailScale,width=this.mapWidth+MARGIN*2;
-    const out=existing||canvas(width*d,TILE*d),bounds=existing?dirty:null;
+    const out=existing||this.takeStrip(this.stripPool),bounds=existing?dirty:null;
     const target=bounds?(this.sceneryScratch||(this.sceneryScratch=canvas(out.width,out.height))):out;
     const c=target.getContext('2d',{alpha:false});c.setTransform(d,0,0,d,0,0);
     // Only fused opaque strips opt into the GPU's no-blend image command.
@@ -465,23 +563,7 @@ export class WorldRenderer {
     // Each opaque strip owns only its central 800 world units. Neighboring
     // foliage, buildings and ground cover still spill across that boundary in
     // their original band order; opaque padding must never erase them.
-    const paintBounds=bounds||{left:-MARGIN,right:this.mapWidth+MARGIN,top:row*TILE,bottom:(row+1)*TILE};
-    for(let sourceRow=row-1;sourceRow<=row+1;sourceRow++){
-      const sourceBand=sourceRow===row?band:this.getBand(sourceRow);
-      c.save();c.translate(0,(sourceRow-row)*TILE-PAD);this.drawGroundDetails(c,sourceRow,paintBounds);c.restore();
-      for(const prop of sourceBand) {
-        // Destruction records survive saves and strip eviction, but a destroyed
-        // site leaves the original terrain visible without rubble or a crater.
-        if(this.destroyed.has(prop.id)||prop.hp<=0)continue;
-        const reach=prop.size*1.3+2;
-        if(prop.x+reach<paintBounds.left||prop.x-reach>paintBounds.right||prop.y+reach<paintBounds.top||prop.y-reach>paintBounds.bottom)continue;
-        const py=prop.y-row*TILE,px=prop.x+MARGIN,scale=prop.size/100;
-        const structural=STRUCTURE_SPRITES.includes(prop.type),stage=structural?structureStage(prop):0;
-        this.structureEffects.drawFoundation(c,prop,px,py);
-        c.drawImage(this.getSprite(prop.type,prop.variant,stage),px-130*scale,py-130*scale,260*scale,260*scale);
-        if(!structural&&prop.hp<prop.maxHp)ellipse(c,px+4,py+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
-      }
-    }
+    for(let sourceRow=row-1;sourceRow<=row+1;sourceRow++)this.paintSceneryBand(c,row,sourceRow,bounds,sourceRow===row?band:null);
     if(bounds){
       // Paint neighbors normally on the shared scratch, then copy whole pixels;
       // clipping individual transparent sprites changes their edge sampling.
@@ -493,6 +575,24 @@ export class WorldRenderer {
     out._tyranTextureDirty = bounds ? { x: x*d, y: y*d, width: w*d, height: h*d } : null;
     if (this.gpu) this.gpu.prewarm(out);
     return out;
+  }
+  /** Ground cover and props of one band, painted into a strip in band order. */
+  paintSceneryBand(c,row,sourceRow,bounds=null,band=null) {
+    const paintBounds=bounds||{left:-MARGIN,right:this.mapWidth+MARGIN,top:row*TILE,bottom:(row+1)*TILE};
+    const sourceBand=band||this.getBand(sourceRow);
+    c.save();c.translate(0,(sourceRow-row)*TILE-PAD);this.drawGroundDetails(c,sourceRow,paintBounds);c.restore();
+    for(const prop of sourceBand) {
+      // Destruction records survive saves and strip eviction, but a destroyed
+      // site leaves the original terrain visible without rubble or a crater.
+      if(this.destroyed.has(prop.id)||prop.hp<=0)continue;
+      const reach=prop.size*1.3+2;
+      if(prop.x+reach<paintBounds.left||prop.x-reach>paintBounds.right||prop.y+reach<paintBounds.top||prop.y-reach>paintBounds.bottom)continue;
+      const py=prop.y-row*TILE,px=prop.x+MARGIN,scale=prop.size/100;
+      const structural=STRUCTURE_SPRITES.includes(prop.type),stage=structural?structureStage(prop):0;
+      this.structureEffects.drawFoundation(c,prop,px,py);
+      c.drawImage(this.getSprite(prop.type,prop.variant,stage),px-130*scale,py-130*scale,260*scale,260*scale);
+      if(!structural&&prop.hp<prop.maxHp)ellipse(c,px+4,py+5,prop.size*.22,prop.size*.16,'rgba(36,28,37,.36)');
+    }
   }
   dirtyScenery(prop) {
     const reach=prop.size*1.3+2;
@@ -559,24 +659,39 @@ export class WorldRenderer {
     }
     c.globalAlpha=1;
   }
+  /** Service light, its lit core and any tower halo, baked once per type in
+   * the 100-unit footprint space that structure fixtures already use. The
+   * composite is drawn at the core's alpha; each part keeps its original ratio. */
+  getActivitySprite(type,low=false) {
+    const key=low?`${type}:low`:type;
+    if(this.activitySprites.has(key))return this.activitySprites.get(key);
+    const out=canvas(240,240),c=out.getContext('2d');
+    let left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;
+    const include=(x,y,w,h)=>{left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x+w);bottom=Math.max(bottom,y+h);};
+    if(!low&&(type==='pylon'||type==='tower'||type==='dome')){
+      c.globalAlpha=.13/.65;c.drawImage(this.lightSprite,120-23,120-29,46,46);include(120-23,120-29,46,46);
+    }
+    c.globalAlpha=.2/.65;c.drawImage(this.lightSprite,120+22-13,120-16-13,26,26);include(120+22-13,120-16-13,26,26);
+    c.globalAlpha=1;c.fillStyle=this.palette.fog;c.fillRect(120+22,120-16,2.2,1.5);
+    const x=Math.max(0,Math.floor(left)-2),y=Math.max(0,Math.floor(top)-2);
+    out._tyranBounds={x,y,width:Math.min(240,Math.ceil(right)+2)-x,height:Math.min(240,Math.ceil(bottom)+2)-y};
+    this.activitySprites.set(key,out);return out;
+  }
   drawStructureActivity(c,prop,time,quality,motion=true) {
     if(!ACTIVE_STRUCTURES.has(prop.type)||prop.hp<=0||this.destroyed.has(prop.id))return;
     const stage=structureStage(prop),power=stage===0?1:stage===1?.52:.19;
     const phase=prop.variant*1.79+prop.x*.009,clock=motion?time:0;
     const pulse=.76+Math.sin(clock*1.6+phase)*.24,s=prop.size,x=prop.x,y=prop.y;
-    const alpha=c.globalAlpha,fill=c.fillStyle;
-    // A small service light has a cached halo, with no per-frame raster work.
-    const lx=x+s*.22,ly=y-s*.16,r=Math.round(s*.13);
-    c.globalAlpha=power*pulse*.2;c.drawImage(this.lightSprite,Math.round(lx-r),Math.round(ly-r),r*2,r*2);
-    c.globalAlpha=power*pulse*.65;c.fillStyle=this.palette.fog;
-    c.fillRect(Math.round(lx),Math.round(ly),Math.max(1,Math.round(s*.022)),1);
-    if(quality!=='low'){
+    const alpha=c.globalAlpha,low=quality==='low';
+    // One cached composite per type replaces the halo, core and tower light draws.
+    const sprite=this.getActivitySprite(prop.type,low),b=sprite._tyranBounds,k=s*.01;
+    c.globalAlpha=power*pulse*.65;
+    c.drawImage(sprite,b.x,b.y,b.width,b.height,x+(b.x-120)*k,y+(b.y-120)*k,b.width*k,b.height*k);
+    if(!low){
       if(prop.type==='radar'||prop.type==='satellite'){
         const angle=clock*.72+phase,reach=s*.19;
         c.save();c.translate(x,y-s*.07);c.rotate(angle);c.globalAlpha=power*.24;
         c.drawImage(this.radarSweepSprite,-reach,-reach,reach*2,reach*2);c.restore();
-      } else if(prop.type==='pylon'||prop.type==='tower'||prop.type==='dome'){
-        c.globalAlpha=power*pulse*.13;c.drawImage(this.lightSprite,x-s*.23,y-s*.29,s*.46,s*.46);
       }
       if(motion&&VENTED_STRUCTURES.has(prop.type)){
         // Puffs stay attached to rooftop exhausts and fade before obscuring combat.
@@ -587,7 +702,7 @@ export class WorldRenderer {
         }
       }
     }
-    c.globalAlpha=alpha;c.fillStyle=fill;
+    c.globalAlpha=alpha;
   }
   makeGroundSiteSprites() {
     const halo=color=>{
@@ -637,26 +752,26 @@ export class WorldRenderer {
       }
     }
     c.restore();
-    for(const row of cache.keys())if(row<first-1||row>last+1){cache.delete(row);this.sceneryDirty.delete(row);}
+    const drawnFirst=Math.floor(-scroll/TILE),drawnLast=Math.floor((h-scroll)/TILE);
+    for(const row of cache.keys())if(row<drawnFirst-1||row>drawnLast){this.recycleStrip(this.stripPool,cache.get(row));cache.delete(row);this.sceneryDirty.delete(row);}
   }
   draw(ctx,W,H,scroll,time,quality='high',focusX=W*.5,motion=true) {
     this.setViewport(W);this.refreshSpriteAssets();
     const h=H;
     this.scale=1;this.scroll=scroll;this.parallaxX=(.5-clamp(focusX/W,0,1))*WIDTH*.02;this.visibleProps.length=0;
     ctx.save();
-    ctx.save();ctx.translate(this.parallaxX,0);
-    // Fractional strip edges may cover only part of a pixel. A cheap opaque
-    // clear keeps those seams independent of the previous frame's contents.
-    ctx.fillStyle=this.palette.low;ctx.fillRect(-MARGIN,0,this.mapWidth+MARGIN*2,h);
+    // Fractional strip edges may cover only part of a pixel. The seams take the
+    // substrate color from the frame clear when the renderer cleared to it, or
+    // from a cheap opaque fill on native Canvas.
+    if(ctx.clearColorValue!==this.palette.low){ctx.save();ctx.translate(this.parallaxX,0);ctx.fillStyle=this.palette.low;ctx.fillRect(-MARGIN,0,this.mapWidth+MARGIN*2,h);ctx.restore();}
     const first=Math.floor(-scroll/TILE),last=Math.floor((h-scroll)/TILE);
-    ctx.restore();
     this.drawGroundScenery(ctx,h,scroll,time,quality,motion);
     ctx.globalAlpha=1;this.drawAtmosphere(ctx,h,scroll,motion?time:0,quality,motion);
     // The middle 55% is transparent. Keep guarded edge slices with the same
     // source-to-screen mapping rather than blending another full-screen quad.
     ctx.drawImage(this.vignetteSprite,0,0,58,1,0,0,W*58/256,h);
     ctx.drawImage(this.vignetteSprite,198,0,58,1,W*198/256,0,W*58/256,h);ctx.restore();
-    for(const row of this.tiles.keys())if(row<first-1||row>last+1)this.tiles.delete(row);
+    for(const row of this.tiles.keys())if(row<first-1||row>last){this.recycleStrip(this.tilePool,this.tiles.get(row));this.tiles.delete(row);}
     // Keep only nearby pixel caches and regenerated bands. Damage is a compact ledger.
     for(const [row,band] of this.bands)if(!this.layerViews.some(view=>row>=view.first-1&&row<=view.last+1)){
       for(const prop of band){const key=`${Math.floor(prop.y/HIT_CELL)}:${Math.floor(prop.x/HIT_CELL)}`,bucket=this.hitBuckets.get(key);if(bucket){const i=bucket.indexOf(prop);if(i>=0)bucket.splice(i,1);if(!bucket.length)this.hitBuckets.delete(key);}}
@@ -666,8 +781,10 @@ export class WorldRenderer {
     const next=first-1;
     this.queueTerrain(next);
     if(!this.sceneryLayers[0].has(next))this.queueScenery(next);
-    for(const row of this.pendingTiles.keys())if(row<first-1||row>last+1)this.pendingTiles.delete(row);
+    for(const row of this.pendingTiles.keys())if(row<first-1||row>last+1){this.recycleStrip(this.tilePool,this.pendingTiles.get(row).out);this.pendingTiles.delete(row);}
+    for(const row of this.pendingScenery.keys())if(row<first-1||row>last+1){this.recycleStrip(this.stripPool,this.pendingScenery.get(row).out);this.pendingScenery.delete(row);}
   }
+  get backgroundColor() {return this.palette.low;}
   /** All ground sprites and hits use exactly the terrain's translation. */
   hit(x,y,radius,damage,scroll=this.scroll) {
     const s=this.scale||1,px=x/s-this.parallaxX,py=y/s-scroll,r=radius/s,reach=r+40,result=[];
@@ -751,9 +868,9 @@ export class WorldRenderer {
     const bytes=values=>Array.from(values).reduce((sum,sprite)=>sum+sprite.width*sprite.height*4,0);
     return {spriteCount:this.sprites.size,spriteBytes:bytes(this.sprites.values()),
       damageSpriteCount:this.damageSpriteKeys.size,damageSpriteLimit:MAX_DAMAGE_SPRITES,
-      stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values())+bytes([...this.pendingTiles.values()].map(state=>state.out).filter(Boolean)),
+      stripBytes:bytes(this.tiles.values())+bytes(this.sceneryLayers[0].values())+bytes([...this.pendingTiles.values(),...this.pendingScenery.values()].map(state=>state.out).filter(Boolean))+bytes(this.tilePool)+bytes(this.stripPool),
       terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
-      scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),
+      scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),activityBytes:bytes(this.activitySprites.values()),
       detailScale:this.detailScale,viewportWidth:this.viewportWidth,mapWidth:this.mapWidth,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
       damagedProps:this.damage.size,destroyedProps:this.destroyed.size};
   }
@@ -1028,12 +1145,9 @@ export class WorldRenderer {
     this.drawSoftCloudGroup(c,h,scroll,time,motion,true);
   }
   drawSoftCloudGroup(c,h,scroll,time,motion,shadows=false) {
-    if(typeof c.drawSoftLayer!=='function'||c.globalCompositeOperation!=='source-over'){
-      if(shadows)this.drawCloudShadowSprites(c,h,scroll,time,motion);else this.drawCloudSprites(c,h,scroll,time,motion);
-      return;
-    }
-    const pass=this.softCloudPass;pass.h=h;pass.scroll=scroll;pass.time=time;pass.motion=motion;
-    c.drawSoftLayer(shadows?this.softCloudShadows:this.softClouds);
+    // Cloud sprites are already soft; drawing them directly costs less than a
+    // half-resolution layer's clear, framebuffer switch and full-screen composite.
+    if(shadows)this.drawCloudShadowSprites(c,h,scroll,time,motion);else this.drawCloudSprites(c,h,scroll,time,motion);
   }
   drawCloudShadowSprites(c,h,scroll,time,motion) {
     c.save();c.globalAlpha=this.index===7?.12:.19;
@@ -1084,10 +1198,16 @@ export class WorldRenderer {
     }
     if(streaks)c.stroke();
     c.globalAlpha=1;
-    if(this.index===0||this.index===3||this.index===8) {
+    if((this.index===0||this.index===3||this.index===8)&&quality!=='low') {
       // Slow, soft sun shafts sit above the canopy and behind combat effects.
+      // Each shaft submits eight slices hugging its slanted band rather than
+      // one mostly transparent full-height quad.
       c.save();c.globalCompositeOperation='screen';c.globalAlpha=.038;
-      for(let i=0;i<Math.ceil(this.viewportWidth/390);i++){const x=100+i*390+Math.sin(time*.03+i)*60;c.drawImage(this.shaftSprite,x-24,0,384,h);}
+      const sx=384/256,sy=h/512;
+      for(let i=0;i<Math.ceil(this.viewportWidth/390);i++){
+        const x=100+i*390+Math.sin(time*.03+i)*60-24;
+        for(const slice of SHAFT_SLICES)c.drawImage(this.shaftSprite,slice.sx,slice.sy,slice.sw,slice.sh,x+slice.sx*sx,slice.sy*sy,slice.sw*sx,slice.sh*sy);
+      }
       c.restore();
     }
     c.restore();

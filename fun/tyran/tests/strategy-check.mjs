@@ -11,7 +11,9 @@ const seeded = (seed, run) => {
   try { return run(); } finally { Math.random = original; }
 };
 const observed = { classes: new Set(), paths: new Set(), mirrors: new Set(), speeds: new Set(), armor: new Set(), fire: new Set(),
-  shapes: new Set(), formations: new Set(), entries: new Set(), compositions: new Set() };
+  shapes: new Set(), formations: new Set(), entries: new Set(), compositions: new Set(), roles: new Set() };
+// Specialist roles scale a hull once, on top of the authored tactic armor.
+const ROLE_ARMOR = { elite: 1.6, ace: 2.4, convoy: .7 };
 
 assert.equal(SECTOR_TACTICS.length, 10, 'Every environment has an authored strategy');
 const plans = Array.from({ length: 10 }, (_, level) => sectorPlan(level));
@@ -64,7 +66,7 @@ for (const level of [...Array(10).keys(), 10, 20, 10000, Number.MAX_SAFE_INTEGER
     for (const enemy of state.enemies) {
       assert([enemy.x, enemy.y, enemy.hp, enemy.maxHp, enemy.speed].every(Number.isFinite));
       assert(enemy.hp > 0 && enemy.hp === enemy.maxHp);
-      const reinforcement = enemy.role === 'midboss' ? 4 : enemy.ai === 'station' && [4, 5].includes(enemy.type) ? 1.6 : 1;
+      const reinforcement = (enemy.role === 'midboss' ? 4 : enemy.ai === 'station' && [4, 5].includes(enemy.type) ? 1.6 : 1) * (ROLE_ARMOR[enemy.role] || 1);
       const baseHp = ENEMY_TYPES[enemy.type].hp * (1 + combatTier(level) * .24) * cycleScale(level, .22) * reinforcement;
       assert(Math.abs(enemy.maxHp / baseHp - tactics.armor) < 1e-12, 'Authored armor applies exactly once to each real hull');
       assert(Math.abs(enemy.speed / ENEMY_TYPES[enemy.type].speed - tactics.speed) < 1e-12, 'Hull movement uses the authored speed tradeoff');
@@ -78,6 +80,7 @@ for (const level of [...Array(10).keys(), 10, 20, 10000, Number.MAX_SAFE_INTEGER
         observed.armor.add(Number((enemy.maxHp / baseHp).toFixed(8)));
         if (enemy.tacticFire != null) observed.fire.add(enemy.tacticFire);
         if (enemy.hiveShape) observed.shapes.add(enemy.hiveShape);
+        if (enemy.role) observed.roles.add(enemy.role);
         if (enemy.formation) { observed.formations.add(enemy.formation.kind); observed.entries.add(enemy.formation.entry || 'top'); }
       }
     }
@@ -92,6 +95,7 @@ assert.deepEqual([...observed.shapes].sort(), ['chevron', 'diamond', 'orbit', 'r
 assert.deepEqual([...observed.formations].sort(), [...FORMATIONS].sort(), 'Normal scripted waves use every formation kind');
 assert.deepEqual([...observed.entries].sort(), ['left', 'right', 'top'], 'Formations enter from three directions');
 assert(observed.compositions.size >= 12, 'Class mixes vary across the authored circuit');
+console.log(`roles in the authored circuit: ${[...observed.roles].sort().join(', ')}`);
 
 // Sample actual normal hive waves through a full breathing/rotation interval.
 // Diamond ranks must not compress heavy hulls, and orbit rings must retain

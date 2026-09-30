@@ -21,8 +21,11 @@ const context = {
 };
 const surface = (width, height) => ({ width, height, getContext() { return context; } });
 const structures = ['temple','ruin','bunker','station','radar','dome','solar','refinery','building','tower','pylon','fortress','hut','satellite','crawler','hauler'];
-const painter = new Function('canvas', 'TILE', 'PAD', 'MARGIN', 'STRUCTURE_SPRITES', 'structureStage', 'ellipse',
-  `return ({${methodSource('getSceneryLayer', 'dirtyScenery')}}).getSceneryLayer;`)(surface, 800, 140, 100, structures, structureStage, () => {});
+// The strip painter now finishes in two methods: the layer builder takes a
+// pooled surface and paints each neighbouring band through paintSceneryBand.
+const painters = new Function('canvas', 'TILE', 'PAD', 'MARGIN', 'STRUCTURE_SPRITES', 'structureStage', 'ellipse',
+  `return ({${methodSource('getSceneryLayer', 'paintSceneryBand')},${methodSource('paintSceneryBand', 'dirtyScenery')}});`)(surface, 800, 140, 100, structures, structureStage, () => {});
+const painter = painters.getSceneryLayer;
 const dead = { id: 'destroyed-facility', type: 'station', variant: 2, row: 0, x: 150, y: 350, size: 20, hp: 0, maxHp: 100 };
 const band = [dead,
   { ...dead, id: 'living-facility', x: 350, hp: 100 },
@@ -41,6 +44,7 @@ const world = {
   getBand: row => row === 0 ? band : [], getTile: () => ({}), drawGroundDetails() {},
   getSprite: (type, variant, stage) => ({ type, variant, stage }),
   structureEffects: { drawFoundation(_context, prop) { foundations.push(prop.id); } },
+  paintSceneryBand: painters.paintSceneryBand, pendingScenery: new Map(), stripPool: [], takeStrip: () => surface(1400, 800),
 };
 const savedDestroyed = [...world.destroyed], savedDamage = [...world.damage], savedHp = band.map(prop => prop.hp);
 const expectedPaint = [

@@ -1,6 +1,8 @@
 import { environmentIndex, combatTier, cycleScale } from './campaign.js';
 import { difficultyProfile } from './difficulty.js';
 import { tacticalPlan, waveTactics, applyTactics } from './tactics.js';
+import { sectorEncounters, encounterShips, ENCOUNTER_BUDGET, BUSY_WAVES, ACE_NAMES } from './encounters.js';
+import { applyRole } from './roles.js';
 
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
@@ -27,6 +29,10 @@ export const PATHS = Object.freeze({
   // Acrobatic challenge flights: a figure eight through the middle, and an orbit.
   figure: { exit: true, points: [['L', 200], [-220, 262], [0, 420], [150, 560], [0, 660], [-150, 560], [0, 420], [220, 262], ['R', 200]] },
   orbit: { exit: true, points: [['L', 330], [-240, 330], [-130, 250], [0, 222], [130, 250], [180, 360], [130, 470], [0, 500], [-130, 470], [-180, 360], [-130, 250], [0, 222], [240, 160], ['R', 90]] },
+  // Ambushes climb from below the pilot, loop over the upper arena and leave.
+  riseLoop: { exit: true, points: [['L', 1010], [-360, 880], [-230, 620], [-70, 420], [110, 300], [300, 250], ['R', 170]] },
+  // A slow crossing lane for cargo haulers, minelayers and bomb runs.
+  lane: { exit: true, points: [['L', 250], [-300, 262], [0, 280], [300, 262], ['R', 250]] },
 });
 const CHALLENGE_PATHS = ['figure', 'orbit', 'dropLoop', 'sideHook', 'topSpiral'];
 export const WAVE_KINDS = Object.freeze(['hive', 'sweep', 'gunship', 'midboss', 'captor', 'formation']);
@@ -93,8 +99,10 @@ export function enemyPathPosition(s, enemy) {
 
 export const sectorPlan = tacticalPlan;
 
-export function createDirector(level) {
-  return { plan: sectorPlan(level), wave: -1, kind: '', state: 'rest', clock: 0, rest: 2.6, timeout: 0, dive: 3, potshot: 4, pending: 0, pendingAt: 0, hold: false, done: false, abandon: false };
+export function createDirector(level, salt = 0) {
+  const plan = sectorPlan(level, salt);
+  return { plan, wave: -1, kind: '', state: 'rest', clock: 0, rest: 2.6, timeout: 0, dive: 3, potshot: 4, pending: 0, pendingAt: 0, hold: false, done: false, abandon: false,
+    encounters: sectorEncounters(level, plan, salt) };
 }
 
 /** Fraction of the sector's scripted waves already flown, for the HUD. */
@@ -297,7 +305,7 @@ function hiveRows(level, compact = false) {
 }
 
 function buildHive(s, spawn, wave, compact = false) {
-  const tactics = waveTactics(s.level, wave), speed = 330 + combatTier(s.level) * 9;
+  const tactics = waveTactics(s.level, wave, s.salt || 0), speed = 330 + combatTier(s.level) * 9;
   const rows = hiveRows(s.level, compact).map(([type, count]) => {
     // A narrow arena uses fewer columns, never overlapping hulls at its edges.
     const fit = Math.max(2, Math.floor((s.width - 120) / (ENEMY_SIZE(type) * 2 + 10) / 2) * 2);
@@ -310,21 +318,26 @@ function buildHive(s, spawn, wave, compact = false) {
     const squad = newSquad(s, count, wave);
     const delay = .6 + row * tactics.rowGap, columns = Array.from({ length: count }, (_, i) => i);
     const flags = { hiveShape: compact ? 'ranks' : tactics.hiveShape };
+    // Corsair rows may carry splitters: every other hull releases three diving
+    // needles when destroyed, so a careless volley into the hive bites back.
+    const splitters = !compact && tactics.splitterRow && type === 2;
+    const ships = [];
     // Wider rows arrive as two mirrored lines, the centre ships first.
     if (count >= 6) {
       const half = count / 2, left = columns.slice(0, half).reverse(), right = columns.slice(half);
-      launchLine(s, spawn, { type, count: half, path, mirror: -tactics.mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: left, slotCount: count, tactics, flags });
-      launchLine(s, spawn, { type, count: half, path, mirror: tactics.mirror, delay: delay + tactics.flankDelay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: right, slotCount: count, tactics, flags });
+      ships.push(...launchLine(s, spawn, { type, count: half, path, mirror: -tactics.mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: left, slotCount: count, tactics, flags }));
+      ships.push(...launchLine(s, spawn, { type, count: half, path, mirror: tactics.mirror, delay: delay + tactics.flankDelay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: right, slotCount: count, tactics, flags }));
     } else {
       const mirror = (row % 2 ? -1 : 1) * tactics.mirror, order = mirror < 0 ? columns.slice().reverse() : columns;
-      launchLine(s, spawn, { type, count, path, mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: order, slotCount: count, tactics, flags });
+      ships.push(...launchLine(s, spawn, { type, count, path, mirror, delay, spacing: tactics.spacing, speed, wave, squad, slotRow: row + offset, slotCols: order, slotCount: count, tactics, flags }));
     }
+    if (splitters) ships.forEach((ship, i) => { if (i % 2 === 0) applyRole(ship, 'splitter'); });
   });
   return 30 + combatTier(s.level) * .8 + rows.length * 1.5;
 }
 
 function buildSweep(s, spawn, wave, second = false) {
-  const tactics = waveTactics(s.level, wave);
+  const tactics = waveTactics(s.level, wave, s.salt || 0);
   const squads = 3 + (s.level >= 4 ? 1 : 0), size = s.level >= 6 ? 6 : 5, speed = 285 + combatTier(s.level) * 8;
   const types = tactics.sweepTypes;
   for (let k = 0; k < squads; k++) {
@@ -332,8 +345,10 @@ function buildSweep(s, spawn, wave, second = false) {
     const path = tactics.sweepPaths[k % tactics.sweepPaths.length];
     const count = reaper ? 3 : size;
     const squad = newSquad(s, count, wave);
-    launchLine(s, spawn, { type, count, path, mirror: (k % 2 ? -1 : 1) * tactics.mirror, delay: .5 + k * tactics.squadGap, spacing: reaper ? .3 : tactics.spacing,
+    const ships = launchLine(s, spawn, { type, count, path, mirror: (k % 2 ? -1 : 1) * tactics.mirror, delay: .5 + k * tactics.squadGap, spacing: reaper ? .3 : tactics.spacing,
       speed: reaper ? speed * 1.45 : speed, wave, squad, ox: reaper ? (k % 2 ? -1 : 1) * Math.min(90, s.width * .06) : 0, tactics });
+    // The first squadron may be led by an elite: tougher, faster volleys, double prizes.
+    if (k === 0 && tactics.eliteLeader && ships.length) applyRole(ships[0], 'elite');
   }
   return 20 + squads * 1.5;
 }
@@ -347,7 +362,7 @@ function stationShip(s, spawn, type, x, y, wave, tactics, options = {}) {
 const ENEMY_SIZE = type => [12, 17, 22, 27, 32, 36, 41, 46, 54, 110][type] || 30;
 
 function buildGunship(s, spawn, wave, second = false) {
-  const tactics = waveTactics(s.level, wave);
+  const tactics = waveTactics(s.level, wave, s.salt || 0);
   const span = Math.min(s.width - 200, 1000), center = s.width / 2;
   const heavies = tactics.heavies;
   const count = s.level >= 5 ? 3 : 2;
@@ -356,6 +371,8 @@ function buildGunship(s, spawn, wave, second = false) {
     const heavy = stationShip(s, spawn, heavies[(i + (second ? 1 : 0)) % heavies.length], x, 210 + (i % 2) * 56, wave, tactics,
       { seed: i * 2.1, sway: 24 + Math.abs(tactics.stationLane) * 220, fire: 1.4 + i * .7 });
     heavy.hp *= 1.6; heavy.maxHp = heavy.hp;
+    // Shielded gunships must have their barrier broken before the hull takes damage.
+    if (tactics.shieldedHeavies) applyRole(heavy, 'shielded');
   }
   const squad = newSquad(s, 5, wave);
   launchLine(s, spawn, { type: 0, count: 5, path: tactics.sweepPaths[0], mirror: tactics.mirror, delay: 3.4, spacing: tactics.spacing, speed: 330 + combatTier(s.level) * 8, wave, squad, tactics });
@@ -363,7 +380,7 @@ function buildGunship(s, spawn, wave, second = false) {
 }
 
 function buildMidboss(s, spawn, wave) {
-  const tactics = waveTactics(s.level, wave);
+  const tactics = waveTactics(s.level, wave, s.salt || 0);
   const boss = stationShip(s, spawn, 8, s.width * (.5 + tactics.stationLane), 230, wave, tactics, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
   boss.hp *= 4; boss.maxHp = boss.hp;
   for (let k = 0; k < 2; k++) {
@@ -375,12 +392,80 @@ function buildMidboss(s, spawn, wave) {
 }
 
 function buildCaptor(s, spawn, wave) {
-  const tactics = waveTactics(s.level, wave), x = s.width * (.5 + tactics.stationLane);
+  const tactics = waveTactics(s.level, wave, s.salt || 0), x = s.width * (.5 + tactics.stationLane);
   const captor = applyTactics(spawn(s, 6, x, -120), tactics);
   Object.assign(captor, { ai: 'captor', wave, capState: 0, capTimer: 3.4, capBeams: 0, capX: x, captive: 0, capGrip: 0, vx: 0, vy: 120, role: 'captor' });
   buildHive(s, spawn, wave, true);
   s.events.push({ type: 'captor', x: captor.x, y: 120 });
   return 40;
+}
+
+// ——— Encounters ———
+// Encounter ships belong to no wave (wave -2): they never hold a wave open or
+// delay the guardian, and they respect the same hostile-projectile budget.
+export const ENCOUNTER_WAVE = -2;
+const countRole = (s, role) => { let n = 0; for (const enemy of s.enemies) if (!enemy.dead && enemy.role === role) n++; return n; };
+
+/** Spawn one scheduled encounter. Sizes follow the sector and circuit, never the difficulty. */
+export function launchEncounter(s, spawn, encounter, pilot) {
+  const kind = encounter.kind, extra = encounter.size || 0, tier = combatTier(s.level), seed = s.salt >>> 0, mirror = (seed + encounter.wave) & 1 ? -1 : 1;
+  const wave = ENCOUNTER_WAVE;
+  s.stats = s.stats || {}; s.stats.encounters = (s.stats.encounters || 0) + 1;
+  const event = { type: 'encounter', kind, label: kind, x: s.width / 2, y: 120 };
+  if (kind === 'convoy') {
+    const squad = newSquad(s, 3, wave);
+    for (const ship of launchLine(s, spawn, { type: 3, count: 3, path: 'lane', mirror, delay: .4, spacing: .42, speed: 150, wave, squad })) applyRole(ship, 'convoy');
+    launchLine(s, spawn, { type: 1, count: 2 + extra, path: 'lane', mirror, delay: 1.7, spacing: .3, speed: 175, wave, oy: -70 });
+  } else if (kind === 'bonusFlight') {
+    const squad = newSquad(s, 8, wave, { bonusFlight: true });
+    launchLine(s, spawn, { type: (encounter.wave + tier) % 3, count: 8, path: (seed >>> 4) & 1 ? 'figure' : 'snake', mirror, delay: .6, spacing: .16, speed: 400 + tier * 5, wave, squad, flags: { harmless: true, noFire: true } });
+  } else if (kind === 'ambush') {
+    const count = 4 + extra, squad = newSquad(s, count, wave);
+    launchLine(s, spawn, { type: tier >= 5 ? 1 : 0, count, path: 'riseLoop', mirror, delay: .3, spacing: .21, speed: 320 + tier * 8, wave, squad });
+  } else if (kind === 'meteors') {
+    const count = 8 + extra * 2, index = environmentIndex(s.level);
+    for (let i = 0; i < count; i++) {
+      const roll = (seed + i * 0x9e3779b1) >>> 0, x = 60 + ((roll >>> 8) % 1000) / 1000 * (s.width - 120);
+      const rock = spawn(s, 2, x, -90 - i * 95);
+      applyRole(rock, 'meteor', { radius: 19 + (roll >>> 20) % 12, speed: 130 + (roll >>> 12) % 70 + tier * 4, driftX: ((roll >>> 16) % 61) - 30, spinRate: (((roll >>> 24) % 21) - 10) / 6, variant: roll % 5 });
+      rock.wave = wave; rock.ai = 'drift';
+      rock.meteorWorld = index;
+    }
+  } else if (kind === 'minefield') {
+    const miner = launchLine(s, spawn, { type: 3, count: 1, path: 'lane', mirror, delay: .3, speed: 165, wave, oy: -40 })[0];
+    applyRole(miner, 'miner'); miner.mineBudget = 7 + extra * 2;
+  } else if (kind === 'ace') {
+    const ace = stationShip(s, spawn, tier >= 6 ? 7 : 6, s.width * (.5 + mirror * .12), 240, wave, waveTactics(s.level, encounter.wave, s.salt || 0), { hold: 16, sway: Math.min(240, s.width * .22), fire: 1.1 });
+    applyRole(ace, 'ace', { aceName: (seed >>> 5) % ACE_NAMES.length });
+    event.aceName = ace.aceName;
+  } else if (kind === 'phantoms') {
+    const count = 4 + extra, squad = newSquad(s, count, wave);
+    const ships = launchLine(s, spawn, { type: 1, count, path: (seed >>> 6) & 1 ? 'zigzag' : 'snake', mirror, delay: .5, spacing: .24, speed: 300 + tier * 6, wave, squad });
+    ships.forEach((ship, i) => applyRole(ship, 'phantom', { cloak: i * .7 }));
+  } else if (kind === 'bombers') {
+    const count = 2 + extra;
+    for (const ship of launchLine(s, spawn, { type: 7, count, path: 'lane', mirror, delay: .5, spacing: .55, speed: 190, wave, oy: -30 })) { applyRole(ship, 'bomber'); ship.fire = 1.2; }
+  } else if (kind === 'medics') {
+    const tactics = waveTactics(s.level, encounter.wave, s.salt || 0);
+    for (const side of [-1, 1]) applyRole(stationShip(s, spawn, 6, s.width * (.5 + side * .24), 250 + (side > 0 ? 40 : 0), wave, tactics, { hold: 14, sway: 60, fire: 99 }), 'medic');
+  }
+  s.events.push(event);
+}
+
+/** Launch due encounters once the arena has room; a crowded wave defers them. */
+function triggerEncounters(s, d, spawn, pilot) {
+  if (!d.encounters || d.state !== 'wave' || d.pending > 0) return;
+  let live = 0;
+  for (const enemy of s.enemies) if (!enemy.dead) live++;
+  for (const encounter of d.encounters) {
+    if (encounter.done || d.wave < encounter.wave || d.clock < encounter.time) continue;
+    // A deferred encounter rolls into a later wave, never a cruiser or captor wave.
+    if (d.wave > encounter.wave && BUSY_WAVES.has(d.kind)) continue;
+    if (live + encounterShips(encounter.kind, encounter.size) > ENCOUNTER_BUDGET) return;
+    encounter.done = true;
+    launchEncounter(s, spawn, encounter, pilot);
+    return;
+  }
 }
 
 /** Scripted sector: waves in order, rests between them, then the guardian. */
@@ -390,6 +475,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
   s.hive = s.hive || { age: 0 };
   s.hive.age += dt;
   d.clock += dt;
+  triggerEncounters(s, d, spawn, pilot);
   if (d.state === 'rest') {
     if (d.clock < d.rest) return false;
     if (d.wave + 1 >= d.plan.length) { d.done = true; return true; }

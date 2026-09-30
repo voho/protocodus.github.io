@@ -87,6 +87,33 @@ function drawBoundedSprite(ctx,sprite,x,y,width,height) {
 }
 let assetRevision = -1;
 const TAU = Math.PI * 2;
+// Everything one ship draws, resolved once per palette, hull class and sector:
+// no key strings or cache lookups per sprite per frame. Bounded caches may
+// release a member (its canvas becomes 1×1), which invalidates the kit.
+const kits = new WeakMap();
+function kitValid(kit) {
+  return kit.revision === assetRevision && kit.hull.width > 1 && kit.shadow.width > 1 && kit.flash.width > 1 && kit.lights.width > 1 && kit.flame.width > 1 && kit.glow.width > 1;
+}
+function shipKit(kind, player, world, palette, flightColor) {
+  let byIndex = kits.get(palette);
+  if (!byIndex) { byIndex = []; kits.set(palette, byIndex); }
+  const index = (player ? 10 : kind) * 10 + world;
+  const existing = byIndex[index];
+  if (existing && kitValid(existing)) return existing;
+  const silhouettes = silhouetteSprites(kind, player, world), glowColor = palette.glow || flightColor;
+  const hull = hullSprite(kind, flightColor, world, player, palette), lights = lightsSprite(kind, glowColor, player, palette, world);
+  const flame = flameSprite(palette.engine || flightColor, !player && kind >= 8), glow = glowSprite(glowColor);
+  const kit = { revision: assetRevision, shape: flightShape(kind, player, world), hull, shadow: silhouettes.shadow, flash: silhouettes.flash, lights, flame, glow,
+    hullBounds: spriteBounds.get(hull) || null, shadowBounds: spriteBounds.get(silhouettes.shadow) || null, flashBounds: spriteBounds.get(silhouettes.flash) || null,
+    lightsBounds: spriteBounds.get(lights) || null, flameBounds: spriteBounds.get(flame) || null, styles: lightStyles(glowColor) };
+  byIndex[index] = kit;
+  return kit;
+}
+function drawKitSprite(ctx, sprite, bounds, x, y, width, height) {
+  if (!bounds) { ctx.drawImage(sprite, x, y, width, height); return; }
+  const sx = width / bounds.sourceWidth, sy = height / bounds.sourceHeight;
+  ctx.drawImage(sprite, bounds.x, bounds.y, bounds.width, bounds.height, x + bounds.x * sx, y + bounds.y * sy, bounds.width * sx, bounds.height * sy);
+}
 
 // Every design is drawn nose-up; each side keeps one fixed heading in flight.
 const SHAPES = [
@@ -729,59 +756,55 @@ export function drawShip(ctx,x,y,size,kind,color,time=0,options={}) {
   const animatedTime=options.motion===false?0:time;
   const pulse=.86+Math.sin(animatedTime*3.2+phase)*.1;
   const direction=player?1:-1;
-  const shape=flightShape(kind,player,world);
+  const kit=shipKit(kind,player,world,palette,flightColor),shape=kit.shape;
   const thrust=Math.max(0,Math.min(2,Number(options.thrust??1)||0));
   const detailed=options.quality!=='low';
   const scale=size/82;
-  const silhouettes=silhouetteSprites(kind,player,world);
   // Keep the sun direction in world space while the craft holds its fixed heading.
   ctx.save();
   const shadowScale=direction*scale*.97;
   ctx.transform(shadowScale,0,0,shadowScale,x+5+size*.17,y+9+size*.24);
   const shipAlpha=ctx.globalAlpha*(options.opacity??1),composite=ctx.globalCompositeOperation;
   ctx.globalAlpha=shipAlpha*.74;
-  drawBoundedSprite(ctx,silhouettes.shadow,-160,-160,320,320);
+  drawKitSprite(ctx,kit.shadow,kit.shadowBounds,-160,-160,320,320);
   // Move from the shadow directly to the hull without copying the entire
   // canvas state a second time for every ship in the formation.
   ctx.transform(1/.97,0,0,1/.97,-(5+size*.17)/shadowScale,-(9+size*.24)/shadowScale);
   ctx.globalAlpha=shipAlpha;
 
-  const flame=flameSprite(palette.engine||flightColor,!player&&kind>=8);
+  const flame=kit.flame,flameBounds=kit.flameBounds,engines=shape.engines;
   ctx.globalCompositeOperation='screen';
-  for(let i=0;i<shape.engines.length;i++) {
-    const [ex,ey,er]=shape.engines[i];
+  for(let i=0;i<engines.length;i++) {
+    const engine=engines[i],ex=engine[0],ey=engine[1],er=engine[2];
     const shimmer=1+Math.sin(animatedTime*31+i*2.7+phase)*.055;
     const length=(player?70:51)*(.48+thrust*.55)*shimmer;
-    const width=er*(4.6+thrust*.2),engineX=ex,engineY=ey;
+    const width=er*(4.6+thrust*.2);
     ctx.globalAlpha=shipAlpha*(.79+thrust*.08);
-    drawBoundedSprite(ctx,flame,engineX-width/2,engineY-8,width,length+14);
+    drawKitSprite(ctx,flame,flameBounds,ex-width/2,ey-8,width,length+14);
   }
   ctx.globalAlpha=shipAlpha;ctx.globalCompositeOperation=composite;
 
-  const sprite=hullSprite(kind,flightColor,world,player,palette);
-  drawBoundedSprite(ctx,sprite,-140,-140,280,280);
+  drawKitSprite(ctx,kit.hull,kit.hullBounds,-140,-140,280,280);
 
   // Restore only the two values changed by additive layers. The outer save
   // retains every caller style and transform without a state stack per effect.
   const hit=Math.max(0,Math.min(1,options.hit||0)),shield=Math.max(0,Math.min(1,options.shield||0));
   if(detailed||hit>0||shield>0)ctx.globalCompositeOperation='screen';
-  const [cx,cy,cr]=shape.core;
+  const core=shape.core,cx=core[0],cy=core[1],cr=core[2];
   if(detailed) {
     ctx.globalAlpha=shipAlpha*(.7+thrust*.14)*pulse;
-    drawBoundedSprite(ctx,lightsSprite(kind,palette.glow||flightColor,player,palette,world),-160,-160,320,320);
-  }
-  if(detailed) {
+    drawKitSprite(ctx,kit.lights,kit.lightsBounds,-160,-160,320,320);
     // The reactor breathes independently of the exhaust; its hull and hitbox stay still.
     ctx.globalAlpha*=(.12+Math.sin(animatedTime*2.1+phase)*.035);
     const diameter=cr*(player?3.1:4.2);
-    ctx.drawImage(glowSprite(palette.glow||flightColor),cx-diameter/2,cy-diameter/2,diameter,diameter);
+    ctx.drawImage(kit.glow,cx-diameter/2,cy-diameter/2,diameter,diameter);
   }
   if(hit>0) {
     ctx.globalAlpha=shipAlpha*hit*.76;
-    drawBoundedSprite(ctx,silhouettes.flash,-160,-160,320,320);
+    drawKitSprite(ctx,kit.flash,kit.flashBounds,-160,-160,320,320);
   }
   if(shield>0) {
-    const lightStyle=lightStyles(palette.glow||flightColor);
+    const lightStyle=kit.styles;
     ctx.globalAlpha=shipAlpha*shield*(.18+pulse*.12);
     ctx.strokeStyle=lightStyle.shield;ctx.lineWidth=1.4;
     ctx.beginPath();ctx.ellipse(0,-3,112,127,0,0,TAU);ctx.stroke();

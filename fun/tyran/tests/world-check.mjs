@@ -4,7 +4,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 const {chromium}=await import(process.env.TYRAN_PLAYWRIGHT||'playwright');
 const output=process.env.TYRAN_WORLD_OUTPUT||'/tmp/tyran-world-qa';
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({channel:'chrome',headless:true});
+const browser=await chromium.launch({channel:process.env.TYRAN_BROWSER||'chrome',headless:true});
 try {
   const page=await browser.newPage({viewport:{width:1440,height:960}}),errors=[],landscapes=[];
   page.on('pageerror',e=>errors.push(e.message));

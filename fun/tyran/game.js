@@ -2,7 +2,7 @@ import { createGpuCanvas } from './gpu-canvas.js';
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites, warmGpuShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
-  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE } from './sim.js';
+  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE, freshSalt } from './sim.js';
 import { isDormant } from './waves.js';
 import { Effects, explosionIntensity, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
@@ -13,6 +13,7 @@ import { spritesReady, spriteStatus } from './sprite-assets.js';
 import { drawProjectiles, warmProjectileTextures, warmGpuProjectileTextures } from './projectile-sprites.js';
 import { BONUS_KINDS, BONUS_PALETTE, pickupTexture } from './bonus-sprites.js';
 import { environmentIndex, campaignCycle, normalizeLevel } from './campaign.js';
+import { ENCOUNTER_BRIEFS, ACE_NAMES, encounterSummary } from './encounters.js';
 import { warmShopArt, shopArtMarkup } from './shop-art.js';
 
 const environment = level => WORLDS[environmentIndex(level)];
@@ -81,7 +82,7 @@ let selectedDifficulty = 'easy';
 let keyboardLockEpoch = 0;
 const STEP = 1 / 60;
 let accumulator = 0, previousScroll = 0, renderAlpha = 1, renderDirty = true, frameHandle = 0, idleHandle = 0, hitstop = 0;
-let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null;
+let resolutionScale = 1, frameAverage = 16.7, fastestFrame = 100, lastAdapt = 0, vignette = null, vignetteKey = 0, adaptiveResolution = true;
 let endFade = null;
 const END_IMPACT_HOLD = .22, END_FADE_SECONDS = 1.5;
 let bonusOutro = null;
@@ -236,20 +237,26 @@ function sizeSurface(rect, adaptive = false) {
   if (!adaptive) world.setDetailScale(canvas.width, quality);
   perf.renderScale = dpr;
   ctx.setTransform(canvas.width / W, 0, 0, canvas.height / H, 0, 0);
-  // The screen-space shade never changes between resizes. Rasterize its soft
-  // gradient once rather than evaluating a radial shader over every frame.
+  if (buildVignette() && gpu) gpu.prewarm(vignette);
+  renderDirty = true;
+}
+
+// The screen-space shade depends only on the arena's aspect ratio. A small
+// rasterized gradient stretches smoothly over any backing size, so adaptive
+// resolution changes in flight neither repaint nor re-upload it.
+function buildVignette() {
+  const key = Math.round(W * 1000);
+  if (vignette && vignetteKey === key) return false;
+  vignetteKey = key;
   vignette ||= document.createElement('canvas');
-  const shadeScale = Math.min(1, 1024 / canvas.width);
-  vignette.width = Math.max(1, Math.round(canvas.width * shadeScale));
-  vignette.height = Math.max(1, Math.round(canvas.height * shadeScale));
+  vignette.width = 512; vignette.height = Math.max(1, Math.round(512 * H / W));
   const shade = vignette.getContext('2d');
   shade.setTransform(vignette.width / W, 0, 0, vignette.height / H, 0, 0);
   const gradient = shade.createRadialGradient(W * .5, H * .5, H * .25, W * .5, H * .5, Math.max(W, H) * .75);
   gradient.addColorStop(0, '#02080d00'); gradient.addColorStop(1, '#02080d9c');
   shade.fillStyle = gradient; shade.fillRect(0, 0, W, H);
   vignette._tyranTextureVersion = (vignette._tyranTextureVersion || 0) + 1;
-  if (gpu) gpu.prewarm(vignette);
-  renderDirty = true;
+  return true;
 }
 
 function resize() {
@@ -293,7 +300,8 @@ function warmFleet(index) {
   warmProjectileTextures([...WEAPONS, ...PRIMARIES, { id: 'drone', kind: 'pulse', color: DRONE_COLOR }], BULLET_SPECTRUM);
   for (const kind of BONUS_KINDS) pickupTexture(kind);
   warmEffectsTextures([WORLDS[index].color, ...WEAPONS.filter(weapon => weapon.splash).map(weapon => weapon.color)]);
-  pilotBarrierTexture();
+  pilotBarrierTexture(); mineTexture();
+  meteorWorld = METEOR_WORLDS.has(index) ? index : -1;
   warmGpuSources();
 }
 
@@ -302,7 +310,8 @@ function warmGpuSources() {
   gpu.prepareSoftLayer(.5);
   warmGpuShipSprites(gpu); warmGpuProjectileTextures(gpu); warmGpuEffectTextures(gpu);
   for (const kind of BONUS_KINDS) gpu.prewarm(pickupTexture(kind));
-  gpu.prewarm(pilotBarrierTexture());
+  gpu.prewarm(pilotBarrierTexture()); gpu.prewarm(mineTexture());
+  if (meteorWorld >= 0) for (let variant = 0; variant < 5; variant++) { const rock = world.getSprite(METEOR_SPRITES[meteorWorld], variant); gpu.prewarm(rock); gpu.prewarm(meteorShadow(rock)); }
   if (vignette) gpu.prewarm(vignette);
   if (signalStrip) gpu.prewarm(signalStrip);
   world.warmGpuSources(gpu);
@@ -323,7 +332,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
   activeCampaign = persist; lastAutosaveTime = 0;
   level = normalizeLevel(level);
   selected = environmentIndex(level);
-  state = createCampaign(level, checkpoint, selectedDifficulty);
+  state = createCampaign(level, checkpoint, selectedDifficulty, checkpoint ? 0 : freshSalt());
   state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
   world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); feedback.reset(state); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
@@ -512,7 +521,7 @@ function renderReport() {
   const challenge = state.challenge?.done ? state.challenge : null;
   const perfect = challenge && challenge.hits >= challenge.total;
   $('hangar-report').innerHTML = `<div><dt>Hit ratio</dt><dd>${ratio}<small>${number(hits)} hits · ${number(shots)} shots</small></dd></div><div><dt>Squadrons wiped</dt><dd>${stats.squads || 0}</dd></div><div><dt>Dive kills</dt><dd>${stats.dives || 0}<small>${stats.rescues ? `${stats.rescues} drone${stats.rescues === 1 ? '' : 's'} rescued` : 'Worth double points'}</small></dd></div><div><dt>Challenging stage</dt><dd class="${perfect ? 'perfect' : ''}">${challenge ? `${challenge.hits} / ${challenge.total}` : '—'}<small>${challenge ? (perfect ? 'Perfect!' : `+${number(challenge.credits || 0)} credits`) : 'After odd sectors'}</small></dd></div>`;
-  $('hangar-report-note').textContent = environment(state.level).name;
+  $('hangar-report-note').textContent = [environment(state.level).name, encounterSummary(stats)].filter(Boolean).join(' · ');
 }
 
 function renderUpgrades() {
@@ -671,10 +680,15 @@ function processEvents() {
     if (e.type === 'captive-lost') announce('Captor escaped', 'Drone lost', '', 1.4, true);
     if (e.type === 'challenge') announce('Bonus stage', 'Bonus · no enemy fire', `${e.total} ships. No return fire. Hit every one for a perfect bonus.`, 3);
     if (e.type === 'challenge-result') announce(e.perfect ? 'Perfect!' : 'Challenge complete', `${e.hits} / ${e.total}`, `+${number(e.credits)} credits · +${number(e.score)} score`, 2.6);
+    if (e.type === 'encounter' && ENCOUNTER_BRIEFS[e.kind]) {
+      const brief = ENCOUNTER_BRIEFS[e.kind], calm = e.kind === 'convoy' || e.kind === 'bonusFlight';
+      announce(brief.kicker, e.kind === 'ace' ? `${ACE_NAMES[e.aceName] || 'Ace'} inbound` : brief.title, brief.detail, calm ? 2.4 : 2.8);
+    }
+    if (e.type === 'ace-down') announce('Ace down', `${ACE_NAMES[e.aceName] || 'Ace'} destroyed`, 'Its wreck released prizes.', 2, true);
     if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
     if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} reserve ship${e.lives === 1 ? '' : 's'} left`, 'Two power levels and one drone lost.', 1.6, true);
     if (e.type === 'weapon') { refreshHUD(); renderWeapons(); }
-    if (['pickup', 'extra-life', 'respawn', 'nova', 'captured', 'rescue', 'power-lost'].includes(e.type)) refreshHUD();
+    if (['pickup', 'extra-life', 'respawn', 'nova', 'captured', 'rescue', 'power-lost', 'ace-down'].includes(e.type)) refreshHUD();
     if (e.type === 'hangar') {
       if (state.challenge?.done) beginBonusOutro(e.bonus);
       else showHangar(e.bonus);
@@ -772,6 +786,98 @@ function drawTractor(e) {
     }
   }
   ctx.restore();
+}
+
+// Cloaked phantoms shimmer faintly; the sim ignores shots at them until they show.
+const cloakOpacity = e => fx.reduced ? .2 : .1 + .1 * (1 + Math.sin(clock * 7 + e.seed));
+
+// Drifting hazards use one baked mine sprite and the world's own rock sprites.
+const METEOR_SPRITES = ['rock', 'rock', 'rock', 'rock', 'asteroid', 'rock', 'basalt', 'rock', 'rock', 'basalt'];
+const METEOR_WORLDS = new Set([4, 5, 6, 9]);
+let mineSprite = null, meteorWorld = -1;
+function mineTexture() {
+  if (mineSprite) return mineSprite;
+  const size = 64, c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'), cx = size / 2, cy = size / 2;
+  g.strokeStyle = '#4a3a3a'; g.lineWidth = 4; g.lineCap = 'round';
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4;
+    g.beginPath(); g.moveTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); g.lineTo(cx + Math.cos(a) * 25, cy + Math.sin(a) * 25); g.stroke();
+  }
+  const body = g.createRadialGradient(cx - 5, cy - 6, 2, cx, cy, 18);
+  body.addColorStop(0, '#8d7d7a'); body.addColorStop(.6, '#3b2f31'); body.addColorStop(1, '#171215');
+  g.fillStyle = body; g.beginPath(); g.arc(cx, cy, 18, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ff5d3a'; g.beginPath(); g.arc(cx, cy, 4, 0, Math.PI * 2); g.fill();
+  return mineSprite = c;
+}
+function drawMine(e, x, y) {
+  const size = e.radius * 3, lit = fx.reduced || Math.floor((clock + e.seed) * 4) % 2 === 0;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(fx.reduced ? e.seed : clock * .8 + e.seed);
+  ctx.drawImage(mineTexture(), -size / 2, -size / 2, size, size); ctx.restore();
+  if (lit) { ctx.save(); ctx.fillStyle = '#ff5d3a'; ctx.globalAlpha = .95; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+}
+// One black silhouette per rock sprite, shared by every meteor that uses it.
+const meteorShadows = new WeakMap();
+function meteorShadow(sprite) {
+  let shadow = meteorShadows.get(sprite);
+  if (shadow) return shadow;
+  shadow = document.createElement('canvas'); shadow.width = sprite.width; shadow.height = sprite.height;
+  const g = shadow.getContext('2d');
+  g.drawImage(sprite, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#000'; g.fillRect(0, 0, shadow.width, shadow.height);
+  meteorShadows.set(sprite, shadow);
+  return shadow;
+}
+function drawMeteor(e, x, y) {
+  const sprite = world.getSprite(METEOR_SPRITES[e.meteorWorld ?? environmentIndex(state.level)] || 'rock', (e.variant || 0) % 5);
+  if (!sprite) return;
+  const size = e.radius * 3.4, spin = fx.reduced ? e.seed : e.seed + e.age * (e.spinRate || 0);
+  // A tumbling rock reads as airborne through its offset shadow over the ground.
+  ctx.save(); ctx.translate(x + 7, y + 11); ctx.rotate(spin); ctx.globalAlpha = .45;
+  ctx.drawImage(meteorShadow(sprite), -size / 2, -size / 2, size, size); ctx.restore();
+  ctx.save(); ctx.translate(x, y); ctx.rotate(spin);
+  ctx.drawImage(sprite, -size / 2, -size / 2, size, size); ctx.restore();
+  if (e.hurt > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, e.hurt / .07) * .5; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, e.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+}
+// Small overlays tell roles apart without any new hull art.
+function drawRoleMarker(e, x, y, palette) {
+  const role = e.role, r = e.radius, top = y - r * 1.6 - 12;
+  if (role === 'shielded') {
+    if (!(e.shieldHp > 0)) return;
+    const fresh = state.time - (e.shieldHit ?? -10) < .15, level = e.shieldHp / (e.shieldMax || 1);
+    ctx.save(); ctx.globalAlpha = fresh ? .95 : .3 + .4 * level; ctx.strokeStyle = fresh ? '#ffffff' : '#8ad7ff'; ctx.lineWidth = fresh ? 3 : 2;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.45, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  } else if (role === 'elite' || role === 'ace') {
+    ctx.save(); ctx.fillStyle = '#ffd35c'; ctx.globalAlpha = fx.reduced ? .9 : .7 + .3 * Math.sin(clock * 5 + e.seed);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = i * Math.PI / 3 - Math.PI / 6, px = x + Math.cos(a) * 6, py = top + Math.sin(a) * 6;
+      if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    if (role === 'ace') { ctx.strokeStyle = '#ffd35c'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, top, 10, 0, Math.PI * 2); ctx.stroke(); }
+    ctx.restore();
+  } else if (role === 'splitter') {
+    const a = fx.reduced ? e.seed : clock * 3 + e.seed;
+    ctx.save(); ctx.fillStyle = palette?.rim || '#ffe6a8'; ctx.globalAlpha = .85;
+    for (let i = 0; i < 3; i++) { const t = a + i * Math.PI * 2 / 3; ctx.beginPath(); ctx.arc(x + Math.cos(t) * r * 1.3, y + Math.sin(t) * r * .8, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  } else if (role === 'medic') {
+    ctx.save(); ctx.fillStyle = '#8affd7'; ctx.globalAlpha = .9;
+    ctx.fillRect(x - 2, top - 7, 4, 14); ctx.fillRect(x - 7, top - 2, 14, 4); ctx.restore();
+  } else if (role === 'phantom') {
+    if (e.cloaked) return;
+    ctx.save(); ctx.strokeStyle = '#c7b3ff'; ctx.globalAlpha = .45; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(x, y, r * 1.3, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+  } else if (role === 'bomber' || role === 'miner') {
+    const count = role === 'bomber' ? 3 : Math.min(4, e.mineBudget || 0);
+    if (!count) return;
+    ctx.save(); ctx.fillStyle = role === 'bomber' ? '#ff9a4b' : '#ffd35c'; ctx.globalAlpha = .9;
+    for (let i = 0; i < count; i++) { ctx.beginPath(); ctx.arc(x + (i - (count - 1) / 2) * 7, y + r * 1.2 + 6, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  } else if (role === 'convoy') {
+    ctx.save(); ctx.fillStyle = '#ffd35c'; ctx.globalAlpha = .9;
+    ctx.beginPath(); ctx.moveTo(x, top - 7); ctx.lineTo(x + 6, top); ctx.lineTo(x, top + 7); ctx.lineTo(x - 6, top); ctx.closePath(); ctx.fill(); ctx.restore();
+  }
 }
 
 function drawCaptive(e, x, y) {
@@ -874,7 +980,9 @@ function drawFrame() {
   ctx = gpu?.usable ? gpu : displayCtx;
   syncGpuDisplay();
   if (scene === 'end' && endFade?.complete) return;
-  if (ctx === gpu) gpu.beginFrame();
+  // The terrain covers the whole arena; clearing to its substrate color makes
+  // the world's seam fill unnecessary on this path.
+  if (ctx === gpu) { gpu.setClearColor(world.backgroundColor); gpu.beginFrame(); }
   // Finished paths are not part of Canvas's saved state. Discard them before
   // moving image-only passes so their vertices need not follow each transform.
   ctx.beginPath();
@@ -913,7 +1021,10 @@ function drawFrame() {
       const palette = SHIP_PALETTES[index];
       if (e.captive) drawCaptive(e, x, y);
       if (e.ai === 'dive' && !fx.reduced) drawDiveStreak(e, x, y, palette);
-      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced });
+      if (e.role === 'meteor') { drawMeteor(e, x, y); continue; }
+      if (e.role === 'mine') { drawMine(e, x, y); continue; }
+      drawShip(ctx, x, y, e.radius * (e.type < 2 ? 1.35 : 1), e.type, palette?.primary || WORLDS[index].enemyColor || '#b07355', clock, { hit: e.hurt / .07 * .3, phase: e.phase, world: index, quality, thrust: e.thrust, palette, motion: !fx.reduced, opacity: e.cloaked ? cloakOpacity(e) : 1 });
+      if (e.role && !e.dead) drawRoleMarker(e, x, y, palette);
       drawBossWeakPoints(e, clock);
       // Damaged heavy craft retain their local health readout; bosses use the HUD.
       if (!e.boss && !e.dead && e.hp > 0 && e.hp < e.maxHp && e.radius >= 24) {
@@ -974,6 +1085,7 @@ function drawFrame() {
 function frame(time) {
   frameHandle = 0;
   if (document.hidden) { lastTime = 0; return; }
+  const frameStarted = performance.now();
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
   const preview = scene === 'menu' && document.body.dataset.preview === 'true';
@@ -1004,9 +1116,9 @@ function frame(time) {
       perf.frameMs = frameAverage; perf.fps = 1000 / frameAverage;
       const wallClock = time / 1000;
       // Reduce only backing resolution under sustained load; physics and game speed stay fixed.
-      if (wallClock - lastAdapt > 4 && frameAverage > Math.max(25, fastestFrame * 1.55) && resolutionScale > .7) {
+      if (adaptiveResolution && wallClock - lastAdapt > 4 && frameAverage > Math.max(25, fastestFrame * 1.55) && resolutionScale > .7) {
         resolutionScale = Math.max(.7, resolutionScale - .1); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
-      } else if (wallClock - lastAdapt > 12 && frameAverage < Math.max(18, fastestFrame * 1.15) && perf.renderMs < 7 && resolutionScale < 1) {
+      } else if (adaptiveResolution && wallClock - lastAdapt > 12 && frameAverage < Math.max(18, fastestFrame * 1.15) && perf.renderMs < 7 && resolutionScale < 1) {
         resolutionScale = Math.min(1, resolutionScale + .05); sizeSurface(canvas.getBoundingClientRect(), true); lastAdapt = wallClock;
       }
     }
@@ -1023,6 +1135,13 @@ function frame(time) {
     const started = performance.now(); draw();
     perf.renderMs += (performance.now() - started - perf.renderMs) * .05;
     perf.frames++; renderDirty = false;
+  }
+  // Upcoming terrain and scenery advance in small steps inside the frame's
+  // spare time, so streaming never depends on idle callbacks that a busy
+  // render loop may starve, and never lands a whole strip in one frame.
+  if (scene === 'playing') {
+    const spent = performance.now() - frameStarted;
+    if (spent < 9) world.runWarmSlice(Math.min(2, 9 - spent));
   }
   if (active) requestFrame();
   else idleHandle = setTimeout(() => { idleHandle = 0; requestFrame(); }, 180);
@@ -1204,6 +1323,9 @@ warmGpuSources();
 window.tyran = {
   get state() { return state; }, get scene() { return scene; }, get world() { return world; }, get fx() { return fx; }, get feedback() { return feedback; }, worlds: WORLDS, enemyTypes: ENEMY_TYPES, weapons: WEAPONS, bulletSpectrum: BULLET_SPECTRUM, parallaxLayers: PARALLAX_LAYERS, shipPalettes: SHIP_PALETTES,
   get performance() { return { ...perf, interpolation: renderAlpha, fixedStep: STEP }; },
+  // Benchmarks pin the backing resolution so A/B runs draw the same surface.
+  get adaptiveResolution() { return adaptiveResolution; },
+  set adaptiveResolution(value) { adaptiveResolution = !!value; },
   get renderer() { return { backend: ctx === gpu ? 'webgl2' : 'canvas2d', ...(gpu?.stats || {}) }; },
   launch, selectWorld, selectWeapon, pause, spriteStatus, buyPrimary, buySupply,
   step(seconds, controls = []) { for (let i = 0; i < Math.ceil(seconds * 60); i++) { if (state && scene === 'playing') { previousScroll = state.scroll; update(state, STEP, controls, environmentHit); processEvents(); } } accumulator = 0; renderAlpha = 1; renderDirty = true; refreshHUD(); requestFrame(); },

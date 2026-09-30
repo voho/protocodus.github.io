@@ -29,3 +29,17 @@ Useful environment variables:
 Files to copy together: performance-check.mjs, native-cpu-client.mjs, native-cpu.py and owned-gpu-stats.py. Paths are relative to the test module; no machine-specific paths are embedded. The Python CPU helper uses only standard-library ctypes/json; GPU helper uses standard-library plistlib and ioreg.
 
 Do not run visual QA or other benchmark browsers concurrently with timed flights. Profiling runs diagnose hot functions; keep profiling disabled for reported savings.
+
+## Frame-cost comparison without a hardware GPU
+
+`frame-cost-check.mjs` isolates the two halves of a frame so a change can be compared on any machine, including a container whose only GPU is the SwiftShader software renderer:
+
+```sh
+TYRAN_BROWSER=chromium TYRAN_FRAME_MODE=js node fun/tyran/tests/frame-cost-check.mjs
+TYRAN_BROWSER=chromium TYRAN_FRAME_MODE=gpu node fun/tyran/tests/frame-cost-check.mjs
+```
+
+- `js` replaces every WebGL2 context with a no-op context before the page loads. Frames then measure main-thread JavaScript only: script time per rendered frame, the renderer's own render/update averages, draw calls, vertices, and a CPU profile with self and inclusive attribution.
+- `gpu` runs the real renderer and additionally sums the analytic area of every submitted triangle, reported in full-screen equivalents, split into image and geometry programs, with soft-layer round trips, flushes and texture uploads per frame.
+
+Both modes drive the seeded 18-ship Inferno Foundry flight from `performance-check.mjs` for `TYRAN_PERF_SECONDS` seconds and pin the backing resolution through `tyran.adaptiveResolution = false`, so A/B runs draw the same surface. Compare runs of the same mode only; frame intervals under a software GPU are dominated by the rasterizer and are not a hardware measurement. Long tasks are reported for the `js` mode, where they identify main-thread work such as strip preparation or saves rather than compositor stalls.

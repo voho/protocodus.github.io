@@ -3,7 +3,7 @@ import { ENEMY_TYPES } from '../ships.js';
 import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
   spawnFormation, selectWeapon, weaponStats, firingInterval, WEAPONS, buyUpgrade, upgradeCost, shipStats, UPGRADES, MAX_UPGRADE, applyStructureBlast, missionScrollSpeed, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY,
   SHIELD_FIRE_DELAY, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE,
-  PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector } from '../sim.js';
+  PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector, FORMATIONS } from '../sim.js';
 import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE_SIZE } from '../waves.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
@@ -615,7 +615,7 @@ check('ordinary craft pass through the pilot lane and leave without a bottom-row
 });
 
 check('formation survivors depart and keep moving until the last heavy hull exits', () => {
-  for (const kind of ['vee', 'wall', 'orbit', 'escort', 'pincer']) {
+  for (const kind of FORMATIONS) {
     const state = createCampaign(9);
     state.time = 80;
     const formation = spawnFormation(state, kind);

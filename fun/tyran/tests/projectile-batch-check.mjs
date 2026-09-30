@@ -1,7 +1,7 @@
 // Real raster equality plus Canvas state-call counts for the volley renderer.
 import assert from 'node:assert/strict';
 const { chromium } = await import(process.env.TYRAN_PLAYWRIGHT || 'playwright');
-const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const browser = await chromium.launch({ channel: process.env.TYRAN_BROWSER || 'chrome', headless: true });
 const page = await browser.newPage();
 const errors = []; page.on('pageerror', error => errors.push(error.message));
 try {

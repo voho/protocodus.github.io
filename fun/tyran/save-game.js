@@ -2,6 +2,8 @@ import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SE
   MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration, missionScrollSpeed, MAX_SCROLL_SPEED } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 import { normalizeDifficulty } from './difficulty.js';
+import { ROLES } from './roles.js';
+import { ENCOUNTER_KINDS, sectorEncounters } from './encounters.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
@@ -78,18 +80,33 @@ function optional(target, source, spec) {
   return target;
 }
 const ENEMY_FIELDS = {
-  ai: ['enum', 0, 0, AI_MODES], path: ['enum', 0, 0, Object.keys(PATHS)], role: ['enum', 0, 0, ['midboss', 'captor']],
+  ai: ['enum', 0, 0, AI_MODES], path: ['enum', 0, 0, Object.keys(PATHS)], role: ['enum', 0, 0, ROLES],
   pathD: ['num'], pathSpeed: ['num', 0, 4000], mirror: ['int', -1, 1], pathOx: ['num'], pathOy: ['num', -4000, 4000],
-  wave: ['int', -1, 64], squad: ['int', 0, 100_000], slotRow: ['int', 0, 8], slotCol: ['int', 0, 16], slotCount: ['int', 0, 16],
+  // Encounter ships belong to wave -2; they never hold an authored wave open.
+  wave: ['int', -2, 64], squad: ['int', 0, 100_000], slotRow: ['int', 0, 8], slotCol: ['int', 0, 16], slotCount: ['int', 0, 16],
   diveT: ['num', 0, 1000], diveX0: ['num'], diveY0: ['num'], diveSide: ['int', -1, 1], diveTx: ['num'], diveSpeed: ['num', 0, 4000],
   diveWeave: ['num', 0, 400], diveHome: ['int', 0, 1], diveFired: ['int', 0, 8], returnToHive: ['bool'], leaveDx: ['num', -1, 1], leaveDy: ['num', -1, 1],
   stationX: ['num'], stationY: ['num'], hold: ['num', -1000, 1000], sway: ['num', 0, 2000],
   capState: ['int', 0, 3], capTimer: ['num', -1000, 1000], capBeams: ['int', 0, 16], capX: ['num'], capGrip: ['num', 0, 10], captive: ['int', 0, 1], captiveFire: ['num', -1000, 1000],
   harmless: ['bool'], noFire: ['bool'], challenge: ['bool'], potshot: ['int', 0, 1], volley: ['int', 0, 8], gone: ['bool'], launch: ['num', -1000, 1000],
   tacticSpeed: ['num', .5, 2], tacticFire: ['num', .5, 2], hiveShape: ['enum', 0, 0, ['ranks', 'chevron', 'stagger', 'split', 'diamond', 'orbit']],
+  // Specialist roles: barrier state, cloak timing, repair and minelaying
+  // clocks, hazard drift and the identity of a named ace.
+  shieldMax: ['num', 0, 10_000_000], shieldHp: ['num', 0, 10_000_000], shieldHit: ['num', -1000, 100_000_000],
+  cloak: ['num', 0, 100], cloaked: ['bool'], healClock: ['num', -10, 10], dropTimer: ['num', -10, 10], mineBudget: ['int', 0, 64],
+  driftX: ['num', -400, 400], spinRate: ['num', -10, 10], variant: ['int', 0, 16], aceName: ['int', 0, 64], meteorWorld: ['int', 0, 9],
 };
-function restoreDirector(raw, level) {
-  if (raw === undefined) return createDirector(level);
+function encounterList(raw, level, plan, salt, wave) {
+  // Flights saved before encounters existed adopt their campaign's schedule,
+  // minus any wave already flown, so an old save never floods a late wave.
+  if (raw === undefined) return sectorEncounters(level, plan, salt).map(entry => ({ ...entry, done: entry.done || entry.wave <= wave }));
+  return list(raw, 4).map(entry => {
+    if (!object(entry) || !ENCOUNTER_KINDS.includes(entry.kind)) invalid();
+    return { kind: entry.kind, wave: integer(entry.wave, 0, 0, 64), time: number(entry.time, 0, 0, 1000), size: integer(entry.size, 0, 0, 4), done: bool(entry.done) };
+  });
+}
+function restoreDirector(raw, level, salt = 0) {
+  if (raw === undefined) return createDirector(level, salt);
   if (!object(raw)) invalid();
   const plan = list(raw.plan, 16).map(kind => { if (!WAVE_KINDS.includes(kind)) invalid(); return kind; });
   if (!plan.length) invalid();
@@ -99,6 +116,7 @@ function restoreDirector(raw, level) {
   director.state = raw.state === 'wave' ? 'wave' : raw.state === 'rest' || raw.state === undefined ? 'rest' : invalid();
   director.pending = integer(raw.pending, 0, 0, 4);
   director.hold = bool(raw.hold); director.done = bool(raw.done); director.abandon = bool(raw.abandon);
+  director.encounters = encounterList(raw.encounters, level, plan, salt, director.wave);
   return director;
 }
 
@@ -121,7 +139,9 @@ function restoreState(raw) {
   if (raw.status === 'victory' && raw.level !== 9) invalid();
   if (!object(raw.upgrades) || !Array.isArray(raw.players) || !Array.isArray(raw.enemies) || !Array.isArray(raw.bullets) || !Array.isArray(raw.formations)) invalid();
   // Existing campaigns predate the selector and retain the original Easy balance.
-  const state = createCampaign(raw.level, null, normalizeDifficulty(raw.difficulty));
+  // Campaigns saved before salts fly the authored reference choreography.
+  const salt = raw.salt === undefined ? 0 : integer(raw.salt, 0, 0, 4294967295);
+  const state = createCampaign(raw.level, null, normalizeDifficulty(raw.difficulty), salt);
   for (const id of Object.keys(state.upgrades)) state.upgrades[id] = integer(raw.upgrades[id], 0, 0, MAX_UPGRADE);
   state.status = raw.status === 'victory' ? 'hangar' : raw.status;
   state.startLevel = campaignLevel(raw.startLevel, 0, state.level);
@@ -149,15 +169,16 @@ function restoreState(raw) {
   if (raw.nextLife === undefined) state.nextLife = nextLifeAfterScore(state.score);
   state.respawn = number(raw.respawn, 0, -1, RESPAWN_DELAY);
   const rawStats = raw.stats === undefined ? {} : object(raw.stats) ? raw.stats : invalid();
-  state.stats = Object.fromEntries(['shots', 'hits', 'squads', 'dives', 'rescues'].map(key => [key, integer(rawStats[key], 0)]));
-  state.director = restoreDirector(raw.director, state.level);
+  state.stats = Object.fromEntries(['shots', 'hits', 'squads', 'dives', 'rescues', 'encounters', 'aces', 'convoys', 'hazards'].map(key => [key, integer(rawStats[key], 0)]));
+  state.director = restoreDirector(raw.director, state.level, state.salt);
   state.hive = { age: raw.hive === undefined ? 0 : object(raw.hive) ? number(raw.hive.age, 0, 0, 100_000) : invalid() };
   state.nextSquadId = integer(raw.nextSquadId, 1, 1);
   const squadIds = new Set();
   state.squadrons = list(raw.squadrons, 96).map(squad => {
     if (!object(squad)) invalid();
-    const result = { id: integer(squad.id, 0, 1), size: integer(squad.size, 1, 1, 16), killed: integer(squad.killed, 0, 0, 16), broken: bool(squad.broken), wave: integer(squad.wave, 0, -1, 64) };
+    const result = { id: integer(squad.id, 0, 1), size: integer(squad.size, 1, 1, 16), killed: integer(squad.killed, 0, 0, 16), broken: bool(squad.broken), wave: integer(squad.wave, 0, -2, 64) };
     if (squad.challenge !== undefined) result.challenge = bool(squad.challenge);
+    if (squad.bonusFlight !== undefined) result.bonusFlight = bool(squad.bonusFlight);
     if (squadIds.has(result.id)) invalid();
     squadIds.add(result.id);
     return result;
@@ -259,6 +280,8 @@ function restoreState(raw) {
       if (result.weakPoints.length !== 4) invalid();
     }
     optional(result, enemy, ENEMY_FIELDS);
+    // A barrier never exceeds its own capacity, whatever a record claims.
+    if (result.shieldMax !== undefined) result.shieldHp = Math.min(result.shieldHp ?? result.shieldMax, result.shieldMax);
     return result;
   });
   for (const beam of state.beams) if (!enemyIds.has(beam.owner)) invalid();
@@ -276,7 +299,7 @@ function restoreState(raw) {
     }
     if (bullet.weaponColor !== undefined) result.weaponColor = color(bullet.weaponColor, '#9cfff0');
     // A loaded blast must stay within a bounded area of the scenery grid.
-    for (const [key, max] of Object.entries({ baseDamage: 1_000_000, pierce: 8, homing: 20, splash: 160, splashFactor: 2, chain: 8, chainRange: 400, chainFactor: 2, comboBlast: 1.38, variant: 5, sourceRadius: 256 })) {
+    for (const [key, max] of Object.entries({ baseDamage: 1_000_000, pierce: 8, homing: 20, splash: 160, splashFactor: 2, chain: 8, chainRange: 400, chainFactor: 2, comboBlast: 1.38, variant: 5, sourceRadius: 256, fuse: 10 })) {
       if (bullet[key] !== undefined) result[key] = number(bullet[key], 0, 0, max);
     }
     if (bullet.hitIds !== undefined) result.hitIds = list(bullet.hitIds, 128).map(id => integer(id, 0, 1));
@@ -335,7 +358,11 @@ function scenery(raw) {
 
 // The simulation status determines the restored screen; a flying save always
 // opens paused so the pilot can orient themselves before combat resumes.
-export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), destroyed = new Set(), sceneryVersion = SCENERY_VERSION, unlocked = state?.level || 0 } = {}) {
+export function serializeRun(state, context) { return encodeRun(state, context).raw; }
+
+// Validation restores a copy once; the write path reuses that copy instead of
+// parsing and validating its own output a second time during an autosave.
+function encodeRun(state, { seed = 'tyran-v2', damage = new Map(), destroyed = new Set(), sceneryVersion = SCENERY_VERSION, unlocked = state?.level || 0 } = {}) {
   if (!state || !['playing', 'hangar', 'victory'].includes(state.status)) invalid();
   const rawState = { ...state, events: [], enemies: state.enemies.map(enemy => {
     const { formation, formationOffset, ...rest } = enemy;
@@ -352,10 +379,11 @@ export function serializeRun(state, { seed = 'tyran-v2', damage = new Map(), des
     }) },
     damage: [...damage], destroyed: [...destroyed], sceneryVersion,
   };
-  scenery(record);
+  const ledger = scenery(record);
   const encoded = JSON.stringify(record, (_, value) => value === Infinity ? POSITIVE_INFINITY : value === -Infinity ? NEGATIVE_INFINITY : value);
   if (encoded.length > MAX_BYTES) invalid();
-  return encoded;
+  const run = { state: restored, scene: record.scene, seed: record.seed, ...ledger, unlocked: record.unlocked, savedAt: record.savedAt, migrated: false };
+  return { raw: encoded, run };
 }
 
 export function restoreRun(raw) {
@@ -423,11 +451,11 @@ export function readCampaign(storage) {
 }
 
 export function writeCampaign(state, context = {}, storage) {
-  let raw;
-  try { raw = serializeRun(state, context); } catch { return { ok: false, run: null, error: 'invalid-run' }; }
+  let encoded;
+  try { encoded = encodeRun(state, context); } catch { return { ok: false, run: null, error: 'invalid-run' }; }
   try {
-    storageOrThrow(storage).setItem(SAVE_KEY, raw);
-    return { ok: true, run: restoreRun(raw), error: null };
+    storageOrThrow(storage).setItem(SAVE_KEY, encoded.raw);
+    return { ok: true, run: encoded.run, error: null };
   } catch { return { ok: false, run: null, error: 'unavailable' }; }
 }
 
