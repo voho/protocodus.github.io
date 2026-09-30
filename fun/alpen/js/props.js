@@ -103,7 +103,7 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
-  chapterTreesAt, gateSlotsIn, guideAt,
+  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas } from './spruce.js';
@@ -2749,8 +2749,9 @@ export function createProps(THREE, shading) {
   const avalancheFences = new Pool(
     THREE, avalancheFenceGeometry(THREE), alpineMat, bands * ALPINE.fence.sections[1],
   );
+  // One edge marker a band at most, plus one for a side hit's crest.
   const waymarks = new Pool(
-    THREE, waymarkGeometry(THREE), alpineMat, bands,
+    THREE, waymarkGeometry(THREE), alpineMat, bands * 2,
   );
   // Two panels a gate, at most one gate slot a band.
   const gatePanels = new Pool(THREE, raceGatePanelGeometry(THREE), gateMat, bands * 2 + 8, true);
@@ -2827,6 +2828,7 @@ export function createProps(THREE, shading) {
      file. The shrub tints that sat beside them went with the shrubs. */
   const centres = [0, 0];
   const gateSlots = [];
+  const sideHitMarks = [];
   // Race red and race blue, a little under full saturation so a panel in
   // full sun on snow does not clip to a flat disc of hue.
   const gateRed = new THREE.Color('#c01d27');
@@ -3552,6 +3554,23 @@ export function createProps(THREE, shading) {
         x: slot.x, z: slot.z, half: PROPS.gateHalf,
         taken: takenGates.has(slot.z),
       });
+    }
+
+    // --- side-hit markers ----------------------------------------------------
+    /* A side hit is the one piece of the run that invites a rider off the
+       corduroy (see `sideHitFor` in terrain.js), and a lip you cannot see
+       coming is the ambush the knolls were banished from the corridor for.
+       So each carries a waymark — the same red-and-white pole the groomed
+       edge already uses, from the same pool — planted just outside the
+       crest's outer end, a board length above it, where it reads from the
+       approach and stands clear of the line anyone would ride over the lip.
+       Pass-through like every waymark, and positioned by the terrain's own
+       slot hash, so a rebuild plants it exactly where it was. */
+    for (const hit of sideHitsIn(z0, z0 + band, sideHitMarks)) {
+      const x = hit.x + hit.side * (hit.halfWidth * 0.9 + 0.8);
+      const z = hit.z + 1.5;
+      const dx = guideAt(z - 2) - guideAt(z + 2);
+      waymarks.add(x, heightAt(x, z) + 0.03, z, Math.atan2(-dx, 4), 1, 1, 1);
     }
   }
 

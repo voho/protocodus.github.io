@@ -846,6 +846,42 @@ export const TERRAIN = {
     shoulder: 9,      // metres the edge of it blends over
   },
 
+  /* Side hits: a wind lip beside the corduroy, one gate slot in `1/chance`
+     at most. See the long note above `sideHitFor` in terrain.js.
+
+     Sized from the ballistics rather than by eye. Leaving a face at slope
+     `lip` over the grade at speed v, with the lip `rise` metres above the
+     snow the rider comes down on, the flight lasts about
+     (lip·v + √((lip·v)² + 2·g·rise)) / g — so the ranges below give roughly
+     0.8 s at 20 m/s and 1.3 s at 35, which is the band where a 360 or a
+     flip fits and where a pop on the lip turns it into a 540 or a cork.
+     The same sum says what it costs to arrive too fast: the touchdown's
+     normal speed is the square root, and at about 40 m/s it passes the
+     sketchy threshold, so the biggest hit on the run is also the one worth
+     checking speed for.
+
+     `offset` is metres past the ribbon's edge to the crest's middle (the
+     spec'd 6–12 beside the corduroy), `clear` keeps at least that share of
+     the hit's own half-width off the ribbon as well, and `inside` is the
+     share of it that must stay inside the groomed corridor — past that the
+     trees begin, and a hit must land its rider on the run. `between` places
+     it between one gate and the next; `from` leaves the opening slots
+     clean; `mask` is the metres over which the ribbon mask releases. */
+  sideHits: {
+    seed: 8111,
+    from: 2,
+    chance: 0.62,
+    between: [0.35, 0.65],
+    offset: [6, 12],
+    clear: 0.75,
+    inside: 0.55,
+    halfWidth: [8, 12],
+    rise: [0.9, 1.35],
+    lip: [0.34, 0.46],
+    lee: 0.45,
+    mask: 4,
+  },
+
   /* The mesh that carries all of it.
 
      A uniform grid cannot win here. Fine enough to carve moguls out of, it

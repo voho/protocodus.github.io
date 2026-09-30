@@ -212,7 +212,7 @@ export const SNOWPACK = {
 
 const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
   ridges, rolls, moguls, chatter, warp, bulgeVary, character,
-  chapters } = TERRAIN;
+  chapters, sideHits } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
 
@@ -524,6 +524,146 @@ export function gateSlotsIn(zLo, zHi, out = []) {
   return out;
 }
 
+/* ==========================================================================
+   Side hits — the air the racing line was never offered.
+
+   Measured with the physics harness before these existed: a rider steering
+   the racing line on three seeds left the ground 0.3 times per four
+   kilometres. Everything on this mountain that throws a rider — the knolls,
+   the drops — is multiplied by `beyondF` in `heightIn` and so lives outside
+   the corridor, for the good reason given there: a hidden ledge on the run
+   is an ambush. The cost was that the only air on the piste was the ollie,
+   so the lip pop, the flips and anything past a 360 were things the game
+   described and a player almost never met.
+
+   A side hit is the piste's own answer, and it is the thing real pistes
+   actually have: a wind lip or a groomer's leftover drift just off the
+   corduroy, which everybody who rides the run knows is there and aims for.
+   One per gate slot at most, hashed off the slot index like the gates
+   themselves, placed between one gate and the next so that taking it is a
+   line — swing out off the ribbon after a gate, hit it, land, and make the
+   next gate or do not — and never ON the ribbon: the corduroy within
+   `guide.tol` of the line is masked flat, so riding the line alone is still
+   exactly as smooth (and exactly as airless) as it was, and the flow
+   meter's "the line alone never fills the bar" rule is untouched.
+
+   The shape is what makes it throw rather than roll. The windward face is
+   concave — a transition, its slope over the grade growing to `lip` at the
+   crest — and the crest is then rolled over on a cubic that keeps the
+   slope continuous (no crease for the normals to trip on) but curves away
+   at ten times the face's rise over the lee's length squared, far faster
+   than gravity can follow at any speed worth arriving with. So the rider
+   leaves on the face's own angle, which is a property of the hit, and how
+   far they go is a question of how fast they came: a pure function of
+   (x, z, seed) like every other term here, cached per slot because the
+   physics asks about the same one twenty-odd times a step.
+
+   Measured on the same three seeds and the same steering bot: the racing
+   line is untouched (still 0.3 launches per four kilometres, to the metre
+   of distance covered), about ten hits stand in every four kilometres, and
+   a rider who swings out to them leaves the ground 18.5 times per four
+   kilometres — nine or ten of those for more than 0.8 s, median 0.87 s,
+   longest 1.26 s, no falls. A charged pop released on the lip roughly
+   doubles the flight, which is room for a cork, and lands heavy: that is
+   the landing model's verdict on a two-second air onto the grade, and it
+   holds for every lip on the mountain, not only these.
+   ========================================================================== */
+
+const SIDE_HIT_CACHE = [0, 1, 2, 3].map(() => ({
+  seed: NaN, k: -1, on: false, zc: 0, x: 0, rx: 1, h: 0, face: 1, lee: 1, side: 1,
+}));
+
+function sideHitFor(k) {
+  const seed = getWorldSeed();
+  const e = SIDE_HIT_CACHE[k & 3];
+  if (e.k === k && e.seed === seed) return e.on ? e : null;
+  e.k = k;
+  e.seed = seed;
+  e.on = false;
+  const S = sideHits;
+  if (k < S.from || hash2(k, S.seed, 101) > S.chance) return null;
+  const zA = gateSlotZ(k);
+  const zB = gateSlotZ(k + 1);
+  const zc = zA + (zB - zA) * (S.between[0]
+    + (S.between[1] - S.between[0]) * hash2(k, S.seed, 102));
+  const line = guideAt(zc);
+  const centre = nearestCenter(line, zc);
+  const half = corridorHalfAt(zc);
+  const wantR = S.halfWidth[0] + (S.halfWidth[1] - S.halfWidth[0]) * hash2(k, S.seed, 103);
+  const wantOff = S.offset[0] + (S.offset[1] - S.offset[0]) * hash2(k, S.seed, 104);
+  /* The roomier side of the line, when the line has been swung to one side
+     of the corridor; either, by hash, when it runs down the middle. And
+     never so far out that the crest's working middle leaves the groomed
+     corridor: the trees begin a couple of metres past its edge, and a rider
+     who takes a hit must land on the run, not in the forest. A couloir is
+     narrow, so where the hashed hit does not fit it is tried narrower —
+     which also brings it in towards the ribbon, since its offset is partly
+     its own width — and on the other side, before the slot is given up. */
+  const lean = line - centre;
+  const first = Math.abs(lean) > 2 ? -Math.sign(lean)
+    : (hash2(k, S.seed, 105) < 0.5 ? -1 : 1);
+  let side = 0;
+  let x = 0;
+  let rx = 0;
+  for (let attempt = 0; attempt < 4 && !side; attempt++) {
+    const trySide = attempt < 2 ? first : -first;
+    const tryR = attempt % 2 === 0 ? wantR : S.halfWidth[0] * 0.8;
+    const off = guide.tol + Math.max(wantOff, S.clear * tryR);
+    const tryX = line + trySide * off;
+    if (Math.abs(tryX - centre) + S.inside * tryR <= half) {
+      side = trySide;
+      x = tryX;
+      rx = tryR;
+    }
+  }
+  if (!side) return null;
+  const h = S.rise[0] + (S.rise[1] - S.rise[0]) * hash2(k, S.seed, 106);
+  const lip = S.lip[0] + (S.lip[1] - S.lip[0]) * hash2(k, S.seed, 107);
+  e.zc = zc;
+  e.x = x;
+  e.rx = rx;
+  e.h = h;
+  // A quadratic face reaching slope `lip` at the crest is 2h/lip long.
+  e.face = (2 * h) / lip;
+  e.lee = e.face * S.lee;
+  e.side = side;
+  e.on = true;
+  return e;
+}
+
+/* The along-slope profile of a hit, as a share of its height. `s` is metres
+   past the crest down the fall line: the face below zero, the lee above. */
+function sideHitProfile(hit, s) {
+  if (s <= -hit.face || s >= hit.lee) return 0;
+  if (s <= 0) {
+    const u = 1 + s / hit.face;
+    return u * u;
+  }
+  /* Cubic Hermite from (crest, height 1, the face's slope) to (end of the
+     lee, 0, flat): slope-continuous at both ends, so the normals never see
+     a crease, and never below zero on the way down. */
+  const t = s / hit.lee;
+  const r = (2 * hit.lee) / hit.face;
+  return 2 * t * t * t - 3 * t * t + 1 + r * (t * t * t - 2 * t * t + t);
+}
+
+/* Every side hit whose crest lies inside [zLo, zHi), for whoever marks them
+   (the waymarks in props.js) and for the checks. */
+export function sideHitsIn(zLo, zHi, out = []) {
+  out.length = 0;
+  const kLo = Math.max(sideHits.from, Math.floor(-zHi / guide.every) - 2);
+  const kHi = Math.floor(-zLo / guide.every) + 1;
+  for (let k = kLo; k <= kHi; k++) {
+    const hit = sideHitFor(k);
+    if (!hit || hit.zc < zLo || hit.zc >= zHi) continue;
+    out.push({
+      k, z: hit.zc, x: hit.x, halfWidth: hit.rx, height: hit.h,
+      face: hit.face, lee: hit.lee, side: hit.side,
+    });
+  }
+  return out;
+}
+
 /* Where the middle of the piste is. When the run has forked there are two of
    them, and this is the line between — which is the island, not the piste.
    Anything placing itself on rideable ground wants `nearestCenter`. */
@@ -674,6 +814,10 @@ function makeContext() {
     krx: [0, 0, 0, 0],
     kdz: [0, 0, 0, 0],   // the along-axis distance, already leaned and scaled
     kh: [0, 0, 0, 0],
+    nHits: 0,            // side hits whose face or lee crosses this row
+    hitX: [0, 0],
+    hitR: [1, 1],
+    hitP: [0, 0],        // …and their height at this row, profile applied
     // What this stretch of mountain is made of: one multiplier per octave,
     // mixed from the three characters. See `TERRAIN.character`.
     mix: [1, 1, 1, 1, 1],
@@ -884,6 +1028,24 @@ function rowContext(z, ctx) {
     ctx.kdz[ctx.nKnolls] = dz;
     ctx.kh[ctx.nKnolls] = height;
     ctx.nKnolls += 1;
+  }
+
+  /* Side hits crossing this row. A hit stands between its own gate and the
+     next, so only the three slots at and above this row can reach it; the
+     along-slope profile is a row fact and is resolved here, leaving the
+     vertex loop one lateral falloff per hit. */
+  ctx.nHits = 0;
+  const kz = Math.floor(-z / guide.every);
+  for (let k = kz - 2; k <= kz && ctx.nHits < 2; k++) {
+    if (k < sideHits.from) continue;
+    const hit = sideHitFor(k);
+    if (!hit) continue;
+    const p = sideHitProfile(hit, hit.zc - z);
+    if (p <= 0) continue;
+    ctx.hitX[ctx.nHits] = hit.x;
+    ctx.hitR[ctx.nHits] = hit.rx;
+    ctx.hitP[ctx.nHits] = hit.h * p;
+    ctx.nHits += 1;
   }
   return ctx;
 }
@@ -1132,6 +1294,21 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
         h -= R.depth * flankDetail * steep * steep * t * t;
       }
     }
+  }
+
+  /* Side hits, which are the exception to the rule below and are allowed to
+     be one because they are not hidden: each stands beside the ribbon, on
+     the skied-in snow between the corduroy and the corridor's edge, marked
+     by a waymark. The lateral falloff is the knolls' squared dome; the mask
+     is what keeps the ribbon itself exactly as groomed as it was — zero
+     within `guide.tol` of the line, released over `sideHits.mask` metres. */
+  for (let i = 0; i < ctx.nHits; i++) {
+    const dx = (x - ctx.hitX[i]) / ctx.hitR[i];
+    if (dx <= -1 || dx >= 1) continue;
+    const q = 1 - dx * dx;
+    const keep = smoothstep(guide.tol, guide.tol + sideHits.mask,
+      Math.abs(x - ctx.guideX));
+    h += ctx.hitP[i] * q * q * keep;
   }
 
   /* Knolls and cliffs live outside the corridor entirely — a rideable run

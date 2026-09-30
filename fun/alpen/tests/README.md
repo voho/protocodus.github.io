@@ -42,6 +42,13 @@ either side of the racing line on every guide slot): steering the line alone
 must stay a low multiplier and never fill the bar, while a rider landing a
 trick every few seconds must still reach it within a minute. It also pins the
 hold, fade and tuck-spend rules in `flow.js`.
+It also checks the side hits `terrain.js` plants beside the ribbon: about ten
+per four kilometres on every seed, each off the corduroy and inside the
+corridor, a pure function of the seed, and — compared exactly against the
+same mountain with hits switched off — carrying no height at all within
+`guide.tol` of the line while the crest stands its full height proud. A bot
+that swings out to them must fly at least 70% of them for 0.6–1.6 s without
+a fall, and the line bot must still leave the ground at most twice a minute.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
