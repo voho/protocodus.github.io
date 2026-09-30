@@ -32,7 +32,7 @@ async function install(page) {
     const hash = canvas => { let h = 2166136261; for (const b of canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data) h = Math.imul(h ^ b, 16777619); return h >>> 0; };
     const setup = biome => {
       const game = model.createGame({ biome, size: 'square512', seed: 1847 });
-      const renderer = createRenderer(canvas, game, { layers: { lighting: true, weather: false, names: true, industryIcons: true, routes: false } });
+      const renderer = createRenderer(canvas, game, { layers: { weather: false, names: true, industryIcons: true, routes: false } });
       renderer.focus(game.cities[0].x, game.cities[0].y); renderer.render(0); return { game, renderer };
     };
     window.artQA = { model, createSprites, createRenderer, assets, buildings, industries, houses, identities, buildingSize, surfaceHeight, HEIGHT_STEP, drawRasterNature, BIOME_NATURE, canvas, hash, setup };
@@ -148,35 +148,10 @@ try {
         r.setLayers({trees:true,buildings:true,roads:true,rails:true,stations:true,names:true,industryIcons:true});r.render(0);const restored=q.hash(q.canvas);return{visible,hidden,restored,unchanged:state===JSON.stringify(q.game)};
       });
       assert.notEqual(layers.visible,layers.hidden);assert.equal(layers.visible,layers.restored);assert.equal(layers.unchanged,true);
-      const night=await page.evaluate(()=>{
-        const q=artQA,r=q.renderer,c=q.canvas.getContext('2d'),camera=r.getCamera();q.game.day=0;r.render(0);const day=c.getImageData(0,0,q.canvas.width,q.canvas.height).data;
-        q.game.day=30;r.render(0);const dark=c.getImageData(0,0,q.canvas.width,q.canvas.height).data;let sampled=0,lit=0;
-        for(let y=q.game.cities[0].y-4;y<=q.game.cities[0].y+4;y++)for(let x=q.game.cities[0].x-4;x<=q.game.cities[0].x+4;x++){
-          const t=q.game.tiles[y*q.game.width+x];if(!t.building)continue;let kind=t.building.kind;
-          if(['house','apartment'].includes(kind))kind=q.identities.residentialKind(t.variant??x*13+y,t.building.level||1);
-          if(['shop','office'].includes(kind))kind=q.identities.commercialKind(t.variant??x*13+y,t.building.level||1);
-          const panes=q.houses.hasRasterHouse(kind,q.game.biome)?q.houses.houseWindowAnchors(kind,q.game.biome):q.buildings.rasterBuildingWindows(kind,q.game.biome);
-          const span=q.buildingSize(t.building),center=r.worldToScreen(x+(span-1)/2,y+(span-1)/2);
-          // Generated sites can sit on raised foundations. Probe the upright
-          // artwork at that foundation, rather than the sloping surface below.
-          let foundation=0;
-          for(let v=y;v<=y+span;v++)for(let u=x;u<=x+span;u++)foundation=Math.max(foundation,q.surfaceHeight(q.game,u,v));
-          for(let v=y;v<y+span;v++)for(let u=x;u<x+span;u++)foundation=Math.max(foundation,q.surfaceHeight(q.game,u+.5,v+.5));
-          center.y-=(foundation-q.surfaceHeight(q.game,x+span/2,y+span/2))*q.HEIGHT_STEP*camera.zoom;
-          for(const [wx,wy,w,h] of panes){
-            const px=Math.floor((center.x+(wx+w/2-16)*1.5*span*camera.zoom)*devicePixelRatio),py=Math.floor((center.y+(wy+h/2-24)*1.5*span*camera.zoom)*devicePixelRatio);
-            if(px<0||py<0||px>=q.canvas.width||py>=q.canvas.height)continue;const i=(py*q.canvas.width+px)*4;sampled++;
-            if(dark[i]>day[i]*.53+18*.47+18)lit++;
-          }
-        }
-        return{sampled,lit};
-      });
-      assert.ok(night.sampled>20);assert.ok(night.lit/night.sampled>.75,`${biome} generated window anchors visibly illuminate their panes`);
-      await page.locator('#art-world').screenshot({path:`${output}/${biome}-town-night-dpr${dpr}.png`});
       const overview=await page.evaluate(()=>{const q=artQA;let map=document.querySelector('#art-map');if(!map){map=document.createElement('canvas');map.id='art-map';map.style.cssText='width:512px;height:512px';document.querySelector('#art-qa').append(map);}q.renderer.drawMinimap(map);return q.renderer.getStats();});
       assert.equal(overview.minimapWidth,512);assert.equal(overview.minimapHeight,512);
       await page.locator('#art-map').screenshot({path:`${output}/${biome}-full-map-dpr${dpr}.png`});
-      summaries.push({biome,dpr,profiles:profiles.length,nightWindows:night,maxCacheMiB:+(Math.max(...profiles.map(s=>s.cacheBytes))/1048576).toFixed(1)});
+      summaries.push({biome,dpr,profiles:profiles.length,maxCacheMiB:+(Math.max(...profiles.map(s=>s.cacheBytes))/1048576).toFixed(1)});
     }
     await context.close();
   }

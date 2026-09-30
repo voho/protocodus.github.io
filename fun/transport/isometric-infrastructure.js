@@ -1,4 +1,4 @@
-import { registerAtlas, drawAtlas, atlasAvailable, worldArtRevision } from './atlas-runtime.js';
+import { registerAtlas, drawAtlas, worldArtRevision } from './atlas-runtime.js';
 import { createSpriteCache } from './sprite-cache.js';
 
 // Upright structures use authored dimetric views. Road/rail surface textures
@@ -47,20 +47,3 @@ export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedC
   };
 }
 
-// Glass and lanterns measured on the final 256px dimetric masters. Coordinates
-// returned here share the drawing functions' local origin; the renderer only
-// translates them to the station center, never projects or rotates the panes.
-const stationPanes={
-  'bus-stop':[[205,94,3,6],[209,94,4,6]],
-  'train-stop':[[64,138,2,6],[67,138,3,6]],
-  'port-w':[[66,102,4,7],[71,105,4,7],[66,110,4,7],[71,112,4,7],[93,114,5,5]],
-  'port-e':[[196,145,4,5],[191,147,3,6],[196,151,4,7],[191,154,3,7],[141,140,5,5]],
-  'port-n':[[191,106,4,5],[186,108,3,6],[191,112,4,7],[186,115,3,6],[160,116,5,4]],
-  'port-s':[[53,145,3,7],[58,148,4,7],[53,153,3,8],[58,155,4,8],[81,160,5,4]],
-};
-export function isometricStationLights(mode,dx=-1,dy=0){
-  const port=mode==='water',kind=port?'port-'+cardinalDirection(dx,dy):mode==='rail'?'train-stop':'bus-stop';
-  if(!atlasAvailable('isometric:'+kind))return [];
-  const {left,top,size}=isometricStationBounds(mode);
-  return stationPanes[kind].map(([x,y,w,h])=>[left+x/256*size,top+y/256*size,w/256*size,h/256*size]);
-}

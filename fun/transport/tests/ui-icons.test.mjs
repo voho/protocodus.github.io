@@ -9,7 +9,7 @@ const VOCABULARY = {
   states: ['ok', 'warn', 'error', 'broken', 'info', 'lock', 'clock', 'trendUp', 'trendDown'],
   things: ['bus', 'truck', 'train', 'ship', 'plane', 'stop', 'flag', 'stock', 'coin', 'house', 'shop', 'workshop', 'tree', 'leaf', 'label'],
   tools: ['road', 'rail', 'bridge', 'tunnel', 'bulldoze', 'raise', 'lower', 'level', 'zones', 'pointer'],
-  weather: ['sun', 'cloud', 'rain', 'snow', 'fog', 'moon'],
+  weather: ['sun', 'cloud', 'rain', 'snow', 'fog'],
   biomes: ['taiga', 'tundra', 'desert'],
 };
 

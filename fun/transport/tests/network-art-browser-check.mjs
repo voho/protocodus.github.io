@@ -30,7 +30,7 @@ try {
         centers.push({ x, y, mode, mask });
       }
       game.revision++;
-      const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, game, { layers: { names:false, trees:false, buildings:false, industryIcons:false, lighting:false, routes:false } });
+      const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, game, { layers: { names:false, trees:false, buildings:false, industryIcons:false, routes:false } });
       window.networkArtQA = { game, renderer, canvas, drawRasterNetwork, art, directions, centers };
     });
     for (const zoom of [.5, 1, 2]) {

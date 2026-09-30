@@ -289,7 +289,7 @@ try {
   assert.ok(art.plane.dark >= .04 && art.plane.p5 <= 65, `the airliner holds its weight (${JSON.stringify(art.plane)})`);
   await page.close();
 
-  // 8. Visuals in three biomes, three zooms, two densities, day and night; layers and lights by pixels.
+  // 8. Visuals in three biomes, three zooms and two densities; layers by pixels.
   for (const biome of ['taiga', 'tundra', 'desert']) for (const dpr of [1, 2]) {
     const view = await browser.newPage({ viewport: { width: 1280, height: 860 }, deviceScaleFactor: dpr });
     watch(view);
@@ -323,35 +323,26 @@ try {
       await view.waitForTimeout(600);
       await view.screenshot({ path: `${output}/${biome}-z${zoom}-dpr${dpr}-${name}.png` });
     };
-    for (const zoom of [.5, 1, 2]) { await shot('day', { zoom, day: 780.3 }); await shot('night', { zoom, day: 750.3 }); }
+    for (const zoom of [.5, 1, 2]) await shot('day', { zoom, day: 780.3 });
     if (biome === 'taiga' && dpr === 1) {
-      // Layers and lights, compared in one task so the app's frames cannot repaint in between.
+      // Layers, compared in one task so the app's frames cannot repaint in between.
       const checks = await view.evaluate(({ A }) => {
         const r = transport.renderer, canvas = document.querySelector('#world'), g = transport.game, d = devicePixelRatio || 1, base = r.getLayers();
         r.setZoom(1); r.focus(A.axis === 'y' ? A.x + 1 : A.x + 3, A.axis === 'y' ? A.y + 3 : A.y + 1);
         const box = () => { const a = r.worldToScreen(A.x - 1, A.y - 2), b = r.worldToScreen(A.x + 7, A.y + 7); return { x: Math.max(0, Math.min(a.x, b.x) - 60), y: Math.max(0, Math.min(a.y, b.y) - 120) }; };
         const read = (layers, day, rect) => { r.setLayers({ ...base, ...layers }); g.day = day; r.render(performance.now(), {}); return canvas.getContext('2d').getImageData(Math.round(rect.x * d), Math.round(rect.y * d), Math.round(rect.w * d), Math.round(rect.h * d)).data; };
         const diff = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 30) n++; return n; };
-        const bright = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (a[i] + a[i + 1] + a[i + 2] > b[i] + b[i + 1] + b[i + 2] + 40) n++; return n; };
         const o = box(), rect = { x: o.x, y: o.y, w: 520, h: 360 };
         const all = read({}, 780.3, rect), again = read({}, 780.3, rect);
         const stations = read({ stations: false }, 780.3, rect), vehicles = read({ vehicles: false }, 780.3, rect), loads = read({ vehicleLoads: false }, 780.3, rect), planesOnly = read({ vehicleLoads: false, vehicles: false }, 780.3, rect);
-        const night = read({}, 750.3, rect), dark = read({ lighting: false }, 750.3, rect);
-        // Pan until the anchor tile is off screen to the left while the far end of the runway is still in view.
-        const far = A.axis === 'y' ? { x: A.x + 1, y: A.y + 5 } : { x: A.x + 5, y: A.y + 1 }, W = canvas.clientWidth;
-        r.focus(far.x, far.y); for (let i = 0; i < 80 && r.worldToScreen(A.x, A.y).x > -20; i++) r.pan(-24, 0);
-        const edge = r.worldToScreen(far.x, far.y), anchor = r.worldToScreen(A.x, A.y), strip = { x: Math.max(0, edge.x - 90), y: Math.max(0, edge.y - 90), w: 180, h: 160 };
-        const panNight = read({}, 750.3, strip), panDark = read({ lighting: false }, 750.3, strip);
         r.setLayers(base); g.day = 780.3; g.revision++;
-        return { stable: diff(all, again), stations: diff(all, stations), vehicles: diff(all, vehicles), loads: diff(loads, planesOnly), loadsOnly: diff(all, loads), lights: bright(night, dark), panLights: bright(panNight, panDark), anchorX: anchor.x, farX: edge.x, W };
+        return { stable: diff(all, again), stations: diff(all, stations), vehicles: diff(all, vehicles), loads: diff(loads, planesOnly), loadsOnly: diff(all, loads) };
       }, { A: scene.A });
       console.log('layers', JSON.stringify(checks));
       assert.equal(checks.stable, 0, 'two renders of the paused scene agree');
       assert.ok(checks.stations > 500, 'Stops off hides the airport ground, buildings and sign');
       assert.ok(checks.vehicles > 50, 'Vehicles off hides planes and their shadows');
       assert.ok(checks.loadsOnly > 10 && checks.loads > 50, 'Loads off hides only the badges; the planes stay');
-      assert.ok(checks.lights > 20, 'at night the airport lights brighten the runway');
-      assert.ok(checks.anchorX < 0 && checks.farX > 0 && checks.panLights > 10, 'the runway stays lit with its anchor off screen');
     }
     await view.close();
   }

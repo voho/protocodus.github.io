@@ -35,7 +35,7 @@ try {
   assert.equal(await miniSamples(), 0, 'loading a world does not sample the hidden mini map');
   const defaults = await page.evaluate(async () => (await import('./visibility.js')).DEFAULT_LAYERS);
   const keys = Object.keys(defaults);
-  assert.equal(keys.length, 16);
+  assert.equal(keys.length, 15);
   assert.deepEqual(await currentLayers(page), defaults);
   assert.equal(defaults.grid, true, 'a fresh browser starts with the tile grid enabled');
   await page.keyboard.press('g');
@@ -51,7 +51,7 @@ try {
   await openLayers(page);
   assert.equal(await page.locator('#layers-button').getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Layers is a nonmodal map control');
-  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 16);
+  assert.equal(await page.locator('#layers-panel input[type="checkbox"][role="switch"][data-layer]').count(), 15);
   const stateBefore = await page.evaluate(() => JSON.stringify(transport.game));
   for (const key of keys) {
     assert.equal(await page.locator(`[data-layer="${key}"]`).isChecked(), defaults[key]);
@@ -190,10 +190,10 @@ try {
         q.renderer.setLayers({[key]:value});const restored=render();
         comparisons.push({key,changed:changed!==baseline,restored:restored===baseline,rockPreserved,stats});
       }
-      // The airport's own part: Stops draws its field, buildings and sign; Vehicles its plane and shadow; Day / night its lights.
+      // The airport's own part: Stops draws its field, buildings and sign; Vehicles its plane and shadow.
       const airCrop=()=>{const s=q.renderer.getCamera().zoom,p=q.renderer.worldToScreen(45.5,38.5);return Array.from(q.canvas.getContext('2d').getImageData(Math.round((p.x-60*s)*density),Math.round((p.y-70*s)*density),Math.round(120*s*density),Math.round(90*s*density)).data).join();},density=devicePixelRatio||1;
       q.renderer.focus(45,40);render();const airBase=airCrop();
-      const airParts=Object.fromEntries(['stations','vehicles','lighting'].map(key=>{q.renderer.setLayers({[key]:false});render();const changed=airCrop()!==airBase;q.renderer.setLayers({[key]:q.defaults[key]});render();return[key,changed];}));
+      const airParts=Object.fromEntries(['stations','vehicles'].map(key=>{q.renderer.setLayers({[key]:false});render();const changed=airCrop()!==airBase;q.renderer.setLayers({[key]:q.defaults[key]});render();return[key,changed];}));
       q.renderer.focus(48,32);render();
       q.renderer.drawMinimap(q.minimap);const miniBefore=q.minimap.toDataURL();
       q.renderer.setLayers(Object.fromEntries(Object.keys(q.defaults).map(key=>[key,false])));q.renderer.drawMinimap(q.minimap);const miniTerrain=q.minimap.toDataURL();

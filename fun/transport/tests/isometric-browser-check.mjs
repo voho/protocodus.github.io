@@ -37,7 +37,7 @@ try {
           for (const key of Object.keys(best)) if (scores[key] > best[key].score) best[key] = { x, y, score: scores[key] };
         }
         const home = game.cities[0], industry = game.industries.find(item => item.footprint === 2) || game.industries[0];
-        return [{ name: 'town', x: home.x + 3, y: home.y, zooms: [.5, 1, 2] }, ...Object.entries(best).map(([name, p]) => ({ name, ...p, zooms: [1] })), { name: 'industry', x: industry.x, y: industry.y, zooms: [1] }, { name: 'night', x: home.x, y: home.y, zooms: [1], day: 30 }];
+        return [{ name: 'town', x: home.x + 3, y: home.y, zooms: [.5, 1, 2] }, ...Object.entries(best).map(([name, p]) => ({ name, ...p, zooms: [1] })), { name: 'industry', x: industry.x, y: industry.y, zooms: [1] }];
       }, biome);
       for (const scene of scenes) for (const zoom of scene.zooms) {
         const result = await page.evaluate(({ scene, zoom }) => {
@@ -95,7 +95,7 @@ try {
         const q = isoQA, g = q.createGame({ biome: 'taiga', seed: 418, size: 'regional' });
         for (const tile of g.tiles) { delete tile.terrainObject; Object.assign(tile, { terrain: 'grass', elevation: .25, detail: '', building: null, zone: null, road: false, rail: false, bridge: false, tunnel: false }); }
         g.cities = []; g.industries = []; g.stations = []; g.routes = [{ id: 'depth-route', mode: 'road', cargo: 'passengers', color: '#a78050', path: [] }]; g.day = 0;
-        q.renderer.setGame(g); q.renderer.setZoom(2); q.renderer.focus(40, 40); q.renderer.setLayers({ lighting: false });
+        q.renderer.setGame(g); q.renderer.setZoom(2); q.renderer.focus(40, 40);
         const c = q.canvas.getContext('2d'), original = c.drawImage, captures = [];
         const capture = span => {
           const order = [];
@@ -161,7 +161,7 @@ try {
   const roof = await app.evaluate(({ x, y }) => {
     const g = transport.game, r = transport.renderer, canvas = document.querySelector('#world'), c = canvas.getContext('2d'), rect = canvas.getBoundingClientRect();
     const house = { x: x + 6, y: y + 6 }; g.tiles[house.y * g.width + house.x].building = { kind: 'house-normal-1', level: 1 }; g.revision++;
-    r.setZoom(2); r.focus(house.x, house.y); r.setLayers({ lighting: false, names: false, industryIcons: false, buildings: false }); r.render(0);
+    r.setZoom(2); r.focus(house.x, house.y); r.setLayers({ names: false, industryIcons: false, buildings: false }); r.render(0);
     const plain = c.getImageData(0, 0, canvas.width, canvas.height).data;
     r.setLayers({ buildings: true }); r.render(0); const drawn = c.getImageData(0, 0, canvas.width, canvas.height).data, p = r.worldToScreen(house.x, house.y), scale = canvas.width / rect.width;
     for (let dy = -78; dy < -32; dy++) for (let dx = -36; dx <= 36; dx++) {

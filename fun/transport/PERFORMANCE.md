@@ -69,9 +69,9 @@ A second pass profiles what is actually on screen: dense woodland, a large city,
 
 Nature, buildings and transport now use shared, bounded prepared-image caches across the three zoom levels. The artwork is rendered at the required physical-pixel size; revisiting a prepared zoom does not resize every instance again. The static artwork pool is capped at 128 MiB, transport at 32 MiB, and tree shadows at 32 MiB. Larger visible groves previously exhausted the 16 MiB sprite cache and could recreate thousands of identical images every frame. In one 24-frame Detail woodland run, the old renderer created 10,632 sprites; the new renderer created none after warming.
 
-Small camera moves reuse scenery ordering and foundation geometry. Moving vehicles are merged into that order, preserving occlusion. Exact sprite and shadow rectangles reject objects outside the screen; shadow smoothing state is set once for the batch. Night lighting uses cached emitter descriptions, window artwork and directional headlight beams. Cargo badges reuse prepared artwork while preserving their load indicators.
+Small camera moves reuse scenery ordering and foundation geometry. Moving vehicles are merged into that order, preserving occlusion. Exact sprite and shadow rectangles reject objects outside the screen; shadow smoothing state is set once for the batch. Cargo badges reuse prepared artwork while preserving their load indicators.
 
-The full suite covers **54 views**: six scenes × three zooms × daylight, night and rain, at 1280 × 900 CSS pixels and DPR 2. It includes a real 512² taiga world (seed 418), its densest sampled forest and largest town, plus staged flat landscapes. The staged city contains 21,139 buildings and 157 industries. The fleet contains 3,102 vehicles; Region considers 1,257 nearby vehicles and paints roughly 1,041 visible load badges. Detail still paints 63 visible badges. These are rendering fixtures, without construction costs or an economic simulation step in the measured interval.
+When measured, the full suite covered **54 views**: six scenes × three zooms × daylight, night and rain, at 1280 × 900 CSS pixels and DPR 2. The day/night cycle has since been removed, so it now runs daylight and rain (36 views). It includes a real 512² taiga world (seed 418), its densest sampled forest and largest town, plus staged flat landscapes. The staged city contains 21,139 buildings and 157 industries. The fleet contains 3,102 vehicles; Region considers 1,257 nearby vehicles and paints roughly 1,041 visible load badges. Detail still paints 63 visible badges. These are rendering fixtures, without construction costs or an economic simulation step in the measured interval.
 
 Warm frame and pan values below are medians in milliseconds. The first three rows are a separate paired forest run in fresh browser contexts, with 24 warm frames and 24 pan steps. Remaining rows come from the complete 54-view sequence, with 12 frames per phase. That sequence retains multiple scene fixtures and exercises a larger graphics working set. Pixel hashes use a separate readback canvas so verification does not switch the game's primary canvas toward frequent-readback rendering.
 
@@ -89,7 +89,7 @@ All 54 updated warm views created **zero nature, building, vehicle or shadow ima
 
 Render-call duration is not the displayed frame interval. In the paired Detail woodland run, the median animation-frame interval fell from 171.7 to 16.7 ms. The combined city/fleet night scene fell from 48.9 to 22.9 ms; its remaining draw/compositing work still exceeds a 60 Hz frame budget. Cold views, system load and retained graphics surfaces also affect results. These measurements do not promise 60 fps or remove simulation/save costs.
 
-A separate **100-case** browser regression compares a reused renderer with a newly created one after small, long and reverse pans, visibility toggles, terrain/building revisions, zoom changes and late artwork loading. Every visible RGBA pixel and sampled inspection target matches. Before/after daytime Town screenshots of forests and buildings also match exactly. Prepared vehicle/badge edges and cached night lights have small rasterization differences; all directions, load states and footprints receive independent artwork checks.
+A separate **100-case** browser regression compares a reused renderer with a newly created one after small, long and reverse pans, visibility toggles, terrain/building revisions, zoom changes and late artwork loading. Every visible RGBA pixel and sampled inspection target matches. Before/after daytime Town screenshots of forests and buildings also match exactly. Prepared vehicle/badge edges have small rasterization differences; all directions, load states and footprints receive independent artwork checks.
 
 ```sh
 # Full sequence; warm caches must not rerasterize visible objects.
@@ -103,7 +103,7 @@ TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest TRANSPORT_CONDITIONS=day TRANSP
 node fun/transport/tests/scene-cache-browser-check.mjs
 ```
 
-`TRANSPORT_URL` selects an immutable comparison server, `TRANSPORT_OUTPUT` selects the results/screenshot directory, and `TRANSPORT_PROFILE=1` records Chrome CPU profiles for Region daylight/night views. Timings are reported rather than asserted against device-specific thresholds.
+`TRANSPORT_URL` selects an immutable comparison server, `TRANSPORT_OUTPUT` selects the results/screenshot directory, and `TRANSPORT_PROFILE=1` records Chrome CPU profiles for Region daylight views. Timings are reported rather than asserted against device-specific thresholds.
 
 ## Background world and save jobs
 
@@ -176,7 +176,7 @@ Paired batched/direct image checks cover moving vehicles, panning beyond the cac
 
 ```sh
 node fun/transport/tests/scenery-batches-browser-check.mjs
-TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest,mixed TRANSPORT_CONDITIONS=day,night \
+TRANSPORT_FRESH_SCENES=1 TRANSPORT_SCENES=forest,mixed TRANSPORT_CONDITIONS=day \
   TRANSPORT_FRAMES=24 TRANSPORT_EXPECT_STABLE_SPRITES=1 \
   node fun/transport/tests/busy-scenes-browser-check.mjs
 ```
@@ -245,7 +245,7 @@ node --max-old-space-size=6144 fun/transport/tests/daily-step-benchmark.mjs --mo
 
 ## Daily ecology revisions
 
-Every simulated day, ecology changes a few hundred tiles on a 512² map and bumps `game.revision`. The renderer used to discard every index, prepared strip, route path and height field, then fingerprint every visible chunk again, so an empty revision cost almost as much as a real one. `change-journal.js` now records exactly which cells each ecology day changed. A journaled day keeps the indexes, foundations, grid, route paths, height fields and night-light emitters, and fingerprints only chunks within three tiles of a change. Chunks whose terrain changed are still repainted, and scenery lists and strips are still rebuilt. Construction, settlement and industry revisions, or any gap in the journal, take the previous full path.
+Every simulated day, ecology changes a few hundred tiles on a 512² map and bumps `game.revision`. The renderer used to discard every index, prepared strip, route path and height field, then fingerprint every visible chunk again, so an empty revision cost almost as much as a real one. `change-journal.js` now records exactly which cells each ecology day changed. A journaled day keeps the indexes, foundations, grid, route paths and height fields, and fingerprints only chunks within three tiles of a change. Chunks whose terrain changed are still repainted, and scenery lists and strips are still rebuilt. Construction, settlement and industry revisions, or any gap in the journal, take the previous full path.
 
 Paired runs against an immutable copy of the previous build used a 512² taiga map (seed 1847), 1440 × 900 CSS pixels and DPR 2. Values are medians in milliseconds:
 
@@ -259,7 +259,7 @@ Paired runs against an immutable copy of the previous build used a 512² taiga m
 
 In the 8× run, 56 of 64 day frames were ecology only (median 18.1 ms). The other 8 days also grew a town or industry and still cost about 39 ms. A revision that is not journaled still costs about 25 ms at Region. A journaled day with no changes costs 11 ms; that remainder is the scenery rebuild.
 
-The cached/fresh regression adds journaled ecology days at all three zooms, by day and night, at DPR 1 and 2. They change tiles in view, on chunk seams and out of view, dissolve a 3×3 grove, then run three real ecology days. Every RGBA pixel and sampled inspection target matches a new renderer, and route paths, foundations and night emitters are not rebuilt. Seeded ecology outcomes match fixtures recorded before the journal existed.
+The cached/fresh regression adds journaled ecology days at all three zooms, at DPR 1 and 2. They change tiles in view, on chunk seams and out of view, dissolve a 3×3 grove, then run three real ecology days. Every RGBA pixel and sampled inspection target matches a new renderer, and route paths and foundations are not rebuilt. Seeded ecology outcomes match fixtures recorded before the journal existed.
 
 ```sh
 node --test fun/transport/tests/change-journal.test.mjs

@@ -34,7 +34,7 @@ try {
         if (interior) { Object.assign(tile(56, y), { tunnel: true, structureLevel: 4, structureAxis: 'y' }); Object.assign(tile(63, y), { bridge: true, structureLevel: 4, structureAxis: 'y' }); }
       }
       g.revision++;
-      const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, g, { layers: { names: false, industryIcons: false, trees: false, routes: false, lighting: false } });
+      const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, g, { layers: { names: false, industryIcons: false, trees: false, routes: false } });
       const hash = () => { let h = 2166136261; for (const v of canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data) h = Math.imul(h ^ v, 16777619); return h >>> 0; };
       const crop = (x, y) => {
         const scale = renderer.getCamera().zoom * devicePixelRatio, p = renderer.worldToScreen(x, y), px = p.x * devicePixelRatio - 16 * scale, py = p.y * devicePixelRatio - 8 * scale;
@@ -45,7 +45,7 @@ try {
     for (const zoom of [.5, 1, 2]) {
       const check = await page.evaluate(zoom => {
         const { g, tile, renderer, hash, crop } = engineeringQA;
-        renderer.setZoom(zoom); renderer.focus(46, 36); renderer.setLayers({ lighting: false, trees: true }); g.day = 0; g.vehicles = []; g.routes = []; renderer.render(0);
+        renderer.setZoom(zoom); renderer.focus(46, 36); renderer.setLayers({ trees: true }); g.day = 0; g.vehicles = []; g.routes = []; renderer.render(0);
         const underground = crop(42, 34), withRoads = hash();
         renderer.setLayers({ roads: false }); renderer.render(0); const withoutRoads = crop(42, 34); renderer.setLayers({ roads: true }); renderer.render(0);
         const restored = hash();
@@ -56,11 +56,9 @@ try {
         g.vehicles[0].x = 48; renderer.render(0); const exposedVehicle = hash(), exposedIndicators = renderer.getStats().vehicleIndicators;
         // Test train carriages individually; engine and both carriages fit underground.
         g.vehicles[0].x = 43; g.vehicles[0].progress = 7; route.mode = 'rail'; renderer.render(0); const hiddenTrain = hash();
-        g.vehicles = []; renderer.setLayers({ lighting: true }); g.day = 30; renderer.render(0); const night = hash();
-        g.vehicles = [{ routeId: route.id, x: 42, y: 34, angle: 0, capacity: 100, load: 100, progress: 6, direction: 1 }]; renderer.render(0); const hiddenNight = hash();
-        g.vehicles = []; g.routes = []; renderer.setLayers({ lighting: false }); g.day = 0; renderer.focus(49, 36); renderer.render(0);
+        g.vehicles = []; g.routes = []; renderer.focus(49, 36); renderer.render(0);
         const stable = renderer.getStats().composedChunks; renderer.render(0);
-        return { underground, withoutRoads, withRoads, restored, hiddenVehicle, exposedVehicle, hiddenTrain, hiddenIndicators, exposedIndicators, night, hiddenNight, extra: renderer.getStats().composedChunks - stable, ...renderer.getStats() };
+        return { underground, withoutRoads, withRoads, restored, hiddenVehicle, exposedVehicle, hiddenTrain, hiddenIndicators, exposedIndicators, extra: renderer.getStats().composedChunks - stable, ...renderer.getStats() };
       }, zoom);
       // Layer changes may recompose terrain chunks with ±1 rounding; a buried road would differ far more.
       assert.ok(check.underground.every((value, index) => Math.abs(value - check.withoutRoads[index]) <= 2), `tunnel middle has undisturbed ground at ${zoom}×, DPR${dpr}`);
@@ -69,7 +67,7 @@ try {
       assert.equal(check.hiddenTrain, check.withRoads, 'buried train and carriages are invisible');
       assert.deepEqual(check.hiddenIndicators, { empty: 0, partial: 0, full: 0 });
       assert.notEqual(check.exposedVehicle, check.withRoads, 'vehicle visible on approach');
-      assert.equal(check.exposedIndicators.full, 1); assert.equal(check.hiddenNight, check.night, 'underground headlights stay hidden');
+      assert.equal(check.exposedIndicators.full, 1);
       assert.equal(check.extra, 0); assert.ok(check.cacheBytes <= check.cacheLimit);
       results.push({ zoom, dpr, cacheMiB: check.cacheBytes / 1048576 });
       await page.locator('canvas').screenshot({ path: `${output}/engineering-zoom${zoom}-dpr${dpr}.png` });

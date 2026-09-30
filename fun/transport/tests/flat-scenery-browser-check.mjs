@@ -16,7 +16,7 @@ try {
     await page.evaluate(async () => {
       const { createRenderer } = await import('./renderer.js'), geometry = await import('./terrain-geometry.js'), { preloadWorldArt } = await import('./atlas-runtime.js');
       await preloadWorldArt({ waitMs: 12000 });
-      const canvas = document.querySelector('canvas'), layers = { trees: true, buildings: false, zones: false, names: false, industryIcons: false, stations: false, vehicles: false, vehicleLoads: false, lighting: false, routes: false, grid: false, roads: false, rails: false };
+      const canvas = document.querySelector('canvas'), layers = { trees: true, buildings: false, zones: false, names: false, industryIcons: false, stations: false, vehicles: false, vehicleLoads: false, routes: false, grid: false, roads: false, rails: false };
       window.sceneryQA = { canvas, geometry, createRenderer, layers };
     });
     for (const zoom of [.5, 1, 2]) for (const name of ['forest', 'rock', 'plants', 'stone-detail', 'large-forest', 'large-rock']) {

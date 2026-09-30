@@ -2,7 +2,7 @@ import { LAYER_GROUPS } from './visibility.js';
 import { icon } from './ui-icons.js';
 
 const GROUPS = LAYER_GROUPS.map(group => ({ label: group.label, items: group.items.map(({ key, label }) => [key, label]) }));
-const GLYPH = { trees: 'tree', buildings: 'house', zones: 'zones', roads: 'road', rails: 'rail', stations: 'stop', routes: 'routes', names: 'label', industryIcons: 'industry', vehicles: 'truck', vehicleLoads: 'stock', deliveries: 'coin', lighting: 'moon', weather: 'rain', grid: 'grid', goal: 'flag' };
+const GLYPH = { trees: 'tree', buildings: 'house', zones: 'zones', roads: 'road', rails: 'rail', stations: 'stop', routes: 'routes', names: 'label', industryIcons: 'industry', vehicles: 'truck', vehicleLoads: 'stock', deliveries: 'coin', weather: 'rain', grid: 'grid', goal: 'flag' };
 // A short key for map marks whose look carries meaning.
 const NOTES = { industryIcons: ['Ring: served by a route', 'Bar: stored output', 'Amber: missing inputs'] };
 

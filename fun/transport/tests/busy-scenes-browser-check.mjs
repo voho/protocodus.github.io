@@ -5,7 +5,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {installBusyScenes} from './busy-scenes-fixture.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const base=process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/',out=process.env.TRANSPORT_OUTPUT||'/tmp/transport-busy-scenes';await mkdir(out,{recursive:true});
-const scenes=(process.env.TRANSPORT_SCENES||'generated-forest,generated-city,forest,city,vehicles,mixed').split(','),conditions=(process.env.TRANSPORT_CONDITIONS||'day,night,rain').split(','),zooms=(process.env.TRANSPORT_ZOOMS||'.5,1,2').split(',').map(Number),frames=Number(process.env.TRANSPORT_FRAMES||12);
+const scenes=(process.env.TRANSPORT_SCENES||'generated-forest,generated-city,forest,city,vehicles,mixed').split(','),conditions=(process.env.TRANSPORT_CONDITIONS||'day,rain').split(','),zooms=(process.env.TRANSPORT_ZOOMS||'.5,1,2').split(',').map(Number),frames=Number(process.env.TRANSPORT_FRAMES||12);
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});const rows=[],errors=[];
 try{
   let page;

@@ -283,25 +283,6 @@ export function drawWindsock(c, { axis = 'x', detail = 'town', wind = Math.PI * 
     polygon(c, [{ x: top.x + ux * L * a, y: top.y + uy * L * a - r0 + droop }, { x: top.x + ux * L * b, y: top.y + uy * L * b - r1 + droop2 }, { x: top.x + ux * L * b, y: top.y + uy * L * b + r1 + droop2 }, { x: top.x + ux * L * a, y: top.y + uy * L * a + r0 + droop }], k % 2 ? '#f1ece0' : '#e0703a');
   }
 }
-/** Night emitters in projected px from the anchor's north corner (zoom 1). Static per axis and detail. */
-export function airportLights(axis, detail = 'town') {
-  const out = [], R = LAYOUT.runway, P = (u, v, z = 0) => localToProjected(axis, u, v, z), region = detail === 'region';
-  const push = (p, e) => out.push({ x: p.x, y: p.y, ...e });
-  for (let u = R.u0 + .1; u <= R.u1 - .05; u += region ? .6 : .3) for (const v of [R.v0, R.v1]) push(P(u, v), { kind: 'edge', color: '#ffe3a0', radius: 5, power: .55, bulb: .45, core: '#fff0c8' });
-  for (const u of [R.u0 + .02, R.u1 - .02]) for (let v = R.v0 + .06; v < R.v1; v += .11) push(P(u, v), { kind: 'threshold', color: '#8ff0a8', radius: 4, power: .6, bulb: .4, core: '#b8ffc6' });
-  if (!region) for (const t of LAYOUT.taxiways) for (const v of [.98, 1.18]) for (const du of [-.14, .14]) push(P(t.u + du, v), { kind: 'taxi', color: '#86b8ff', radius: 3, power: .45, bulb: .32 });
-  for (const m of LAYOUT.masts) push(P(m.u, m.v, 19), { kind: 'flood', color: '#ffe1a0', radius: 5, power: .8, bulb: .6 });
-  push(P(3, .55), { kind: 'pool', color: '#ffd493', radius: 42, power: .32 });
-  const T = LAYOUT.terminal, wing = block(axis, T.u0, T.v0, T.u1, T.v1, 0, 14), hall = block(axis, T.u0 + .3, T.v0 + .06, T.u0 + .82, T.v1 - .04, 0, 22);
-  for (let f = .08; f < .95; f += .12) push(wing.air(f, 6), { kind: 'window', color: '#ffd28b', radius: 7, power: .7, bulb: .35, core: '#ffe6b0' });
-  for (let f = .15; f < .9; f += .18) push(hall.air(f, 13), { kind: 'window', color: '#ffe0a8', radius: 8, power: .6 });
-  const t = LAYOUT.tower, cab = block(axis, t.u - .155, t.v - .155, t.u + .155, t.v + .155, 49, 9);
-  push(cab.air(.5, 4.5), { kind: 'cab', color: '#bff5e0', radius: 9, power: .5 }); push(cab.end(.5, 4.5), { kind: 'cab', color: '#bff5e0', radius: 7, power: .35 });
-  push(P(t.u, t.v, 70), { kind: 'beacon', color: '#9ff7b0', radius: 10, power: .9, bulb: .8, core: '#e2ffe8' });
-  const H = LAYOUT.hangar, hangar = block(axis, H.u0, H.v0, H.u1, H.v1, 0, 12);
-  push(hangar.air(.66, 4), { kind: 'door', color: '#ffd493', radius: 8, power: .4 });
-  return out;
-}
 
 // Aircraft. Local frame: +x nose, +y right wing, lengths in tiles; heights in projected px (zoom 1).
 const FUSELAGE = { r: .064, lift: 1.8, belly: 3.4 };
@@ -377,11 +358,6 @@ export function drawAircraftShadow(c, { heading = 0, scale = 1, blur = 0 } = {})
   for (const sy of NACELLES) { shapePath(c, heading, [[.22, sy - .034], [.22, sy + .034], [-.06, sy + .034], [-.06, sy - .034]], false); c.fill(); }
   c.restore();
 }
-/** Light positions in projected px relative to the aircraft centre (zoom 1, scale 1). */
-export function aircraftLights(heading) {
-  const P = (x, y, lift) => { const p = project(heading, x, y); return { x: p.x, y: p.y - lift }; };
-  return { left: P(-.04, -.43, 1.2), right: P(-.04, .43, 1.2), tail: P(-.55, 0, 2.2), beacon: P(0, 0, FUSELAGE.lift + 1.4), nose: P(.53, 0, 1.4) };
-}
 
 // UI portraits (tool cards 72×56, inspector, route cards 80×64).
 export function drawAirportPortrait(c, w, h, { biome = 'taiga' } = {}) {
@@ -409,7 +385,7 @@ export const PART_BOXES = {
 /** Each part's front corner in local (u, v): its depth in the scene's back-to-front order. */
 export const PART_FRONTS = { tower: [.5, .66], terminal: [1.62, .8], hangar: [5.04, .76], depot: [5.8, .68], mast0: [1.8, .1], mast1: [4.24, .1], windsock: [5.74, 1.06] };
 const PARTS = { tower: drawTower, terminal: drawTerminal, hangar: drawHangar, depot: drawDepot, windsock: drawWindsock, mast0: (c, o) => drawMast(c, { ...o, index: 0 }), mast1: (c, o) => drawMast(c, { ...o, index: 1 }) };
-export const headingBucket = heading => ((Math.round(heading / (TAU / HEADING_BUCKETS)) % HEADING_BUCKETS) + HEADING_BUCKETS) % HEADING_BUCKETS;
+const headingBucket = heading => ((Math.round(heading / (TAU / HEADING_BUCKETS)) % HEADING_BUCKETS) + HEADING_BUCKETS) % HEADING_BUCKETS;
 export function createAirportSprites({ pixelScale = 1, detailLevel = 'town', biome = 'taiga', cache } = {}) {
   const scale = Math.max(.25, Number(pixelScale) || 1), prefix = `airport:${scale}:${detailLevel}:${biome}:`, boost = detailLevel === 'region' ? 1.3 : 1;
   let created = 0, hits = 0;

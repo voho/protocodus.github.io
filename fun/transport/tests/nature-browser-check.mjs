@@ -52,7 +52,7 @@ try {
           if (score > best.score) best = { x, y, score };
         }
         qa.game = game; qa.focus = best;
-        qa.renderer = qa.createRenderer(qa.canvas, game, { layers: { lighting: false, routes: false, names: false, industryIcons: false, grid: false } });
+        qa.renderer = qa.createRenderer(qa.canvas, game, { layers: { routes: false, names: false, industryIcons: false, grid: false } });
         qa.renderer.resize(); qa.renderer.focus(best.x, best.y);
       }, biome);
 

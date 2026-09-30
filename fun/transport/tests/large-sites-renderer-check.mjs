@@ -21,7 +21,7 @@ try {
       for(const key of ['cities','industries','stations','routes','vehicles','zones'])game[key]=[];
       for(const t of game.tiles)Object.assign(t,{terrain:'grass',elevation:.25,detail:'',road:false,rail:false,bridge:false,tunnel:false,building:null,zone:null});
       game.day=0;game.money=10000000;game.revision++;
-      const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{names:false,industryIcons:false,lighting:false,routes:false,stations:false}});
+      const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers:{names:false,industryIcons:false,routes:false,stations:false}});
       const fixtures=[{kind:'house-cheap-1',span:1,x:25,y:25},{kind:'house-expensive-1',span:2,x:20,y:20},{kind:'stadium',span:3,x:27,y:20},{kind:'steel-mill',span:3,x:20,y:29,industry:true}];
       for(const f of fixtures){
         if(f.industry)game.industries.push({id:'industry',kind:f.kind,x:f.x,y:f.y,footprint:f.span});
@@ -37,7 +37,7 @@ try {
         const q=largeSites,{game:g,renderer:r,canvas,fixtures}=q,c=canvas.getContext('2d'),dpr=devicePixelRatio;
         r.setZoom(zoom); const rows=[];
         for(const f of fixtures){
-          r.focus(f.x+(f.span-1)/2,f.y+(f.span-1)/2);g.day=0;r.setLayers({lighting:false,trees:true});r.render(0);
+          r.focus(f.x+(f.span-1)/2,f.y+(f.span-1)/2);g.day=0;r.setLayers({trees:true});r.render(0);
           const snapshot=JSON.stringify(g),rect=canvas.getBoundingClientRect();
           const clicks=[];
           for(let dy=0;dy<f.span;dy++)for(let dx=0;dx<f.span;dx++){const p=r.worldToScreen(f.x+dx,f.y+dy);clicks.push(r.screenToInspectTile(rect.left+p.x,rect.top+p.y));}
@@ -65,14 +65,8 @@ try {
           const footprint=(x,y)=>{const corners=[[x,y],[x+f.span,y],[x+f.span,y+f.span],[x,y+f.span]].map(([u,v])=>r.gridPointToScreen(u,v)),xs=corners.map(p=>p.x*dpr),ys=corners.map(p=>p.y*dpr);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)].map(Math.round);};
           const selection=outlines(()=>r.render(0,{selected:{x:f.x+f.span-1,y:f.y+f.span-1}})).find(s=>s.color==='#e17b4a')?.bounds,selectionExpected=footprint(f.x,f.y);
           const preview=outlines(()=>r.render(0,{tool:f.kind,hover:{x:35,y:35}})).find(s=>['#f4d090','#d7725f'].includes(s.color))?.bounds,previewExpected=footprint(35,35);
-          g.day=30;r.setLayers({lighting:true});r.render(0);const lit=c.getImageData(0,0,canvas.width,canvas.height).data;
-          // Keep nighttime ambient dimming but turn off building lights by
-          // rendering lighting directly over the exact daytime sprite pixels.
-          const panes=f.industry?q.industry.rasterIndustryWindows(f.kind,g.biome):q.houses.hasRasterHouse(f.kind,g.biome)?q.houses.houseWindowAnchors(f.kind,g.biome):q.civic.rasterBuildingWindows(f.kind,g.biome);
-          r.setLayers({lighting:false});r.render(0);const day=c.getImageData(0,0,canvas.width,canvas.height).data;
-          let bright=0;for(const [x,y,pw,ph]of panes){const px=Math.floor((center.x+(x+pw/2-16)*1.5*f.span*zoom)*dpr),py=Math.floor((center.y+(y+ph/2-24)*1.5*f.span*zoom)*dpr),i=(py*canvas.width+px)*4;if(lit[i]>day[i]*.53+18*.47+12)bright++;}
-          g.day=0;r.render(0);const composed=r.getStats().composedChunks;r.render(0);
-          rows.push({kind:f.kind,span:f.span,anchor:{x:f.x,y:f.y},zoom,dpr,clicks,roof,selection,selectionExpected,preview,previewExpected,paneCount:panes.length,bright,clutterDelta,stable:r.getStats().composedChunks===composed,unchanged:snapshot===JSON.stringify(g),sourceCells});
+          r.render(0);const composed=r.getStats().composedChunks;r.render(0);
+          rows.push({kind:f.kind,span:f.span,anchor:{x:f.x,y:f.y},zoom,dpr,clicks,roof,selection,selectionExpected,preview,previewExpected,clutterDelta,stable:r.getStats().composedChunks===composed,unchanged:snapshot===JSON.stringify(g),sourceCells});
         }
         r.focus(25,25);r.render(0);return rows;
       },zoom);
@@ -84,7 +78,6 @@ try {
         const near=(bounds,expected)=>bounds?.every((value,index)=>Math.abs(value-expected[index])<=6.4*row.zoom*row.dpr);
         assert.ok(near(row.selection,row.selectionExpected),`${row.kind} selection outlines the whole footprint: ${row.selection} vs ${row.selectionExpected}`);
         assert.ok(near(row.preview,row.previewExpected),`${row.kind} placement preview outlines the whole footprint: ${row.preview} vs ${row.previewExpected}`);
-        assert.ok(row.paneCount>0);assert.equal(row.bright,row.paneCount,`${row.kind} panes follow full footprint`);
         // Ground resampling can mix one channel value from a neighboring fleck
         // at the parcel edge; actual flower/plant art would exceed this bound.
         assert.ok(row.clutterDelta<=2,`${row.kind} full occupied parcel suppresses vegetation, delta${row.clutterDelta}`);
@@ -95,5 +88,5 @@ try {
     }
     await context.close();
   }
-  assert.deepEqual(errors,[]);console.log(JSON.stringify({profiles:results.length,parcelPicks:results.reduce((n,r)=>n+r.clicks.length,0),roofPicks:results.filter(r=>r.roof).length,nightPanes:results.reduce((n,r)=>n+r.bright,0),output},null,2));
+  assert.deepEqual(errors,[]);console.log(JSON.stringify({profiles:results.length,parcelPicks:results.reduce((n,r)=>n+r.clicks.length,0),roofPicks:results.filter(r=>r.roof).length,output},null,2));
 }finally{await browser.close();}

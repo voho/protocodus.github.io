@@ -49,7 +49,7 @@ try{
     for(const biome of biomes)for(const seed of seeds){
       const scenes=await page.evaluate(({biome,seed,generationVersion})=>{
         const q=landscapeQA;const g=q.createGame({biome,size:'square512',seed,generationVersion});g.day=0;q.game=g;
-        if(q.renderer)q.renderer.setGame(g);else q.renderer=q.createRenderer(q.canvas,g,{layers:{lighting:false,names:false,industryIcons:false,routes:false}});
+        if(q.renderer)q.renderer.setGame(g);else q.renderer=q.createRenderer(q.canvas,g,{layers:{names:false,industryIcons:false,routes:false}});
         const best={forest:{score:-Infinity},highlands:{score:-Infinity},coast:{score:-Infinity}};
         for(let y=24;y<g.height-24;y+=12)for(let x=24;x<g.width-24;x+=12){
           let forest=0,rock=0,mountain=0,water=0,variation=0,last=null;
