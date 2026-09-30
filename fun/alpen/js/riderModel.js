@@ -1302,7 +1302,14 @@ export function createRiderModel(THREE, shading) {
     #ifdef N64_SUN_VIS
       n64GroundBounce *= n64SunVis;
     #endif
-    vec3 n64SnowBounceColor = vec3(0.85, 0.92, 1.0) * uSunLevel * n64GroundBounce;
+    /* …and it is light arriving at the surface, so the surface's own
+       colour decides how much of it comes back. It was added as if the
+       garment were white: every downward face gained the same pale blue
+       whatever it was made of, so a black glove, the ink sole of a boot and
+       the dark sintered base of the board all went milky from below — most
+       visibly the base, in every grab and spin that shows it to the lens. */
+    vec3 n64SnowBounceColor = diffuseColor.rgb * vec3(0.85, 0.92, 1.0)
+      * uSunLevel * n64GroundBounce;
     vec3 n64R = normalize(reflect(-n64V, normal) * mat3(viewMatrix));
     float n64Fres = 0.04 + 0.96 * pow(1.0 - n64NoV, 5.0);
     vec3 n64Mirror = n64SkyReflect(n64R)
