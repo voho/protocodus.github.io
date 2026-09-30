@@ -1333,6 +1333,34 @@ export const RIDER = {
      in the edge before it ever becomes a discrete "blizzard" label. */
   stormGrip: 0.80,       // share of clear-weather edge hold in a whiteout
   stormFriction: 1.45,   // share of base friction in deep fresh snow
+  /* The snow types, as they meet an edge. See the note in `groundStep`.
+
+     `snowGrip` is each surface's share of `grip`. The corduroy is the
+     reference and the firmest carving snow on the hill; powder was 1.25 —
+     measured turning a third faster than the piste at 25 m/s — and is now
+     under it, because an edge slices through unconsolidated snow rather
+     than biting it. Ice and rock keep their old shares.
+
+     Powder then earns its own character from three terms rather than from
+     grip alone. `powderScrub` is how much more of the run a wash costs in
+     it (the snow piles against a sliding base), `powderWash` how much
+     faster it stops a sideways skid, and `powderSink` the m/s² of plough a
+     board pays below `powderFloat[1]` m/s, fading in from
+     `powderFloat[0]` — deep snow has to be ridden fast enough to plane.
+
+     Ice chatters: past `chatterFrom` of the available grip, on ice, at
+     speed (full by `chatterSpeed`), the grip ripples by up to
+     `chatterGrip` once every `chatterWave` metres — about fifteen cycles a
+     second at 25 m/s. */
+  snowGrip: { groomed: 1.0, powder: 0.8, ice: 0.65, rock: 0.70 },
+  powderScrub: 0.8,
+  powderWash: 0.6,
+  powderSink: 2.4,
+  powderFloat: [4, 15],
+  chatterFrom: 0.55,
+  chatterSpeed: 14,
+  chatterGrip: 0.2,
+  chatterWave: 1.6,
   // Edge grip, in m/s² of sideways hold. Past it the board washes out and
   // the rider slides — which is where the spray, and the lost speed, are.
   // This one number is most of how the game feels: raise it and the board
@@ -2138,6 +2166,9 @@ export const CAMERA = {
      reading as lean and starts reading as a broken horizon. */
   roll: 0.12,
   shake: 0.55,
+  // An icy edge chattering (`rider.chatter` 0..1) adds this much shake on
+  // top: a few centimetres of rattle, enough to be felt through the frame.
+  iceShake: 0.45,
   // A tuck keeps some shoulder-camera focus without undoing the wider speed lens.
   tuckFov: -2,
   tuckDrop: 0.75,     // and the camera drops in behind the rider's shoulder

@@ -342,6 +342,8 @@ export class Rider {
     this.scrub = 0;          // …of which the surface ceiling's plough, see `groundStep`
     this.lateral = 0;        // signed, so the spray knows which way to fly
     this.carveLoad = 0;      // 0..1, how hard the edge is working
+    this.chatter = 0;        // 0..1, an icy edge skipping under load
+    this._chatterPhase = 0;
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
     this.offPiste = 0;       // 0..1, how deep into the unpisted boundary snow
     this.lipPop = false;     // was the last launch popped on the lip
@@ -799,8 +801,41 @@ export class Rider {
        washes out and goes down the fall line, which on the containment wall
        points back at the run. See `RIDER.wallWash`. */
     const surf = this.world.surfaceAt?.(pos.x, pos.z) || GROOMED_FALLBACK;
-    const matGrip = surf.groomed * 1.0 + surf.powder * 1.25 + surf.ice * 0.65 + surf.rock * 0.70;
-    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip
+    /* WHAT EACH SNOW HOLDS, and the corduroy holds the most.
+
+       Powder was weighted at 1.25 here — a quarter MORE edge than the piste —
+       which contradicted the rest of the model twice over: `stormGrip` says
+       fresh snow weakens the edge, and the whole course is built on the
+       groomed ribbon being the fast, reliable line. Measured on the flat at
+       full lock, powder turned 112°/s at 25 m/s against the corduroy's 86 —
+       the deepest snow on the hill was the stickiest. A carving edge needs
+       something firm to bite into, and machine-packed snow is the firmest
+       thing a board meets that is not ice; unconsolidated powder lets it
+       slice through and slide. So the ribbon is the reference and everything
+       else is under it: powder soft (it loses its line and scrubs — see the
+       powder terms further down), ice lower still, and rock is rock. */
+    const matGrip = surf.groomed * RIDER.snowGrip.groomed
+      + surf.powder * RIDER.snowGrip.powder
+      + surf.ice * RIDER.snowGrip.ice + surf.rock * RIDER.snowGrip.rock;
+    /* ICE CHATTER. Hardpack does not simply hold less; under a loaded edge
+       it holds unevenly. The edge bites, skips a few centimetres, bites
+       again — a rattle through the board at ten to twenty cycles a second
+       that every rider who has carved an icy pitch knows in their knees.
+       Modelled as a ripple in the grip, driven by distance so its pitch
+       rises with speed, and only where it happens: on ice, with the edge
+       working near its limit (last step's `carveLoad`, because this step's
+       is computed from the grip being rippled). `chatter` is published 0..1
+       for the camera, the pad and the mix; the ripple itself is small
+       enough that it reads as a buzz and an occasional slip, not a fall. */
+    this._chatterPhase += (speed * dt) / RIDER.chatterWave;
+    if (this._chatterPhase > 1) this._chatterPhase -= Math.floor(this._chatterPhase);
+    const iceLoad = surf.ice
+      * clamp((this.carveLoad - RIDER.chatterFrom) / (1 - RIDER.chatterFrom), 0, 1)
+      * clamp(speed / RIDER.chatterSpeed, 0, 1);
+    this.chatter = approach(this.chatter, iceLoad, 14, dt);
+    const ripple = 1 - RIDER.chatterGrip * this.chatter
+      * (0.5 + 0.5 * Math.sin(this._chatterPhase * TAU));
+    const surfaceGrip = RIDER.grip * (this.world.grip ?? 1) * matGrip * ripple
       * (1 - RIDER.wallWash * this.offPiste);
 
     /* THE CARVE.
@@ -1204,8 +1239,12 @@ export class Rider {
        going. So both terms are scaled out with the pressure. What is left is
        the plough below, which is the honest cost and is a fifth of the size. */
     const pressGlide = 1 - 0.86 * this.press;
+    /* Powder buries a sliding board rather than letting it skate, so the
+       same wash costs more of the run there: the snow piles up against the
+       base and has to be pushed aside. See `powderScrub`. */
+    const deep = surf.powder;
     let forwardLoss = Math.abs(held) * RIDER.carveDrag
-      + this.slide * RIDER.slideScrub * pressGlide * dt;
+      + this.slide * RIDER.slideScrub * (1 + RIDER.powderScrub * deep) * pressGlide * dt;
     /* And cutting the trench is not free either. A carved edge is slicing
        through snow rather than gliding over it, and the further it is rolled
        over the more of it is buried — which is why a run held on a hard edge
@@ -1239,6 +1278,18 @@ export class Rider {
       forwardLoss += RIDER.wallDrag * this.offPiste * this.offPiste
         * clamp(this.climbRate / speed, 0, 1) * dt;
     }
+    /* …and powder has to be ridden fast enough to float. A board planes on
+       deep snow once it has the speed to, and below that it sinks and
+       ploughs — which is what "deep" feels like from on top of it, and the
+       opposite of the sticky, tight-turning surface this used to be. The
+       plough fades out over `powderFloat`, so a committed line through the
+       powder floats and a slow one bogs down. */
+    if (deep > 0) {
+      const sinking = 1 - clamp(
+        (speed - RIDER.powderFloat[0]) / (RIDER.powderFloat[1] - RIDER.powderFloat[0]), 0, 1,
+      );
+      forwardLoss += RIDER.powderSink * deep * sinking * dt;
+    }
     const forwardSign = Math.sign(vFwd) || (this.switchStance ? -1 : 1);
     vFwd = forwardSign * Math.max(0, Math.abs(vFwd) - forwardLoss);
 
@@ -1246,7 +1297,9 @@ export class Rider {
     // accidental wash catches its edge and aligns much faster. Kinetic base
     // friction below supplies the rest of the stop.
     const slideDamping = (2.6
-      + (RIDER.brakeSlideDamping - 2.6) * braking) * pressGlide;
+      + (RIDER.brakeSlideDamping - 2.6) * braking) * pressGlide
+      // A board skidding sideways through deep snow is stopped by it.
+      * (1 + RIDER.powderWash * deep);
     vLat *= Math.exp(-slideDamping * dt);
 
     // Pressure progressively moves from a waxed base to an edged speed check.
@@ -1922,6 +1975,7 @@ export class Rider {
     this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
     this.slide = 0;
     this.scrub = 0;
+    this.chatter = 0;
     this.carveLoad = 0;
     this.climbRate = 0;
     // Air is air, wherever it is over. Deep snow only exists under a board.
@@ -2468,6 +2522,7 @@ export class Rider {
     const { pos, vel } = this;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
     this.scrub = 0;
+    this.chatter = 0;
 
     if (this.state === 'fall') {
       this.fallElapsed += dt;

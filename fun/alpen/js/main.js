@@ -439,6 +439,7 @@ if (window.matchMedia('(hover: none)').matches || 'ontouchstart' in window) {
 
 const demo = { t: 0, turn: 0, stall: 0 };
 let sparkCarry = 0;   // fractional overdrive sparks owed — see the emit below
+let chatterBuzz = 0;  // seconds until the next ice-chatter pulse on the pad
 const prev = new THREE.Vector3();
 const wind = new THREE.Vector3();
 const riderScreen = new THREE.Vector3();
@@ -1573,7 +1574,16 @@ function frame(now) {
     const tumbleSlide = rider.state === 'fall' && !rider.airborne ? rider.speed : 0;
     const surfMat = getTerrainMaterialAt(rider.pos.x, rider.pos.z);
     audio.ambience(rider.speed, rider.slide, rider.grounded, w.storm,
-      rider.carveLoad, tumbleSlide, surfMat);
+      rider.carveLoad, tumbleSlide, surfMat, rider.chatter);
+    /* The icy edge's rattle, in the hands. A pulse every tenth of a second
+       while it lasts rather than a rumble per frame: the pad's own motor
+       smooths the train into a buzz, and a request every frame at 144 Hz
+       is a request the actuator mostly drops. */
+    chatterBuzz -= dt;
+    if (game.mode === 'playing' && rider.chatter > 0.25 && chatterBuzz <= 0) {
+      chatterBuzz = 0.1;
+      input.rumble(0.12 + rider.chatter * 0.28, 0.04, 90);
+    }
     retro.setSpeed(rider.speed);
     riderScreen.copy(rider.pos).addScaledVector(rider.normal, 0.9).project(camera);
     retro.setFocus(riderScreen.x * 0.5 + 0.5, riderScreen.y * 0.5 + 0.5);
@@ -1810,6 +1820,8 @@ window.__alpen = {
     contactFootprint: +rider.contactFootprint.toFixed(2),
     compression: +rider.compression.toFixed(3),
     slide: +rider.slide.toFixed(2),
+    scrub: +rider.scrub.toFixed(2),
+    chatter: +rider.chatter.toFixed(2),
     brake: +rider.brake.toFixed(2),
     pushing: rider.pushing,
     pushPhase: +rider.pushPhase.toFixed(3),

@@ -262,6 +262,43 @@ for (const tuck of [false, true]) {
   assert.deepEqual(touchdown({}), { verdict: CLEAN, reason: '' });
 }
 
+// The snow types. The corduroy is the grippiest carving snow on the hill —
+// powder used to out-turn it by a third — deep snow bogs a slow board down
+// rather than holding it, and a loaded edge on ice chatters.
+{
+  const snow = {
+    groomed: { rock: 0, groomed: 1, ice: 0, powder: 0 },
+    powder: { rock: 0, groomed: 0, ice: 0, powder: 1 },
+    ice: { rock: 0, groomed: 0, ice: 1, powder: 0 },
+  };
+  const carve = (mat, v) => {
+    const r = rider({ height: () => 0, surfaceAt: () => mat, canStall: () => false });
+    r.grace = 0; r.vel.set(0, 0, -v);
+    const input = { ...neutral, turn: 1 };
+    let chatter = 0;
+    for (let i = 0; i < 48; i++) r.step(dt, input);
+    const from = Math.atan2(r.vel.x, -r.vel.z);
+    for (let i = 0; i < 36; i++) { r.step(dt, input); chatter = Math.max(chatter, r.chatter); }
+    return { rate: (Math.atan2(r.vel.x, -r.vel.z) - from) / (36 * dt), chatter };
+  };
+  for (const v of [20, 28]) {
+    const groomed = carve(snow.groomed, v).rate;
+    const powder = carve(snow.powder, v).rate;
+    assert.ok(groomed > powder * 1.08,
+      `the corduroy out-carves powder at ${v} m/s (${groomed.toFixed(2)} vs ${powder.toFixed(2)} rad/s)`);
+  }
+  assert.ok(carve(snow.ice, 25).chatter > 0.5, 'a loaded edge on ice chatters');
+  assert.equal(carve(snow.groomed, 25).chatter, 0, 'the corduroy does not');
+  const glide = (mat) => {
+    const r = rider({ height: (x, z) => z * 0.2, surfaceAt: () => mat, canStall: () => false });
+    r.grace = 0; r.vel.set(0, -1, -5);
+    for (let i = 0; i < 240; i++) r.step(dt, neutral);
+    return r.speed;
+  };
+  assert.ok(glide(snow.powder) < glide(snow.groomed) - 3,
+    `deep snow bogs a slow board down (${glide(snow.powder).toFixed(1)} vs ${glide(snow.groomed).toFixed(1)} m/s)`);
+}
+
 const buffered = rider();
 buffered.pos.y = 0.05; buffered.vel.set(0, -5, -10);
 buffered.state = 'air'; buffered.grounded = false; buffered.airTime = 0.6;

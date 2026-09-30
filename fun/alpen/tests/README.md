@@ -36,6 +36,11 @@ UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
 The HUD check covers the charge bar's lip states, banners queueing instead of
 overwriting within a step, a mid-air callout riding the kicker line without
 hiding the air clock or live trick, and a wipeout showing its reason.
+Snow types are pinned as well: at 20 and 28 m/s the corduroy out-carves
+powder (it used to be the other way round by a third), deep snow bogs a
+slow board down on a pitch the corduroy runs away on, and a loaded edge on
+ice chatters (`rider.chatter`, which the camera, the pad and the mix read)
+while the corduroy does not.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone

@@ -398,9 +398,14 @@ export function createChaseCamera(THREE, camera) {
     // --- shake ------------------------------------------------------------
     // Two sources, both earned: the ground chattering under the board at
     // speed, and whatever just hit the rider. Neither happens in the air.
+    /* …and a third: an icy edge skipping under load (`rider.chatter`, see
+       the snow types in rider.js). It is the one shake that is about the
+       snow rather than the speed, so it is not scaled by it — a hard carve
+       on blue ice rattles at fifty km/h as surely as at a hundred. */
     const chatter = rider.state === 'fall'
       ? 0
-      : (1 - airBlend) * ratio * ratio * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad);
+      : (1 - airBlend) * (ratio * ratio * CAMERA.shake * (0.5 + 0.5 * rider.carveLoad)
+        + (rider.chatter || 0) * CAMERA.iceShake);
     shake = Math.max(0, shake - dt * 4.5);
     const amp = (chatter + shake) * 0.06;
     seed += dt * 47;

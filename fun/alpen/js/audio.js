@@ -219,7 +219,8 @@ export function createAudio() {
   /* `carveLoad` is optional only so that a caller which has not been updated
      still makes a sensible noise: without it the edge simply never sings and
      everything else behaves exactly as before. */
-  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null) {
+  function ambience(speed, slide, grounded, storm, carveLoad = 0, tumbleSlide = 0, surf = null,
+    chatter = 0) {
     /* Not gated on `muted`: the master gain is already zero, so the voices
        are silent either way, and the gains have to keep tracking the run —
        frozen at their pre-mute values, unmuting at a standstill replayed a
@@ -254,9 +255,12 @@ export function createAudio() {
     whistle.gain.gain.setTargetAtTime(fast * fast * 0.10 * gust * (grounded ? 1 : 0.9), t, 0.15);
     whistle.filter.frequency.setTargetAtTime(950 + fast * 1750, t, 0.25);
 
-    // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock
-    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150;
-    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08) * on, t, 0.09);
+    // The board over the ground: higher pitch chatter on ice, deep bass on powder, rougher on rock.
+    // An icy edge skipping under load (`chatter`) opens it up and drives it
+    // higher — the rattle through the board, heard as well as felt.
+    const rattle = clamp01(chatter);
+    const rumbleFreq = 95 + v * 200 + ice * 120 - powder * 30 + rock * 150 + rattle * 260;
+    rumble.gain.gain.setTargetAtTime((0.025 + v * v * 0.17 + rock * 0.08 + rattle * 0.07) * on, t, 0.09);
     rumble.filter.frequency.setTargetAtTime(rumbleFreq, t, 0.15);
 
     // The edge, holding. High-pitched metallic chime on ice, soft swoosh on powder
