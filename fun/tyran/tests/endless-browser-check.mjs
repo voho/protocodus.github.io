@@ -8,6 +8,11 @@ const url = process.env.TYRAN_URL || 'http://127.0.0.1:8773/fun/tyran/';
 const output = process.env.TYRAN_SCREENSHOTS || '/tmp/tyran-endless-qa';
 await mkdir(output, { recursive: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+// Pumped frames are full WebGL frames the GPU still has to finish. On a software
+// GPU (headless SwiftShader) a burst of them can leave the renderer draining for
+// half a minute, and the next locator call waits for it, so give every action
+// room beyond Playwright's 30 s default.
+page.setDefaultTimeout(120_000);
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
