@@ -174,7 +174,9 @@ try {
   }, site);
   assert.deepEqual(roof.inspected, roof.house, 'an opaque roof selects its own building instead of the ground behind it');
   await app.mouse.click(roof.x, roof.y);
-  await app.evaluate(() => transport.persist());
+  // Loading resumes play until the paused click lands, up to about half a day here; save near the start of the day so
+  // no daily step (upkeep) runs before the comparison.
+  await app.evaluate(() => { const g = transport.game; g.day = Math.floor(g.day) + .02; transport.persist(); });
   const saved = await app.evaluate(() => { const g = transport.game; return { seed: g.seed, generationVersion: g.generationVersion, size: [g.width, g.height], money: g.money, stations: g.stations, routes: g.routes.map(({ pathRevision, ...route }) => route) }; });
   await app.reload(); await loadAutosaveFromMenu(app);
   const restored = await app.evaluate(() => { const g = transport.game; return { seed: g.seed, generationVersion: g.generationVersion, size: [g.width, g.height], money: g.money, stations: g.stations, routes: g.routes.map(({ pathRevision, ...route }) => route) }; });
