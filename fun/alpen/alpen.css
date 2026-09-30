@@ -151,6 +151,11 @@ kbd {
 .drop-in { display: flex; align-items: center; justify-content: space-between; gap: max(60px, 4em); min-width: max(210px, 14.5em); padding: max(16px, 1em) max(21px, 1.35em); border: 1px solid var(--paper); background: var(--paper); color: var(--ink); font-size: var(--ui-control); font-weight: 600; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; }
 .drop-in > span:last-child { font-size: 1.5em; font-weight: 400; line-height: 1; }
 .drop-in:hover { background: var(--accent); border-color: var(--accent); }
+/* The pause screen's second choice, quieter than the first: an outline, so
+   "keep riding" stays the obvious answer and restarting stays reachable by
+   touch, which had no R key to press. */
+.restart-run { margin-top: 12px; padding: max(11px, 0.7em) max(21px, 1.35em); border: 1px solid var(--line); background: transparent; color: var(--paper); font-size: var(--ui-label); font-weight: 600; letter-spacing: 0.04em; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.restart-run:hover, .restart-run:focus-visible { border-color: var(--accent); color: var(--accent); }
 .go-hint { margin-top: 11px; color: var(--muted); font-size: var(--ui-label); letter-spacing: 0.04em; }
 .go-tap, .touch-first { display: none; }
 .first-steps { display: flex; flex-wrap: wrap; gap: 16px 23px; margin-top: 29px; font-size: var(--ui-label); color: var(--paper); }
@@ -280,6 +285,7 @@ body.touch .ride-tools { bottom: max(153px, calc(env(safe-area-inset-bottom) + 1
   .go { margin-top: 17px; display: flex; align-items: center; gap: 20px; }
   .go-hint { margin-top: 0; font-size: 9px; }
   .drop-in { min-width: 170px; }
+  .restart-run { margin-top: 0; }
   .first-steps, body.touch .touch-first { margin-top: 15px; font-size: 9px; }
   .first-steps p > span { display: inline; margin-left: 6px; }
   .control-guide { margin-top: 13px; }

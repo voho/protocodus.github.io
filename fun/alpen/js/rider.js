@@ -310,6 +310,7 @@ export class Rider {
     this._jumpBuffer = 0;
     this._bufferCharge = 0;
     this.tucking = false;
+    this.tuckAmount = 0;        // 0..1, how far the tuck trigger is squeezed
     this.pushing = false;       // rear foot is out of the binding and skating
     this.pushPhase = 0;         // 0..1 authored cycle, shared by physics and rig
     this.pushStroke = 0;        // completed plants in this run, for diagnostics
@@ -496,9 +497,15 @@ export class Rider {
           ? Math.sign(this.edge)
           : (this.switchStance ? -1 : 1);
     }
+    /* How hard, too. `brake` was always a 0..1 pressure that builds and
+       releases, but the only thing it was ever asked for was all of it; an
+       analogue trigger now asks for as much as it is squeezed (see
+       `brakeAmount` in input.js), so a light squeeze is a speed check and
+       a full one is the stop. Keys and buttons still ask for 1. */
+    const brakeWant = input.brake ? clamp(input.brakeAmount ?? 1, 0, 1) : 0;
     this.brake = approach(
-      this.brake, input.brake ? 1 : 0,
-      input.brake ? RIDER.brakeEngage : RIDER.brakeRelease, dt,
+      this.brake, brakeWant,
+      brakeWant > this.brake ? RIDER.brakeEngage : RIDER.brakeRelease, dt,
     );
     const braking = this.brake;
     const brakeActive = braking > 0.02;
@@ -665,8 +672,12 @@ export class Rider {
     const hillPull = travelling > 0.5
       ? RIDER.gravity * Math.max(0, -this.climbRate) / travelling
       : 0;
+    // …and a half-squeezed trigger is half a tuck: the floor it buys, and
+    // what it spends from the meter (see flow.js), scale with the squeeze.
+    this.tuckAmount = this.tucking ? clamp(input.tuckAmount ?? 1, 0, 1) : 0;
     const poweredSpeed = this.tucking && hillPull > 0
-      ? poweredEntrySpeed + Math.min(RIDER.tuckAcceleration, hillPull) * drive * dt
+      ? poweredEntrySpeed + Math.min(RIDER.tuckAcceleration, hillPull) * drive
+        * this.tuckAmount * dt
       : 0;
 
     /* THE BEND — how hard the shape of the ground is pressing the board into
@@ -1973,6 +1984,7 @@ export class Rider {
     this.pushing = false;
     this.brake = approach(this.brake, 0, RIDER.brakeRelease, dt);
     this.tucking = !!input.tuck && !input.brake && this.brake < 0.05;
+    this.tuckAmount = this.tucking ? clamp(input.tuckAmount ?? 1, 0, 1) : 0;
     this.slide = 0;
     this.scrub = 0;
     this.chatter = 0;

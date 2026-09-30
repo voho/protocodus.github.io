@@ -499,7 +499,14 @@ function begin() {
   audio.start();
   showMuted(audio.muted);
   if (!bootReady) return;
-  if (game.mode === 'attract') restart();
+  /* A run starts at the top of the mountain. `restart()` alone resumes from
+     wherever the rider is standing, and on the title screen that is wherever
+     the attract demo has carved to — so a player who read the controls for
+     a minute dropped in kilometres down the hill, with the 1,000 m milestone
+     already behind them and nothing above them but a mountain they never
+     rode. The full reset forgets any checkpoint and puts them on the start
+     line at z = 0, where the seeded mountain begins. */
+  if (game.mode === 'attract') restart(true);
   game.mode = 'playing';
   pausedRendered = false;
   curtain.classList.remove('on');
@@ -530,7 +537,9 @@ function restart(fullReset = false) {
      and a course has checkpoints — and always on the groomed piste line:
      no spawn or reset can ever land off piste or on a mogul. */
   if (fullReset) lastPassedGate = null;
-  const start = lastPassedGate ? lastPassedGate.z : (rider.pos.z !== 0 ? rider.pos.z : 0);
+  // No checkpoint yet: a full reset is the top of the mountain, and an `R`
+  // before the first gate is a respawn where the rider stands.
+  const start = lastPassedGate ? lastPassedGate.z : (fullReset ? 0 : rider.pos.z);
   const rawX = lastPassedGate ? lastPassedGate.x : guideAt(start);
   const center = nearestCenter(rawX, start);
   const half = corridorHalfAt(start);
@@ -623,13 +632,29 @@ function onKey(e) {
     return;
   }
   if (e.code === 'KeyR' && game.mode !== 'attract') {
-    restart();
-    game.mode = 'playing';
-    curtain.classList.remove('on');
-    retro.fade(1);
+    restartRun();
     return;
   }
   if (game.mode !== 'playing') begin();
+}
+
+/* Back to the last gate, from anywhere a run can be: R on the keyboard, the
+   pad's Back/View button (see `input.js`), and the pause screen's own button
+   for touch, which had no way to restart at all.
+
+   It wakes the audio as well, which the keyboard path never did — a pause
+   parks the context (see `audio.quiet`), and R pressed from the pause
+   screen used to resume the run in silence until something else happened
+   to call `begin`. */
+function restartRun() {
+  if (game.mode === 'attract' || !bootReady) return;
+  audio.start();
+  showMuted(audio.muted);
+  restart();
+  game.mode = 'playing';
+  pausedRendered = false;
+  curtain.classList.remove('on');
+  retro.fade(1);
 }
 
 /* Any key starts via onKey's fallthrough; the curtain overlays the whole
@@ -637,6 +662,12 @@ function onKey(e) {
    Chrome grants touch user activation on the synthesized click, not always on
    pointerdown, which is why the tap path starts from this click handler. */
 curtain.addEventListener('click', begin);
+// The pause screen's restart. It must not also reach the curtain's
+// click-anywhere resume, which would run `begin` on top of it.
+curtain.querySelector('.restart-run')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  restartRun();
+});
 touchPause?.addEventListener('click', (e) => {
   e.preventDefault();
   pause();

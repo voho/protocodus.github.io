@@ -61,7 +61,11 @@ The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
 16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
 a revealed photograph retires the relief shell.
 Input regressions include releasing a spin before touchdown, controller menu
-edges, and discarding stale jump gestures across pause and focus loss.
+edges, and discarding stale jump gestures across pause and focus loss. The
+triggers pass their analogue travel through (`brakeAmount`/`tuckAmount`) and
+a half-squeezed brake is half a speed check; the pad's Back button restarts
+once per press; and `rumble` falls back to `navigator.vibrate` only on a
+bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 It exercises all six snowfall bands across nine times of day, cloud extinction,

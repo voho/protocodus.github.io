@@ -95,8 +95,9 @@ export function stepFlowMeter(game, rider, dt) {
     game.flow -= (game.flow - cruise) * SCORE.flowFade * dt;
   }
 
+  // A half-squeezed trigger is half a tuck, and spends half as fast.
   if (rider.tucking && rider.state === 'ride') {
-    game.flow -= SCORE.flowTuckDrain * dt;
+    game.flow -= SCORE.flowTuckDrain * (rider.tuckAmount ?? 1) * dt;
   }
   game.flow = clamp01(game.flow);
 }

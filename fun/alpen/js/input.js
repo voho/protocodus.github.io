@@ -61,6 +61,21 @@ const PULSE_RELEASE = 2;
    straight to the zone's edge. */
 const GP_DEADZONE = 0.18;
 
+/* And where a trigger starts being a press. Triggers are analogue — the
+   Gamepad API reports each as a 0..1 `value` beside its boolean `pressed`,
+   whose threshold is the browser's choice — and the rider already treats
+   the brake as pressure: `rider.brake` is a 0..1 approach towards whatever
+   it is asked for. So the trigger's own travel is passed through as
+   `brakeAmount` / `tuckAmount`, rescaled from this small rest zone, and a
+   half-squeezed left trigger is a speed check rather than a full stop. */
+const GP_TRIGGER_REST = 0.06;
+const triggerAmount = (button) => {
+  if (!button) return 0;
+  const raw = typeof button.value === 'number' ? button.value : (button.pressed ? 1 : 0);
+  const v = Math.max(raw, button.pressed ? 0.35 : 0);
+  return v <= GP_TRIGGER_REST ? 0 : Math.min(1, (v - GP_TRIGGER_REST) / (1 - GP_TRIGGER_REST));
+};
+
 export function createInput(target, hooks = {}) {
   const down = new Set();
   let jumpStepSeen = false;
@@ -71,9 +86,13 @@ export function createInput(target, hooks = {}) {
   let gamepadSuppressed = false;
   let gpJumpHeld = false;
   let gpMenuHeld = false;
+  let gpBackHeld = false;
   let gpJumpStepSeen = false;
   const state = {
     turn: 0, turnIntent: 0, tuck: false, brake: false, jump: false,
+    // How hard, 0..1, while `tuck`/`brake` are true: 1 from a key or a
+    // button, the trigger's travel from a pad. See `triggerAmount`.
+    tuckAmount: 0, brakeAmount: 0,
     trickGrab: false, trickFlip: false,
     anyPressed: false, touch: false,
   };
@@ -143,7 +162,8 @@ export function createInput(target, hooks = {}) {
        in the array silencing the rest, and steering takes whichever of pad
        and keys is asking harder. */
     let gpTurn = 0, gpTuck = false, gpBrake = false, gpJump = false, gpGrab = false, gpFlip = false;
-    let gpMenu = false;
+    let gpMenu = false, gpBack = false;
+    let gpTuckAmount = 0, gpBrakeAmount = 0;
     if (hasGamepads) {
       const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
       for (let i = 0; i < gamepads.length; i++) {
@@ -160,13 +180,20 @@ export function createInput(target, hooks = {}) {
         // over a held left, and either over a stick deflected the other way.
         const dpad = (gp.buttons[15]?.pressed ? 1 : 0) - (gp.buttons[14]?.pressed ? 1 : 0);
         if (Math.abs(dpad) > Math.abs(gpTurn)) gpTurn = dpad;
-        gpTuck = gpTuck || !!gp.buttons[7]?.pressed || !!gp.buttons[12]?.pressed;   // RT · d-up
-        gpBrake = gpBrake || !!gp.buttons[6]?.pressed || !!gp.buttons[13]?.pressed; // LT · d-down
+        // RT · d-up, and LT · d-down: the triggers by how far they travel,
+        // the d-pad (a button) as a full press.
+        gpTuckAmount = Math.max(gpTuckAmount, triggerAmount(gp.buttons[7]),
+          gp.buttons[12]?.pressed ? 1 : 0);
+        gpBrakeAmount = Math.max(gpBrakeAmount, triggerAmount(gp.buttons[6]),
+          gp.buttons[13]?.pressed ? 1 : 0);
         gpJump = gpJump || !!gp.buttons[0]?.pressed;   // A
         gpGrab = gpGrab || !!gp.buttons[2]?.pressed;   // X
         gpFlip = gpFlip || !!gp.buttons[3]?.pressed;   // Y
         gpMenu = gpMenu || !!gp.buttons[9]?.pressed;   // Start / Menu
+        gpBack = gpBack || !!gp.buttons[8]?.pressed;   // Back / View / Select
       }
+      gpTuck = gpTuckAmount > 0;
+      gpBrake = gpBrakeAmount > 0;
 
       /* `clear()` cannot reach inside a controller the way it empties the
          key set — the poll would simply re-assert every held button on the
@@ -174,11 +201,13 @@ export function createInput(target, hooks = {}) {
          cleared pad is ignored until every one of its controls has passed
          through neutral once. */
       if (gamepadSuppressed) {
-        if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip && !gpMenu) {
+        if (gpTurn === 0 && !gpTuck && !gpBrake && !gpJump && !gpGrab && !gpFlip
+          && !gpMenu && !gpBack) {
           gamepadSuppressed = false;
         } else {
           gpTurn = 0;
-          gpTuck = gpBrake = gpJump = gpGrab = gpFlip = gpMenu = false;
+          gpTuck = gpBrake = gpJump = gpGrab = gpFlip = gpMenu = gpBack = false;
+          gpTuckAmount = gpBrakeAmount = 0;
         }
       }
 
@@ -209,6 +238,8 @@ export function createInput(target, hooks = {}) {
 
     state.tuck = held('tuck') || gpTuck;
     state.brake = held('brake') || gpBrake;
+    state.tuckAmount = held('tuck') ? 1 : gpTuckAmount;
+    state.brakeAmount = held('brake') ? 1 : gpBrakeAmount;
     /* A complete tap can happen between two animation frames. Latch that
        edge into one sampled press and one sampled release so the 120 Hz rider
        always gets an ollie, however the browser scheduled the key events —
@@ -231,6 +262,15 @@ export function createInput(target, hooks = {}) {
       // here would be immediately undone by the main loop's resume edge.
       state.anyPressed = false;
       hooks.key?.({ code: 'Escape' });
+    }
+    /* Back / View is the pad's R: restart from the last gate. An edge, like
+       Start, so holding it restarts once; and it is not "any key" — a
+       restart must never also count as the press that resumes a pause. */
+    const backPressed = gpBack && !gpBackHeld;
+    gpBackHeld = gpBack;
+    if (backPressed && !menuPressed) {
+      state.anyPressed = false;
+      hooks.key?.({ code: 'KeyR' });
     }
   }
 
@@ -347,6 +387,7 @@ export function createInput(target, hooks = {}) {
     gamepadSuppressed = true;
     gpJumpHeld = false;
     gpMenuHeld = false;
+    gpBackHeld = false;
     gpJumpStepSeen = false;
     calm();
   }
@@ -354,7 +395,10 @@ export function createInput(target, hooks = {}) {
   /* Gamepad dual-rumble haptic feedback.
      Safely triggers vibration actuators on connected gamepads. */
   function rumble(weakMagnitude = 0.3, strongMagnitude = 0.3, durationMs = 150) {
-    if (!hasGamepads || !navigator.getGamepads) return;
+    if (!hasGamepads || !navigator.getGamepads) {
+      buzz(Math.max(weakMagnitude, strongMagnitude), durationMs);
+      return;
+    }
     try {
       const gamepads = navigator.getGamepads();
       for (let i = 0; i < gamepads.length; i++) {
@@ -370,6 +414,25 @@ export function createInput(target, hooks = {}) {
         }
       }
     } catch { /* platform or security restriction */ }
+  }
+
+  /* …and the phone in the hand, when there is no pad to shake.
+
+     `navigator.vibrate` has no magnitude, only duration, so strength is
+     spent as length: a light tick for a pulse, most of the requested time
+     for a hard landing, nothing at all for the faintest requests — a buzz
+     for every chatter pulse on a phone is a phone complaining. Only once
+     the touch pad is bound (a laptop's mouse should never make anything
+     buzz) and only after the page has had a user gesture, because Chrome
+     refuses the call before one and says so in the console. Everything is
+     guarded: most desktop and all iOS browsers simply have no `vibrate`. */
+  function buzz(magnitude, durationMs) {
+    if (!state.touch || magnitude < 0.3) return;
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    if (!nav || typeof nav.vibrate !== 'function') return;
+    if (nav.userActivation && !nav.userActivation.hasBeenActive) return;
+    const ms = Math.round(Math.min(durationMs, 20 + 180 * Math.min(1, magnitude)));
+    try { nav.vibrate(ms); } catch { /* blocked by policy or an embedding frame */ }
   }
 
   return { state, update, stepped, bindTouch, dispose, clear, calm, rumble };

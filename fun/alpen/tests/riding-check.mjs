@@ -459,6 +459,49 @@ assert.ok(menuInput.state.turnIntent > 0 && menuInput.state.turnIntent < 0.8,
   'stick intent remains analog after dead-zone rescaling');
 menuInput.dispose();
 
+// Triggers are analogue and the rider's brake is a pressure: a half squeeze
+// asks for about half of it, keys and d-pad buttons for all of it. Back is
+// the pad's R — one restart per press — and a phone without a pad buzzes.
+{
+  const pad = { axes: [0], buttons: Array.from({ length: 16 }, () => ({ pressed: false, value: 0 })) };
+  pads = [pad];
+  const keys = [];
+  const analog = createInput(new Target(), { key: (e) => keys.push(e.code) });
+  pad.buttons[6].value = 0.5;
+  pad.buttons[7].value = 1; pad.buttons[7].pressed = true;
+  analog.update(dt);
+  assert.equal(analog.state.brake, true);
+  assert.ok(Math.abs(analog.state.brakeAmount - 0.44 / 0.94) < 1e-9, `LT passes its travel (${analog.state.brakeAmount})`);
+  assert.equal(analog.state.tuckAmount, 1);
+  const r = rider({ height: (x, z) => z * 0.3, canStall: () => false });
+  r.vel.set(0, -6, -20);
+  for (let i = 0; i < 90; i++) r.step(dt, { ...neutral, brake: true, brakeAmount: analog.state.brakeAmount });
+  assert.ok(Math.abs(r.brake - analog.state.brakeAmount) < 0.02, `a half squeeze is half a speed check (${r.brake})`);
+  pad.buttons[6].value = 0; pad.buttons[7].value = 0; pad.buttons[7].pressed = false;
+  pad.buttons[8].pressed = true;
+  for (let i = 0; i < 30; i++) analog.update(dt);
+  assert.deepEqual(keys, ['KeyR'], 'holding Back restarts once');
+  pad.buttons[8].pressed = false;
+  analog.update(dt);
+  analog.dispose();
+
+  pads = [];
+  const buzzes = [];
+  Object.defineProperty(globalThis, 'navigator', { configurable: true, value: {
+    getGamepads: () => pads, vibrate: (ms) => { buzzes.push(ms); return true; },
+    userActivation: { hasBeenActive: true },
+  } });
+  const phone = createInput(new Target());
+  phone.rumble(0.5, 0.2, 240);
+  assert.equal(buzzes.length, 0, 'no touch pad bound: a laptop never buzzes');
+  phone.bindTouch(new Target());
+  phone.rumble(0.5, 0.2, 240);
+  phone.rumble(0.1, 0.05, 90);
+  assert.deepEqual(buzzes, [110], 'a touch device buzzes for strength, and skips the faint ones');
+  phone.dispose();
+  Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => pads }, configurable: true });
+}
+
 // Spinning the board must not orbit the chase view away from its landing.
 const flying = rider();
 flying.pos.y = 20; flying.vel.set(0, 0, -20);
