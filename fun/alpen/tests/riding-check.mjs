@@ -1,12 +1,13 @@
 // Run with: node tests/riding-check.mjs
 import assert from 'node:assert/strict';
 import * as THREE from '../../../assets/vendor/three/three.module.min.js';
-import { Rider, trickName, speedCeiling, CLEAN, BAIL } from '../js/rider.js';
+import { Rider, trickName, speedCeiling, CLEAN, SKETCHY, BAIL } from '../js/rider.js';
 import { RIDER } from '../js/config.js';
 import { createInput } from '../js/input.js';
 import { createChaseCamera } from '../js/camera.js';
 
 const dt = 1 / 120;
+const TAU = Math.PI * 2;
 const neutral = { turn: 0, tuck: false, brake: false, jump: false, trickGrab: false, trickFlip: false };
 const flat = { height: () => 0, canStall: () => false };
 const rider = (world = flat) => new Rider(THREE, world);
@@ -203,6 +204,62 @@ for (const tuck of [false, true]) {
   piste.grace = 0; piste.vel.set(0, -45 * 0.287, -45 * 0.958);
   piste.step(dt, neutral);
   assert.equal(piste.scrub, 0, 'under the ceiling nothing is shed');
+}
+
+// The lip is readable while it matters. Holding a charge towards a pitch
+// break lights `lipAhead` a few tenths early (never on the open pitch), then
+// `lipReady` for the release window itself — which, off a real edge, is the
+// launch step and the late sixth of a second after it. Releasing while lit
+// is the lip pop, and `perfectPop` fires after `launch`, so the launch's
+// banner clear cannot eat the callout it is meant to trigger.
+{
+  const h = (x, z) => (z > -8 ? z * 0.27 : -8 * 0.27 + (z + 8) * 0.7);
+  const r = rider({ height: h, canStall: () => false });
+  r.vel.set(0, -18 * 0.26, -18 * 0.965);
+  const order = [];
+  r.on('launch', () => order.push('launch'));
+  r.on('perfectPop', () => order.push('perfectPop'));
+  let aheadAt = null;
+  let earlyCue = false;
+  for (let i = 0; i < 240 && !r.lipReady; i++) {
+    r.step(dt, { ...neutral, jump: true });
+    if (r.pos.z > -2 && (r.lipAhead || r.lipReady)) earlyCue = true;
+    if (r.lipAhead && aheadAt === null) aheadAt = r.pos.z;
+  }
+  assert.equal(earlyCue, false, 'an open pitch six metres short of the break is not a lip');
+  assert.ok(aheadAt !== null && aheadAt > -7.5,
+    `the lip is announced before it arrives (${aheadAt})`);
+  assert.ok(r.lipReady, 'and lit when it does');
+  r.step(dt, neutral);
+  assert.equal(r.state, 'air');
+  assert.equal(r.lipPop, true, 'releasing while lit is the lip pop');
+  assert.deepEqual(order, ['launch', 'perfectPop'], 'the callout follows the launch that clears the band');
+}
+
+// A verdict carries its reason, for the banner: what went wrong, and which
+// way — a rotation stopped short is not a rotation carried past.
+{
+  const touchdown = ({ vy = -3, spin = 0, flip = 0, grab = false }) => {
+    const r = rider();
+    r.pos.y = 0.05; r.vel.set(0, vy, -20);
+    r.state = 'air'; r.grounded = false; r.airTime = 0.8;
+    r.yaw = r.spinAccum = spin;
+    r.flip = r.flipAccum = flip;
+    let reason = null;
+    r.on('fall', (cause, into, why) => { reason = why; });
+    for (let i = 0; i < 20 && r.state === 'air'; i++) {
+      r.step(dt, { ...neutral, turnIntent: 0.5, trickGrab: grab });
+    }
+    return r.landing ? { verdict: r.landing.verdict, reason: r.landing.reason }
+      : { verdict: BAIL, reason };
+  };
+  assert.deepEqual(touchdown({ vy: -40 }), { verdict: BAIL, reason: 'HARD LANDING' });
+  assert.deepEqual(touchdown({ flip: -Math.PI }), { verdict: BAIL, reason: 'UPSIDE DOWN' });
+  assert.deepEqual(touchdown({ flip: -(TAU - 1.5) }), { verdict: BAIL, reason: 'UNDER-ROTATED' });
+  assert.deepEqual(touchdown({ spin: 2.0 }), { verdict: SKETCHY, reason: 'UNDER-ROTATED' });
+  assert.deepEqual(touchdown({ spin: 4.3 }), { verdict: SKETCHY, reason: 'OVER-ROTATED' });
+  assert.deepEqual(touchdown({ grab: true }), { verdict: SKETCHY, reason: 'GRAB HELD' });
+  assert.deepEqual(touchdown({}), { verdict: CLEAN, reason: '' });
 }
 
 const buffered = rider();

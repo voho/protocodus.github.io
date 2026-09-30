@@ -362,6 +362,24 @@ export function createAudio() {
       burst(0.13, 2400, 0.10, 'highpass', null, 0, whiteBuf);
     },
 
+    /* The lip pop, confirmed. It plays on top of `jump`, a beat later, so it
+       has to be a different material rather than a louder pop: a short,
+       bright fifth that rises — a click of the tongue rather than a fanfare,
+       because it fires on a timing the player is still in the middle of and
+       anything longer would land on top of the spin blips. */
+    perfectPop() {
+      tone(880, 1320, 0.09, 0.10, 'triangle', 0.015);
+      tone(1320, 1760, 0.12, 0.07, 'sine', 0.06);
+    },
+
+    /* A run of gates broken. Quiet and falling, the chime's own voice run
+       backwards: the ladder the player was climbing just went, and the ear
+       should hear it go without being told off. */
+    gateMiss() {
+      tone(523.25, 392, 0.22, 0.08, 'triangle');
+      tone(392, 311.13, 0.26, 0.05, 'sine', 0.09);
+    },
+
     // A synthesized chime for slalom gate streaks. Pitch increases with the streak.
     chime(streak) {
       const baseFreq = 523.25; // C5

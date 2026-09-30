@@ -1713,6 +1713,9 @@ export const RIDER = {
   // is a bail. Switch is the same window rotated half a turn.
   landWindow: 0.92,   // radians ≈ 53°
   landPitchWindow: 0.85,
+  // Past this much pitch at touchdown (≈120°) a bail is named UPSIDE DOWN
+  // rather than under- or over-rotated: there is no rotation left to blame.
+  upsideDown: 2.1,
   // How far off the ground the rider's ballistic path has to be, ninety
   // milliseconds out, before the hill counts as having dropped away.
   launchGap: 0.12,

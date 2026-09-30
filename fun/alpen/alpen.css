@@ -112,6 +112,11 @@ kbd {
 .ride-charge { position: absolute; right: var(--right); bottom: calc(var(--bottom) + 3em); width: 11em; }
 .ride-charge p { margin-bottom: 9px; font-size: var(--ui-label); font-weight: 600; letter-spacing: 0.06em; text-align: right; }
 .ride-charge .meter { height: 4px; background: rgba(9, 22, 33, 0.55); }
+/* The lip: letting go now is the perfect pop. Colour only, no motion — the
+   bar already moves, and a flash on top of it would be read as a warning. */
+.ride-charge[data-lip='ahead'] p { color: var(--ice); opacity: 0.8; }
+.ride-charge[data-lip='ready'] p { color: var(--ice); }
+.ride-charge[data-lip='ready'] .meter > i { background: var(--ice); }
 .ride-guide { position: absolute; right: var(--right); top: calc(var(--top) + 9.5em); font-size: var(--ui-copy); color: var(--accent); }
 .ride-hint { position: absolute; left: var(--left); bottom: calc(var(--bottom) + 2.2em); font-size: var(--ui-copy); color: var(--paper); }
 .ride-hint > span { margin: 0 9px; color: var(--muted); }

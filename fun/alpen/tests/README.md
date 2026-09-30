@@ -27,6 +27,15 @@ lip: a flight over powder loses only its own air drag (it used to be cut to
 the powder's ceiling in mid-air), and a board carried into powder above the
 ceiling ploughs the excess off over about a second instead of snapping to it,
 booking the plough as `scrub` inside `slide` so spray and sound answer it.
+Timing feedback is pinned too: holding a charge towards a pitch break lights
+`lipAhead` a few tenths early and never on the open pitch, `lipReady` is the
+release test itself, releasing while it is lit is the lip pop, and
+`perfectPop` fires after `launch` so the launch's banner clear cannot erase
+it. Every non-clean landing carries a reason (HARD LANDING, UPSIDE DOWN,
+UNDER-/OVER-ROTATED, GRAB HELD), and a bail hands it to the `fall` event.
+The HUD check covers the charge bar's lip states, banners queueing instead of
+overwriting within a step, a mid-air callout riding the kicker line without
+hiding the air clock or live trick, and a wipeout showing its reason.
 The flow check rides the real rider down three seeded mountains with the award
 rules from `main.js` and the race gates where `props.js` plants them (a panel
 either side of the racing line on every guide slot): steering the line alone

@@ -691,14 +691,14 @@ function persistBest(force = false) {
 
 window.addEventListener('pagehide', () => persistBest(true));
 
-function award(points, name, tone) {
+function award(points, name, tone, opts = null) {
   game.score += points;
   if (game.score > game.best) {
     game.best = game.score;
     bestDirty = true;
     persistBest();
   }
-  if (name) hud.banner(name, points, tone);
+  if (name) hud.banner(name, points, tone, opts);
 }
 
 function scoreLanding(s) {
@@ -733,7 +733,9 @@ function scoreLanding(s) {
   const earned = pts;   // before the multiplier: the meter pays for the trick
   pts *= game.combo;
   const callout = s.lipPop && s.verdict === CLEAN ? `PERFECT POP · ${name}` : name;
-  award(pts, callout, s.verdict === SKETCHY ? 'warn' : '');
+  // A sketchy landing says what made it sketchy — see `reason` in `land`.
+  award(pts, callout, s.verdict === SKETCHY ? 'warn' : '',
+    s.reason ? { kicker: s.reason } : null);
   /* The trick is what fills the meter now, and it fills it by how good the
      trick was rather than by the fact that one happened. A tidy 180 nudges
      it; a switch cork 900 held to the snow is most of a bar. The multiplier
@@ -779,7 +781,25 @@ rider.on('launch', (vy) => {
   hud.clearBanner();
 });
 
-rider.on('fall', (cause, into = 0) => {
+/* The lip pop, told as it happens rather than a second later.
+
+   `perfectPop` has been emitted from both release paths (on the lip, and in
+   the late window just past it) since the timing bonus was written, and
+   nothing was listening — so the one piece of timing the game asks for was
+   confirmed only by a prefix on the landing banner, after the fact and only
+   if the landing was clean. Now it is a callout, a sound and a pulse at the
+   moment of release. It is emitted AFTER `launch` in the same step, so the
+   banner clear above cannot take it back, and in the air the HUD puts it on
+   the kicker line over the air clock instead of hiding the flight's own
+   read-out (see `FLASH_HOLD` in hud.js). */
+rider.on('perfectPop', () => {
+  if (game.mode !== 'playing') return;
+  hud.banner('PERFECT POP', 0, 'near');
+  audio.perfectPop();
+  input.rumble(0.35, 0.12, 90);
+});
+
+rider.on('fall', (cause, into = 0, reason = '') => {
   /* A wipeout costs most of the meter, not all of it. Flow is the
      multiplier now, and zeroing it on one caught edge is the punishment
      that stops people trying tricks at all — which is the opposite of what
@@ -813,7 +833,9 @@ rider.on('fall', (cause, into = 0) => {
   const push = 1.0 + severity * 2.3;
   spray.burst(rider.pos, backX * push, backZ * push,
     Math.round(34 + severity * 58), plume);
-  hud.banner('WIPEOUT', 0, 'bad');
+  // …and why, on the kicker: HARD LANDING, UNDER-ROTATED, UPSIDE DOWN, a
+  // stall or a tree. "WIPEOUT" alone told the player what, never what to fix.
+  hud.banner('WIPEOUT', 0, 'bad', reason ? { kicker: reason } : null);
 });
 
 rider.on('impact', (v) => {
@@ -986,6 +1008,16 @@ function checkGates() {
     const t = (zFrom - g.z) / (zFrom - zTo || 1);
     const x = prev.x + (rider.pos.x - prev.x) * t;
     if (Math.abs(x - g.x) > g.half) {
+      /* A run of gates broken is news; a single gate missed is not. The
+         ladder resetting silently was the only rule in the scoring nobody
+         was ever told about — the next gate simply paid a third of what the
+         player expected. A quiet callout and a falling blip, only once the
+         run was worth something (two or more linked). */
+      if (game.gateRun > 1) {
+        hud.banner('GATE MISSED', 0, 'warn',
+          { kicker: `Run of ${game.gateRun} ended`, hold: 1.1 });
+        audio.gateMiss();
+      }
       game.gateRun = 0;
       continue;
     }

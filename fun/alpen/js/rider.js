@@ -87,6 +87,8 @@ const momentumStability = (speed) => {
    remains centred, so carving across a lip still reads the ramp's real camber.
    The launch look-ahead then sees the missing ground and does its own job. */
 const CONTACT_EPS = 0.35;
+// Seconds ahead the HUD's "lip ahead" prediction asks about — see `lipAhead`.
+const LIP_AHEAD = [0.13, 0.2, 0.28];
 function trailingNormalFrom(fn, x, z, vel, out) {
   const speed = Math.hypot(vel.x, vel.z);
   if (speed < 0.25) return normalFrom(fn, x, z, out);
@@ -172,6 +174,15 @@ export const CLEAN = 0;
 export const SKETCHY = 1;
 export const BAIL = 2;
 
+/* What the WIPEOUT banner says for a fall that is not a landing. A landing
+   names its own reason (see `land`); these are the other ways down. */
+const FALL_REASONS = {
+  stall: 'STALLED OUT',
+  hit: 'CAUGHT AN OBSTACLE',
+  npc: 'COLLISION',
+  land: 'HARD LANDING',
+};
+
 /* The three reaches, indexing `RIDER.grabs`. Named rather than numbered
    because the pose book in `riderModel.js` indexes the same table and a bare
    2 in two files is how a nose grab quietly becomes a method. */
@@ -244,14 +255,14 @@ export class Rider {
     return this;
   }
 
-  emit(name, a, b) {
+  emit(name, a, b, c) {
     const list = this.events[name];
     // An event nobody registered must be a no-op, not a TypeError: this runs
     // inside the physics step, where one bad name used to crash the frame —
     // `perfectPop` fired on exactly the pop it was named after and its list
     // was missing from the registry above.
     if (!list) return;
-    for (let i = 0; i < list.length; i++) list[i](a, b);
+    for (let i = 0; i < list.length; i++) list[i](a, b, c);
   }
 
   reset(z = 0, x = null) {
@@ -334,6 +345,9 @@ export class Rider {
     this.climbRate = 0;      // m/s of height being gained, for the HUD and the scrub
     this.offPiste = 0;       // 0..1, how deep into the unpisted boundary snow
     this.lipPop = false;     // was the last launch popped on the lip
+    this.lipReady = false;   // would letting go of a charge *now* be a lip pop
+    this.lipAhead = false;   // …or is one coming up in the next few tenths
+    this.fallReason = '';    // what put the rider down, in words, for the HUD
     this.takeoffSpeed = 0;   // speed committed to the current trick
     this.fallTimer = 0;
     this.fallElapsed = 0;
@@ -1523,6 +1537,44 @@ export class Rider {
       previousDistance = distance;
     }
 
+    /* The lip-pop test below, published every step whether or not anything
+       is released, so the HUD can tell a rider holding a charge that letting
+       go NOW would be the lip pop. The timing bonus was the one skill in the
+       game with no read-out at all: the player learned it had happened from
+       a word on a banner a second later and never learned what "now" felt
+       like. It IS the release condition, so the tint and the payout cannot
+       disagree; `airStep` keeps it lit through the late-release window. */
+    this.lipReady = !blocked && clearance > -0.25;
+
+    /* …and a longer, coarser look ahead, for the HUD alone and only while a
+       charge is being held.
+
+       Measured on a pitch break and on a rounded crest, the release test
+       below is true on the snow for at most the step that launches — the
+       ground has to be falling away faster than gravity *now*, which is
+       the launch condition itself — and the rest of the lip window is the
+       sixth of a second after it in the air (see `airStep`). A cue that
+       lights only once the lip has arrived is a cue a human reaction cannot
+       use. So the same ballistic question is asked two to three tenths of a
+       second out, three samples, and `lipAhead` says "hold it — the lip is
+       coming" before `lipReady` says "now". Measured off the pitch break in
+       riding-check it leads the launch by 0.09 s at 12 m/s, 0.13 s at 18
+       and 0.18 s at 30, so with the late window behind it the cue is lit
+       for a quarter to a third of a second in all. It never pays anything
+       and never launches anyone; it is a prediction for the read-out. */
+    this.lipAhead = false;
+    if (input.jump && horizontalSpeed > 4 && !this.lipReady) {
+      for (let k = 0; k < LIP_AHEAD.length; k++) {
+        const t = LIP_AHEAD[k];
+        const ground = this.world.height(pos.x + vel.x * t, pos.z + vel.z * t);
+        const ballistic = pos.y + predictorVy * t - 0.5 * RIDER.gravity * t * t;
+        if (ballistic - ground > RIDER.launchGap) {
+          this.lipAhead = true;
+          break;
+        }
+      }
+    }
+
     /* Popping, and popping at the right moment.
 
        The clearance above is read *before* the pop is resolved, which is
@@ -1538,7 +1590,7 @@ export class Rider {
       const held = this.charging ? this.charge : this._bufferCharge;
       this._jumpBuffer = 0;
       pop = RIDER.popMin + (RIDER.popMax - RIDER.popMin) * held;
-      if (!blocked && clearance > -0.25) {
+      if (this.lipReady) {
         pop *= RIDER.lipBonus;
         this.lipPop = true;
       } else if (this.bend > RIDER.pumpFrom) {
@@ -1839,6 +1891,10 @@ export class Rider {
     // spinVel. A release must reach that damping and landing help immediately.
     const turn = input.turnIntent ?? input.turn;
     this.airTime += dt;
+    // The late half of the lip window: a charge carried off a natural launch
+    // and released inside `lipWindow` is still the lip pop (see below).
+    this.lipReady = this._latePopAllowed && this.airTime <= RIDER.lipWindow;
+    this.lipAhead = false;
     if (input.jump) {
       this.charging = true;
       this.charge = Math.min(1, this.charge + dt / RIDER.chargeTime);
@@ -1848,6 +1904,7 @@ export class Rider {
           * RIDER.lipBonus;
         this.applyPop(this.normal, pop);
         this._latePopAllowed = false;
+        this.lipReady = false;
         this.lipPop = true;
         this.compressionVel = -14;
         this.emit('perfectPop');
@@ -2200,8 +2257,43 @@ export class Rider {
     const halfTurns = Math.round(Math.abs(this.spinAccum) / Math.PI);
     const flipTurns = Math.round(Math.abs(this.flipAccum) / TAU);
 
+    /* WHY, in words — because a verdict with no reason teaches nothing.
+
+       "SKETCHY" and "WIPEOUT" were the whole of the feedback, and the four
+       ways a landing actually goes wrong want four different corrections:
+       came down too hard (pick a gentler landing or absorb it), stopped the
+       rotation short (commit earlier), carried it past (let go sooner), or
+       still had the hand on the board. Every one of them is already measured
+       above, so this is only a question of which one decided the verdict,
+       asked in the same order the verdict was: impact first for a bail, then
+       the flip, then the spin, then the grab, then a merely heavy touchdown.
+
+       Short versus long is the sign of the leftover against the direction of
+       rotation. Both `yaw` and `flip` move with their accumulators, so a
+       residual that points the way the rider was turning is rotation carried
+       past the stance, and one pointing back against it is rotation that
+       never arrived. A board that came down across its travel without having
+       spun at all was not under- or over-anything — it landed sideways. */
+    let reason = '';
+    const stanceErr = isSwitch ? wrapPi(off - Math.PI) : off;
+    const rotated = (residual, accum) => (
+      Math.abs(accum) < 0.3 ? 'LANDED SIDEWAYS'
+        : residual * accum > 0 ? 'OVER-ROTATED' : 'UNDER-ROTATED'
+    );
+    if (verdict === BAIL) {
+      reason = impact > RIDER.hardImpact ? 'HARD LANDING'
+        : flipErr > RIDER.upsideDown ? 'UPSIDE DOWN'
+          : rotated(wrapPi(this.flip), this.flipAccum);
+    } else if (verdict === SKETCHY) {
+      reason = judged && flipErr > p ? rotated(wrapPi(this.flip), this.flipAccum)
+        : judged && spinErr > w ? rotated(stanceErr, this.spinAccum)
+          : judged && this.grabbing ? 'GRAB HELD'
+            : 'HEAVY LANDING';
+    }
+
     const summary = {
       verdict,
+      reason,
       airTime: this.airTime,
       spin: this.spinAccum,
       flips: this.flipAccum,
@@ -2244,7 +2336,7 @@ export class Rider {
     this.compressionVel += Math.min(impact, 30) * 0.85;
 
     if (verdict === BAIL) {
-      this.fall('land', impact);
+      this.fall('land', impact, reason);
     } else {
       /* Snap the board straight — forward or switch, whichever was closer —
          but only if this was actually a jump.
@@ -2310,9 +2402,15 @@ export class Rider {
   /* `into` is the speed that went into whatever caused this, in m/s. It is
      what decides how far the rider is thrown: a bail off a bad landing hands
      over the impact, a tree hands over the closing speed, and a spill at
-     walking pace hands over almost nothing and is over in a second. */
-  fall(cause = 'land', into = 0) {
+     walking pace hands over almost nothing and is over in a second.
+
+     `reason` is the same event in words, for the WIPEOUT banner. A landing
+     supplies its own (see `land`); everything else is named by its cause. */
+  fall(cause = 'land', into = 0, reason = '') {
     if (this.state === 'fall') return;
+    this.fallReason = reason || FALL_REASONS[cause] || '';
+    this.lipReady = false;
+    this.lipAhead = false;
     this.state = 'fall';
     this.grounded = false;
     this.airborne = true;
@@ -2358,7 +2456,7 @@ export class Rider {
     // mix, powder plume and camera response all need the same physical number
     // that launched the body; throwing it away here made every wipeout read
     // identically, from a walking-speed washout to a full-speed tree hit.
-    this.emit('fall', cause, into);
+    this.emit('fall', cause, into, this.fallReason);
   }
 
   /* A tumble is a body, not a timer. While it is off the ground it is
