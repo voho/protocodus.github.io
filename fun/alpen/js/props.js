@@ -110,6 +110,7 @@ import { growCardSpruce, createTwigAtlas } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
+import { sharedTexture } from './textures.js';
 
 const {
   band, ahead, behind, biomes: BIOMES,
@@ -2007,16 +2008,18 @@ export function createProps(THREE, shading) {
     new URL('../assets/textures/tree/weathered-tree-bark.jpg', import.meta.url).href,
     photoPlate(barkTex),
   );
+  /* The slate and the planks are the huts' plates as well (and the slate the
+     gondola's), so these two come through the shared cache and are decoded
+     and uploaded once for the whole mountain; `sharedTexture` applies the
+     same three settings `photoPlate` does. */
   const rockTex = { value: neutralTreeTex };
-  texLoader.load(
+  sharedTexture(THREE,
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    photoPlate(rockTex),
-  );
+    photoPlate(rockTex));
   const woodPlanksTex = { value: neutralTreeTex };
-  texLoader.load(
+  sharedTexture(THREE,
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
-    photoPlate(woodPlanksTex),
-  );
+    photoPlate(woodPlanksTex));
 
   const treeMat = (height) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });

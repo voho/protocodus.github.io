@@ -58,6 +58,7 @@ import {
 import { hash2, stream } from './noise.js';
 import { getPointSizeCap } from './particles.js';
 import { RENDER, SKY } from './config.js';
+import { sharedTexture } from './textures.js';
 
 /* ==========================================================================
    Every number the huts lean on
@@ -473,33 +474,30 @@ export function createHuts(THREE, shading) {
   const group = new THREE.Group();
   const S = HUTS.smoke;
 
-  const texLoader = new THREE.TextureLoader();
   const neutralWoodTex = new THREE.DataTexture(
     new Uint8Array([200, 180, 160, 255]), 1, 1, THREE.RGBAFormat,
   );
   neutralWoodTex.needsUpdate = true;
-  const woodPlanksTex = { value: neutralWoodTex };
   /* Both plates are photographs, so they are sRGB and say so. Read as
      linear — which was the default they were loaded under — a photograph
      comes out with a gamma curve baked into its contrast: mid-tones twice
      as bright as they are, grain and shadow crushed towards one flat grey.
      The gains in the shader below are what put the mean back where the
-     old decode had it, so only the contrast changes. */
-  const prepare = (t) => {
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
-    return t;
-  };
-  texLoader.load(
+     old decode had it, so only the contrast changes.
+
+     Both are also worn elsewhere — the planks by the props, the slate by
+     the boulders and the gondola — so both come through the shared cache,
+     which applies those settings and decodes each file once for the whole
+     mountain (see textures.js). The uniforms still hold the neutral texel
+     until the photograph has actually arrived. */
+  const woodPlanksTex = { value: neutralWoodTex };
+  sharedTexture(THREE,
     new URL('../assets/textures/huts/alpine-wood-planks.jpg', import.meta.url).href,
-    (t) => { woodPlanksTex.value = prepare(t); },
-  );
+    (t) => { woodPlanksTex.value = t; });
   const stoneTex = { value: neutralWoodTex };
-  texLoader.load(
+  sharedTexture(THREE,
     new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    (t) => { stoneTex.value = prepare(t); },
-  );
+    (t) => { stoneTex.value = t; });
 
   const hutMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
   hutMat.onBeforeCompile = (shader) => {

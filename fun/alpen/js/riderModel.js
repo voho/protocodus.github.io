@@ -111,6 +111,7 @@ import { compose } from './geom.js';
 import { RIDER } from './config.js';
 import { GRAB_NOSE, GRAB_METHOD } from './rider.js';
 import { createHeadlamp } from './headlamp.js';
+import { sharedTexture } from './textures.js';
 
 /* The rider is the only saturated thing in the frame, and that is the job.
 
@@ -1412,12 +1413,9 @@ export function createRiderModel(THREE, shading) {
      it — `shading.apply` keeps a prior hook and folds its text into the
      program cache key, so this material cannot collide with the plain
      Lambert everything else on the mountain compiles to. */
-  const fabricTex = new THREE.TextureLoader().load(
-    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  fabricTex.colorSpace = THREE.SRGBColorSpace;
-  fabricTex.anisotropy = 8;
+  // The same decoded plate the other skiers wear — see textures.js.
+  const fabricTex = sharedTexture(THREE,
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href);
 
   /* THE WIND IN HIS JACKET. Nothing on the rider moved in the wind: at a
      hundred and twenty km/h he was a man in a coat carved out of wood. The

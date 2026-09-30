@@ -38,6 +38,7 @@ import {
 } from './terrain.js';
 import { compose } from './geom.js';
 import { RENDER } from './config.js';
+import { sharedTexture } from './textures.js';
 
 // Seconds a tumbled figure takes to come back round to its riding pose.
 const RECOVER = 0.5;
@@ -70,17 +71,13 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _s = new THREE.Vector3();
   const _qRide = new THREE.Quaternion();
 
-  const texLoader = new THREE.TextureLoader();
-  const fabricTex = texLoader.load(
-    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  fabricTex.colorSpace = THREE.SRGBColorSpace;
-  const metalTex = texLoader.load(
-    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href,
-    (t) => { t.wrapS = t.wrapT = THREE.RepeatWrapping; },
-  );
-  metalTex.colorSpace = THREE.SRGBColorSpace;
+  // Both plates are shared with the modules that also wear them — the
+  // rider's weave and the boulders' slate — so each is decoded and uploaded
+  // once for the whole mountain. See textures.js.
+  const fabricTex = sharedTexture(THREE,
+    new URL('../assets/textures/rider/rider-fabric.jpg', import.meta.url).href);
+  const metalTex = sharedTexture(THREE,
+    new URL('../assets/textures/rock/rock-slate.jpg', import.meta.url).href);
 
   /* --- the line: towers, ropes, cabins ---------------------------------- */
 
