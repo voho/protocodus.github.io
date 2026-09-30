@@ -105,6 +105,16 @@ shadow and cloud shadow. The rider's snow bounce now comes from world down, not
 from the bottom of the screen. Rock and glacier photographs are decoded as sRGB,
 each rescaled to its old mean, so cliffs regain their photographed contrast.
 
+The gameplay pass (switch stance, speed ceiling, timing feedback, side hits,
+snow types, start/restart, camera at speed, score factors) was checked in
+headless Chromium on SwiftShader at 640×360 with physics stepped inside the
+page: dropping in with the attract demo 1.4 km down started the run at the
+top with the 1 km milestone still ahead; a side hit lit "lip ahead" 4 m
+before its crest, popped on the lip and showed PERFECT POP on the kicker
+over the air clock; the landing banner carried its reason and factors; the
+wipeout banner its reason; and the pause screen's restart button resumed a
+playing run with audio running. No console or shader errors were reported.
+
 For browser checks, serve the repository root and open
 `/fun/alpen/?seed=alpine-review`. Exercise carve, charged pop, grab/spin, landing,
 brake, pause/resume and restart. Check a narrow touch viewport as well as desktop.

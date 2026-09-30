@@ -534,4 +534,4 @@ assert.ok(camera.position.y >= flat.height(camera.position.x, camera.position.z)
   assert.ok(at[0].back < at[1].back && at[1].back < at[2].back, 'and the boom keeps pulling back');
   assert.ok(at[2].fov < 76, 'without running away');
 }
-console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, landing assist, input taps/pads, release intent, controller menus and camera.');
+console.log('Riding checks passed: charged/late/buffered pops, ballistic air, air drag, hill-paid tuck, pop direction, flight attitude, landing skid, trick stance, surface ceiling, lip cues, landing reasons, snow types, landing assist, input taps/pads, release intent, controller menus, analog triggers and vibration, and camera framing at speed.');
