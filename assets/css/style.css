@@ -128,7 +128,7 @@ p { text-wrap: pretty; }
 .showcase { border-top: 0; }
 
 /* Complete instrument previews: never crop controls to fit a card. */
-.p-electry, .p-youknow, .p-taikor, .p-maremba { --signal: var(--brand-cabbage); }
+.p-electry, .p-acustra, .p-youknow, .p-taikor, .p-maremba { --signal: var(--brand-cabbage); }
 .p-podcare { --signal: var(--brand-primrose); }
 .product-grid { display: grid; gap: 1.5rem; }
 .product-card { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: center; gap: clamp(1.5rem, 3vw, 3rem); padding: clamp(1rem, 2.4vw, 1.8rem); background: var(--bg-well); border: 1px solid var(--line); border-radius: var(--radius-lg); transition: background var(--interaction), border-color var(--interaction); }
