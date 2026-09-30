@@ -691,8 +691,8 @@ export function editRoute(game,routeId,{stops,cargo}={}) {
   if(!changed&&a.id===route.stops[0]&&b.id===route.stops[1])return result(false,'Nothing to change.');
   // A plane keeps its share of the flight, so one on the ground stays at its terminal.
   if(route.mode==='air'){const oldMax=route.path.length-1,newMax=plan.path.length-1;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.progress=vehicle.progress/oldMax*newMax;}
-  route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
-  if(route.mode!=='air')snapVehiclesToPath(game,route,plan.path);
+  const old=route.path;route.stops=[a.id,b.id];route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
+  if(route.mode!=='air')snapVehiclesToPath(game,route,old);
   // A queue at the old start leaves; the route keeps its full-load order for the next arrivals where it loads.
   for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])if(waitingForFullLoad(vehicle))vehicle.fullLoadSince=null;
   if(changed){route.cargo=cargo;for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[])vehicle.load=0;}
@@ -755,7 +755,7 @@ export function addRouteVehicle(game,routeId) {
   const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:route.mode==='air'&&stop>=0?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   // A plane flies the straight chord: one started mid-flight appears at its place in the air.
-  if(route.mode==='air'){const f=progress/L,first=route.path[0],last=route.path[L];vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*direction,(last.x-first.x)*direction);}
+  placeVehicle(route,vehicle);
   spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);game.revision++;
   return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
 }
@@ -904,12 +904,14 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     if(log.length<64)log.push({x:station.x,y:station.y,revenue,cargo:route.cargo,amount:delivered,routeId:route.id,day:arrivalDay});
   }
 }
-// Each vehicle steps onto the nearest tile of a new path, keeping its direction and load.
-function snapVehiclesToPath(game,route,path) {
+// Each vehicle steps from its steady-pace place on the old path onto the nearest tile of the route's new path,
+// keeping its direction and load.
+function snapVehiclesToPath(game,route,old) {
+  const path=route.path;
   for(const vehicle of fleetIndex(game).vehiclesByRoute.get(route.id)||[]) {
-    let nearest=0,best=Infinity;
-    for(let i=0;i<path.length;i++) {const d=distance(vehicle,path[i]);if(d<best){best=d;nearest=i;}}
-    vehicle.progress=nearest;vehicle.x=path[nearest].x;vehicle.y=path[nearest].y;
+    const at=old.length>1?pathPoint(old,vehicle.progress):vehicle;let nearest=0,best=Infinity;
+    for(let i=0;i<path.length;i++) {const d=distance(at,path[i]);if(d<best){best=d;nearest=i;}}
+    vehicle.progress=nearest;placeVehicle(route,vehicle);
   }
 }
 // A live path found at pathRevision stays exact when every cell c changed since lies at |a−c|+|c−b| > L+2
@@ -941,8 +943,8 @@ function updateRoutePath(game,route) {
   route.status='Running';
   if(!wasActive)restartCargoClocks(game,route,game.day);
   const changed=route.path.length!==path.length||route.path.some((p,i)=>p.x!==path[i].x||p.y!==path[i].y);
-  if(changed)snapVehiclesToPath(game,route,path);
-  route.path=path;
+  const old=route.path;route.path=path;
+  if(changed)snapVehiclesToPath(game,route,old);
 }
 export function refreshRouteConnections(game) { for(const route of game.routes)updateRoutePath(game,route); }
 // Where an offline route's last path first fails the pathfinder's own tile and edge rules; the midpoint when the gap is elsewhere.
@@ -1044,6 +1046,15 @@ function arriveVehicle(game,route,vehicle,arrivalDay,context){
 // the first and last stretch of each trip (s(u) = 2u² − u³, so it leaves from rest and rejoins the steady pace), and
 // makes up the lag just after. Progress, arrivals, travel days and fares keep the steady pace; only x and y ease.
 const EASE_TILES={road:.8,rail:1.6,water:1.2};
+// The steady-pace point at a progress along a ground path. The simulation reads this, never a vehicle's drawn x and y.
+function pathPoint(path,progress){const index=Math.min(Math.floor(progress),path.length-2),fraction=progress-index,a=path[index],b=path[index+1];return{x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,a,b};}
+// Where a vehicle is drawn: a plane on its straight chord, anything else at its eased progress along the path.
+function placeVehicle(route,vehicle){
+  const max=route.path.length-1;
+  if(route.mode==='air'){const first=route.path[0],last=route.path[max],f=vehicle.progress/max;vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*vehicle.direction,(last.x-first.x)*vehicle.direction);return;}
+  const {x,y,a,b}=pathPoint(route.path,shownProgress(route,vehicle));
+  vehicle.x=x;vehicle.y=y;vehicle.angle=Math.atan2((b.y-a.y)*vehicle.direction,(b.x-a.x)*vehicle.direction);
+}
 export function shownProgress(route,vehicle,progress=vehicle.progress){
   const max=route.path.length-1,ease=Math.min(EASE_TILES[route.mode]||0,max/3);if(!(ease>0))return progress;
   const forward=vehicle.direction!==-1,travelled=forward?progress:max-progress,left=max-travelled,s=u=>u*u*(2-u);
@@ -1074,11 +1085,7 @@ function moveVehicles(game,days) {
     if(days-time>1e-10)schedule(item,order,time);
   }
   for(const item of fleet)if(item.finalState)Object.assign(item.vehicle,item.finalState);
-  for(const {vehicle,route}of fleet){
-    if(route.mode==='air'){const max=route.path.length-1,first=route.path[0],last=route.path[max],f=vehicle.progress/max;vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*vehicle.direction,(last.x-first.x)*vehicle.direction);continue;}
-    const max=route.path.length-1,shown=shownProgress(route,vehicle),index=Math.min(Math.floor(shown),max-1),fraction=shown-index,a=route.path[index],b=route.path[index+1];
-    vehicle.x=a.x+(b.x-a.x)*fraction;vehicle.y=a.y+(b.y-a.y)*fraction;vehicle.angle=Math.atan2((b.y-a.y)*vehicle.direction,(b.x-a.x)*vehicle.direction);
-  }
+  for(const {vehicle,route}of fleet)placeVehicle(route,vehicle);
 }
 const upkeepShareCache=new WeakMap();
 function infrastructureShares(game){
@@ -1116,8 +1123,10 @@ function maintenance(game) {
   const day=Math.floor(game.day),center=game.cities[0]||{x:game.width/2,y:game.height/2},weather=weatherAt(game,center.x,center.y,day);
   const routeCosts=new Map(game.routes.map(route=>[route.id,0])),routeIndex=fleetIndex(game).routeById,environments=new Map();
   const fleet=game.vehicles.reduce((sum,v)=>{
-    const route=routeIndex.get(v.routeId),localWeather=weatherAt(game,v.x,v.y,day),key=Math.floor(v.y)*game.width+Math.floor(v.x);
-    let e=environments.get(key);if(!e){e=localEnvironment(game,v.x,v.y,2);environments.set(key,e);}
+    // Upkeep reads the steady-pace place: easing near stops is only drawn.
+    const route=routeIndex.get(v.routeId),at=route&&route.mode!=='air'&&route.path.length>1?pathPoint(route.path,v.progress):v;
+    const localWeather=weatherAt(game,at.x,at.y,day),key=Math.floor(at.y)*game.width+Math.floor(at.x);
+    let e=environments.get(key);if(!e){e=localEnvironment(game,at.x,at.y,2);environments.set(key,e);}
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
     const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active&&!waitingForFullLoad(v)?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
     if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
