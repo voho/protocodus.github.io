@@ -315,13 +315,29 @@ function hutGeometry(THREE) {
     { geo: box, color: beam, pos: [2.73, 1.75, 0.3], scale: [0.055, 0.045, 0.99] },
     { geo: box, color: '#bda877', pos: [-0.96, 1.56, -2.31], scale: [0.05, 0.16, 0.07] },
   );
-  for (let i = 0; i < 9; i++) {
-    const x = -3.0 + i * 0.75;
-    const edgeY = EAVE + RISE * (1 - Math.abs(x) / RW);
-    const length = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(i * 4.7));
-    parts.push({ geo: icicle, color: '#dcebf1',
-      pos: [x, edgeY - length * 0.5, -RL * 0.485],
-      rot: [0, 0, Math.PI], scale: [0.075, length, 0.075] });
+  /* Icicles grow where meltwater leaves the roof, and that is the eaves —
+     the two level edges the snow slides down to — not the sloping verge of
+     the gable, where they used to hang in a row stepping up the rake like a
+     fringe on a lampshade. Seven along each eave, off the rafter ends, with
+     the lengths scattered so no two neighbours match. */
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) {
+      const z = -RL * 0.44 + i * (RL * 0.88 / 6);
+      const length = 0.16 + 0.26 * (0.5 + 0.5 * Math.sin(i * 4.7 + side * 1.3));
+      parts.push({ geo: icicle, color: '#dcebf1',
+        pos: [side * (RW - 0.07), EAVE - 0.02 - length * 0.5, z],
+        rot: [0, 0, Math.PI], scale: [0.075, length, 0.075] });
+    }
+  }
+  /* …and the snow on the roof ends in a rounded lip at each eave. The snow
+     prism alone finishes in a knife edge along the eave, which no snow load
+     has ever done: a metre of it on a roof creeps over the edge and rolls
+     into a cornice. One cylinder along each eave, sunk into the slab and
+     bulging past it, is that roll. */
+  for (const side of [-1, 1]) {
+    parts.push({ geo: log, color: snow,
+      pos: [side * (RW * 0.955 - 0.03), EAVE + 0.16, 0],
+      rot: [Math.PI / 2, 0, 0], scale: [0.34, RL * 0.965, 0.28] });
   }
   for (let i = 0; i < 5; i++) {
     const z = -2.2 + i * 1.1;
@@ -512,8 +528,24 @@ export function createHuts(THREE, shading) {
       if (hutLum > 0.70) {
         // Leave snow pure and sparkling with GGX sheen
       }
-      // 2. Masonry stone chimney and foundation plinth (grey hues)
-      else if (abs(diffuseColor.r - diffuseColor.g) < 0.08 && abs(diffuseColor.g - diffuseColor.b) < 0.08 && diffuseColor.r < 0.55) {
+      /* 2. Masonry stone chimney and foundation plinth (grey hues)
+
+         Grey is a RATIO, and this used to test it as a difference. The
+         vertex colours arrive in linear light, where every dark colour is
+         a few hundredths in every channel — so the dark beams (#4a3221 is
+         0.068 / 0.032 / 0.015), the roof and door (#2c1e14) and the green
+         shutters (#365954) all passed "channels within 0.08 of each other"
+         and were papered in slate at a gain of nearly six, while the
+         timber a shade lighter got its grain. Chroma measured against the
+         brightest channel is what hue actually is: the two stone greys sit
+         at 0.25 and 0.29, the darkest wood at 0.72, the shutters at 0.63.
+         The floor keeps a colour so dark that its chroma is noise from
+         being called stone by accident. */
+      else if (max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)) > 0.03
+        && (max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b))
+          - min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)))
+          < 0.35 * max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b))
+        && diffuseColor.r < 0.55) {
         vec3 stoneColor = (
           texture2D(uStoneTex, vHutLocalPos.yz * 0.45).rgb * nAbs.x +
           texture2D(uStoneTex, vHutLocalPos.xz * 0.45).rgb * nAbs.y +
