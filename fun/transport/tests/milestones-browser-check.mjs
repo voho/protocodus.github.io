@@ -88,7 +88,7 @@ try {
   assert.equal(await page.locator('.goal-row em').count(), 0, 'the card still follows the first-route stages');
   await page.screenshot({ path: `${output}/desktop-goals.png` });
   await page.locator('#modal .close-modal').click();
-  assert.equal(await page.locator('#objective-card .eyebrow').first().textContent(), 'Next goal');
+  assert.equal(await page.locator('#objective-card .eyebrow').count(), 0, 'the goal card names its goal with no eyebrow');
 
   // A reload keeps the stamps and replays no celebration.
   const saved = await page.evaluate(() => transport.game.milestones);
@@ -110,6 +110,10 @@ try {
     tick(g, 1);
   });
   await page.waitForFunction(() => document.querySelector('#objective-title').textContent === 'A factory at work');
+  // Past onboarding the goal is one line (DESIGN.md 11.4) that opens on demand.
+  assert.equal(await page.locator('#objective-body').isVisible(), false, 'past onboarding the goal is one line');
+  assert.equal((await page.locator('#objective-chip-title').textContent()), 'A factory at work');
+  await page.locator('#objective-chip').click();
   assert.equal(await page.locator('#objective-goals').isVisible(), true);assert.equal(await page.locator('#guide-button').isVisible(), false);
   assert.doesNotMatch(await page.locator('#objective-card').innerText(), /Chapter/);
   await page.locator('#objective-another').click();

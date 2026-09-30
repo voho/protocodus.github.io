@@ -70,7 +70,7 @@ try{
   const start=performance.now();transport.setView('routes');return{openMs:performance.now()-start};
  });
  assert.equal(await page.locator('#route-list [data-route-id]').count(),50);
- assert.match(await page.locator('#route-results-count').innerText(),/10000 of 10000/);
+ assert.match(await page.locator('#route-results-count').textContent(),/10000 of 10000/);
  await page.locator('#route-list [data-route-page="next"]').first().click();
  assert.equal(await page.locator('#route-list [data-route-id]').first().getAttribute('data-route-id'),'perf-50');
  await page.locator('#route-search').fill('Service 9999');

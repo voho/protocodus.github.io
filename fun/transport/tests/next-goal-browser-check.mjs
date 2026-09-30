@@ -18,9 +18,11 @@ try {
   await page.goto(url);
   await createWorldFromMenu(page, { biome: 'taiga', seed: 1847 });
   await page.locator('#objective-card').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#objective-card .eyebrow').first().textContent(), 'Next goal');
+  assert.equal(await page.locator('#objective-card .eyebrow').count(), 0, 'the title names the goal, with no eyebrow above it');
   assert.equal(await page.locator('#objective-title').textContent(), 'Your first cargo route');
   assert.match(await page.locator('#objective-detail').textContent(), /stone from Stone quarry to Alderbrook/);
+  assert.equal(await page.locator('#objective-detail').isVisible(), false, 'during onboarding the checklist speaks; the sentence is the title tooltip');
+  assert.match(await page.locator('#objective-title').getAttribute('title'), /stone from Stone quarry to Alderbrook/);
   let list = await steps(page);
   assert.deepEqual(list.map(step => step.label), ['Stop near Stone quarry', 'Stop near Alderbrook', 'Connect them', 'Launch a stone route', 'First delivery']);
   assert.deepEqual(list.map(step => step.current), [true, false, false, false, false], 'step 1 is the open step');
@@ -79,7 +81,7 @@ try {
   await page.locator('#dismiss-objective').click();
   assert.equal(await page.locator('#objective-chip').isVisible(), true);
   assert.equal(await page.locator('#objective-body').isVisible(), false);
-  assert.match(await page.locator('#objective-chip').innerText(), /Next goal\s*·\s*Your first cargo route/);
+  assert.equal((await page.locator('#objective-chip').innerText()).trim(), 'Your first cargo route');
   assert.equal(await page.evaluate(() => localStorage.getItem('transport-next-goal-v2')), 'folded');
   assert.equal(await page.evaluate(() => transport.persist()), true);
   await page.reload();
@@ -123,11 +125,12 @@ try {
   await page.locator('#game-menu-button').click();
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the game menu hides the card');
   await page.keyboard.press('Escape');
-  // A portrait tablet keeps the card in its corner and centres the paused chip in the space beside it.
+  // A portrait tablet keeps the card in its corner; the paused state lives under the date, clear of it.
   await page.setViewportSize({ width: 768, height: 1024 });
   if (await page.locator('#close-management').isVisible()) await page.locator('#close-management').click();
   await page.locator('#objective-body').waitFor({ state: 'visible' });
-  assert.equal(overlaps(await box(page, '.paused-chip'), await box(page, '#objective-card')), false, 'the paused chip clears the card on a tablet');
+  assert.equal(await page.locator('#date-note').textContent(), 'Paused');
+  assert.equal(overlaps(await box(page, '.date-block'), await box(page, '#objective-card')), false, 'the paused cue clears the card on a tablet');
   await page.screenshot({ path: `${output}/tablet-paused.png` });
   await page.close();
 

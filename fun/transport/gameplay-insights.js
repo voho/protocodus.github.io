@@ -105,6 +105,14 @@ function factoryPair(game) {
   return pair ? { source: pair.source, buyer: buyerOf(pair.target), factory: pair.buyer.kind, cargo: pair.target.cargo[0], distance: Math.round(pair.target.distance) } : null;
 }
 
+// The first route's Plan road also serves the two freight goals after it, on land: the card previews a road that
+// follows the terrain and the stops it needs, builds them in one undoable step and drafts the route (app.js).
+function roadPlan(game, { source, buyer, cargo }) {
+  const target = buyer.kind === 'city' ? game.cities.find(city => city.id === buyer.id) : game.industries.find(site => site.id === buyer.id);
+  if (!target || [source, target].some(site => siteAccess(game, site).kind === 'port')) return {};
+  return { plan: 'road', choices: [{ source, buyer, cargo }], choice: 0 };
+}
+
 // Factories at the end of a freight route, and the first whose output nothing loads yet.
 function openProcessor(game) {
   const stops = new Map(game.stations.map(stop => [stop.id, stop])), freight = game.routes.filter(route => !isTownTraffic(route.cargo));
@@ -302,16 +310,16 @@ export function nextProject(game, { source: preferred } = {}) {
     return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
-  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 } };
+  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 }, figure: `${Math.floor(delivered)} of 100` };
   if (!freight.some(route => route.delivered > 0 && PROCESSED.has(route.cargo))) {
     const chain = memo(game, 'chain', `${siteKey(game)}:${game.routes.length}:${game.routes.at(-1)?.id}`, () => openProcessor(game));
     const pair = chain.supplied ? null : memo(game, 'factory', siteKey(game), () => factoryPair(game));
-    if (pair) return { title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo' };
+    if (pair) return { title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo', ...roadPlan(game, pair) };
     if (chain.processor && chain.buyer) {
       // A factory takes and pays for what it is sent even while it waits for another input, so the goal says so.
       const name = siteName(chain.processor), supplied = Object.keys(INDUSTRIES[chain.processor.kind].inputs).filter(key => !chain.missing.includes(key));
       const next = chain.missing.length ? `${name} also needs ${cargoNames(chain.missing)} to make ${cargoName(chain.cargo)}; ${cargoNames(supplied)} deliveries pay either way.` : chain.buyer.kind === 'city' ? `Towns buy ${cargoName(chain.cargo)}.` : recipe(chain.factory);
-      return { title: `Carry ${cargoName(chain.cargo)} onward`, detail: `Carry ${cargoName(chain.cargo)} from ${name} to ${chain.buyer.name}, ${count(chain.distance, 'tile')}. ${next}`, action: 'source', target: chain.processor.id, buyer: chain.buyer, cargo: chain.cargo, button: 'Find cargo' };
+      return { title: `Carry ${cargoName(chain.cargo)} onward`, detail: `Carry ${cargoName(chain.cargo)} from ${name} to ${chain.buyer.name}, ${count(chain.distance, 'tile')}. ${next}`, action: 'source', target: chain.processor.id, buyer: chain.buyer, cargo: chain.cargo, button: 'Find cargo', ...roadPlan(game, { source: chain.processor, buyer: chain.buyer, cargo: chain.cargo }) };
     }
     if (!chain.supplied || chain.processor) return { title: 'Complete a production chain', detail: 'Find an industry near your network in Production chains, then carry its inputs and its output.', action: 'chains', button: 'Production chains' };
   }
@@ -324,7 +332,7 @@ export function nextProject(game, { source: preferred } = {}) {
   const next = nextMilestone(game, preferred);
   if (next) {
     const { milestone, progress } = next, text = progressText(milestone, progress);
-    return { title: milestone.title, detail: text ? `${milestone.detail} ${text}.` : milestone.detail, action: milestone.action, target: milestone.target?.(game), tool: milestone.tool, button: milestone.button, ...progress.target > 1 ? { progress: { value: Math.min(progress.value, progress.target), max: progress.target } } : {}, milestone: milestone.id, chapter: next.chapter, choices: next.choices, choice: next.choice };
+    return { title: milestone.title, detail: text ? `${milestone.detail} ${text}.` : milestone.detail, action: milestone.action, target: milestone.target?.(game), tool: milestone.tool, button: milestone.button, ...progress.target > 1 ? { progress: { value: Math.min(progress.value, progress.target), max: progress.target }, figure: text } : {}, milestone: milestone.id, chapter: next.chapter, choices: next.choices, choice: next.choice };
   }
   return { title: 'Build your own story', detail: airAvailable(game) ? 'Reach a new town, develop a riverside port, open an airport or supply a complex factory. There is no deadline.' : 'Reach a new town, develop a riverside port, or supply a complex factory. There is no deadline.', action: 'atlas', button: 'Explore the region' };
 }

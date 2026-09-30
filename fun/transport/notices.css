@@ -155,7 +155,6 @@
 }
 /* Headlines (DESIGN 12.13): one paper card at the top centre of the free band, clear of the goal card, the inspector and the drawer. The slot stays in the page as the live region; menus, dialogs, the tool bar and route picking hide it without removing it, and the card's time runs only while it shows. On phones a sheet sends toasts to the top, so a toast there hides the card until it goes. */
 .headline-slot{position:absolute;z-index:var(--z-headline);top:var(--gutter);left:var(--gutter);right:var(--gutter);max-width:440px;margin:0 auto;pointer-events:none}
-.map-section:has(.paused-chip:not([hidden])) .headline-slot{top:68px}
 .compact-play:has(.sidebar.mobile-open) .headline-slot{left:calc(var(--drawer-width) + 20px)}
 @media(min-width:701px) and (max-width:1100px){
  .map-section:has(#inspector:not([hidden])) .headline-slot{left:332px}
@@ -189,7 +188,6 @@
 .headline-close:hover{background:var(--well);color:var(--ink)}
 @media(max-width:700px){
  .map-section .headline-slot{left:max(var(--gutter),var(--safe-l));right:max(var(--gutter),var(--safe-r));max-width:none}
- .map-section:has(.paused-chip:not([hidden])) .headline-slot{top:64px}
  .compact-play:has(.sidebar.mobile-open) .headline-slot,.compact-play:has(#objective-card.open:not([hidden])) .headline-slot,.map-section:has(#inspector.expanded:not([hidden])) .headline-slot{visibility:hidden}
  .compact-play:has(#inspector:not([hidden])):has(#toast-region .toast) .headline-slot{visibility:hidden}
  .headline-card{grid-template-columns:32px minmax(0,1fr);padding:var(--s-2) var(--s-3) var(--s-3)}
@@ -214,3 +212,19 @@
 .toast.tier-platinum{--tier:var(--tier-platinum)}
 .toast.achievement{border-left-color:var(--tier)}
 .toast.achievement>.medal{flex:0 0 auto;animation:toast-check .2s ease-out}
+/* The goal line (DESIGN.md 12.2): after onboarding the goal is one line, a flag in signal, its title, its figure and a
+   chevron, with its progress as a 2 px orange line along the bottom. The ladder opens under it on demand. */
+#objective-card.collapsed{border-radius:var(--r-4)}
+.objective-chip{position:relative;border-radius:var(--r-4)}
+.objective-flag svg{display:block;width:16px;height:16px;color:var(--signal-ink)}
+#objective-chip-figure{margin-left:auto;padding-left:var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.objective-chip-more svg{display:block;width:16px;height:16px;color:var(--ink-2)}
+#objective-chip-figure[hidden]+.objective-chip-more{margin-left:auto}
+.objective-chip-progress{position:absolute;left:0;bottom:0;height:2px;background:var(--signal)}
+.objective-heading h2{flex:1;min-width:0}
+#objective-card .objective-heading h2{margin:0 0 var(--s-2)}
+#objective-card .tiny-button svg{width:16px;height:16px}
+@media(max-width:700px){
+ .objective-flag,.objective-chip-more,.objective-chip-progress{display:none}
+}
+#objective-detail[hidden]{display:none}

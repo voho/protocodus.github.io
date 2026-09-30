@@ -23,9 +23,10 @@ export const LINE_COLORS = Object.freeze([
 
 export const TIERS = Object.freeze({ bronze: '#B7794A', silver: '#A3ACAF', gold: '#D6A93C', platinum: '#C9D3D6' });
 
-// One family; sizes and line heights in px; 700 only for bullet numerals and the wordmark.
+// Inter for words and figures, Space Grotesk for the brand; sizes and line heights in px; 700 only for bullet numerals and the wordmark.
 export const FONT = Object.freeze({
-  family: 'Space,system-ui,sans-serif',
+  family: 'Inter,system-ui,sans-serif',
+  brand: 'Space,system-ui,sans-serif',
   size: Object.freeze({ caption: 12, small: 13, body: 14, lead: 16, title: 18, display: 22, hero: 32 }),
   line: Object.freeze({ caption: 16, small: 18, body: 20, lead: 22, title: 24, display: 28, hero: 36 }),
   weight: Object.freeze({ regular: 400, medium: 500, semibold: 600, bold: 700 }),

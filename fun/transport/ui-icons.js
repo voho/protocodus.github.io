@@ -20,6 +20,7 @@ export const GLYPHS = Object.freeze({
   sound: '<path d="M3.5 9.5h4l4-4v13l-4-4h-4Z"/><path d="M15 9.5a3.5 3.5 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10"/>',
   soundOff: '<path d="M3.5 9.5h4l4-4v13l-4-4h-4Z"/><path d="m15.5 9.5 5 5M20.5 9.5l-5 5"/>',
   search: '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5.5 5.5"/>',
+  keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="6.5" cy="10" r="1" class="dot"/><circle cx="10.25" cy="10" r="1" class="dot"/><circle cx="13.75" cy="10" r="1" class="dot"/><circle cx="17.5" cy="10" r="1" class="dot"/><path d="M8 14.25h8"/>',
   // Actions
   close: '<path d="m6 6 12 12M18 6 6 18"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',

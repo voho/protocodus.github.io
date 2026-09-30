@@ -217,3 +217,8 @@
 }
 /* Spare demand: a quiet ink-2 line under the fleet, never a state or an orange call to action (DESIGN.md 6.4). */
 .route-vehicle-spec .route-room{grid-column:1/-1;min-width:0;color:var(--ink-2)}
+/* A running route's explanation lives in the tooltip of its waiting count (quietHealth in app.js). */
+.route-health[hidden]{display:none}
+/* The route name needs no label line: its placeholder is the name it will take. */
+.form-field--bare{margin-top:0}
+.route-list-heading[hidden]{display:none}

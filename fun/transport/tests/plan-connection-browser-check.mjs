@@ -35,7 +35,7 @@ try {
   assert.deepEqual(await company(page), before, 'nothing is spent or built before Build');
   assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'the map stays in Explore');
   assert.equal(overlaps(await box(page, '#connection-plan-banner'), await box(page, '#objective-card')), false, 'the banner clears the goal card');
-  assert.equal(overlaps(await box(page, '#connection-plan-banner'), await box(page, '.paused-chip')), false, 'the banner clears the paused chip');
+  assert.equal(await page.locator('#date-note').textContent(), 'Paused', 'the paused cue stays in the top bar, clear of the banner');
   await page.waitForFunction(() => !transport.renderer.getStats().gliding); // the camera glides to the plan (DESIGN.md 10.2)
   const framed =await page.evaluate(() => { const quarry = transport.game.industries.find(site => site.x === 217 && site.y === 255), town = transport.game.cities[0], c = document.querySelector('#world'), card = document.querySelector('#objective-card').getBoundingClientRect();
     return [quarry, town].every(site => { const p = transport.renderer.worldToScreen(site.x + .5, site.y + .5); return p.x > 0 && p.y > 0 && p.x < card.left && p.y < c.clientHeight; }); });
