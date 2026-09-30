@@ -67,6 +67,8 @@ function syncGpuDisplay() {
 // or copying the full arena into another texture during an explosion.
 const signalStrip = document.createElement('canvas'), signalContext = signalStrip.getContext('2d', { alpha: false });
 const world = new WorldRenderer(), fx = new Effects(), audio = new AudioEngine();
+// The title preview starts before flight preparation; it never builds strips inside a frame.
+world.deferStrips = true;
 const feedback = new CombatFeedback();
 let feedbackRevision = -1;
 const keys = new Set(), numberFormat = new Intl.NumberFormat('en-US'), number = n => numberFormat.format(Math.floor(n || 0));
@@ -183,6 +185,8 @@ function scaleScriptX(enemy, factor) {
 
 function setScreen(next) {
   scene = next;
+  // Only flight may build a terrain strip inside a frame; previews wait for the idle queue.
+  world.deferStrips = next !== 'playing';
   if (next !== 'end') { endFade = null; canvas.style.opacity = ''; }
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
@@ -622,6 +626,9 @@ function saveDescription(run) {
 function selectWorld(index) {
   selected = clamp(Math.floor(Number(index) || 0), 0, WORLDS.length - 1); world.setWorld(selected); previewScroll = 0;
   world.prepare(W, H); warmFleet(selected);
+  // The preview shows bare ground until its strips exist; finish them in
+  // yielded batches now rather than inside the preview's own frames.
+  world.prepareReady(W, H).catch(() => {});
   document.documentElement.style.setProperty('--sector-accent', WORLDS[selected].accent || WORLDS[selected].color);
   $('world-list').querySelectorAll('[data-world]').forEach((button, i) => { button.classList.toggle('active', i === selected); button.setAttribute('aria-pressed', String(i === selected)); });
   for (const id of ['selected-world-name', 'preview-world-name']) if ($(id)) $(id).textContent = WORLDS[selected].name;
@@ -1139,7 +1146,9 @@ function frame(time) {
   // Upcoming terrain and scenery advance in small steps inside the frame's
   // spare time, so streaming never depends on idle callbacks that a busy
   // render loop may starve, and never lands a whole strip in one frame.
-  if (scene === 'playing') {
+  // Previews and the shop stream the same way, so a world switch or the next
+  // sector never waits on idle callbacks alone.
+  {
     const spent = performance.now() - frameStarted;
     if (spent < 9) world.runWarmSlice(Math.min(2, 9 - spent));
   }

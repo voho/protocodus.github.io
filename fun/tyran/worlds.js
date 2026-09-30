@@ -144,6 +144,11 @@ export class WorldRenderer {
     // Evicted strips are repainted for the next row instead of allocating new
     // surfaces (and new GPU textures) during flight.
     this.tilePool=[];this.stripPool=[];this.gpu=null;this.draining=false;
+    // Resident rows whose artwork changed: they keep drawing until a staged repaint replaces them.
+    this.staleTiles=new Set();this.staleStrips=new Set();
+    // Menus and the shop preview the world while it is still being prepared:
+    // a missing strip is queued and skipped for a frame, never built inside one.
+    this.deferStrips=false;
     // Strips a frame had to finish or build on demand: zero means streaming kept ahead of the viewport.
     this.syncStrips=0;
     this.layerViews=[{zoom:1,x:0,y:0,first:0,last:0}];
@@ -213,9 +218,20 @@ export class WorldRenderer {
     if(this.assetRevision===spriteRevision)return;
     this.assetRevision=spriteRevision;this.sprites.clear();this.damageSpriteKeys.clear();
     this.warmEpoch++;this.warmJobs=[];this.warmKeys.clear();this.warmPending=false;this.flightAssetsQueued=false;
-    this.resetTiles();this.terrain.materials.clear();this.terrain.edges.clear();
-    this.resetSceneryLayers();
+    this.terrain.materials.clear();this.terrain.edges.clear();
+    // Sprite atlases finish one sheet at a time, sometimes in flight. Resident
+    // strips keep drawing with the previous artwork while staged repaints
+    // replace them row by row; nothing is rebuilt inside a frame.
+    for(const row of this.tiles.keys())this.staleTiles.add(row);
+    for(const row of this.sceneryLayers[0].keys())this.staleStrips.add(row);
+    this.dropPendingStrips();
     this.cloudSprite=this.makeCloud();this.cloudShadowSprite=this.makeCloudShadow();this.warmScenery();
+  }
+  /** Abandon staged builds whose jobs were dropped; the next frame queues them again. */
+  dropPendingStrips() {
+    for(const state of this.pendingTiles.values())this.recycleStrip(this.tilePool,state.out);
+    for(const state of this.pendingScenery.values())this.recycleStrip(this.stripPool,state.out);
+    this.pendingTiles.clear();this.pendingScenery.clear();
   }
   clearStripCaches(geometry=false) {
     this.resetTiles();
@@ -225,6 +241,7 @@ export class WorldRenderer {
     // Pooled surfaces only fit the dimensions they were made for.
     for(const pool of [this.tilePool,this.stripPool]){for(const surface of pool)this.gpu?.release(surface);pool.length=0;}
     if(geometry){this.bands.clear();this.hitBuckets.clear();this.visibleProps.length=0;}
+    this.staleTiles.clear();this.staleStrips.clear();
   }
   stripWidth() {return (this.mapWidth+MARGIN*2)*this.detailScale;}
   /** A strip surface for the current dimensions, reusing an evicted one when possible. */
@@ -241,12 +258,12 @@ export class WorldRenderer {
   resetTiles() {
     for(const surface of this.tiles.values())this.recycleStrip(this.tilePool,surface);
     for(const state of this.pendingTiles.values())this.recycleStrip(this.tilePool,state.out);
-    this.tiles.clear();this.pendingTiles.clear();
+    this.tiles.clear();this.pendingTiles.clear();this.staleTiles.clear();
   }
   resetSceneryLayers() {
     for(const layer of this.sceneryLayers){for(const surface of layer.values())this.recycleStrip(this.stripPool,surface);layer.clear();}
     for(const state of this.pendingScenery.values())this.recycleStrip(this.stripPool,state.out);
-    this.pendingScenery.clear();this.sceneryDirty.clear();
+    this.pendingScenery.clear();this.sceneryDirty.clear();this.staleStrips.clear();
   }
   /** True while the row ahead is within half a strip of entering the viewport. */
   rowImminent(row) {return -this.scroll-(row+1)*TILE<TILE*.45;}
@@ -275,9 +292,12 @@ export class WorldRenderer {
       for(let i=0;i<7;i++)this.clouds.push({x:group*WIDTH+rng()*WIDTH,y:rng()*1500,r:150+rng()*160,phase:rng()*TAU});
     }
   }
-  queueWarm(key,work) {
+  queueWarm(key,work,urgent=false) {
     if(this.warmKeys.has(key))return;
-    this.warmKeys.add(key);this.warmJobs.push({key,work});this.runWarmQueue();
+    this.warmKeys.add(key);
+    // Strip steps go first so streaming never waits behind sprite warm-ups.
+    if(urgent)this.warmJobs.unshift({key,work});else this.warmJobs.push({key,work});
+    this.runWarmQueue();
   }
   restoreDamage(damage=[], destroyed=[], sceneryVersion=3) {
     // A prop owns either remaining HP or a destroyed marker, never both. Normalize
@@ -358,26 +378,31 @@ export class WorldRenderer {
     while(--remaining>0&&this.warmJobs.length&&performance.now()-start<budgetMs);
     return ran;
   }
-  queueTerrain(row) {
-    if(this.tiles.has(row)||this.pendingTiles.has(row))return;
+  queueTerrain(row,replace=false) {
+    if(this.pendingTiles.has(row)||(this.tiles.has(row)&&!replace))return;
     const state={out:null,next:0,waits:0};this.pendingTiles.set(row,state);
+    const key=`terrain:${row}`;
     const work=()=>{
       if(this.pendingTiles.get(row)!==state)return;
       // In flight, wait briefly for the strip leaving the screen instead of
       // allocating (and later uploading into) a brand new surface.
-      if(!state.out&&!this.tilePool.length&&!this.draining&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(`terrain:${row}`,work);return;}
+      if(!state.out&&!this.tilePool.length&&!this.draining&&!replace&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(key,work);return;}
       if(!state.out)state.out=this.takeStrip(this.tilePool);
       this.paintTerrainRow(state.out,row,state.next++);
-      if(state.next===TILE/MAP_TILE_SIZE){this.tiles.set(row,state.out);this.pendingTiles.delete(row);}
-      else this.queueWarm(`terrain:${row}`,work);
+      if(state.next===TILE/MAP_TILE_SIZE){
+        const previous=this.tiles.get(row);
+        if(previous&&previous!==state.out)this.recycleStrip(this.tilePool,previous);
+        this.tiles.set(row,state.out);this.pendingTiles.delete(row);this.staleTiles.delete(row);
+      }
+      else this.queueWarm(key,work,true);
     };
-    this.queueWarm(`terrain:${row}`,work);
+    this.queueWarm(key,work,true);
   }
-  queueScenery(row) {
+  queueScenery(row,replace=false) {
     const key=`scenery:0:${row}`;
     if(this.pendingScenery.has(row))return;
-    const state={out:null,step:0,waits:0};
-    if(!this.sceneryLayers[0].has(row))this.pendingScenery.set(row,state);
+    const state={out:null,step:0,waits:0,replace};
+    if(replace||!this.sceneryLayers[0].has(row))this.pendingScenery.set(row,state);
     const work=()=>{
       const staged=this.pendingScenery.get(row)===state;
       if(row<this.warmFirst||row>this.warmLast){
@@ -392,14 +417,25 @@ export class WorldRenderer {
       if(state.step<=4){
         // A fused strip needs finished terrain. Let the existing row jobs finish
         // instead of synchronously baking the remaining terrain during flight.
-        if(!this.tiles.has(row)){this.queueTerrain(row);this.queueWarm(key,work);return;}
-        if(!state.out&&!this.stripPool.length&&!this.draining&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(key,work);return;}
+        if(!this.tiles.has(row)||(replace&&this.staleTiles.has(row))){this.queueTerrain(row,replace);this.queueWarm(key,work);return;}
+        if(!state.out&&!this.stripPool.length&&!this.draining&&!replace&&state.waits++<90&&!this.rowImminent(row)){this.queueWarm(key,work);return;}
       }
       this.advanceScenery(row,state);
-      if(state.step<SCENERY_STEPS)this.queueWarm(key,work);
+      if(state.step<SCENERY_STEPS)this.queueWarm(key,work,true);
       else this.pendingScenery.delete(row);
     };
-    this.queueWarm(key,work);
+    this.queueWarm(key,work,true);
+  }
+  /** Repaint rows whose artwork changed: visible rows first, then the row ahead, one row at a time. */
+  queueStaleStrips(first,last) {
+    for(const rows of [this.staleTiles,this.staleStrips])for(const row of rows)if(row<first-1||row>last)rows.delete(row);
+    for(let i=0;i<=last-first+1;i++){
+      const row=i<=last-first?first+i:first-1;
+      if(!this.staleTiles.has(row)&&!this.staleStrips.has(row))continue;
+      if(this.staleTiles.has(row))this.queueTerrain(row,true);
+      if(this.staleStrips.has(row))this.queueScenery(row,true);
+      return;
+    }
   }
   /** One small step of a fused strip: blit, three neighbouring bands, publish, upload. */
   advanceScenery(row,state) {
@@ -417,8 +453,12 @@ export class WorldRenderer {
       return;
     }
     if(step===4){
-      const out=state.out;
-      this.sceneryDirty.delete(row);this.sceneryLayers[0].set(row,out);
+      const out=state.out,previous=this.sceneryLayers[0].get(row);
+      // A replacement keeps any damage rectangle marked since its bands were
+      // painted; the next draw repaints that rectangle on the new strip.
+      if(!state.replace)this.sceneryDirty.delete(row);
+      if(previous&&previous!==out)this.recycleStrip(this.stripPool,previous);
+      this.sceneryLayers[0].set(row,out);this.staleStrips.delete(row);
       out._tyranTextureVersion=(out._tyranTextureVersion||0)+1;out._tyranTextureDirty=null;
       return;
     }
@@ -731,8 +771,10 @@ export class WorldRenderer {
     const first=view.first=Math.floor((-scroll-PAD)/TILE);
     const last=view.last=Math.floor((h-scroll+PAD)/TILE),cache=this.sceneryLayers[0];
     c.save();c.translate(view.x,view.y);c.globalAlpha=1;
-    for(let row=Math.floor(-scroll/TILE);row<=Math.floor((h-scroll)/TILE);row++)
+    for(let row=Math.floor(-scroll/TILE);row<=Math.floor((h-scroll)/TILE);row++){
+      if(this.deferStrips&&!cache.has(row)){this.queueTerrain(row);this.queueScenery(row);continue;}
       c.drawImage(this.getSceneryLayer(row,this.getBand(row)),-MARGIN,row*TILE,this.mapWidth+MARGIN*2,TILE+.5);
+    }
     c.restore();
     // Altitude shadows now shade the complete ground, including tree canopies
     // and roofs. Animated lights and flames remain above the moving shadows.
@@ -784,6 +826,7 @@ export class WorldRenderer {
     const next=first-1;
     this.queueTerrain(next);
     if(!this.sceneryLayers[0].has(next))this.queueScenery(next);
+    if(this.staleTiles.size||this.staleStrips.size)this.queueStaleStrips(first,last);
     for(const row of this.pendingTiles.keys())if(row<first-1||row>last+1){this.recycleStrip(this.tilePool,this.pendingTiles.get(row).out);this.pendingTiles.delete(row);}
     for(const row of this.pendingScenery.keys())if(row<first-1||row>last+1){this.recycleStrip(this.stripPool,this.pendingScenery.get(row).out);this.pendingScenery.delete(row);}
   }
@@ -875,7 +918,7 @@ export class WorldRenderer {
       terrainBytes:bytes(this.terrain.materials.values())+bytes(this.terrain.edges.values()),
       scratchBytes:bytes([this.spriteScratch,this.shadowScratch,this.sceneryScratch].filter(Boolean)),activityBytes:bytes(this.activitySprites.values()),
       detailScale:this.detailScale,viewportWidth:this.viewportWidth,mapWidth:this.mapWidth,structureEffectBytes:this.structureEffects.memoryStats().spriteBytes,
-      damagedProps:this.damage.size,destroyedProps:this.destroyed.size,syncStrips:this.syncStrips,pendingStrips:this.pendingTiles.size+this.pendingScenery.size,pooledStrips:this.tilePool.length+this.stripPool.length};
+      damagedProps:this.damage.size,destroyedProps:this.destroyed.size,syncStrips:this.syncStrips,staleStrips:this.staleTiles.size+this.staleStrips.size,pendingStrips:this.pendingTiles.size+this.pendingScenery.size,pooledStrips:this.tilePool.length+this.stripPool.length};
   }
   makeDamagedFallback(type,variant,stage) {
     if(stage>=3)return this.emptyScenerySprite;

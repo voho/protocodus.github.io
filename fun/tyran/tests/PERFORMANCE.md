@@ -43,3 +43,26 @@ TYRAN_BROWSER=chromium TYRAN_FRAME_MODE=gpu node fun/tyran/tests/frame-cost-chec
 - `gpu` runs the real renderer and additionally sums the analytic area of every submitted triangle, reported in full-screen equivalents, split into image and geometry programs, with soft-layer round trips, flushes and texture uploads per frame.
 
 Both modes drive the seeded 18-ship Inferno Foundry flight from `performance-check.mjs` for `TYRAN_PERF_SECONDS` seconds and pin the backing resolution through `tyran.adaptiveResolution = false`, so A/B runs draw the same surface. Compare runs of the same mode only; frame intervals under a software GPU are dominated by the rasterizer and are not a hardware measurement. Long tasks are reported for the `js` mode, where they identify main-thread work such as strip preparation or saves rather than compositor stalls.
+
+The `memory` block of either report includes `syncStrips`, the number of terrain strips a frame had to finish or build on demand during the flight, plus `staleStrips` and `pendingStrips`; zero on-demand strips means streaming stayed ahead of the viewport.
+
+### September 2026 results
+
+Both passes ran for 20 seconds in the same container at a 1440 × 960 viewport and device pixel ratio 1, seeded identically, against the previous release (`base`) and this one. Fill is normalized per backing pixel, so the base fill pass, which lacked the resolution pin and adapted to 70% scale on the software GPU, remains comparable.
+
+| Measure (per rendered frame) | Base | This release |
+| --- | --- | --- |
+| JavaScript pass: script time | 1.91 ms | 1.66 ms |
+| JavaScript pass: total task time | 2.49 ms | 2.30 ms |
+| JavaScript pass: draw calls | 153 | 94 |
+| JavaScript pass: submitted vertices | 6,190 | 3,710 |
+| JavaScript pass: `drawImage` calls | 438 | 362 |
+| JavaScript pass: texture uploads | 0.05 | 0.05 |
+| JavaScript pass: JS heap after the flight | 11.7 MB | 6.4 MB |
+| Fill pass: full-screen-equivalents of fill | 12.8 | 5.5 |
+| Fill pass: triangles | 2,470 | 1,300 |
+| Fill pass: batch flushes | 5.3 | 1.1 |
+| Fill pass: half-resolution layer round trips | 2 | 0 |
+| Fill pass: texture uploads (bytes) | 0.34 (177 KB) | 0.23 (79 KB) |
+
+Frame intervals under the software rasterizer are not reported; on the JavaScript pass both versions hold 60 FPS in this container.
