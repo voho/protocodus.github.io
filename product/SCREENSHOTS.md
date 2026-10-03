@@ -10,7 +10,7 @@ On the 27 September pass Electry was regenerated from `6dacb95e` after the 11 Se
 | Acustra | Editor snapshot rendered from [4f198756](https://github.com/protocodus/virtual-instrument-acustra/blob/4f198756105a9ce2ebd01729e5aa5dc1081e9854/Source/PluginEditor.cpp) using the processor-test snapshot harness | 1120 × 800 |
 | Taikor | [Screenshot at b5565919](https://github.com/protocodus/virtual-instrument-taikor/blob/b5565919f69ac439ae08205318cb7a789e8c6afc/Docs/screenshots/taikor-standalone.png) | 1280 × 920 |
 | YouKnow plug-in | [Current CI screenshot at 9ebd0e64](https://github.com/protocodus/virtual-instrument-youknow/blob/9ebd0e64e4801b22cf073e3b983d08df8f276e54/Docs/screenshots/youknow-standalone.png), rendered from source `e75f0bb856e4f6de050187899138c6ca8b1269a8` | 1360 × 718 |
-| YouKnow Rack Extension | Front, back, thumbnail and manual of the 1.2.0f1 candidate, from [`dist/` at d7cd3ac2](https://github.com/protocodus/reason-rack-extensions/tree/d7cd3ac2884f7666437f1a82c6f731f8eead42ed/dist) | 1600 × 1171 |
+| YouKnow Rack Extension | Front, back, thumbnail and manual of the 1.2.0f1 candidate, from `protocodus/reason-rack-extensions`, `dist/`, revision `d7cd3ac2884f7666437f1a82c6f731f8eead42ed` (private source repository) | 1600 × 1171 |
 | Maremba Rack Extension | Front, back, thumbnail and player guide of the 1.4.0f3 artwork, from the same `dist/` revision (the 1.4.0f4 candidate rebuilt only the U45 and kept the artwork) | 1600 × 1171 |
 | Podcare | [Repository illustration at c5f5539d](https://github.com/voho/podcare/blob/c5f5539d1554de8c3284026a4bacbc37dfb99cf5/logo.png), used as artwork, not a GUI screenshot | 1080 × 616 |
 
