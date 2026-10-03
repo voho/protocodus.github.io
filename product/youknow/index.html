@@ -11,7 +11,7 @@
   <meta property="og:description" content="Six individual voice models. A filter that sings. Two clocked bucket-brigade chorus lines. Discover the engineering behind YouKnow’s sound, and hear it for yourself.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
-  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp?v=20261003">
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -82,9 +82,9 @@
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20260909" aria-label="View the YouKnow interface screenshot at full size">
-            <img src="youknow-plugin-panel.webp?v=20260909" width="1360" height="718" fetchpriority="high" decoding="async" alt="YouKnow standalone instrument interface with its playing and sound controls">
-            <span class="shot-caption">Standalone interface <span>View full size <span aria-hidden="true">↗</span></span></span>
+          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20261003" aria-label="View the YouKnow interface screenshot at full size">
+            <img src="youknow-plugin-panel.webp?v=20261003" width="1360" height="718" fetchpriority="high" decoding="async" alt="YouKnow 1.2.0 interface with synthesis controls, preset browser, keyboard and Session OUTPUT menu">
+            <span class="shot-caption">Plug-in &amp; standalone · 1.2.0 <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -128,13 +128,16 @@
         <div class="head">
           <span class="tag">Listen</span>
           <h2 class="title">Hear what the details add up to.</h2>
-          <p class="lede">Listen for the weight of the bass, the shape of each attack and the motion around sustained chords. Explore our YouKnow sound demos – v1 on SoundCloud.</p>
+          <p class="lede">Listen for the weight of the bass, the shape of each attack and the motion around sustained chords. This SoundCloud playlist contains our v1 demos. You can also hear the 1.2.0 engine renders linked below.</p>
         </div>
         <div class="soundcloud-shell">
           <iframe class="soundcloud-player" title="YouKnow sound demos - v1 on SoundCloud" width="100%" height="450" scrolling="no" loading="lazy" allow="autoplay; encrypted-media" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/playlists/soundcloud%253Aplaylists%253A2299308180&amp;color=%2303422e&amp;auto_play=false&amp;hide_related=false&amp;show_comments=true&amp;show_user=true&amp;show_reposts=false&amp;show_teaser=true&amp;show_artwork=false&amp;visual=false"></iframe>
           <p class="soundcloud-attribution"><a href="https://soundcloud.com/protocodus" target="_blank" rel="noopener noreferrer">Protocodus</a> · <a href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1" target="_blank" rel="noopener noreferrer">YouKnow sound demos - v1</a></p>
         </div>
-        <a class="text-link resource-link" href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1">Open the playlist on SoundCloud <span aria-hidden="true">↗</span></a>
+        <div class="resource-links">
+          <a class="text-link" href="https://github.com/protocodus/virtual-instrument-youknow#audio-demos">Hear the 1.2.0 engine demos <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://soundcloud.com/protocodus/sets/youknow-sound-demos-v1">Open the v1 playlist on SoundCloud <span aria-hidden="true">↗</span></a>
+        </div>
       </div>
     </section>
 
@@ -175,8 +178,8 @@
             <summary><span class="circuit-number" aria-hidden="true">04</span><span class="circuit-heading">High-pass, chorus &amp; output<span class="circuit-summary">Body and stereo colour, all the way to the jack.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
               <li><h3>The bass boost belongs here</h3><p>The four-position high-pass models the bass-boost and cut networks, including their interacting capacitors and switch resistance. Unselected branches retain their charge. Changing a setting carries the circuit’s history forward, with the boost stage’s own saturation under heavy drive.</p></li>
-              <li><h3>A clocked bucket-brigade chorus</h3><p>Two 256-stage MN3009 models include opposite-phase clock modulation, signal holding, saturation, charge-transfer loss and clocked noise. Coupled input and output filter networks account for electrical loading, shaping the wet signal’s colour as well as its stereo movement.</p></li>
-              <li><h3>The final stage still matters</h3><p>The common amplifier, dry/wet mixer, AC coupling and loaded volume circuit complete the path. Output filtering preserves the circuit’s gentle treble roll-off. Chorus muting follows a coupled capacitor model; mono output combines both chorus lines, following the original jack routing.</p></li>
+              <li><h3>A clocked bucket-brigade chorus</h3><p>Two 256-stage MN3009 models include opposite-phase clock modulation, signal holding, saturation, charge-transfer loss and clocked noise. The surrounding filters include transistor gain, mutual loading and signal-dependent currents. The moving clock is integrated between audio samples, shaping the wet signal’s colour as well as its stereo movement.</p></li>
+              <li><h3>The final stage still matters</h3><p>The common amplifier, dry/wet mixer, AC coupling and loaded volume circuit complete the path. Output filtering preserves the circuit’s gentle treble roll-off, while receiver loading changes the bass coupling and resistor noise. Chorus muting retains capacitor and bucket state as its clocks stop and restart; mono output combines both chorus lines, following the original jack routing.</p></li>
             </ul>
           </details>
         </div>
@@ -196,7 +199,7 @@
         <div class="head">
           <span class="tag">The instrument</span>
           <h2 class="title">Made for sitting down and playing.</h2>
-          <p class="lede">A clear panel keeps the sound within reach. Start with a familiar patch, move a few controls, and follow what you hear.</p>
+          <p class="lede">A scalable panel keeps the sound within reach, with contextual help on hover or Tab. Start with a familiar patch, move a few controls, and follow what you hear. RELOAD restores the selected sound, variation buttons suggest small or larger changes, and PANIC clears stuck notes.</p>
         </div>
         <ul class="features">
           <li><h3>The factory sounds, from their original settings</h3><p>All 128 original factory tone settings were decoded and cross-checked across three archives. YouKnow adds 16 original basses and pads, plus INIT. Start with familiar brass, strings, keys or plucks, then make them your own.</p></li>
@@ -204,7 +207,7 @@
           <li><h3>Room beyond six voices</h3><p>Start with the original six-voice architecture, or expand to sixteen voices for larger chords. Adjustable velocity response, unison and portamento give you more ways to bring a part to life.</p></li>
           <li><h3>Chorus to suit the patch</h3><p>Choose Chorus I or II for stereo movement, or explore YouKnow’s additional I+II mode for a narrower, coloured sound. A separate Chorus Noise control lets you set how much hiss accompanies the effect.</p></li>
           <li><h3>A place for your own sounds</h3><p>Import and export hardware-format SysEx tone data. Save a host preset or DAW project to keep the complete YouKnow setup, including its additional performance controls.</p></li>
-          <li><h3>A panel you can settle into</h3><p>Scale the interface to your screen and hover a control for contextual help. Oscillators, filter, envelope and chorus stay together on one panel as you work.</p></li>
+          <li><h3>Choose the connection, too</h3><p>The Session OUTPUT menu models High, Medium or Low output level and the connected receiver’s input resistance. Choose Open, 10, 47 or 100 kΩ, or 1 MΩ. Your connection settings stay with the session when you change presets.</p></li>
         </ul>
       </div>
     </section>
@@ -214,14 +217,31 @@
         <div class="edition-copy">
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">YouKnow, in the rack.</h2>
-          <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs, a rear Sync LFO switch that locks the LFO rate and delay to the song tempo, and a separate bank of 100 original Protocodus patches, including Init.</p>
-          <p class="lede">The Rack Extension has its own layout and release cycle. It requires Reason 14 or later and is currently in development.</p>
-          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
+          <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs, a rear Sync LFO switch that locks the LFO rate and delay to the song tempo, and a separate bank of 99 original Protocodus sounds plus Init.</p>
+          <p class="lede">The Rack Extension has its own layout and release cycle. It requires Reason 14 or later and is currently in development. The panels and guide shown here are from the 1.2.0f1 candidate.</p>
+          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261003">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
         </div>
         <figure class="shot">
           <a class="screenshot-link" href="YouKnow_Front.png?v=20260927" aria-label="View the YouKnow Rack Extension screenshot at full size">
             <img src="youknow-panel.webp?v=20260927" width="1400" height="1025" loading="lazy" decoding="async" alt="YouKnow Rack Extension front panel with synthesis and performance controls">
-            <span class="shot-caption">Reason Rack Extension <span>View full size <span aria-hidden="true">↗</span></span></span>
+            <span class="shot-caption">Reason Rack Extension · Front <span>View full size <span aria-hidden="true">↗</span></span></span>
+          </a>
+        </figure>
+      </div>
+    </section>
+
+    <section class="band" id="rack-connections">
+      <div class="wrap edition-layout">
+        <div class="edition-copy">
+          <span class="tag">Around the back</span>
+          <h2 class="title">Patch into the rack.</h2>
+          <p class="lede">Play a monophonic line through Note and Gate CV, modulate Cutoff and Resonance, or control Volume, Amp, Sub and Noise from another device. MIDI remains polyphonic, and 42 custom controls support sequencer automation and Remote mapping.</p>
+          <p class="lede">Rear controls set processing quality, Unit Character and Aging; Sync LFO makes the front rate and delay controls follow song tempo. Character saves with your patch; Aging, quality and Sync LFO stay with the song.</p>
+        </div>
+        <figure class="shot">
+          <a class="screenshot-link" href="YouKnow_Back.png?v=20261003" aria-label="View the YouKnow Rack Extension rear panel at full size">
+            <img src="youknow-rear.webp?v=20261003" width="1400" height="1025" loading="lazy" decoding="async" alt="YouKnow 1.2.0f1 rear panel with processing quality, Unit Character, Aging, Sync LFO, eight CV inputs and stereo outputs">
+            <span class="shot-caption">Reason Rack Extension · Rear <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
       </div>
@@ -232,9 +252,13 @@
         <div>
           <span class="tag">In your setup</span>
           <h2 class="title">Bring that character to your next track.</h2>
-          <p class="lede">A deeply modelled instrument, ready for your own music. Play YouKnow in your DAW or open the standalone version and start with a sound. Adjustable processing quality lets you balance detail and CPU use for the session.</p>
+          <p class="lede">A deeply modelled instrument, ready for your own music. Play YouKnow in your DAW or open the standalone version and start with a sound. Choose 1×, 2× or 4× processing quality and Normal, High or Max filter precision to balance detail and CPU use for the session.</p>
           <div class="hero-actions">
             <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Get YouKnow at Gumroad <span aria-hidden="true">↗</span></a>
+          </div>
+          <div class="resource-links">
+            <a class="text-link" href="https://github.com/protocodus/virtual-instrument-youknow/blob/main/USER_GUIDE.md">Read the plug-in guide <span aria-hidden="true">↗</span></a>
+            <a class="text-link" href="https://github.com/protocodus/virtual-instrument-youknow#download">Builds &amp; installation <span aria-hidden="true">↗</span></a>
           </div>
         </div>
         <aside class="compatibility" aria-label="Platforms and availability">
@@ -243,6 +267,7 @@
             <div><dt>macOS 11+</dt><dd>Apple silicon &amp; Intel<br>VST3, Audio Unit, CLAP, standalone</dd></div>
             <div><dt>Windows x64</dt><dd>VST3, CLAP, standalone</dd></div>
             <div><dt>Linux x64</dt><dd>VST3, standalone</dd></div>
+            <div><dt>Current development version</dt><dd>1.2.0<br>The screenshots and features shown reflect the current development build.</dd></div>
           </dl>
         </aside>
       </div>
