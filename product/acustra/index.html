@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acustra — Physically Modelled Acoustic Guitar | Protocodus</title>
-  <meta name="description" content="Acustra is a physically modelled acoustic guitar with six steel strings, three picking styles, five tunings, microphone and piezo captures. Every note is synthesised in real time.">
+  <meta name="description" content="Acustra models six steel strings, picking contact, a measured bridge and body, microphone radiation, piezo electronics and a studio room. Play voiced chords and expressive guitar lines.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="Acustra — Physically modelled acoustic guitar">
-  <meta property="og:description" content="Six steel strings, a measured bridge and a resonant guitar body. Play fingerstyle, picked lines or strummed chords, then blend microphones with an under-saddle piezo.">
+  <meta property="og:description" content="Physical steel strings, responsive picking and a measurement-derived guitar body. Play fingerstyle, picked lines or voiced strums through microphones, a modelled piezo circuit and a small studio room.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/acustra/">
-  <meta property="og:image" content="https://protocodus.cz/product/acustra/acustra-panel.webp">
+  <meta property="og:image" content="https://protocodus.cz/product/acustra/acustra-panel.webp?v=20261004">
   <link rel="canonical" href="https://protocodus.cz/product/acustra/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -68,7 +68,7 @@
           <div class="instrument-intro">
             <span class="product-kicker">Physically modelled acoustic guitar</span>
             <h1 class="hero-title">Acustra</h1>
-            <p class="hero-sub">Six steel strings, a measured bridge and a resonant guitar body. Play fingerstyle, picked lines or strummed chords from your MIDI keyboard, then choose microphones, an under-saddle piezo or a blend of both. Every note is synthesised in real time, without recorded note samples.</p>
+            <p class="hero-sub">A guitar that responds from the picking hand to the room. Six physical steel strings exchange energy through a measurement-derived bridge and body. Play fingerstyle, picked lines or voiced strums from your MIDI keyboard, then hear them through microphones, a modelled piezo pickup and preamp, or a blend of both. Every note is synthesised in real time.</p>
           </div>
           <div class="instrument-actions">
             <ul class="instrument-facts" aria-label="Instrument highlights"><li>Six steel strings</li><li>Three picking styles</li><li>Five tunings</li></ul>
@@ -80,8 +80,8 @@
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="acustra-panel.webp?v=20261001" aria-label="View the Acustra interface screenshot at full size">
-            <img src="acustra-panel.webp?v=20261001" width="1120" height="800" fetchpriority="high" decoding="async" alt="Acustra instrument interface with guitar model, picking, capture, body shape, material, tuning and piezo mix controls">
+          <a class="screenshot-link" href="acustra-panel.webp?v=20261004" aria-label="View the Acustra interface screenshot at full size">
+            <img src="acustra-panel.webp?v=20261004" width="1120" height="800" fetchpriority="high" decoding="async" alt="Current Acustra editor with guitar construction and tuning switches, Finger/Pick/Thumb playing styles, microphone and piezo capture, Gather Chords and a piano keyboard">
             <span class="shot-caption">Instrument interface <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
@@ -93,25 +93,43 @@
         <div class="head">
           <span class="tag">The instrument</span>
           <h2 class="title">Six strings. One resonant body.</h2>
-          <p class="lede">Each pluck starts a physical string model. The six strings share a measured bridge and guitar body, so ringing strings respond to the next note you play.</p>
+          <p class="lede">Each pluck starts a physical string model. The six strings share a measured bridge and guitar body, so ringing strings respond to the next note you play. No recorded note samples are used.</p>
         </div>
         <ul class="features">
-          <li><h3>Finger, pick or thumb</h3><p>Choose three distinct ways to play the strings. Move the pluck position, soften or firm up the touch, and use velocity to shape each attack.</p></li>
-          <li><h3>Chords that become strums</h3><p>Notes arriving together are swept across the strings as alternating downstrokes and upstrokes. Gather Chords combines slightly staggered keyboard notes into one strum, with 30 ms of added latency.</p></li>
-          <li><h3>Shape and material</h3><p>Explore Parlor, Auditorium, Dreadnought and Jumbo body shapes, with Spruce, Mahogany and Maple material directions. Start from a construction preset, or choose the measured Bellido 1978 model.</p></li>
-          <li><h3>Five tunings and string age</h3><p>Play in Standard, Drop D, DADGAD, Open G or Half-step down. Fresh or aged strings change brightness and decay, while the tuning changes the notes each string can reach.</p></li>
-          <li><h3>Expression under your hands</h3><p>Use the modulation wheel for vibrato and CC2 for bridge-hand damping. Bend with the pitch wheel, or use lower-zone MPE for individual string bends and pluck position.</p></li>
-          <li><h3>Microphones and piezo</h3><p>Choose stereo microphones, a mono microphone or an under-saddle piezo through its modelled preamp. Blend the piezo beneath the microphones, or send it to a separate output for your own processing.</p></li>
+          <li><h3>Finger, pick or thumb</h3><p>Choose three distinct ways to play the strings. Move the pluck position, soften or firm up the touch, and use velocity to shape the attack and brightness. Repeated strokes vary within a bounded force range.</p></li>
+          <li><h3>Voiced chords and strums</h3><p>Grouped keyboard chords are voiced using six strings, fret position and a four-finger grip, then swept as alternating downstrokes and upstrokes. Gather Chords combines keys pressed within 30 ms into one strum, adding the same latency.</p></li>
+          <li><h3>Shape and material</h3><p>Explore Parlor, Auditorium, Dreadnought and Jumbo body shapes, with Spruce, Mahogany and Maple material directions. Start from a construction preset, or choose the measured Bellido 1978 classical body, also strung with steel.</p></li>
+          <li><h3>Five tunings and harmonics</h3><p>Play in Standard, Drop D, DADGAD, Open G or Half-step down. Retuning changes each string’s tension and playable range. Above the twenty-fret range, available natural harmonics extend the instrument with a lighter, ringing tone.</p></li>
+          <li><h3>Expression under your hands</h3><p>Use the modulation wheel for vibrato and CC2 for bridge-hand damping. Slide with the pitch wheel, or use lower-zone MPE for individual string bends and pluck position. Explicit CC65/CC84 transitions connect notes on a ringing string, with brief fret friction; key-up velocity shapes damping and release noise.</p></li>
+          <li><h3>Microphones, piezo and room</h3><p>Choose stereo microphones, a mono microphone or an under-saddle piezo through its modelled preamp. Blend the piezo beneath the microphones or send it to a separate output. Room adds a small studio’s reflections to the microphones, leaving the piezo dry.</p></li>
         </ul>
       </div>
     </section>
 
-    <section class="band band-well" id="workflow">
+    <section class="band band-well" id="modelling">
+      <div class="wrap">
+        <div class="head">
+          <span class="tag">Physical modelling</span>
+          <h2 class="title">The attack, the sustain, the space.</h2>
+          <p class="lede">The tone comes from interacting models of the strings, the hands, the guitar and its captures. Change how you play and those same models change the attack, the ringing partials and the decay.</p>
+        </div>
+        <ul class="features">
+          <li><h3>Strings with stiffness and loss</h3><p>Each steel string carries travelling waves in two planes of vibration. Stiffness spreads its upper partials, frequency-dependent loss lets them fade at different rates, and the tension increase after a pluck adds a brief pitch glide. String Age increases the losses, especially in the wound bass strings.</p></li>
+          <li><h3>The hand releasing the string</h3><p>The attack models contact width, pluck position and the string slipping around the picking edge. Harder strokes release faster and brighter; a pick, finger and thumb set different contact and release behaviours. Moving the hand changes the harmonics at their source.</p></li>
+          <li><h3>A bridge that connects the strings</h3><p>A passive bridge model transfers energy between the strings and body, including motion that rocks the saddle. Ringing strings can respond sympathetically to new notes. The top also springs back when the picking hand lets go, adding weight from its low resonances to the attack.</p></li>
+          <li><h3>Measured resonances, adjustable construction</h3><p>Bridge and microphone responses start from guitar measurements. Body Shape changes the air and top resonances together; Material shifts their frequency, damping and radiation. The Bellido 1978 has its own measured bridge and body, giving you another resonant foundation to shape.</p></li>
+          <li><h3>A pickup and its electronics</h3><p>The piezo starts with force at the saddle, then models saddle loading, the piezo element, cable capacitance and a battery-powered preamp circuit, including its filters, protection diodes and op-amp limits. It gives you a separate direct capture to blend or process.</p></li>
+          <li><h3>Microphones in a small studio</h3><p>Measured radiation paths provide stereo and mono microphone views; the Original’s voicing is informed by real flat-top recordings. Room adds modelled early reflections and a diffuse decay around those microphones. Adjust Stereo Width for space while the separate piezo stays dry.</p></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band" id="workflow">
       <div class="wrap workflow-layout">
         <div>
           <span class="tag">In your setup</span>
           <h2 class="title">Choose the guitar. Find your touch.</h2>
-          <p class="lede">Start with Guitar, Model, Picking and Capture, then adjust the body, string age and playing controls. Keep the microphone sound, blend in the piezo, or process the two captures separately in your DAW. Save the complete setup with your project or a host preset.</p>
+          <p class="lede">Start with Guitar, Model, Picking and Capture, then adjust the body, string age and playing controls. Keep the microphone sound, blend in the piezo, or process the two captures separately in your DAW. Your host’s parameter controls expose Room and Release Noise; new instances start with 50% room and 70% release noise. Save the complete setup with your project or a host preset.</p>
         </div>
         <aside class="compatibility" aria-label="Platforms and availability">
           <h3>Formats &amp; availability</h3>

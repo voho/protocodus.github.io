@@ -5,13 +5,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouKnow — Juno-106 Circuit-Modelled Synth | Protocodus</title>
-  <meta name="description" content="Meet YouKnow: a deeply modelled Juno-106 recreation with persistent voice cards, firmware-derived envelopes, nonlinear filters and clocked BBD chorus. Hear it.">
+  <meta name="description" content="YouKnow models the Juno-106's voice circuits, nonlinear filter and stereo BBD chorus, with 144 presets, up to 16 voices and optional original performance timing.">
   <meta name="theme-color" content="#0d0e12">
   <meta property="og:title" content="YouKnow — The Juno-106, down to the circuit">
-  <meta property="og:description" content="Six individual voice models. A filter that sings. Two clocked bucket-brigade chorus lines. Discover the engineering behind YouKnow’s sound, and hear it for yourself.">
+  <meta property="og:description" content="Persistent voice cards, a nonlinear filter and clocked stereo chorus. Play 144 presets, expand to 16 voices or explore original firmware performance timing.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
-  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp?v=20261004">
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -70,10 +70,10 @@
             <span class="product-kicker">Circuit-modelled Juno-106 recreation</span>
             <h1 class="hero-title">YouKnow</h1>
             <p class="instrument-deck">The Juno-106, down to the circuit.</p>
-            <p class="hero-sub">Rounded bass. Glowing pads. Strings that fill the stereo field. YouKnow recreates the circuitry and control logic behind the Juno-106’s character: the charge in its oscillators, the response of its filter and amplifier, and the bucket-brigade chorus that brings it all together.</p>
+            <p class="hero-sub">Rounded bass. Glowing pads. Strings that fill the stereo field. YouKnow models the Juno-106’s voice circuits, nonlinear filter and amplifier, and clocked bucket-brigade chorus. Play its six-voice core, expand to sixteen voices, or explore the original firmware’s performance timing.</p>
           </div>
           <div class="instrument-actions">
-            <ul class="instrument-facts" aria-label="Instrument highlights"><li>Individual voice models</li><li>Clocked BBD chorus</li><li>144 presets + INIT</li></ul>
+            <ul class="instrument-facts" aria-label="Instrument highlights"><li>Six-voice core · up to 16 voices</li><li>Clocked BBD chorus</li><li>144 presets + INIT</li></ul>
             <div class="hero-actions">
               <a href="https://protocodus.gumroad.com/l/youknow" class="btn btn-primary">Buy at Gumroad <span aria-hidden="true">↗</span></a>
               <a href="#listen" class="detail-link">Listen to YouKnow <span aria-hidden="true">↓</span></a>
@@ -82,8 +82,8 @@
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20260909" aria-label="View the YouKnow interface screenshot at full size">
-            <img src="youknow-plugin-panel.webp?v=20260909" width="1360" height="718" fetchpriority="high" decoding="async" alt="YouKnow standalone instrument interface with its playing and sound controls">
+          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20261004" aria-label="View the YouKnow interface screenshot at full size">
+            <img src="youknow-plugin-panel.webp?v=20261004" width="1360" height="747" fetchpriority="high" decoding="async" alt="YouKnow standalone interface with synthesis controls, keyboard, voice monitor and output and timing menus">
             <span class="shot-caption">Standalone interface <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
@@ -152,37 +152,37 @@
             <ul class="features model-features">
               <li><h3>A clock, a capacitor, a waveform</h3><p>Integer timers divide a shared 8 MHz clock. A modelled capacitor charges into a sawtooth; a comparator creates the pulse and a divider creates the sub. Changes in range and charging current preserve the ramp’s stored charge, carrying the circuit’s state into the next sound.</p></li>
               <li><h3>Voices with their own history</h3><p>The six core cards retain oscillator phase and sub-divider state between notes. Firmware-derived POLY and Solo Unison assignment determines which card plays next, including the original handling of a fully held keyboard. Each card keeps its own component tolerances and filter calibration.</p></li>
-              <li><h3>Weight, pulse and noise</h3><p>Pulse-width modulation follows the scanned comparator-control circuit. The sub-level response uses a diode law checked against hardware recordings. A shared noise source passes through its own level-control and filtering stages, while coupling capacitors remove the mixer’s changing DC offset.</p></li>
+              <li><h3>Weight, pulse and noise</h3><p>Pulse-width modulation follows the scanned comparator-control circuit. The sub-level response uses a diode law checked against hardware recordings, giving the low end its own response as you move the slider. The shared noise source enters gradually through a transistor-junction model. Coupling capacitors retain the mixer’s changing DC state, shaping the transient as waveform levels change.</p></li>
             </ul>
           </details>
           <details class="circuit-group">
             <summary><span class="circuit-number" aria-hidden="true">02</span><span class="circuit-heading">Envelopes &amp; control electronics<span class="circuit-summary">The shape of the attack. The feel of the controls.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
               <li><h3>23 destinations, one converter</h3><p>A shared 12-bit converter scans 23 control destinations in the service chart’s write order. Per-destination holds and circuit-specific smoothing shape when and how changes reach the voices. Control response is part of the model, right down to the voltage-distribution buffers.</p></li>
-              <li><h3>The original envelope logic</h3><p>Firmware-derived attack, decay, sustain and release calculations include the original rounding, gate and retrigger behaviour. Those digital envelopes drive the modelled analogue amplifier, preserving the interaction that shapes a pluck, a brass attack or a fading pad.</p></li>
+              <li><h3>Envelopes and performance timing</h3><p>Firmware-derived envelopes retain the original rounding, gate and retrigger behaviour. Direct timing gives you the familiar host response. Optional Original timing runs the assigner, serial link and voice-board firmware at nominal clocks, so chord attacks and retriggers follow its scan phase. It uses six voices and hardware tone resolution, with a higher CPU cost.</p></li>
               <li><h3>Movement with the right phrasing</h3><p>The LFO’s onset and depth arithmetic, its separate PWM path, and the portamento glide law follow the recovered control logic. The portamento knob also follows its loaded potentiometer response, keeping the sweep of the control connected to the phrasing of the notes.</p></li>
             </ul>
           </details>
           <details class="circuit-group">
             <summary><span class="circuit-number" aria-hidden="true">03</span><span class="circuit-heading">Filter, amplifier &amp; unit character<span class="circuit-summary">Resonance, saturation and the differences between voices.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
-              <li><h3>Resonance from the circuit</h3><p>Four nonlinear transconductor stages are solved with their resonance feedback and input compensation. Service procedures anchor self-oscillation tuning. Fixed filter trims let pitch and response change naturally with resonance and signal level; a six-card profile measured from a serviced unit adds individual filter calibration.</p></li>
-              <li><h3>The amplifier has a sound, too</h3><p>The BA662 voice amplifier models both its transistor current-control circuit and its saturating signal path. Service gain settings establish the drive into the amplifier. Its control capacitor and temperature-dependent response help determine how a note opens, holds and fades.</p></li>
-              <li><h3>An individual instrument</h3><p>Unit Character adjusts additional component tolerances, filter offsets, slow cutoff wander and chorus-line imbalance. Temperature modelling links the shared oscillator clock and analogue voice behaviour. Aging adds filter-trim drift and noise inspired by a documented hardware recalibration.</p></li>
+              <li><h3>Resonance from the circuit</h3><p>Four nonlinear transconductor stages are solved with their resonance feedback and input compensation. A transistor-junction model brings resonance in gradually; service procedures anchor full self-oscillation. Fixed trims preserve the filter’s response to signal level and resonance. A six-card profile measured from one serviced unit with replacement voice cards adds individual filter calibration.</p></li>
+              <li><h3>The amplifier has a sound, too</h3><p>The BA662 voice amplifier models its transistor current-control circuit, control capacitor and saturating signal path. Service gain sets the drive into the pair, adding compression and harmonics as the input level rises. Its response changes with the modelled card temperature. Resistor noise and current-dependent transistor noise follow the filter and amplifier circuits, including the quiet parts of a note.</p></li>
+              <li><h3>An individual instrument</h3><p>Unit Character adjusts component tolerances, filter offsets, slow cutoff wander and chorus-line imbalance. A shared-clock temperature proxy and analogue card warm-up model let pitch, resonance and amplifier response develop together. Aging adds filter-trim drift and noise inspired by a documented hardware recalibration. The measured filter-card profile stays active with added tolerances turned down.</p></li>
             </ul>
           </details>
           <details class="circuit-group">
             <summary><span class="circuit-number" aria-hidden="true">04</span><span class="circuit-heading">High-pass, chorus &amp; output<span class="circuit-summary">Body and stereo colour, all the way to the jack.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
               <li><h3>The bass boost belongs here</h3><p>The four-position high-pass models the bass-boost and cut networks, including their interacting capacitors and switch resistance. Unselected branches retain their charge. Changing a setting carries the circuit’s history forward, with the boost stage’s own saturation under heavy drive.</p></li>
-              <li><h3>A clocked bucket-brigade chorus</h3><p>Two 256-stage MN3009 models include opposite-phase clock modulation, signal holding, saturation, charge-transfer loss and clocked noise. Coupled input and output filter networks account for electrical loading, shaping the wet signal’s colour as well as its stereo movement.</p></li>
-              <li><h3>The final stage still matters</h3><p>The common amplifier, dry/wet mixer, AC coupling and loaded volume circuit complete the path. Output filtering preserves the circuit’s gentle treble roll-off. Chorus muting follows a coupled capacitor model; mono output combines both chorus lines, following the original jack routing.</p></li>
+              <li><h3>A clocked bucket-brigade chorus</h3><p>Two 256-stage MN3009 models move on opposite-phase clocks, with signal holding, saturation and charge-transfer loss. Nonlinear transistor followers and coupled filter networks shape the wet signal’s softened highs. Clocked charge-packet noise supplies a hiss spectrum calibrated against one original chorus board. Switching preserves control-capacitor and bucket state, giving the chorus onset and return their own circuit history.</p></li>
+              <li><h3>The connection changes the sound</h3><p>The common amplifier, dry/wet mixer, AC coupling and volume circuit complete the path. OUTPUT lets you choose the LINE level, receiver resistance and cable capacitance, or the PHONES amplifier with a declared electrical headphone load. Bass, level and treble follow those circuits; PHONES models the electrical connection. LINE mono routing combines both chorus lines.</p></li>
             </ul>
           </details>
         </div>
         <div class="research-evidence">
           <h3>Research you can look into.</h3>
-          <p>We check circuit responses against independent reference calculations and use hardware recordings to test tuning, pulse width, sub level and resonance. Settings held back from calibration help us check whether a refinement holds up. Our published research records the sources, listening decisions and remaining measurement questions.</p>
+          <p>We check circuit responses against independent reference calculations and use identified hardware recordings to test tuning, pulse width, sub level, resonance and chorus hiss. Settings held back from calibration help us check whether a refinement holds up. Our published research distinguishes recovered firmware behaviour, nominal circuit calculations and hardware measurements, and records the listening decisions and remaining measurement questions.</p>
           <div class="resource-links">
             <a class="text-link" href="https://github.com/protocodus/virtual-instrument-youknow#what-is-modelled">Explore the modelling research <span aria-hidden="true">↗</span></a>
             <a class="text-link" href="https://github.com/protocodus/virtual-instrument-youknow/blob/main/Docs/hardware-validation.md">Read the hardware comparisons <span aria-hidden="true">↗</span></a>
@@ -201,10 +201,10 @@
         <ul class="features">
           <li><h3>The factory sounds, from their original settings</h3><p>All 128 original factory tone settings were decoded and cross-checked across three archives. YouKnow adds 16 original basses and pads, plus INIT. Start with familiar brass, strings, keys or plucks, then make them your own.</p></li>
           <li><h3>Find your instrument’s character</h3><p>Keep the measured filter-card character with added tolerances turned down, or raise Unit Character for more variation. Use Aging to explore the filter drift and noise of a synth further from its last service.</p></li>
-          <li><h3>Room beyond six voices</h3><p>Start with the original six-voice architecture, or expand to sixteen voices for larger chords. Adjustable velocity response, unison and portamento give you more ways to bring a part to life.</p></li>
+          <li><h3>Choose the playing response</h3><p>Direct timing starts with six voices and can expand to sixteen, with adjustable velocity, unison and portamento. Select Original in the TIMING menu to explore six-voice firmware allocation and serial timing. Direct remains the default; changing modes clears held notes and tails.</p></li>
           <li><h3>Chorus to suit the patch</h3><p>Choose Chorus I or II for stereo movement, or explore YouKnow’s additional I+II mode for a narrower, coloured sound. A separate Chorus Noise control lets you set how much hiss accompanies the effect.</p></li>
           <li><h3>A place for your own sounds</h3><p>Import and export hardware-format SysEx tone data. Save a host preset or DAW project to keep the complete YouKnow setup, including its additional performance controls.</p></li>
-          <li><h3>A panel you can settle into</h3><p>Scale the interface to your screen and hover a control for contextual help. Oscillators, filter, envelope and chorus stay together on one panel as you work.</p></li>
+          <li><h3>A panel you can settle into</h3><p>Scale the interface to your screen and hover a control or reach it with Tab for contextual help. Oscillators, filter, envelope and chorus stay together, with a voice monitor and session menus for output connections and timing below the keyboard.</p></li>
         </ul>
       </div>
     </section>
@@ -214,13 +214,13 @@
         <div class="edition-copy">
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">YouKnow, in the rack.</h2>
-          <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs, a rear Sync LFO switch that locks the LFO rate and delay to the song tempo, and a separate bank of 100 original Protocodus patches, including Init.</p>
-          <p class="lede">The Rack Extension has its own layout and release cycle. It requires Reason 14 or later and is currently in development.</p>
-          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
+          <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs and 42 automatable controls. Sync LFO makes the LFO rate and delayed onset follow song-tempo note lengths. Explore a separate bank of 99 original Protocodus sounds plus Init.</p>
+          <p class="lede">The Rack Extension has its own layout and release cycle. The current 1.2.0f1 candidate requires Reason 14 or later and is in development.</p>
+          <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261004">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
         </div>
         <figure class="shot">
-          <a class="screenshot-link" href="YouKnow_Front.png?v=20260927" aria-label="View the YouKnow Rack Extension screenshot at full size">
-            <img src="youknow-panel.webp?v=20260927" width="1400" height="1025" loading="lazy" decoding="async" alt="YouKnow Rack Extension front panel with synthesis and performance controls">
+          <a class="screenshot-link" href="YouKnow_Front.png?v=20261004" aria-label="View the YouKnow Rack Extension screenshot at full size">
+            <img src="youknow-panel.webp?v=20261004" width="1400" height="1025" loading="lazy" decoding="async" alt="YouKnow Rack Extension front panel with synthesis, performance and LFO timing controls">
             <span class="shot-caption">Reason Rack Extension <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
