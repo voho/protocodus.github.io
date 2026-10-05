@@ -11,8 +11,11 @@ export async function openGameAction(page, id) {
   await page.locator('#' + id).click();
 }
 
-export async function createWorldFromMenu(page, { biome = 'taiga', size = 'square512', seed = 1847, townCount, industryDistricts, paused = true } = {}) {
+// Checks name fixed places (Alderbrook, the quarry at 217,255) in recipe-7 worlds, so the menu
+// keeps that recipe through its ?generation=N; a check of the current default passes its number.
+export async function createWorldFromMenu(page, { biome = 'taiga', size = 'square512', seed = 1847, townCount, industryDistricts, generationVersion = 7, paused = true } = {}) {
   await page.waitForFunction(() => document.querySelector('#start-menu')?.open || window.transport?.game);
+  await page.evaluate(version => { const url = new URL(location.href); url.searchParams.set('generation', String(version)); history.replaceState(history.state, '', url); }, generationVersion);
   if (!await page.locator('#start-menu').isVisible()) await openGameAction(page, 'world-button');
   await page.locator('#start-new').click();
   await page.locator(`#start-world-form [name="biome"][value="${biome}"]`).check();

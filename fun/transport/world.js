@@ -1,5 +1,5 @@
 import { INDUSTRIES } from './data.js';
-import { BUILDINGS, residentialKind, commercialKind, COMMUNITY_KINDS } from './buildings.js';
+import { residentialKind, commercialKind, LEGACY_BUILDING_KINDS, LEGACY_COMMUNITY_KINDS as COMMUNITY_KINDS } from './buildings.js';
 import { BIOME_NATURE } from './terrain-sprites.js';
 
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
@@ -216,7 +216,7 @@ function generateWorldV1(biome, seed, size) {
     if (habitable < 66) continue;
     locations.push([x, y]);
   }
-  const allKinds = Object.keys(BUILDINGS);
+  const allKinds = LEGACY_BUILDING_KINDS;
   const townNameCounts = new Map();
   const publicRoad = (x, y) => {
     const t = tile(x,y); if (!t) return;

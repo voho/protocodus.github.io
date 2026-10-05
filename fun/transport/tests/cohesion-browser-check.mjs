@@ -36,7 +36,7 @@ try {
  assert.equal(await page.locator('#entity-search').evaluate(el=>el===document.activeElement),true,'refresh preserves search focus');
  await page.locator('#entity-search').fill('steel');
  await page.locator('[data-industry]').first().click();
- assert.match(await page.locator('.industry-condition').innerText(),/makes steel once it gets iron ore and coal\./);
+ assert.match(await page.locator('.industry-condition').getAttribute('title'),/makes steel once it gets iron ore and coal\./);
  await page.locator('#panel-content').evaluate(el=>el.scrollTop=el.scrollHeight);
  await page.locator('[data-view="build"]').click();
  assert.equal(await page.locator('#panel-content').evaluate(el=>el.scrollTop),0,'switching views returns to the main tools');

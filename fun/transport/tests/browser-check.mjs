@@ -21,7 +21,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(page);
   await page.goto(url);
-  await createWorldFromMenu(page, { paused: false });
+  // The default recipe, not the fixture recipe the other checks share.
+  await createWorldFromMenu(page, { generationVersion: 8, paused: false });
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1);
   assert.equal(await page.evaluate(() => transport.game.biome), 'taiga');
   assert.deepEqual(await page.evaluate(() => [transport.game.width,transport.game.height]),[512,512], 'new games default to a square world');
@@ -125,10 +126,10 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#world').evaluate(el => el.classList.contains('build-mode')), false);
 
-  // Inspect all26 architectural choices, build a civic landmark, and navigate a huge map.
+  // Inspect all 37 architectural choices, build a civic landmark, and navigate a huge map.
   await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-category="towns"]').click();
-  const expectedGroups={homes:9,community:7,shops:5,services:5};
+  const expectedGroups={homes:9,community:15,shops:8,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
     await page.locator('#building-group').selectOption(group);
     assert.equal(await page.locator('.building-grid [data-building-sprite]').count(),count,group+' has distinct buildable designs');
@@ -196,7 +197,7 @@ try {
   for (const biome of ['desert', 'tundra', 'taiga']) {
     await openGameAction(page, 'world-button'); await page.locator('#start-world-form').waitFor();
     assert.equal(await page.evaluate(() => transport.speed), 0, 'new-world dialog pauses the current world');
-    await createWorldFromMenu(page, { biome, seed: 95573, size: 'square512' });
+    await createWorldFromMenu(page, { generationVersion: 8, biome, seed: 95573, size: 'square512' });
     assert.equal(await page.evaluate(() => transport.game.biome), biome);
     assert.equal(await page.evaluate(() => transport.game.seed), 95573);
     assert.equal(await page.evaluate(() => transport.game.routes.length), 1);

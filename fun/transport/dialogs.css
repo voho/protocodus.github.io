@@ -1,5 +1,4 @@
 /* Dialogs: the modal pattern, Guide, Overview map, Company, Company goals and confirmations. */
-.chain-card{padding:16px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);margin-bottom:8px}
 .modal-inner{padding:36px}
 .modal-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
 .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:500;letter-spacing:var(--tr-tight);margin:12px 0}
@@ -16,11 +15,9 @@
 .keyboard-help kbd{background:var(--well);border:1px solid var(--rule);border-radius:var(--r-1);padding:4px 4px;font-family:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .modal-tabbar{display:flex;gap:20px;margin:16px 0 20px;border-bottom:1px solid var(--rule)}
 .modal-tabbar button.active{color:var(--ink-2);border-bottom:2px solid var(--ink)}
-.help-chain-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.help-chain-grid .chain-card{margin:0}
 @media(max-width:700px){
  .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display)}
- .guide-grid,.help-chain-grid{grid-template-columns:1fr}
+ .guide-grid{grid-template-columns:1fr}
  .modal-heading p{font-size:var(--fs-caption);line-height:var(--lh-caption)}
 }
 .atlas-legend{display:flex;align-items:center;gap:20px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
@@ -34,8 +31,6 @@
  .atlas-legend span:last-child{display:none}
 }
 .panel-description{margin:-4px 0 16px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
-.chain-card h4{margin:0 0 8px;font-weight:500;font-size:var(--fs-lead);line-height:var(--lh-lead)}
-.chain-card p{margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .modal-heading p,.guide-item p{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display)}
 .close-modal{flex-shrink:0;background:var(--well);font-size:var(--fs-title);line-height:var(--lh-title);border-radius:50%;width:34px;height:34px;color:var(--ink-2)}

@@ -186,7 +186,7 @@ try {
   const loadRoute = await loadPage.evaluate(() => { const route = transport.game.routes.at(-1); return { id: route.id, cargo: route.cargo, fullLoad: route.fullLoad }; });
   assert.deepEqual([loadRoute.cargo, loadRoute.fullLoad], ['stone', true], 'the route launches with full load');
   const loadCard = loadPage.locator(`.route-card[data-route-id="${loadRoute.id}"]`);
-  assert.deepEqual(await loadCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'the route card gains no controls');
+  assert.deepEqual(await loadCard.locator('.route-actions button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label') || b.textContent)), ['Show on map', 'Edit route', 'Retire'], 'the route card gains no controls');
   // The truck left full; a quarry at its smallest size, with its store emptied, leaves it waiting when it returns.
   await loadPage.evaluate(stop => { const quarry = transport.game.industries.filter(site => site.kind === 'quarry').sort((a, b) => Math.hypot(a.x - stop.x, a.y - stop.y) - Math.hypot(b.x - stop.x, b.y - stop.y))[0]; quarry.inventory.stone = 0; quarry.capacity = .1; }, loadStops.station);
   await loadPage.locator('[data-speed="8"]').click();
@@ -277,7 +277,7 @@ try {
   assert.equal(await starterCard.locator('.vehicle-model').textContent(), 'Hollin Mk 1', 'the vehicle row names the model');
   assert.equal(await starterCard.locator('.vehicle-model').getAttribute('title'), '2 Hollin Mk 1. Newer buses arrive in 1951.', 'an up-to-date fleet says when newer models arrive');
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
-  assert.deepEqual(await starterCard.locator('.route-actions button').allTextContents(), ['Show', 'Edit', 'Retire'], 'an up-to-date card keeps three actions');
+  assert.deepEqual(await starterCard.locator('.route-actions button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label') || b.textContent)), ['Show on map', 'Edit route', 'Retire'], 'an up-to-date card keeps three actions');
   assert.ok((await starterCard.boundingBox()).height <= 300, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
   assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
   await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
@@ -539,7 +539,7 @@ try {
     const targets = await vehicleTargets(zoom);
     for (const [part, point] of Object.entries(targets)) {
       await vehiclePage.mouse.click(point.x, point.y);
-      assert.equal(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
+      assert.equal(await vehiclePage.locator('#inspector h3 .vehicle-route').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
       assert.equal(await vehiclePage.locator('#inspector .eyebrow').textContent(), 'Hollin Mk 1 bus');
       assert.equal(await vehiclePage.locator('#inspector .vehicle-age').textContent(), '1950 model, new this year');
       assert.match(await vehiclePage.locator('[data-vehicle-live="load"]').textContent(), /^\d+ \/ 24$/);
@@ -630,7 +630,7 @@ try {
   await vehiclePage.locator('[data-vehicle-action="show"]').click();
   await vehiclePage.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, starterRoute.id);
   assert.equal(await vehiclePage.evaluate(stops => { const rect = document.querySelector('#world').getBoundingClientRect(); return stops.every(station => { const p = transport.renderer.worldToScreen(station.x, station.y); return p.x > 0 && p.y > 0 && p.x < rect.width && p.y < rect.height; }); }, starterRoute.stops), true, 'Show route fits both stops on screen');
-  assert.equal(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, 'the card stays open while the route is shown');
+  assert.equal(await vehiclePage.locator('#inspector h3 .vehicle-route').textContent(), starterRoute.name, 'the card stays open while the route is shown');
   await vehiclePage.locator('[data-vehicle-action="add"]').click();
   assert.equal(await vehiclePage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus buys another bus for the route');
   await vehiclePage.locator('[data-vehicle-action="routes"]').click();

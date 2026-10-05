@@ -14,10 +14,12 @@ async function open(viewport) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: viewport.width <= 700, hasTouch: viewport.width <= 700 });
   page.on('pageerror', error => errors.push(error.message));
   // Record every toast as it is shown, including ones that later scroll out of the region.
+  // A reference's mark (a route's numbered bullet, a cargo or town icon) is not part of the sentence.
   await page.addInitScript(() => {
     window.__toasts = [];
+    const words = span => { if (!span) return undefined; const copy = span.cloneNode(true); copy.querySelectorAll('.ref-mark, title').forEach(mark => mark.remove()); return copy.textContent; };
     addEventListener('DOMContentLoaded', () => new MutationObserver(records => {
-      for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.__toasts.push({ text: node.querySelector(':scope > span')?.textContent, type: node.className, action: node.querySelector('.toast-action')?.textContent || '' });
+      for (const record of records) for (const node of record.addedNodes) if (node.classList?.contains('toast')) window.__toasts.push({ text: words(node.querySelector(':scope > span')), refs: node.querySelectorAll(':scope > span [data-ref]').length, type: node.className, action: node.querySelector('.toast-action')?.textContent || '' });
     }).observe(document.querySelector('#toast-region'), { childList: true }));
   });
   await page.goto(url);
@@ -37,14 +39,17 @@ async function industryOpening(viewport, name) {
   await clearToasts(page);
   const from = await shown(page);
   const site = await page.evaluate(async () => {
-    const { openIndustry } = await import('./model.js');
-    for (let month = 24; month <= 120; month++) { const site = openIndustry(transport.game, month, { force: true }); if (site) { transport.game.money += 1; return { id: site.id, name: site.name, x: site.x, y: site.y, message: transport.game.notifications[0].message }; } }
+    const { openIndustry } = await import('./model.js'), { resolveRef } = await import('./ui-refs.js');
+    // The toast and News read the notice's template: each token becomes a reference labelled with its name.
+    const lead = template => template.replace(/\{(\w+):([^{}]+)\}/g, (_, kind, id) => resolveRef(transport.game, `${kind}:${id}`).label);
+    for (let month = 24; month <= 120; month++) { const site = openIndustry(transport.game, month, { force: true }); if (site) { transport.game.money += 1; const notice = transport.game.notifications[0]; return { id: site.id, name: site.name, x: site.x, y: site.y, lead: lead(notice.template) }; } }
     return null;
   });
   assert.ok(site, 'a forced opening finds a plot near the starting towns');
   await waitForToast(page, /^New .+ opens near .+\.$/, from);
   const toast = (await toastsSince(page, from)).find(item => /opens near/.test(item.text));
-  assert.equal(toast.text, site.message);
+  assert.equal(toast.text, site.lead);
+  assert.equal(toast.refs, 2, 'the toast names the industry and the town as references');
   assert.equal(toast.type, 'toast', 'an opening toasts quietly: no warning, milestone or beep');
   assert.equal(toast.action, 'Show');
   const fits = await page.evaluate(() => { const box = document.querySelector('#toast-region .toast').getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; });
@@ -66,7 +71,8 @@ async function industryOpening(viewport, name) {
   await openGameAction(page, 'news-button');
   await page.locator('.news-list').waitFor();
   const first = page.locator('.news-item').first();
-  assert.match(await first.innerText(), new RegExp(site.message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  // A reference's mark breaks innerText into lines; the words are what matter.
+  assert.match((await first.innerText()).replace(/\s+/g, ' '), new RegExp(site.lead.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.equal(await first.locator('[data-news-target]').innerText(), 'Show');
   await page.screenshot({ path: `${output}/opening-news-${name}.png` });
   await page.locator('#modal .close-modal').click();

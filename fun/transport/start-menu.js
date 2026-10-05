@@ -5,8 +5,8 @@ import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES, worldGenerationOptions } from './w
 import { listSaveSlots, readSaveSlot, slotDate, slotMoney, slotDetails, savedAgo } from './save-slots.js';
 import { hideLoading, showLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 import { APP_PRELOAD } from './app-preload.js';
+import { escapeHTML as escape } from './copy.js';
 
-const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let initialGame=null;
 export function takeStartupGame(){const game=initialGame;initialGame=null;return game;}
 // The game's own modules download while the menu waits, once it has painted and
@@ -50,7 +50,9 @@ export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
   }
   form.addEventListener('submit',event=>{
    event.preventDefault();if(!form.reportValidity())return;
-   const config={biome:form.elements.biome.value,size:form.elements.size.value,seed:Number(form.elements.seed.value),townCount:Number(form.elements.townCount.value),industryDistricts:Number(form.elements.industryDistricts.value),startingFunds:Number(form.elements.startingFunds.value)};
+   // ?generation=N recreates a world from an earlier, still supported recipe (QA and comparisons).
+   const recipe=Number(new URLSearchParams(location.search).get('generation'))||undefined;
+   const config={biome:form.elements.biome.value,size:form.elements.size.value,seed:Number(form.elements.seed.value),townCount:Number(form.elements.townCount.value),industryDistricts:Number(form.elements.industryDistricts.value),startingFunds:Number(form.elements.startingFunds.value),...(recipe?{generationVersion:recipe}:{})};
    void run('Creating your world',async options=>{
     const game=await createGameAsync(config,options);options.signal.throwIfAborted();const saved=savePreparedGame(game);
     return saved?.ok?{ok:true,game}:{ok:false,message:'Could not save this world. Free some browser storage and try again. Existing saves are unchanged.'};

@@ -13,15 +13,17 @@ const SIDES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 // the ten-tile town reach always covers them. Each civic kind comes with the
 // chance that a town of that size has one.
 const PROFILES = {
-  hamlet: { radius: 3, population: [170, 240], fill: .72, civic: { pub: .45 }, shops: [0, 1] },
-  village: { radius: 5, population: [450, 550], fill: .8, civic: { pub: .9, church: .75, school: .4, 'service-post-office': .3 }, shops: [1, 3] },
-  town: { radius: 7, population: [950, 550], fill: .86, civic: { church: 1, pub: 1, school: 1, 'service-post-office': .9, 'service-garage': .7, 'service-bank': .5, 'police-station': .5, 'fire-station': .4, 'service-barber': .4 }, shops: [3, 5] },
-  city: { radius: 9, population: [1500, 600], fill: .9, civic: { church: 1, pub: 1, school: 1, 'service-post-office': 1, 'service-garage': 1, 'service-bank': 1, 'police-station': 1, 'fire-station': 1, 'service-barber': .7, hospital: 1, 'service-hotel': .8, stadium: .35 }, shops: [5, 8] },
+  hamlet: { radius: 3, population: [170, 240], fill: .72, civic: { pub: .45, playground: .35 }, shops: [0, 1] },
+  village: { radius: 5, population: [450, 550], fill: .8, civic: { pub: .9, church: .75, playground: .7, school: .4, 'sports-field': .35, 'service-post-office': .3, park: .25, 'police-station': .2, 'fire-station': .15 }, shops: [1, 3] },
+  town: { radius: 7, population: [950, 550], fill: .86, civic: { 'town-hall': .8, church: 1, pub: 1, school: 1, 'service-post-office': .9, 'police-station': .9, playground: .9, park: .8, 'service-garage': .7, 'fire-station': .7, 'sports-field': .7, 'service-bank': .5, 'tennis-courts': .5, 'service-barber': .4, 'swimming-pool': .4, 'sports-hall': .3 }, shops: [3, 5] },
+  city: { radius: 9, population: [1500, 600], fill: .9, civic: { 'town-hall': 1, church: 1, pub: 1, school: 1, 'service-post-office': 1, 'service-garage': 1, 'service-bank': 1, 'police-station': 1, 'fire-station': 1, hospital: 1, park: 1, playground: 1, 'service-hotel': .8, 'sports-field': .8, 'tennis-courts': .8, 'swimming-pool': .8, 'service-barber': .7, 'sports-hall': .7, stadium: .35, ballpark: .3 }, shops: [5, 8] },
 };
 // The opening town shows a little of everything a town can have.
-const SHOWCASE = ['church', 'pub', 'school', 'service-post-office', 'service-bank', 'service-garage', 'police-station', 'service-barber', 'service-hotel'];
+const SHOWCASE = ['town-hall', 'church', 'pub', 'school', 'park', 'playground', 'service-post-office', 'service-bank', 'service-garage', 'police-station', 'service-barber', 'service-hotel'];
 // Where each civic kind stands, as a share of the town's radius from its centre.
-const PLACE = { church: .25, pub: .15, 'service-post-office': .2, 'service-bank': .25, 'service-barber': .3, 'service-hotel': .35, school: .55, 'police-station': .5, 'fire-station': .6, hospital: .7, 'service-garage': .85, stadium: 1 };
+const PLACE = { 'town-hall': .1, church: .25, pub: .15, 'service-post-office': .2, 'service-bank': .25, 'service-barber': .3, 'service-hotel': .35, park: .4, school: .55, 'police-station': .5, playground: .6, 'fire-station': .6, hospital: .7, 'sports-hall': .7, 'swimming-pool': .75, 'tennis-courts': .8, 'service-garage': .85, 'sports-field': .95, stadium: 1, ballpark: 1 };
+// A town's buildings stay within this many tiles of its centre, the reach that counts them as the town's.
+const REACH = 10;
 
 // The renderer's vertex heights (terrain-geometry.js): each vertex takes the
 // level of the tile to its south-east, any corner touching water is 0, and
@@ -64,19 +66,21 @@ function settle(game, biome, seed, random, config, terrain) {
   const level = t => Math.round(clamp(t.elevation, 0, 1) * 7);
   const buildable = t => t && t.terrain !== 'water' && t.terrain !== 'mountain' && t.terrain !== 'rock';
 
+  // Each tile's level, or -1 where nothing can be built: the site search reads it about a hundred times per site.
+  const ground = new Int8Array(width * height);
+  for (let i = 0; i < ground.length; i++) ground[i] = buildable(tiles[i]) ? level(tiles[i]) : -1;
   // Town sites: dry, even ground a few tiles back from a river, lake or coast.
   // In the desert only the water's edge is worth settling.
   const candidates = [];
   for (let y = 12; y < height - 12; y += 3) for (let x = 12; x < width - 12; x += 3) {
-    const t = tile(x, y), i = y * width + x;
-    if (!buildable(t) || terrain.distance[i] < 3) continue;
-    const lv = level(t);
+    const i = y * width + x, lv = ground[i];
+    if (lv < 0 || terrain.distance[i] < 3) continue;
     let even = 0;
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const n = tile(x + dx, y + dy); if (buildable(n) && level(n) === lv) even++; }
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (ground[i + dy * width + dx] === lv) even++;
     if (even < 30) continue;
     // Room to grow: level, dry ground out to six tiles, sampled every other tile.
     let room = 0;
-    for (let dy = -6; dy <= 6; dy += 2) for (let dx = -6; dx <= 6; dx += 2) { const n = tile(x + dx, y + dy); if (buildable(n) && Math.abs(level(n) - lv) <= 1) room++; }
+    for (let dy = -6; dy <= 6; dy += 2) for (let dx = -6; dx <= 6; dx += 2) { const n = ground[i + dy * width + dx]; if (n >= 0 && Math.abs(n - lv) <= 1) room++; }
     room /= 49;
     const d = terrain.distance[i], shore = d <= 8 ? 1 : Math.max(0, 1 - (d - 8) / (biome === 'desert' ? 12 : 34));
     const score = even / 49 * .5 + room * .8 + shore * (biome === 'desert' ? 2.4 : 1) + Math.min(1, terrain.near[i] / 2.4) * .35 - Math.max(0, lv - 3) * .18
@@ -167,9 +171,10 @@ function settle(game, biome, seed, random, config, terrain) {
     const baseName = nameLists.names[n] || nameLists.prefixes[(n - 4) % nameLists.prefixes.length] + suffixes[Math.floor((n - 4) / nameLists.prefixes.length) % suffixes.length];
     const occurrence = (nameCounts.get(baseName) || 0) + 1; nameCounts.set(baseName, occurrence);
     const [low, range] = profile.population;
-    game.cities.push({ id: `city-${n + 1}`, name: baseName + (occurrence > 1 ? ' ' + occurrence : ''), x: cx, y: cy,
+    const city = { id: `city-${n + 1}`, name: baseName + (occurrence > 1 ? ' ' + occurrence : ''), x: cx, y: cy,
       population: n === 0 ? 740 : n === 1 ? 615 : low + Math.floor(random() * range), activity: 0, growth: 0,
-      passengers: n < 2 ? 90 : 35 + Math.floor(random() * 95), delivered: 0, supplies: 0, lastServiceDay: null });
+      passengers: n < 2 ? 90 : 35 + Math.floor(random() * 95), delivered: 0, supplies: 0, lastServiceDay: null };
+    game.cities.push(city);
 
     // The main street follows the direction with more open ground (east-west
     // for the opening towns); cross streets and back lanes make the blocks.
@@ -187,6 +192,8 @@ function settle(game, biome, seed, random, config, terrain) {
       const length = R + (town.starter ? 0 : Math.floor(random() * 2));
       for (let a = 1; a <= length; a++) { if (!lay(a * dir, 0, dir, 0)) break; reachOf[k] = a; }
     }
+    // A centre too steep for a street moves onto the main street beside it, where a first stop can stand.
+    if (!tile(cx, cy).road) { const beside = [point(1, 0), point(-1, 0)].find(([x, y]) => tile(x, y).road); if (beside) [city.x, city.y] = beside; }
     const crosses = [], spacing = R >= 7 ? 2 : 3;
     if (R > 3 || random() < .7) for (const [k, dir] of [[0, -1], [1, 1]]) {
       for (let a = 1 + Math.floor(random() * 2); a <= reachOf[k]; a += 3 + Math.floor(random() * spacing)) {
@@ -212,7 +219,7 @@ function settle(game, biome, seed, random, config, terrain) {
 
     // Lots: flat, free ground beside a street inside the town's oval.
     const inTown = (x, y) => { const a = horizontal ? x - cx : y - cy, b = horizontal ? y - cy : x - cx; return (a / (R + 1.5)) ** 2 + (b / (R * .8 + 1.5)) ** 2 <= 1; };
-    const free = (x, y) => { const t = tile(x, y); return buildable(t) && !t.road && !t.building && !placed.has(y * width + x) && !centres.has(y * width + x) && flat(x, y) && inTown(x, y); };
+    const free = (x, y) => { const t = tile(x, y); return buildable(t) && !t.road && !t.building && !placed.has(y * width + x) && !centres.has(y * width + x) && flat(x, y) && inTown(x, y) && Math.max(Math.abs(x - city.x), Math.abs(y - city.y)) <= REACH; };
     const frontage = (x, y) => SIDES.some(([dx, dy]) => tile(x + dx, y + dy)?.road);
     const distanceOf = (x, y) => Math.hypot(horizontal ? x - cx : y - cy, (horizontal ? y - cy : x - cx) * 1.25);
     const build = (kind, x, y, extent) => {
@@ -276,7 +283,7 @@ function settle(game, biome, seed, random, config, terrain) {
     host: for (const { city, town } of hosts) {
       const R = PROFILES[town.profile].radius + 2;
       for (let r = 1; r <= R; r++) for (let y = city.y - r; y <= city.y + r; y++) for (let x = city.x - r; x <= city.x + r; x++) {
-        if (Math.max(Math.abs(x - city.x), Math.abs(y - city.y)) !== r) continue;
+        if (Math.max(Math.abs(x - city.x), Math.abs(y - city.y)) !== r || Math.max(x + extent - 1 - city.x, y + extent - 1 - city.y, city.x - x, city.y - y) > REACH) continue;
         let ok = true, road = false;
         for (let dy = 0; dy < extent && ok; dy++) for (let dx = 0; dx < extent; dx++) {
           const t = tile(x + dx, y + dy);
@@ -368,11 +375,10 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
       let best = null, bestScore = -Infinity;
       const consider = (x, y, scale = extent, strict = true) => {
         if (x < 3 || y < 3 || x + size >= width - 3 || y + size >= height - 3 || !open(x, y, size) || nearTown(x + (size >> 1), y + (size >> 1), 11)) return;
-        if (strict && wanted && !deposit(kind, x, y, size)) return;
         const distance = Math.hypot(x - anchor.x, y - anchor.y);
         const score = habitat(kind, x, y, size) + (wanted && tile(x, y).terrain === wanted ? 25 : 0) - rough(x, y, size) * 60 - distance / scale * (extraction ? 35 : 85) + hashNoise(x, y, seed + district * 251) * 22;
-        // The full site rules only need to confirm a candidate that would win.
-        if (score > bestScore && !industrySiteProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
+        // The deposit and the full site rules only need to confirm a candidate that would win.
+        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
       };
       for (let attempt = 0; attempt < 140; attempt++) {
         const spread = extent * (extraction ? .75 + random() * 1.7 : .35 + random() * .55);

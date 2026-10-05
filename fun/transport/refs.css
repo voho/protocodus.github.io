@@ -15,6 +15,9 @@
 /* The mark alone, where space is tight: a route's bullet in a toast lead or a table. */
 .ref--compact{padding:2px;border-radius:var(--r-2);line-height:0}
 .ref--compact .ref-mark{margin:0}
+@media(pointer:coarse),(max-width:700px){
+ .ref--compact{display:inline-grid;place-items:center;min-width:var(--control-touch);min-height:var(--control-touch)}
+}
 /* On ink (toasts, tips): the underline in paper at 40%, a paper wash when linked and the signal focus ring. */
 .ref--on-ink .ref-label{text-decoration-color:color-mix(in srgb,var(--paper) 40%,transparent)}
 .ref--on-ink:hover .ref-label,.ref--on-ink:focus-visible .ref-label,.ref--on-ink.is-linked .ref-label{text-decoration-color:currentColor}

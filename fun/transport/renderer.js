@@ -568,8 +568,42 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(mode==='rail')for(const o of [-2.4,2.4])line(c,[[mouthX+dy*o,mouthY-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
     }
   }
+  // Road tiles joined into a block (2 × 2, 2 × 3 and larger) are one paved square, like a town square or car park:
+  // a tile belongs to it when any 2 × 2 square around it is all plain road.
+  const plainRoad=(x,y)=>{const n=tile(x,y);return Boolean(n?.road&&!n.rail&&!n.bridge&&!n.tunnel&&n.terrain!=='water'&&n.terrain!=='mountain');};
+  const pavedSquare=(x,y)=>[[-1,-1],[0,-1],[-1,0],[0,0]].some(([ox,oy])=>plainRoad(x+ox,y+oy)&&plainRoad(x+ox+1,y+oy)&&plainRoad(x+ox,y+oy+1)&&plainRoad(x+ox+1,y+oy+1));
+  // One asphalt surface without lanes; a kerb and parking bays where it meets land, open where a street joins it.
+  function paveSquare(c,x,y,px,py){
+    c.fillStyle='#6b6a66';c.fillRect(px,py,TILE,TILE);
+    for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]){
+      if(tile(x+dx,y+dy)?.road)continue;
+      const ex=dx>0?px+TILE:px,ey=dy>0?py+TILE:py,along=dx?[0,1]:[1,0],inward=[-dx,-dy];
+      const edge=(o,d)=>[ex+along[0]*o+inward[0]*d,ey+along[1]*o+inward[1]*d];
+      if(detailLevel!=='region')for(let o=4;o<TILE;o+=8)line(c,[edge(o,2),edge(o,10)],'#d6d2c299',.8);
+      line(c,[edge(0,1),edge(TILE,1)],'#c9c2aa',2);
+    }
+  }
+  // A public road beside a building or a zone is a town street: paved sidewalks, lamps and bins.
+  const townStreet=(x,y,t)=>Boolean(t.road&&t.publicRoad&&!t.bridge&&!t.tunnel&&t.terrain!=='water')&&[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].some(([dx,dy])=>buildingSiteAt(x+dx,y+dy)||tile(x+dx,y+dy)?.zone);
+  // A lamp on every other tile and now and then a bin, on the sidewalk beside the carriageway (tile pixels).
+  function streetFurniture(x,y){
+    const [n,e,s,w]=[[0,-1],[1,0],[0,1],[-1,0]].map(([dx,dy])=>Boolean(tile(x+dx,y+dy)?.road)),items=[];
+    if((x+y)%2===0)items.push(['lamp',e||w?[16+(e?6:-6),5]:[27,16+(s?6:-6)]]);
+    if((x*7+y*13)%5===0)items.push(['bin',e||w?[16+(w?-6:6),27]:[5,16+(n?-6:6)]]);
+    return items;
+  }
+  function drawLamp(p){
+    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+1,p.y+.3,1.8,.7,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#38403c';ctx.fillRect(p.x-.6,p.y-15,1.2,15);ctx.fillRect(p.x-.6,p.y-15.6,3.6,1.1);
+    ctx.fillStyle='#f4e7b0';ctx.fillRect(p.x+1.7,p.y-14.6,1.7,1.2);
+  }
+  function drawBin(p){
+    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+.6,p.y+.3,2,.8,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#4e6a57';ctx.fillRect(p.x-1.4,p.y-4,2.8,4);ctx.fillStyle='#6f8c78';ctx.fillRect(p.x-1.6,p.y-4.6,3.2,.9);
+  }
   function network(c,x,y,t,mode,elevated=false){
     if(!t[mode])return;const px=x*TILE,py=y*TILE,cx=px+16,cy=py+16;
+    if(mode==='road'&&!elevated&&pavedSquare(x,y)){paveSquare(c,x,y,px,py);return;}
     const neighbors=[[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>{
       const adjacent=tile(x+dx,y+dy);if(!adjacent?.[mode])return false;
       return networkEdgeAllowed(t,adjacent,dx,dy,mode,game,x,y);
@@ -594,7 +628,13 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
       }stroke('#b7b4a0',17);stroke('#737f73',15);
     }
-    else stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
+    else{
+      if(mode==='road'&&townStreet(x,y,t)){
+        stroke('#a8a28c',27);stroke('#d3cdb6',25);
+        if(detailLevel!=='region')for(const [dx,dy]of arms)for(let k=4;k<16;k+=4)for(const side of [-1,1]){const ox=dy*side*10.5,oy=-dx*side*10.5;line(c,[[cx+dx*k+ox-dy*side*1.5,cy+dy*k+oy+dx*side*1.5],[cx+dx*k+ox+dy*side*1.5,cy+dy*k+oy-dx*side*1.5]],'#b9b29a',.5);}
+      }
+      stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
+    }
     if(mode==='road'){
       stroke('#676762',12);stroke('#6c6b67',10);c.lineCap='butt';
       if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
@@ -821,6 +861,9 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      if(layers.roads&&detailLevel!=='region'&&townStreet(x,y,t)&&!pavedSquare(x,y))for(const [kind,[px,py]] of streetFurniture(x,y)){
+        const u=x+px/TILE,v=y+py/TILE,q=projectGround(game,u,v);add(u,v,()=>{if(visibleRectangle(q.x-3,q.y-17,8,18))(kind==='lamp'?drawLamp:drawBin)(q);});
+      }
       for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails']){
         if(t.bridge||t.terrain==='water')add(x+.05,y+.05,()=>drawRaisedNetwork(x,y,t,mode));
         else{const approaches=bridgeApproaches(x,y,t,mode);if(approaches.length)add(x+.05,y+.05,()=>drawBridgeApproach(x,y,t,mode,approaches));}
