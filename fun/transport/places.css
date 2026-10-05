@@ -41,6 +41,10 @@
 .condition-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:4px 8px;border-radius:var(--r-2);background:var(--well);color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption);overflow-wrap:anywhere}
 .condition-chip svg{width:13px;height:13px;flex:0 0 auto}
 .condition-concern{background:var(--well);color:var(--warn)}
+.condition-icon{justify-content:center;width:32px;height:28px;padding:0}
+.condition-icon svg{width:18px;height:18px}
+.condition-icon.condition-good{color:var(--ok)}
+.condition-icon.condition-concern{outline:1px solid var(--warn);outline-offset:-1px}
 .ledger-row .cargo-badge{border-color:transparent;background:none;padding-left:0}
 @media(max-width:700px){
  .inspector{left:12px;bottom:111px;width:300px;max-width:calc(100% - 24px);max-height:calc(100% - 175px);padding:16px}
@@ -62,9 +66,9 @@
 .industry-destinations h4{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;margin:0}
 .destination-heading .small-button{display:flex;align-items:center;gap:4px;white-space:nowrap}
 .destination-heading svg{width:17px;height:17px}
-.industry-use{display:flex;align-items:center;gap:8px;font-size:var(--fs-small);line-height:var(--lh-small);margin:8px 0 16px}
-.industry-use>.cargo-badge{flex-shrink:0;padding:4px 4px}
-.industry-use>.cargo-badge .cargo-icon{width:24px;height:24px}
+.industry-use,.supplier-row{display:flex;align-items:center;gap:8px;font-size:var(--fs-small);line-height:var(--lh-small);margin:8px 0 16px}
+.industry-use>.cargo-badge,.supplier-row>.cargo-badge{flex-shrink:0;padding:4px 4px}
+.industry-use>.cargo-badge .cargo-icon,.supplier-row>.cargo-badge .cargo-icon{width:24px;height:24px}
 .industry-destinations h4>span{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:400;color:var(--ink-2);margin-left:4px}
 .inspector .destination-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:4px 0 12px}
 .industry-target-list{display:grid;gap:4px}
@@ -78,16 +82,6 @@
 .target-cargo .cargo-icon{width:23px;height:23px}
 .industry-target>svg{width:17px;height:17px;flex-shrink:0}
 .inspector h3:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:var(--r-1)}
-.town-needs{margin-top:16px;padding-top:12px;border-top:1px solid var(--rule)}
-.town-needs h4{margin:0 0 8px;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
-.need-list{display:flex;flex-wrap:wrap;gap:8px}
-.need-chip{display:inline-flex;align-items:center;gap:2px;padding-right:8px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper)}
-.need-chip .cargo-badge{min-height:28px;padding:1px 4px;border:0;background:none}
-.need-chip .cargo-icon{width:22px;height:22px}
-.need-chip .cargo-label{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-.need-chip>svg{width:13px;height:13px;flex:0 0 auto;color:var(--ink-2)}
-.need-chip[data-met="true"]{border-color:var(--edge);background:var(--well)}
-.inspector .need-hint{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:8px 0 16px}
 .condition-note{background:var(--well);color:var(--ink-2)}
 .entity-card .town-need-metric{align-items:center;margin-top:8px;padding-top:8px;border-top:0}
 .need-icons{display:inline-flex;align-items:center;gap:4px}
@@ -99,14 +93,7 @@
 .station-services h4{margin:0 0 8px;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
 .station-services h4>span{font-weight:400;color:var(--ink-2);margin-left:4px}
 .service-list{display:grid;grid-template-columns:minmax(0,1fr);gap:4px}
-.service-row{width:100%;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 8px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--well);text-align:left;color:var(--ink-2);cursor:pointer}
-.service-row:hover,.service-row:focus-visible{background:var(--well);border-color:var(--ink)}
-.service-detail{flex:1;min-width:0}
-.service-detail strong{display:block;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;overflow-wrap:anywhere}
-.service-detail small{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin-top:2px}
 .service-detail [data-state=waiting],.service-detail [data-state=blocked]{color:var(--warn)}
-.service-row .cargo-icon{width:22px;height:22px;flex-shrink:0}
-.service-row>svg:last-child{width:16px;height:16px;flex-shrink:0}
 .service-more{margin-top:8px;padding:2px 0;border:0;background:none;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .industry-service{margin:12px 0 0}
 .inspector .service-summary{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:0}
@@ -122,9 +109,6 @@
 .target-plan svg{width:16px;height:16px}
 .inspector .network-use{color:var(--ink-2);margin:0 0 4px}
 .inspector-building canvas{display:block;width:70px;height:73px;flex-shrink:0;image-rendering:auto;object-fit:contain}
-.entity-heading{display:flex;align-items:center;gap:8px;min-width:0}
-.entity-heading .entity-art{width:60px;height:60px;flex:0 0 60px;object-fit:contain}
-.entity-heading h3{flex:1;min-width:0}
 .inspector-industry-art{display:flex;align-items:center;gap:12px}
 .inspector-industry-art .entity-art{width:96px;height:96px;flex:0 0 96px;object-fit:contain}
 .inspector-industry-art .cargo-recipe{flex-wrap:wrap}
@@ -279,3 +263,16 @@
 .town-returns-spark{flex:none;display:flex}
 .town-returns-line{width:72px;height:18px;overflow:visible}
 .town-returns-line polyline{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.service-routes{display:flex;flex-wrap:wrap;gap:var(--s-1);margin:var(--s-2) 0 0}
+.town-links{margin-top:var(--s-2)}
+.service-list .ref--row{min-height:44px;padding:var(--s-2);border-radius:var(--r-2);color:var(--ink-2)}
+.service-list .ref--row .ref-label{flex:1;min-width:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);overflow-wrap:anywhere}
+.service-list .ref--row .service-detail{flex:none;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.service-list .ref--row .cargo-icon{width:22px;height:22px;flex-shrink:0}
+.industry-suppliers{margin:var(--s-4) 0 0}
+.industry-suppliers h4{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;margin:0}
+.supplier-row{margin:var(--s-2) 0 var(--s-3)}
+.supplier-list{display:grid;gap:var(--s-1);min-width:0}
+.industry-suppliers small{color:var(--ink-2)}
+.inspector h3>.bullet{margin-right:var(--s-1)}
+

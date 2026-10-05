@@ -16,12 +16,13 @@ try {
     await page.evaluate(async () => {
       const [{ createGame }, { createRenderer }, { preloadWorldArt }] = await Promise.all([import('./model.js'), import('./renderer.js'), import('./atlas-runtime.js')]);
       await preloadWorldArt({ waitMs: 12000 });
-      const canvas = document.querySelector('canvas'), game = createGame({ biome: 'tundra', size: 'square512', seed: 1847 });
+      // The views focus fixed recipe-7 water (480, 78), so every world here is a recipe-7 world.
+      const canvas = document.querySelector('canvas'), game = createGame({ biome: 'tundra', size: 'square512', seed: 1847, generationVersion: 7 });
       const renderer = createRenderer(canvas, game, { layers: { trees: false, buildings: false, stations: false, names: false, industryIcons: false, zones: false, roads: false, rails: false, vehicles: false, vehicleLoads: false, routes: false, grid: false } });
       window.waterQA = { createGame, renderer, canvas };
     });
     for (const biome of ['taiga', 'tundra', 'desert']) {
-      await page.evaluate(biome => { waterQA.game = waterQA.createGame({ biome, size: 'square512', seed: 1847 }); waterQA.renderer.setGame(waterQA.game); }, biome);
+      await page.evaluate(biome => { waterQA.game = waterQA.createGame({ biome, size: 'square512', seed: 1847, generationVersion: 7 }); waterQA.renderer.setGame(waterQA.game); }, biome);
       for (const zoom of [.5, 1, 2]) {
         const result = await page.evaluate(({ zoom, dpr, biome }) => {
           const { renderer: r, canvas, game: g } = waterQA, c = canvas.getContext('2d'), rect = canvas.getBoundingClientRect();
@@ -48,7 +49,7 @@ try {
       }
     }
     shipProfiles.push(...await page.evaluate(dpr => {
-      const { renderer: r, canvas, createGame } = waterQA, g = createGame({ biome: 'tundra', size: 'square512', seed: 1847 });
+      const { renderer: r, canvas, createGame } = waterQA, g = createGame({ biome: 'tundra', size: 'square512', seed: 1847, generationVersion: 7 });
       const at = (x, y) => g.tiles[y * g.width + x];
       let berth = null, distance = Infinity;
       for (let y = 60; y <= 96; y++) for (let x = 468; x <= 506; x++) {

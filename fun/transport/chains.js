@@ -66,6 +66,14 @@ export function findIndustryTargets(game, industry, limit = 5, { workshops = fal
     .sort((a, b) => a.distance - b.distance || String(a.id).localeCompare(String(b.id))).slice(0, Math.floor(limit));
 }
 
+/** The nearest producers of each of an industry's inputs, closest first: [{cargo, sites: [{id, name, distance}]}]. */
+export function findIndustrySuppliers(game, industry, perCargo = 2) {
+  const inputs = Object.keys(INDUSTRIES[industry?.kind]?.inputs || {});
+  return inputs.map(cargo => ({ cargo, sites: (game.industries || []).filter(site => site.id !== industry.id && (INDUSTRIES[site.kind]?.outputs[cargo] || 0) > 0)
+    .map(site => ({ id: site.id, name: site.name || INDUSTRIES[site.kind].name, distance: Math.hypot(site.x - industry.x, site.y - industry.y) }))
+    .sort((a, b) => a.distance - b.distance || String(a.id).localeCompare(String(b.id))).slice(0, perCargo) }));
+}
+
 export function nearestTown(game, point) {
   return (game.cities || []).map(city => ({ ...city, distance: Math.hypot(city.x - point.x, city.y - point.y) }))
     .sort((a, b) => a.distance - b.distance || String(a.id).localeCompare(String(b.id)))[0] || null;

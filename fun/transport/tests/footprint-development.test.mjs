@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { generateWorld } from '../world.js';
 import { buildingAt, buildingFootprint, buildingTiles, placeBuildingSite } from '../building-sites.js';
-import { industryFootprint, industryTiles } from '../industry-sites.js';
+import { industryTiles } from '../industry-sites.js';
 import { localEnvironment, randomAt, stepEcology } from '../environment.js';
 import { housingCapacity, settlementSuitability, stepSettlements } from '../settlements.js';
 import { planStructureSpan, terraformProblem } from '../terrain-engineering.js';
@@ -43,8 +43,10 @@ for (const biome of ['taiga', 'tundra', 'desert']) {
       if (t.building.footprint > 1) larger++;
       reserve(buildingTiles({ x: index % current.width, y: Math.floor(index / current.width), building: t.building }), t.building.kind);
     }
+    // Recipe 5 predates 3 × 3 industries: producers and the lighter works took 2 × 2.
+    const large = ['steel-mill', 'food-plant', 'furniture-factory', 'machine-works', 'refinery', 'cement-works', 'goods-factory', 'equipment-factory'];
     for (const site of current.industries) {
-      assert.equal(site.footprint, industryFootprint(site.kind));
+      assert.equal(site.footprint, large.includes(site.kind) ? 3 : 2, site.kind);
       reserve(industryTiles(site), site.kind);
     }
     assert.ok(larger > 100);

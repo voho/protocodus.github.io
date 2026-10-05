@@ -3,7 +3,7 @@ import { fareFor, transitPay, scheduledDays, payTiles, travelTiles, recentTransi
 import { availableVehicleLevel } from './economy-pricing.js';
 import { routeCargoList } from './route-planner.js';
 import { cargoIcon } from './cargo-icons.js';
-import { money, count, tiles, listJoin, capital, cargoName } from './copy.js';
+import { money, count, tiles, listJoin, capital, cargoName, escapeHTML as escape } from './copy.js';
 import { LINE_COLORS } from './design-tokens.js';
 import { icon } from './ui-icons.js';
 
@@ -17,7 +17,6 @@ export const CLASS_ORDER = ['express', 'perishable', 'standard', 'bulk'];
 export const CLASS_LINE = { express: LINE_COLORS[1], perishable: LINE_COLORS[7], standard: LINE_COLORS[2], bulk: LINE_COLORS[0] };
 const M = { left: 44, right: 12, top: 10, bottom: 24 };
 const MODE_WORDS = { road: 'by road', rail: 'by rail', water: 'by ship', air: 'by air' };
-const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const shortMoney = n => money(n, { compact: true });
 const percent = n => `${Math.round(n * 100)}%`;
 const light = cls => CLASS_LINE[cls].on !== '#FFFFFF';

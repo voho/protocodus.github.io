@@ -15,6 +15,8 @@ const OUTSTANDING = 'Alderbrook now rates your company Outstanding';
 const inspectTown = page => page.evaluate(() => { document.activeElement?.blur?.(); const town = transport.game.cities[0]; transport.renderer.focus(town.x, town.y); transport.inspect(town.x, town.y, 'city'); });
 const quote = (page, action) => page.evaluate(async action => { const { townActionQuote } = await import('./town-authority.js'); return townActionQuote(transport.game, transport.game.cities[0], action); }, action);
 const fold = page => page.locator('#inspector .town-opinion'), hall = page => page.locator('#inspector .town-hall');
+// What a player reads, with icon chips (local conditions) read by their labels.
+const words = locator => locator.evaluate(el => [el.innerText, ...[...el.querySelectorAll('[role="img"][aria-label]')].map(n => n.getAttribute('aria-label'))].join('\n'));
 const openHall = async page => { await hall(page).waitFor(); if (!await hall(page).evaluate(el => el.open)) await page.locator('#inspector .town-hall summary').click(); await page.locator('#inspector [data-town-action="fund"]').waitFor(); };
 // The inspector fits its width, and its buttons and folds are at least `target` px tall.
 const fits = (page, target) => page.evaluate(target => {
@@ -91,7 +93,7 @@ try {
   assert.equal(await button.isDisabled(), true);
   assert.match(await button.innerText(), /^Funded until \d{1,2} [A-Z][a-z]{2} \d{4}$/);
   assert.equal(await hall(page).locator('[data-town-action="fund"] ~ .micro-note').count(), 0, 'no hint while funded');
-  assert.match(await page.locator('#inspector .local-conditions').innerText(), /Development funded/);
+  assert.match(await words(page.locator('#inspector .local-conditions')), /Development funded/);
   await page.waitForTimeout(3000);
   await page.evaluate(() => transport.setSpeed(0));
   assert.ok((await books()).day > before.day + 2, 'days passed');
@@ -110,7 +112,7 @@ try {
   // A zone in the funded town says so.
   const tile = zoned.tiles[0];
   await page.evaluate(tile => { transport.renderer.focus(tile.x, tile.y); transport.inspect(tile.x, tile.y); }, tile);
-  const zoneText = await page.locator('#inspector').innerText();
+  const zoneText = await words(page.locator('#inspector'));
   assert.match(zoneText, /Development \d+%\. Funded until \d{1,2} [A-Z][a-z]{2} \d{4}\. Road access required\./);
   assert.match(zoneText, /Development funded/);
   await page.locator('#inspector').screenshot({ path: `${output}/zone-funded.png` });

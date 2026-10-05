@@ -1,8 +1,8 @@
 import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
 
 // Each biome has its own complete set of eligible industries. A site is drawn
-// as a square inside the caller's +8px sprite envelope; the world renderer can
-// use 64px for new 2×2 sites and 32px for existing single-tile saved industries.
+// as a square inside the caller's +8px sprite envelope; the world renderer uses
+// 96px for 3×3 sites, and 64px or 32px for smaller sites in older saves.
 const sheets = [
   { family: 'taiga', biome: 'taiga', columns: 3, rows: 3, kinds: ['logging-camp', 'sawmill', 'coal-mine', 'iron-mine', 'steel-mill', 'farm', 'food-plant', 'furniture-factory', 'machine-works'] },
   { family: 'taiga-extra', biome: 'taiga', columns: 3, rows: 1, kinds: ['oil-well', 'refinery', 'quarry'] },

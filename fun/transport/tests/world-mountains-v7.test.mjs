@@ -57,9 +57,9 @@ for (const biome of ['taiga', 'tundra', 'desert']) {
   });
 
   test(`${biome}: recipe 7 keeps complete industries, connected starter services and a profitable opening`, () => {
-    const game = createGame({ biome, seed: 1847, size: 'square512' });
+    const game = createGame({ biome, seed: 1847, size: 'square512', generationVersion: 7 });
     assert.equal(game.generationVersion, 7);
-    assert.equal(WORLD_GENERATION_VERSION, 7);
+    assert.ok(WORLD_GENERATION_VERSION > 7, 'recipe 7 stays available for its saves after newer recipes');
     assert.equal(validateGame(game), true);
     assert.equal(game.cities.length, 48);
     for (const [kind, definition] of Object.entries(INDUSTRIES)) if (definition.biomes.includes(biome)) {

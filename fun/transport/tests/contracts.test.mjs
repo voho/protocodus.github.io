@@ -13,7 +13,7 @@ const coverage = game => stop => stationCoverage(game, stop);
 const days = (game, count, until = () => false) => { for (let n = 0; n < count && !until(); n++) tick(game, 1); };
 const saved = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
 
-// A generated stone quarry on a straight road: Near buys 12 tiles away, Far 41 tiles away.
+// A generated stone quarry on a straight road: Near buys 12 tiles away, Far 40 tiles away.
 // A player-built quarry at x 30 shares the road but never counts as the contract's producer.
 function roadFixture({ owner = 'world' } = {}) {
   const game = emptyGame(); game.cities = [town('Near', 22, 9), town('Far', 50, 9)];
@@ -54,7 +54,7 @@ test('no offers before the first freight delivery, and player-built producers ar
   assert.equal(game.contracts.length, 1, 'the one distant town is the only fitting buyer');
   const [offer] = game.contracts;
   assert.deepEqual({ cargo: offer.cargo, sourceId: offer.sourceId, target: offer.target }, { cargo: 'stone', sourceId: fixture.quarry.id, target: { kind: 'city', id: 'Far' } });
-  assert.equal(offer.distance, 41);assert.equal(offer.multiplier, Math.round(contractMultiplier(41) * 100) / 100);
+  assert.equal(offer.distance, 40);assert.equal(offer.multiplier, Math.round(contractMultiplier(40) * 100) / 100);
   assert.equal(offer.offeredDay, Math.floor(game.day));assert.equal(offer.expiresDay, offer.offeredDay + CONTRACT_DAYS);
   assert.equal(contractState(game, offer), 'offer');assert.ok(local.revenue > 0);
   assert.ok(!game.notifications.some(notice => /contract/i.test(notice.message)), 'offers arrive silently');

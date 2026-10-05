@@ -7,6 +7,8 @@ const COMPACT = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFra
 const MINUS = '−', MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const VEHICLES = { rail: 'train', water: 'ship', air: 'plane' }, STOPS = { road: 'road stop', rail: 'rail station', water: 'port', air: 'airport' };
 const whole = n => Math.round(Number(n) || 0);
+/** Text made safe inside HTML elements and quoted attributes. */
+export const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 /** '$372,875'; compact gives '$18k', '$372.9k' and '$1.2M'. Negatives take a true minus; signed adds '+'. */
 export function money(n, { compact = false, signed = false } = {}) {

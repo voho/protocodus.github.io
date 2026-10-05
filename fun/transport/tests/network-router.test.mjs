@@ -6,6 +6,7 @@ import { planNetworkStroke, planConnection, gridLine } from '../network-router.j
 import { networkTerrainShape } from '../terrain-engineering.js';
 import { placeBuildingSite } from '../building-sites.js';
 import { industryDistance } from '../industry-sites.js';
+import { nextProject } from '../gameplay-insights.js';
 import { emptyGame, tileAt, advance } from './helpers.mjs';
 
 function levels(surface) {
@@ -182,8 +183,9 @@ function launch(game, plan, cargo) {
 }
 const farmAndPlant = (game, plant = { x: 38, y: 26 }) => [build(game, 'farm', 20, 20).industry, build(game, 'food-plant', plant.x, plant.y).industry];
 
-test('taiga 1847: the quarry plan joins Alderbrook Central with one stop beside the quarry', () => {
-  const game = createGame({ biome: 'taiga', seed: 1847 }), quarry = game.industries.find(site => site.kind === 'quarry' && site.x === 217 && site.y === 255), town = game.cities.find(city => city.name === 'Alderbrook');
+// Recipe 7 pins its known quarry; the default recipe is checked below without coordinates.
+test('taiga 1847 recipe 7: the quarry plan joins Alderbrook Central with one stop beside the quarry', () => {
+  const game = createGame({ biome: 'taiga', seed: 1847, generationVersion: 7 }), quarry = game.industries.find(site => site.kind === 'quarry' && site.x === 217 && site.y === 255), town = game.cities.find(city => city.name === 'Alderbrook');
   const plan = connect(game, quarry, town);
   assert.equal(plan.ok, true, plan.reason);
   assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), 'the whole line quotes clean'); assert.ok(contiguous(plan.path));
@@ -197,6 +199,19 @@ test('taiga 1847: the quarry plan joins Alderbrook Central with one stop beside 
   advance(copy, 30, tick);
   assert.ok(route.delivered > 0, 'stone reaches Alderbrook within a month');
   assert.deepEqual(connect(game, quarry, town), plan, 'identical inputs give identical plans');
+});
+
+for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome} 1847: the default world's first freight plan builds and delivers within a month`, () => {
+  const game = createGame({ biome, seed: 1847 }), project = nextProject(game), choice = project.choices[project.choice];
+  assert.equal(project.plan, 'road', 'the opening pair can be joined over land');
+  const plan = connect(game, choice.source, choice.buyer);
+  assert.equal(plan.ok, true, plan.reason);
+  assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), 'the whole line quotes clean'); assert.ok(contiguous(plan.path));
+  assert.ok(plan.stops.length <= 2 && plan.stops.every(stop => game.tiles[stop.y * game.width + stop.x].terrain !== 'water'));
+  const { copy, route, spent } = launch(game, plan, choice.cargo);
+  assert.equal(spent, plan.cost, 'Build spends exactly the plan');
+  advance(copy, 30, tick);
+  assert.ok(route.delivered > 0, `${choice.cargo} arrives within a month`);
 });
 
 for (const mode of ['road', 'rail']) test(`${mode}: a plan between two unserved sites places a stop beside each, then finds them joined`, () => {
@@ -222,7 +237,10 @@ test('a stop that already serves the source is reused and its line followed', ()
 });
 
 test('sites whose catchments overlap still get stops three tiles apart', () => {
-  const game = flat(), [farm, plant] = farmAndPlant(game, { x: 23, y: 20 }), plan = connect(game, farm, plant);
+  // Only worlds from before the industry spacing hold a farm and its plant side by side.
+  const game = flat(), [farm, plant] = farmAndPlant(game);
+  Object.assign(plant, { x: 23, y: 20 }); game.revision++;
+  const plan = connect(game, farm, plant);
   assert.equal(plan.ok, true, plan.reason); assert.ok(plan.path.length >= 3);
   launch(game, plan, 'grain');
 });
@@ -232,7 +250,7 @@ test('a walled-off buyer or a boxed-in producer has no plan', () => {
   zone(game, Array.from({ length: game.height }, (_, y) => [30, y]));
   assert.deepEqual([connect(game, farm, plant).ok, connect(game, farm, plant).reason], [false, 'no-route']);
   const boxed = flat(), [site, buyer] = farmAndPlant(boxed), cells = [];
-  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 21 || y < 20 || y > 21) cells.push([x, y]);
+  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 22 || y < 20 || y > 22) cells.push([x, y]);
   zone(boxed, cells);
   assert.equal(connect(boxed, site, buyer).reason, 'no-site');
 });

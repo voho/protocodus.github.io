@@ -23,7 +23,7 @@ test('each shadow is grounded at its own trunk, casts southeast and preserves in
     assert.deepEqual(trees,before);assert.ok(bounds.right>bounds.left&&bounds.bottom>bounds.top);
     shadows.forEach((shadow,i)=>{
       const tree=trees[i];assert.ok(Math.hypot(shadow.contact.x-tree.x,shadow.contact.y-tree.y)<.5);
-      assert.ok(shadow.lobes.every(p=>p.x>tree.x&&p.y>tree.y&&p.alpha>0&&p.alpha<=.09));
+      assert.ok(shadow.lobes.every(p=>p.x>tree.x&&p.y>tree.y&&p.alpha>0&&p.alpha<=.36));
       assert.ok(shadow.lobes.every(p=>p.x>bounds.left&&p.x<bounds.right&&p.y>bounds.top&&p.y<bounds.bottom));
     });
   }

@@ -2,8 +2,8 @@ import { BIOMES } from './data.js';
 import { listSaveSlots, writeSaveSlot, readSaveSlot, renameSaveSlot, deleteSaveSlot, slotDate as worldDate, slotMoney as money } from './save-slots.js';
 import { showLoading, hideLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 import { icon, has } from './ui-icons.js';
+import { escapeHTML as escape } from './copy.js';
 
-const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 // Saves draw the biome's own glyph; an unknown landscape falls back to the globe.
 const biomeGlyph = biome => BIOMES[biome] && has(biome) ? biome : 'world';
 function savedDate(value, autosave = false) {

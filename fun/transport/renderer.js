@@ -58,6 +58,7 @@ const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zone
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
 // Map marks in display pixels (DESIGN.md 8 and 9): roundel radius per view, and one tile step of a route's projected path.
 const ROUNDEL={region:4,town:5,detail:6},PATH_STEP=Math.hypot(TILE,TILE/2);
+const FLOATER_FORMAT=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
 const font=(weight,size)=>`${weight} ${size}px ${FONT.family}`;
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 function line(ctx,points,color,width=1){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
@@ -567,8 +568,42 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(mode==='rail')for(const o of [-2.4,2.4])line(c,[[mouthX+dy*o,mouthY-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
     }
   }
+  // Road tiles joined into a block (2 × 2, 2 × 3 and larger) are one paved square, like a town square or car park:
+  // a tile belongs to it when any 2 × 2 square around it is all plain road.
+  const plainRoad=(x,y)=>{const n=tile(x,y);return Boolean(n?.road&&!n.rail&&!n.bridge&&!n.tunnel&&n.terrain!=='water'&&n.terrain!=='mountain');};
+  const pavedSquare=(x,y)=>[[-1,-1],[0,-1],[-1,0],[0,0]].some(([ox,oy])=>plainRoad(x+ox,y+oy)&&plainRoad(x+ox+1,y+oy)&&plainRoad(x+ox,y+oy+1)&&plainRoad(x+ox+1,y+oy+1));
+  // One asphalt surface without lanes; a kerb and parking bays where it meets land, open where a street joins it.
+  function paveSquare(c,x,y,px,py){
+    c.fillStyle='#6b6a66';c.fillRect(px,py,TILE,TILE);
+    for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]){
+      if(tile(x+dx,y+dy)?.road)continue;
+      const ex=dx>0?px+TILE:px,ey=dy>0?py+TILE:py,along=dx?[0,1]:[1,0],inward=[-dx,-dy];
+      const edge=(o,d)=>[ex+along[0]*o+inward[0]*d,ey+along[1]*o+inward[1]*d];
+      if(detailLevel!=='region')for(let o=4;o<TILE;o+=8)line(c,[edge(o,2),edge(o,10)],'#d6d2c299',.8);
+      line(c,[edge(0,1),edge(TILE,1)],'#c9c2aa',2);
+    }
+  }
+  // A public road beside a building or a zone is a town street: paved sidewalks, lamps and bins.
+  const townStreet=(x,y,t)=>Boolean(t.road&&t.publicRoad&&!t.bridge&&!t.tunnel&&t.terrain!=='water')&&[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].some(([dx,dy])=>buildingSiteAt(x+dx,y+dy)||tile(x+dx,y+dy)?.zone);
+  // A lamp on every other tile and now and then a bin, on the sidewalk beside the carriageway (tile pixels).
+  function streetFurniture(x,y){
+    const [n,e,s,w]=[[0,-1],[1,0],[0,1],[-1,0]].map(([dx,dy])=>Boolean(tile(x+dx,y+dy)?.road)),items=[];
+    if((x+y)%2===0)items.push(['lamp',e||w?[16+(e?6:-6),5]:[27,16+(s?6:-6)]]);
+    if((x*7+y*13)%5===0)items.push(['bin',e||w?[16+(w?-6:6),27]:[5,16+(n?-6:6)]]);
+    return items;
+  }
+  function drawLamp(p){
+    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+1,p.y+.3,1.8,.7,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#38403c';ctx.fillRect(p.x-.6,p.y-15,1.2,15);ctx.fillRect(p.x-.6,p.y-15.6,3.6,1.1);
+    ctx.fillStyle='#f4e7b0';ctx.fillRect(p.x+1.7,p.y-14.6,1.7,1.2);
+  }
+  function drawBin(p){
+    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+.6,p.y+.3,2,.8,0,0,TAU);ctx.fill();
+    ctx.fillStyle='#4e6a57';ctx.fillRect(p.x-1.4,p.y-4,2.8,4);ctx.fillStyle='#6f8c78';ctx.fillRect(p.x-1.6,p.y-4.6,3.2,.9);
+  }
   function network(c,x,y,t,mode,elevated=false){
     if(!t[mode])return;const px=x*TILE,py=y*TILE,cx=px+16,cy=py+16;
+    if(mode==='road'&&!elevated&&pavedSquare(x,y)){paveSquare(c,x,y,px,py);return;}
     const neighbors=[[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>{
       const adjacent=tile(x+dx,y+dy);if(!adjacent?.[mode])return false;
       return networkEdgeAllowed(t,adjacent,dx,dy,mode,game,x,y);
@@ -593,7 +628,13 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
       }stroke('#b7b4a0',17);stroke('#737f73',15);
     }
-    else stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
+    else{
+      if(mode==='road'&&townStreet(x,y,t)){
+        stroke('#a8a28c',27);stroke('#d3cdb6',25);
+        if(detailLevel!=='region')for(const [dx,dy]of arms)for(let k=4;k<16;k+=4)for(const side of [-1,1]){const ox=dy*side*10.5,oy=-dx*side*10.5;line(c,[[cx+dx*k+ox-dy*side*1.5,cy+dy*k+oy+dx*side*1.5],[cx+dx*k+ox+dy*side*1.5,cy+dy*k+oy-dx*side*1.5]],'#b9b29a',.5);}
+      }
+      stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
+    }
     if(mode==='road'){
       stroke('#676762',12);stroke('#6c6b67',10);c.lineCap='butt';
       if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
@@ -820,6 +861,9 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      if(layers.roads&&detailLevel!=='region'&&townStreet(x,y,t)&&!pavedSquare(x,y))for(const [kind,[px,py]] of streetFurniture(x,y)){
+        const u=x+px/TILE,v=y+py/TILE,q=projectGround(game,u,v);add(u,v,()=>{if(visibleRectangle(q.x-3,q.y-17,8,18))(kind==='lamp'?drawLamp:drawBin)(q);});
+      }
       for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails']){
         if(t.bridge||t.terrain==='water')add(x+.05,y+.05,()=>drawRaisedNetwork(x,y,t,mode));
         else{const approaches=bridgeApproaches(x,y,t,mode);if(approaches.length)add(x+.05,y+.05,()=>drawBridgeApproach(x,y,t,mode,approaches));}
@@ -1054,7 +1098,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Paid deliveries rise above their stop and fade. Region sums each 3×3-tile cell into one figure
     // and keeps the full screen offset, because vehicle load badges do not shrink with the map. An airport's figure starts
     // above its sign, which stands over the terminal.
-    const region=detailLevel==='region',still=Boolean(motionPreference?.matches),shown=new Map(),format=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
+    const region=detailLevel==='region',still=Boolean(motionPreference?.matches),shown=new Map(),format=FLOATER_FORMAT;
     for(const f of floaters){
       const t=(now-f.born)/1600;if(!(t>=0&&t<1)||!visible(f.x,f.y))continue;
       const key=region?Math.floor(f.x/3)+','+Math.floor(f.y/3):f,group=shown.get(key);
@@ -1210,7 +1254,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(lazyChunksWaiting&&options.onInvalidate)queueMicrotask(options.onInvalidate);
     // Water keeps one horizontal plane while land rises above it.
     ctx.save();groundTransform(ctx);
-    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&[tile(x,y-1),tile(x,y+1)].filter(n=>n?.terrain==='water').length>[tile(x-1,y),tile(x+1,y)].filter(n=>n?.terrain==='water').length;drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
+    const wet=(x,y)=>tile(x,y)?.terrain==='water'?1:0;
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&wet(x,y-1)+wet(x,y+1)>wet(x-1,y)+wet(x+1,y);drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))drawShipWake(ctx,v,(game.day||0)*1000,detailLevel);}
     ctx.restore();
     if(showGrid){
@@ -1237,10 +1282,10 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
-        const drawing=new Path2D(),ranges=[];let previous=-1,count=0,segments=0;
-        for(const[start,end]of index.spatial.query({x0,y0,x1,y1}))for(let i=start;i<=end;i++){
+        const drawing=new Path2D(),ranges=[],{x0:bx0,y0:by0,x1:bx1,y1:by1}=routeBounds;let previous=-1,count=0,segments=0;
+        for(const[start,end]of index.spatial.query(routeBounds))for(let i=start;i<=end;i++){
           const a=path[i-1],b=path[i];segments++;
-          if(Math.max(a.x,b.x)<x0||Math.min(a.x,b.x)>=x1||Math.max(a.y,b.y)<y0||Math.min(a.y,b.y)>=y1){previous=-1;continue;}
+          if(Math.max(a.x,b.x)<bx0||Math.min(a.x,b.x)>=bx1||Math.max(a.y,b.y)<by0||Math.min(a.y,b.y)>=by1){previous=-1;continue;}
           if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);ranges.push([i,i]);}else ranges[ranges.length-1][1]=i;
           const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);previous=i;count++;
         }
@@ -1266,7 +1311,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     function flowChevrons(r,ranges,core,color){
       const path=r.path,z=camera.zoom,gap=MAP.line.chevronGap/z,shift=(game.day||0)*14/z%gap,arm=core*.28/z,reach=core*.28/z;ctx.beginPath();
       for(const [first,last] of ranges)for(let s=Math.ceil(((first-1)*PATH_STEP-shift)/gap)*gap+shift;s<last*PATH_STEP;s+=gap){
-        const i=Math.floor(s/PATH_STEP),t=s/PATH_STEP-i,a=path[i],b=path[i+1];if(!a||!b)continue;
+        const i=Math.floor(s/PATH_STEP),t=s/PATH_STEP-i,a=path[i],b=path[i+1];if(!a||!b||Math.max(a.x,b.x)<x0-1||Math.min(a.x,b.x)>x1||Math.max(a.y,b.y)<y0-1||Math.min(a.y,b.y)>y1)continue;
         const mid=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),from=t<.5?transportPoint(a.x,a.y,r.mode):mid,to=t<.5?mid:transportPoint(b.x,b.y,r.mode),u=t<.5?t*2:t*2-1;
         const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,x=from.x+dx*u,y=from.y+dy*u;
         ctx.moveTo(x-ux*reach-uy*arm,y-uy*reach+ux*arm);ctx.lineTo(x+ux*reach,y+uy*reach);ctx.lineTo(x-ux*reach+uy*arm,y-uy*reach-ux*arm);
@@ -1281,8 +1326,13 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.globalAlpha=fade*MAP.line.haloAlpha;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=(core+MAP.line.halo)/z;ctx.stroke();
       ctx.globalAlpha=fade;ctx.lineCap='butt';ctx.setLineDash([4/z,3/z]);ctx.strokeStyle=MAP.cut.color;ctx.lineWidth=core/z;ctx.stroke();ctx.setLineDash([]);
     }
-    const routeKey=`${x0},${y0},${x1},${y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
-    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute&&r!==focusRoute?MAP.line.dim:1);}
+    // Route lines are projected for the view rounded out to 16-tile cells, so panning
+    // rebuilds them only when the view crosses a cell edge, not on every tile.
+    const cell=16,routeBounds={x0:Math.floor(x0/cell)*cell,y0:Math.floor(y0/cell)*cell,x1:Math.ceil(x1/cell)*cell,y1:Math.ceil(y1/cell)*cell};
+    const routeKey=`${routeBounds.x0},${routeBounds.y0},${routeBounds.x1},${routeBounds.y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
+    // DESIGN.md 7.4: the routes serving a selected stop, industry or town stand out; a hovered or highlighted route still wins.
+    const serving=!focusRoute&&view.servingRoutes?.length?new Set(view.servingRoutes):null;
+    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute?r!==focusRoute?MAP.line.dim:1:serving&&!serving.has(r.id)?MAP.line.dim:1,Boolean(serving?.has(r.id)));}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.
     if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}

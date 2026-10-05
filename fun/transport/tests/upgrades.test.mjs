@@ -15,7 +15,7 @@ function fleetFixture(modes = ['road']) {
   assert.equal(build(game, 'sawmill', 30, 10).ok, true);
   game.industries[0].inventory.timber = 900;
   for (const [index, mode] of modes.entries()) {
-    const y = 12 + index;
+    const y = 13 + index;
     if (mode === 'water') {
       for (const point of line(10, 30, y)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
       game.revision++; game.networkRevision++;

@@ -4,8 +4,8 @@ import { drawUIArtwork } from './ui-art.js';
 import { chainProducts, defaultChainProduct, nearestTown, productionChain } from './chains.js';
 import { icon } from './ui-icons.js';
 import { scrollIntoViewSafe } from './ui-motion.js';
+import { escapeHTML as escape } from './copy.js';
 
-const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const number = value => Math.floor(value || 0).toLocaleString('en-US');
 
 /** Mount into the existing modal; callbacks keep camera/build ownership in app.js. */

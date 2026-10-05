@@ -281,7 +281,8 @@ async function truthfulQuotes() {
   assert.deepEqual(redness.states, ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'slope']);
   assert.equal(redness.steady, true, 'the map repaints identically without the preview');
   assert.ok(redness.shift.at(-1) > 12, `the uneven tile is drawn in the error colour: ${redness.shift}`);
-  assert.ok(redness.shift.slice(0, -1).every(value => value < 7), `the rest of the refused stroke is muted, not red: ${redness.shift}`);
+  // The muted wash shifts with the ground's own colour, so it is measured against the error tile.
+  assert.ok(redness.shift.slice(0, -1).every(value => value < redness.shift.at(-1) / 3), `the rest of the refused stroke is muted, not red: ${redness.shift}`);
   await page.close();
 }
 

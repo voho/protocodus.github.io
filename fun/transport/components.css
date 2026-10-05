@@ -49,6 +49,12 @@ svg.i.i24{stroke-width:1.75px}
 .button,.small-button,.text-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:var(--control);padding:var(--s-1) var(--s-3);border:1px solid transparent;border-radius:var(--r-2);background:none;color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);transition:background-color var(--t-quick) var(--ease),border-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
 .button{white-space:nowrap}
 .button svg,.small-button svg,.text-button svg{width:16px;height:16px}
+/* An icon that says it all: square, with its name in the tooltip and aria-label. */
+.small-button.icon-only{min-width:var(--control);padding:var(--s-1)}
+.small-button.icon-only svg{width:18px;height:18px}
+@media(pointer:coarse),(max-width:700px){
+ .small-button.icon-only,.compact-play .small-button.icon-only,.compact-play .route-actions .small-button.icon-only{min-width:var(--control-touch);min-height:var(--control-touch)}
+}
 .button--dense,.small-button{min-height:var(--control-dense);padding:var(--s-1) var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small)}
 .button--primary,.button-primary{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
 .button--primary:hover:not(:disabled),.button-primary:hover:not(:disabled){border-color:var(--ink-2);background:var(--ink-2)}
