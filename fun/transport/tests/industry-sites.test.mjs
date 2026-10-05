@@ -4,13 +4,14 @@ import { build, createGame, industryAt, stationCoverage, restoreGame, tick } fro
 import { localEnvironment } from '../environment.js';
 import { industryConditions } from '../industry-simulation.js';
 import { encodeGame } from '../save-codec.js';
-import { industryTiles, industrySiteProblem, industryFootprint } from '../industry-sites.js';
+import { industryTiles, industrySiteProblem, industryFootprint, INDUSTRY_SPACING } from '../industry-sites.js';
+import { quoteBuildPlan } from '../construction-plan.js';
 import { WORLD_GENERATION_VERSION } from '../world.js';
 import { emptyGame, tileAt } from './helpers.mjs';
 
-test('a 2×2 industry reserves every tile and demolition clears the complete site',()=>{
+test('a 3×3 industry reserves every tile and demolition clears the complete site',()=>{
   const game=emptyGame();const result=build(game,'oil-well',20,20);
-  assert.equal(result.ok,true);assert.equal(result.industry.footprint,2);
+  assert.equal(result.ok,true);assert.equal(result.industry.footprint,3);
   for(const {x,y} of industryTiles(result.industry)){
     assert.equal(industryAt(game,x,y),result.industry);
     for(const tool of ['road','rail','residential','school','oil-well'])assert.equal(build(game,tool,x,y).ok,false,`${tool} cannot overlap ${x},${y}`);
@@ -29,18 +30,18 @@ test('industry placement validates the entire site before spending or changing l
   }
 });
 test('catchment reaches the nearest industry edge and fisheries accept any shoreline edge',()=>{
-  const game=emptyGame('tundra');tileAt(game,22,21).terrain='water';
+  const game=emptyGame('tundra');tileAt(game,23,21).terrain='water';
   assert.equal(build(game,'fishery',20,20).ok,true);
-  assert.equal(stationCoverage(game,{x:26,y:21}).industries.length,1);
-  assert.equal(stationCoverage(game,{x:27,y:21}).industries.length,0);
+  assert.equal(stationCoverage(game,{x:27,y:21}).industries.length,1);
+  assert.equal(stationCoverage(game,{x:28,y:21}).industries.length,0);
 });
 
-// Reflect the same neighborhood around the center of a 2×2 site at (20,20).
+// Reflect the same neighborhood around the center of a 3×3 site at (20,20).
 const siteSides = {
   west: (x,y) => ({x,y}),
-  east: (x,y) => ({x:41-x,y}),
+  east: (x,y) => ({x:42-x,y}),
   north: (x,y) => ({x:y,y:x}),
-  south: (x,y) => ({x:y,y:41-x}),
+  south: (x,y) => ({x:y,y:42-x}),
 };
 function flatIndustryGame(kind='oil-well') {
   const game=emptyGame();
@@ -49,20 +50,20 @@ function flatIndustryGame(kind='oil-well') {
   return game;
 }
 
-test('2×2 site road and rail access reach the same fixed distance from all four edges',()=>{
+test('3×3 site road and rail access reach the same fixed distance from all four edges',()=>{
   const base=flatIndustryGame();
   for(const [side,point] of Object.entries(siteSides))for(const [network,distance,property] of [['road',1,'roadAccess'],['rail',2,'railAccess']]){
     for(const offset of [distance,distance+1]){
       const game=structuredClone(base),position=point(20-offset,20);
       tileAt(game,position.x,position.y)[network]=true;
       // A small nature sample must not reduce the fixed network catchment.
-      const environment=localEnvironment(game,20,20,1,2);
+      const environment=localEnvironment(game,20,20,1,3);
       assert.equal(environment[property],offset===distance,`${side} ${network} at distance ${offset}`);
     }
   }
 });
 
-test('industry productivity and local services are symmetric around a 2×2 footprint',()=>{
+test('industry productivity and local services are symmetric around a 3×3 footprint',()=>{
   const base=flatIndustryGame();let reference;
   for(const [side,point] of Object.entries(siteSides)){
     const game=structuredClone(base);
@@ -118,7 +119,7 @@ test('fire and local services reduce player-industry upkeep equally on every sid
 test('footprints survive saves while legacy sites keep their original extent',()=>{
   const game=emptyGame();assert.equal(build(game,'oil-well',20,20).ok,true);
   const loaded=restoreGame(encodeGame(game));assert.ok(loaded);
-  assert.equal(loaded.industries[0].footprint,2);assert.ok(industryAt(loaded,21,21));
+  assert.equal(loaded.industries[0].footprint,3);assert.ok(industryAt(loaded,22,22));
   delete game.industries[0].footprint;
   assert.equal(industryAt(restoreGame(encodeGame(game)),21,21),null);
 });
@@ -128,4 +129,24 @@ test('new worlds have catalog-sized industrial sites and old geography recipes r
     for(const industry of game.industries){assert.equal(industry.footprint,industryFootprint(industry.kind));assert.equal(industrySiteProblem(game,industry.kind,industry.x,industry.y,industry.footprint,industry),null);}
   }
   const legacy=createGame({size:'square512',generationVersion:2});assert.equal(legacy.generationVersion,2);assert.ok(legacy.industries.every(i=>i.footprint===undefined));
+});
+test('one kind, or a supplier and its customer, keep the industry spacing apart',()=>{
+  const game=emptyGame(),far=20+INDUSTRY_SPACING;
+  assert.equal(build(game,'logging-camp',20,20).ok,true);
+  // The sawmill buys timber; spacing runs centre to centre.
+  assert.match(build(game,'sawmill',far-1,20).message,/^Too close to the Logging camp: a supplier and its customer stand \d+ tiles apart\.$/);
+  assert.equal(build(game,'sawmill',far,20).ok,true);
+  assert.equal(build(game,'logging-camp',20,far-1).message,`Another logging camp stands within ${INDUSTRY_SPACING} tiles.`);
+  assert.equal(build(game,'logging-camp',20,far).ok,true);
+  assert.equal(build(game,'oil-well',24,20).ok,true,'an unrelated industry may stand next door');
+  // A drag counts the sites it places first.
+  const quote=quoteBuildPlan(game,'farm',[{x:20,y:60},{x:30,y:60}]);
+  assert.equal(quote.ok,false);assert.equal(quote.message,`Another grain farm stands within ${INDUSTRY_SPACING} tiles.`);
+});
+test('a saved 2×2 industry grows to 3×3 once, around the ground it had',()=>{
+  const game=emptyGame();game.siteFootprintVersion=1;
+  assert.equal(build(game,'farm',20,20).ok,true);game.industries[0].footprint=2;tileAt(game,22,22).road=true;
+  const loaded=restoreGame(encodeGame(game)),farm=loaded.industries[0];
+  assert.deepEqual([farm.x,farm.y,farm.footprint,loaded.siteFootprintVersion],[19,20,3,2],'the road holds one corner, so the site grows west');
+  const again=restoreGame(encodeGame(loaded));assert.deepEqual(again.industries,loaded.industries);assert.equal(again.revision,loaded.revision);
 });

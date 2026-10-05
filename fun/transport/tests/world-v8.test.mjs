@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { generateWorld } from '../world.js';
 import { BUILDINGS, createGame, INDUSTRIES, validateGame } from '../model.js';
 import { buildingFootprint } from '../building-sites.js';
+import { INDUSTRY_SPACING, relatedIndustries } from '../industry-sites.js';
 import { groundIsFlat } from '../terrain-geometry.js';
 
 // Sparse saves regenerate their geography from the seed, so a recipe never changes once players have it:
@@ -16,9 +17,9 @@ const frozen = {
     desert: 'afe77cf7259375f0c778f83afd756347a10e230cd97baf47b68ce45bc666c546',
   },
   8: {
-    taiga: 'd554478e0503860f7bb93caa34b62912d39304baf7e0f68a4555ce92e9e8b0ad',
-    tundra: '58850809703532e02615338b68949c8606a410b77bfac419dd25101743da693c',
-    desert: 'af2432dbbb539c4f480e294492ff51b61268e3155c78d2f162d33e0dd8089ef7',
+    taiga: 'fcf270bbb33f9fb5b61823dfc1ba3c1c9435d490f00b5f7f5fe0d2e38db6a015',
+    tundra: '10903e8b91aab521c9318b76852a3580498b44875428d8251a9b3557a7569407',
+    desert: '377ae29a4e959d708d64105f7a03a14ffab840e9544d5e5f9aaf3e8c6b7ea35d',
   },
 };
 
@@ -78,6 +79,16 @@ test('recipe 8 desert greenery grows by water', () => {
   const green = tiles.flatMap((tile, i) => tile.terrain === 'grass' || tile.terrain === 'forest' ? [i] : []);
   assert.ok(green.length > 1000);
   assert.ok(green.filter(i => watered(i % width, Math.floor(i / width))).length / green.length > .9, 'nine in ten green tiles lie within ten tiles of water');
+});
+
+test('recipe 8 industries take 3 × 3 sites, and related ones keep the spacing', () => {
+  for (const biome of ['taiga', 'tundra', 'desert']) {
+    const { industries } = generateWorld(biome, 1847, 'square512', 8);
+    assert.ok(industries.every(site => site.footprint === 3), biome);
+    for (const [i, a] of industries.entries()) for (const b of industries.slice(i + 1)) {
+      if (relatedIndustries(a.kind, b.kind)) assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= INDUSTRY_SPACING, `${biome}: ${a.kind} at ${a.x},${a.y} and ${b.kind} at ${b.x},${b.y}`);
+    }
+  }
 });
 
 test('recipe 8 honours the town and district counts', () => {

@@ -14,17 +14,17 @@ function fixture(mode = 'road') {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
   assert.equal(build(game, 'sawmill', 30, 10).ok, true);
-  assert.equal(buildPath(game, mode, line(10, 30, 12)).ok, true);
+  assert.equal(buildPath(game, mode, line(10, 30, 13)).ok, true);
   const tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
-  assert.equal(build(game, tool, 10, 12).ok, true);
-  assert.equal(build(game, tool, 30, 12).ok, true);
+  assert.equal(build(game, tool, 10, 13).ok, true);
+  assert.equal(build(game, tool, 30, 13).ok, true);
   return { game, draft: { mode, cargo: 'timber', from: game.stations[0].id, to: game.stations[1].id } };
 }
 
 for (const mode of ['road', 'rail']) {
   test(`${mode} route preview checks complete bridge and tunnel connectivity without launching`, () => {
     const { game, draft } = fixture(mode), money = game.money;
-    const water = tileAt(game, 18, 12), mountain = tileAt(game, 22, 12);
+    const water = tileAt(game, 18, 13), mountain = tileAt(game, 22, 13);
     Object.assign(water, { terrain: 'water', bridge: true });
     Object.assign(mountain, { terrain: 'mountain', tunnel: true });
     game.networkRevision++;
@@ -303,9 +303,9 @@ test('a ship forecast uses the timetable of ships', () => {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
   assert.equal(build(game, 'sawmill', 30, 10).ok, true);
-  for (const point of line(10, 30, 12)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
+  for (const point of line(10, 30, 13)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
   game.revision++; game.networkRevision++;
-  for (const x of [10, 30]) assert.equal(build(game, 'port', x, 12).ok, true);
+  for (const x of [10, 30]) assert.equal(build(game, 'port', x, 13).ok, true);
   const draft = { mode: 'water', cargo: 'timber', from: game.stations[0].id, to: game.stations[1].id }, ship = getVehiclePurchase(game, 'water'), forecast = forecastRoute(game, draft);
   assert.ok(Math.abs(forecast.perVehicleDay - ship.capacity / (2 * scheduledDays('water', 20, ship.level))) < 1e-9, `${forecast.perVehicleDay}`);
 });

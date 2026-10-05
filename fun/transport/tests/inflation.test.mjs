@@ -54,8 +54,8 @@ test('all construction types and clearing surcharges use current inflation', () 
 test('delivery fares crossing New Year use the arrival year and keep pace with prices', () => {
   const game = emptyGame();
   build(game, 'logging-camp', 10, 10); build(game, 'sawmill', 30, 10);
-  buildPath(game, 'road', line(10, 30, 12));
-  build(game, 'bus-stop', 10, 12); build(game, 'bus-stop', 30, 12);
+  buildPath(game, 'road', line(10, 30, 13));
+  build(game, 'bus-stop', 10, 13); build(game, 'bus-stop', 30, 13);
   game.industries[0].inventory.timber = 100;
   const { route } = addRoute(game, { mode: 'road', cargo: 'timber', stops: game.stations.map(stop => stop.id) });
   game.day = 364.99;

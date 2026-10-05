@@ -3,7 +3,7 @@ import { BUILDINGS, residentialKind, SHOP_KINDS } from './buildings.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 import { generatedElevation } from './world-tiles.js';
 import { buildingFootprint, placeBuildingSite } from './building-sites.js';
-import { industryFootprint, industrySiteProblem } from './industry-sites.js';
+import { industryFootprint, industrySiteProblem, industrySpacingProblem } from './industry-sites.js';
 import { generateTerrainV8, levelElevation, WATER_POND } from './world-terrain-v8.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -301,7 +301,8 @@ function settle(game, biome, seed, random, config, terrain) {
 }
 
 // Industry districts: a full set of the climate's chains around one town.
-// Extraction follows its resource, factories stay just outside the towns.
+// Extraction follows its resource, factories stay just outside the towns, and
+// related sites keep the shared spacing, so each link in a chain needs a route.
 function placeIndustries(game, biome, seed, random, config, vertices) {
   const { width, height, tiles } = game;
   // Tiles no industry may take: streets, buildings, town centres and earlier sites.
@@ -378,7 +379,7 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
         const distance = Math.hypot(x - anchor.x, y - anchor.y);
         const score = habitat(kind, x, y, size) + (wanted && tile(x, y).terrain === wanted ? 25 : 0) - rough(x, y, size) * 60 - distance / scale * (extraction ? 35 : 85) + hashNoise(x, y, seed + district * 251) * 22;
         // The deposit and the full site rules only need to confirm a candidate that would win.
-        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
+        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size) && !industrySpacingProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
       };
       for (let attempt = 0; attempt < 140; attempt++) {
         const spread = extent * (extraction ? .75 + random() * 1.7 : .35 + random() * .55);

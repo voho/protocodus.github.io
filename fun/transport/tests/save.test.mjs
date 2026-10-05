@@ -139,8 +139,8 @@ test('saving during a loading wait resumes the same remaining wait and productio
 
 test('a full-load wait is kept only on a freight route that asks for full loads', () => withStorage(storage => {
   const game = emptyGame();
-  build(game, 'logging-camp', 10, 10); build(game, 'sawmill', 30, 10); buildPath(game, 'road', line(10, 30, 12));
-  for (const x of [10, 30]) build(game, 'bus-stop', x, 12);
+  build(game, 'logging-camp', 10, 10); build(game, 'sawmill', 30, 10); buildPath(game, 'road', line(10, 30, 13));
+  for (const x of [10, 30]) build(game, 'bus-stop', x, 13);
   const route = addRoute(game, { mode: 'road', cargo: 'timber', stops: game.stations.map(stop => stop.id) }).route;
   tick(game, 5);
   game.vehicles[0].fullLoadSince = 3;

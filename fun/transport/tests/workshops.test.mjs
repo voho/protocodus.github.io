@@ -266,10 +266,11 @@ test('a town source reads its stock for route status, waiting counts and the for
 test('a new sawmill may open near a town whose workshops buy lumber', () => {
   const game = emptyGame(), city = town(game, 40, 30, 'Ashford');
   assert.ok(build(game, 'logging-camp', 10, 30).ok);
-  assert.equal(openingSiteProblem(game, 'sawmill', 20, 30), 'partner');
+  assert.equal(openingSiteProblem(game, 'sawmill', 20, 30), 'spacing', 'the camp it would buy from stands too close');
+  assert.equal(openingSiteProblem(game, 'sawmill', 27, 30), 'partner');
   workshop(game, 43, 33);
   assert.equal(workshopLevels(game, city), 1);
-  assert.equal(openingSiteProblem(game, 'sawmill', 20, 30), null);
+  assert.equal(openingSiteProblem(game, 'sawmill', 27, 30), null);
 });
 
 // The review's calibration (t3.mjs): two logging camps feed a sawmill 19 tiles east of Ashford's stop, which is never refilled.
@@ -277,10 +278,11 @@ test('a new sawmill may open near a town whose workshops buy lumber', () => {
 function calibration(mode) {
   const { game, A, sa, sb } = twoTownFixture(), levels = {};
   const sawmill = build(game, 'sawmill', 43, 50).industry;
-  for (const x of [40, 47]) assert.ok(build(game, 'logging-camp', x, 60).ok);
-  for (let y = 49; y <= 61; y++) tileAt(game, 45, y).road = true;
+  // The review's camps stand closer to each other and to the mill than the industry spacing now allows.
+  for (const [n, x] of [40, 47].entries()) Object.assign(build(game, 'logging-camp', 10 + n * 20, 80).industry, { x, y: 60 });
+  for (let y = 49; y <= 61; y++) tileAt(game, 46, y).road = true;
   game.networkRevision++; game.revision++;
-  const mill = build(game, 'bus-stop', 44, 48).station, camps = build(game, 'bus-stop', 45, 59).station;
+  const mill = build(game, 'bus-stop', 44, 48).station, camps = build(game, 'bus-stop', 46, 59).station;
   for (let n = 0; n < 2; n++) assert.ok(addRoute(game, { mode: 'road', stops: [camps.id, mill.id], cargo: 'timber' }).ok);
   if (mode === 'zones') for (const [bx, by] of [[4, 7], [7, 4]]) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) assert.ok(build(game, 'industrial', A.x + bx + dx, A.y + by + dy).ok);
   else workshop(game, A.x + 4, A.y + 7);

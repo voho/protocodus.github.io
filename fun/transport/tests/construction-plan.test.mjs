@@ -340,7 +340,7 @@ test('zonePlanPoints drops what a zone can never claim and keeps other zones for
   build(game, 'house-cheap-1', 14, 10); build(game, 'logging-camp', 15, 10); build(game, 'residential', 20, 10); build(game, 'commercial', 21, 10);
   Object.assign(tileAt(game, 22, 10), { terrain: 'water' }); Object.assign(tileAt(game, 23, 10), { terrain: 'mountain' }); Object.assign(tileAt(game, 24, 10), { terrain: 'forest' });
   const kept = zonePlanPoints(game, 'residential', [...line(10, 25, 10), { x: 25, y: 10 }, { x: -1, y: 10 }]).map(p => p.x);
-  assert.deepEqual(kept, [17, 18, 19, 21, 24, 25], 'roads, a stop, rail, a town center, a house, an industry, the same zone, water and mountains are left out');
+  assert.deepEqual(kept, [18, 19, 21, 24, 25], 'roads, a stop, rail, a town center, a house, an industry, the same zone, water and mountains are left out');
   assert.equal(zonePlanPoints(game, 'commercial', [{ x: 20, y: 10 }, { x: 21, y: 10 }]).length, 1);
   assert.equal(quoteBuildPlan(game, 'residential', [{ x: 11, y: 10 }]).message, 'Choose an empty tile or clear this one first.', 'one clicked tile still gets build()’s own refusal');
 });

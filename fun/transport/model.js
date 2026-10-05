@@ -2,7 +2,7 @@ import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITI
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion, worldGenerationOptions, validGenerationOptions } from './world.js';
 import { BUILDINGS } from './buildings.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
-import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize, industryFootprint } from './industry-sites.js';
+import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySpacingProblem, industrySize, industryFootprint } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
@@ -107,7 +107,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
-    version:1, siteFootprintVersion:1, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
+    version:1, siteFootprintVersion:2, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
     money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -376,7 +376,7 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
   const siteProblem=industrySiteProblem(game,tool,x,y);if(siteProblem)return fail(siteProblem);
   if(!def.biomes.includes(game.biome))return fail(`${def.name} is unavailable in ${BIOMES[game.biome].name}.`);
   if(def.terrain&&!def.terrain.includes(t.terrain))return fail(`${def.name} needs ${listJoin(def.terrain,'or')} ground.`,'terrain');
-  return null;
+  const spacing=industrySpacingProblem(game,tool,x,y);return spacing?fail(spacing):null;
 }
 // Counting from the number of stops keeps fresh-game names; after a demolition the count moves past names still in use.
 function nextStationName(game,prefix) { const used=new Set(game.stations.map(s=>s.name));let n=game.stations.length+1;while(used.has(`${prefix} ${n}`))n++;return `${prefix} ${n}`; }
@@ -1257,7 +1257,7 @@ function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
   if(game.terrainObjectVersion!==undefined&&game.terrainObjectVersion!==1)return false;
-  if(game.siteFootprintVersion!==undefined&&game.siteFootprintVersion!==1)return false;
+  if(game.siteFootprintVersion!==undefined&&![1,2].includes(game.siteFootprintVersion))return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!validGenerationOptions(game.size,game.generationOptions)||(game.generationOptions&&!(game.generationVersion>=7)))return false;
@@ -1368,8 +1368,8 @@ export function saveGame(game) {
   try {if(typeof localStorage==='undefined')return result(false,'Saving is unavailable in this environment.');localStorage.setItem(SAVE_KEY,JSON.stringify(encodeGame(game)));return result(true,'Company saved on this device.');}
   catch{return result(false,'Could not save. Browser storage may be full or unavailable.');}
 }
-// Expand old compact art only into genuinely empty adjoining land. No relocation,
-// population changes, industry resets, or removal of a neighbor's construction.
+// Expand old compact buildings only into genuinely empty adjoining land. No relocation,
+// population changes, or removal of a neighbor's construction.
 function expandRestoredSites(game) {
   let changed=false;
   for(let index=0;index<game.tiles.length;index++){
@@ -1380,10 +1380,18 @@ function expandRestoredSites(game) {
       placeBuildingSite(game,building.kind,site.x,site.y,{size,building,exclude:site});changed=true;
     }
   }
+  if(changed)game.revision++;
+}
+// Industries outgrew their sites twice, from single tiles and then from 2 × 2 (version 2). A save from before
+// grows each smaller site to its full plot where free land allows, still covering the ground it had.
+function expandCompactIndustries(game) {
+  let changed=false;
   for(const industry of game.industries){
-    const size=industryFootprint(industry.kind);
-    if(industrySize(industry)<size&&!industrySiteProblem(game,industry.kind,industry.x,industry.y,size,industry)){
-      industry.footprint=size;releaseTerrainObjects(game,industryTiles(industry));changed=true;
+    const size=industryFootprint(industry.kind),slack=size-industrySize(industry);
+    for(let i=0;slack>0&&i<(slack+1)**2;i++){
+      const x=industry.x-i%(slack+1),y=industry.y-Math.floor(i/(slack+1));
+      if(industrySiteProblem(game,industry.kind,x,y,size,industry))continue;
+      Object.assign(industry,{x,y,footprint:size});releaseTerrainObjects(game,industryTiles(industry));changed=true;break;
     }
   }
   if(changed)game.revision++;
@@ -1392,7 +1400,7 @@ function expandRestoredSites(game) {
 export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
-    if(game.siteFootprintVersion!==1){expandRestoredSites(game);game.siteFootprintVersion=1;}
+    if(game.siteFootprintVersion!==2){if(game.siteFootprintVersion!==1)expandRestoredSites(game);expandCompactIndustries(game);game.siteFootprintVersion=2;}
     if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
     game.networkRevision??=0;
     if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;

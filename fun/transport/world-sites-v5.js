@@ -1,6 +1,9 @@
 import { INDUSTRIES } from './data.js';
 import { buildingFootprint, buildingTiles, placeBuildingSite } from './building-sites.js';
-import { industryFootprint, industrySize, industryTiles, industrySiteProblem } from './industry-sites.js';
+import { industrySize, industryTiles, industrySiteProblem } from './industry-sites.js';
+
+// These recipes sized sites before every industry took 3 × 3: producers and the lighter works had 2 × 2.
+const LARGE_INDUSTRIES = new Set(['steel-mill','food-plant','furniture-factory','machine-works','refinery','cement-works','goods-factory','equipment-factory']);
 
 // Recipe 5 allocates real plots after the unchanged natural-world recipe. A
 // temporary occupancy byte per tile keeps continental placement independent of
@@ -49,7 +52,7 @@ export function allocateGeneratedSites(game) {
   }
 
   for(const industry of game.industries) {
-    const size=industryFootprint(industry.kind);if(industrySize(industry)===size)continue;
+    const size=LARGE_INDUSTRIES.has(industry.kind)?3:2;if(industrySize(industry)===size)continue;
     mark(industryTiles(industry),0);
     const def=INDUSTRIES[industry.kind],valid=(x,y)=> {
       if(!clear(x,y,size,def.terrain?.includes('mountain')))return false;

@@ -237,7 +237,10 @@ test('a stop that already serves the source is reused and its line followed', ()
 });
 
 test('sites whose catchments overlap still get stops three tiles apart', () => {
-  const game = flat(), [farm, plant] = farmAndPlant(game, { x: 23, y: 20 }), plan = connect(game, farm, plant);
+  // Only worlds from before the industry spacing hold a farm and its plant side by side.
+  const game = flat(), [farm, plant] = farmAndPlant(game);
+  Object.assign(plant, { x: 23, y: 20 }); game.revision++;
+  const plan = connect(game, farm, plant);
   assert.equal(plan.ok, true, plan.reason); assert.ok(plan.path.length >= 3);
   launch(game, plan, 'grain');
 });
@@ -247,7 +250,7 @@ test('a walled-off buyer or a boxed-in producer has no plan', () => {
   zone(game, Array.from({ length: game.height }, (_, y) => [30, y]));
   assert.deepEqual([connect(game, farm, plant).ok, connect(game, farm, plant).reason], [false, 'no-route']);
   const boxed = flat(), [site, buyer] = farmAndPlant(boxed), cells = [];
-  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 21 || y < 20 || y > 21) cells.push([x, y]);
+  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 22 || y < 20 || y > 22) cells.push([x, y]);
   zone(boxed, cells);
   assert.equal(connect(boxed, site, buyer).reason, 'no-site');
 });
