@@ -1,11 +1,10 @@
 /* Routes: the New route form, route cards, fleets, forecasts, contracts, route picking and the vehicle card. */
-.route-dot{width:7px;height:7px;background:var(--signal);border-radius:50%;flex-shrink:0}
 .panel-form{border-top:1px solid var(--rule);padding-top:16px;margin-top:20px}
 .form-summary strong{color:var(--ink)}
 .route-earnings>span:last-child{margin-left:auto}
 .route-header .route-offline{color:var(--warn)}
 .route-card{border:1px solid var(--rule);background:var(--paper);border-radius:var(--r-3);padding:12px;margin-bottom:12px}
-.route-journey{padding:12px 0;display:flex;align-items:center;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);gap:8px}
+.route-journey{padding:12px 0;display:flex;flex-wrap:wrap;align-items:center;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);gap:4px 8px}
 .route-journey svg{flex-shrink:0;width:16px;height:16px}
 .route-stats{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:12px;font-size:var(--fs-small);line-height:var(--lh-small);align-items:center;gap:8px;color:var(--ink-2)}
 .route-earnings{display:flex;gap:4px;align-items:center;margin-top:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);flex-wrap:wrap}
@@ -168,7 +167,6 @@
 .route-edit-cancel:hover{color:var(--ink-2);text-decoration:underline}
 .coverage-pick:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .inspector .coverage-pick svg{pointer-events:none}
-.service-row .route-dot{width:9px;height:9px}
 .route-card:has(.route-health[data-state=blocked]) .route-header>span:last-child{color:var(--warn)}
 @media(max-width:700px){
  .route-pick-banner{left:12px;max-width:calc(100% - 24px);gap:8px;top:70px}

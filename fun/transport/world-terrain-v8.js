@@ -457,7 +457,7 @@ export function generateTerrainV8(biome, seed, config) {
       // Desert life clings to water: a green belt along rivers, bare sand
       // beyond, with lone Joshua trees and acacias on the dry uplands.
       const belt = near[i] * 2.4 + 1;
-      if (d < belt && (patch + fine * .3 > .55 || d < 2)) { terrain = d < belt * .55 && fine > .35 ? 'forest' : 'grass'; detail = terrain === 'forest' ? (habitat > .97 ? 'deadwood' : ['palm', 'tamarisk', 'palm', 'acacia'][Math.floor(habitat * 4)]) : d < 2 ? 'reeds' : fine > .5 ? 'desert-flowers' : 'dry-grass'; }
+      if (d < belt && (d < belt * .6 || patch + fine * .3 > .55)) { terrain = d < belt * .55 && fine > .35 ? 'forest' : 'grass'; detail = terrain === 'forest' ? (habitat > .97 ? 'deadwood' : ['palm', 'tamarisk', 'palm', 'acacia'][Math.floor(habitat * 4)]) : d < 2 ? 'reeds' : fine > .5 ? 'desert-flowers' : 'dry-grass'; }
       else if (lattice(basinDepth, x, y) > .012) detail = 'saltflat';
       else if (e > .42 && patch > .45) { if (fine > .985) { terrain = 'forest'; detail = habitat > .5 ? 'joshua' : 'acacia'; } else detail = ['cactus', 'agave', 'prickly-pear', 'aloe', 'scrub', 'scrub'][Math.floor(fine * 6)]; }
       else if (patch < .42) detail = fine > .25 ? 'dunes' : '';

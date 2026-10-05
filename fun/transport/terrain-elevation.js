@@ -37,7 +37,7 @@ export function sampleTerrainHeight(game, x, y) {
 const COLORS = {
   taiga: { low:[82,122,62], high:[128,152,92], rock:[128,131,117], wet:[66,104,70], dry:[142,144,90], sand:[190,169,119], snow:[218,225,214] },
   tundra: { low:[112,128,100], high:[156,164,139], rock:[137,145,137], wet:[81,110,100], dry:[158,143,111], sand:[179,173,145], snow:[222,229,223] },
-  desert: { low:[179,140,86], high:[214,182,129], rock:[151,130,100], wet:[127,131,86], dry:[202,163,106], sand:[216,183,129], snow:[224,220,201], oasis:[120,138,74] },
+  desert: { low:[179,140,86], high:[214,182,129], rock:[151,130,100], wet:[127,131,86], dry:[202,163,106], sand:[216,183,129], snow:[224,220,201], oasis:[110,136,70] },
 };
 function groundColor(tile, biome, variation = 0, moisture = .5) {
   const p = COLORS[biome] || COLORS.taiga, h = terrainElevation(tile)/TERRAIN_LEVELS;
@@ -47,7 +47,7 @@ function groundColor(tile, biome, variation = 0, moisture = .5) {
   const wet = clamp((moisture-.43)*.42+(tile.terrain==='forest'?.12:0)+(['marsh','reeds'].includes(tile.detail)?.38:0),0,.56)*(1-stone*.65);
   const dry = clamp((.54-moisture)*.5+Math.max(0,h-.65)*.15,0,.42)*(1-stone*.5);
   // Desert grass and woodland only grow by water: they read as green oases.
-  const oasis = p.oasis && (tile.terrain === 'grass' || tile.terrain === 'forest') ? (['marsh','reeds'].includes(tile.detail) ? .75 : .6) : 0;
+  const oasis = p.oasis && (tile.terrain === 'grass' || tile.terrain === 'forest') ? (['marsh','reeds'].includes(tile.detail) ? .82 : .7) : 0;
   const frozen = tile.terrain === 'snow' || ['glacier','ice'].includes(tile.detail) || (biome === 'tundra' && tile.detail === 'glacial');
   const alpineSnow=biome==='tundra'?clamp((h-.48)*2.15,0,.9):0;
   const surface = tile.terrain === 'sand' ? p.sand : frozen || tile.detail === 'saltflat' || alpineSnow>0 ? p.snow : null;

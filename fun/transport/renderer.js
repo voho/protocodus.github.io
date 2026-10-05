@@ -1287,7 +1287,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     // rebuilds them only when the view crosses a cell edge, not on every tile.
     const cell=16,routeBounds={x0:Math.floor(x0/cell)*cell,y0:Math.floor(y0/cell)*cell,x1:Math.ceil(x1/cell)*cell,y1:Math.ceil(y1/cell)*cell};
     const routeKey=`${routeBounds.x0},${routeBounds.y0},${routeBounds.x1},${routeBounds.y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
-    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute&&r!==focusRoute?MAP.line.dim:1);}
+    // DESIGN.md 7.4: the routes serving a selected stop, industry or town stand out; a hovered or highlighted route still wins.
+    const serving=!focusRoute&&view.servingRoutes?.length?new Set(view.servingRoutes):null;
+    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute?r!==focusRoute?MAP.line.dim:1:serving&&!serving.has(r.id)?MAP.line.dim:1,Boolean(serving?.has(r.id)));}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.
     if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}
