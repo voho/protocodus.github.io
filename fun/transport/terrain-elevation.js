@@ -37,14 +37,17 @@ export function sampleTerrainHeight(game, x, y) {
 const COLORS = {
   taiga: { low:[82,122,62], high:[128,152,92], rock:[128,131,117], wet:[66,104,70], dry:[142,144,90], sand:[190,169,119], snow:[218,225,214] },
   tundra: { low:[112,128,100], high:[156,164,139], rock:[137,145,137], wet:[81,110,100], dry:[158,143,111], sand:[179,173,145], snow:[222,229,223] },
-  desert: { low:[179,140,86], high:[214,182,129], rock:[151,130,100], wet:[127,131,86], dry:[202,163,106], sand:[216,183,129], snow:[224,220,201] },
+  desert: { low:[179,140,86], high:[214,182,129], rock:[151,130,100], wet:[127,131,86], dry:[202,163,106], sand:[216,183,129], snow:[224,220,201], oasis:[120,138,74] },
 };
 function groundColor(tile, biome, variation = 0, moisture = .5) {
   const p = COLORS[biome] || COLORS.taiga, h = terrainElevation(tile)/TERRAIN_LEVELS;
   const stone = tile.terrain === 'mountain' ? .5+h*.27 : tile.terrain === 'rock' ? .48 : 0;
-  // Moss greens stay fresh: damp hollows and dry rises tint the ground without muddying it.
-  const wet = clamp((moisture-.43)*.7+(tile.terrain==='forest'?.12:0)+(['marsh','reeds'].includes(tile.detail)?.38:0),0,.56)*(1-stone*.65);
-  const dry = clamp((.54-moisture)*.9+Math.max(0,h-.65)*.15,0,.42)*(1-stone*.5);
+  // Moss greens stay fresh: damp hollows and dry rises tint the ground gently,
+  // so broad soil moisture never reads as cloud shadows on the land.
+  const wet = clamp((moisture-.43)*.42+(tile.terrain==='forest'?.12:0)+(['marsh','reeds'].includes(tile.detail)?.38:0),0,.56)*(1-stone*.65);
+  const dry = clamp((.54-moisture)*.5+Math.max(0,h-.65)*.15,0,.42)*(1-stone*.5);
+  // Desert grass and woodland only grow by water: they read as green oases.
+  const oasis = p.oasis && (tile.terrain === 'grass' || tile.terrain === 'forest') ? (['marsh','reeds'].includes(tile.detail) ? .75 : .6) : 0;
   const frozen = tile.terrain === 'snow' || ['glacier','ice'].includes(tile.detail) || (biome === 'tundra' && tile.detail === 'glacial');
   const alpineSnow=biome==='tundra'?clamp((h-.48)*2.15,0,.9):0;
   const surface = tile.terrain === 'sand' ? p.sand : frozen || tile.detail === 'saltflat' || alpineSnow>0 ? p.snow : null;
@@ -54,6 +57,7 @@ function groundColor(tile, biome, variation = 0, moisture = .5) {
     let color = (v+(p.high[i]-v)*h)*(1-stone)+p.rock[i]*stone;
     color = color*(1-wet)+p.wet[i]*wet;
     color = color*(1-dry)+p.dry[i]*dry;
+    if (oasis) color = color*(1-oasis)+p.oasis[i]*oasis;
     return (surface ? color*(1-cover)+surface[i]*cover : color)+variation*(i===2?.75:1);
   });
 }
@@ -67,7 +71,7 @@ function soilVariation(x,y,seed) {
 }
 function soilMoisture(x,y,seed) {
   const bend=(noise(x,y,seed+659,19)-.5)*11;
-  return clamp((noise(x+bend,y+bend*.37,seed+647,10.7)-.5)*1.65+.5,0,1);
+  return clamp((noise(x+bend,y+bend*.37,seed+647,10.7)-.5)*1.15+.5,0,1);
 }
 
 // Only rasterize the requested chunk. Cost and temporary memory are independent
@@ -100,7 +104,8 @@ export function terrainReliefRaster(game, bounds, samplesPerTile = 6, { lighting
     // Continuous world-space material fields replace isolated texture stamps.
     // The same four noise samples serve every material, keeping cost bounded.
     const wx=(x0*samplesPerTile+x+.5)/samplesPerTile,wy=(y0*samplesPerTile+y+.5)/samplesPerTile;
-    const clumps=noise(wx,wy,seed+673,1.35)-.5,fine=noise(wx,wy,seed+683,.23)-.5;
+    // Six samples a tile resolve detail down to a third of a tile; finer noise only aliases into blotches.
+    const clumps=noise(wx,wy,seed+673,1.35)-.5,fine=noise(wx,wy,seed+683,.5)-.5;
     const material=noise(wx+wy*.31,wy*.77,seed+691,3.6)-.5,aggregate=noise(wx-wy*.23,wy,seed+701,.61)-.5;
     const soil=(clumps*10+fine*5+aggregate*3)*(1-snow*.6),stone=geology*(1-snow*.8)*(material*26+aggregate*11);
     const sandGrain=sand*(material*9+fine*2-clumps*2),grain=soil+stone+sandGrain;

@@ -8,6 +8,7 @@ import { expandGeneratedIndustrySites } from './industry-sites.js';
 import { allocateGeneratedSites } from './world-sites-v5.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
 import { createTerrainTile } from './world-tiles.js';
+import { generateWorldV8 } from './world-v8.js';
 export { seedNumber, randomSource, hashNoise } from './world-noise.js';
 
 export const NEW_WORLD_SIZES = {
@@ -24,8 +25,8 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 7;
-export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7;
+export const WORLD_GENERATION_VERSION = 8;
+export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= 8;
 
 // Keep complete production chains together: one district contains one of every
 // industry available in the climate. Population and industry density are
@@ -57,6 +58,13 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
   if (!validGenerationOptions(size, generationOptions) || (generationOptions && generationVersion < 7)) throw new Error('Invalid world generation options.');
   if(generationVersion>=2&&Object.hasOwn(NEW_WORLD_SIZES,size)){
     const config = generationOptions ? { ...WORLD_SIZES[size], towns: generationOptions.townCount, clusters: generationOptions.industryDistricts } : WORLD_SIZES[size];
+    if(generationVersion>=8){
+      // Recipe 8 places final footprints itself; only the grove pass is shared.
+      const world=generateWorldV8(biome,seed,size,config);
+      if (generationOptions) world.generationOptions = { ...generationOptions };
+      allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;
+      return world;
+    }
     const world=generateWorldV2(biome,seed,size,config,generationVersion>=4?{naturalRelief:true,...(generationVersion>=7?{mountainRelief:true}:{})}:undefined);
     if (generationOptions) world.generationOptions = { ...generationOptions };
     if(generationVersion>=3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=generationVersion;}

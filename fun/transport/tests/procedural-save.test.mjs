@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, tick, restoreGame, build, validateGame } from '../model.js';
 import { encodeGame, decodeGame, encodeBytes, inspectSavedGame, rememberGeneratedWorld } from '../save-codec.js';
+import { groundIsFlat } from '../terrain-geometry.js';
 
 function stableState(game) {
   const {tiles,maintenanceRevision,...state}=game;
@@ -14,7 +15,7 @@ for (const biome of ['taiga','tundra','desert']) test(`${biome}: seeded saves pr
   assert.equal(pristine.format,'transport-procedural-v1');
   assert.equal(pristine.tiles.count,0);
   tick(game,45.25);
-  const site=game.tiles.findIndex(tile=>!tile.road&&!tile.building&&tile.terrain==='grass');
+  const site=game.tiles.findIndex((tile,index)=>!tile.road&&!tile.building&&tile.terrain==='grass'&&groundIsFlat(game,index%game.width,Math.floor(index/game.width)));
   assert.equal(build(game,'road',site%game.width,Math.floor(site/game.width)).ok,true);
   const tile=game.tiles[17];
   Object.assign(tile,{terrain:'grass',elevation:.123456789,detail:'future-detail',variant:42,publicRoad:false,building:null,zone:null,ecology:{age:19,species:['a','b']}});

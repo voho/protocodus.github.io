@@ -286,7 +286,7 @@ test('first cargo suggestions skip producers that no stop can ever reach and off
 });
 
 test('the first route card offers a planned line until the two ends are joined', () => {
-  const game=createGame({biome:'taiga',seed:1847});
+  const game=createGame({biome:'taiga',seed:1847,generationVersion:7});
   assert.equal(nextProject(game).plan,'road','the quarry and Alderbrook are not joined yet');
   assert.equal(buildPlan(game,'road',Array.from({length:7},(_,n)=>({x:219,y:251-n}))).ok,true);assert.equal(build(game,'bus-stop',219,251).ok,true);
   const project=nextProject(game);

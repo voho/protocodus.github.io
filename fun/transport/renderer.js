@@ -58,6 +58,7 @@ const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zone
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
 // Map marks in display pixels (DESIGN.md 8 and 9): roundel radius per view, and one tile step of a route's projected path.
 const ROUNDEL={region:4,town:5,detail:6},PATH_STEP=Math.hypot(TILE,TILE/2);
+const FLOATER_FORMAT=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
 const font=(weight,size)=>`${weight} ${size}px ${FONT.family}`;
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 function line(ctx,points,color,width=1){ctx.beginPath();points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();}
@@ -1054,7 +1055,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Paid deliveries rise above their stop and fade. Region sums each 3×3-tile cell into one figure
     // and keeps the full screen offset, because vehicle load badges do not shrink with the map. An airport's figure starts
     // above its sign, which stands over the terminal.
-    const region=detailLevel==='region',still=Boolean(motionPreference?.matches),shown=new Map(),format=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
+    const region=detailLevel==='region',still=Boolean(motionPreference?.matches),shown=new Map(),format=FLOATER_FORMAT;
     for(const f of floaters){
       const t=(now-f.born)/1600;if(!(t>=0&&t<1)||!visible(f.x,f.y))continue;
       const key=region?Math.floor(f.x/3)+','+Math.floor(f.y/3):f,group=shown.get(key);
@@ -1210,7 +1211,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(lazyChunksWaiting&&options.onInvalidate)queueMicrotask(options.onInvalidate);
     // Water keeps one horizontal plane while land rises above it.
     ctx.save();groundTransform(ctx);
-    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&[tile(x,y-1),tile(x,y+1)].filter(n=>n?.terrain==='water').length>[tile(x-1,y),tile(x+1,y)].filter(n=>n?.terrain==='water').length;drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
+    const wet=(x,y)=>tile(x,y)?.terrain==='water'?1:0;
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&wet(x,y-1)+wet(x,y+1)>wet(x-1,y)+wet(x+1,y);drawWaterMotion(ctx,x,y,river,vertical,game.day||0,game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))drawShipWake(ctx,v,(game.day||0)*1000,detailLevel);}
     ctx.restore();
     if(showGrid){
@@ -1237,10 +1239,10 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
-        const drawing=new Path2D(),ranges=[];let previous=-1,count=0,segments=0;
-        for(const[start,end]of index.spatial.query({x0,y0,x1,y1}))for(let i=start;i<=end;i++){
+        const drawing=new Path2D(),ranges=[],{x0:bx0,y0:by0,x1:bx1,y1:by1}=routeBounds;let previous=-1,count=0,segments=0;
+        for(const[start,end]of index.spatial.query(routeBounds))for(let i=start;i<=end;i++){
           const a=path[i-1],b=path[i];segments++;
-          if(Math.max(a.x,b.x)<x0||Math.min(a.x,b.x)>=x1||Math.max(a.y,b.y)<y0||Math.min(a.y,b.y)>=y1){previous=-1;continue;}
+          if(Math.max(a.x,b.x)<bx0||Math.min(a.x,b.x)>=bx1||Math.max(a.y,b.y)<by0||Math.min(a.y,b.y)>=by1){previous=-1;continue;}
           if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);ranges.push([i,i]);}else ranges[ranges.length-1][1]=i;
           const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);previous=i;count++;
         }
@@ -1266,7 +1268,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     function flowChevrons(r,ranges,core,color){
       const path=r.path,z=camera.zoom,gap=MAP.line.chevronGap/z,shift=(game.day||0)*14/z%gap,arm=core*.28/z,reach=core*.28/z;ctx.beginPath();
       for(const [first,last] of ranges)for(let s=Math.ceil(((first-1)*PATH_STEP-shift)/gap)*gap+shift;s<last*PATH_STEP;s+=gap){
-        const i=Math.floor(s/PATH_STEP),t=s/PATH_STEP-i,a=path[i],b=path[i+1];if(!a||!b)continue;
+        const i=Math.floor(s/PATH_STEP),t=s/PATH_STEP-i,a=path[i],b=path[i+1];if(!a||!b||Math.max(a.x,b.x)<x0-1||Math.min(a.x,b.x)>x1||Math.max(a.y,b.y)<y0-1||Math.min(a.y,b.y)>y1)continue;
         const mid=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),from=t<.5?transportPoint(a.x,a.y,r.mode):mid,to=t<.5?mid:transportPoint(b.x,b.y,r.mode),u=t<.5?t*2:t*2-1;
         const dx=to.x-from.x,dy=to.y-from.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,x=from.x+dx*u,y=from.y+dy*u;
         ctx.moveTo(x-ux*reach-uy*arm,y-uy*reach+ux*arm);ctx.lineTo(x+ux*reach,y+uy*reach);ctx.lineTo(x-ux*reach+uy*arm,y-uy*reach-ux*arm);
@@ -1281,7 +1283,10 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.globalAlpha=fade*MAP.line.haloAlpha;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=(core+MAP.line.halo)/z;ctx.stroke();
       ctx.globalAlpha=fade;ctx.lineCap='butt';ctx.setLineDash([4/z,3/z]);ctx.strokeStyle=MAP.cut.color;ctx.lineWidth=core/z;ctx.stroke();ctx.setLineDash([]);
     }
-    const routeKey=`${x0},${y0},${x1},${y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
+    // Route lines are projected for the view rounded out to 16-tile cells, so panning
+    // rebuilds them only when the view crosses a cell edge, not on every tile.
+    const cell=16,routeBounds={x0:Math.floor(x0/cell)*cell,y0:Math.floor(y0/cell)*cell,x1:Math.ceil(x1/cell)*cell,y1:Math.ceil(y1/cell)*cell};
+    const routeKey=`${routeBounds.x0},${routeBounds.y0},${routeBounds.x1},${routeBounds.y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
     if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute&&r!==focusRoute?MAP.line.dim:1);}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.

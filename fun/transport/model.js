@@ -16,6 +16,7 @@ import { propertyAt, propertySector, SALE_SHARE } from './town-market.js';
 import { nearbyCities, nearbyIndustries, nearbyStations, nearbyZones } from './simulation-spatial.js';
 import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, validRouteNumber } from './route-lines.js';
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
+import { noteSurfaceChanges } from './change-journal.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
 import { evaluateMilestones, validMilestones } from './milestones.js';
 import { stepContracts, contractBonus, validContracts } from './contracts.js';
@@ -220,6 +221,9 @@ export function findPath(game,from,to,mode='road') {
   return path.reverse();
 }
 function invalidateNetwork(game,points){const previous=game.networkRevision||0;game.revision++;game.networkRevision=previous+1;updateNetworkIndex(game,points,previous);noteNetworkChanges(game,points,previous);}
+// Accounts, fleets and names change no map cell. Their revision step is journaled as an
+// empty surface change, so view caches keep their terrain, scenery and vertex heights.
+function noteBookkeeping(game){const from=game.revision||0;game.revision=from+1;noteSurfaceChanges(game,from,game.revision,[]);}
 // Construction undo rewrites tiles outside build() and advances the same revisions.
 export function invalidateNetworkPoints(game,points){invalidateNetwork(game,points);}
 // Towns lay their own streets as upkeep-free public roads; one revision covers every town's day.
@@ -632,7 +636,7 @@ export function upgradeRouteVehicle(game,routeId) {
   const nouns=vehicleNoun(route.mode,route.cargo,2);
   if(!quote.available)return result(false,`${capital(nouns)} on this route are up to date.`);
   if(!quote.affordable)return result(false,`Need ${moneyText(quote.cost)} to upgrade the ${nouns} on this route.`);
-  spend(game,quote.cost);applyVehicleUpgrade(game,route,quote.targetLevel);game.revision++;
+  spend(game,quote.cost);applyVehicleUpgrade(game,route,quote.targetLevel);noteBookkeeping(game);
   return result(true,`${capital(nouns)} on ${route.name} upgraded to the ${vehicleModel(route.mode,route.cargo,quote.targetLevel).name}.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
@@ -643,7 +647,7 @@ export function upgradeFleet(game) {
   // Preflight the whole price, then change all vehicles in one transaction.
   spend(game,quote.cost);
   for(const upgrade of quote.routes)applyVehicleUpgrade(game,fleetIndex(game).routeById.get(upgrade.routeId),quote.targetLevel);
-  game.revision++;
+  noteBookkeeping(game);
   return result(true,`${capital(count(quote.count,'vehicle'))} upgraded to the ${modelYear(quote.targetLevel)} models.${spent(quote.cost)}`,{cost:quote.cost,upgrade:quote});
 }
 
@@ -717,7 +721,7 @@ function renameEntry(game,entry,name) {
   if(!next)return result(false,'Enter a name.');
   if(next.length>NAME_LENGTH)return result(false,`Keep names to ${NAME_LENGTH} characters.`);
   if(next===entry.name)return result(false,'That is already its name.');
-  entry.name=next;game.revision++;
+  entry.name=next;noteBookkeeping(game);
   return result(true,`Renamed to ${next}.`);
 }
 export function renameStation(game,id,name) { const station=game.stations.find(s=>s.id===id);return station?renameEntry(game,station,name):result(false,'Stop not found.'); }
@@ -756,7 +760,7 @@ export function addRouteVehicle(game,routeId) {
   const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:route.mode==='air'&&stop>=0?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
   // A plane flies the straight chord: one started mid-flight appears at its place in the air.
   placeVehicle(route,vehicle);
-  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);game.revision++;
+  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);noteBookkeeping(game);
   return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
 }
 export function sellRouteVehicle(game,routeId) {
@@ -764,7 +768,7 @@ export function sellRouteVehicle(game,routeId) {
   const vehicles=index.vehiclesByRoute.get(route.id)||[];
   if(vehicles.length<=1)return result(false,`A route keeps at least one ${vehicleNoun(route.mode,route.cargo)}. Retire the route to sell its last one.`);
   const vehicle=sellCandidate(vehicles),refund=saleValue(route,vehicle);
-  game.vehicles=game.vehicles.filter(v=>v!==vehicle);game.money+=refund;game.revision++;
+  game.vehicles=game.vehicles.filter(v=>v!==vehicle);game.money+=refund;noteBookkeeping(game);
   return result(true,`${capital(vehicleNoun(route.mode,route.cargo))} sold from ${route.name}. ${moneyText(refund)} refunded.`,{vehicle,refund});
 }
 // Full load, Transport Tycoon's order: optional, off for every route and for freight only. A vehicle that reaches the
@@ -781,7 +785,7 @@ export function setRouteFullLoad(game,routeId,on) {
   const index=fleetIndex(game),nouns=capital(vehicleNoun(route.mode,route.cargo,2)),start=index.stationById.get(route.stops[0]);
   route.fullLoad=on;
   if(!on)for(const vehicle of index.vehiclesByRoute.get(route.id)||[])if(waitingForFullLoad(vehicle))vehicle.fullLoadSince=null;
-  game.revision++;
+  noteBookkeeping(game);
   return result(true,on?`${nouns} on ${route.name} wait at ${start?.name||'their first stop'} for a full load, for a month at most.`:`${nouns} on ${route.name} leave as soon as they have loaded.`,{route});
 }
 function journeyContext(game) {
@@ -1180,14 +1184,14 @@ export function loanTerms(game) {
 export function borrow(game) {
   const {loan,borrow:amount}=loanTerms(game);
   if(amount<=0)return result(false,'Your credit line is fully used.');
-  game.loan=loan+amount;game.money+=amount;game.revision++;
+  game.loan=loan+amount;game.money+=amount;noteBookkeeping(game);
   return result(true,`Borrowed ${moneyText(amount)}. Interest is ${moneyText(Math.round(game.loan*LOAN_MONTHLY_RATE))} a month.`,{amount});
 }
 export function repay(game) {
   const {loan,repay:amount}=loanTerms(game);
   if(loan<=0)return result(false,'No loan to repay.');
   if(game.money<amount)return result(false,`Need ${moneyText(amount)} to repay.`);
-  game.money-=amount;game.loan=loan-amount;if(!game.loan)delete game.loan;game.revision++;
+  game.money-=amount;game.loan=loan-amount;if(!game.loan)delete game.loan;noteBookkeeping(game);
   return result(true,game.loan?`Repaid ${moneyText(amount)}. ${moneyText(game.loan)} still owed.`:`Repaid ${moneyText(amount)}. Your loan is cleared.`,{amount});
 }
 // Closing December sums the year's months; the best route earned the most this year (its profitThisYear, before the rollover).
