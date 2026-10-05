@@ -421,10 +421,12 @@ try {
   assert.equal(moved.name, 'Stone quarry to Pinehaven', 'a default name follows its stops');
   assert.match(await stoneCard.locator('.route-journey').textContent(), /Pinehaven Central$/, 'the card journey shows the new end');
   assert.equal(await editPage.locator('#route-planner').evaluate(element => element.open), false, 'saving folds the planner');
-  // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead.
+  // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead: the nearest site the stop covers
+  // that keeps the industry spacing from the region's own refinery and machine works.
   const fuelMoney = await editPage.evaluate(async start => {
-    const { build, buildProblem } = await import('./model.js'), game = transport.game, stop = game.stations.find(station => station.id === start);
-    const site = [[-1, 1], [0, 2], [1, 2], [-5, 2]].find(([dx, dy]) => !buildProblem(game, 'refinery', stop.x + dx, stop.y + dy));
+    const { build, buildProblem } = await import('./model.js'), { industryDistance } = await import('./industry-sites.js'), game = transport.game, stop = game.stations.find(station => station.id === start), sites = [];
+    for (let dy = -7; dy <= 5; dy++) for (let dx = -7; dx <= 5; dx++) if (industryDistance({ x: stop.x + dx, y: stop.y + dy, footprint: 3 }, stop) <= 5) sites.push([dx, dy]);
+    const site = sites.sort((a, b) => Math.hypot(...a) - Math.hypot(...b)).find(([dx, dy]) => !buildProblem(game, 'refinery', stop.x + dx, stop.y + dy));
     if (!site || !build(game, 'refinery', stop.x + site[0], stop.y + site[1]).ok) throw new Error('No room for a refinery by the quarry stop');
     transport.setView('routes');
     return game.money;
