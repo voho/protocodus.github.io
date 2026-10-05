@@ -25,7 +25,8 @@ try {
     });
     for (const biome of ['taiga', 'tundra', 'desert']) {
       const scenes = await page.evaluate(biome => {
-        const q = isoQA, game = q.createGame({ biome, seed: 1847, size: 'square512' }); q.game = game;
+        // Recipe 7, like the other fixtures: the scenes it searches for were written against its worlds.
+        const q = isoQA, game = q.createGame({ biome, seed: 1847, size: 'square512', generationVersion: 7 }); q.game = game;
         if (q.renderer) q.renderer.setGame(game); else q.renderer = q.createRenderer(q.canvas, game, { layers: { names: false, industryIcons: false, routes: false, vehicleLoads: false } });
         const best = { forest: { score: -Infinity }, coast: { score: -Infinity } };
         for (let y = 24; y < game.height - 24; y += 12) for (let x = 24; x < game.width - 24; x += 12) {

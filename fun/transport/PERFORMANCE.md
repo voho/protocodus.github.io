@@ -309,3 +309,30 @@ The Layers check patches 512² and 2048² worlds through 12 ecology days, one jo
 ```sh
 node fun/transport/tests/layers-browser-check.mjs
 ```
+
+## Bookkeeping revisions and route paths
+
+Renaming, buying, selling or upgrading vehicles, the full-load switch, borrowing and repaying bump `game.revision` without touching a tile. They used to take the full path of a construction revision, rebuilding the scene and fingerprinting every visible chunk. They now journal an empty surface change, so the renderer keeps its scene, chunks and route paths and only redraws.
+
+Route lines are projected for the visible area rounded out to 16-tile cells and cached by those bounds. The key used to be the exact visible rectangle, so every pan of a tile rebuilt every visible route path; a pan now rebuilds them only when the view crosses a cell edge. Direction chevrons skip segments outside the view before positioning them, river flow compares neighbour counts without building arrays, delivery floaters share one number formatter, and `transportHeight` no longer allocates per call.
+
+Town streets add sidewalks to the ground chunks, which are cached as before, and up to one lamp and one bin per street tile to the scene, skipped at Region zoom. The cached/fresh scene regression and the rendering budgets pass with them.
+
+```sh
+node fun/transport/tests/scene-cache-browser-check.mjs
+node fun/transport/tests/rendering-performance-browser-check.mjs
+```
+
+## Recipe 8 generation
+
+Recipe 8 adds drainage, lake basins, river tracing, valley carving and town levelling, so it costs about twice recipe 7. Generation runs in the world worker like every recipe, so the menu stays responsive; the extra time is spent behind the loading screen, and a procedural save pays it again when it regenerates its baseline on load. The town-site search reads a per-tile level array instead of tile objects, and the industry search checks a site's deposit only when it would win; every generated world stays identical (fingerprints of recipe 8 before and after).
+
+Medians in Node for taiga seed 1847 through `createGame` (five runs, three at 2048²):
+
+| Map | Recipe 7 | Recipe 8 |
+| --- | ---: | ---: |
+| 512² | 255 ms | 459 ms |
+| 1024² | 637 ms | 1,222 ms |
+| 2048² | 2,140 ms | 3,961 ms |
+
+The two search changes took recipe 8's 2048² terrain-and-towns pass (`generateWorldV8`) from 3,764 to 3,453 ms, with the parks, sports grounds and halls the towns now also place.
