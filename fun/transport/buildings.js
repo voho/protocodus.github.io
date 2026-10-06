@@ -2,7 +2,7 @@
 export const BUILDING_GROUPS = {
   homes: { name: 'Homes', description: 'Three tiers. Nine distinct places to call home.' },
   community: { name: 'Community', description: 'The landmarks that give a town its character.' },
-  shops: { name: 'Shops', description: 'Five small businesses for a lively high street.' },
+  shops: { name: 'Shops', description: 'High-street businesses and larger shopping centres.' },
   services: { name: 'Services', description: 'Everyday services, from a letter to a night away.' },
 };
 export const BUILDINGS = {
@@ -32,10 +32,20 @@ export const BUILDINGS = {
   'service-hotel': { footprint: 2, name: 'Hotel', group: 'services', cost: 21000 },
   'service-garage': { footprint: 2, name: 'Garage', group: 'services', cost: 9000 },
   'service-barber': { footprint: 1, name: 'Barber', group: 'services', cost: 6500 },
+  'park-village': { footprint: 2, name: 'Village green', group: 'community', tier: 'Parks', cost: 6000, amenity: 1.6, naturalCover: .8, buildOnly: true },
+  'park-formal': { footprint: 2, name: 'Formal gardens', group: 'community', tier: 'Parks', cost: 10000, amenity: 2.1, naturalCover: .7, buildOnly: true },
+  'park-woodland': { footprint: 3, name: 'Woodland park', group: 'community', tier: 'Parks', cost: 14000, amenity: 2.5, naturalCover: 1, buildOnly: true },
+  'mall-neighborhood': { footprint: 2, name: 'Neighbourhood shopping centre', group: 'shops', tier: 'Shopping centres', cost: 12000, shopUnits: 4, outlets: { food: 2, household: 2 }, buildOnly: true },
+  'mall-shopping': { footprint: 3, name: 'Shopping mall', group: 'shops', tier: 'Shopping centres', cost: 40000, shopUnits: 8, outlets: { food: 4, household: 4 }, buildOnly: true },
+  'mall-modern': { footprint: 3, name: 'Modern shopping mall', group: 'shops', tier: 'Shopping centres', cost: 60000, shopUnits: 12, outlets: { food: 6, household: 6 }, buildOnly: true },
 };
-export const RESIDENTIAL_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].group === 'homes');
-export const SHOP_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].group === 'shops');
-export const SERVICE_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].group === 'services');
-export const COMMUNITY_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].group === 'community');
+// New player projects must not alter the original town generator or save recipes.
+export const PROCEDURAL_BUILDING_KINDS = Object.keys(BUILDINGS).filter(k => !BUILDINGS[k].buildOnly);
+export const RESIDENTIAL_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'homes');
+export const SHOP_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'shops');
+export const SERVICE_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'services');
+export const COMMUNITY_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'community');
+export const PARK_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].naturalCover);
+export const MALL_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].outlets);
 export function residentialKind(variant = 0, level = 1) { return RESIDENTIAL_KINDS[(Math.max(1,Math.min(3,Math.floor(level))) - 1) * 3 + Math.abs(Math.floor(variant)) % 3]; }
 export function commercialKind(variant = 0, level = 1) { return (level > 1 ? SERVICE_KINDS : SHOP_KINDS)[Math.abs(Math.floor(variant)) % 5]; }

@@ -1,0 +1,59 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "request": "Houses smaller relative to trucks/buses; a garden and fence for every house; two physical orientations.",
+  "orientation": 0,
+  "frontEntranceDirection": "lower-left projected street axis",
+  "scaleIntent": "Architecture including roofs about40–50%of fullplotwidth, leaving broad open foregroundgarden; affordable home ~8m vs fullsizebus~12m. Fullplot footprint remains unchanged.",
+  "operations": [
+    {
+      "phase": "full-garden-scale-regeneration",
+      "prompt": "Production edit for a town-building game: the supplied transparent 3x3 atlas establishes the nine house identities and material style. Regenerate ALL NINE with corrected physical scale and a generous garden around EVERY house, including all three family houses and all three prestige houses. This change is essential: the HOUSE STRUCTURE ITSELF must occupy only 40–50% of each COMPLETE fenced plot WIDTH, currently it fills about80%. Each house must therefore look about half as wide compared with its own full plot. Broad usable gardens and grassy yards must occupy more than half the plot area, with large OPEN FOREGROUND SPACE, and visible garden on two sides. Do not shrink the full plot: full perimeter garden+fence silhouette keeps its same generous width. Roof and masonry smaller, garden plot remains broad. Compact cottages have believable physical8m scale so the game can show a12m bus longer than their facade. Mansion architecture somewhat larger than cottage but still modest and with substantial yard. TWO-FACADE orthographic 2:1 dimetric camera exactly as reference: upright walls, all ground/fence/path edges parallel to±26.565degrees, no perspective, fixed top-left daylight. This is orientation0: the front facade, entrance door, gate and path face the LOWER-LEFT projected street axis. Nine different low garden boundaries with an open front gate and stepping-stone path across the garden to the front door. The houses are set back toward the REAR/UPPER portion of their own plot, so the foreground garden is generous and unobstructed. Retain the identifiable architecture and exact ordering: TOPROW left cream-plaster cottage with terracotta gable roof and pale picket fence, center timber cabin with gray slate gable roof and rustic split-rail fence with a vegetable bed, right red-brick terrace cottage with terracotta gable roof and dark iron fence. MIDDLEROW left cream two-storey gabled family house with slate roof and a bay window, fenced open lawn and little flowerbed; center dignified two-storey square brick villa with muted green-gray hipped roof, low iron fence and broad lawn/flower borders; right cream one-storey garden bungalow with weathered terracotta hipped roof, short porch and low timber fence, lavendergarden. BOTTOMROW left pale stone country manor with slate roof/chimneys/dormers, elegant low timber/stone fence and broad trimmed grass with small formal hedges; center narrow taller brick grand townhouse with charcoal mansard/dormers, low wrought-iron fence enclosing a substantial garden; right two-storey cream courtyard villa with terracotta roofs and identifiable inner courtyard, low plaster-and-iron boundary enclosing open outer garden. Keep houses readable and artistically detailed but much smaller within their plots. All plots detailed yet understated: uneven mossy grass tufts, varied cut lawn, realistic soil and restrained little flowerbeds, small shrubs, fenceposts, hinges and stone path seams. Quiet earthy painted miniature materials, restrained weathering, dark glass, no saturated-neon greens, limited softflowers. No talltrees. EACH complete plot isolated and safely centered within its equally sized cell; leave wide REAL transparent gutters and outer margins, with9separate complete non-touching cutouts. Genuine alpha beyond irregular planted boundary, no opaque rectangular cards or giant raised foundation platforms. Square3x3sheet. No numbers, labels, text, signs, people, logo, checkerboard or colored outlines.",
+      "reference": "taiga/house-atlas.png (initial 2026-10-05 regeneration)",
+      "generatedSource": "/workspace/generated_images/exec-3953eb57-9cf2-4538-b837-1238525c549b.png",
+      "accepted": false,
+      "reason": "Gardens/fences correct; family/prestige structures still needed further reduction."
+    },
+    {
+      "phase": "family-prestige-scale-correction",
+      "prompt": "Precise edit target: supplied transparent3x3 house-and-garden atlas. The full plots, gardens, fences, gates and paths are very good; KEEP all9 complete plots exactly their existing fullwidth, perimeter geometry, materials and positions. Correct remaining oversize houses. KEEP TOPROW three affordable cottage/cabin/terrace building sizes unchanged because those already occupy45%of full plotwidth. In EVERY MIDDLE ROW and BOTTOM ROW cell, make ONLY THE HOUSE STRUCTURE 80% of its current width,height anddepth. This includes roofs, chimney, walls and their architecture, which must be uniformly smaller relative to their own unchanged full gardenplot. The widest courtyard-villa structure bottomright needs especially clear reduction to75%currentwidth; it must fit inside50% of overall plotwidth, outside yard doubles its footprint in width. Move all six resized houses back toward the upper/rear plot while keeping a path from original lower-left gate to its frontdoor. Fill the gained garden space naturally with muted open grass, no new tree. All six family/prestige structures have maximum50%of FULL fence-boundary width. Keep their detailed identities, same fixed two-facade 2:1dimetriccamera, vertical walls, original lighting and muted material families. No crop or deleting building features; scale entire architecture consistently. Do NOT scale gardens, fences, plots or paths or reduce their outerdimensions. Nine complete non-touching transparent cutouts, same3x3ordering, realalpha, wide transparent gutters. No background, labels,numbers,text,people,checkerboard,rectanglecards,glow or talltrees. The visible difference is substantially smaller structures within exactly as broad gardens.",
+      "reference": "/workspace/generated_images/exec-3953eb57-9cf2-4538-b837-1238525c549b.png",
+      "generatedSource": "/workspace/generated_images/exec-a8a728d7-db42-472e-8c39-f75d5b54bf79.png",
+      "source": "taiga/source-scale-gardens-2026-10-05.png",
+      "registered": "taiga/source-scale-gardens-2026-10-05-packed.png",
+      "accepted": true,
+      "meaningfulPixelsPreserved": 674438
+    },
+    {
+      "phase": "tundra-climate-edit",
+      "prompt": "Edit this exact gardened residential atlas into its TUNDRA winter variant. This is the newly corrected small-building scale: each HOUSE STRUCTURE, including roof, occupies only40–50%of its broad fenced fullplot. Preserve the exact small architectural dimensions, the generous open foreground gardens, every lowfence, gate and gate-to-door path; do NOT enlarge any house. Front facade, frontdoor and garden gate face the lower-left projected street axis. Keep all9 original architectural identities, same3x3gridcells, camera, placement and relative dimensions. Snow settles in patchy natural accents on roofs, chimneys, fencepostcaps, shrubtops and garden borders; retain visible gray slate, terracotta and brick/plaster/timber, all windows readable and dark. Lawn is mottled pale snow with dormant wintergrass and little frosted low shrubs; keep long entrypaths mostly cleared. Do not make thick raised white slabs. Maintain fixed orthographic two-facade2:1dimetriccamera, verticalwalls and groundedges at±26.565degrees, northwestdaylight, highly detailed hand-painted realistic miniature textures, quiet colors. Garden plots remain fully separate, all9complete fullfences and houses safely inside owncell with generous trulytransparent gutters and outerpadding. Genuinealpha transparency outside softly irregular planted boundary. No text,labels,checkerboard,backgroundcards,people,talltrees,detached debris. Square transparent3x3production atlas. No architectural resizing, no house arrangement changes.",
+      "reference": "taiga/house-atlas.png (corrected scale and fullgarden)",
+      "generatedSource": "/workspace/generated_images/exec-a98b2699-2ca0-424b-8c1f-be1b73c52218.png",
+      "source": "tundra/source-scale-gardens-2026-10-05.png",
+      "registered": "tundra/source-scale-gardens-2026-10-05-packed.png",
+      "accepted": true,
+      "meaningfulPixelsPreserved": 554761
+    },
+    {
+      "phase": "desert-climate-edit",
+      "prompt": "Edit this exact gardened residential atlas into its dry DESERT variant. This is the newly corrected small-building scale: each HOUSE STRUCTURE, including roof, occupies only40–50%of its broad fenced fullplot. Preserve the exact small architectural dimensions, the generous open foreground gardens, every lowfence, gate and gate-to-door path; do NOT enlarge any house. Front facade, frontdoor and garden gate face the lower-left projected street axis. Keep all9 original architectural identities, same3x3gridcells, camera, placement and relative dimensions. Weathered warm creamplaster/sandstone, softly dusty redbrick/timber, pale roofdust while preserving gray-slate and terracotta roofcolors. Replace lushlawn with broad open sandygravel xeriscape foregroundyards, tiny tufted tawnygrasses, restrained sage/agave/succulents and low dustyoliveshrubs along boundaries. All9 have distinct believable aridgardens, little terracottapots and clear long stoneentrypaths fromfrontgate todoor. No greenlawn or snow. Maintain fixed orthographic two-facade2:1dimetriccamera, verticalwalls and groundedges at±26.565degrees, northwestdaylight, highly detailed hand-painted realistic miniature textures, quiet mutedcolors. Garden plots remain fully separate, all9complete fullfences and houses safely inside owncell with generous trulytransparent gutters and outerpadding. Genuinealpha transparency outside softly irregular planted boundary. No thickopaque sandy slabs, text,labels,checkerboard,backgroundcards,people,talltrees,detached debris. Square transparent3x3production atlas. No architectural resizing, no house arrangement changes.",
+      "reference": "taiga/house-atlas.png (corrected scale and fullgarden)",
+      "generatedSource": "/workspace/generated_images/exec-7e2c8a57-49eb-4a8f-a678-99e8af3a35c2.png",
+      "source": "desert/source-scale-gardens-2026-10-05.png",
+      "registered": "desert/source-scale-gardens-2026-10-05-packed.png",
+      "accepted": true,
+      "meaningfulPixelsPreserved": 613307
+    }
+  ],
+  "packing": "Original RGBA silhouettes losslessly registered via prepare-building-atlas.py; build-house-atlases.py normalizes fullplots and independently filters each transparent cell to256/128/64/32/16. These tools copy/crop/scale artwork without repainting.",
+  "runtimeDensities": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "primaryHouseCount": 27,
+  "allKindsHaveGardenFenceGateAndPath": true
+}
+

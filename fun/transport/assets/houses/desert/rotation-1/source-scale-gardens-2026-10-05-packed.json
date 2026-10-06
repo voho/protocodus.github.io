@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 678311,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        23,
+        108,
+        426,
+        432
+      ],
+      "offset": [
+        118,
+        158
+      ],
+      "pixels": 67702
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        438,
+        113,
+        845,
+        432
+      ],
+      "offset": [
+        116,
+        160
+      ],
+      "pixels": 69898
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        866,
+        123,
+        1254,
+        432
+      ],
+      "offset": [
+        126,
+        165
+      ],
+      "pixels": 65997
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        24,
+        474,
+        460,
+        822
+      ],
+      "offset": [
+        102,
+        146
+      ],
+      "pixels": 82076
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        453,
+        483,
+        854,
+        812
+      ],
+      "offset": [
+        119,
+        155
+      ],
+      "pixels": 75879
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        865,
+        492,
+        1254,
+        812
+      ],
+      "offset": [
+        125,
+        160
+      ],
+      "pixels": 71494
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        13,
+        855,
+        448,
+        1213
+      ],
+      "offset": [
+        102,
+        141
+      ],
+      "pixels": 85492
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        443,
+        857,
+        852,
+        1201
+      ],
+      "offset": [
+        115,
+        148
+      ],
+      "pixels": 80863
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        858,
+        872,
+        1254,
+        1211
+      ],
+      "offset": [
+        122,
+        150
+      ],
+      "pixels": 78910
+    }
+  ]
+}

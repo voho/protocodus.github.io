@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-10-05",
+  "generator": "OpenAI image_gen.imagegen",
+  "projection": "overhead ground material, warped through the existing terrain mesh",
+  "materials": [
+    {
+      "id": "meadow",
+      "source": "generated/meadow-source-2026-10-05.png",
+      "original": "/workspace/generated_images/exec-77c9c1a0-fe5c-40dd-88c6-7b5d07f53c02.png",
+      "description": "Seamless top-down finely detailed olive meadow: short grass, moss, straw, broken exposed earth and sparse pebble grit. Painterly realistic strategy-game material with shallow surface shading. No buildings, trees or upright scenery."
+    },
+    {
+      "id": "scree",
+      "source": "generated/scree-source-2026-10-05.png",
+      "original": "/workspace/generated_images/exec-da219363-ac32-4d93-a1e7-7720cd9b9cb5.png",
+      "description": "Seamless top-down finely detailed gray-olive alpine mineral ground: angular stone chips, gravel, weathered rock, olive moss and lichen in crevices. Painterly realistic strategy-game material with shallow surface shading. No large boulders or upright scenery."
+    }
+  ],
+  "shipping": {
+    "cellPixels": [16, 32, 64, 128, 256],
+    "normalization": "ImageMagick resize to square shipping density and strip redundant metadata; retained generated source originals above.",
+    "repeatWorldPixels": 128,
+    "biomeTreatment": "Small fixed-size tinted material bank for taiga, tundra and desert. Meadow, scree, sand and snow treatments retain the ground relief color underneath, with 7-world-pixel feathered boundaries and seeded irregular multi-cell moss patches on scree.",
+    "cache": "At most 12 prepared 256-square RGBA surfaces (3 MiB), 12 softly feathered 128-square moss stamps (768 KiB), and shared scratch surfaces capped by the existing padded chunk size (about 4 MiB). Homogeneous chunks paint their pattern directly; mixed materials use a quarter-resolution interpolated alpha field without native blur. All work happens only while composing terrain chunks."
+  }
+}

@@ -52,14 +52,14 @@ try{
  result.pausedAfterDelivery=await page.evaluate(faded=>perfCounts.renders-faded,faded);
  assert.equal(result.pausedAfterDelivery,0,'a paused scene stops redrawing once delivery income fades');
  result.cache=await page.evaluate(async()=>{
-  const {createSprites}=await import('./sprites.js'),{HOUSE_KINDS}=await import('./raster-houses.js');
+  const {createSprites}=await import('./sprites.js'),{HOUSE_KINDS,HOUSE_ROTATIONS,HOUSE_DESIGNS}=await import('./raster-houses.js');
   const sprite=createSprites('taiga',{pixelScale:2,detailLevel:'detail'}),distinct=new Set();
-  for(const kind of HOUSE_KINDS)for(let variant=0;variant<12;variant++)distinct.add(sprite(kind,variant,1));
+  for(const kind of HOUSE_KINDS)for(let variant=0;variant<18;variant++)distinct.add(sprite(kind,variant,1));
   const before=sprite.getStats();
   const large=sprite(HOUSE_KINDS[0],0,1,'',2);
-  return{...before,distinct:distinct.size,largeWidth:large.width};
+  return{...before,distinct:distinct.size,expectedDistinct:HOUSE_KINDS.length*HOUSE_ROTATIONS.length*HOUSE_DESIGNS.length,largeWidth:large.width};
  });
- assert.equal(result.cache.distinct,9,'authored house variants reuse the identical bitmap');
+ assert.equal(result.cache.distinct,result.cache.expectedDistinct,'authored house variants reuse each kind and rotation bitmap');
  assert.equal(result.cache.largeWidth,128,'different footprints retain separate sprite sizes');
  // Use real independently mutable route/vehicle records, without waiting for
  // 10,000 interactive purchases; the model has separate dense-world coverage.
@@ -79,7 +79,7 @@ try{
  await page.locator('#clear-route-filters').click();
  assert.equal(await page.locator('#route-list [data-route-id]').count(),50);
  assert.equal(await page.locator('#route-list [data-route-id]').first().getAttribute('data-route-id'),'perf-0');
- // Tool changes rebuild the Build drawer, whose next goal must come from the memo on a vast world.
+ // Pure tool selections retain Build drawer cards and artwork on a vast world.
  await createWorldFromMenu(page,{size:'square2048'});
  result.vastTools=await page.evaluate(()=>{
   transport.setView('build');const times=[];
@@ -87,7 +87,7 @@ try{
   times.sort((a,b)=>a-b);return{medianMs:times[Math.floor(times.length/2)],maxMs:times.at(-1)};
  });
  assert.ok(result.vastTools.medianMs<5,`setTool on a 2048 world takes ${result.vastTools.medianMs.toFixed(1)} ms`);
- // Industries and Towns build one page of 40 cards on a vast world; a search or periodic refresh rebuilds only that page.
+ // Industries and Towns build one page of 40 cards; unchanged refreshes retain it.
  result.vastLists=await page.evaluate(()=>{
   const time=action=>{const start=performance.now();action();return performance.now()-start;},median=times=>times.sort((a,b)=>a-b)[Math.floor(times.length/2)],open=[],refresh=[],towns=[];
   for(let n=0;n<7;n++){

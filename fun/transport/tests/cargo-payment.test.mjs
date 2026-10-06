@@ -25,8 +25,8 @@ test('every cargo has a transit class; pay is flat, then falls, never below the 
   for (const [key, cargo] of Object.entries(CARGO)) assert.ok(TRANSIT_CLASSES[cargo.transit], `${key} has a class`);
   const members = cls => Object.keys(CARGO).filter(key => CARGO[key].transit === cls).sort();
   assert.deepEqual(members('express'), ['mail', 'passengers']);
-  assert.deepEqual(members('perishable'), ['fish', 'food', 'goods']);
-  assert.deepEqual(members('standard'), ['cement', 'fuel', 'furniture', 'glass', 'grain', 'lumber', 'machinery', 'steel', 'wire']);
+  assert.deepEqual(members('perishable'), ['fish', 'food', 'goods', 'milk', 'produce']);
+  assert.deepEqual(members('standard'), ['cement', 'fuel', 'furniture', 'glass', 'grain', 'livestock', 'lumber', 'machinery', 'steel', 'wire']);
   assert.deepEqual(members('bulk'), ['coal', 'copper', 'iron', 'oil', 'sand', 'stone', 'timber']);
   for (const [days, pay] of [[undefined, 1], [NaN, 1], [0, 1], [14, 1], [15, .985], [24, .85], [48, .5], [400, .5]]) assert.ok(Math.abs(transitPay('passengers', days) - pay) < 1e-12, `${days} days pay ${transitPay('passengers', days)}`);
   assert.equal(transitPay('coal', 45), 1); assert.ok(Math.abs(transitPay('coal', 70) - .9) < 1e-12);

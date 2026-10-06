@@ -17,7 +17,7 @@ const roundTrip = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game)
 
 function farmTown({ delivered = true } = {}) {
   const game = emptyGame();
-  assert.equal(build(game, 'farm', 10, 10).ok, true);
+  assert.equal(build(game, 'farm', 10, 6).ok, true);
   assert.equal(build(game, 'food-plant', 30, 10).ok, true);
   assert.equal(build(game, 'city', 50, 10).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 50, 13)).ok, true);

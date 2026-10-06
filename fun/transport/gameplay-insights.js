@@ -51,7 +51,7 @@ function memo(game, name, key, compute) {
 function siteAccess(game, site) {
   const city = isCity(site), size = city ? 1 : industrySize(site), R = STATION_RADIUS;
   const centers = new Set(game.cities.map(town => town.y * game.width + town.x));
-  const industries = game.industries.filter(other => other.x <= site.x + size + R && other.y <= site.y + size + R && other.x + 3 >= site.x - R && other.y + 3 >= site.y - R);
+  const industries = game.industries.filter(other => other.x <= site.x + size + R && other.y <= site.y + size + R && other.x + industrySize(other) >= site.x - R && other.y + industrySize(other) >= site.y - R);
   const tile = (x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
   let land = city, port = false;
   for (let y = site.y - R; y < site.y + size + R; y++) for (let x = site.x - R; x < site.x + size + R; x++) {

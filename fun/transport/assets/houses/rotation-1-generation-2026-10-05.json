@@ -1,0 +1,146 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-05",
+  "rotationIndex": 1,
+  "physicalRotationDegrees": 90,
+  "facadeDirection": "lower-right",
+  "camera": "Fixed orthographic 2:1 dimetric, ground axes \u00b126.565 degrees; verticals upright",
+  "order": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "scaleTarget": "House structure approximately 40\u201350% of garden plot width; affordable houses about 8m compared with 12m full-size bus",
+  "orientationMethod": "New physically rotated house designs authored by image_gen; no pixel rotation, flipping or mirroring",
+  "assets": [
+    {
+      "id": "taiga",
+      "reference": "taiga/rotation-1/source-primary-style-reference-2026-10-05.png",
+      "prompt": "Use case: production game sprite atlas \u2014 PHYSICALLY ROTATED architecture redraw. Edit reference only as design/material/plot-scale guide. Produce a SECOND VIEW of the SAME NINE EXACT HOUSES with their yards for Transport. Keep the SAME fixed 2:1 DIMETRIC orthographic camera, ground axes \u00b126.565 degrees, upright walls, soft light ALWAYS from upper-left. Every HOUSE must physically rotate 90 degrees on the horizontal ground relative to reference: the PRIMARY FRONT FACADE WITH FRONT DOOR and approach steps now faces toward SCREEN LOWER-RIGHT, instead of reference's screen lower-left. The garden FRONT GATE is centered on each plot's LOWER-RIGHT boundary (the boundary from bottom diamond point to right diamond point), and the garden approach path runs down-right from the front door to that right-hand gate. The visible facade on LEFT is now SIDE/REAR architecture with appropriate side windows, while the visible RIGHT facade is the identifiable FRONT elevation with front door, bay/porch/terrace where applicable. Roof ridges, dormers, gables, porch and chimneys must be accurately redrawn for this physical turn. This is NOT a mirror image: draw NEW appropriate side/window elevations and keep upper-left lighting/shadow direction unchanged; NEVER flip or rotate finished pixels. ALL NINE entries face lower-right, never mixed orientations.\nMAJOR SCALE TARGET: keep the complete lawn/yard plot approximately reference plot size, but make the entire HOUSE BUILDING including its roof only 42\u201348% of full garden plot WIDTH in EVERY ROW. Especially shrink family and prestige structures; reference middle/bottom structures are still too wide. Every structure is set toward the UPPER/BACK part of its plot with extensive open foreground lawn to the lower-right front gate. Building roofs are no more than HALF the full plot's side-to-side span. Affordable cottage building ~8m footprint for believable scale relative to 12m bus, small family house modestly larger; prestige can be taller but still has generous surrounding yard. Yard fully surrounds every house with broad lawn, garden beds, boundary fences and bushes, not tiny attached greenery. House must NOT dominate the plot. Low fences around complete diamond-shaped yard, open gate/path unobscured. Level ground, no block pedestal/slab edge or floating platform. Beautiful detailed realistic hand-painted miniature finish, restrained materials, fine tile/slate seams, subtle brick joints and wooden fence grain, textured grass, some irregular lawn patches. All windows DARK UNLIT.\nSTRICT 3columns x3rows of equal square cells; ONE isolated whole house-with-yard sprite per cell. True transparent RGBA everywhere outside nine independent silhouettes. Put each entire plot inside inner 80% of its cell, substantial fully transparent safe gutters between cells; don't crop fences, chimneys, flowers or shadows. No city/roads, no vehicles/people, no labels/lettering, no checkerboard picture, no grid lines. Exact unchanged row-major identities and plot treatments:\nROW1 LEFT affordable cream-plaster cottage with TERRACOTTA gable roof, small chimney, white picket fence, flower borders and open grass. Front door/step and white picket gate on LOWER-RIGHT view. ROW1 CENTER affordable honey-brown TIMBER CABIN with SLATE gable roof, one stone chimney, rustic low splitrail fence, vegetable beds on side and open lawn; front door and gate LOWER-RIGHT. ROW1 RIGHT affordable red BRICK TERRACE with TERRACOTTA gable roof and two chimneys, dark iron fence and modest flowers, paired front doors on LOWER-RIGHT facade.\nROW2 LEFT two-story CREAM GABLED FAMILY HOUSE, blue-gray SLATE cross-gable/dormer roof, characteristic front bay window and projecting wooden door porch on RIGHT facade, low timber fence plus flower beds, broad open lawn. ROW2 CENTER two-story red BRICK VILLA with GREEN-GRAY HIPPED roof, neat symmetric FRONT WINDOWS AND CENTRAL FRONT DOOR on RIGHT facade, dark iron fence and open lawn. ROW2 RIGHT one-story cream GARDEN BUNGALOW with TERRACOTTA hipped roof, characteristic green gabled porch and broad bay on RIGHT front, timber fence and lavender beds, broad open lawn.\nROW3 LEFT pale limestone two-story COUNTRY MANOR with SLATE roof, dormers and stone columned FRONT ENTRY on RIGHT facade, low timber/stone boundary with formal clipped hedge beds and open foreground lawn. ROW3 CENTER tall red BRICK GRAND TOWNHOUSE with dark SLATE MANSARD and dormers, ornamented arched FRONT DOOR on RIGHT facade, dark iron fence enclosing a planted lawn garden. ROW3 RIGHT cream COURTYARD VILLA with TERRACOTTA pitched roofs around visible inner courtyard, RIGHT front facade has arched entry, low cream wall plus iron fence surrounds outer lawn and flower/shrub garden. EVERY building's full roof span remains under HALF its full plot WIDTH. Check all fronts/paths/gates point toward LOWER-RIGHT before completing.",
+      "status": "Superseded by scale/gutter correction",
+      "generatorOutput": "exec-8f185ae8-01d4-4f34-a194-1a2453a51ef9.png",
+      "source": "taiga/rotation-1/source-initial-2026-10-05.png",
+      "referenceGeneratorOutput": "exec-3953eb57-9cf2-4538-b837-1238525c549b.png"
+    },
+    {
+      "id": "taiga-scale-intermediate",
+      "prompt": "Use case: precise SCALE AND GUTTER correction of transparent game atlas. FIRST reference is the editable SECOND-ORIENTATION house atlas. SECOND reference shows final smaller primary-orientation houses, supplied ONLY as building-to-yard scale reference. Preserve FIRST reference's physically redrawn LOWER-RIGHT-facing architecture! Do NOT revert to second reference's lower-left doors. All front doors/porches and path gates stay on the LOWER-RIGHT face/boundary of each plot. Preserve all nine identities, roof designs, wall textures, garden styles, camera, upper-left light and source alpha. Correct two things:\n1) For EVERY building in MIDDLE ROW and BOTTOM ROW, shrink its building structure including roof, chimney, porch, front steps to 80% of its current WIDTH and HEIGHT, holding the approximate back-of-plot position. For bottom-right COURTYARD VILLA shrink building to 72% of current width/height. The FIRST ROW buildings already small and stay same house-to-plot ratio. Keep the full garden/fence boundary WIDTH unchanged relative to each other; add/extend open grass lawn, flower border ground and continuous path in space vacated by the smaller structure. Result every building roof side-to-side span approximately 40\u201348% of its entire yard plot, never more than half. Match the second reference's final smaller family/prestige structures, with broad foreground lawn. All9 have private garden, low fence/wall/hedge, front gate and stepping-stone path. Keep every gate at LOWER-RIGHT boundary and path running down-right from front door.\n2) Layout all NINE COMPLETE isolated house-with-yard plots in a strict square3-by-3 grid with much larger fully transparent safe gutters. Uniformly fit each entire complete plot + building into INNER 76% of each equal square cell, centered, with at least12%of cell fully transparent on ALLFOUR sides. These changes are for source sheet layout; do NOT change house-to-yard ratio except in item1. The bottom-middle and bottom-right plots currently touch; separate all garden foliage/fences/shadows. At least70px fully transparent gaps between neighboring plots at this resolution. ALLnine intact silhouettes; no clipped fences/chimneys or omitted objects. True transparent RGBA outside all plots; no white background or checkerboard drawing, no cell lines/borders/panels, no labels. Same refined miniature realism, 2:1dimetric ground axes \u00b126.565degrees, all verticals upright, same upper-leftlight. NO mirrors or rotations of pixels. Exact order row1 creamcottage/timbercabin/brickterrace; row2creamgabledfamily/redbrickhipvilla/creambungalow; row3limestonemanor/brickmansardtownhouse/creamcourtyardvilla. Recheck complete open lawns and all front doors/path gates facing LOWER-RIGHT.",
+      "references": [
+        "taiga/rotation-1/source-initial-2026-10-05.png",
+        "taiga/source-scale-gardens-2026-10-05.png"
+      ],
+      "generatorOutput": "exec-8583ad74-b539-4f48-a7fb-28a28720e894.png",
+      "source": "taiga/rotation-1/source-scale-intermediate-2026-10-05.png",
+      "status": "Superseded by courtyard/gutter correction"
+    },
+    {
+      "id": "taiga",
+      "prompt": "Use case: game asset production layout correction. This image is a sprite sheet with nine house-and-garden cutouts. Preserve their exact nine identity designs and LOWER-RIGHT front-door orientation. Make the following very visible corrections, and do not skip them:\nA. EVERY WHOLE HOUSE-AND-GARDEN CUTOUT becomes MUCH SMALLER on the CANVAS: shrink all nine COMPLETE plots, with buildings and fences/shadows included, to 68% of their current drawn width and height. Do not zoom or change canvas dimensions. Each plot is centered in a fixed3x3 equal-cell square grid. At1254px canvas each cell418px and each WHOLEPLOT should be no more than290pxwide. Huge fully transparent margins, at least60pxblank each side in its cell and120pxclear gaps between adjacent cutouts. No object touches its neighbors or outercanvasedge. The SMALLER PLOTS are essential \u2014 the output should visibly show LOTS more blank transparency than the input.\nB. IN ADDITION, shrink JUST THE BUILDING INSIDE THE BOTTOM-RIGHT COURTYARD VILLA PLOT to60%of that building's CURRENT size relative to its surrounding lawn/fence. This extra shrink applies BEFORE the complete-plot reduction inA. Keep the villa's full gardenplot size proportionate to other8plots, but turn the vacated building area into garden lawn so villa structure becomes less than45%of fullplotwidth. Retain its creamwalled courtyard architecture, tiled roofs and innercourt plants, just reduce structure more. Keep building towardupper/backplot, prominent openforeground garden. The other8houses keep their current building-to-yard proportions.\nEvery front facade and front door still faces LOWER-RIGHT, path still runs down-right to gate on LOWER-RIGHT plotboundary. Stay 2:1dimetric orthographic camera, \u00b126.565degree groundedges, verticalwalls upright, sunlight fromupperleft. Match detailed painted miniature materials. Preserve ninearchitectures and their row-major order: cottage,cabin,brickterrace / gabledfamily,brickhipvilla,bungalow / slatemanor,mansardtownhouse,creamcourtyardvilla. Transparent RGBA blankbackground, no checkerboard picture, no labels/cellborders, no people/vehicles. The key visible result MUST be nine much smaller, well separated plots with safe blanktransparent gutters, and the bottom-right villa building additionally smaller inside its fullsized garden.",
+      "reference": "taiga/rotation-1/source-scale-intermediate-2026-10-05.png",
+      "generatorOutput": "exec-9ec9b588-ca3f-4566-b516-fddb1ff9b286.png",
+      "source": "taiga/rotation-1/source-scale-gardens-2026-10-05.png",
+      "status": "Active"
+    },
+    {
+      "id": "tundra",
+      "prompt": "Use case: climate skin for finished transparent game sprite sheet. EDIT the referenced nine HOUSE-WITH-GARDEN sprites, preserving precise physical LOWER-RIGHT-facing orientation of every house, exact small structure-to-fullgarden scale, the same doors/windows/roofgeometry/porches, path and gate positions, fence types, gardens, row-major3x3 layout and generous FULLYTRANSPARENT gutters. Make WINTER/TUNDRA finish only: natural thin irregular snow cover sits on roof planes, ledges, fence tops, sparse plant tops and lawn patches; little dark green frost hardy shrubs and snow-covered flower/vegetable beds replace summer colors. Small stone paths from each LOWER-RIGHT door to LOWER-RIGHT gate remain exposed and clear. Roofcoloridentity remains visible below patchysnow; EVERY window remains dark UNLIT and allentrydoors exposed. Keep house structure at same small~40\u201350%gardenwidth. No new wall/platform, no crops/omissions/zooming or rotation/mirroring/rearrangement. All9 original identities unchanged: row1creamterracotta cottage/timber slate cabin/brickterracotta terrace, row2cream gabledslatefamily/brickgreenhipvilla/creamterracotta bungalow, row3paleslatemanor/brickmansardtownhouse/creamterracottacourtyardvilla. Fixed2:1dimetric ground axes \u00b126.565degrees, uprightwalls, upperleftlight, finest painted miniature style. TRUEtransparent RGBA everywhere outside individualplots, retain allgeneroustransparent gaps and outermargin, no panels/gridlines/labels/letters/checkerboarddrawing/people/vehicles. Winter materials and snow ONLY; frontdoors/paths/gates all still point down-right.",
+      "reference": "taiga/rotation-1/source-scale-gardens-2026-10-05.png",
+      "status": "Active",
+      "generatorOutput": "exec-9d6dc67a-e660-41e6-bb91-e98cea561a6f.png",
+      "source": "tundra/rotation-1/source-scale-gardens-2026-10-05.png"
+    },
+    {
+      "id": "desert",
+      "prompt": "Use case: climate skin for finished transparent game sprite sheet. EDIT the referenced nine HOUSE-WITH-GARDEN sprites, preserving precise physical LOWER-RIGHT-facing orientation of every house, exact small structure-to-fullgarden scale, the same doors/windows/roofgeometry/porches, path and gate positions, fence types, gardens, row-major3x3 layout and generous FULLYTRANSPARENT gutters. Make DESERT/ARID finish only: warmweathered sandyplaster and ochrestone, slightly sunbleached roofs retaining their terracotta/slate/mossgreen identities, dusty sparse lawn patches, natural dryflower borders, hardy sage plants, succulents, low dry shrubs and small gravel/vegetable beds within EXISTINGsameyard. Gardens remain fullwidth and entireboundaryfences/hedges survive. Keep small stone paths from each LOWER-RIGHT door to LOWER-RIGHT gate exposed and clear. EVERY window stays DARKUNLIT and entrydoor exposed. Keep housestructure at same small~40\u201350%gardenwidth. No snow, no tallpalms, no newwall/platform, no crops/omissions/zooming or rotation/mirroring/rearrangement. All9 originalidentitiesunchanged: row1creamterracotta cottage/timber slate cabin/brickterracotta terrace, row2cream gabledslatefamily/brickgreenhipvilla/creamterracotta bungalow, row3paleslatemanor/brickmansardtownhouse/creamterracottacourtyardvilla. Fixed2:1dimetric ground axes \u00b126.565degrees, uprightwalls, upperleftlight, finest paintedminiaturestyle. TRUEtransparent RGBA everywhere outside individualplots, retain allgeneroustransparent gaps and outermargin, no panels/gridlines/labels/letters/checkerboarddrawing/people/vehicles. Aridmaterials/gardenplanting ONLY; frontdoors/paths/gates all still point down-right.",
+      "reference": "taiga/rotation-1/source-scale-gardens-2026-10-05.png",
+      "status": "Active",
+      "generatorOutput": "exec-d7d4db8b-5602-46a7-82a5-bfd8ffdc2833.png",
+      "source": "desert/rotation-1/source-scale-gardens-2026-10-05.png"
+    }
+  ],
+  "validation": [
+    {
+      "biome": "taiga",
+      "spriteCount": 9,
+      "registeredMeaningfulPixelsPreserved": 389962,
+      "generatedSourceSha256": "b40a17a74073bec478731644c055e9e1d55821bd2a71bee104686d350a2169ec",
+      "packedSourceSha256": "b88bf2c717369256883831f98eccd4da47caf39c0a288fe8ad654c3e4bccd30d",
+      "minimumMasterMargin": 8,
+      "cellBoundaryMaximumAlpha": {
+        "256": 0,
+        "128": 0,
+        "64": 4,
+        "32": 4,
+        "16": 67
+      },
+      "isolatedDensityVerification": "Every 16/32/64/128/256 cell exactly matches independent filtering of its own master; no source or neighboring pixels mix. Boundaries at 128/256px are fully transparent. Smaller LODs retain normal filtered subpixel fence/ground alpha inside their own cells.",
+      "orientationReview": "All nine front doors, approach paths and fence gates face lower-right; roofs/facades independently redrawn; upper-left lighting retained",
+      "qaContactSheet": "/tmp/transport-house-rotation-1-review/taiga-contact-sheet.png"
+    },
+    {
+      "biome": "tundra",
+      "spriteCount": 9,
+      "registeredMeaningfulPixelsPreserved": 637291,
+      "generatedSourceSha256": "3a4b31c8859e702f9823bd7d14529cad5e2c796278f8aa2a569db76bd2135433",
+      "packedSourceSha256": "dea4d258369edf119b8d8d35e989da0ad3ea50e4f5edece06d4a356a4816cb65",
+      "minimumMasterMargin": 8,
+      "cellBoundaryMaximumAlpha": {
+        "256": 0,
+        "128": 0,
+        "64": 4,
+        "32": 4,
+        "16": 71
+      },
+      "isolatedDensityVerification": "Every 16/32/64/128/256 cell exactly matches independent filtering of its own master; no source or neighboring pixels mix. Boundaries at 128/256px are fully transparent. Smaller LODs retain normal filtered subpixel fence/ground alpha inside their own cells.",
+      "orientationReview": "All nine front doors, approach paths and fence gates face lower-right; roofs/facades independently redrawn; upper-left lighting retained",
+      "qaContactSheet": "/tmp/transport-house-rotation-1-review/tundra-contact-sheet.png"
+    },
+    {
+      "biome": "desert",
+      "spriteCount": 9,
+      "registeredMeaningfulPixelsPreserved": 678311,
+      "generatedSourceSha256": "d8e8e6e01db8060ddd453b4aa39451313e9263151ebf2fcf290fcbcb2fe5bb92",
+      "packedSourceSha256": "aa662046eed9884001e0e922f5ef1c32f3d290b28cfa0acc77e4651b21ca7fdc",
+      "minimumMasterMargin": 8,
+      "cellBoundaryMaximumAlpha": {
+        "256": 0,
+        "128": 0,
+        "64": 4,
+        "32": 4,
+        "16": 115
+      },
+      "isolatedDensityVerification": "Every 16/32/64/128/256 cell exactly matches independent filtering of its own master; no source or neighboring pixels mix. Boundaries at 128/256px are fully transparent. Smaller LODs retain normal filtered subpixel fence/ground alpha inside their own cells.",
+      "orientationReview": "All nine front doors, approach paths and fence gates face lower-right; roofs/facades independently redrawn; upper-left lighting retained",
+      "qaContactSheet": "/tmp/transport-house-rotation-1-review/desert-contact-sheet.png"
+    }
+  ],
+  "packingCommands": [
+    "python tools/prepare-building-atlas.py assets/houses/{biome}/rotation-1/source-scale-gardens-2026-10-05.png assets/houses/{biome}/rotation-1/source-scale-gardens-2026-10-05-packed.png",
+    "python tools/build-house-atlases.py --atlas assets/houses/{biome}/rotation-1/source-scale-gardens-2026-10-05-packed.png --normalize-atlas --biome {biome} --output-dir /tmp/transport-house-rotation-1-build --qa-dir /tmp/transport-house-rotation-1-review",
+    "Copy generated /tmp/transport-house-rotation-1-build/{biome}/house-atlas*.png, sources/, atlas.json to assets/houses/{biome}/rotation-1/ without touching primary orientation."
+  ],
+  "scaleReview": {
+    "method": "Visual measurement of complete roof/structure horizontal span against full garden plot width on accepted taiga source, including roofs and chimneys",
+    "approximateStructureToPlotWidths": {
+      "house-cheap-1": 0.39,
+      "house-cheap-2": 0.45,
+      "house-cheap-3": 0.44,
+      "house-normal-1": 0.44,
+      "house-normal-2": 0.44,
+      "house-normal-3": 0.48,
+      "house-expensive-1": 0.47,
+      "house-expensive-2": 0.44,
+      "house-expensive-3": 0.4
+    }
+  },
+  "tests": [
+    "build-house-atlases.py --self-test passed",
+    "27 distinct second-orientation masters; 45 isolated sprite cells per climate across five densities verified"
+  ]
+}

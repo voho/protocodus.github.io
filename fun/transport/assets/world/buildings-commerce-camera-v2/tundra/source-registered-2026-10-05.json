@@ -1,0 +1,134 @@
+{
+  "source": "source-generated-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 822240,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        36,
+        52,
+        409,
+        430
+      ],
+      "offset": [
+        133,
+        131
+      ],
+      "pixels": 93958
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        455,
+        69,
+        825,
+        430
+      ],
+      "offset": [
+        135,
+        139
+      ],
+      "pixels": 84015
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        853,
+        67,
+        1222,
+        430
+      ],
+      "offset": [
+        135,
+        138
+      ],
+      "pixels": 94217
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        33,
+        453,
+        411,
+        840
+      ],
+      "offset": [
+        131,
+        126
+      ],
+      "pixels": 93428
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        443,
+        458,
+        841,
+        849
+      ],
+      "offset": [
+        121,
+        124
+      ],
+      "pixels": 102494
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        854,
+        449,
+        1229,
+        856
+      ],
+      "offset": [
+        132,
+        116
+      ],
+      "pixels": 106999
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        34,
+        877,
+        425,
+        1204
+      ],
+      "offset": [
+        124,
+        156
+      ],
+      "pixels": 83093
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        445,
+        851,
+        825,
+        1209
+      ],
+      "offset": [
+        130,
+        141
+      ],
+      "pixels": 84902
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        842,
+        875,
+        1222,
+        1208
+      ],
+      "offset": [
+        130,
+        153
+      ],
+      "pixels": 79134
+    }
+  ]
+}

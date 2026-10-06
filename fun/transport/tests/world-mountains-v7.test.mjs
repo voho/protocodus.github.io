@@ -14,9 +14,18 @@ const frozenRecipe6 = {
   tundra: 'f91b783cff75fdad31de1b98bebbcf5b870b015419959ad7a1a98996795446cb',
   desert: 'ce7ef76be910e26d4270e61ee91498903490b3480ac89d0ac00bda7ab879c434',
 };
+const frozenRecipe7 = {
+  taiga: 'bf32ef9d930d404650e71ec61230ef5366b44e0d953a20438b10a9a5d2a49e5a',
+  tundra: 'b0d80566e19de0d4aea7b4d34a68c025c4b73ca739649a887a95d06dc5e3d17f',
+  desert: 'afe77cf7259375f0c778f83afd756347a10e230cd97baf47b68ce45bc666c546',
+};
 const terrain = (biome, seed = 1847) => generateTerrainV2(biome, seed, config, { naturalRelief: true });
 
 for (const biome of ['taiga', 'tundra', 'desert']) {
+  test(`${biome}: recipe 7 remains byte-exact after standardizing industry sites`, () => {
+    assert.equal(digest(generateWorld(biome, 1847, 'square512', 7)), frozenRecipe7[biome]);
+  });
+
   test(`${biome}: recipe 6 remains byte-exact after introducing mountain relief`, () => {
     assert.equal(digest(generateWorld(biome, 1847, 'square512', 6)), frozenRecipe6[biome]);
   });
@@ -57,12 +66,12 @@ for (const biome of ['taiga', 'tundra', 'desert']) {
   });
 
   test(`${biome}: recipe 7 keeps complete industries, connected starter services and a profitable opening`, () => {
-    const game = createGame({ biome, seed: 1847, size: 'square512' });
+    const game = createGame({ biome, seed: 1847, size: 'square512', generationVersion: 7 });
     assert.equal(game.generationVersion, 7);
-    assert.equal(WORLD_GENERATION_VERSION, 7);
+    assert.equal(WORLD_GENERATION_VERSION, 9);
     assert.equal(validateGame(game), true);
     assert.equal(game.cities.length, 48);
-    for (const [kind, definition] of Object.entries(INDUSTRIES)) if (definition.biomes.includes(biome)) {
+    for (const [kind, definition] of Object.entries(INDUSTRIES)) if (!definition.buildOnly&&definition.biomes.includes(biome)) {
       assert.equal(game.industries.filter(site => site.kind === kind).length, 8, `${kind} is available in every district`);
     }
     assert.equal(game.routes[0].path.length, 25);

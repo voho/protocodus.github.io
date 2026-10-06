@@ -1,0 +1,121 @@
+{
+  "source": "source-packed.png",
+  "sourceSha256": "85d499104da6bab86f10d4c57d7bd39d5b4c3831ee3595be0a80b712349b15b0",
+  "method": "Extract seven complete largest connected alpha silhouettes (alpha >8), retain full original RGBA in padded bounding boxes, center in isolated 640px cells. No artwork, alpha, or colors altered.",
+  "columns": 3,
+  "rows": 3,
+  "sprites": [
+    {
+      "id": "industry:dairy-farm:taiga",
+      "sourceBounds": [
+        9,
+        97,
+        425,
+        414
+      ],
+      "alphaBounds": [
+        11,
+        99,
+        423,
+        412
+      ],
+      "isolatedCell": 0
+    },
+    {
+      "id": "industry:vegetable-farm:taiga",
+      "sourceBounds": [
+        426,
+        102,
+        830,
+        415
+      ],
+      "alphaBounds": [
+        428,
+        104,
+        828,
+        413
+      ],
+      "isolatedCell": 1
+    },
+    {
+      "id": "industry:orchard:taiga",
+      "sourceBounds": [
+        832,
+        102,
+        1248,
+        415
+      ],
+      "alphaBounds": [
+        834,
+        104,
+        1246,
+        413
+      ],
+      "isolatedCell": 2
+    },
+    {
+      "id": "industry:livestock-farm:taiga",
+      "sourceBounds": [
+        9,
+        485,
+        430,
+        788
+      ],
+      "alphaBounds": [
+        11,
+        487,
+        428,
+        786
+      ],
+      "isolatedCell": 3
+    },
+    {
+      "id": "industry:dairy-plant:taiga",
+      "sourceBounds": [
+        428,
+        481,
+        836,
+        787
+      ],
+      "alphaBounds": [
+        430,
+        483,
+        834,
+        785
+      ],
+      "isolatedCell": 4
+    },
+    {
+      "id": "industry:cannery:taiga",
+      "sourceBounds": [
+        838,
+        487,
+        1250,
+        788
+      ],
+      "alphaBounds": [
+        840,
+        489,
+        1248,
+        786
+      ],
+      "isolatedCell": 5
+    },
+    {
+      "id": "industry:meat-packer:taiga",
+      "sourceBounds": [
+        15,
+        863,
+        487,
+        1180
+      ],
+      "alphaBounds": [
+        17,
+        865,
+        485,
+        1178
+      ],
+      "isolatedCell": 6
+    }
+  ]
+}

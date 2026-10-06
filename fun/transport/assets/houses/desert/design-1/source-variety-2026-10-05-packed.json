@@ -1,0 +1,144 @@
+{
+  "source": "source-design-variety-2026-10-05.png",
+  "design": 1,
+  "rotation": 0,
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling or repainting",
+  "cells": [
+    {
+      "cell": 0,
+      "pairedSourceCell": 0,
+      "sourceBounds": [
+        26,
+        83,
+        300,
+        298
+      ],
+      "offset": [
+        183,
+        212
+      ],
+      "pixels": 31983
+    },
+    {
+      "cell": 1,
+      "pairedSourceCell": 1,
+      "sourceBounds": [
+        327,
+        79,
+        596,
+        299
+      ],
+      "offset": [
+        185,
+        210
+      ],
+      "pixels": 32066
+    },
+    {
+      "cell": 2,
+      "pairedSourceCell": 2,
+      "sourceBounds": [
+        607,
+        79,
+        877,
+        299
+      ],
+      "offset": [
+        185,
+        210
+      ],
+      "pixels": 32387
+    },
+    {
+      "cell": 3,
+      "pairedSourceCell": 6,
+      "sourceBounds": [
+        25,
+        351,
+        306,
+        575
+      ],
+      "offset": [
+        179,
+        208
+      ],
+      "pixels": 34626
+    },
+    {
+      "cell": 4,
+      "pairedSourceCell": 7,
+      "sourceBounds": [
+        330,
+        351,
+        600,
+        570
+      ],
+      "offset": [
+        185,
+        210
+      ],
+      "pixels": 32450
+    },
+    {
+      "cell": 5,
+      "pairedSourceCell": 8,
+      "sourceBounds": [
+        605,
+        351,
+        886,
+        580
+      ],
+      "offset": [
+        179,
+        205
+      ],
+      "pixels": 35291
+    },
+    {
+      "cell": 6,
+      "pairedSourceCell": 12,
+      "sourceBounds": [
+        16,
+        615,
+        305,
+        845
+      ],
+      "offset": [
+        175,
+        205
+      ],
+      "pixels": 37298
+    },
+    {
+      "cell": 7,
+      "pairedSourceCell": 13,
+      "sourceBounds": [
+        316,
+        634,
+        601,
+        844
+      ],
+      "offset": [
+        177,
+        215
+      ],
+      "pixels": 36077
+    },
+    {
+      "cell": 8,
+      "pairedSourceCell": 14,
+      "sourceBounds": [
+        603,
+        625,
+        881,
+        845
+      ],
+      "offset": [
+        181,
+        210
+      ],
+      "pixels": 36117
+    }
+  ]
+}

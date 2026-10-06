@@ -161,11 +161,11 @@ export function hasRoadAccess(game, x, y) {
 
 export function localEnvironment(game, x, y, radius = 3, footprint = 1, served = null) {
   x = Math.floor(x); y = Math.floor(y); radius = Number.isFinite(radius) ? Math.max(1, Math.min(8, Math.floor(radius))) : 3;
-  footprint=Number.isInteger(footprint)?Math.max(1,Math.min(3,footprint)):1;const extra=footprint-1;
+  footprint=Number.isInteger(footprint)?Math.max(1,Math.min(7,footprint)):1;const extra=footprint-1;
   const entities = entityIndex(game);
   const buildings = neighborhoodBuildings(game, x - radius, y - radius, x + radius + extra, y + radius + extra);
   const env = { roads: 0, rails: 0, water: 0, forest: 0, rocks: 0, buildings: 0, housing: 0, shops: 0, services: 0, civic: 0, industries: 0, school: 0, hospital: 0, police: 0, fire: 0, leisure: 0, roadAccess: false, railAccess: false, nature: 0, moisture: 0, amenity: 0, pollution: 0, access: 0, transport: 0, elevation: 0 };
-  let cells = 0, vegetation = 0, disturbance = 0, amenity = 0;
+  let cells = 0, vegetation = 0, disturbance = 0, amenity = 0, parkCover = 0;
   const seenBuildings = new Set(), seenIndustries = new Set();
   // Access has fixed catchments even when a caller requests a smaller sample.
   for (let dy = -Math.max(radius, 2); dy <= Math.max(radius, 2)+extra; dy++) for (let dx = -Math.max(radius, 2); dx <= Math.max(radius, 2)+extra; dx++) {
@@ -182,15 +182,16 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
     if (tile.terrain === 'rock' || tile.terrain === 'mountain') env.rocks++;
     const site = buildings.at(x + dx, y + dy), key = site && site.y * game.width + site.x;
     if (!tile.road && !tile.rail && !site) vegetation += tile.terrain === 'forest' ? 1 : tile.terrain === 'water' ? .7 : isPlantDetail(tile.detail) ? .7 : tile.terrain === 'grass' ? .4 : .12;
-    const kind = site?.building.kind, group = BUILDINGS[kind]?.group;
+    const kind = site?.building.kind, definition = BUILDINGS[kind], group = definition?.group;
+    if (definition?.naturalCover && !tile.road && !tile.rail) { vegetation += definition.naturalCover; parkCover += definition.naturalCover; }
     if (kind && !seenBuildings.has(key)) {
       seenBuildings.add(key);
       env.buildings++;
       if (group === 'homes' || kind === 'house' || kind === 'apartment') env.housing++;
-      else if (group === 'shops' || kind === 'shop') { env.shops++; amenity += .8; }
+      else if (group === 'shops' || kind === 'shop') { env.shops += definition?.shopUnits || 1; amenity += .8; }
       else if (group === 'services' || kind === 'office') { env.services++; amenity += 1; }
       else if (group === 'community') {
-        env.civic++; amenity += 1.6;
+        env.civic++; amenity += definition?.amenity ?? 1.6;
         if (kind === 'school') { env.school++; amenity += .5; }
         else if (kind === 'hospital') { env.hospital++; amenity += .7; }
         else if (kind === 'police-station') env.police++;
@@ -206,7 +207,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
   env.nature = clamp(vegetation / Math.max(1, cells));
   const weather = weatherAt(game, x, y);
   env.moisture = clamp(weather.wetness * .7 + Math.min(.45, env.water / Math.max(1, cells) * 2.2) + env.forest / Math.max(1, cells) * .16 - env.elevation * .08);
-  env.pollution = clamp(disturbance / 5 + env.roads / Math.max(1, cells) * .16 + env.buildings / Math.max(1, cells) * .08 - env.forest / Math.max(1, cells) * .16);
+  env.pollution = clamp(disturbance / 5 + env.roads / Math.max(1, cells) * .16 + env.buildings / Math.max(1, cells) * .08 - (env.forest + parkCover) / Math.max(1, cells) * .16);
   env.amenity = clamp(amenity / 9 + env.nature * .12);
   env.access = clamp(Number(env.roadAccess) * .35 + Number(env.railAccess) * .18 + env.roads / Math.max(1, cells) * .7 + env.rails / Math.max(1, cells) * .5 + env.transport * .2);
   return env;

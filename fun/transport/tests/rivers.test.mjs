@@ -72,7 +72,7 @@ for(const biome of ['taiga','tundra','desert'])for(const size of Object.keys(WOR
     if(game.generationVersion===1)assert.ok(bridges>0,'legacy town grids exercise river crossings');
     for(const industry of game.industries)assert.notEqual(tileAt(game,industry.x,industry.y).terrain,'water');
     assert.ok(game.cities.length>=(size==='huge'?30:size==='large'?16:8));
-    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS)),'the starting towns retain the complete building collection');
+    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS).filter(kind=>!BUILDINGS[kind].buildOnly)),'the starting towns retain the procedural building collection');
     const restored=decodeGame(encodeGame(game));
     assert.deepEqual(restored.tiles,game.tiles,'the existing compact codec preserves river details and bridges losslessly');
   });

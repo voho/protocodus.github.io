@@ -26,8 +26,8 @@ test('legacy and starter square sizes provide dispersed towns, complete industri
     assert.ok(Math.max(...game.cities.map(c=>c.x))-Math.min(...game.cities.map(c=>c.x))>game.width*.5);
     assert.ok(Math.max(...game.cities.map(c=>c.y))-Math.min(...game.cities.map(c=>c.y))>game.height*.5);
     const industries=new Set(game.industries.map(i=>i.kind));
-    for(const [kind,definition] of Object.entries(INDUSTRIES))if(definition.biomes.includes(game.biome))assert.ok(industries.has(kind));
-    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS)));
+    for(const [kind,definition] of Object.entries(INDUSTRIES))if(!definition.buildOnly&&definition.biomes.includes(game.biome))assert.ok(industries.has(kind));
+    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS).filter(kind=>!BUILDINGS[kind].buildOnly)));
   }
 });
 

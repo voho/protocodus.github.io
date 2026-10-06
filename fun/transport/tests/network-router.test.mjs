@@ -214,25 +214,25 @@ for (const mode of ['road', 'rail']) test(`${mode}: a plan between two unserved 
 
 test('a stop that already serves the source is reused and its line followed', () => {
   const game = flat(), [farm, plant] = farmAndPlant(game);
-  assert.equal(buildPlan(game, 'road', gridLine({ x: 23, y: 21 }, { x: 28, y: 21 })).ok, true);
-  const stop = build(game, 'bus-stop', 23, 21).station, plan = connect(game, farm, plant);
+  assert.equal(buildPlan(game, 'road', gridLine({ x: 27, y: 23 }, { x: 32, y: 23 })).ok, true);
+  const stop = build(game, 'bus-stop', 27, 23).station, plan = connect(game, farm, plant);
   assert.equal(plan.ends[0]?.id, stop.id); assert.deepEqual(plan.stops.map(stop => stop.end), [1]);
   assert.ok(plan.tiles <= plan.path.length - 6, 'the old road carries the first tiles');
   launch(game, plan, 'grain');
 });
 
 test('sites whose catchments overlap still get stops three tiles apart', () => {
-  const game = flat(), [farm, plant] = farmAndPlant(game, { x: 23, y: 20 }), plan = connect(game, farm, plant);
+  const game = flat(), [farm, plant] = farmAndPlant(game, { x: 27, y: 20 }), plan = connect(game, farm, plant);
   assert.equal(plan.ok, true, plan.reason); assert.ok(plan.path.length >= 3);
   launch(game, plan, 'grain');
 });
 
 test('a walled-off buyer or a boxed-in producer has no plan', () => {
   const game = flat(), [farm, plant] = farmAndPlant(game);
-  zone(game, Array.from({ length: game.height }, (_, y) => [30, y]));
+  zone(game, Array.from({ length: game.height }, (_, y) => [32, y]));
   assert.deepEqual([connect(game, farm, plant).ok, connect(game, farm, plant).reason], [false, 'no-route']);
   const boxed = flat(), [site, buyer] = farmAndPlant(boxed), cells = [];
-  for (let y = 14; y <= 27; y++) for (let x = 14; x <= 27; x++) if (x < 20 || x > 21 || y < 20 || y > 21) cells.push([x, y]);
+  for (let y = 14; y <= 32; y++) for (let x = 14; x <= 32; x++) if (x < 20 || x > 26 || y < 20 || y > 26) cells.push([x, y]);
   zone(boxed, cells);
   assert.equal(connect(boxed, site, buyer).reason, 'no-site');
 });

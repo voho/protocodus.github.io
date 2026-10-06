@@ -1,6 +1,7 @@
 // Elevation integration in isolated browser contexts; no user save is touched.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { MAP } from '../design-tokens.js';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -66,7 +67,7 @@ try {
     },dpr));
     if(viaductOnly){await page.close();continue;}
     for (const zoom of [.5, 1, 2]) {
-      const result = await page.evaluate(({ zoom, dpr }) => {
+      const result = await page.evaluate(({ zoom, dpr, hoverColor }) => {
         const q=elevationQA,{renderer:r,game:g,canvas,geometry:k}=q,rect=canvas.getBoundingClientRect(),c=canvas.getContext('2d'),checks=[],vertexChecks=[];
         r.setZoom(zoom);
         for(const [x,y]of[[56,50],[69,61],[43,51],[46,51],[55.2,49.83],[64,36]]){
@@ -89,7 +90,7 @@ try {
         c.stroke=function(shape){const m=this.getTransform(),points=shape?(recorded.get(shape)||[]).map(([x,y])=>({x:(m.a*x+m.c*y+m.e)/dpr,y:(m.b*x+m.d*y+m.f)/dpr})):path.slice();strokes.push({style:this.strokeStyle,points});return shape?original.stroke.call(this,shape):original.stroke.call(this);};
         g.revision++;
         try{r.render(0,{tool:'inspect',hover:{x:56,y:50},showGrid:true});}finally{Object.assign(c,original);Object.assign(Path2D.prototype,path2d);}
-        const grid=strokes.find(s=>s.points.length>100),highlight=strokes.find(s=>s.style==='#f7efd3'&&s.points.length===4),expectedCorners=[[56,50],[57,50],[57,51],[56,51]].map(([u,v])=>r.worldToScreen(u-.5,v-.5));
+        const grid=strokes.find(s=>s.points.length>100),highlight=strokes.find(s=>s.style===hoverColor&&s.points.length===4),expectedCorners=[[56,50],[57,50],[57,51],[56,51]].map(([u,v])=>r.worldToScreen(u-.5,v-.5));
         const nearest=(points,p)=>Math.min(...points.map(q=>Math.hypot(q.x-p.x,q.y-p.y)));
         const gridError=grid?Math.max(...expectedCorners.map(p=>nearest(grid.points,p))):Infinity;
         const expectedHighlight=r.worldToScreen(56+.035-.5,50+.035-.5),highlightError=highlight?nearest(highlight.points,expectedHighlight):Infinity;
@@ -109,7 +110,7 @@ try {
         }
         r.focus(56,50);r.render(0,{showGrid:true});const stats=r.getStats();
         return{zoom,dpr,checks,vertexChecks,pan:{x:panAfter.x-panBefore.x,y:panAfter.y-panBefore.y},anchorError,gridError,highlightError,rebuilt,warmRebuilds,changedPixels,centerShift:groundAfter.y-groundBefore.y,outside,bridgeInk,stats};
-      }, { zoom, dpr });
+      }, { zoom, dpr, hoverColor: MAP.hover.color.toLowerCase() });
       profiles.push(result);await page.locator('canvas').screenshot({path:`${output}/controlled-hill-valley-zoom${zoom}-dpr${dpr}.png`});
     }
     const foundation = await page.evaluate(() => {

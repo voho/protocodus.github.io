@@ -30,7 +30,7 @@ for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome}: vast worlds s
   const game = createGame({ biome, size: 'vast', seed: 19281 });
   assert.equal(game.cities.length, 64);
   for (const [kind, definition] of Object.entries(INDUSTRIES)) {
-    if (definition.biomes.includes(biome)) assert.equal(game.industries.filter(site => site.kind === kind).length, 12, `each district supplies ${kind}`);
+    if (!definition.buildOnly&&definition.biomes.includes(biome)) assert.equal(game.industries.filter(site => site.kind === kind).length, 12, `each district supplies ${kind}`);
   }
   const quadrants = [0, 0, 0, 0];
   for (const city of game.cities) quadrants[Number(city.x > game.width / 2) + 2 * Number(city.y > game.height / 2)]++;

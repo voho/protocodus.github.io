@@ -1,0 +1,293 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "industry:dairy-farm:taiga",
+    "industry:vegetable-farm:taiga",
+    "industry:orchard:taiga",
+    "industry:livestock-farm:taiga",
+    "industry:dairy-plant:taiga",
+    "industry:cannery:taiga",
+    "industry:meat-packer:taiga",
+    null,
+    null
+  ],
+  "source": "source-isolated.png",
+  "sourceSha256": "ad56f2ed7d17a24b51c427fdf01efdfe7070235dbc1e715f55b88b5d5b6a0f50",
+  "sprites": [
+    {
+      "id": "industry:dairy-farm:taiga",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          112,
+          161,
+          528,
+          478
+        ],
+        "rawAlphaBounds": [
+          112,
+          161,
+          528,
+          478
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.794944
+      },
+      "bounds": [
+        12,
+        67,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:vegetable-farm:taiga",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          118,
+          163,
+          524,
+          476
+        ],
+        "rawAlphaBounds": [
+          118,
+          163,
+          522,
+          476
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.807952
+      },
+      "bounds": [
+        12,
+        65,
+        243,
+        244
+      ]
+    },
+    {
+      "id": "industry:orchard:taiga",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          112,
+          163,
+          528,
+          476
+        ],
+        "rawAlphaBounds": [
+          112,
+          163,
+          528,
+          476
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.799817
+      },
+      "bounds": [
+        12,
+        69,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:livestock-farm:taiga",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          109,
+          168,
+          530,
+          471
+        ],
+        "rawAlphaBounds": [
+          109,
+          168,
+          530,
+          471
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.796277
+      },
+      "bounds": [
+        12,
+        77,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:dairy-plant:taiga",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          116,
+          167,
+          524,
+          473
+        ],
+        "rawAlphaBounds": [
+          116,
+          167,
+          524,
+          473
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.803694
+      },
+      "bounds": [
+        12,
+        70,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:cannery:taiga",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          114,
+          169,
+          526,
+          470
+        ],
+        "rawAlphaBounds": [
+          114,
+          169,
+          526,
+          470
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.799302
+      },
+      "bounds": [
+        12,
+        75,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:meat-packer:taiga",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          84,
+          161,
+          556,
+          478
+        ],
+        "rawAlphaBounds": [
+          84,
+          161,
+          556,
+          478
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.761294
+      },
+      "bounds": [
+        12,
+        88,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": null
+    }
+  ]
+}

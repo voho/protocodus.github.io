@@ -20,7 +20,7 @@ for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome}: varied settle
     populateWorldV2(game, biome, seed, config, context);
     assert.equal(game.cities.length, config.towns);
     assert.equal(new Set(game.cities.map(city => city.name)).size, config.towns);
-    for (const [kind, definition] of Object.entries(INDUSTRIES)) if (definition.biomes.includes(biome)) assert.equal(game.industries.filter(site => site.kind === kind).length, config.clusters);
+    for (const [kind, definition] of Object.entries(INDUSTRIES)) if (!definition.buildOnly&&definition.biomes.includes(biome)) assert.equal(game.industries.filter(site => site.kind === kind).length, config.clusters);
     assert.equal(new Set(game.industries.map(site => site.y * game.width + site.x)).size, game.industries.length);
     for (const site of game.industries) {
       const index = site.y * game.width + site.x, previous = terrainCodes[before[index]], current = game.tiles[index];

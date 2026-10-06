@@ -1,0 +1,67 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "request": "regenerate all city sprites, including all residential buildings",
+  "camera": "Orthographic 2:1 dimetric; upright walls; ground axes ±26.565°",
+  "operations": [
+    {
+      "biome": "taiga",
+      "phase": "all-nine-regeneration",
+      "prompt": "Regenerate the entire supplied residential sprite sheet as freshly painted, richer-detailed art for an elegant transport town-building game. The supplied sheet establishes the nine architectural identities and cutout workflow. Repaint and improve ALL NINE houses, roofs, materials, gardens and fences. Production TRANSPARENT 3 by 3 HOUSE SPRITE ATLAS, no presentation. One isolated complete building per cell in a precise regular square 3x3 sheet. All nine fully visible, centered with very generous genuine transparent gutters and outer margins; each silhouette including garden/shadow fits strictly within its own cell. Orthographic 2:1 dimetric camera: looking down at two facades, upright vertical walls; every ground edge slopes exactly +26.565 or -26.565 degrees, consistent parallel geometry, no perspective. Hand-painted realistic miniature architectural game sprite, exquisitely fine slate/tile seams, weathered plaster, individual brick courses, timber grain, stone doorstep texture, believable dark reflective glass, restrained moss and trim. Quiet earthy muted cream, gray slate, warm timber, brick and softly weathered terracotta; lower saturation than reference, gentle northwest daylight, short integrated contact shadows, no neon edges or bright outlines. Crisp readable shapes at 48 pixels. TOP ROW affordable homes left-to-right: (1) compact single-storey cream plaster cottage with weathered terracotta pitched roof, little flowering garden and low pale timber picket fence with open gate; (2) rustic dark timber cabin with muted gray slate roof, small vegetable beds and a low split-rail fence; (3) narrow red-brick terrace cottage with two chimneys, muted terracotta roof, tidy small flowerbeds and low dark iron railing. MIDDLE ROW family homes: (4) cream two-storey gabled family house with slate roof, dormer, bay window, small shrubs and stepping-stone entry; (5) dignified square two-storey red-brick villa with green-gray hipped slate roof, cream window surrounds and stone steps; (6) modest cream garden bungalow with weathered clay hipped roof, shallow porch, low timber fence, lavender beds and gate path. BOTTOM ROW prestige homes: (7) broad two-storey pale stone country manor with slate roof, chimneys, restrained dormers and formal low hedges; (8) tall handsome red-brick grand townhouse with charcoal mansard roof, stone window surrounds, dormers and formal front steps; (9) two-storey warm cream courtyard villa, weathered terracotta roofs, visible small inner courtyard and terracotta planters. Taiga temperate climate: varied muted fresh grass tufts, moss, garden soil and natural small shrub details at foundations, house remains dominant, small low fences only. Real transparent background and soft original alpha, no solid white/black/checkerboard backdrop, no opaque square or diamond slabs, no text, people, signage, watermark, logos, tall trees, detached sparkles or stray floating debris. Square image, nine separate sprites, safe transparent cell boundaries. Maintain original ordering but genuinely regenerate every building's artwork.",
+      "reference": "taiga/house-atlas.png (previous garden atlas)",
+      "generatedSource": "/workspace/generated_images/exec-c8846723-0fb0-40f7-b68b-d1a84e399d6c.png",
+      "accepted": false,
+      "reason": "Two middle-row garden silhouettes touched; repaired through imagegen."
+    },
+    {
+      "biome": "taiga",
+      "phase": "gutter-repair",
+      "prompt": "This supplied PNG is the edit target, a 3x3 transparent residential sprite atlas. KEEP the nine freshly painted houses, their exact architectural identities, materials, facades, gardens, fences and detailed miniature rendering. Repair spacing/framing only: shrink EACH OF THE NINE complete building+garden cutouts to about 78 percent of its current dimensions, then center it independently in its own equally-sized 3-by-3 grid cell. There must be nine separate NON-TOUCHING opaque silhouettes. In particular separate middle-row center brick villa's right shrubs from middle-row right garden bungalow's left fence. The first and last columns must have wide fully transparent outer margins. Bottom row must have fully transparent bottom margin. Every complete sprite including all greenery and contact shadow must remain wholly inside its assigned square cell, leaving at least 12 percent transparent space at each cell side, no adjacent objects touching. Do not crop any roofs, chimneys, gardens, feet, fences or shadows. Precisely regular 3x3 grid, no rearrangement or added/removed houses, fixed orthographic 2:1 dimetric angle with upright walls and same light. Preserve REAL alpha transparency, don't flatten. No background, no card borders, no letters, no text, no labels, no checkerboard. Output square transparent atlas with safe gutters.",
+      "reference": "/workspace/generated_images/exec-c8846723-0fb0-40f7-b68b-d1a84e399d6c.png",
+      "generatedSource": "/workspace/generated_images/exec-9cd79f03-6f15-4559-9419-32cd5b96fc94.png",
+      "source": "taiga/source-regenerated-2026-10-05.png",
+      "registered": "taiga/source-regenerated-2026-10-05-packed.png",
+      "accepted": true
+    },
+    {
+      "biome": "tundra",
+      "phase": "climate-variant",
+      "prompt": "Edit this exact supplied newly regenerated taiga residential atlas into its SNOWY TUNDRA climate variant. It is a production transparent square 3x3 atlas of nine houses, each in a separate equally-sized cell. Preserve all NINE architectural identities, their existing placement in their cell, full original silhouettes, gardens/fences, relative scale, orthographic 2:1 dimetric camera and northwest illumination. IMPORTANT generous fully transparent gutters and outer margins must remain; all sprites stay separate, including contact shadows. Add naturally settled patchy frost and pale powder snow to roofs, chimney ledges, fence tops, doorstep edges and garden soil; keep stretches of original roof material visible and ALL dark windows/doors unobscured. Snow-dusted hardy low shrubs, dormant flower beds, little cleared garden paths. Quiet winter-blue shading, pale cream snow, warm stone/timber/brick retained. Detailed hand-painted realistic miniature textures, crisp roof and brick seams, muted palette. Change climate textures and low vegetation only; don't add buildings/trees or move facade features; original row identities remain cheap cottages, family houses, prestige houses. Real actual alpha TRANSPARENCY beyond integrated plot silhouette. No opaque ground slabs, white rectangles, checkerboard, text, labels, people, outlines, glow or detached debris. Each complete snow-dusted house remains entirely inside its own cell, safely inset. Square transparent sprite sheet.",
+      "reference": "taiga/house-atlas.png (regenerated 2026-10-05)",
+      "generatedSource": "/workspace/generated_images/exec-888d5574-cd5c-4d1b-b1fe-c7afe15ef306.png",
+      "source": "tundra/source-regenerated-2026-10-05.png",
+      "registered": "tundra/source-regenerated-2026-10-05-packed.png",
+      "accepted": true
+    },
+    {
+      "biome": "desert",
+      "phase": "climate-variant",
+      "prompt": "Edit this exact supplied newly regenerated taiga residential atlas into its DRY DESERT climate variant. It is a production transparent square 3x3 atlas of nine houses, each in a separate equally-sized cell. Preserve all NINE architectural identities, their existing placement in their cell, full original silhouettes, gardens/fences, relative scale, orthographic 2:1 dimetric camera and northwest illumination. IMPORTANT generous fully transparent gutters and outer margins must remain; all sprites stay separate, including contact shadows. Warm sun-bleached plaster, warm weathered masonry and timber, lightly dusty slate and terracotta roofs; preserve each roof color family and all existing visible windows/doors. Replace temperate gardens with elegant sparse arid sage, lavender, agaves/succulents, dry herbs, dusty olive low shrubs and tawny grass tufts; sandy gravel soil rather than green lawn, restrained little terracotta pots. Keep original fence geometry and garden gate paths. Quiet ochre and cool gray shadows, detailed painted realistic miniature material textures, muted palette. Change climate textures and low vegetation only; don't add buildings/trees or move facade features; original row identities remain cheap cottages, family houses, prestige houses. No snow or lush lawn. Real actual alpha TRANSPARENCY beyond integrated plot silhouette. No opaque sandy square slabs, background rectangles, checkerboard, text, labels, people, outlines, glow or detached debris. Each complete dry-climate house remains entirely inside its own cell, safely inset. Square transparent sprite sheet.",
+      "reference": "taiga/house-atlas.png (regenerated 2026-10-05)",
+      "generatedSource": "/workspace/generated_images/exec-ca8b2ee1-6c67-4a05-b273-17ad470f1214.png",
+      "source": "desert/source-regenerated-2026-10-05.png",
+      "registered": "desert/source-regenerated-2026-10-05-packed.png",
+      "accepted": true
+    }
+  ],
+  "packing": "prepare-building-atlas.py copies original RGBA pixels into independent padded cells; build-house-atlases.py normalizes foundations and creates isolated premultiplied-alpha densities. Neither tool generates or repaints source artwork.",
+  "runtimeDensities": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "identities": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ]
+}
+

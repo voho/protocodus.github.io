@@ -1,0 +1,361 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "civic:park-village:taiga",
+    "civic:park-formal:taiga",
+    "civic:park-woodland:taiga",
+    "civic:mall-neighborhood:taiga",
+    "civic:mall-shopping:taiga",
+    "civic:mall-modern:taiga",
+    "civic:shop-grocery:taiga:design-1",
+    "civic:shop-bakery:taiga:design-1",
+    "civic:shop-butcher:taiga:design-1"
+  ],
+  "source": "source-registered.png",
+  "sourceSha256": "a042575919fb8e6a18b277787b6285e3e863ecea3ba9664cd00467350e088de5",
+  "sprites": [
+    {
+      "id": "civic:park-village:taiga",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          173,
+          196,
+          466,
+          443
+        ],
+        "rawAlphaBounds": [
+          172,
+          195,
+          467,
+          444
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.887346
+      },
+      "bounds": [
+        12,
+        48,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:park-formal:taiga",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          166,
+          192,
+          474,
+          448
+        ],
+        "rawAlphaBounds": [
+          165,
+          192,
+          475,
+          449
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.892732
+      },
+      "bounds": [
+        12,
+        51,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:park-woodland:taiga",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          167,
+          180,
+          473,
+          460
+        ],
+        "rawAlphaBounds": [
+          166,
+          179,
+          474,
+          461
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.860464
+      },
+      "bounds": [
+        12,
+        32,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:mall-neighborhood:taiga",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          162,
+          184,
+          477,
+          455
+        ],
+        "rawAlphaBounds": [
+          161,
+          183,
+          478,
+          456
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.858188
+      },
+      "bounds": [
+        12,
+        44,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:mall-shopping:taiga",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          158,
+          166,
+          481,
+          473
+        ],
+        "rawAlphaBounds": [
+          157,
+          166,
+          482,
+          474
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.83646
+      },
+      "bounds": [
+        12,
+        23,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:mall-modern:taiga",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          156,
+          176,
+          484,
+          463
+        ],
+        "rawAlphaBounds": [
+          155,
+          175,
+          485,
+          464
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.845027
+      },
+      "bounds": [
+        12,
+        41,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-grocery:taiga:design-1",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          172,
+          183,
+          468,
+          457
+        ],
+        "rawAlphaBounds": [
+          171,
+          182,
+          469,
+          457
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.865493
+      },
+      "bounds": [
+        12,
+        29,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-bakery:taiga:design-1",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          178,
+          183,
+          462,
+          456
+        ],
+        "rawAlphaBounds": [
+          177,
+          182,
+          462,
+          456
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.872036
+      },
+      "bounds": [
+        12,
+        21,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-butcher:taiga:design-1",
+      "cell": 8,
+      "sourceBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          173,
+          183,
+          467,
+          456
+        ],
+        "rawAlphaBounds": [
+          172,
+          182,
+          468,
+          457
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.86415
+      },
+      "bounds": [
+        12,
+        29,
+        244,
+        244
+      ]
+    }
+  ]
+}

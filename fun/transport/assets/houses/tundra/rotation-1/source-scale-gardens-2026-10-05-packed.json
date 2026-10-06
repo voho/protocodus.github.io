@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 637291,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        37,
+        124,
+        420,
+        445
+      ],
+      "offset": [
+        128,
+        159
+      ],
+      "pixels": 64222
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        449,
+        138,
+        832,
+        445
+      ],
+      "offset": [
+        128,
+        166
+      ],
+      "pixels": 64454
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        855,
+        141,
+        1231,
+        450
+      ],
+      "offset": [
+        132,
+        165
+      ],
+      "pixels": 64327
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        37,
+        486,
+        453,
+        834
+      ],
+      "offset": [
+        112,
+        146
+      ],
+      "pixels": 79612
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        457,
+        500,
+        841,
+        824
+      ],
+      "offset": [
+        128,
+        158
+      ],
+      "pixels": 71069
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        850,
+        514,
+        1235,
+        825
+      ],
+      "offset": [
+        127,
+        164
+      ],
+      "pixels": 68466
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        40,
+        848,
+        448,
+        1196
+      ],
+      "offset": [
+        116,
+        146
+      ],
+      "pixels": 79335
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        458,
+        850,
+        843,
+        1185
+      ],
+      "offset": [
+        127,
+        152
+      ],
+      "pixels": 75087
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        845,
+        877,
+        1238,
+        1197
+      ],
+      "offset": [
+        123,
+        160
+      ],
+      "pixels": 70719
+    }
+  ]
+}

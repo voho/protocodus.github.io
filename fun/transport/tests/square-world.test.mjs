@@ -44,7 +44,7 @@ for (const biome of ['taiga','tundra','desert']) test(`${biome}: generation reci
   assert.equal(validateGame(game),true);
   const [from,to] = game.cities.slice(0,2).map(city=>({x:city.x,y:city.y+5}));
   assert.ok(findPath(game,from,to,'water')?.length>2,'the starter towns still share navigable port berths');
-  for(const [kind,definition] of Object.entries(INDUSTRIES))if(definition.biomes.includes(biome)) {
+  for(const [kind,definition] of Object.entries(INDUSTRIES))if(!definition.buildOnly&&definition.biomes.includes(biome)) {
     assert.equal(game.industries.filter(site=>site.kind===kind).length,8,`${kind} is available in all eight districts`);
   }
   game.generationVersion=999;

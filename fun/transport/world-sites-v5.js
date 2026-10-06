@@ -1,11 +1,11 @@
 import { INDUSTRIES } from './data.js';
 import { buildingFootprint, buildingTiles, placeBuildingSite } from './building-sites.js';
-import { industryFootprint, industrySize, industryTiles, industrySiteProblem } from './industry-sites.js';
+import { industryFootprint, legacyIndustryFootprint, industrySize, industryTiles, industrySiteProblem, isFarmIndustry } from './industry-sites.js';
 
 // Recipe 5 allocates real plots after the unchanged natural-world recipe. A
 // temporary occupancy byte per tile keeps continental placement independent of
 // the number of factories/towns; saved worlds still store only their anchors.
-export function allocateGeneratedSites(game) {
+export function allocateGeneratedSites(game, { legacyIndustrySizes = false, legacyFarmSizes = false } = {}) {
   const reserved = new Uint8Array(game.tiles.length), large = [];
   const tile = (x,y) => x>=0&&y>=0&&x<game.width&&y<game.height ? game.tiles[y*game.width+x] : null;
   const mark = (points,value=1) => { for(const p of points) reserved[p.y*game.width+p.x]=value; };
@@ -49,7 +49,8 @@ export function allocateGeneratedSites(game) {
   }
 
   for(const industry of game.industries) {
-    const size=industryFootprint(industry.kind);if(industrySize(industry)===size)continue;
+    // Recipe 8 predates fields; earlier recipes also retain their mixed 2/3 sites.
+    const size=legacyIndustrySizes?legacyIndustryFootprint(industry.kind):legacyFarmSizes&&isFarmIndustry(industry.kind)?3:industryFootprint(industry.kind);if(industrySize(industry)===size)continue;
     mark(industryTiles(industry),0);
     const def=INDUSTRIES[industry.kind],valid=(x,y)=> {
       if(!clear(x,y,size,def.terrain?.includes('mountain')))return false;

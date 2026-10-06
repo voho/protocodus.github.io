@@ -1,4 +1,4 @@
-// Selective camera corrections change only the three corrected cells and preserve untouched art.
+// Every commerce identity is regenerated, including a dedicated town workshop.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
@@ -29,7 +29,7 @@ try {
             const crop = im => { ac.clearRect(0, 0, size, size); ac.drawImage(im,index%3*size,Math.floor(index/3)*size,size,size,0,0,size,size);return ac.getImageData(0,0,size,size).data; };
             const before = crop(old), after = crop(next);let changed = 0;
             for (let i = 0; i < before.length; i++) if (before[i] !== after[i]) changed++;
-            integrity.push({ biome, size, id: meta.order[index], changed, expectedChange: [1,4,6].includes(index) });
+            integrity.push({ biome, size, id: meta.order[index], changed, expectedChange: true });
           }
         }
       }
@@ -37,7 +37,7 @@ try {
     });
     integrity.push(...result.integrity);await page.close();
   }
-  for(const row of integrity)assert.equal(row.changed>0,row.expectedChange,`${row.biome}/${row.id}/${row.size}: only three selected cells change`);
+  for(const row of integrity){assert.ok(row.id,`${row.biome}/${row.size}: every commerce cell has an identity`);assert.ok(row.changed>0,`${row.biome}/${row.id}/${row.size}: regenerated artwork replaces every original cell`);}
   assert.equal(integrity.length,135);assert.deepEqual(errors,[]);
   await writeFile(`${output}/results.json`,JSON.stringify({integrity,errors},null,2));console.log(JSON.stringify({verifiedCells:integrity.length,unchangedCells:integrity.filter(r=>!r.expectedChange).length,errors},null,2));
 } finally { await browser.close(); }

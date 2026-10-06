@@ -61,8 +61,8 @@ test('one bulldozed tile shared by three routes yields three topical notices and
 
 test('a demolished buyer shared by two routes yields one grouped supply warning', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   for (const name of ['Timber one', 'Timber two']) assert.equal(addRoute(game, { name, mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'timber' }).ok, true);
@@ -118,7 +118,7 @@ test('town founding and industry expansion notices carry their site', () => {
   assert.equal(founded.ok, true);
   assert.deepEqual(game.notifications[0].target, { kind: 'city', id: founded.city.id });
   assert.equal(game.notifications[0].template, `{town:${founded.city.id}} founded. Zone homes nearby and give it a passenger route.`);
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
   const camp = game.industries[0], calls = [];
   Object.assign(camp, { capacity: .98, activity: 400, totalProduced: 10, idleDays: 0, nextReviewDay: 0 });
   stepIndustries(game, (_, message, type, extra) => calls.push({ message, type, extra }));

@@ -12,8 +12,8 @@ import { money } from '../copy.js';
 
 function fixture(mode = 'road') {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
   assert.equal(buildPath(game, mode, line(10, 30, 12)).ok, true);
   const tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
   assert.equal(build(game, tool, 10, 12).ok, true);
@@ -301,8 +301,8 @@ test('the forecast times a trip and prices one unit after its days on the way', 
 
 test('a ship forecast uses the timetable of ships', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
   for (const point of line(10, 30, 12)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
   game.revision++; game.networkRevision++;
   for (const x of [10, 30]) assert.equal(build(game, 'port', x, 12).ok, true);

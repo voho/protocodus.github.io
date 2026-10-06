@@ -1,17 +1,21 @@
-# Commerce camera correction, version 2
+# Commerce and town workshop sprites
 
-Only `shop-hardware`, `service-bank`, and `service-garage` were regenerated, in taiga, tundra, and desert finishes. The built-in image generation tool used the [mathematically projected block guide](camera-guide.png). The accepted original transparent outputs and exact prompts are recorded in [generation.json](generation.json); each climate's `generated/` folder contains its source images. Original sibling assets remain available.
+All eight commerce identities were regenerated with the built-in image generation tool on 5 October 2026, in taiga, tundra and desert finishes. A new small town workshop occupies the ninth cell. The active family therefore contains 27 newly generated building variants.
 
-The old sprites had shallow front façades inconsistent with their opposite walls. Paired, approximately measured horizontal edges now imply camera elevations of 29.1° for the bank, 30.1° for the garage, and 30.3° for the hardware shop, compared with the 30° camera behind the game's 2:1 projection. Measurements are manual and have about 1–2° edge uncertainty. The bank retains slight rotation within its plot. These are painterly sprites, not exact CAD projections. [angle-audit.json](angle-audit.json) records coordinates, method, before/after estimates, and representative preserved houses.
+The artwork uses detailed painted miniature textures, individual shop fittings and restrained planting. The fixed orthographic 2:1 dimetric camera uses ground axes at approximately ±26.565° and upright walls. The [camera guide](camera-guide.png) was supplied to generation and climate edits. These are painted assets with small camera variation, not exact CAD projections.
 
-The house and civic families were not changed. A façade angle alone cannot distinguish in-plot rotation from a changed camera: the product of the two orthogonal horizontal edge slopes should be approximately 0.25. The inspected cheap houses and normal brick villa are consistent with that camera. The grand townhouse retains modest painterly camera drift; no claim of exact alignment is made for all preserved art.
+The complete original transparent output sheets, exact prompts, references and hashes are recorded in [generation.json](generation.json) and [regeneration-2026-10-05.json](regeneration-2026-10-05.json). Every biome retains `source-generated-2026-10-05.png`, its losslessly registered sheet, registration records, nine transparent 256px per-object masters, and all runtime densities. The initial eight-building taiga sheet is also retained as generation history.
 
-Runtime registration is in `raster-buildings.js`. The two small light rectangles per corrected building were measured on exposed glass in the final 256px cells and checked across all three zoom levels, both DPRs, and climates.
+Row-major order is butcher, hardware, florist / post office, bank, hotel / garage, barber, town workshop. The workshop has brick walls, two green-gray sawtooth roof bays with northlight glazing, a modest chimney, timber loading doors, crates and a small workbench. Each biome metadata file records the ninth identity as `civic:factory:<biome>`.
 
-Rebuild from saved sources with Pillow installed:
+Rebuild the entire family with Pillow, NumPy and SciPy installed:
 
 ```sh
 python3 fun/transport/assets/world/buildings-commerce-camera-v2/rebuild.py
 ```
 
-The rebuild uses the existing alpha-preserving normalization/sharpening pipeline, a 232px maximum art extent, and groundline 244. It replaces only indices 1, 4, and 6. Every other source and every unselected atlas cell is copied from the original family at its existing LOD without resampling. Do not repack the whole family from a generated contact sheet. `tests/commerce-camera-browser-check.mjs` checks all 135 cell/LOD/climate combinations and 54 window-lighting profiles.
+`tools/prepare-building-atlas.py` identifies nine disconnected alpha cutouts and integer-translates their original RGBA pixels into isolated padded cells. `tools/build-world-atlases.py` then normalizes the complete objects to a maximum 232px extent with groundline 244, using the established premultiplied-alpha filtering and mild interior sharpening for 16/32/64/128/256px cells. No script generates, recolors or repaints artwork.
+
+The previous selective hardware/bank/garage correction remains documented in [generation-selective-v2.json](generation-selective-v2.json) and its original individual `generated/` images. [angle-audit.json](angle-audit.json) describes measurements of that historical artwork, not the regenerated sheets. The original sibling family remains available under `../buildings-commerce/`.
+
+Runtime registration is in `raster-buildings.js`. `tests/commerce-camera-browser-check.mjs` verifies that all 135 cell/LOD/climate combinations decode and every occupied cell has refreshed artwork.

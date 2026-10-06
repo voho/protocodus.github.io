@@ -11,7 +11,7 @@ test('world choices retain existing defaults and provide independent bounded cou
     assert.equal(choices.industryDistricts, WORLD_SIZES[size].clusters);
     assert.equal(choices.minTowns, 2);
     assert.equal(choices.maxTowns, WORLD_SIZES[size].towns * 2);
-    assert.equal(choices.industriesPerDistrict, Object.values(INDUSTRIES).filter(i => i.biomes.includes(biome)).length);
+    assert.equal(choices.industriesPerDistrict, Object.values(INDUSTRIES).filter(i => !i.buildOnly&&i.biomes.includes(biome)).length);
   }
   const base = createGame({size:'square512'});
   const explicit = createGame({size:'square512',townCount:48,industryDistricts:8});
@@ -22,7 +22,7 @@ test('world choices retain existing defaults and provide independent bounded cou
 for (const biome of ['taiga','tundra','desert']) test(`${biome}: custom density preserves complete chains and survives a procedural save`, () => {
   const game = createGame({biome,size:'square512',seed:92137,townCount:12,industryDistricts:3});
   assert.equal(game.cities.length,12);
-  for (const [kind,definition] of Object.entries(INDUSTRIES)) if (definition.biomes.includes(biome)) assert.equal(game.industries.filter(i=>i.kind===kind).length,3);
+  for (const [kind,definition] of Object.entries(INDUSTRIES)) if (definition.biomes.includes(biome)) assert.equal(game.industries.filter(i=>i.kind===kind).length,definition.buildOnly?0:3,definition.buildOnly?`${kind} is optional player construction and never alters this saved geography`:`every district contains ${kind}`);
   assert.ok(validateGame(game));
   // Include a change away from the opening towns to exercise the saved recipe
   // instead of merely comparing independently generated entity metadata.

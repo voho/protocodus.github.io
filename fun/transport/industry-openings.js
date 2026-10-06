@@ -85,7 +85,7 @@ export function planIndustryOpening(game, month, { force = false } = {}) {
   if (!force && roll >= O.maxChance) return null;
   const anchors = openingAnchors(game);
   if (!anchors.length || (!force && roll >= openingChance(anchors.length)) || openedCount(game) >= openingCeiling(game)) return null;
-  const kinds = Object.keys(INDUSTRIES).filter(kind => INDUSTRIES[kind].biomes.includes(game.biome)), weight = kind => isRaw(kind) && kind !== 'oil-well' ? 2 : 1, total = kinds.reduce((sum, kind) => sum + weight(kind), 0);
+  const kinds = Object.keys(INDUSTRIES).filter(kind => !INDUSTRIES[kind].buildOnly&&INDUSTRIES[kind].biomes.includes(game.biome)), weight = kind => isRaw(kind) && kind !== 'oil-well' ? 2 : 1, total = kinds.reduce((sum, kind) => sum + weight(kind), 0);
   const town = anchors[Math.floor(randomAt(game, month, KEY, 903) * anchors.length)];
   for (let k = 0; k < O.attempts; k++) {
     let pick = randomAt(game, month, KEY, 1200 + k) * total, kind = kinds.at(-1);

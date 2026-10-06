@@ -1,0 +1,213 @@
+{
+  "columns": 3,
+  "rows": 2,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "farm-core:farm:taiga",
+    "farm-core:dairy-farm:taiga",
+    "farm-core:vegetable-farm:taiga",
+    "farm-core:orchard:taiga",
+    "farm-core:livestock-farm:taiga",
+    null
+  ],
+  "source": "source-isolated.png",
+  "sourceSha256": "7c7c387e5ec03b86db517c5b0ad39ef5d8bc1db8a6495685960a31c86dfb1b96",
+  "sprites": [
+    {
+      "id": "farm-core:farm:taiga",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          77,
+          126,
+          562,
+          513
+        ],
+        "rawAlphaBounds": [
+          77,
+          126,
+          562,
+          513
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.709094
+      },
+      "bounds": [
+        12,
+        59,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "farm-core:dairy-farm:taiga",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          84,
+          137,
+          556,
+          503
+        ],
+        "rawAlphaBounds": [
+          84,
+          137,
+          556,
+          503
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.723003
+      },
+      "bounds": [
+        12,
+        64,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "farm-core:vegetable-farm:taiga",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          79,
+          133,
+          561,
+          506
+        ],
+        "rawAlphaBounds": [
+          79,
+          133,
+          561,
+          506
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.721055
+      },
+      "bounds": [
+        12,
+        64,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "farm-core:orchard:taiga",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          77,
+          124,
+          562,
+          515
+        ],
+        "rawAlphaBounds": [
+          77,
+          124,
+          562,
+          515
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.72219
+      },
+      "bounds": [
+        12,
+        57,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "farm-core:livestock-farm:taiga",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          68,
+          126,
+          572,
+          514
+        ],
+        "rawAlphaBounds": [
+          68,
+          126,
+          572,
+          514
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.708953
+      },
+      "bounds": [
+        12,
+        65,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    }
+  ]
+}

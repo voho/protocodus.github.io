@@ -12,8 +12,8 @@ function water(game, points) {
 
 function freightFixture() {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
   water(game, line(10, 30, 12));
   assert.equal(build(game, 'port', 10, 12).ok, true);
   assert.equal(build(game, 'port', 30, 12).ok, true);

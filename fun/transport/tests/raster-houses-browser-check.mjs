@@ -54,8 +54,8 @@ try {
     assert.equal(loaded, true, 'at least one complete generated atlas set loads');
     const checks = await page.evaluate(async () => {
       const q = houseQA, { assets, canvas, hash } = q, masters = [], profiles = [];
-      for (const biome of assets.HOUSE_BIOMES) {
-        const image = await q.load(assets.HOUSE_ATLAS_URLS[biome]);
+      for (const biome of assets.HOUSE_BIOMES) for (const design of assets.HOUSE_DESIGNS) for (const rotation of assets.HOUSE_ROTATIONS) {
+        const image = await q.load(assets.HOUSE_DESIGN_ATLAS_URLS[biome][design][rotation]);
         const master = canvas(image.naturalWidth, image.naturalHeight); master.getContext('2d').drawImage(image, 0, 0);
         const data = master.getContext('2d').getImageData(0, 0, master.width, master.height).data, silhouettes = [];
         for (let index = 0; index < 9; index++) {
@@ -68,42 +68,71 @@ try {
           }
           silhouettes.push({ kind: assets.HOUSE_KINDS[index], transparent, visible, borderVisible });
         }
-        masters.push({ biome, width: master.width, height: master.height, silhouettes });
+        masters.push({ biome, design, rotation, width: master.width, height: master.height, silhouettes });
         for (const [zoom, detailLevel] of [[.5, 'region'], [1, 'town'], [2, 'detail']]) {
           const pixelScale = zoom * devicePixelRatio, cell = 32 * pixelScale;
-          const atlas = await q.load(new URL(`./assets/houses/${biome}/house-atlas-${cell}.png`, location.href).href);
+          const atlas = await q.load(new URL(`./assets/houses/${biome}/${design ? `design-${design}/` : ''}${rotation ? 'rotation-1/' : ''}house-atlas-${cell}.png`, location.href).href);
           const sprite = q.createSprites(biome, { pixelScale, detailLevel }), houses = [];
           for (let index = 0; index < 9; index++) {
-            const kind = assets.HOUSE_KINDS[index], actual = sprite(kind, index, 1);
+            const kind = assets.HOUSE_KINDS[index], actual = sprite(kind, design * 6 + rotation, 1);
             const expected = canvas(32 * pixelScale, 40 * pixelScale), c = expected.getContext('2d');
             c.imageSmoothingEnabled = false;
             c.drawImage(atlas, index % 3 * cell, Math.floor(index / 3) * cell, cell, cell, 0, 8 * pixelScale, cell, cell);
-            houses.push({ kind, width: actual.width, height: actual.height, hash: hash(actual), matchesLOD: hash(actual) === hash(expected) });
+            houses.push({ kind, width: actual.width, height: actual.height, hash: hash(actual), matchesLOD: hash(actual) === hash(expected), sharesRotation: actual === sprite(kind,design * 6 + rotation + 18,1), distinctRotation: actual !== sprite(kind,design * 6 + 1-rotation,1), distinctPixels: hash(actual) !== hash(sprite(kind,design * 6 + 1-rotation,1)), distinctDesign: hash(actual) !== hash(sprite(kind,((design + 1) % 3) * 6 + rotation,1)), stable: actual === sprite(kind,design * 6 + rotation,1) });
           }
-          profiles.push({ biome, zoom, cell, houses, artwork: assets.getHouseAssetStats(biome) });
+          profiles.push({ biome, design, rotation, zoom, cell, houses, artwork: assets.getHouseAssetStats(biome,rotation,design) });
         }
       }
-      return { masters, profiles, stats: assets.getHouseAssetStats() };
+      const {drawUIArtwork}=await import('./ui-art.js'),ui=[];
+      for(const biome of assets.HOUSE_BIOMES){
+        const root=document.createElement('div'),portrait=canvas(96,100),density=Math.min(2,Math.max(1,devicePixelRatio));
+        root.append(portrait);const sprite=q.createSprites(biome,{pixelScale:density*2,detailLevel:'detail'});
+        for(const kind of assets.HOUSE_KINDS)for(const design of assets.HOUSE_DESIGNS)for(const rotation of assets.HOUSE_ROTATIONS){
+          const variant=design*6+rotation;portrait.dataset.buildingSprite=kind;portrait.dataset.buildingVariant=String(variant);
+          drawUIArtwork(root,{biome,routes:[],vehicles:[]});
+          const expected=canvas(96*density,100*density),c=expected.getContext('2d');c.scale(density,density);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(sprite(kind,variant,1),16,8,64,80);
+          const key=portrait.dataset.artDrawn,first=hash(portrait);drawUIArtwork(root,{biome,routes:[],vehicles:[]});
+          ui.push({biome,kind,variant,matches:first===hash(expected),stable:portrait.dataset.artDrawn===key&&hash(portrait)===first});
+        }
+      }
+      return { masters, profiles, ui, stats: assets.getHouseAssetStats() };
     });
     assert.deepEqual(checks.stats.availableBiomes.slice().sort(), ['desert', 'taiga', 'tundra']);
+    assert.equal(checks.masters.length, 18);
+    assert.deepEqual(checks.stats.availableDesigns, [0,1,2]);
+    assert.ok(checks.stats.decodedBytes <= 54 * 1024 * 1024, 'all climate/design/orientation densities retain a fixed decoded-art budget');
+    for (const design of [0,1,2]) for (const rotation of [0,1]) assert.deepEqual(checks.stats.designStats[design].rotations[rotation].availableBiomes.slice().sort(), ['desert','taiga','tundra']);
+    for (const rotation of [0,1]) assert.deepEqual(checks.stats.rotationStats[rotation].availableBiomes.slice().sort(), ['desert','taiga','tundra']);
     for (const master of checks.masters) {
       assert.equal(master.width, 768); assert.equal(master.height, 768);
       for (const silhouette of master.silhouettes) {
-        assert.ok(silhouette.transparent > 256 * 256 * .10, `${master.biome} ${silhouette.kind} has a transparent cutout, not an opaque background`);
-        assert.ok(silhouette.visible > 256 * 256 * .08, `${master.biome} ${silhouette.kind} contains a substantial visible house`);
-        assert.ok(silhouette.borderVisible < 80, `${master.biome} ${silhouette.kind} is not clipped at its atlas cell edges`);
+        assert.ok(silhouette.transparent > 256 * 256 * .10, `${master.biome} rotation ${master.rotation} ${silhouette.kind} has a transparent cutout, not an opaque background`);
+        assert.ok(silhouette.visible > 256 * 256 * .08, `${master.biome} rotation ${master.rotation} ${silhouette.kind} contains a substantial visible house`);
+        assert.ok(silhouette.borderVisible < 80, `${master.biome} rotation ${master.rotation} ${silhouette.kind} is not clipped at its atlas cell edges`);
       }
     }
     for (const profile of checks.profiles) {
       assert.equal(new Set(profile.houses.map(house => house.hash)).size, 9, 'all nine houses have distinct pixels at each zoom and density');
       assert.equal(profile.artwork.activeBiome, profile.biome);
+      assert.equal(profile.artwork.activeDesign, profile.design, 'all three physical designs have loaded climate artwork');
+      assert.equal(profile.artwork.activeRotation, profile.rotation, 'both physical orientations have loaded climate artwork');
       assert.equal(profile.artwork.lastCellSize, profile.cell, 'renderer selects the authored native density');
       for (const house of profile.houses) {
-        assert.equal(house.matchesLOD, true, `${profile.biome} ${house.kind} uses the generated bitmap at ${profile.cell}px`);
+        assert.equal(house.sharesRotation,true,'variants of the same authored rotation share one sprite');
+        assert.equal(house.distinctRotation,true,'physical rotations retain separate cached sprites');
+        assert.equal(house.distinctPixels,true,'physical rotations have distinct rendered pixels');
+        assert.equal(house.distinctDesign,true,'architectural designs have distinct rendered pixels');
+        assert.equal(house.stable,true,'random placement rotation stays stable for repeated draws');
+        assert.equal(house.matchesLOD, true, `${profile.biome} rotation ${profile.rotation} ${house.kind} uses the generated bitmap at ${profile.cell}px`);
         assert.equal(house.width, profile.cell); assert.equal(house.height, profile.cell * 1.25);
         assert.ok(profile.artwork.rasterizedHouses[house.kind] > 0);
       }
     }
+    for (const biome of ['taiga','tundra','desert']) for (const zoom of [.5,1,2]) for (const index of Array.from({length:9},(_,i)=>i)) {
+      const identities=checks.profiles.filter(profile=>profile.biome===biome&&profile.zoom===zoom).map(profile=>profile.houses[index].hash);
+      assert.equal(new Set(identities).size,6,`${biome} ${checks.profiles[0].houses[index].kind} zoom${zoom} has six distinct design/orientation images`);
+    }
+    for(const portrait of checks.ui){assert.equal(portrait.matches,true,`${portrait.biome} ${portrait.kind} variant${portrait.variant} UI portrait matches map artwork`);assert.equal(portrait.stable,true,'repainting unchanged portraits reuses their bitmap');}
     // Full originals on a checkerboard make halos or accidental backgrounds
     // visible; the gallery below also shows the real 16/32/64 logical sizes.
     if (dpr === 1) for (const biome of ['taiga', 'tundra', 'desert']) {
@@ -151,9 +180,73 @@ try {
       for (const stats of tour) { assert.ok(stats.cacheBytes <= stats.cacheLimit); assert.ok(stats.cacheLimit <= 256 * 1024 * 1024); assert.equal(stats.recomposed, 0); }
       tours.push(...tour);
     }
-    results.push({ dpr, nativeProfiles: checks.profiles.length, checkedHouseSprites: checks.profiles.reduce((count, item) => count + item.houses.length, 0), maxCacheMiB: +(Math.max(...tours.map(item => item.cacheBytes)) / 1024 / 1024).toFixed(1) });
+    results.push({ dpr, nativeProfiles: checks.profiles.length, checkedHouseSprites: checks.profiles.reduce((count, item) => count + item.houses.length, 0), checkedPortraits:checks.ui.length, maxCacheMiB: +(Math.max(...tours.map(item => item.cacheBytes)) / 1024 / 1024).toFixed(1) });
     await context.close();
   }
+
+  // The alternate orientation may arrive after primary sprites are cached.
+  // Keep the same house/climate visible until its own physical rotation loads.
+  const alternate = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  let releaseAlternate;
+  const alternateGate = new Promise(resolve => { releaseAlternate = resolve; });
+  await alternate.route('**/assets/houses/**/rotation-1/**', async route => { await alternateGate; await route.continue(); });
+  const alternatePage = await harness(alternate);
+  const waitingAlternate = await alternatePage.evaluate(async () => {
+    const q=houseQA;
+    await q.assets.preloadHouses({biome:'taiga',cells:[16,32,64],rotations:[0]});
+    q.rotationSprite=q.createSprites('taiga',{pixelScale:1});
+    return { primary:q.hash(q.rotationSprite('house-cheap-1',0)), alternate:q.hash(q.rotationSprite('house-cheap-1',1)), rotation:q.assets.getHouseAssetStats('taiga').lastRotation, revision:q.assets.houseAssetsRevision() };
+  });
+  assert.equal(waitingAlternate.primary,waitingAlternate.alternate,'a pending alternate shows its same-climate primary house');
+  assert.equal(waitingAlternate.rotation,0);
+  releaseAlternate();
+  await alternatePage.waitForFunction(() => houseQA.assets.getHouseAssetStats('taiga').availableRotations.length === 2 && houseQA.assets.getHouseAssetStats('taiga').status === 'ready');
+  const loadedAlternate = await alternatePage.evaluate(() => {
+    const q=houseQA,primary=q.hash(q.rotationSprite('house-cheap-1',0)),alternate=q.hash(q.rotationSprite('house-cheap-1',1));
+    return {primary,alternate,stable:alternate===q.hash(q.rotationSprite('house-cheap-1',19)),rotation:q.assets.getHouseAssetStats('taiga').lastRotation,revision:q.assets.houseAssetsRevision()};
+  });
+  assert.equal(loadedAlternate.primary,waitingAlternate.primary);
+  assert.notEqual(loadedAlternate.alternate,waitingAlternate.alternate,'arrival invalidates the cached primary fallback for rotation 1');
+  assert.equal(loadedAlternate.stable,true);assert.equal(loadedAlternate.rotation,1);assert.ok(loadedAlternate.revision>waitingAlternate.revision);
+  await alternate.close();
+
+  // Architecture can arrive independently of rotation. A requested new design
+  // uses a healthy same-climate base design until its own sheet has decoded.
+  const designContext = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  let releaseDesign;
+  const designGate = new Promise(resolve => { releaseDesign = resolve; });
+  await designContext.route('**/assets/houses/**/design-1/**', async route => { await designGate; await route.continue(); });
+  const designPage = await harness(designContext);
+  const waitingDesign = await designPage.evaluate(async () => {
+    const q = houseQA;
+    await q.assets.preloadHouses({ biome:'taiga', designs:[0,2], cells:[16,32,64] });
+    q.designSprite = q.createSprites('taiga', { pixelScale:1 });
+    const base = q.designSprite('house-normal-2',1), requested = q.designSprite('house-normal-2',7);
+    q.pendingDesignSprite = requested;
+    return { base:q.hash(base), requested:q.hash(requested), repeated:requested===q.designSprite('house-normal-2',25), active:q.assets.getHouseAssetStats('taiga',1,1).activeDesign, revision:q.assets.houseAssetsRevision() };
+  });
+  assert.equal(waitingDesign.base, waitingDesign.requested, 'a pending design retains its climate and requested rotation');
+  assert.equal(waitingDesign.repeated, true); assert.equal(waitingDesign.active, 0);
+  releaseDesign();
+  await designPage.waitForFunction(() => houseQA.assets.getHouseAssetStats('taiga',1,1).activeDesign === 1 && houseQA.assets.getHouseAssetStats('taiga').status === 'ready');
+  const loadedDesign = await designPage.evaluate(() => {
+    const q=houseQA,after=q.designSprite('house-normal-2',7);
+    return { hash:q.hash(after), replaced:after!==q.pendingDesignSprite, repeated:after===q.designSprite('house-normal-2',25), revision:q.assets.houseAssetsRevision() };
+  });
+  assert.notEqual(loadedDesign.hash, waitingDesign.requested, 'the generated architecture changes the rendered pixels');
+  assert.equal(loadedDesign.replaced, true); assert.equal(loadedDesign.repeated, true); assert.ok(loadedDesign.revision > waitingDesign.revision);
+  await designContext.close();
+
+  const missingDesigns = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  await missingDesigns.route(/\/assets\/houses\/[^/]+\/design-[12]\//, route => route.abort());
+  const missingDesignPage = await harness(missingDesigns);
+  const healthyBase = await missingDesignPage.evaluate(async () => {
+    const q=houseQA;await q.assets.preloadHouses({biome:'taiga'});
+    const sprite=q.createSprites('taiga',{pixelScale:1});
+    return q.assets.HOUSE_KINDS.every(kind => q.assets.HOUSE_DESIGNS.every(design => q.assets.HOUSE_ROTATIONS.every(rotation => q.hash(sprite(kind,design*6+rotation))===q.hash(sprite(kind,rotation)))));
+  });
+  assert.equal(healthyBase, true, 'missing alternate architecture keeps the healthy base design in its climate and rotation');
+  await missingDesigns.close();
 
   // A slow connection may paint native fallback first. Once the PNGs arrive,
   // both existing sprite closures and existing renderer chunks must refresh.

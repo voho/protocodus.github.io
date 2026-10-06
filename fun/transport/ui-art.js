@@ -1,10 +1,13 @@
 import { createSprites } from './sprites.js';
+import { industryFootprint } from './industry-sites.js';
 import { drawRasterInfrastructure, drawRasterVehicle } from './raster-transport.js';
 import { houseAssetsRevision } from './raster-houses.js';
 import { worldArtRevision } from './atlas-runtime.js';
 import { drawIsometricInfrastructure } from './isometric-infrastructure.js';
 import { drawAirportPortrait, drawAircraftPortrait } from './airport-art.js';
 import { lineFor } from './route-lines.js';
+import { drawFarmPortrait } from './farm-fields-art.js';
+import { BUILDINGS } from './buildings.js';
 
 let profile = '', sprites;
 const selector = '[data-building-sprite],[data-industry-sprite],[data-infrastructure-sprite],[data-vehicle-sprite]';
@@ -35,7 +38,10 @@ export function drawUIArtwork(root, game) {
     const vehicle = route && (canvas.dataset.vehicleSprite === 'purchase'
       ? { level: Number(canvas.dataset.level), load: 0, capacity: 1 }
       : vehicles.get(String(route.id)));
-    const identity = canvas.dataset.buildingSprite || canvas.dataset.industrySprite || canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}${route?.mode === 'air' ? `:${lineFor(route).fill}` : ''}`;
+    const buildingVariant = Number(canvas.dataset.buildingVariant) || 0;
+    const industrySize = Number(canvas.dataset.industryFootprint) || industryFootprint(canvas.dataset.industrySprite);
+    const industryVariant = Number(canvas.dataset.industryVariant) || 0;
+    const identity = canvas.dataset.buildingSprite ? `${canvas.dataset.buildingSprite}:${buildingVariant}` : canvas.dataset.industrySprite ? `${canvas.dataset.industrySprite}:${industrySize}:${industryVariant}` : canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}${route?.mode === 'air' ? `:${lineFor(route).fill}` : ''}`;
     const key = `${profile}:${identity}:${houseAssetsRevision()}:${worldArtRevision()}`;
     if (canvas.dataset.artDrawn === key) continue;
     canvas.width = Math.round(width * density); canvas.height = Math.round(height * density);
@@ -43,9 +49,13 @@ export function drawUIArtwork(root, game) {
     context.setTransform(density, 0, 0, density, 0, 0);
     context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
     if (canvas.dataset.buildingSprite) {
-      context.drawImage(sprites(canvas.dataset.buildingSprite, 0, 1), 16, 8, 64, 80);
+      const kind = canvas.dataset.buildingSprite, footprint = BUILDINGS[kind]?.footprint || 1;
+      const sprite = sprites(kind, buildingVariant, 1, '', footprint);
+      context.drawImage(sprite, 16, 8, 64, 80);
     } else if (canvas.dataset.industrySprite) {
-      context.drawImage(sprites(canvas.dataset.industrySprite, 0, 2), 8, 0, 96, 108);
+      const kind = canvas.dataset.industrySprite;
+      if (industrySize !== 7 || !drawFarmPortrait(context, kind, game.biome, { x: 8, y: 0, width: 96, height: 108, pixelScale: density, variant: industryVariant }))
+        context.drawImage(sprites(kind, industryVariant, industrySize), 8, 0, 96, 108);
     } else if (canvas.dataset.infrastructureSprite) {
       const size = Math.min(width, height);
       const kind=canvas.dataset.infrastructureSprite;

@@ -23,7 +23,7 @@ const stamped = game => Object.keys(game.milestones || {});
 test('chapter 1 is stamped in order, each on the day it was first met', () => {
   const game = quarryCompany(), stoneRoute = game.routes[0];
   // A farm and a food plant wait beside the town, linked before the town grows around the road.
-  ok(build(game, 'farm', 10, 70));ok(build(game, 'food-plant', 40, 70));
+  ok(build(game, 'farm', 10, 64));ok(build(game, 'food-plant', 40, 70));
   ok(buildPath(game, 'road', line(16, 37, 71)));ok(build(game, 'bus-stop', 16, 71));ok(build(game, 'bus-stop', 37, 71));
   ok(buildPath(game, 'road', Array.from({ length: 29 }, (_, i) => ({ x: 37, y: 42 + i }))));
   const [farmStop, plantStop] = game.stations.slice(-2);

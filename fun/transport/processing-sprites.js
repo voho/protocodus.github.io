@@ -1,6 +1,7 @@
 // Production buildings share materials with town sprites but have readable,
 // industry-specific silhouettes. Art remains within the 32 × 40 sprite envelope.
-const kinds=new Set(['sawmill','steel-mill','food-plant','fish-processor','furniture-factory','machine-works','cement-works','sand-pit','glassworks','wire-mill','goods-factory','equipment-factory']);
+const farms=new Set(['dairy-farm','vegetable-farm','orchard','livestock-farm']);
+const kinds=new Set([...farms,'dairy-plant','cannery','meat-packer','sawmill','steel-mill','food-plant','fish-processor','furniture-factory','machine-works','cement-works','sand-pit','glassworks','wire-mill','goods-factory','equipment-factory']);
 const rect=(c,x,y,w,h,color)=>{c.fillStyle=color;c.fillRect(x,y,w,h);};
 function poly(c,points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
 function line(c,points,color,width=.65){c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
@@ -20,13 +21,89 @@ function silo(c,x,y,w,h,detail){rect(c,x+1,y+2,w,h,'#3c51472c');rect(c,x,y,w,h,'
 function stack(c,x,y,h,detail){rect(c,x+1,y+1,3,h,'#30423834');rect(c,x,y,3,h,'#a48266');rect(c,x+2,y,1,h,'#6e6855');rect(c,x-.5,y,4,1,'#686450');rect(c,x+.2,y+.2,2.6,.45,'#384d48');if(detail==='detail')for(let yy=y+3;yy<y+h;yy+=2)rect(c,x,yy,3,.45,'#d0af852e');}
 function crate(c,x,y,color='#ae9065',detail='town'){rect(c,x+.8,y+1,4,3,'#374d4437');rect(c,x,y,4,3,color);rect(c,x,y,4,.6,'#e9d2a651');rect(c,x+3,y,.7,3,'#40534442');if(detail!=='region')line(c,[[x+.5,y+.5],[x+3,y+2.6]],'#6c6a4c70',.5);}
 function gantry(c,x,y,w,h){rect(c,x,y,1.6,h,'#ac915f');rect(c,x+w-1.6,y,1.6,h,'#82774f');rect(c,x-1,y,w+2,2.2,'#c6a568');line(c,[[x,y+1],[x+w,y+1]],'#e5c582',.5);line(c,[[x+w*.6,y+2],[x+w*.6,y+h*.7],[x+w*.6-1,y+h*.7+1]],'#4e6258',.6);}
+function fence(c,x,y,w,h){
+  line(c,[[x,y],[x,y+h],[x+w,y+h],[x+w,y]],'#877553',.8);
+  line(c,[[x,y+2],[x,y+h-2],[x+w,y+h-2],[x+w,y+2]],'#c8b38b',.55);
+  for(let xx=x;xx<=x+w;xx+=4)rect(c,xx-.35,y+h-3,.7,3.7,'#d3b891');
+}
+function animal(c,x,y,pig=false){
+  const coat=pig?'#d8a593':'#d8cfad';
+  oval(c,x+.6,y+.6,2.6,1.1,'#30453832');oval(c,x,y,2.2,1.1,coat);
+  oval(c,x+2.1,y-.1,.85,.8,coat);rect(c,x-1.4,y+.5,.45,1.2,'#6b6550');rect(c,x+1,y+.5,.45,1.2,'#6b6550');
+  if(!pig){oval(c,x-.8,y-.3,.7,.55,'#575d4a');oval(c,x+.7,y+.3,.5,.4,'#575d4a');}
+}
+function farm(c,kind,biome,detail){
+  const green=biome==='tundra'?'#9fac8d':biome==='desert'?'#879863':'#84945e';
+  rect(c,2,16,27,14,green);fence(c,2,15,27,15);
+  if(kind==='orchard'){
+    hall(c,21,9,8,13,'#a7a68b','#827862',detail,biome);
+    for(const [x,y] of [[7,10],[15,10],[7,18],[15,18],[7,25],[16,25]]){
+      rect(c,x-.4,y,1,4,'#897354');oval(c,x,y-1,3.4,2.8,green);oval(c,x-.8,y-2,2.1,1.9,'#a5b573');
+      for(const [dx,dy] of [[-1.5,-1],[1.2,-2],[.5,.5]])oval(c,x+dx,y+dy,.45,.45,'#c77751');
+    }
+    crate(c,22,24,'#b99360',detail);crate(c,25,27,'#a98e58',detail);
+  }else if(kind==='vegetable-farm'){
+    hall(c,3,5,11,12,'#a58c68','#7e785f',detail,biome);
+    poly(c,[[19,8],[24,4],[30,8],[30,17],[19,17]],'#adc3ac');
+    line(c,[[19,8],[30,8],[30,17],[19,17],[19,8],[24,4],[24,17]],'#e0dcc180',.6);
+    for(let y=19;y<29;y+=2.5){rect(c,5,y,20,1.6,'#73674b');for(let x=6;x<25;x+=2)oval(c,x,y+.5,.7,.6,y<24?'#b0ba77':'#ad8e4c');}
+    rect(c,16,10,2,5,'#6e9183');crate(c,25,25,'#b5a56b',detail);
+  }else{
+    hall(c,3,4,18,16,kind==='dairy-farm'?'#d3c7a3':'#b59a72',kind==='dairy-farm'?'#a77552':'#7e7965',detail,biome);
+    rect(c,8,14,6,5,'#655e48');silo(c,24,6,5,12,detail);
+    animal(c,9,24,kind==='livestock-farm');animal(c,18,27,kind==='livestock-farm');animal(c,24,22);
+    if(kind==='livestock-farm')line(c,[[16,20],[16,29]],'#bcab86',.7);
+    else{rect(c,3,9,1.3,3,'#d8d4b8');rect(c,5,20,2,2.4,'#bac2b0');}
+    for(const [x,y] of [[21,26],[24,28]])crate(c,x,y,'#bda46d',detail);
+  }
+}
+// The building core of a large field plot. No surrounding crops or fences are
+// baked into this drawing: the terrain renderer owns the complete farm ground.
+export function drawNativeFarmCore(c,kind,r,biome,detail='town'){
+  if(kind!=='farm'&&!farms.has(kind))return false;
+  rect(c,2,18,28,13,biome==='desert'?'#bca882':biome==='tundra'?'#bfc8b6':'#b1ad91');
+  if(detail!=='region')for(let i=0;i<18;i++)rect(c,3+r()*26,20+r()*9,.5,.4,'#e8dbc345');
+  if(kind==='farm'){
+    hall(c,3,7,18,21,'#d5c5a4','#a27751',detail,biome);silo(c,23,5,6,22,detail);
+    rect(c,8,19,7,9,'#5b604b');crate(c,3,27,'#c7b47d',detail);crate(c,16,27,'#c7b47d',detail);
+  }else if(kind==='dairy-farm'){
+    hall(c,3,6,22,22,'#d5d3b7','#956b51',detail,biome);rect(c,9,20,8,8,'#596555');
+    silo(c,24,14,5,12,detail);line(c,[[26,14],[26,11],[23,11]],'#9fac98',.8);
+    for(const x of [4,7,20]){rect(c,x,27,1.9,3,'#a4b5a6');oval(c,x+.95,27,.95,.45,'#d8ddc6');}
+  }else if(kind==='vegetable-farm'){
+    hall(c,3,8,13,20,'#af9970','#758479',detail,biome);rect(c,7,20,5,8,'#687057');
+    poly(c,[[18,17],[23,11],[30,17],[30,28],[18,28]],'#b6cabb');
+    line(c,[[18,17],[30,17],[30,28],[18,28],[18,17],[23,11],[23,28]],'#e9e1c584',.7);
+    for(const x of [20,26])line(c,[[x,17],[x,28]],'#678b7b99',.5);
+    crate(c,3,27,'#a5ac6d',detail);crate(c,13,27,'#bbaa74',detail);
+  }else if(kind==='orchard'){
+    hall(c,4,8,22,20,'#baa887','#7a8173',detail,biome);rect(c,10,20,7,8,'#6b6d56');
+    poly(c,[[19,18],[28,18],[30,22],[18,22]],'#a19a79');
+    for(const [x,y] of [[3,27],[21,26],[25,28]]){crate(c,x,y,'#b59560',detail);rect(c,x+.5,y+.4,2.7,.65,'#bd835b');}
+  }else{
+    hall(c,3,6,24,22,'#b69b72','#7e7d68',detail,biome);rect(c,8,19,10,9,'#5e6450');
+    for(let y=22;y<28;y+=1.6)line(c,[[9,y],[17,y]],'#c8b574',.7);
+    rect(c,20,26,8,2.4,'#8c9381');rect(c,21,26.5,6,1,'#667c67');crate(c,3,27,'#c1ad71',detail);
+  }
+  return true;
+}
 export function drawProcessingPlant(c,kind,r,biome,detail='town'){
   if(!kinds.has(kind))return false;
   rect(c,1,13,30,18,biome==='desert'?'#b9a583':biome==='tundra'?'#bbc5b1':'#a0a48b');
   rect(c,1,29,30,2,'#c6bea0');line(c,[[2,30],[30,30]],'#ede2ba60');
   if(detail!=='region')for(let i=0;i<20;i++)rect(c,2+r()*27,14+r()*14,.6,.5,'#e5d8ab38');
   const shed=(x,y,w,h,color,roof)=>hall(c,x,y,w,h,color,roof,detail,biome);
-  if(kind==='sawmill'){
+  if(farms.has(kind)){
+    farm(c,kind,biome,detail);
+  }else if(kind==='dairy-plant'||kind==='cannery'||kind==='meat-packer'){
+    const dairy=kind==='dairy-plant',canning=kind==='cannery';
+    shed(3,8,25,19,dairy?'#d9d9bf':canning?'#b18c6b':'#c7b39a',dairy?'#69858a':canning?'#768765':'#9d785d');
+    windows(c,15,16,3,detail);rect(c,5,22,8,5,'#536b62');rect(c,6,22.6,6,2.2,'#8da397');
+    if(dairy||canning){silo(c,4,3,5,13,detail);silo(c,10,5,4,11,detail);line(c,[[6,3],[6,1],[12,1],[12,5]],'#99aba0',.8);}
+    if(canning){stack(c,24,2,12,detail);for(const [x,y] of [[17,26],[23,26]]){crate(c,x,y,'#9da96e',detail);rect(c,x+.5,y+.4,2.5,.7,'#cb9a59');}for(let x=17;x<27;x+=2){rect(c,x,29,1.4,1.6,'#b5c2b6');}}
+    else if(dairy){for(const x of [17,22,27])crate(c,x,27,'#d8d9c4',detail);oval(c,6,28,1.1,.6,'#d8dfcf');rect(c,5,28,2,2,'#a5b3a4');}
+    else{for(const x of [18,24]){rect(c,x,9,4,3,'#c7cebc');oval(c,x+2,10.5,1.1,1,'#6c8176');}fence(c,2,27,10,3);animal(c,6,27.8);crate(c,20,27,'#d6c5a7',detail);crate(c,25,28,'#d6c5a7',detail);}
+  }else if(kind==='sawmill'){
     shed(3,6,23,18,'#b7a27d','#856b55');shed(20,13,9,12,'#a99977','#70837a');
     rect(c,5,20,13,5,'#4b5c4e');rect(c,6,20.5,10,2,'#687357');stack(c,24,3,12,detail);
     for(let y=25;y<30;y+=1.6){rect(c,2,y,14,1.3,'#a17b50');rect(c,2,y,1.5,1.3,'#d3b37b');line(c,[[4,y+.25],[15,y+.25]],'#d6b783',.4);}

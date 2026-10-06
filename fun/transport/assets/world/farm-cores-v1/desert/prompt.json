@@ -1,0 +1,20 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "transparent_background": true,
+  "source": "/workspace/generated_images/exec-06b737b1-2258-4f42-8962-8e861de362f7.png",
+  "reference": "../../food-industry-v1/taiga/atlas.png",
+  "prompt": "Generate a new game sprite atlas containing FIVE compact farm BUILDING CORES, to fit into much bigger surrounding farmland that the game draws separately. The reference image is only a style/camera/material reference; DO NOT redraw its farm fields, trees, perimeter fences, animals paddocks or full factory sites. EXACT grid 3 columns ×2 rows, six equal square cells, five complete isolated sprites in reading order and last bottom-right cell completely empty. Orthographic 2:1 dimetric strategy-game camera, ground axes diagonal ±26.565 degrees, no perspective convergence, both building faces and roof visible. Each sprite is only a 2×2-tile building core on a TINY diamond gravel or stone working apron with no surrounding landscape. Modest real-world scale: compact one-story barn/shed, correct proportion to delivery trucks, no oversized doorways or cartoon toys. Crisp realistic painted miniature detail, muted natural colors, tile roofs, weathered timber and stone, upper-left light, short soft contact shadows. Actual transparent alpha background, no colored background, gradients, labels, words, borders, numbers or grid lines. Keep every complete sprite strictly inside its cell with generous at least12% fully transparent gutters; no neighboring overlap, no cropped silo tops or roofs. Barns must be visually clearly different. Reading order: 1 GRAIN FARM CORE ('farm'): compact cream masonry barn with red terracotta pitched roof, one short galvanized cylindrical grain silo attached at side, three sacks and small pallet of golden grain beside an open delivery door. NO grain field. 2 DAIRY FARM CORE: modest whitewashed red/timber barn with dark red roof, small shiny stainless milk storage tank and visible pipe, three milk churns under covered door canopy. NO cows in paddocks, no fields. 3 VEGETABLE FARM CORE: little weathered timber packing shed with slate roof next to one small glass greenhouse, a few green vegetable crates and orange carrot baskets at the entrance. NO growing beds or fields. 4 ORCHARD CORE: tiny warm stone fruit-packing shed with grey weathered gable roof, simple covered loading canopy, stacks of wooden red and yellow apple crates beside door, one small water barrel. NO fruit trees, no fields. 5 LIVESTOCK FARM CORE: compact rustic timber animal barn with brown corrugated/slate gable roof, visible hay under one open doorway and a covered side feeding porch, two small troughs; no standalone paddock, no external animals or fields. 6 EMPTY TRANSPARENT CELL. Orient all main entrance doors toward the lower-right side of each diamond, with clearly visible door apron for eventual farm track approach. The tiny working apron may be textured, but no giant platform, plinth, lawn border or landscaping. All buildings complete, all silhouettes isolated. Preserve the reference's detailed isometric game-art character. Climate: warm dry desert farmland, cream stucco and ochre stone, sun-bleached weathered timber, reddish terracotta or warm grey roof tiles, tan dusty tiny apron, no snow. Maintain the five distinct building subjects and their small 2×2 working core footprint.",
+  "columns": 3,
+  "rows": 2,
+  "coreFootprint": 2,
+  "largeFarmFootprint": 7,
+  "order": [
+    "farm-core:farm:desert",
+    "farm-core:dairy-farm:desert",
+    "farm-core:vegetable-farm:desert",
+    "farm-core:orchard:desert",
+    "farm-core:livestock-farm:desert",
+    null
+  ]
+}

@@ -1,0 +1,360 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "ground:road",
+    "ground:rail",
+    "ground:road-bridge",
+    "ground:rail-bridge",
+    "ground:road-junction",
+    "ground:rail-junction",
+    "zone:residential",
+    "zone:commercial",
+    "zone:industrial"
+  ],
+  "source": "source-packed.png",
+  "sourceSha256": "a103ee211d682ae2487cef88caa997710420f3e5de5822f000cd5b6153f5bc18",
+  "sprites": [
+    {
+      "id": "ground:road",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          262,
+          114,
+          460,
+          540
+        ],
+        "rawAlphaBounds": [
+          108,
+          104,
+          527,
+          544
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.803491
+      },
+      "bounds": [
+        74,
+        12,
+        182,
+        244
+      ]
+    },
+    {
+      "id": "ground:rail",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          234,
+          114,
+          407,
+          541
+        ],
+        "rawAlphaBounds": [
+          116,
+          106,
+          531,
+          544
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.826948
+      },
+      "bounds": [
+        81,
+        12,
+        175,
+        244
+      ]
+    },
+    {
+      "id": "ground:road-bridge",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          179,
+          114,
+          374,
+          541
+        ],
+        "rawAlphaBounds": [
+          109,
+          106,
+          479,
+          542
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.802937
+      },
+      "bounds": [
+        75,
+        13,
+        181,
+        244
+      ]
+    },
+    {
+      "id": "ground:rail-bridge",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          265,
+          156,
+          461,
+          488
+        ],
+        "rawAlphaBounds": [
+          175,
+          152,
+          525,
+          497
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.844685
+      },
+      "bounds": [
+        59,
+        12,
+        196,
+        244
+      ]
+    },
+    {
+      "id": "ground:road-junction",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          169,
+          162,
+          495,
+          483
+        ],
+        "rawAlphaBounds": [
+          121,
+          152,
+          503,
+          494
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.747988
+      },
+      "bounds": [
+        12,
+        14,
+        244,
+        242
+      ]
+    },
+    {
+      "id": "ground:rail-junction",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          132,
+          161,
+          459,
+          483
+        ],
+        "rawAlphaBounds": [
+          122,
+          154,
+          496,
+          490
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.750652
+      },
+      "bounds": [
+        12,
+        14,
+        244,
+        242
+      ]
+    },
+    {
+      "id": "zone:residential",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          179,
+          134,
+          507,
+          459
+        ],
+        "rawAlphaBounds": [
+          176,
+          131,
+          532,
+          464
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.746638
+      },
+      "bounds": [
+        12,
+        13,
+        244,
+        243
+      ]
+    },
+    {
+      "id": "zone:commercial",
+      "cell": 7,
+      "sourceBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          158,
+          135,
+          483,
+          458
+        ],
+        "rawAlphaBounds": [
+          126,
+          134,
+          490,
+          484
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.745928
+      },
+      "bounds": [
+        12,
+        13,
+        244,
+        243
+      ]
+    },
+    {
+      "id": "zone:industrial",
+      "cell": 8,
+      "sourceBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          133,
+          134,
+          460,
+          459
+        ],
+        "rawAlphaBounds": [
+          123,
+          126,
+          462,
+          463
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.745972
+      },
+      "bounds": [
+        12,
+        12,
+        244,
+        243
+      ]
+    }
+  ]
+}

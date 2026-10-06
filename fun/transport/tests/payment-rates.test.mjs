@@ -10,12 +10,13 @@ const world = biome => { if (!worlds.has(biome)) worlds.set(biome, createGame({ 
 const count = (html, pattern) => (html.match(pattern) || []).length;
 
 test('the chart draws one line and one table row for every cargo of the biome', () => {
-  for (const [biome, expected] of [['taiga', 14], ['tundra', 12], ['desert', 13]]) {
+  for (const [biome, expected] of [['taiga', 17], ['tundra', 12], ['desert', 16]]) {
     const game = world(biome), cargo = routeCargoList(game), html = paymentRatesHTML(game);
     assert.equal(cargo.length, expected, biome);
     assert.equal(count(html, /data-payment-line="/g), cargo.length, `${biome} lines`);
     assert.equal(count(html, /<th scope="row">/g), cargo.length, `${biome} table rows`);
     for (const key of cargo) assert.ok(html.includes(`data-payment-cargo="${key}"`), `${biome} legend names ${key}`);
+    for(const key of ['milk','produce','livestock'])assert.equal(cargo.includes(key),biome!=='tundra',`${biome} farm ingredients have payment lines only where their chains are available`);
     assert.ok(html.includes('Cargo payment rates') && html.includes('never under half'), biome);
     assert.doesNotMatch(html, /\s·\s|→/, 'no middle-dot glue or arrows');
   }

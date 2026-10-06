@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { generateWorld } from '../world.js';
 import { buildingAt, buildingFootprint, buildingTiles, placeBuildingSite } from '../building-sites.js';
-import { industryFootprint, industryTiles } from '../industry-sites.js';
+import { legacyIndustryFootprint, industryTiles } from '../industry-sites.js';
 import { localEnvironment, randomAt, stepEcology } from '../environment.js';
 import { housingCapacity, settlementSuitability, stepSettlements } from '../settlements.js';
 import { planStructureSpan, terraformProblem } from '../terrain-engineering.js';
@@ -44,7 +44,7 @@ for (const biome of ['taiga', 'tundra', 'desert']) {
       reserve(buildingTiles({ x: index % current.width, y: Math.floor(index / current.width), building: t.building }), t.building.kind);
     }
     for (const site of current.industries) {
-      assert.equal(site.footprint, industryFootprint(site.kind));
+      assert.equal(site.footprint, legacyIndustryFootprint(site.kind));
       reserve(industryTiles(site), site.kind);
     }
     assert.ok(larger > 100);

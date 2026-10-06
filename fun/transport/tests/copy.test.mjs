@@ -85,7 +85,7 @@ test('every model notice that names something carries a template and a target', 
 const sentence = (text, label) => { assert.match(text, /^[A-Z0-9$−].*\.$/s, `${label}: ${text}`); for (const [word, pattern] of Object.entries(BANNED)) assert.doesNotMatch(text, pattern, `${label} says ${word}: ${text}`); };
 test('model results and notices are full sentences in the glossary', () => {
   const game = emptyGame(), said = (result, label) => { sentence(result.message, label); return result; };
-  said(build(game, 'logging-camp', 10, 10), 'industry');said(build(game, 'sawmill', 30, 10), 'second industry');
+  said(build(game, 'logging-camp', 10, 9), 'industry');said(build(game, 'sawmill', 30, 9), 'second industry');
   said(buildPath(game, 'road', line(10, 30, 12)), 'road');said(build(game, 'bus-stop', 10, 12), 'stop');said(build(game, 'bus-stop', 30, 12), 'stop');
   said(build(game, 'bus-stop', 10, 12), 'a second stop on a stop');said(build(game, 'city', 20, 30), 'town');said(build(game, 'city', 22, 30), 'town too close');
   const stops = game.stations.map(stop => stop.id);
@@ -114,7 +114,7 @@ test('model results and notices are full sentences in the glossary', () => {
 
 test('statuses share one shape: state, tone, word, reason, and the old label and detail', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);assert.equal(build(game, 'sawmill', 30, 10).ok, true);assert.equal(build(game, 'city', 40, 30).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);assert.equal(build(game, 'sawmill', 30, 9).ok, true);assert.equal(build(game, 'city', 40, 30).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);assert.equal(build(game, 'bus-stop', 10, 12).ok, true);assert.equal(build(game, 'bus-stop', 30, 12).ok, true);
   const route = addRoute(game, { name: 'Forest supply', mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'timber' }).route;
   const TONES = ['ok', 'warn', 'error', 'paused', 'info'];

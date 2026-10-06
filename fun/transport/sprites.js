@@ -1,8 +1,8 @@
-import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
+import { BUILDINGS, SHOP_KINDS, residentialKind, commercialKind } from './buildings.js';
 import { INDUSTRIES } from './data.js';
 import { worldArtRevision, preloadWorldArt, startupArtCells } from './atlas-runtime.js';
 import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
-import { drawRasterBuilding, hasRasterBuilding } from './raster-buildings.js';
+import { drawRasterBuilding, hasRasterBuilding, buildingArtworkDesign } from './raster-buildings.js';
 import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
@@ -106,7 +106,7 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
     ctx.fillStyle='#bb9954';ctx.fillRect(24,25,6,3);
   }
 }
-export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:sharedCache=null}={}) {
+export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:sharedCache=null,gardenGround='art'}={}) {
   // Every consumer, including detached previews, starts the generated artwork.
   // Revision checks replace temporary fallbacks as batches of images arrive; the
   // smallest densities make it usable, and each draw fetches the sharper one it needs.
@@ -119,23 +119,25 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
   // variants. A fixed 16 MiB cache evicted visible trees before the next frame
   // could reuse them. Grow with display density, within a firm 64 MiB ceiling;
   // canvases are still allocated only when a view actually needs them.
-  const cache=sharedCache||createSpriteCache({limit:16*1024*1024*Math.min(4,Math.max(1,density*density))}),prefix=`${biome}:${density}:${profile}:`;
+  const cache=sharedCache||createSpriteCache({limit:16*1024*1024*Math.min(4,Math.max(1,density*density))}),prefix=`${biome}:${density}:${profile}:${gardenGround}:`;
   let assetRevision=houseAssetsRevision(),worldRevision=worldArtRevision(),created=0,hits=0;
   cache.syncRevision(`${assetRevision}:${worldRevision}`);
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
-  function sprite(kind,variant=0,level=1,detail='',footprint=1) {
+  const shopKinds=new Set(SHOP_KINDS);
+  function sprite(kind,variant=0,level=INDUSTRIES[kind]?.footprint||1,detail='',footprint=1) {
     // Saved companies and external previews can still use the original names.
     // Resolve before caching so these share the exact current artwork identity.
     if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
     else if(kind==='shop'||kind==='office')kind=commercialKind(variant,level);
     if(assetRevision!==houseAssetsRevision()||worldRevision!==worldArtRevision()){assetRevision=houseAssetsRevision();worldRevision=worldArtRevision();cache.syncRevision(`${assetRevision}:${worldRevision}`);}
-    const variants=natureKinds.has(kind)?64:12;
+    const house=kind.startsWith('house-'),shop=shopKinds.has(kind),variants=house?18:shop?15:natureKinds.has(kind)?64:12;
     variant=((Math.floor(variant)%variants)+variants)%variants;
+    const houseRotation=house?variant%2:0,houseDesign=house?Math.floor(variant/6)%3:0;
+    const shopDesign=shop?buildingArtworkDesign(variant):0;
     const span=Math.max(1,Math.min(3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
-    // Authored buildings have one image per identity and footprint. Twelve
-    // legacy seed variants must not retain twelve copies of identical pixels.
-    const authored=BUILDINGS[kind]&&(hasRasterHouse(kind,biome)||hasRasterBuilding(kind,biome))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
-    const key=prefix+(authored?`${kind}:art:${span}`:`${kind}:${variant}:${level}:${detail}:${span}`),cached=cache.get(key);
+    // Share repeated seeds while retaining each house design and orientation.
+    const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign)||hasRasterBuilding(kind,biome,shopDesign))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
+    const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`),cached=cache.get(key);
     if(cached){hits++;return cached;}
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
     const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
@@ -149,10 +151,12 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
         ctx.restore();
       }
     }
-    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome})&&!drawRasterBuilding(ctx,kind,biome,density*span))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
+    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign}))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
     else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
-      if(!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}
+      let cityArt=false;
+      if(kind==='factory'){ctx.save();ctx.scale(span,span);cityArt=drawRasterBuilding(ctx,kind,biome,density*span);ctx.restore();}
+      if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}
     }
     else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,detail,r,biome,profile);

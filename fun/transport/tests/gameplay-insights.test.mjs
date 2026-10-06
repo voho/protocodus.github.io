@@ -207,7 +207,7 @@ test('a route without full load never reads the line and reads as before', () =>
 
 test('routes need attention only while they cannot run, and the count follows every cause', () => {
   const game=emptyGame();
-  assert.equal(build(game,'logging-camp',10,10).ok,true);assert.equal(build(game,'sawmill',30,10).ok,true);
+  assert.equal(build(game,'logging-camp',10,9).ok,true);assert.equal(build(game,'sawmill',30,9).ok,true);
   assert.equal(buildPath(game,'road',line(10,30,12)).ok,true);
   assert.equal(build(game,'bus-stop',10,12).ok,true);assert.equal(build(game,'bus-stop',30,12).ok,true);
   const stops=game.stations.map(stop=>stop.id);
@@ -285,6 +285,19 @@ test('first cargo suggestions skip producers that no stop can ever reach and off
   assert.equal(nextProject(game).plan,'road');assert.equal(nextProject(game,{source:'quarry'}).plan,null,'a port-only site is never planned as a road');
 });
 
+test('stop access forecasts reject land inside another farm’s distant fields', () => {
+  for(const [farmX,farmY,landX,landY]of [[10,18,16,21],[18,10,21,16]]){
+    const target={id:'target',kind:'food-plant',x:20,y:20,footprint:3},farm={id:'farm',kind:'farm',x:farmX,y:farmY,footprint:7};
+    const game={width:40,height:40,biome:'taiga',seed:1847,revision:1,cities:[],industries:[target,farm],stations:[],routes:[],zones:[],tiles:Array.from({length:1600},()=>({terrain:'mountain',elevation:0,detail:'',road:false,rail:false,building:null,zone:null}))};
+    game.tiles[landY*game.width+landX].terrain='grass';
+    assert.equal(industryContains(farm,landX,landY),true);
+    assert.ok(industryDistance(target,{x:landX,y:landY})<=5);
+    assert.equal(stopSiteKind(game,target),null,'the only buildable ground belongs to the neighbouring farm');
+    farm.footprint=3;game.revision++;
+    assert.equal(stopSiteKind(game,target),'road','a compact legacy farm leaves that ground available for a stop');
+  }
+});
+
 test('the first route card offers a planned line until the two ends are joined', () => {
   const game=createGame({biome:'taiga',seed:1847});
   assert.equal(nextProject(game).plan,'road','the quarry and Alderbrook are not joined yet');
@@ -295,7 +308,7 @@ test('the first route card offers a planned line until the two ends are joined',
 
 test('first route steps tick exactly when each stop, connection, route and delivery exists', () => {
   const game=emptyGame();game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
-  assert.equal(build(game,'quarry',10,40).ok,true);
+  assert.equal(build(game,'quarry',9,40).ok,true);
   const quarry=game.industries[0],choice={source:quarry,buyer:{id:'town',kind:'city',name:'Town',x:40,y:41},cargo:'stone'};
   const done=()=>firstRouteSteps(game,choice).map(step=>step.done);
   assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);

@@ -135,6 +135,21 @@ function civic(c,kind,biome){
 }
 function shop(c,kind,biome){
   plot(c,biome,'paved');
+  const design=Math.floor(finish(c).variant/5)%3;
+  if(design){
+    const modern=design===2,roofColor=modern?'#76817c':'#92735b';
+    block(c,modern?5:6,modern?8:5,modern?22:20,modern?18:21,modern?5:8,roofColor,modern?'#d7d1b8':'#bda17b',modern?'flat':'hip');
+    rect(c,7,20,13,6,'#607f78');door(c,22,21,3,5);
+    awning(c,5,18,22,kind==='shop-butcher'?'#a07368':kind==='shop-bakery'?'#b49a70':'#78906b');
+    if(!modern){chimney(c,23,3,6);for(const x of [7,18])rect(c,x,13,1,6,'#796b53');}
+    else{rect(c,9,9,9,3,'#67817f');line(c,[[12,9],[12,12],[15,12],[15,9]],'#d0d7bf',.35);}
+    if(kind==='shop-grocery')for(let i=0;i<3;i++){rect(c,4+i*5,27,4,3,'#9c865e');for(let j=0;j<3;j++)oval(c,5+i*5+j,27.8,.6,.7,['#a8ad68','#bd956b','#aaa35d'][i]);}
+    else if(kind==='shop-bakery'){for(let i=0;i<4;i++)oval(c,8+i*3,23.5,1.1,.65,'#d1b97e');oval(c,6,29,2.5,1.1,'#a78d65');}
+    else if(kind==='shop-butcher')for(const x of [10,15]){line(c,[[x,21],[x,23]],'#cbbd9d');oval(c,x,24,1,1.2,'#b58977');}
+    else if(kind==='shop-hardware'){for(let i=0;i<4;i++)rect(c,17+i*2,22,1.4,7,'#b69e74');rect(c,3,27,9,3,'#9d855c');}
+    else{for(let i=0;i<5;i++)pot(c,3+i*6,29);flowerbed(c,6,25,13,'#b99399');}
+    return;
+  }
   if(kind==='shop-grocery'){
     block(c,4,5,24,21,8,'#7e917c','#d5c8a9');windows(c,6,15,4,5,2.5,3);awning(c,4,19,24,'#6f885e');rect(c,6,23,12,3,'#688782');door(c,22,22,4,5);for(let i=0;i<3;i++){rect(c,4+i*5,27,4,3,'#9c865e');for(let j=0;j<3;j++)oval(c,5+i*5+j,27.8,.6,.7,['#a8ad68','#bd956b','#aaa35d'][i]);}chimney(c,24,4,5);
   }else if(kind==='shop-bakery'){
@@ -146,6 +161,31 @@ function shop(c,kind,biome){
   }else if(kind==='shop-florist'){
     block(c,3,5,17,22,8,'#7c907c','#d4cab0');windows(c,6,15,2,6,3,3);awning(c,3,20,17,'#8f9770');door(c,13,23,4,4);rect(c,21,15,8,12,'#97b0a0');poly(c,[[20,15],[25,10],[30,15]],'#b5c7b1');line(c,[[25,11],[25,26]],'#e1dcc0');for(const y of [18,22])line(c,[[21,y],[29,y]],'#dcd7b8');rect(c,4,24,7,3,'#657b5a');for(let i=0;i<4;i++)pot(c,3+i*7,29);for(const [x,y,col] of [[5,23,'#c69d87'],[8,23,'#d8c283'],[23,20,'#b99399'],[27,24,'#e2c48c']]){oval(c,x,y,1.3,1,col);}
   }
+}
+function park(c,kind,biome){
+  // Open lawn stays transparent so fallback landscaping shares world grass.
+  path(c,14,7,4,24);path(c,3,18,26,3);
+  for(const [x,y] of [[3,8],[28,8],[3,28],[28,28]]){rect(c,x,y,1,3,'#938569');}
+  line(c,[[3,10],[28,10],[28,30],[20,30]],'#a49a7e',.7);line(c,[[12,30],[3,30],[3,10]],'#a49a7e',.7);
+  for(const [x,y] of [[6,13],[26,13],[6,26],[26,26]])tree(c,x,y,kind==='park-woodland'?4:2.6);
+  for(const y of [16,25]){rect(c,5,y,6,1.4,'#a18a64');rect(c,5,y+1.4,.7,1.6,'#766b53');rect(c,10.3,y+1.4,.7,1.6,'#766b53');}
+  if(kind==='park-formal'){
+    oval(c,16,21,5,3,'#c6bea5');oval(c,16,21,3.8,2.2,'#709e97');rect(c,15.5,17,1,4,'#c6c8b0');oval(c,16,17,2,1,'#b7c2aa');
+    for(const [x,y] of [[5,23],[23,23],[5,11],[23,11]])flowerbed(c,x,y,5,'#d2af87');
+  }else if(kind==='park-woodland'){
+    oval(c,19,25,5,3,'#67988f');oval(c,17,24,2,1,'#8caf9f');tree(c,16,8,4);tree(c,23,18,3.5);
+  }else{
+    line(c,[[21,14],[23,8],[25,14]],'#ad8860',1);line(c,[[23,9],[28,12]],'#d7b45b',1);rect(c,21,16,6,1,'#b6aa70');flowerbed(c,22,25,6);
+  }
+}
+function mall(c,kind,biome){
+  plot(c,biome,'paved');
+  const modern=kind==='mall-modern',neighborhood=kind==='mall-neighborhood';
+  block(c,3,neighborhood?9:3,26,neighborhood?14:23,modern?6:8,modern?'#7c9387':'#847b6a',modern?'#d0d5bd':'#c3a989',modern?'flat':'hip');
+  for(const x of [5,13,21]){rect(c,x,19,6,6,'#678f87');awning(c,x-1,17,8,x===13?'#b19b71':'#718c66');door(c,x+2,22,2,3);}
+  if(modern){rect(c,10,6,13,5,'#9fbcaf');line(c,[[10,6],[16,6],[16,11],[23,11]],'#dce2c7',.65);rect(c,5,5,4,3,'#587c80');}
+  else if(!neighborhood){windows(c,6,13,4,5,2,3);gable(c,10,2,12,5,'#b4a384');}
+  path(c,3,27,27,3);pot(c,3,27);pot(c,28,27);rect(c,26,24,3,3,'#917c5e');
 }
 function service(c,kind,biome){
   plot(c,biome,'paved');
@@ -162,11 +202,13 @@ function service(c,kind,biome){
   }
 }
 export function drawTownBuilding(ctx,kind,biome,detailLevel='town',variant=0){
-  finishes.set(ctx,{variant:Math.abs(Math.floor(variant))%12,biome,kind,detail:detailLevel});
+  finishes.set(ctx,{variant:Math.abs(Math.floor(variant))%15,biome,kind,detail:detailLevel});
   if(detailLevel==='region')regionalContexts.add(ctx);
   try {
     if(kind.startsWith('house-'))home(ctx,kind,biome);
     else if(kind.startsWith('shop-'))shop(ctx,kind,biome);
+    else if(kind.startsWith('park-'))park(ctx,kind,biome);
+    else if(kind.startsWith('mall-'))mall(ctx,kind,biome);
     else if(kind.startsWith('service-'))service(ctx,kind,biome);
     else civic(ctx,kind,biome);
     if(biome==='tundra'){

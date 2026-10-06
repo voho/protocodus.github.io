@@ -1,6 +1,6 @@
 import { industryAt, invalidateNetworkPoints, BUILDINGS, INDUSTRIES } from './model.js';
 import { buildingAt, buildingTiles } from './building-sites.js';
-import { industryTiles } from './industry-sites.js';
+import { industryTiles, industryFootprint } from './industry-sites.js';
 import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 import { money as moneyText } from './copy.js';
 import { MAIL_POOL_SHARE } from './settlements.js';
@@ -38,12 +38,13 @@ function restoreList(current,{before,after,added,removed}){
   return list;
 }
 
-/** Before buildPlan: every tile within three of the gesture, or of a site it would clear, and the counters a build moves. */
+/** Before buildPlan: the gesture, complete farm fields and sites it would clear, plus a three-tile collar and the counters a build moves. */
 export function captureUndo(game,tool,points){
   const centers=[];
   for(const p of Array.isArray(points)?points:[])if(p&&Number.isInteger(p.x)&&Number.isInteger(p.y)){
     centers.push(p);
-    if(tool==='bulldoze'){const site=industryAt(game,p.x,p.y)||buildingAt(game,p.x,p.y)||terrainObjectAt(game,p.x,p.y),airport=stationSiteAt(game,p.x,p.y);if(site)centers.push(site);if(airport?.mode==='air')centers.push(...stationTiles(airport));}
+    if(Object.hasOwn(INDUSTRIES,tool)&&industryFootprint(tool)>3)centers.push(...industryTiles({...p,footprint:industryFootprint(tool)}));
+    if(tool==='bulldoze'){const industry=industryAt(game,p.x,p.y),site=industry||buildingAt(game,p.x,p.y)||terrainObjectAt(game,p.x,p.y),airport=stationSiteAt(game,p.x,p.y);if(site)centers.push(site);if(industry)centers.push(...industryTiles(industry));if(airport?.mode==='air')centers.push(...stationTiles(airport));}
     // An airport's site lies either way around the pointer, depending on the runway.
     if(tool==='airport')for(const axis of ['x','y'])centers.push(...stationTiles({...airportPlacement(p,axis),mode:'air',axis}));
   }

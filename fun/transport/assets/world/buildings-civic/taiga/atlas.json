@@ -22,7 +22,7 @@
     "shop-bakery"
   ],
   "source": "source-isometric-packed.png",
-  "sourceSha256": "8ef0b429eadbfb7cc0677811d9de80186f6aa72f5189ae1fddd7ccf5e9504aba",
+  "sourceSha256": "1f6538366e2e2718f4ef79fa19398495533b71e7c67f3ed195fcdb9105eec3a3",
   "sprites": [
     {
       "id": "school",
@@ -39,20 +39,20 @@
           640
         ],
         "sourceBounds": [
-          112,
-          107,
-          528,
-          532
+          169,
+          166,
+          470,
+          474
         ],
         "rawAlphaBounds": [
-          111,
-          106,
-          529,
-          532
+          168,
+          165,
+          471,
+          475
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.742373
+        "transparentFraction": 0.869241
       },
       "bounds": [
         14,
@@ -76,24 +76,24 @@
           640
         ],
         "sourceBounds": [
-          132,
-          147,
-          508,
-          493
+          178,
+          191,
+          462,
+          448
         ],
         "rawAlphaBounds": [
-          131,
-          146,
-          509,
-          494
+          177,
+          190,
+          463,
+          449
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.781646
+        "transparentFraction": 0.88012
       },
       "bounds": [
         12,
-        31,
+        34,
         244,
         244
       ]
@@ -113,24 +113,24 @@
           640
         ],
         "sourceBounds": [
-          114,
-          142,
-          526,
-          498
+          176,
+          187,
+          464,
+          453
         ],
         "rawAlphaBounds": [
-          113,
-          141,
-          527,
-          499
+          175,
+          187,
+          465,
+          454
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.747678
+        "transparentFraction": 0.875117
       },
       "bounds": [
         12,
-        44,
+        30,
         244,
         244
       ]
@@ -150,24 +150,24 @@
           640
         ],
         "sourceBounds": [
-          120,
-          122,
-          520,
-          517
+          167,
+          175,
+          473,
+          465
         ],
         "rawAlphaBounds": [
-          119,
-          121,
-          521,
-          518
+          166,
+          175,
+          474,
+          466
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.767058
+        "transparentFraction": 0.868081
       },
       "bounds": [
         12,
-        15,
+        24,
         244,
         244
       ]
@@ -187,24 +187,24 @@
           640
         ],
         "sourceBounds": [
-          115,
-          137,
-          525,
-          502
+          155,
+          178,
+          484,
+          461
         ],
         "rawAlphaBounds": [
-          114,
-          136,
-          526,
-          503
+          154,
+          177,
+          485,
+          462
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.74824
+        "transparentFraction": 0.846614
       },
       "bounds": [
         12,
-        37,
+        44,
         244,
         244
       ]
@@ -224,25 +224,25 @@
           640
         ],
         "sourceBounds": [
-          127,
-          105,
-          512,
-          535
+          177,
+          158,
+          462,
+          482
         ],
         "rawAlphaBounds": [
-          126,
-          104,
-          513,
-          535
+          176,
+          157,
+          463,
+          483
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.780525
+        "transparentFraction": 0.875759
       },
       "bounds": [
-        24,
+        26,
         12,
-        232,
+        230,
         244
       ]
     },
@@ -261,24 +261,24 @@
           640
         ],
         "sourceBounds": [
-          131,
-          139,
-          509,
-          501
+          172,
+          186,
+          468,
+          453
         ],
         "rawAlphaBounds": [
-          130,
-          139,
-          510,
-          501
+          171,
+          185,
+          469,
+          454
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.776904
+        "transparentFraction": 0.871538
       },
       "bounds": [
         12,
-        22,
+        35,
         244,
         244
       ]
@@ -298,24 +298,24 @@
           640
         ],
         "sourceBounds": [
-          127,
-          127,
-          513,
-          513
+          175,
+          184,
+          465,
+          455
         ],
         "rawAlphaBounds": [
-          126,
-          126,
-          513,
-          513
+          174,
+          184,
+          466,
+          456
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.758848
+        "transparentFraction": 0.873135
       },
       "bounds": [
         12,
-        12,
+        27,
         244,
         244
       ]
@@ -335,24 +335,24 @@
           640
         ],
         "sourceBounds": [
-          128,
-          142,
-          511,
-          498
+          179,
+          198,
+          461,
+          441
         ],
         "rawAlphaBounds": [
-          127,
-          141,
-          512,
-          499
+          178,
+          197,
+          462,
+          442
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.76179
+        "transparentFraction": 0.875779
       },
       "bounds": [
         12,
-        28,
+        44,
         244,
         244
       ]

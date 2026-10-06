@@ -19,9 +19,10 @@
     "service-hotel",
     "service-garage",
     "service-barber",
-    null
+    "civic:factory:taiga"
   ],
-  "source": "Individual generated camera corrections; unchanged cells from ../buildings-commerce/taiga",
+  "source": "source-registered-2026-10-05.png",
+  "sourceSha256": "5266fbfab09f9506e32a257cff9c2d097d4a5d9716abcdf50449e31bf2c46c47",
   "sprites": [
     {
       "id": "shop-butcher",
@@ -38,63 +39,61 @@
           640
         ],
         "sourceBounds": [
-          120,
-          123,
-          520,
-          517
+          134,
+          133,
+          505,
+          506
         ],
         "rawAlphaBounds": [
-          119,
-          123,
-          521,
-          518
+          133,
+          132,
+          506,
+          507
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.724561
+        "transparentFraction": 0.76998
       },
       "bounds": [
         12,
-        15,
-        244,
+        12,
+        243,
         244
       ]
     },
     {
       "id": "shop-hardware",
       "cell": 1,
-      "source": "generated/shop-hardware.png",
-      "sourceSha256": "925638e0577d43bdca5ae8ce7a22d99e2afaa21691e140790849e002fac4b36d",
       "sourceBounds": [
-        143,
-        177,
-        1116,
-        1109
+        640,
+        0,
+        1280,
+        640
       ],
       "normalization": {
         "originalSize": [
-          1254,
-          1254
+          640,
+          640
         ],
         "sourceBounds": [
+          137,
           143,
-          177,
-          1116,
-          1109
+          503,
+          497
         ],
         "rawAlphaBounds": [
-          39,
-          19,
-          1242,
-          1254
+          136,
+          142,
+          503,
+          498
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.645137
+        "transparentFraction": 0.794368
       },
       "bounds": [
         12,
-        22,
+        20,
         244,
         244
       ]
@@ -114,24 +113,24 @@
           640
         ],
         "sourceBounds": [
-          119,
-          122,
-          520,
-          517
+          138,
+          141,
+          502,
+          498
         ],
         "rawAlphaBounds": [
-          118,
-          122,
-          521,
-          517
+          137,
+          140,
+          503,
+          499
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.718394
+        "transparentFraction": 0.769785
       },
       "bounds": [
         12,
-        15,
+        16,
         244,
         244
       ]
@@ -151,64 +150,62 @@
           640
         ],
         "sourceBounds": [
-          121,
-          113,
-          518,
-          526
+          132,
+          130,
+          508,
+          510
         ],
         "rawAlphaBounds": [
-          121,
-          112,
-          519,
-          527
+          131,
+          129,
+          509,
+          511
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.742114
+        "transparentFraction": 0.770667
       },
       "bounds": [
-        16,
+        13,
         12,
-        239,
+        243,
         244
       ]
     },
     {
       "id": "service-bank",
       "cell": 4,
-      "source": "generated/service-bank.png",
-      "sourceSha256": "940b167664a2877e1e30f54ff9b4353d6f0a4793ed37945f56b20bcf52dce227",
       "sourceBounds": [
-        121,
-        113,
-        1145,
-        1143
+        640,
+        640,
+        1280,
+        1280
       ],
       "normalization": {
         "originalSize": [
-          1254,
-          1254
+          640,
+          640
         ],
         "sourceBounds": [
-          121,
-          113,
-          1145,
-          1143
+          122,
+          126,
+          517,
+          513
         ],
         "rawAlphaBounds": [
-          0,
-          64,
-          1222,
-          1254
+          121,
+          125,
+          517,
+          514
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.570898
+        "transparentFraction": 0.748921
       },
       "bounds": [
         12,
-        12,
-        243,
+        17,
+        244,
         244
       ]
     },
@@ -227,63 +224,61 @@
           640
         ],
         "sourceBounds": [
-          120,
-          112,
-          519,
-          528
+          134,
+          118,
+          505,
+          521
         ],
         "rawAlphaBounds": [
-          119,
-          112,
-          520,
-          529
+          133,
+          117,
+          506,
+          522
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.70699
+        "transparentFraction": 0.737539
       },
       "bounds": [
-        16,
+        21,
         12,
-        239,
+        235,
         244
       ]
     },
     {
       "id": "service-garage",
       "cell": 6,
-      "source": "generated/service-garage.png",
-      "sourceSha256": "cc9b9481f38972fd4893049d29d3d9e19a0753aad4ec0c142a8d3215e26470ed",
       "sourceBounds": [
-        159,
-        208,
-        1092,
-        1038
+        0,
+        1280,
+        640,
+        1920
       ],
       "normalization": {
         "originalSize": [
-          1254,
-          1254
+          640,
+          640
         ],
         "sourceBounds": [
-          159,
-          208,
-          1092,
-          1038
+          126,
+          157,
+          513,
+          482
         ],
         "rawAlphaBounds": [
-          41,
-          126,
-          1202,
-          1198
+          125,
+          156,
+          514,
+          483
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.690174
+        "transparentFraction": 0.795735
       },
       "bounds": [
         12,
-        38,
+        49,
         244,
         244
       ]
@@ -303,44 +298,64 @@
           640
         ],
         "sourceBounds": [
-          119,
-          128,
-          521,
-          512
+          131,
+          143,
+          508,
+          497
         ],
         "rawAlphaBounds": [
-          118,
-          127,
-          522,
-          513
+          130,
+          142,
+          509,
+          498
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.749507
+        "transparentFraction": 0.792019
       },
       "bounds": [
         12,
-        22,
+        26,
         244,
         244
       ]
     },
     {
-      "id": null
+      "id": "civic:factory:taiga",
+      "cell": 8,
+      "sourceBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          132,
+          156,
+          508,
+          483
+        ],
+        "rawAlphaBounds": [
+          131,
+          155,
+          509,
+          484
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.80738
+      },
+      "bounds": [
+        12,
+        42,
+        244,
+        244
+      ]
     }
-  ],
-  "selectiveReplacement": {
-    "indices": [
-      1,
-      4,
-      6
-    ],
-    "ids": [
-      "shop-hardware",
-      "service-bank",
-      "service-garage"
-    ],
-    "unchangedCells": "Original pixels copied at each existing LOD; no regeneration or resampling",
-    "previousFamily": "buildings-commerce"
-  }
+  ]
 }

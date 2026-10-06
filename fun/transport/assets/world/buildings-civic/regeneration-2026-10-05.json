@@ -1,0 +1,127 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-05",
+  "camera": "2:1 dimetric, ground axes \u00b126.565 degrees, upright verticals, northwest light",
+  "order": [
+    "school",
+    "hospital",
+    "police-station",
+    "fire-station",
+    "stadium",
+    "church",
+    "pub",
+    "shop-grocery",
+    "shop-bakery"
+  ],
+  "styleReference": "taiga/source-isometric.png (previous source)",
+  "operation": "Newly generated art and climate edits; existing registration/packing tools only",
+  "assets": [
+    {
+      "id": "taiga-initial",
+      "prompt": "Use case: stylized-concept. Production TRANSPARENT game sprite atlas for Transport. Regenerate ALL nine civic buildings shown in the reference, using it only as a miniature painted material/style reference. Draw NEW refined architectural designs with more convincing textures and coherent dimensional geometry; do not copy the existing pixels. Orthographic 2:1 DIMETRIC camera from southeast: ground horizontal axes at exactly +26.565 and -26.565 degrees (2 pixels sideways per 1 pixel vertical), equal visibility of two main facades, ALL vertical walls/masts stay upright, no perspective convergence. Every building uses precisely the same camera and northwest soft sunlight. Finely painted believable miniature realism, warm restrained colors, clear roof tile/slate courses, subtle mortar joints, glazing frames and weathering, finely textured compact grass/shrubs at foundations. Avoid oversaturated toy plastic. Shop glazing and windows are dark and unlit. Nine isolated full silhouettes in STRICT 3 columns by 3 rows of equal square cells, canvas square, independent transparent RGBA cutouts. Center each building in its own cell; entire roof, ground contact and short contact shadow fit inside INNER 75% of each cell, at least 12% TRANSPARENT margin on every side. Keep generous full transparent gaps between all objects. No labels, no caption, no border, no checkerboard picture, no people, no vehicles, no roads, no broad grass diamond tiles or pedestal plinths. Tiny threshold paving and attached shrubs only, not landscape tiles. ALL nine must be sharply recognizable at 32px after reduction.\nEXACT row-major order:\nROW 1 LEFT SCHOOL: handsome red brick rural school, two short classroom wings, central upright clock tower with gable and hand-only clock, red tiled pitched roofs, slate accent tower cap, broad front entrance and tiny steps. ROW 1 CENTER HOSPITAL: clean pale limestone two-story hospital, long ward glazing on both facades, blue slate roofs, recessed welcoming entry with unmistakable red medical cross. ROW 1 RIGHT POLICE STATION: civic blue-gray masonry police building, hipped charcoal slate roof, formal central entrance with dark blue doors, shield badge relief, small facade windows.\nROW 2 LEFT FIRE STATION: red brick station with TWO broad red engine bay doors on front facade, compact tall hose-drying tower at rear, muted slate pitched roof, tiny crossed-tools pictogram. ROW 2 CENTER STADIUM: low oval soccer stadium open to sky with GREEN football pitch clearly visible, white line markings aligned to dimetric ground plane, layered pale stone seating and exactly FOUR upright floodlight poles; compact coherent silhouette, no tower dominating pitch. ROW 2 RIGHT CHURCH: pale stone church with narrow tall bell tower and small cross, slate pitched nave roof, exposed arched door, detailed small stained glass on both facades.\nROW 3 LEFT PUB: cozy half-timber and cream plaster pub, dark moss-green tile roof, projecting entrance and attached tankard-shaped hanging sign, two tiny wooden benches. ROW 3 CENTER GROCERY: modest cream plaster two-story corner grocer with green-and-cream striped awning across shopfront, broad dark shop glazing, tiny attached neat produce bins containing red/green vegetables. ROW 3 RIGHT BAKERY: cream masonry bakery with terracotta roof, red-and-cream striped awning, tiny golden bread display at doorway, distinct attached brick oven chimney. Signs contain pictograms only, absolutely no lettering or numbers. TAIGA/TEMPERATE climate: rich natural greens, no snow. Recheck nine exact identities and exact positions before completing.",
+      "generatorOutput": "exec-ca8c366c-629b-4ada-a18b-8f1968320929.png",
+      "source": "generated/taiga-regenerated-2026-10-05-initial.png",
+      "status": "Superseded by image_gen layout repair: police and church touched"
+    },
+    {
+      "id": "taiga",
+      "prompt": "Use case: layout repair for transparent game sprite atlas. Edit this generated nine-building reference sheet. CRITICAL change: SHRINK EACH SEPARATE building including its attached landscaping and ground contact to 72% of its current drawn width and height, placing it centered in its corresponding equal cell of a STRICT 3-by-3 grid, without changing the 3-by-3 row-major identity order. Actual canvas MUST remain square. Each entire silhouette must fit within 70% of its square cell width and height, with a continuous 15% cell-wide fully transparent safe gutter on ALL FOUR SIDES. The current police and church touch each other; separate them by generous fully transparent blank space. At least 90 pixels transparent empty gap between adjacent silhouettes at this output resolution. The outermost image border must be fully transparent. Render ALL NINE: row1 school, hospital, police; row2 fire station, stadium, church; row3 pub, grocery, bakery. Preserve their freshly generated architectural designs, material textures, roof colors and little attached props. Absolutely no omitted building. Keep realistic finely painted miniature quality, orthographic 2:1 dimetric ground at \u00b126.565 degrees with upright verticals, northwest lighting. Transparent RGBA background, isolated cutouts, no checkerboard picture, no panels, labels, outlines, grid borders, connecting ground or pedestals. Preserve detailed dark unlit windows. The stadium must have FOUR slim upright light masts around its low oval bleachers and its green football pitch remains open and legible. Focus on visibly smaller nine whole objects with much larger transparent gaps; no enlarged crops.",
+      "generatorOutput": "exec-6194bf4b-aa8c-470e-b24d-a99e01229936.png",
+      "source": "taiga/source-isometric.png",
+      "reference": "generated/taiga-regenerated-2026-10-05-initial.png",
+      "status": "Active"
+    },
+    {
+      "id": "tundra",
+      "prompt": "Use case: lighting-weather climate skin. EDIT the finished referenced TRANSPARENT nine-building game atlas. Preserve ALL nine newly generated designs, exactly the same 3x3 row-major layout, same large transparent gutters, exact relative scale, cell centers, whole-object silhouettes, roof geometry, facades, doors, props, camera, and window locations. Do not enlarge, reframe, rearrange, add or remove buildings. Identical refined hand-painted miniature realism, orthographic 2:1 dimetric axes \u00b126.565 degrees, upright walls/poles, soft northwest sunlight. Change ONLY climate finish for TUNDRA WINTER: believable shallow powder snow sits on upward roof planes, ledges, small shrubs and narrow foundation ground. Subdued slate and terracotta roof colors still show below uneven snow; tiny sparse icicles where appropriate. Cool pale limestone and frost-blue DARK UNLIT glazing. Preserve readable door openings, stripes on shop awnings and shop produce/bread displays. Keep open stadium and FOUR floodlight poles, with the existing green soccer pitch mostly green and a faint frost dusting around its edges and stands. No new Christmas props, no extensive white foundation platform or backdrop. True transparent RGBA outside all nine individual silhouettes. Nothing extends into transparent gutters, no checkerboard picture, no grid lines, no labels, no text. Exact identity order: row1 school, hospital, police station; row2 fire station, stadium, church; row3 pub, grocery, bakery. Match the whole object registration and transparent margins closely to reference.",
+      "reference": "taiga/source-isometric.png",
+      "status": "Active",
+      "generatorOutput": "exec-eaffd754-6af4-4971-861b-4f42bc36b9ea.png",
+      "source": "tundra/source-isometric.png"
+    },
+    {
+      "id": "desert",
+      "prompt": "Use case: lighting-weather climate skin. EDIT the finished referenced TRANSPARENT nine-building game atlas. Preserve ALL nine newly generated designs, exactly the same 3x3 row-major layout, same large transparent gutters, exact relative scale, cell centers, whole-object silhouettes, roof geometry, facades, doors, props, camera, and window locations. Do not enlarge, reframe, rearrange, add or remove buildings. Identical refined hand-painted miniature realism, orthographic 2:1 dimetric axes \u00b126.565 degrees, upright walls/poles, soft northwest sunlight. Change ONLY climate finish for DESERT ARID: sun-weathered sandy ochre plaster, warm sandstone joints, dusty terracotta or slate roof textures retain the existing roof color identities. Existing attached greenery becomes sparse little dry sage shrubs, tawny grass tufts and small succulent pots at doorstep; confined compact pale sandy ground contact only. Shop awning greens/reds and bread/produce displays stay recognizable. Keep every facade window DARK UNLIT, keep open stadium and FOUR floodlight poles, same irrigated green soccer pitch with dry shrubs outside. No snow, no large palm trees, no broad sand tile, platform or backdrop. True transparent RGBA outside all nine individual silhouettes. Nothing extends into transparent gutters, no checkerboard picture, no grid lines, no labels, no text. Exact identity order: row1 school, hospital, police station; row2 fire station, stadium, church; row3 pub, grocery, bakery. Match the whole object registration and transparent margins closely to reference.",
+      "reference": "taiga/source-isometric.png",
+      "status": "Active",
+      "generatorOutput": "exec-49441e9a-4198-47ad-8d57-6cc849fd2164.png",
+      "source": "desert/source-isometric.png"
+    }
+  ],
+  "validation": [
+    {
+      "biome": "taiga",
+      "spriteCount": 9,
+      "meaningfulPixelsPreserved": 465843,
+      "sourceSha256": "f77e9786177870610f5eccb162b8ac0259cfee0daa3463729a39c0b8e532d4bf",
+      "packedSourceSha256": "1f6538366e2e2718f4ef79fa19398495533b71e7c67f3ed195fcdb9105eec3a3",
+      "densities": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "maximumCellBoundaryAlpha": {
+        "16": 29,
+        "32": 5,
+        "64": 0,
+        "128": 0,
+        "256": 0
+      },
+      "boundaryValidation": "Source outer borders are transparent at alpha > 8; every runtime cell has no artwork at alpha >= 64 touching its boundary. The 16px level retains only faint subpixel Lanczos/shadow fringes at its outermost pixels. Each sprite is filtered in isolation.",
+      "windowsValidation": "Measured glazing/floodlights verified visually in every climate; rectangles lie on opaque art"
+    },
+    {
+      "biome": "tundra",
+      "spriteCount": 9,
+      "meaningfulPixelsPreserved": 486008,
+      "sourceSha256": "83b55648f21ea9add7052caa506b5dbe1e2b7a575e8b42c0109da63bfd1de547",
+      "packedSourceSha256": "478995b5695c0bcfb70797ab9949a4dae6438e981f96d59da906092af362fa34",
+      "densities": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "maximumCellBoundaryAlpha": {
+        "16": 37,
+        "32": 4,
+        "64": 0,
+        "128": 0,
+        "256": 0
+      },
+      "boundaryValidation": "Source outer borders are transparent at alpha > 8; every runtime cell has no artwork at alpha >= 64 touching its boundary. The 16px level retains only faint subpixel Lanczos/shadow fringes at its outermost pixels. Each sprite is filtered in isolation.",
+      "windowsValidation": "Measured glazing/floodlights verified visually in every climate; rectangles lie on opaque art"
+    },
+    {
+      "biome": "desert",
+      "spriteCount": 9,
+      "meaningfulPixelsPreserved": 491241,
+      "sourceSha256": "97861aa7374fa9f475bad9c28dec3fa94c7cf2330ac3a6efc152190d5df2f137",
+      "packedSourceSha256": "15e31aec9c19193573f2c49c8fe894f8adae0bf7c25a9addb291613f34552f59",
+      "densities": [
+        16,
+        32,
+        64,
+        128,
+        256
+      ],
+      "maximumCellBoundaryAlpha": {
+        "16": 24,
+        "32": 4,
+        "64": 0,
+        "128": 0,
+        "256": 0
+      },
+      "boundaryValidation": "Source outer borders are transparent at alpha > 8; every runtime cell has no artwork at alpha >= 64 touching its boundary. The 16px level retains only faint subpixel Lanczos/shadow fringes at its outermost pixels. Each sprite is filtered in isolation.",
+      "windowsValidation": "Measured glazing/floodlights verified visually in every climate; rectangles lie on opaque art"
+    }
+  ],
+  "changedSpriteMasters": 27,
+  "packingCommands": [
+    "python tools/prepare-building-atlas.py assets/world/buildings-civic/{biome}/source-isometric.png assets/world/buildings-civic/{biome}/source-isometric-packed.png",
+    "python tools/build-world-atlases.py --atlas assets/world/buildings-civic/{biome}/source-isometric-packed.png --columns 3 --rows 3 --ids school,hospital,police-station,fire-station,stadium,church,pub,shop-grocery,shop-bakery --output-dir assets/world/buildings-civic/{biome} --max-cell 256"
+  ]
+}

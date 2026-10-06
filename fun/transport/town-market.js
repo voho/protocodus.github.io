@@ -15,7 +15,7 @@ export { TOWN_RADIUS };
 const freeze = object => { for (const value of Object.values(object)) if (value && typeof value === 'object') freeze(value); return Object.freeze(object); };
 export const MARKET = freeze({ perResident: { food: .10, household: .04, fuel: .03 }, reach: { food: 300, household: 500, fuel: 800 }, materialsPerZone: 6, materialsCap: { perResident: .1, base: 24 }, bonus: .25, jobs: { shop: 15, works: 25 }, shopperReach: 200, demandBonus: .5, homesInfillBonus: .5 });
 // The family each shop sells; a legacy 'shop' counts as food.
-export const OUTLET = freeze({ 'shop-grocery': 'food', 'shop-bakery': 'food', 'shop-butcher': 'food', pub: 'food', 'service-hotel': 'food', 'shop-hardware': 'household', 'shop-florist': 'household', 'service-garage': 'fuel', shop: 'food' });
+export const OUTLET = freeze({ 'shop-grocery': 'food', 'shop-bakery': 'food', 'shop-butcher': 'food', pub: 'food', 'service-hotel': 'food', 'shop-hardware': 'household', 'shop-florist': 'household', 'service-garage': 'fuel', 'mall-neighborhood': 'food', 'mall-shopping': 'food', 'mall-modern': 'food', shop: 'food' });
 export const HOUSEHOLD = freeze({ taiga: ['furniture'], tundra: ['goods'], desert: ['goods'] });
 export const FAMILIES = freeze(['food', 'household', 'fuel', 'materials']);
 const SOLD = ['food', 'household', 'fuel'];
@@ -82,8 +82,10 @@ export function townLedger(game, city, zoneMap) {
       else if (group === 'shops' || group === 'services' || kind === 'shop' || kind === 'office') {
         // A developed commercial zone also keeps the family of the shop it grew from.
         const sells = OUTLET[kind], grewFrom = tile.zone === 'commercial' ? OUTLET[commercialKind(tile.variant, 1)] : undefined;
-        ledger.shopUnits += level;
-        if (sells) ledger.outlets[sells] += level;
+        const definition = BUILDINGS[kind];
+        ledger.shopUnits += level * (definition?.shopUnits || 1);
+        if (definition?.outlets) for (const [family, units] of Object.entries(definition.outlets)) ledger.outlets[family] += level * units;
+        else if (sells) ledger.outlets[sells] += level;
         if (grewFrom && grewFrom !== sells) ledger.outlets[grewFrom] += level;
       } else if (kind === 'factory') ledger.works += level;
       else if (group === 'community') { ledger.civic++; if (OUTLET[kind]) ledger.outlets[OUTLET[kind]] += level; }
@@ -169,7 +171,9 @@ export const propertyBase = p => p.zoneKind ? GROUND_RENT[p.sector] * p.tiles * 
 /** The share let, from a closed market: the floor, plus the rest by the homes bar, stocked shelves times shoppers, shoppers alone, or workshop use. */
 export function propertyOccupancy(market, p, population) {
   const floor = OCCUPANCY_FLOOR[p.sector], saturation = clamp((Math.max(0, population) + 2 * market.visitors) / Math.max(1, market.shops * MARKET.shopperReach));
-  const signal = p.sector === 'homes' ? market.demand[0] : p.sector === 'works' ? market.utilization || 0 : p.family ? market.met[p.family] * saturation : saturation;
+  const outlets = p.sector === 'shops' && BUILDINGS[p.kind]?.outlets;
+  const stocked = outlets ? Object.entries(outlets).reduce((sum, [family, units]) => sum + market.met[family] * units, 0) / Object.values(outlets).reduce((sum, units) => sum + units, 0) : null;
+  const signal = p.sector === 'homes' ? market.demand[0] : p.sector === 'works' ? market.utilization || 0 : outlets ? stocked * saturation : p.family ? market.met[p.family] * saturation : saturation;
   return floor + (1 - floor) * clamp(signal);
 }
 /** Replacement cost at today's prices: the building, or the zone tiles bought. */

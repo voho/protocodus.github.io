@@ -1,0 +1,293 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "civic:shop-hardware:tundra:design-1",
+    "civic:shop-florist:tundra:design-1",
+    "civic:shop-grocery:tundra:design-2",
+    "civic:shop-bakery:tundra:design-2",
+    "civic:shop-butcher:tundra:design-2",
+    "civic:shop-hardware:tundra:design-2",
+    "civic:shop-florist:tundra:design-2",
+    null,
+    null
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "285204af6d1830dc4df7e959818f52a01e38ac64dbadee88b975f3148d1c71e4",
+  "sprites": [
+    {
+      "id": "civic:shop-hardware:tundra:design-1",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          61,
+          134,
+          372,
+          388
+        ],
+        "rawAlphaBounds": [
+          59,
+          57,
+          373,
+          390
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.686317
+      },
+      "bounds": [
+        12,
+        55,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-florist:tundra:design-1",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          65,
+          107,
+          376,
+          387
+        ],
+        "rawAlphaBounds": [
+          62,
+          107,
+          404,
+          388
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.677806
+      },
+      "bounds": [
+        12,
+        35,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-grocery:tundra:design-2",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          47,
+          114,
+          360,
+          389
+        ],
+        "rawAlphaBounds": [
+          47,
+          114,
+          364,
+          396
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.649447
+      },
+      "bounds": [
+        12,
+        40,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-bakery:tundra:design-2",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          50,
+          99,
+          384,
+          375
+        ],
+        "rawAlphaBounds": [
+          47,
+          31,
+          418,
+          418
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.629513
+      },
+      "bounds": [
+        12,
+        52,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-butcher:tundra:design-2",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          58,
+          82,
+          387,
+          384
+        ],
+        "rawAlphaBounds": [
+          7,
+          5,
+          414,
+          402
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.593336
+      },
+      "bounds": [
+        12,
+        31,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-hardware:tundra:design-2",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          40,
+          94,
+          383,
+          380
+        ],
+        "rawAlphaBounds": [
+          25,
+          47,
+          387,
+          389
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.626777
+      },
+      "bounds": [
+        12,
+        51,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-florist:tundra:design-2",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "normalization": {
+        "originalSize": [
+          418,
+          418
+        ],
+        "sourceBounds": [
+          51,
+          69,
+          403,
+          335
+        ],
+        "rawAlphaBounds": [
+          41,
+          0,
+          404,
+          362
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.641183
+      },
+      "bounds": [
+        12,
+        69,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": null
+    }
+  ]
+}

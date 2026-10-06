@@ -23,6 +23,9 @@ function index(game) {
   cache = { day, revision: game.revision, cities: game.cities, industries: game.industries, stations: game.stations, zones: game.zones,
     cityCount: game.cities.length, industryCount: game.industries.length,
     stationCount: game.stations.length, zoneCount: game.zones.length,
+    // Callers already allow two tiles beyond an industry's anchor for older
+    // 3×3 sites. Add only the new field extent; precise edge filters follow.
+    industryExtra: game.industries.reduce((extra,site)=>Math.max(extra,(site.footprint||1)-3),0),
     cityCells: bucket(game.cities), industryCells: bucket(game.industries),
     stationCells: bucket(game.stations), zoneCells: bucket(game.zones) };
   caches.set(game, cache);
@@ -48,7 +51,9 @@ export function nearbyCities(game, x, y, radius) {
 }
 
 export function nearbyIndustries(game, x, y, radius) {
-  return game.industries.length <= 16 ? game.industries : nearby(index(game).industryCells, x, y, radius);
+  if(game.industries.length<=16)return game.industries;
+  const cache=index(game);
+  return nearby(cache.industryCells,x,y,radius+cache.industryExtra);
 }
 
 export function nearbyStations(game, x, y, radius) {

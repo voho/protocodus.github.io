@@ -5,7 +5,6 @@ import { createGame, restoreGame, validateGame, tick, buildPath, networkTotals, 
 import { encodeGame } from '../save-codec.js';
 import { captureWorld, materializeWorld } from '../world-transfer.js';
 import { CARGO } from '../data.js';
-import { chainProducts } from '../chains.js';
 import { priceFor, inflationInfo, calendarMonth } from '../economy-pricing.js';
 import { ACHIEVEMENTS, ACHIEVEMENT_FAMILIES, ACHIEVEMENT_GROUPS, ACHIEVEMENT_IDS, ACHIEVEMENT_TIERS, CARGO_ORDER, CARGO_BIT, CARGO_MASK, cargoMask, cargoCount, createAchievementState, noteDelivery, stepAchievements, drainAchievementUnlocks, achievementProgress, validAchievements, earnedCount } from '../achievements.js';
 import { renderAchievements } from '../achievements-view.js';
@@ -37,7 +36,11 @@ test('the catalog: 41 records in 21 families and 6 groups, round targets rising 
   assert.equal(CARGO_MASK, 2 ** CARGO_ORDER.length - 1);assert.equal(CARGO_BIT.passengers, 1);assert.equal(CARGO_BIT.mail, 1 << 20);
   // Every cargo the landscape makes, and mail; never passengers.
   assert.deepEqual(['taiga', 'tundra', 'desert'].map(b => cargoCount(cargoMask(b))), [13, 11, 12]);
-  for (const b of ['taiga', 'tundra', 'desert']) { assert.equal(cargoMask(b) & CARGO_BIT.passengers, 0);assert.equal(cargoCount(cargoMask(b)), chainProducts(b).length + 1); }
+  for (const b of ['taiga', 'tundra', 'desert']) {
+    assert.equal(cargoMask(b) & CARGO_BIT.passengers, 0);
+    for(const cargo of ['milk','produce','livestock'])assert.equal(cargoMask(b)&CARGO_BIT[cargo],0,'optional farm chains do not change an existing landscape record');
+  }
+  assert.equal(CARGO_BIT.milk,1<<21);assert.equal(CARGO_BIT.produce,1<<22);assert.equal(CARGO_BIT.livestock,1<<23);
   // Every ladder starts beyond the Company goals' last step.
   const rent = ACHIEVEMENT_FAMILIES.find(f => f.id === 'property');
   assert.deepEqual(rent.rungs.map(r => [r.id, r.tier, r.target]), [['property-10k', 'bronze', 1e4], ['property-100k', 'silver', 1e5], ['property-1m', 'gold', 1e6]]);

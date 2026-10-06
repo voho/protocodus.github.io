@@ -2,7 +2,7 @@ import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITI
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion, worldGenerationOptions, validGenerationOptions } from './world.js';
 import { BUILDINGS } from './buildings.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
-import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize, industryFootprint } from './industry-sites.js';
+import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
@@ -106,7 +106,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
-    version:1, siteFootprintVersion:1, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
+    version:1, siteFootprintVersion:2, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
     money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -591,9 +591,13 @@ const fleetIndexCache=new WeakMap();
 function fleetIndex(game){
   let cache=fleetIndexCache.get(game);
   if(cache&&cache.revision===game.revision&&cache.routes===game.routes&&cache.vehicles===game.vehicles&&cache.stations===game.stations&&cache.routeCount===game.routes.length&&cache.vehicleCount===game.vehicles.length&&cache.stationCount===game.stations.length)return cache;
-  const routeById=new Map(game.routes.map(route=>[route.id,route])),vehiclesByRoute=new Map(),stationById=new Map(game.stations.map(station=>[station.id,station]));
-  for(const vehicle of game.vehicles){if(!vehiclesByRoute.has(vehicle.routeId))vehiclesByRoute.set(vehicle.routeId,[]);vehiclesByRoute.get(vehicle.routeId).push(vehicle);}
-  cache={revision:game.revision,routes:game.routes,vehicles:game.vehicles,stations:game.stations,routeCount:game.routes.length,vehicleCount:game.vehicles.length,stationCount:game.stations.length,routeById,vehiclesByRoute,stationById};fleetIndexCache.set(game,cache);return cache;
+  const routeById=new Map(game.routes.map(route=>[route.id,route])),vehiclesByRoute=new Map(),stationById=new Map(game.stations.map(station=>[station.id,station])),movementFleet=[];
+  for(const vehicle of game.vehicles){
+    if(!vehiclesByRoute.has(vehicle.routeId))vehiclesByRoute.set(vehicle.routeId,[]);vehiclesByRoute.get(vehicle.routeId).push(vehicle);
+    const route=routeById.get(vehicle.routeId);
+    if(route)movementFleet.push({vehicle,route,finalState:null,plan:{state:{progress:0,totalDistance:0,dwellRemaining:0},elapsed:0,arrived:false}});
+  }
+  cache={revision:game.revision,routes:game.routes,vehicles:game.vehicles,stations:game.stations,routeCount:game.routes.length,vehicleCount:game.vehicles.length,stationCount:game.stations.length,routeById,vehiclesByRoute,stationById,movementFleet};fleetIndexCache.set(game,cache);return cache;
 }
 
 export function getVehiclePurchase(game,mode) {
@@ -957,6 +961,14 @@ export function routeBreakPoint(game,route) {
   const middle=Math.floor(path.length/2);return{x:path[middle].x,y:path[middle].y,index:middle};
 }
 const movementCache=new WeakMap();
+function movementSpeeds(game,fleet){
+  const day=Math.floor(game.day),networkRevision=game.networkRevision||0;
+  let cache=movementCache.get(game);
+  if(!cache||cache.day!==day||cache.fleet!==fleet||cache.networkRevision!==networkRevision||cache.tiles!==game.tiles||cache.seed!==game.seed){
+    cache={day,fleet,networkRevision,tiles:game.tiles,seed:game.seed,speeds:new Map(),segments:new Map()};movementCache.set(game,cache);
+  }
+  return cache;
+}
 function waterTraffic(game, point, cache) {
   if (!cache.waterRoutes) {
     cache.waterRoutes = new Map(); cache.waterTraffic = new Map();
@@ -974,60 +986,77 @@ function waterTraffic(game, point, cache) {
   cache.waterTraffic.set(key,routes.size);
   return routes.size;
 }
-function travelSpeed(game,route,vehicle,segment){
-  const day=Math.floor(game.day);let cache=movementCache.get(game);
-  if(!cache||cache.day!==day||cache.revision!==game.revision){cache={day,revision:game.revision,speeds:new Map()};movementCache.set(game,cache);}
+function travelSpeed(game,route,vehicle,segment,cache){
+  const level=vehicleLevel(vehicle),key=route.mode==='air'?-1:segment;
+  let speeds=cache.speeds.get(vehicle);
+  if(!speeds||speeds.route!==route||speeds.path!==route.path||speeds.mode!==route.mode||speeds.level!==level||speeds.id!==vehicle.id){
+    speeds={route,path:route.path,mode:route.mode,level,id:vehicle.id,variation:.94+randomAt(game,cache.day,vehicle.id,511)*.12,values:new Map()};cache.speeds.set(vehicle,speeds);
+  }
+  const known=speeds.values.get(key);if(known!==undefined)return known;
+  // A route's terrain, weather and services are shared by its vehicles for
+  // this day/revision. Keep the components separate: multiplication order and
+  // each vehicle's own seeded variation and upgrade level stay unchanged.
+  let segments=cache.segments.get(route);
+  if(!segments||segments.path!==route.path||segments.mode!==route.mode){segments={path:route.path,mode:route.mode,values:new Map()};cache.segments.set(route,segments);}
+  let shared=segments.values.get(key);
+  if(!shared){
+    if(route.mode==='air'){
+      const first=route.path[0],last=route.path[route.path.length-1],manhattan=route.path.length-1,straight=Math.hypot(last.x-first.x,last.y-first.y)||manhattan;
+      shared={manhattan,straight,climate:weatherAt(game,Math.round((first.x+last.x)/2),Math.round((first.y+last.y)/2),cache.day)};
+    }else{
+      const a=route.path[segment],b=route.path[segment+1],ta=tileAt(game,a.x,a.y),tb=tileAt(game,b.x,b.y),climate=weatherAt(game,a.x,a.y,cache.day);
+      if(route.mode==='water'){
+        // Open water is quicker than a shallow channel; approaches to busy
+        // ports slow ships without frame-based randomness.
+        const neighbors=DIRECTIONS.map(([dx,dy])=>tileAt(game,a.x+dx,a.y+dy));
+        shared={climate,channel:.72+neighbors.filter(t=>t?.terrain==='water').length*.07,traffic:waterTraffic(game,a,cache),support:neighbors.filter(t=>t?.road||t?.rail).length*.015,passage:(ta.bridge||tb.bridge)?.88:1};
+      }else{
+        let congestion=0,support=0;
+        for(const city of nearbyCities(game,a.x,a.y,5)){const d=Math.hypot(city.x-a.x,city.y-a.y);if(d<5)congestion+=Math.min(.15,city.population/10000)*(1-d/6);}
+        const supportingSites=new Set();
+        for(const [dx,dy]of DIRECTIONS){const site=buildingAt(game,a.x+dx,a.y+dy),kind=site?.building.kind;if((kind==='service-garage'||kind==='police-station')&&!supportingSites.has(site.building)){supportingSites.add(site.building);support+=.035;}}
+        shared={climate,congestion,support,terrain:(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1,grade:1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4)};
+      }
+    }
+    segments.values.set(key,shared);
+  }
+  const variation=speeds.variation;let speed;
   if(route.mode==='air'){
-    const key=`${vehicle.id}:air`;if(cache.speeds.has(key))return cache.speeds.get(key);
-    // The saved staircase is Manhattan; each unit step covers straight/manhattan of a tile, so ground speed is constant.
-    const first=route.path[0],last=route.path[route.path.length-1],manhattan=route.path.length-1,straight=Math.hypot(last.x-first.x,last.y-first.y)||manhattan;
-    const climate=weatherAt(game,Math.round((first.x+last.x)/2),Math.round((first.y+last.y)/2),day),variation=.94+randomAt(game,day,vehicle.id,511)*.12;
-    const speed=VEHICLE_SPEEDS.air*(manhattan/straight)*(.55+climate.travel*.45)*variation*vehicleSpeedMultiplier(vehicleLevel(vehicle));
-    cache.speeds.set(key,speed);return speed;
+    // The saved staircase is Manhattan; ground speed follows its straight chord.
+    const {manhattan,straight,climate}=shared;
+    speed=VEHICLE_SPEEDS.air*(manhattan/straight)*(.55+climate.travel*.45)*variation*vehicleSpeedMultiplier(level);
+  }else if(route.mode==='water'){
+    const {channel,passage,climate,traffic,support}=shared;
+    speed=VEHICLE_SPEEDS.water*channel*passage*climate.travel*(1-climate.cold*.12)*variation*(1-Math.min(.18,Math.max(0,traffic-1)*.035)+Math.min(.045,support))*vehicleSpeedMultiplier(level);
+  }else{
+    const {terrain,grade,climate,congestion,support}=shared;
+    speed=VEHICLE_SPEEDS[route.mode]*terrain*grade*climate.travel*variation*(1-clamp(congestion,0,route.mode==='road'?.22:.06)+Math.min(.07,support))*vehicleSpeedMultiplier(level);
   }
-  const key=`${vehicle.id}:${segment}`;if(cache.speeds.has(key))return cache.speeds.get(key);
-  const a=route.path[segment],b=route.path[segment+1],ta=tileAt(game,a.x,a.y),tb=tileAt(game,b.x,b.y),climate=weatherAt(game,a.x,a.y,day);
-  if(route.mode==='water'){
-    // Open water is quicker than a shallow channel. Bridges stay navigable,
-    // while approaches to busy ports slow ships without frame-based randomness.
-    const neighbors=DIRECTIONS.map(([dx,dy])=>tileAt(game,a.x+dx,a.y+dy));
-    const channel=.72+neighbors.filter(t=>t?.terrain==='water').length*.07;
-    const traffic=waterTraffic(game,a,cache);
-    const support=neighbors.filter(t=>t?.road||t?.rail).length*.015;
-    const passage=(ta.bridge||tb.bridge)?.88:1;
-    const variation=.94+randomAt(game,day,vehicle.id,511)*.12;
-    const speed=VEHICLE_SPEEDS.water*channel*passage*climate.travel*(1-climate.cold*.12)*variation*(1-Math.min(.18,Math.max(0,traffic-1)*.035)+Math.min(.045,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
-    cache.speeds.set(key,speed);return speed;
-  }
-  let congestion=0,support=0;
-  for(const city of nearbyCities(game,a.x,a.y,5)){const d=Math.hypot(city.x-a.x,city.y-a.y);if(d<5)congestion+=Math.min(.15,city.population/10000)*(1-d/6);}
-  const supportingSites=new Set();
-  for(const [dx,dy]of DIRECTIONS){const site=buildingAt(game,a.x+dx,a.y+dy),kind=site?.building.kind;if((kind==='service-garage'||kind==='police-station')&&!supportingSites.has(site.building)){supportingSites.add(site.building);support+=.035;}}
-  const terrain=(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1;
-  const grade=1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4);
-  const dailyVariation=.94+randomAt(game,day,vehicle.id,511)*.12;
-  const speed=VEHICLE_SPEEDS[route.mode]*terrain*grade*climate.travel*dailyVariation*(1-clamp(congestion,0,route.mode==='road'?.22:.06)+Math.min(.07,support))*vehicleSpeedMultiplier(vehicleLevel(vehicle));
-  cache.speeds.set(key,speed);return speed;
+  speeds.values.set(key,speed);return speed;
 }
 // A trajectory has no economic side effects. Stop at its next arrival so that
 // the fleet can commit cargo transfers in time order, even for a large tick.
-function travelPlan(game,route,vehicle,days){
-  const state={progress:vehicle.progress,totalDistance:vehicle.totalDistance||0,dwellRemaining:vehicle.dwellRemaining||0};
+function travelPlan(game,route,vehicle,days,plan,speedCache,motion,startDay){
+  const state=plan.state;
+  state.progress=vehicle.progress;state.totalDistance=vehicle.totalDistance||0;state.dwellRemaining=vehicle.dwellRemaining||0;
   const max=route.path.length-1,endpoint=vehicle.direction===1?max:0;
   // A vehicle waiting for a full load holds still, its dwell kept for after. It falls through with no time to spend
   // rather than returning, so anything the tail counts per day on the way still counts the wait.
   const waiting=waitingForFullLoad(vehicle);
   let remaining=waiting?0:days,elapsed=0;
-  if(state.dwellRemaining>0){const wait=Math.min(remaining,state.dwellRemaining);state.dwellRemaining=Math.max(0,state.dwellRemaining-wait);remaining-=wait;elapsed+=wait;}
+  if(waiting&&motion&&days>0)motion.segment(vehicle,route,startDay,startDay+days,state.progress,state.progress,state.dwellRemaining,state.dwellRemaining,state.totalDistance,state.totalDistance);
+  if(state.dwellRemaining>0){const wait=Math.min(remaining,state.dwellRemaining),before=state.dwellRemaining;state.dwellRemaining=Math.max(0,state.dwellRemaining-wait);remaining-=wait;elapsed+=wait;if(motion&&wait>0)motion.segment(vehicle,route,startDay,startDay+elapsed,state.progress,state.progress,before,state.dwellRemaining,state.totalDistance,state.totalDistance);}
   while(remaining>1e-10&&Math.abs(state.progress-endpoint)>1e-9){
+    const fromProgress=state.progress,fromDistance=state.totalDistance,fromTime=elapsed;
     const segment=clamp(vehicle.direction===1?Math.floor(state.progress+1e-9):Math.ceil(state.progress-1e-9)-1,0,max-1);
-    const speed=travelSpeed(game,route,vehicle,segment),boundary=vehicle.direction===1?segment+1:segment,space=Math.abs(boundary-state.progress),duration=space/speed;
+    const speed=travelSpeed(game,route,vehicle,segment,speedCache),boundary=vehicle.direction===1?segment+1:segment,space=Math.abs(boundary-state.progress),duration=space/speed;
     if(remaining+1e-12>=duration){state.progress=boundary;state.totalDistance+=space;remaining=Math.max(0,remaining-duration);elapsed+=duration;}
     else{const step=remaining*speed;state.progress+=step*vehicle.direction;state.totalDistance+=step;elapsed+=remaining;remaining=0;}
+    if(motion)motion.segment(vehicle,route,startDay+fromTime,startDay+elapsed,fromProgress,state.progress,state.dwellRemaining,state.dwellRemaining,fromDistance,state.totalDistance);
   }
   const arrived=!waiting&&state.dwellRemaining<=0&&Math.abs(state.progress-endpoint)<1e-9;
   if(arrived)state.progress=endpoint;
-  return {state,elapsed:arrived?elapsed:days,arrived};
+  plan.elapsed=arrived?elapsed:days;plan.arrived=arrived;return plan;
 }
 function arriveVehicle(game,route,vehicle,arrivalDay,context){
   const stopIndex=vehicle.direction===1?1:0;
@@ -1049,7 +1078,7 @@ const EASE_TILES={road:.8,rail:1.6,water:1.2};
 // The steady-pace point at a progress along a ground path. The simulation reads this, never a vehicle's drawn x and y.
 function pathPoint(path,progress){const index=Math.min(Math.floor(progress),path.length-2),fraction=progress-index,a=path[index],b=path[index+1];return{x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,a,b};}
 // Where a vehicle is drawn: a plane on its straight chord, anything else at its eased progress along the path.
-function placeVehicle(route,vehicle){
+export function placeVehicle(route,vehicle){
   const max=route.path.length-1;
   if(route.mode==='air'){const first=route.path[0],last=route.path[max],f=vehicle.progress/max;vehicle.x=first.x+(last.x-first.x)*f;vehicle.y=first.y+(last.y-first.y)*f;vehicle.angle=Math.atan2((last.y-first.y)*vehicle.direction,(last.x-first.x)*vehicle.direction);return;}
   const {x,y,a,b}=pathPoint(route.path,shownProgress(route,vehicle));
@@ -1061,10 +1090,11 @@ export function shownProgress(route,vehicle,progress=vehicle.progress){
   const shown=travelled<ease?ease*s(Math.max(0,travelled)/ease):left<ease?max-ease*s(Math.max(0,left)/ease):travelled;
   return forward?shown:max-shown;
 }
-function moveVehicles(game,days) {
+function moveVehicles(game,days,motion) {
   for(const route of game.routes)updateRoutePath(game,route);
-  const routeIndex=fleetIndex(game).routeById;
-  const fleet=game.vehicles.map(vehicle=>({vehicle,route:routeIndex.get(vehicle.routeId)})).filter(({route})=>route?.active&&route.path.length>1);
+  // Fleet membership changes on the existing index's array/count/revision
+  // invalidation. Paths and connection status stay live on the route objects.
+  const index=fleetIndex(game),fleet=index.movementFleet,speedCache=movementSpeeds(game,index);
   // Trajectories do not interact until a stop transfers cargo. A chronological
   // arrival heap advances only the arriving vehicle, instead of replanning the
   // entire fleet after every arrival (quadratic for thousands of vehicles).
@@ -1073,19 +1103,24 @@ function moveVehicles(game,days) {
   const push=event=>{let i=events.length;events.push(event);while(i){const p=(i-1)>>>1;if(!earlier(event,events[p]))break;events[i]=events[p];i=p;}events[i]=event;};
   const pop=()=>{const first=events[0],last=events.pop();if(events.length){let i=0;while(i*2+1<events.length){let child=i*2+1;if(child+1<events.length&&earlier(events[child+1],events[child]))child++;if(!earlier(events[child],last))break;events[i]=events[child];i=child;}events[i]=last;}return first;};
   const schedule=(item,order,elapsed)=>{
-    const plan=travelPlan(game,item.route,item.vehicle,Math.max(0,days-elapsed));
+    const recorder=motion&&(!motion.tracks||motion.tracks(item.vehicle))?motion:null;
+    const plan=travelPlan(game,item.route,item.vehicle,Math.max(0,days-elapsed),item.plan,speedCache,recorder,game.day+elapsed);
     if(plan.arrived)push({item,order,plan,time:elapsed+plan.elapsed});
     else item.finalState=plan.state;
   };
-  if(days>1e-10)fleet.forEach((item,order)=>schedule(item,order,0));
+  for(let order=0;order<fleet.length;order++){
+    const item=fleet[order];item.finalState=null;
+    if(days>1e-10&&item.route.active&&item.route.path.length>1)schedule(item,order,0);
+  }
   while(events.length){
     const {item,order,plan,time}=pop(),{vehicle,route}=item;
     Object.assign(vehicle,plan.state);
     arriveVehicle(game,route,vehicle,Math.min(game.day+days,game.day+time),context);
+    if(motion&&(!motion.tracks||motion.tracks(vehicle)))motion.checkpoint(vehicle,route,Math.min(game.day+days,game.day+time));
     if(days-time>1e-10)schedule(item,order,time);
   }
   for(const item of fleet)if(item.finalState)Object.assign(item.vehicle,item.finalState);
-  for(const {vehicle,route}of fleet)placeVehicle(route,vehicle);
+  for(const {vehicle,route}of fleet)if(route.active&&route.path.length>1)placeVehicle(route,vehicle);
 }
 const upkeepShareCache=new WeakMap();
 function infrastructureShares(game){
@@ -1230,30 +1265,33 @@ function monthlyUpdate(game) {
   if(game.money<0)notify(game,'Your balance is below zero. Take a loan in Company, or retire a route that earns less than its upkeep.','warning',{topic:'credit'});
 }
 // Reserved tiles belong to the stroke the player is drawing; towns never lay a street there.
-export function tick(game,days,{reserved=[]}={}) {
+export function tick(game,days,{reserved=[],motion=null}={}) {
   if(!Number.isFinite(days)||days<=0)return;
   // Split at day boundaries so large and fractional advances share the same economy.
   let remaining=Math.min(days,3650);
   while(remaining>.00000001) {
     const nextDay=Math.floor(game.day+.00000001)+1;
     const step=Math.min(remaining,nextDay-game.day);
-    moveVehicles(game,step);game.day+=step;remaining-=step;
+    moveVehicles(game,step,motion);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
       game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game),closedMonth=month>game.lastMonth?game.lastMonth:null;
       if(closedMonth!==null){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
       stepAchievements(game,{closedMonth,served,networkTotals});
     }
+    // Presentation records observe the committed fleet after full-load releases
+    // and daily changes. They never participate in movement or accounting.
+    if(motion){const routes=fleetIndex(game).routeById;for(const vehicle of game.vehicles){const route=routes.get(vehicle.routeId);if(route&&(!motion.tracks||motion.tracks(vehicle)))motion.checkpoint(vehicle,route,game.day);}}
   }
 }
 
 function finite(value,min=-Infinity,max=Infinity) {return typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max;}
-function validFootprint(site,maximum) {return site.footprint===undefined||Number.isInteger(site.footprint)&&site.footprint>=1&&site.footprint<=maximum;}
+function validFootprint(site,maximum) {return site.footprint===undefined||[1,2,3,7].includes(site.footprint)&&site.footprint<=maximum;}
 function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=0&&p.y>=0&&p.x<game.width&&p.y<game.height;}
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
   if(game.terrainObjectVersion!==undefined&&game.terrainObjectVersion!==1)return false;
-  if(game.siteFootprintVersion!==undefined&&game.siteFootprintVersion!==1)return false;
+  if(game.siteFootprintVersion!==undefined&&![1,2].includes(game.siteFootprintVersion))return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!validGenerationOptions(game.size,game.generationOptions)||(game.generationOptions&&!(game.generationVersion>=7)))return false;
@@ -1377,6 +1415,9 @@ function expandRestoredSites(game) {
     }
   }
   for(const industry of game.industries){
+    // A saved farm's compact extent is its land title. New fields never take
+    // adjoining tiles from an existing company, even when they are empty.
+    if(isFarmIndustry(industry.kind))continue;
     const size=industryFootprint(industry.kind);
     if(industrySize(industry)<size&&!industrySiteProblem(game,industry.kind,industry.x,industry.y,size,industry)){
       industry.footprint=size;releaseTerrainObjects(game,industryTiles(industry));changed=true;
@@ -1388,7 +1429,7 @@ function expandRestoredSites(game) {
 export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
-    if(game.siteFootprintVersion!==1){expandRestoredSites(game);game.siteFootprintVersion=1;}
+    if(game.siteFootprintVersion!==2){expandRestoredSites(game);game.siteFootprintVersion=2;}
     if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
     game.networkRevision??=0;
     if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;

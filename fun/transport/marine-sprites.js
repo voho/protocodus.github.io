@@ -8,7 +8,7 @@ export const MARINE_SIZE = 64;
 const TAU = Math.PI * 2;
 const bulk = new Set(['coal', 'iron', 'copper', 'stone', 'sand', 'grain', 'cement']);
 const timber = new Set(['timber', 'lumber']);
-const cargoColors = { coal: '#4d5858', iron: '#b88870', copper: '#c29565', stone: '#b0b2a4', sand: '#dbc389', grain: '#d9bd67', cement: '#c8c1a7', food: '#91ad6d', fish: '#85b8b5', glass: '#9dc6c0', steel: '#9baeb0', machinery: '#829b99', furniture: '#bd966d', goods: '#ac96af', wire: '#c99368' };
+const cargoColors = { coal: '#4d5858', iron: '#b88870', copper: '#c29565', stone: '#b0b2a4', sand: '#dbc389', grain: '#d9bd67', cement: '#c8c1a7', food: '#91ad6d', fish: '#85b8b5', glass: '#9dc6c0', steel: '#9baeb0', machinery: '#829b99', furniture: '#bd966d', goods: '#ac96af', wire: '#c99368', milk: '#d8e5e7', produce: '#b4c87a', livestock: '#bca185' };
 const rect = (c, x, y, width, height, color) => { c.fillStyle = color; c.fillRect(x, y, width, height); };
 function polygon(c, points, color) { c.fillStyle = color; c.beginPath(); points.forEach(([x, y], index) => index ? c.lineTo(x, y) : c.moveTo(x, y)); c.closePath(); c.fill(); }
 function line(c, points, color, width = .8) { c.strokeStyle = color; c.lineWidth = width; c.beginPath(); points.forEach(([x, y], index) => index ? c.lineTo(x, y) : c.moveTo(x, y)); c.stroke(); }

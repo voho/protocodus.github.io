@@ -28,6 +28,9 @@ export const CARGO = {
   wire: { name: 'Copper wire', color: '#d79468', price: 60, transit: 'standard' },
   cement: { name: 'Cement', color: '#c0b9a6', price: 40, transit: 'standard' },
   goods: { name: 'Goods', color: '#bd9ed6', price: 104, transit: 'perishable' },
+  milk: { name: 'Milk', color: '#d8e5e7', price: 26, transit: 'perishable' },
+  produce: { name: 'Fruit & vegetables', color: '#b4c87a', price: 24, transit: 'perishable' },
+  livestock: { name: 'Livestock', color: '#bca185', price: 30, transit: 'standard' },
 };
 /** Days a class is paid in full, then the share of the distance fare it loses each extra day. */
 export const TRANSIT_CLASSES = {
@@ -47,27 +50,36 @@ export const TRAVEL_PACE = { road: .88, rail: .88, water: .78, air: .97 };
 export const STOP_DAYS = { road: .2, rail: .2, water: .2, air: AIR_TURNAROUND };
 const all = ['taiga', 'tundra', 'desert'];
 export const INDUSTRIES = {
-  'logging-camp': { footprint: 2, name: 'Logging camp', inputs: {}, outputs: { timber: 7 }, cost: 28000, biomes: ['taiga'], terrain: ['forest', 'grass'] },
-  sawmill: { footprint: 2, name: 'Sawmill', inputs: { timber: 4 }, outputs: { lumber: 3 }, cost: 42000, biomes: ['taiga'] },
-  'coal-mine': { footprint: 2, name: 'Coal mine', inputs: {}, outputs: { coal: 6 }, cost: 38000, biomes: ['taiga', 'tundra'], terrain: ['mountain', 'rock', 'grass', 'snow'] },
-  'iron-mine': { footprint: 2, name: 'Iron mine', inputs: {}, outputs: { iron: 5 }, cost: 42000, biomes: ['taiga', 'tundra'], terrain: ['mountain', 'rock', 'grass', 'snow'] },
+  'logging-camp': { footprint: 3, name: 'Logging camp', inputs: {}, outputs: { timber: 7 }, cost: 28000, biomes: ['taiga'], terrain: ['forest', 'grass'] },
+  sawmill: { footprint: 3, name: 'Sawmill', inputs: { timber: 4 }, outputs: { lumber: 3 }, cost: 42000, biomes: ['taiga'] },
+  'coal-mine': { footprint: 3, name: 'Coal mine', inputs: {}, outputs: { coal: 6 }, cost: 38000, biomes: ['taiga', 'tundra'], terrain: ['mountain', 'rock', 'grass', 'snow'] },
+  'iron-mine': { footprint: 3, name: 'Iron mine', inputs: {}, outputs: { iron: 5 }, cost: 42000, biomes: ['taiga', 'tundra'], terrain: ['mountain', 'rock', 'grass', 'snow'] },
   'steel-mill': { footprint: 3, name: 'Steel mill', inputs: { iron: 3, coal: 2 }, outputs: { steel: 3 }, cost: 78000, biomes: ['taiga', 'tundra'] },
-  farm: { footprint: 2, name: 'Grain farm', inputs: {}, outputs: { grain: 6 }, cost: 30000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'] },
+  farm: { footprint: 7, name: 'Grain farm', inputs: {}, outputs: { grain: 6 }, cost: 30000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'], farming: 'crop' },
   'food-plant': { footprint: 3, name: 'Food plant', inputs: { grain: 4 }, outputs: { food: 3 }, cost: 46000, biomes: ['taiga', 'desert'] },
   'furniture-factory': { footprint: 3, name: 'Furniture works', inputs: { lumber: 3, steel: 1 }, outputs: { furniture: 3 }, cost: 74000, biomes: ['taiga'] },
   'machine-works': { footprint: 3, name: 'Machine works', inputs: { steel: 3, fuel: 1 }, outputs: { machinery: 2 }, cost: 94000, biomes: ['taiga', 'tundra'] },
-  fishery: { footprint: 2, name: 'Fishery', inputs: {}, outputs: { fish: 7 }, cost: 30000, biomes: ['tundra'], coastal: true },
-  'fish-processor': { footprint: 2, name: 'Fish processor', inputs: { fish: 4 }, outputs: { food: 3 }, cost: 42000, biomes: ['tundra'] },
-  'oil-well': { footprint: 2, name: 'Oil well', inputs: {}, outputs: { oil: 6 }, cost: 44000, biomes: all },
+  fishery: { footprint: 3, name: 'Fishery', inputs: {}, outputs: { fish: 7 }, cost: 30000, biomes: ['tundra'], coastal: true },
+  'fish-processor': { footprint: 3, name: 'Fish processor', inputs: { fish: 4 }, outputs: { food: 3 }, cost: 42000, biomes: ['tundra'] },
+  'oil-well': { footprint: 3, name: 'Oil well', inputs: {}, outputs: { oil: 6 }, cost: 44000, biomes: all },
   refinery: { footprint: 3, name: 'Oil refinery', inputs: { oil: 4 }, outputs: { fuel: 3 }, cost: 72000, biomes: all },
-  quarry: { footprint: 2, name: 'Stone quarry', inputs: {}, outputs: { stone: 8 }, cost: 32000, biomes: all, terrain: ['rock', 'mountain', 'grass', 'sand', 'snow'] },
+  quarry: { footprint: 3, name: 'Stone quarry', inputs: {}, outputs: { stone: 8 }, cost: 32000, biomes: all, terrain: ['rock', 'mountain', 'grass', 'sand', 'snow'] },
   'cement-works': { footprint: 3, name: 'Cement works', inputs: { stone: 5 }, outputs: { cement: 3 }, cost: 48000, biomes: ['desert'] },
-  'sand-pit': { footprint: 2, name: 'Sand pit', inputs: {}, outputs: { sand: 8 }, cost: 26000, biomes: ['desert'], terrain: ['sand'] },
-  glassworks: { footprint: 2, name: 'Glassworks', inputs: { sand: 4, fuel: 1 }, outputs: { glass: 4 }, cost: 62000, biomes: ['desert'] },
-  'copper-mine': { footprint: 2, name: 'Copper mine', inputs: {}, outputs: { copper: 6 }, cost: 38000, biomes: ['desert'], terrain: ['rock', 'mountain', 'sand'] },
-  'wire-mill': { footprint: 2, name: 'Wire mill', inputs: { copper: 3 }, outputs: { wire: 3 }, cost: 58000, biomes: ['desert'] },
+  'sand-pit': { footprint: 3, name: 'Sand pit', inputs: {}, outputs: { sand: 8 }, cost: 26000, biomes: ['desert'], terrain: ['sand'] },
+  glassworks: { footprint: 3, name: 'Glassworks', inputs: { sand: 4, fuel: 1 }, outputs: { glass: 4 }, cost: 62000, biomes: ['desert'] },
+  'copper-mine': { footprint: 3, name: 'Copper mine', inputs: {}, outputs: { copper: 6 }, cost: 38000, biomes: ['desert'], terrain: ['rock', 'mountain', 'sand'] },
+  'wire-mill': { footprint: 3, name: 'Wire mill', inputs: { copper: 3 }, outputs: { wire: 3 }, cost: 58000, biomes: ['desert'] },
   'goods-factory': { footprint: 3, name: 'Goods factory', inputs: { glass: 2, wire: 2, cement: 1 }, outputs: { goods: 3 }, cost: 90000, biomes: ['desert'] },
   'equipment-factory': { footprint: 3, name: 'Equipment factory', inputs: { steel: 2, fuel: 1 }, outputs: { goods: 2 }, cost: 88000, biomes: ['tundra'] },
+  // Player-built chains extend the catalog without changing any saved world's
+  // original generation recipe or its deterministic monthly opening choices.
+  'dairy-farm': { footprint: 7, name: 'Dairy farm', inputs: { grain: 2 }, outputs: { milk: 4 }, cost: 38000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'], farming: 'livestock', buildOnly: true },
+  'vegetable-farm': { footprint: 7, name: 'Vegetable farm', inputs: {}, outputs: { produce: 6 }, cost: 34000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'], farming: 'crop', buildOnly: true },
+  orchard: { footprint: 7, name: 'Fruit orchard', inputs: {}, outputs: { produce: 5 }, cost: 37000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'], farming: 'crop', buildOnly: true },
+  'livestock-farm': { footprint: 7, name: 'Livestock farm', inputs: { grain: 3 }, outputs: { livestock: 3 }, cost: 46000, biomes: ['taiga', 'desert'], terrain: ['grass', 'sand'], farming: 'livestock', buildOnly: true },
+  'dairy-plant': { footprint: 3, name: 'Dairy plant', inputs: { milk: 4 }, outputs: { food: 3 }, cost: 54000, biomes: ['taiga', 'desert'], buildOnly: true },
+  cannery: { footprint: 3, name: 'Fruit & vegetable cannery', inputs: { produce: 4 }, outputs: { food: 3 }, cost: 52000, biomes: ['taiga', 'desert'], buildOnly: true },
+  'meat-packer': { footprint: 3, name: 'Meat packing plant', inputs: { livestock: 3 }, outputs: { food: 2 }, cost: 58000, biomes: ['taiga', 'desert'], buildOnly: true },
 };
 /** A town workshop (a 'factory' building): per level it turns `rate` materials a day into products, `ratio` to one, and stores `store` of each. */
 export const WORKSHOP = Object.freeze({ cost: 12000, footprint: 2, rate: .5, store: 150, ratio: 2, maxLevel: 3 });

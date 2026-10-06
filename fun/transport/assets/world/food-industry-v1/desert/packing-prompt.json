@@ -1,0 +1,8 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "transparent_background": true,
+  "reference": "source-generated.png",
+  "prompt": "Edit only sprite-sheet layout, preserving the existing detailed artwork, every object, climate palette and camera. Make this a SQUARE IMAGE with an EXACT equal 3 by 3 grid of square cells, 7 complete industrial sites in the SAME reading order. Shrink each isolated complete sprite group to at most 72% of its assigned cell width and 76% of cell height. Center horizontally and vertically in that cell so there are broad completely empty transparent gutters on every side, especially between columns 1 and 2, and between row 2 and row 3. Entire fences, trees, vats, ground footprints and shadows must be contained, no clipping. Last sprite, the meat-packing plant, must fit entirely inside bottom-left cell; bottom-middle and bottom-right cells stay entirely empty and transparent. Background transparency is actual alpha, zero-opacity pure empty space. DO NOT create a colored backdrop, gradients, sky, labels, grid lines, numbers or border. All seven depicted industries remain recognizable and detailed; no changes to materials or subjects. Strict 2:1 game dimetric isometry retained. This layout must be machine sliced by exact thirds, so all sprite pixels, even soft shadows, must have 12% cell margin to the exact third boundaries. Do not let shadows from any cell overlap any adjacent cell.",
+  "purpose": "Keep every complete site within its machine-sliced cell with transparent gutters"
+}

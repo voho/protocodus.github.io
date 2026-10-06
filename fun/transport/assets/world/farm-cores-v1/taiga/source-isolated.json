@@ -1,0 +1,89 @@
+{
+  "source": "source-generated.png",
+  "sourceSha256": "74b35ef679c7264e957b54995dc1789a4c0dc951d98f4fea0869cc1f2bb1d56e",
+  "method": "Extract five complete largest connected alpha silhouettes (alpha >8), retain full original RGBA in padded bounding boxes, center in isolated 640px cells. No artwork, alpha, or colors altered.",
+  "columns": 3,
+  "rows": 2,
+  "sprites": [
+    {
+      "id": "farm-core:farm:taiga",
+      "sourceBounds": [
+        26,
+        83,
+        511,
+        470
+      ],
+      "alphaBounds": [
+        28,
+        85,
+        509,
+        468
+      ],
+      "isolatedCell": 0
+    },
+    {
+      "id": "farm-core:dairy-farm:taiga",
+      "sourceBounds": [
+        537,
+        104,
+        1009,
+        470
+      ],
+      "alphaBounds": [
+        539,
+        106,
+        1007,
+        468
+      ],
+      "isolatedCell": 1
+    },
+    {
+      "id": "farm-core:vegetable-farm:taiga",
+      "sourceBounds": [
+        1035,
+        96,
+        1517,
+        469
+      ],
+      "alphaBounds": [
+        1037,
+        98,
+        1515,
+        467
+      ],
+      "isolatedCell": 2
+    },
+    {
+      "id": "farm-core:orchard:taiga",
+      "sourceBounds": [
+        31,
+        543,
+        516,
+        934
+      ],
+      "alphaBounds": [
+        33,
+        545,
+        514,
+        932
+      ],
+      "isolatedCell": 3
+    },
+    {
+      "id": "farm-core:livestock-farm:taiga",
+      "sourceBounds": [
+        539,
+        550,
+        1043,
+        938
+      ],
+      "alphaBounds": [
+        541,
+        552,
+        1041,
+        936
+      ],
+      "isolatedCell": 4
+    }
+  ]
+}

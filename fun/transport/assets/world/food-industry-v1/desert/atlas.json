@@ -1,0 +1,293 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "industry:dairy-farm:desert",
+    "industry:vegetable-farm:desert",
+    "industry:orchard:desert",
+    "industry:livestock-farm:desert",
+    "industry:dairy-plant:desert",
+    "industry:cannery:desert",
+    "industry:meat-packer:desert",
+    null,
+    null
+  ],
+  "source": "source-isolated.png",
+  "sourceSha256": "a431a29e4f7e5fb409f0fa37cec3b706bbcb41c41c6083441b572105a20133de",
+  "sprites": [
+    {
+      "id": "industry:dairy-farm:desert",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          115,
+          192,
+          524,
+          448
+        ],
+        "rawAlphaBounds": [
+          115,
+          192,
+          524,
+          448
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.840955
+      },
+      "bounds": [
+        12,
+        99,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:vegetable-farm:desert",
+      "cell": 1,
+      "sourceBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          121,
+          191,
+          518,
+          449
+        ],
+        "rawAlphaBounds": [
+          121,
+          191,
+          518,
+          449
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.843547
+      },
+      "bounds": [
+        12,
+        93,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:orchard:desert",
+      "cell": 2,
+      "sourceBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          116,
+          188,
+          524,
+          451
+        ],
+        "rawAlphaBounds": [
+          116,
+          188,
+          524,
+          451
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.825574
+      },
+      "bounds": [
+        12,
+        94,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:livestock-farm:desert",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          112,
+          195,
+          528,
+          445
+        ],
+        "rawAlphaBounds": [
+          112,
+          195,
+          528,
+          445
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.833928
+      },
+      "bounds": [
+        12,
+        105,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:dairy-plant:desert",
+      "cell": 4,
+      "sourceBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          123,
+          184,
+          517,
+          456
+        ],
+        "rawAlphaBounds": [
+          123,
+          184,
+          517,
+          456
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.829058
+      },
+      "bounds": [
+        12,
+        84,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:cannery:desert",
+      "cell": 5,
+      "sourceBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          118,
+          192,
+          522,
+          447
+        ],
+        "rawAlphaBounds": [
+          118,
+          192,
+          522,
+          447
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.827583
+      },
+      "bounds": [
+        12,
+        98,
+        244,
+        244
+      ]
+    },
+    {
+      "id": "industry:meat-packer:desert",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "normalization": {
+        "originalSize": [
+          640,
+          640
+        ],
+        "sourceBounds": [
+          101,
+          179,
+          538,
+          460
+        ],
+        "rawAlphaBounds": [
+          101,
+          179,
+          538,
+          460
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.801562
+      },
+      "bounds": [
+        12,
+        95,
+        244,
+        244
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": null
+    }
+  ]
+}

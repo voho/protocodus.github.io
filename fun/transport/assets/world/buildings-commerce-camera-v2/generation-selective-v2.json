@@ -1,0 +1,146 @@
+{
+  "camera": "orthographic 2:1 dimetric, upright verticals; measured painterly tolerance reported in audit",
+  "guide": "camera-guide.png",
+  "selectedIds": [
+    "shop-hardware",
+    "service-bank",
+    "service-garage"
+  ],
+  "sources": [
+    {
+      "id": "shop-hardware",
+      "biome": "taiga",
+      "width": 232,
+      "height": 222,
+      "offset": [
+        12,
+        22
+      ],
+      "source": "taiga/generated/shop-hardware.png",
+      "sourceSha256": "925638e0577d43bdca5ae8ce7a22d99e2afaa21691e140790849e002fac4b36d",
+      "prompt": "Use case: precise-object-edit. Asset: one transparent-background realistic painterly transport tycoon building sprite. Image 1 is the exact identity/material/style reference; image 2 is the mathematically correct fixed camera guide. Reconstruct image 1 in the camera of image 2. A modest one-story cream plaster hardware shop with the SAME slate pitched roof, single brick chimney, brown timber shopfront with two tall glazed windows and central glazed door, hanging hammer sign on the right wall, barrel and small crate of tools by entrance and restrained green ground edging as the reference.\nCRITICAL CAMERA CHANGE: use image 2's exact orthographic 2:1 dimetric camera. Every horizontal edge along one ground axis descends exactly 1 pixel per 2 pixels to the right (+26.565 degrees); every edge along the perpendicular ground axis rises exactly 1 pixel per 2 pixels to the right (-26.565 degrees). Match BOTH fa\u00e7ade directions to the block guide, not the old building's shallow front fa\u00e7ade. Vertical edges stay upright. Both fa\u00e7ade widths may differ but their angles cannot differ from these two guide axes. All parallel architectural horizontal edges remain parallel, no vanishing points, no perspective convergence. Roof ridges, eaves, window lintels and sills, steps and the ground pad inherit those exact axes. Pitched roof diagonals can differ only as required by actual roof slope.\nPreserve the familiar existing building identity, material colors, readable compact painterly detail and northwest illumination. Correctly show the two front-facing fa\u00e7ades and roof with natural dimensional depth. This is a fully rebuilt camera view, not a skewed or distorted flat photograph. One object only, centered with transparent margins, no guide lines or cube in output, no labels or text, no letters, no watermark. True transparent alpha background and only a subtle tightly-contained contact shadow. Taiga climate, lush restrained green edging. 1024x1024 image.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-bank",
+      "biome": "taiga",
+      "width": 231,
+      "height": 232,
+      "offset": [
+        12,
+        12
+      ],
+      "source": "taiga/generated/service-bank.png",
+      "sourceSha256": "940b167664a2877e1e30f54ff9b4353d6f0a4793ed37945f56b20bcf52dce227",
+      "prompt": "Use case: precise-object-edit. Asset: one transparent-background realistic painterly transport tycoon building sprite. Image 1 is the exact identity/material/style reference; image 2 is the mathematically correct fixed camera guide. Reconstruct image 1 in the camera of image 2. A small stately two-story stone bank with the SAME cream limestone, dark green hipped roof, two chimney stacks, central classical pediment and four columns at the entrance, dark window glass, front steps and small restrained flower/shrub beds as the reference.\nCRITICAL CAMERA CHANGE: use image 2's exact orthographic 2:1 dimetric camera. Every horizontal edge along one ground axis descends exactly 1 pixel per 2 pixels to the right (+26.565 degrees); every edge along the perpendicular ground axis rises exactly 1 pixel per 2 pixels to the right (-26.565 degrees). Match BOTH fa\u00e7ade directions to the block guide, not the old building's shallow front fa\u00e7ade. Vertical edges stay upright. Both fa\u00e7ade widths may differ but their angles cannot differ from these two guide axes. All parallel architectural horizontal edges remain parallel, no vanishing points, no perspective convergence. Roof ridges, eaves, window lintels and sills, steps and the ground pad inherit those exact axes. Pitched roof diagonals can differ only as required by actual roof slope.\nPreserve the familiar existing building identity, material colors, readable compact painterly detail and northwest illumination. Correctly show the two front-facing fa\u00e7ades and roof with natural dimensional depth. This is a fully rebuilt camera view, not a skewed or distorted flat photograph. One object only, centered with transparent margins, no guide lines or cube in output, no labels or text, no letters, no watermark. True transparent alpha background and only a subtle tightly-contained contact shadow. Taiga climate, lush restrained green edging. 1024x1024 image.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-garage",
+      "biome": "taiga",
+      "width": 232,
+      "height": 206,
+      "offset": [
+        12,
+        38
+      ],
+      "source": "taiga/generated/service-garage.png",
+      "sourceSha256": "cc9b9481f38972fd4893049d29d3d9e19a0753aad4ec0c142a8d3215e26470ed",
+      "prompt": "Use case: stylized-concept. Create ONE transparent realistic painterly transport tycoon sprite: a small single-story red brick vehicle repair garage with dark slate roof, metal roof vent, two bays side by side on the left-facing facade (left bay open with red tool chest, right bay blue roller shutter), two black industrial wall lamps, one dark glazed side window, black rainwater pipes, small concrete driveway, restrained green grass edging. No labels or writing. Northwest light. The REFERENCE is the authoritative orthographic camera and ground footprint. Build this garage directly on that exact rectangular block geometry: ALL horizontal masonry courses, window lintels/sills, eaves, door thresholds, drive edges must run at +26.565\u00b0 or -26.565\u00b0 to the screen, exactly 2 horizontal pixels for 1 vertical pixel. Match the reference cube faces, vertical corner line and ground rhombus exactly. Front and side fa\u00e7ades have comparable projected width, the front may be only 15% wider. Do not make the front fascia almost horizontal. No perspective convergence. Upright walls, no perspective camera, no artistic view-angle drift. Roof may be very shallow pitched to keep the garage low, but its horizontal ridge and eaves must use the exact reference axes. Preserve a clean readable compact game sprite, modest realistic texture. True transparent background, subtle contained contact shadow, center building with broad transparent margins, no reference grid lines or block edges in final, one object only.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "shop-hardware",
+      "biome": "tundra",
+      "width": 232,
+      "height": 222,
+      "offset": [
+        12,
+        22
+      ],
+      "source": "tundra/generated/shop-hardware.png",
+      "sourceSha256": "7f49ea036584254f9c58ed54dd31dc3639423592521ae520d6ccd53b6ed2421d",
+      "prompt": "Use case: lighting-weather. Edit the supplied shop-hardware sprite ONLY to its tundra climate finish. Winter tundra: patchy thin white snow on roof, step ledges, evergreen shrubs and ground edging, cool stone accents. Preserve exposed windows, doorway, and all architectural geometry. Keep exact building position, silhouette, size, details, identity, roof silhouette, fa\u00e7ade widths, upright verticals, orthographic 2:1 camera and every angle. No rebuilding, no new viewpoint, no rescale, no re-layout. The second image is the fixed camera guide, all horizontal ground axes remain +26.565 or -26.565 degrees. Preserve the realistic painterly transport tycoon sprite style and northwest lighting. Output one centered isolated building on a true transparent alpha background with the same transparent margins. No text, watermark, guide lines or frame.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-bank",
+      "biome": "tundra",
+      "width": 232,
+      "height": 232,
+      "offset": [
+        12,
+        12
+      ],
+      "source": "tundra/generated/service-bank.png",
+      "sourceSha256": "0df08cf0962c0465691099afe26d8515a37c064f11407db1d2ae40401c1a538c",
+      "prompt": "Use case: lighting-weather. Edit the supplied service-bank sprite ONLY to its tundra climate finish. Winter tundra: patchy thin white snow on roof, step ledges, evergreen shrubs and ground edging, cool stone accents. Preserve exposed windows, doorway, and all architectural geometry. Keep exact building position, silhouette, size, details, identity, roof silhouette, fa\u00e7ade widths, upright verticals, orthographic 2:1 camera and every angle. No rebuilding, no new viewpoint, no rescale, no re-layout. The second image is the fixed camera guide, all horizontal ground axes remain +26.565 or -26.565 degrees. Preserve the realistic painterly transport tycoon sprite style and northwest lighting. Output one centered isolated building on a true transparent alpha background with the same transparent margins. No text, watermark, guide lines or frame.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-garage",
+      "biome": "tundra",
+      "width": 232,
+      "height": 206,
+      "offset": [
+        12,
+        38
+      ],
+      "source": "tundra/generated/service-garage.png",
+      "sourceSha256": "17f695a9e3ce622bc054a721b7d3c2b69fe93e562231a85468dc74666ecc243f",
+      "prompt": "Use case: lighting-weather. Edit only the climate finish of this garage to tundra: Thin patchy winter snow on the roof and ground edging, low snow-coated grass. Keep all windows and garage bays unobscured. Keep the identical garage identity, exact position, scale, outline, roof structure, all windows/doors, lamps, two bays, red tool chest, blue roller shutter, vertical corners, and exact current orthographic 2:1 camera. Do not alter any architectural angles or perspective. Keep horizontal facade edges on +26.565 and -26.565 degree guide axes, every vertical upright. Same realistic painterly game-sprite style, northwest light. One centered isolated building, true transparent alpha background, same transparent margins. No guide lines, labels, words or watermark.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "shop-hardware",
+      "biome": "desert",
+      "width": 232,
+      "height": 222,
+      "offset": [
+        12,
+        22
+      ],
+      "source": "desert/generated/shop-hardware.png",
+      "sourceSha256": "e413d1e23ca018a4c778018f1eed63b005c24f1075a07098f17e075de5af5b83",
+      "prompt": "Use case: lighting-weather. Edit the supplied shop-hardware sprite ONLY to its desert climate finish. Warm dry desert: sun-warmed stone, dusty tan ground edging, sparse low ochre drought shrubs instead of lush lawn. Keep the existing roof material/color and window colors. Keep exact building position, silhouette, size, details, identity, roof silhouette, fa\u00e7ade widths, upright verticals, orthographic 2:1 camera and every angle. No rebuilding, no new viewpoint, no rescale, no re-layout. The second image is the fixed camera guide, all horizontal ground axes remain +26.565 or -26.565 degrees. Preserve the realistic painterly transport tycoon sprite style and northwest lighting. Output one centered isolated building on a true transparent alpha background with the same transparent margins. No text, watermark, guide lines or frame.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-bank",
+      "biome": "desert",
+      "width": 231,
+      "height": 232,
+      "offset": [
+        12,
+        12
+      ],
+      "source": "desert/generated/service-bank.png",
+      "sourceSha256": "ce26afe14e7945f1210ac9bb20cb680a17638ba5fb43ad83fdee7428c10b53ca",
+      "prompt": "Use case: lighting-weather. Edit the supplied service-bank sprite ONLY to its desert climate finish. Warm dry desert: sun-warmed stone, dusty tan ground edging, sparse low ochre drought shrubs instead of lush lawn. Keep the existing roof material/color and window colors. Keep exact building position, silhouette, size, details, identity, roof silhouette, fa\u00e7ade widths, upright verticals, orthographic 2:1 camera and every angle. No rebuilding, no new viewpoint, no rescale, no re-layout. The second image is the fixed camera guide, all horizontal ground axes remain +26.565 or -26.565 degrees. Preserve the realistic painterly transport tycoon sprite style and northwest lighting. Output one centered isolated building on a true transparent alpha background with the same transparent margins. No text, watermark, guide lines or frame.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    },
+    {
+      "id": "service-garage",
+      "biome": "desert",
+      "width": 232,
+      "height": 205,
+      "offset": [
+        12,
+        39
+      ],
+      "source": "desert/generated/service-garage.png",
+      "sourceSha256": "70c34ddeba70d0971c621166855fa6e3dbba3612d0df6c4ba51aeca44314fdcb",
+      "prompt": "Use case: lighting-weather. Edit only the climate finish of this garage to desert: Warm dry desert lighting/material finish, tan dusty ground edging with low sparse dry grasses instead of lawn, retaining red brick and dark slate roof. Keep the identical garage identity, exact position, scale, outline, roof structure, all windows/doors, lamps, two bays, red tool chest, blue roller shutter, vertical corners, and exact current orthographic 2:1 camera. Do not alter any architectural angles or perspective. Keep horizontal facade edges on +26.565 and -26.565 degree guide axes, every vertical upright. Same realistic painterly game-sprite style, northwest light. One centered isolated building, true transparent alpha background, same transparent margins. No guide lines, labels, words or watermark.",
+      "generator": "built-in image_gen",
+      "transparentBackground": true
+    }
+  ]
+}

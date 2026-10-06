@@ -24,15 +24,15 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 7;
-export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7;
+export const WORLD_GENERATION_VERSION = 9;
+export const supportsGenerationVersion = version => version === 1 || version === 2 || version === 3 || version === 4 || version === 5 || version === 6 || version === 7 || version === 8 || version === 9;
 
 // Keep complete production chains together: one district contains one of every
 // industry available in the climate. Population and industry density are
 // independent, so a quiet landscape can still have a busy freight economy.
 export function worldGenerationOptions(size = DEFAULT_WORLD_SIZE, biome = 'taiga') {
   const config = NEW_WORLD_SIZES[size] || NEW_WORLD_SIZES[DEFAULT_WORLD_SIZE];
-  const industriesPerDistrict = Object.values(INDUSTRIES).filter(industry => industry.biomes.includes(biome)).length;
+  const industriesPerDistrict = Object.values(INDUSTRIES).filter(industry => !industry.buildOnly&&industry.biomes.includes(biome)).length;
   return {
     townCount: config.towns, minTowns: 2, maxTowns: config.towns * 2,
     industryDistricts: config.clusters, minIndustryDistricts: 1, maxIndustryDistricts: config.clusters * 2,
@@ -60,7 +60,7 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
     const world=generateWorldV2(biome,seed,size,config,generationVersion>=4?{naturalRelief:true,...(generationVersion>=7?{mountainRelief:true}:{})}:undefined);
     if (generationOptions) world.generationOptions = { ...generationOptions };
     if(generationVersion>=3){expandGeneratedIndustrySites({...world,biome});world.generationVersion=generationVersion;}
-    if(generationVersion>=5)allocateGeneratedSites({...world,biome});
+    if(generationVersion>=5)allocateGeneratedSites({...world,biome},{legacyIndustrySizes:generationVersion<8,legacyFarmSizes:generationVersion<9});
     if(generationVersion>=6){allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;}
     return world;
   }
@@ -208,7 +208,7 @@ function generateWorldV1(biome, seed, size) {
     if (habitable < 66) continue;
     locations.push([x, y]);
   }
-  const allKinds = Object.keys(BUILDINGS);
+  const allKinds = Object.keys(BUILDINGS).filter(kind => !BUILDINGS[kind].buildOnly);
   const townNameCounts = new Map();
   const publicRoad = (x, y) => {
     const t = tile(x,y); if (!t) return;
@@ -251,7 +251,7 @@ function generateWorldV1(biome, seed, size) {
   // Keep the first trip short, legible and profitable regardless of the world's size.
   for (let x = starterX; x <= starterX + 24; x++) publicRoad(x, starterY);
 
-  const kinds = Object.keys(INDUSTRIES).filter(kind => INDUSTRIES[kind].biomes.includes(biome));
+  const kinds = Object.keys(INDUSTRIES).filter(kind => !INDUSTRIES[kind].buildOnly&&INDUSTRIES[kind].biomes.includes(biome));
   const clusters = config.clusters;
   const placed = new Set();
   for (let cluster = 0; cluster < clusters; cluster++) {

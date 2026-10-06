@@ -47,7 +47,12 @@ try {
   }));
   assert.equal(restored.seed, beforeNavigation.seed);
   assert.deepEqual(restored.routes, beforeNavigation.routes);
-  assert.ok(restored.day >= beforeNavigation.day && restored.day < beforeNavigation.day + 2);
+  // Playwright may wait through cold renderer frames before its real Pause
+  // click lands. The new world clock keeps that active elapsed time exactly,
+  // so compare against its fresh interval rather than a fixed day allowance.
+  const restoredClock = await page.evaluate(() => transport.simulation.getStats());
+  assert.ok(Math.abs(restored.day - beforeNavigation.day - restoredClock.activeMs / 1000) < 1e-6,
+    'loading advances only the fresh clock\'s active speed1 interval');
   assert.ok(restored.delivered >= beforeNavigation.delivered);
 
   // Full or blocked storage is announced once, marked on the game menu, and cleared by the next good save.

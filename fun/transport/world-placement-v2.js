@@ -72,7 +72,7 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
   const names = biome === 'taiga' ? ['Alderbrook', 'Pinehaven', 'Cedar Falls', 'Northmere'] : biome === 'tundra' ? ['Frostholm', 'Whitehaven', 'Snowbridge', 'Northwatch'] : ['Sunspire', 'Copper Mesa', 'Oasis Springs', 'Redstone'];
   const prefixes = biome === 'taiga' ? ['Birch', 'Willow', 'Cedar', 'Elm', 'Fern', 'Oak', 'Moss', 'Ash'] : biome === 'tundra' ? ['Ice', 'Frost', 'Winter', 'Snow', 'White', 'North', 'Glacier', 'Silver'] : ['Amber', 'Copper', 'Dune', 'Palm', 'Sun', 'Golden', 'Red', 'Saffron'];
   const suffixes = ['ford', 'haven', 'field', 'mere', 'ridge', 'bridge', 'brook', 'vale'];
-  const allKinds = Object.keys(BUILDINGS), nameCounts = new Map();
+  const allKinds = Object.keys(BUILDINGS).filter(kind => !BUILDINGS[kind].buildOnly), nameCounts = new Map();
   const publicRoad = (x, y, starter = false) => {
     const t = tile(x, y); if (!t || (!starter && (t.building || (!habitable(t) && !(t.road && t.bridge))))) return false;
     if (t.terrain === 'water') t.bridge = true;
@@ -169,7 +169,7 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
   }
   for (let x = starterX; x <= starterX + 24; x++) publicRoad(x, starterY, true);
 
-  const kinds = Object.keys(INDUSTRIES).filter(kind => INDUSTRIES[kind].biomes.includes(biome));
+  const kinds = Object.keys(INDUSTRIES).filter(kind => !INDUSTRIES[kind].buildOnly&&INDUSTRIES[kind].biomes.includes(biome));
   const placed = new Set();
   const coastal = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => tile(x + dx, y + dy)?.terrain === 'water');
   const occupied = (x, y) => {

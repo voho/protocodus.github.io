@@ -1,0 +1,89 @@
+{
+  "source": "source-generated.png",
+  "sourceSha256": "f3a9fd0e20a9ccee5bf4839d18110824d0d31e6183080224617c1d33a18dd18c",
+  "method": "Extract five complete largest connected alpha silhouettes (alpha >8), retain full original RGBA in padded bounding boxes, center in isolated 640px cells. No artwork, alpha, or colors altered.",
+  "columns": 3,
+  "rows": 2,
+  "sprites": [
+    {
+      "id": "farm-core:farm:desert",
+      "sourceBounds": [
+        10,
+        188,
+        426,
+        576
+      ],
+      "alphaBounds": [
+        12,
+        190,
+        424,
+        574
+      ],
+      "isolatedCell": 0
+    },
+    {
+      "id": "farm-core:dairy-farm:desert",
+      "sourceBounds": [
+        428,
+        190,
+        833,
+        576
+      ],
+      "alphaBounds": [
+        430,
+        192,
+        831,
+        574
+      ],
+      "isolatedCell": 1
+    },
+    {
+      "id": "farm-core:vegetable-farm:desert",
+      "sourceBounds": [
+        836,
+        205,
+        1248,
+        574
+      ],
+      "alphaBounds": [
+        838,
+        207,
+        1246,
+        572
+      ],
+      "isolatedCell": 2
+    },
+    {
+      "id": "farm-core:orchard:desert",
+      "sourceBounds": [
+        16,
+        711,
+        426,
+        1099
+      ],
+      "alphaBounds": [
+        18,
+        713,
+        424,
+        1097
+      ],
+      "isolatedCell": 3
+    },
+    {
+      "id": "farm-core:livestock-farm:desert",
+      "sourceBounds": [
+        429,
+        736,
+        872,
+        1104
+      ],
+      "alphaBounds": [
+        431,
+        738,
+        870,
+        1102
+      ],
+      "isolatedCell": 4
+    }
+  ]
+}

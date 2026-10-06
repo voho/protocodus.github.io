@@ -1,0 +1,119 @@
+{
+  "source": "assets/world/city-ground-v3/source-generated.png",
+  "sourceSize": [
+    1268,
+    1241
+  ],
+  "cell": 640,
+  "operation": "RGBA crop and integer translation only",
+  "cells": [
+    {
+      "sourceCrop": [
+        0,
+        0,
+        423,
+        462
+      ],
+      "integerOffset": [
+        108,
+        89
+      ]
+    },
+    {
+      "sourceCrop": [
+        423,
+        0,
+        845,
+        462
+      ],
+      "integerOffset": [
+        109,
+        89
+      ]
+    },
+    {
+      "sourceCrop": [
+        845,
+        0,
+        1268,
+        462
+      ],
+      "integerOffset": [
+        108,
+        89
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        462,
+        419,
+        833
+      ],
+      "integerOffset": [
+        110,
+        134
+      ]
+    },
+    {
+      "sourceCrop": [
+        419,
+        462,
+        831,
+        833
+      ],
+      "integerOffset": [
+        114,
+        134
+      ]
+    },
+    {
+      "sourceCrop": [
+        831,
+        462,
+        1268,
+        833
+      ],
+      "integerOffset": [
+        101,
+        134
+      ]
+    },
+    {
+      "sourceCrop": [
+        0,
+        833,
+        441,
+        1241
+      ],
+      "integerOffset": [
+        99,
+        116
+      ]
+    },
+    {
+      "sourceCrop": [
+        441,
+        833,
+        830,
+        1241
+      ],
+      "integerOffset": [
+        125,
+        116
+      ]
+    },
+    {
+      "sourceCrop": [
+        830,
+        833,
+        1268,
+        1241
+      ],
+      "integerOffset": [
+        101,
+        116
+      ]
+    }
+  ]
+}

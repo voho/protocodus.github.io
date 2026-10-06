@@ -1,6 +1,40 @@
 # Large-world performance
 
-Measured on the development machine in Node and headless Chrome in September 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit remains **2048 × 2048**.
+Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit remains **2048 × 2048**.
+
+## October 2026 update
+
+World state now commits about once per active second, while ordinary map rendering targets 30 frames per second. Each commit processes elapsed simulation time in chronological order. Vehicles replay recorded paths one active second behind the committed state, including bends, loading waits, train carriages and aircraft turnarounds. Camera motion, pointer gestures, vehicle following and delivery figures use the display's animation frames. Input and renderer invalidations wake a paused view immediately. Paused housekeeping uses a 250 ms timer, menus poll once a second, and a hidden tab cancels both its animation frame and timer. Autosave and notice deadlines remain active in a visible paused game.
+
+Pause, speed changes and saves flush the pending fraction at its original rate. Hidden and loading time is excluded; delayed visible frames retain elapsed time. Save capture blocks whole world commits while retaining pending time. Motion history only records vehicles in or approaching the view, plus the followed/selected vehicle, and discards records outside the presentation window. Offscreen vehicles still participate in the complete economic simulation. A paired 10,000-vehicle/1,000-route workload with 500 tracked vehicles and 30 Hz presentation reduced CPU by **62.5% at 1×** and **22.3% at 8×**, with identical complete game state. This measures simulation and presentation work, not hardware GPU utilization.
+
+A paired app-only check used the same current renderer, seed 1847, Detail view and DPR 1. Ordinary map submissions fell **235 → 119 over four seconds**, with script time **597 → 303 ms**. A three-second pause fell **181 → 13 callbacks** and **24.7 → 3.1 ms** of script time, with no map/minimap repaint or game-time advance. Hidden running/paused views had zero callbacks. Both versions rendered 58 camera-glide frames in 1.1 seconds; the new loop still handled paused input in the next display frame.
+
+A settled view without ground traffic can reuse trees, shadows, buildings and foundations in one native-pixel viewport image. Sparse views keep the cheaper individual drawing path: caching requires at least 32 static submissions, increasing with the display's physical-pixel area. Ground vehicles still merge into the original scenery order so they pass behind trees and buildings correctly. Water, airborne planes and overlays remain separate. Camera, display density, resize, layers, artwork and journaled world changes invalidate the image. This adds at most one **32 MiB** surface, independently of world size and the existing **96 MiB** scenery-strip budget; larger displays use the existing renderer. The surface is released when ground traffic enters the view or the scene becomes sparse.
+
+Fleet updates reuse trajectory records and share a route's unchanged terrain, weather and service calculations across its vehicles. Vehicle variation, upgrades, chronological arrivals and arithmetic order are retained. House artwork selection is memoized until a new climate/design/orientation becomes available, and consecutive uses of the newest prepared sprite avoid unnecessary LRU mutations. The nine house kinds each have three architectural designs and two physical rotations; loading remains limited to the active climate and requested density. Pure Build tool selection reuses its cards and canvases, updating pressed states; changed world/pricing/category values still rebuild them. Identical Towns/Industries markup retains its existing cards, listeners, focus and portraits.
+
+Grass has finer irregular dark and light grain, soil pores and broken moss patches. Eight small seeded textures per climate stay anchored to the terrain. All three climates together use at most **864 KiB**. Authored meadow and scree textures cover all dry terrain, including previously smooth mountain faces, with climate-specific sand/snow finishes, softly blended boundaries and irregular lichen patches. Their permanent texture bank is bounded at **3 MiB**, plus **768 KiB** for moss stamps. All detail is painted into cold terrain chunks and adds no drawing to warm frames; first rendering and newly exposed chunks still cost more than the previous smooth terrain.
+
+House garden cutouts expose the actual world terrain while preserving architecture, fences, flowers and paths. Prepared cutout canvases share an **18 MiB** cache. A garden raised above a slope copies the same world-anchored ground onto its level top, using a separate **16 MiB** surface cache; unchanged warm views reuse both. Foundation walls use irregular fieldstones from shared climate, wall-direction and density materials, bounded at **7 MiB** regardless of the number of scenery contexts.
+
+Generation recipe **9** reserves **7×7 farm plots** around **2×2 building cores**; processors and other industrial sites remain **3×3**. Crop and pasture ground is baked into the existing terrain chunks, so warm frames add no field-texture composition. The shared field bank contains at most **15 textures × 128 × 128 × 4 bytes = 960 KiB**, independent of map size and farm count. Fences, orchard trees and small building cores retain normal scenery ordering and picking. All 49 plot tiles participate in reservations, indexed catchment, route bounds, demolition, save validation and construction undo. Recipes **1–8** keep their exact baseline bytes, and restored compact farms retain their saved extents.
+
+The building catalog now has **32 kinds**, including three player-built parks and three shopping centres. Procedural generation preserves its original 26-kind collection, and zoning keeps its original selectors. Parks feed the existing greenery, amenity and pollution calculations. Shopping centres contribute actual shop units and food/household outlets to the monthly market, occupancy and private rent calculations. The five original shop identities each have three stable artwork styles, with active-climate and requested-density loading; artwork variety does not add simulation entities or alter historic generation recipes.
+
+A four-pair terrain comparison, seed 1847 at 1280 × 900/DPR 1, measured Town's 69-chunk first render at **418 → 629 ms**, with warm rendering **2.3 → 2.3 ms**. Detail's 24-chunk first render was **235 → 482 ms**, with warm rendering **1.4 → 1.5 ms**. A pan exposing one new row cost **84 → 120 ms** at Town and **72 → 150 ms** at Detail. Chunk-cache memory was unchanged and every warm sample composed zero chunks. These first-render costs are a remaining tradeoff of the richer ground materials.
+
+The paired 512² fleet workload below uses 10,000 vehicles, 1,000 routes and 240 frames, alternating baseline/current execution order. Each resulting complete simulation state matched exactly.
+
+| Fleet | Median frame before → after | Total CPU before → after |
+| --- | ---: | ---: |
+| Road | 10.46 → 4.88 ms | 3,053 → 1,521 ms |
+| Rail | 11.72 → 5.83 ms | 3,384 → 1,704 ms |
+| Water | 5.77 → 4.39 ms | 1,720 → 1,399 ms |
+
+A separate historical renderer comparison covers 18 daylight views: a generated town, dense forest and staged city, at three zooms and DPR 1/2. Median CPU reductions across each scene's three zooms were **83–91% at DPR 1** and **31–67% at DPR 2**. Forest reductions were 91% and 67%, respectively. Each settled static layer used one image submission; terrain chunks and overlays still draw separately. All 2,574 sampled picks matched; the additional transparent composition changed color channels by at most 3/255. These headless rendering timings and reduced draw submissions measure work, not hardware GPU utilization or a guaranteed frame rate. The measurements below describe earlier, separate workloads.
+
+`scenery-view-browser-check.mjs` compares viewport caching enabled/disabled with current artwork at DPR 1, 1.25 and 2, including camera movement, layers, construction/ecology, traffic, sparse and dense bridge views, the memory cap, resizing and late artwork. `sprite-cache-benchmark.mjs` reports the production cache-hit microbenchmarks without claiming a whole-frame improvement.
 
 ## Changes
 
@@ -55,6 +89,18 @@ node --expose-gc --max-old-space-size=2048 fun/transport/tests/dense-world-bench
 node --expose-gc --max-old-space-size=4096 fun/transport/tests/dense-save-benchmark.mjs --roundtrip
 node fun/transport/tests/rendering-performance-browser-check.mjs
 node fun/transport/tests/app-performance-browser-check.mjs
+node fun/transport/tests/scenery-view-browser-check.mjs
+node fun/transport/tests/world-cadence-browser-check.mjs
+node fun/transport/tests/renderer-presentation-browser-check.mjs
+node fun/transport/tests/raster-houses-browser-check.mjs
+node fun/transport/tests/house-ground-browser-check.mjs
+node fun/transport/tests/farm-fields-browser-check.mjs
+node fun/transport/tests/farm-core-art-browser-check.mjs
+node fun/transport/tests/town-variety-art-browser-check.mjs
+node fun/transport/tests/parks-farms-app-browser-check.mjs
+node --test fun/transport/tests/farm-plots.test.mjs fun/transport/tests/farm-food-chains.test.mjs fun/transport/tests/parks-malls.test.mjs
+node fun/transport/tests/tool-panel-browser-check.mjs
+node fun/transport/tests/sprite-cache-benchmark.mjs
 node fun/transport/tests/start-menu-browser-check.mjs
 node fun/transport/tests/compact-play-browser-check.mjs
 node fun/transport/tests/weather-effects-browser-check.mjs
@@ -122,7 +168,7 @@ The worker benchmark uses a real generated taiga map (seed 1847), verifies byte-
 
 This improves responsiveness, not total throughput. Including the benchmark's final 25 ms heartbeat window, 2048² generation took 1.16 seconds synchronously and 2.44 seconds with transfer/hydration; restoration took 1.77 and 2.87 seconds. Consistent capture held simulation for approximately 0.72 seconds on that map while allowing the UI to respond; play resumed during approximately 0.97 seconds of worker encoding. Snapshot capture and materialization still allocate memory, and a very large fleet or heavily extended tile state can increase their cost. Route planning remains synchronous. Page-leave checkpoints and unsupported-worker fallbacks also retain synchronous behavior.
 
-Vehicles no longer stop during autosave capture. Daily steps wait for the capture, and periodic saves start early in a day, so at 1× no frame is held up to 2048² and at 8× the hold is about 85 ms at 1024² and 640 ms at 2048² (previously about 0.2 s at 512², 0.7 s at 1024² and 2.9 s at 2048², at every speed). Tiles that `delete` has put into dictionary mode (terrain object release, bulldozing) used to make every later tile take generic per-key loads; plain tiles now only check their key names. After about 30 played days, capture takes 31 ms instead of 118 ms at 512² and 123 ms instead of 462 ms at 1024², and freshly generated worlds are unchanged (28 and 107 ms). Construction autosaves wait three seconds after the last stroke, so a drag never holds vehicles.
+The current one-second cadence blocks whole world commits during snapshot capture and retains the elapsed interval for the next commit. Buffered vehicle motion can continue until it reaches the committed state; a longer capture can temporarily exhaust that buffer. Earlier fractional-update measurements held vehicles for about 85 ms at 1024² and 640 ms at 2048² at 8×, compared with roughly 0.2 s at 512², 0.7 s at 1024² and 2.9 s at 2048² before capture optimization. Tiles that `delete` has put into dictionary mode (terrain object release, bulldozing) used to make every later tile take generic per-key loads; plain tiles now only check their key names. After about 30 played days, capture takes 31 ms instead of 118 ms at 512² and 123 ms instead of 462 ms at 1024², and freshly generated worlds are unchanged (28 and 107 ms). Construction autosaves wait three seconds after the last stroke.
 
 Browser regression checks cover startup, cancellation by button/Escape, save-slot round trips, quotas, delayed stale worker responses, overlapping saves, continued simulation during encoding and the final page-leave checkpoint. The new UI scenarios pass on both 512² and 2048² maps. All 431 model tests pass.
 

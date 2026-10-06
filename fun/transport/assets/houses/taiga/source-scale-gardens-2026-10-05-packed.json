@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 674438,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        15,
+        95,
+        423,
+        403
+      ],
+      "offset": [
+        116,
+        166
+      ],
+      "pixels": 64791
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        425,
+        79,
+        848,
+        410
+      ],
+      "offset": [
+        108,
+        154
+      ],
+      "pixels": 73123
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        844,
+        92,
+        1246,
+        404
+      ],
+      "offset": [
+        119,
+        164
+      ],
+      "pixels": 68780
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        7,
+        477,
+        434,
+        795
+      ],
+      "offset": [
+        106,
+        161
+      ],
+      "pixels": 76439
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        416,
+        478,
+        848,
+        804
+      ],
+      "offset": [
+        104,
+        157
+      ],
+      "pixels": 78637
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        840,
+        488,
+        1253,
+        793
+      ],
+      "offset": [
+        113,
+        167
+      ],
+      "pixels": 69090
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        856,
+        435,
+        1193
+      ],
+      "offset": [
+        102,
+        151
+      ],
+      "pixels": 80038
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        416,
+        866,
+        858,
+        1205
+      ],
+      "offset": [
+        99,
+        150
+      ],
+      "pixels": 82396
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        835,
+        874,
+        1254,
+        1205
+      ],
+      "offset": [
+        110,
+        154
+      ],
+      "pixels": 81144
+    }
+  ]
+}

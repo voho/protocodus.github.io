@@ -24,9 +24,12 @@ export function industryConditions(game,industry,served=null){
   if(kind==='logging-camp'){
     resource=clamp(.25+e.forest/24,.25,1.25);climate=.72+weather.growth*.28;
     (e.forest>=10?positive:negative).push(e.forest>=10?'Nearby forest':'Sparse forest');
-  }else if(kind==='farm'){
+  }else if(kind==='farm'||definition.farming==='crop'){
     resource=clamp(.52+e.moisture*.8-e.pollution*.35,.25,1.25);climate=weather.growth;
     (e.moisture>.45?positive:negative).push(e.moisture>.45?'Moist ground':'Dry ground');
+  }else if(definition.farming==='livestock'){
+    resource=clamp(.8+e.moisture*.3-e.pollution*.15,.45,1.1);climate=1-weather.cold*.12-weather.heat*.08;
+    if(e.moisture>.45)positive.push('Water for livestock');
   }else if(kind==='fishery'){
     resource=clamp(.32+e.water/20-e.pollution*.4,.25,1.2);climate=1-weather.cold*.25;
     (e.water>8?positive:negative).push(e.water>8?'Fishing waters':'Limited water');
@@ -47,7 +50,7 @@ export function industryConditions(game,industry,served=null){
   if(e.amenity>.18)positive.push('Local services');
   if(partners)positive.push('Nearby partners');
   if(e.transport>.1)positive.push('Served by a route');
-  if(e.pollution>.25&&['farm','fishery'].includes(kind))negative.push('Pollution');
+  if(e.pollution>.25&&(['farm','fishery'].includes(kind)||definition.farming))negative.push('Pollution');
   if(weather.cold>.65)negative.push('Cold weather');
   if(weather.heat>.7&&weather.wetness<.3)negative.push('Dry weather');
   return {score:clamp(productivity/1.25),productivity,positive,negative,environment:e};

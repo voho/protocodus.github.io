@@ -1,5 +1,5 @@
 // Isolated Chromium companies exercise generated artwork, native fallbacks,
-// density changes and real 2×2 industry interactions without touching play saves.
+// density changes and real 3×3 industry interactions without touching play saves.
 import assert from 'node:assert/strict';
 import { mkdir, readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -56,15 +56,15 @@ try {
     assert.equal(ready.ready, ready.atlases, 'every registered atlas decodes successfully'); assert.deepEqual(ready.errors, []);
     await page.screenshot({ path: `${output}/app-palette-dpr${dpr}.png` });
     if (dpr === 1) {
-      const target = await page.evaluate(() => { const industry = transport.game.industries.find(site => site.footprint === 2); transport.setTool('inspect'); transport.renderer.setZoom(2); transport.renderer.focus(industry.x + .5, industry.y + .5); return industry; });
-      for (const [dx, dy] of [[0,0], [1,0], [0,1], [1,1]]) {
+      const target = await page.evaluate(() => { const industry = transport.game.industries.find(site => site.footprint === 3); transport.setTool('inspect'); transport.renderer.setZoom(2); transport.renderer.focus(industry.x + 1, industry.y + 1); return industry; });
+      for (const [dx, dy] of Array.from({ length: 9 }, (_, i) => [i % 3, Math.floor(i / 3)])) {
         const point = await page.evaluate(({ target, dx, dy }) => { const r = document.querySelector('#world').getBoundingClientRect(), p = transport.renderer.worldToScreen(target.x + dx, target.y + dy); return { x: r.left + p.x, y: r.top + p.y }; }, { target, dx, dy });
         await page.mouse.click(point.x, point.y);
-        assert.equal(await page.locator('#inspector h3').textContent(), target.name, 'each of the four visible site tiles opens the same industry');
+        assert.equal(await page.locator('#inspector h3').textContent(), target.name, 'each of the nine visible site tiles opens the same industry');
       }
       const overlap = await page.evaluate(async target => {
         const { build, industryAt } = await import('./model.js'), game = transport.game, before = JSON.stringify(game);
-        const outcomes = [[0,0],[1,0],[0,1],[1,1]].map(([dx,dy]) => ({ found: industryAt(game,target.x+dx,target.y+dy)?.id, road: build(game,'road',target.x+dx,target.y+dy).ok }));
+        const outcomes = Array.from({ length: 9 }, (_, i) => [i % 3, Math.floor(i / 3)]).map(([dx,dy]) => ({ found: industryAt(game,target.x+dx,target.y+dy)?.id, road: build(game,'road',target.x+dx,target.y+dy).ok }));
         return { outcomes, unchanged: before === JSON.stringify(game) };
       }, target);
       assert.ok(overlap.outcomes.every(result => result.found === target.id && result.road === false)); assert.equal(overlap.unchanged, true);
@@ -116,7 +116,11 @@ try {
             const painted = draw(c); checks.push({ kind, detail, painted, equal: q.hash(actual) === q.hash(expected), width: actual.width, height: actual.height });
           };
           for (const kind of q.buildings.RASTER_BUILDING_KINDS) compare(kind,1,'',c=>q.buildings.drawRasterBuilding(c,kind,biome,density));
-          for (const [kind, def] of Object.entries(q.model.INDUSTRIES)) if (def.biomes.includes(biome)) compare(kind,2,'',c=>q.industries.drawRasterIndustry(c,kind,biome,density,{size:64}));
+          for (const [kind, def] of Object.entries(q.model.INDUSTRIES)) if (def.biomes.includes(biome)) {
+            compare(kind,3,'',c=>q.industries.drawRasterIndustry(c,kind,biome,density,{size:96}));
+            const detached = sprite(kind);
+            checks.push({ kind, detail: 'default 3×3 sprite', painted: detached.width === Math.round(96*density) && detached.height === Math.round(104*density), equal: q.hash(detached) === q.hash(sprite(kind,0,3)) });
+          }
           for (const detail of q.BIOME_NATURE[biome].trees) compare('forest',1,detail,c=>q.drawRasterNature(c,'forest',biome,detail,6,density),true);
           for (const detail of q.BIOME_NATURE[biome].mountains) compare('mountain',1,detail,c=>q.drawRasterNature(c,'mountain',biome,detail,6,density));
           for (const detail of q.BIOME_NATURE[biome].plants) compare('terrain-detail',1,detail,c=>q.drawRasterNature(c,'terrain-detail',biome,detail,6,density));
@@ -166,5 +170,5 @@ try {
   const missing=await browser.newContext({viewport:{width:1400,height:1000}});await missing.route('**/assets/world/**',route=>route.abort());const fallbackPage=await emptyPage(missing);
   const fallback=await fallbackPage.evaluate(async()=>{const q=artQA;await q.assets.preloadWorldArt();Object.assign(q,q.setup('taiga'));const sprite=q.createSprites('taiga',{pixelScale:1}),sample=sprite('school');return{stats:q.assets.worldArtStats(),width:sample.width,height:sample.height,ink:Array.from(sample.getContext('2d').getImageData(0,0,sample.width,sample.height).data).some((n,i)=>i%4===3&&n>0),chunks:q.renderer.getStats().composedChunks};});
   assert.equal(fallback.stats.ready,0);assert.equal(fallback.stats.errors.length,fallback.stats.atlases);assert.equal(fallback.ink,true);assert.ok(fallback.chunks>0);assert.equal(fallback.width,32);assert.equal(fallback.height,40);await missing.close();
-  assert.deepEqual(errors,[]);console.log(JSON.stringify({summaries,sourceAtlases:masters.length,industryPicking:'all four tiles',loading:'late and missing artwork passed',output},null,2));
+  assert.deepEqual(errors,[]);console.log(JSON.stringify({summaries,sourceAtlases:masters.length,industryPicking:'all nine tiles',loading:'late and missing artwork passed',output},null,2));
 } finally {await browser.close();}

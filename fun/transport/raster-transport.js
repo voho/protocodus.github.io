@@ -5,27 +5,38 @@ import { createSpriteCache } from './sprite-cache.js';
 
 registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
 registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
+registerAtlas({id:'city-ground-v3',path:'./assets/world/city-ground-v3/atlas',entries:['ground:road','ground:rail','ground:road-bridge','ground:rail-bridge','ground:road-junction','ground:rail-junction','zone:residential','zone:commercial','zone:industrial']});
 registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
 export const hasRasterTransport=kind=>atlasAvailable(kind);
+export const hasRasterNetwork=kind=>atlasAvailable('ground:'+kind)||atlasAvailable('infra:'+kind);
 export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>drawAtlas(c,'infra:'+kind,x,y,w,h,{pixelScale});
+export const drawRasterZone=(c,zone,x,y,size,pixelScale=1)=>drawAtlas(c,'zone:'+zone,x,y,size,size,{pixelScale});
 
 // The authored network tiles run north/south. Compose their textured arms for
 // bends and junctions too, retaining the renderer's connected bed beneath the
 // transparent edges. Wedges meet at the tile center without painting a road
 // into a direction that is not connected.
 export function drawRasterNetwork(c,kind,cx,cy,arms,pixelScale=1){
-  const bridge=kind.endsWith('-bridge'),width=bridge?32:kind==='rail'?22:44;
+  if(!arms.length)return false;
+  const bridge=kind.endsWith('-bridge'),fresh=atlasAvailable('ground:'+kind),width=fresh?(kind==='road-bridge'?40:kind==='rail-bridge'?32:kind==='rail'?26:44):bridge?32:kind==='rail'?22:44;
   const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
   c.save();c.beginPath();c.rect(cx-16,cy-16,32,32);c.clip();c.translate(cx,cy);
+  const drawStrip=()=>drawAtlas(c,'ground:'+kind,-width/2,-18,width,36,{pixelScale})||drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale);
   let painted=false;
   if(straight){
     if(arms[0][0]!==0)c.rotate(Math.PI/2);
-    painted=drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale);
+    painted=drawStrip();
   }else for(const [dx,dy]of arms){
     c.save();c.rotate(Math.atan2(dy,dx)+Math.PI/2);
     c.beginPath();c.moveTo(0,0);c.lineTo(-16,-16);c.lineTo(16,-16);c.closePath();c.clip();
-    painted=drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale)||painted;
+    painted=drawStrip()||painted;
     c.restore();
+  }
+  // Junctions keep their connected silhouette, while a small unmarked material
+  // patch prevents the center dashes of several arms from piling up together.
+  if(fresh&&!straight&&kind==='road'){
+    c.save();c.beginPath();c.arc(0,0,5.5,0,Math.PI*2);c.clip();
+    drawAtlas(c,'ground:road-junction',-16,-16,32,32,{pixelScale});c.restore();
   }
   c.restore();return painted;
 }
@@ -41,15 +52,15 @@ function upright(c,heading){
 function payload(c,cargo,fraction,ship=false,pixelScale=1){
   if(!fraction)return;
   const count=Math.min(3,Math.ceil(fraction*3)),timber=['timber','lumber'].includes(cargo),bulk=['coal','iron','copper','stone','sand','grain','cement'].includes(cargo);
-  const colors={coal:'#424845',iron:'#b47857',copper:'#b27b4d',stone:'#aaa79b',sand:'#d8bc7f',grain:'#ddc177',steel:'#95abb0',glass:'#8bbbb7',food:'#86a25b',fish:'#81a8af',goods:'#aa8199',wire:'#bc8b5d',cement:'#c7c3ab'};
+  const colors={coal:'#424845',iron:'#b47857',copper:'#b27b4d',stone:'#aaa79b',sand:'#d8bc7f',grain:'#ddc177',steel:'#95abb0',glass:'#8bbbb7',food:'#86a25b',fish:'#81a8af',goods:'#aa8199',wire:'#bc8b5d',cement:'#c7c3ab',milk:'#d8e5e7',produce:'#b4c87a',livestock:'#bca185'};
   const scale=ship?1.7:1;c.save();c.scale(scale,scale);
-  const material=timber?'timber':['oil','fuel'].includes(cargo)?'barrels':cargo==='coal'?'coal':['iron','copper','stone','sand','cement'].includes(cargo)?'ore':cargo==='grain'?'grain':['steel','wire','machinery'].includes(cargo)?'steel':cargo==='glass'?'glass':cargo==='fish'?'fish':'crates';
+  const material=timber?'timber':['oil','fuel','milk'].includes(cargo)?'barrels':cargo==='coal'?'coal':['iron','copper','stone','sand','cement'].includes(cargo)?'ore':cargo==='grain'?'grain':['steel','wire','machinery'].includes(cargo)?'steel':cargo==='glass'?'glass':cargo==='fish'?'fish':'crates';
   if(drawAtlas(c,'cargo:'+material,-5.5,-2.7,3.5+count*1.5,5,{pixelScale:pixelScale*scale})){c.restore();return;}
   for(let n=0;n<count;n++){
     const x=-5+n*2.4;c.fillStyle=colors[cargo]||'#b18f61';
     if(timber){c.fillStyle='#926e43';c.fillRect(-5,-2.8+n*1.7,7,1.3);c.fillStyle='#dfbd86';c.fillRect(1,-2.8+n*1.7,.8,1.3);}
     else if(bulk){c.beginPath();c.moveTo(x-1,2);c.lineTo(x-1.1,-1);c.lineTo(x+.8,-2.3);c.lineTo(x+2,1.4);c.closePath();c.fill();}
-    else if(cargo==='oil'||cargo==='fuel'){c.fillStyle=cargo==='oil'?'#7e8988':'#c2b079';c.fillRect(x,-2,1.7,4);c.fillStyle='#d8d7b9';c.fillRect(x,-2,1.7,.7);}
+    else if(cargo==='oil'||cargo==='fuel'||cargo==='milk'){c.fillStyle=cargo==='oil'?'#7e8988':cargo==='milk'?'#d8e5e7':'#c2b079';c.fillRect(x,-2,1.7,4);c.fillStyle='#d8d7b9';c.fillRect(x,-2,1.7,.7);}
     else{c.fillRect(x,-2.3,2,4.6);c.fillStyle='#eee0bb70';c.fillRect(x,-2.3,2,.7);c.fillStyle='#534e474a';c.fillRect(x+1.6,-1.6,.4,3.9);}
   }
   c.restore();

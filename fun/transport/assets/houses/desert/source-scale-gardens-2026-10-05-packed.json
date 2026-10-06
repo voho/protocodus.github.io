@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 613307,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        22,
+        126,
+        401,
+        407
+      ],
+      "offset": [
+        130,
+        179
+      ],
+      "pixels": 56462
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        441,
+        118,
+        819,
+        407
+      ],
+      "offset": [
+        131,
+        175
+      ],
+      "pixels": 57090
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        857,
+        122,
+        1238,
+        411
+      ],
+      "offset": [
+        129,
+        175
+      ],
+      "pixels": 60032
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        13,
+        523,
+        413,
+        824
+      ],
+      "offset": [
+        120,
+        169
+      ],
+      "pixels": 67878
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        432,
+        521,
+        836,
+        825
+      ],
+      "offset": [
+        118,
+        168
+      ],
+      "pixels": 69788
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        848,
+        521,
+        1245,
+        826
+      ],
+      "offset": [
+        121,
+        167
+      ],
+      "pixels": 66001
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        4,
+        904,
+        424,
+        1238
+      ],
+      "offset": [
+        110,
+        153
+      ],
+      "pixels": 76408
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        415,
+        911,
+        838,
+        1237
+      ],
+      "offset": [
+        108,
+        157
+      ],
+      "pixels": 77415
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        835,
+        904,
+        1254,
+        1240
+      ],
+      "offset": [
+        110,
+        152
+      ],
+      "pixels": 82233
+    }
+  ]
+}

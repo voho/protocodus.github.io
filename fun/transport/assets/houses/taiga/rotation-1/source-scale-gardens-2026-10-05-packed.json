@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 389962,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        91,
+        164,
+        396,
+        413
+      ],
+      "offset": [
+        167,
+        195
+      ],
+      "pixels": 39399
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        480,
+        174,
+        784,
+        413
+      ],
+      "offset": [
+        168,
+        200
+      ],
+      "pixels": 39279
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        883,
+        176,
+        1178,
+        413
+      ],
+      "offset": [
+        172,
+        201
+      ],
+      "pixels": 38085
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        89,
+        518,
+        422,
+        788
+      ],
+      "offset": [
+        153,
+        185
+      ],
+      "pixels": 48876
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        485,
+        528,
+        790,
+        778
+      ],
+      "offset": [
+        167,
+        195
+      ],
+      "pixels": 43536
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        886,
+        538,
+        1190,
+        778
+      ],
+      "offset": [
+        168,
+        200
+      ],
+      "pixels": 41410
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        88,
+        873,
+        417,
+        1149
+      ],
+      "offset": [
+        155,
+        182
+      ],
+      "pixels": 49907
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        485,
+        876,
+        793,
+        1139
+      ],
+      "offset": [
+        166,
+        188
+      ],
+      "pixels": 46319
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        886,
+        904,
+        1197,
+        1149
+      ],
+      "offset": [
+        164,
+        197
+      ],
+      "pixels": 43151
+    }
+  ]
+}

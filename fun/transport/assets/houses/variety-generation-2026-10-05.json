@@ -1,0 +1,129 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "request": "Generate more house variety: old, new, modern, classics, wooden, stony, brick, ecological",
+  "designs": [
+    1,
+    2
+  ],
+  "rotations": [
+    0,
+    1
+  ],
+  "climates": [
+    "taiga",
+    "tundra",
+    "desert"
+  ],
+  "houseKindsOrder": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "layout": "Generated pairs are three rows by six columns, left nine are design 1, right nine design 2. Lossless connected-alpha registration separates plots, then existing house builder normalizes tier plot widths and isolated density cells.",
+  "physicalScale": "Architecture about 40\u201350% of complete garden plot width; full plot includes low fence, open front gate and path. Existing normalized tier widths 208/224/240, master256 groundline240.",
+  "operations": [
+    {
+      "phase": "Taiga0",
+      "prompt": "Generate a production transparent game sprite sheet containing exactly eighteen isolated small residential house+garden plots, three rows by six columns. This is TWO 3x3 house atlases directly side by side: design1 is columns1-3 and design2 is columns4-6. Use supplied approved atlas only as art direction, dimetric camera, small-house relative to generous full garden size and fence scale reference. Create distinctly NEW architecture. Orthographic 2:1 dimetric two-facade view, vertical walls, ground edges \u00b126.565degrees, fixed upper-left daylight. Highly detailed earthy hand-painted miniature materials, sharp roof tiles, tiny masonry/woodgrain, muted natural colors, consistent scale. Every building itself is SMALL: roof+walls occupy maximum40-48%of complete fenced plot width, set back toward upper/rear plot; broad OPEN foreground garden and visible garden on two sides take more than half plot area. Compare compact 8m houses to a12m bus. No gigantic buildings. Each low fence has open gate with path to front door. Every complete plot identical diamond ground-plane width for its tier, no elevated slabs, no opaque squarecards. Irregular grass/soil border with tiny plants, flowerbeds, vegetable beds, restrained shrubs. No talltrees, detached objects, text, numbers, logos, checkerboard, colored outlines, roads or people. Eighteen FULL distinct non-touching sprites safely centered in equally sized cells, ample true-alpha transparent gutters and outer margin. Wide landscape sheet, 6columns3rows. EXACT ROW/COLUMN ORDER: Row1 columns1-3: weathered old timber cottage with smoky gray slate gable roof and rustic split-rail fence; old rough stone cottage with mossy slate gable roof and stone-post picket fence; old redbrick workers cottage with weathered terracotta gable roof and simple iron fence. Row1 columns4-6: new compact timber-clad flat-roof prefab house with dark metal trim and horizontal low fence; old granite stone cottage with chunky stone chimney and dark wooden gable roof and stone wall boundary; classic white-plaster and dark half-timber cottage with steep rusty roof and pale picket fence. Row2 columns1-3: new cream plaster family house with simple charcoal gable roof and low contemporary timber fence; classic redbrick two-storey family townhouse with baywindow and slate hipped roof and low iron fence; ecological timber family home with small solar panels on steep roof, rainwater barrel and vegetablebeds, low wood fence. Row2 columns4-6: modern two-storey warmbrick family house with flat stepped roof and darkglass windows and low steel fence; renovated traditional timber/plaster family house with steep gray roof and low timber fence; new clean buffbrick bungalow with small solar panels on dark gable roof and picket fence. Row3 columns1-3: classic small pale-stone country villa with slate roof, modest dormers and low stone-and-iron fence; modern small white concrete flat-roof L-shaped villa with dark floor-to-ceiling glass and low horizontal timber fence; ecological small timber villa with sedum greenroof, tiny solararray and low natural timber fence. Row3 columns4-6: restored classic white-stone villa with slate hipped roof and simple pale stoneposts/iron fence; modern small charcoal-timber glass villa with angular gable roof and low dark steel fence; ecological warmclay plaster villa with living grassroof, timber accents, rainbarrel and low timber fence. All expensive villas remain compact and surrounded by broad gardens, not mansions filling plots. Columns1-3 design1,4-6 design2. No reordering.\nClimate: temperate TAIGA, mossy muted green lawns with visibly textured grass, tiny flowers/vegetable beds and planted dirt, understated weathering. This is ORIENTATION0 for all18: frontdoor/frontfacade/open front gate and long gate-to-door path face LOWER-LEFT projected street axis, never lower-right. Same as supplied reference. Do not copy the reference architectural identities; use exactly the new row/column identities specified above.",
+      "generatedSource": "/workspace/generated_images/exec-1ef90193-282c-43cc-8c7c-80aa67dd7f01.png",
+      "accepted": false,
+      "reason": "Regenerated to increase transparent layout gutters and restore complete outer fences."
+    },
+    {
+      "phase": "Taiga0Correction",
+      "prompt": "Precise production layout correction for this approved eighteen-house transparent sprite sheet. Preserve all eighteen architectural designs, gardens, fences, gates, paths, plants, camera, orientation, small house-to-yard relative scale and colors. Keep exactly three rows and six columns in the SAME order, same sheet aspect ratio. In EACH of the eighteen cells uniformly reduce the ENTIRE COMPLETE fenced house+garden plot to75% of its current pixel width AND height, anchored at each existing cell center. This is essential: large TRUE TRANSPARENT gutters of at least40pixels between every complete plot, at least25pixels outer sheetpadding, and no touching or overlapping fences/shadows/smoke. Make every sprite fully isolated including faint soft contact shadow. No cropping fences or gardens. All18complete originalhouses remain with their generous gardens, entireplot scaledtogether, no architectural redesign. Remove chimney smoke from all houses. Genuine alpha beyond eachplot; no background, no checkerboard, no text. EXACT18 small isolatedplots withall4fenceedgesreadable,3rows6columns.",
+      "generatedSource": "/workspace/generated_images/exec-8aaee79b-d13f-44ec-8805-5c836392720d.png",
+      "accepted": true
+    },
+    {
+      "phase": "Taiga1",
+      "prompt": "Edit this approved18-house transparent sprite sheet to the SECOND PHYSICAL ORIENTATION. Preserve all18exactarchitecturalidentities, materials, gardenfences, plants, scale and exact3row6columnlayout. Physically turn each complete house+garden ninetydegrees around its verticalaxis. The frontfacade/frontdoor/openfrontgate/longgate-to-doorpath MUST now allface the LOWER-RIGHT projectedstreetaxis. Draw actualdifferentbuildingfaces: sidewindows, porch/projections/chimneyplacement reflect rotatedarchitecture. Do not horizontallymirror existingpixels; sunlightremainsupper-left, newroofandwallshadowsfollowit. Essentialvisiblecheck: previouslylower-leftdoor/gate/path moves toLOWER-RIGHTinall18plots. Retain2:1dimetricorthographiccamera groundedges\u00b126.565degrees, verticalwalls and same smallhouse40\u201348%plotwidth, broadforegroundgarden. Keepall18isolatedwithinowncell, generousalphagaps andpadding, exactarchitectural order. NObackground, checkerboard, text, people, talltrees, smoke or giantraisedslabs. FixedTAIGA climate mossygreen detailedgardenlawns. Produce3rows6columns.",
+      "generatedSource": "/workspace/generated_images/exec-370cb81f-b261-4cab-a198-37b569f9b846.png",
+      "accepted": false,
+      "reason": "Regenerated to increase transparent layout gutters and restore complete outer fences."
+    },
+    {
+      "phase": "Tundra0",
+      "prompt": "Edit this EXACTapproved18-house transparent sprite sheet into TUNDRA winter. Preserve all18identities, smallhouse40\u201348%plotwidth, garden/fence/gate/path dimensions, layout3rows6columns, orientation0 entrance/gate facingLOWER-LEFTprojectedstreetaxis, roofshape andmaterialcolors. Naturalpatchysoftsnowsettlesonroofs,chimneycaps,fencesandshrubs; foregroundgardenshavepatchysnowwithdormantgrass and visiblesoil. Cleared stonepaths fromlower-leftgate todoors; no giantwhite slabs. Keepvisiblebrick,timber,stone,plaster,greenroofs, solarcellsreadablewithsomeclearedpanels. Fixedupper-leftsunlight andsame2:1dimetriccamera, mutedrealisticpaintedminiaturedetail. All18fullplots remainisolatedwithwidegenuinelytransparentguttersandouterpadding, exactsameorder; no background,text,labels,smoke,people,talltrees.",
+      "generatedSource": "/workspace/generated_images/exec-ac62536e-b439-42e8-accc-df521972b927.png",
+      "accepted": true
+    },
+    {
+      "phase": "Desert0",
+      "prompt": "Edit this EXACTapproved18-house transparent sprite sheet into DESERT dry climate. Preserveall18identities, smallhouse40\u201348%plotwidth, garden/fence/gate/path dimensions, layout3rows6columns, orientation0 entrance/gate facingLOWER-LEFTprojectedstreetaxis, roofshape andmaterialcolors. Warmdustyweatheredmaterials; foregroundyards detailednaturalsandygravel andmottledsoil, mutedtawnygrasses, tinyagaves/sage/succulentsandrestrainedflowers. No lush lawn or snow. Ecologicalgreenroofs have restrained drought-tolerant sedum. Solararraysstayreadable. Clearsteppingstonepaths fromlower-leftgates todoors. Fixedupper-leftsunlight andsame2:1dimetriccamera, mutedrealisticpaintedminiaturedetail. All18fullplots remainisolatedwithwidegenuinelytransparentguttersandouterpadding, exactsameorder; no background,text,labels,smoke,people,talltrees orsolidopaque sand slabs.",
+      "generatedSource": "/workspace/generated_images/exec-072b5c13-afb9-442b-bada-6dde96b2eeaa.png",
+      "accepted": true
+    },
+    {
+      "phase": "Tundra1",
+      "prompt": "Edit this EXACTapproved18-house transparent sprite sheet into TUNDRA winter. Preserve all18identities, smallhouse40\u201348%plotwidth, garden/fence/gate/path dimensions, layout3rows6columns, orientation1 entrance/gate facingLOWER-RIGHTprojectedstreetaxis, roofshape andmaterialcolors. Naturalpatchysoftsnowsettlesonroofs,chimneycaps,fencesandshrubs; foregroundgardenshavepatchysnowwithdormantgrass and visiblesoil. Cleared stonepaths fromlower-rightgate todoors; no giantwhite slabs. Keepvisiblebrick,timber,stone,plaster,greenroofs, solarcellsreadablewithsomeclearedpanels. Fixedupper-leftsunlight andsame2:1dimetriccamera, mutedrealisticpaintedminiaturedetail. All18fullplots remainisolatedwithwidegenuinelytransparentguttersandouterpadding, exactsameorder; no background,text,labels,smoke,people,talltrees.",
+      "generatedSource": "/workspace/generated_images/exec-a57bba36-8cc0-4aeb-8b99-1763063c4fcc.png",
+      "accepted": false,
+      "reason": "Regenerated to increase transparent layout gutters and restore complete outer fences."
+    },
+    {
+      "phase": "Desert1",
+      "prompt": "Edit this EXACTapproved18-house transparent sprite sheet into DESERT dry climate. Preserveall18identities, smallhouse40\u201348%plotwidth, garden/fence/gate/path dimensions, layout3rows6columns, orientation1 entrance/gate facingLOWER-RIGHTprojectedstreetaxis, roofshape andmaterialcolors. Warmdustyweatheredmaterials; foregroundyards detailednaturalsandygravel andmottledsoil, mutedtawnygrasses, tinyagaves/sage/succulentsandrestrainedflowers. No lush lawn or snow. Ecologicalgreenroofs have restrained drought-tolerant sedum. Solararraysstayreadable. Clearsteppingstonepaths fromlower-rightgates todoors. Fixedupper-leftsunlight andsame2:1dimetriccamera, mutedrealisticpaintedminiaturedetail. All18fullplots remainisolatedwithwidegenuinelytransparentguttersandouterpadding, exactsameorder; no background,text,labels,smoke,people,talltrees orsolidopaque sand slabs.",
+      "generatedSource": "/workspace/generated_images/exec-b3972fe3-86a7-4152-8292-d7753b853683.png",
+      "accepted": false,
+      "reason": "Regenerated to increase transparent layout gutters and restore complete outer fences."
+    },
+    {
+      "phase": "Taiga1Correction",
+      "prompt": "Production sprite-sheet layout correction only. This18-house sheet is excellent architecturally and MUST preserve all18houseidentities, gardenplants/materials/climate, physicalorientation1 (frontdoor/frontgate/path facesLOWER-RIGHT), camerageometry and lighting. Exactly3rows6columns. Eachcell currentlytoofull, somefences/shadowsnearlytouch; rightmostbottomplotfencetouchescanvas andneedsrestoration. Uniformly shrink ENTIRECOMPLETEHOUSE+GARDEN+FENCE in EACHcell to75%currentwidthandheight, centeredwithinitscell. Restorecompleteuncroppedrightfenceofthelastbottomrightlivingroofhouse. LeaveATLEAST40pixel TRUEALPHAguttersbetweencompleteplotfences/shadows, ATLEAST30pixeloutermarginatall4sheetedges. Scale entireplots together, sohouse-to-yard proportionsstay smallandgenerous. No redrawingarchitecture/reordering. All18completeplots includingallfenceedges mustbe fullyisolatedanduncropped, safelycenteredintheircell. No detachedspecksfaraway. Genuinealpha, nobackground/checkerboard/text/people/talltrees/smoke. Preserve exact3rows6columns and current climate.",
+      "generatedSource": "/workspace/generated_images/exec-110088a3-5c8c-4b75-9dac-a75ab63cb02e.png",
+      "accepted": true
+    },
+    {
+      "phase": "Tundra1Correction",
+      "prompt": "Production sprite-sheet layout correction only. This18-house sheet is excellent architecturally and MUST preserve all18houseidentities, gardenplants/materials/climate, physicalorientation1 (frontdoor/frontgate/path facesLOWER-RIGHT), camerageometry and lighting. Exactly3rows6columns. Eachcell currentlytoofull, somefences/shadowsnearlytouch; rightmostbottomplotfencetouchescanvas andneedsrestoration. Uniformly shrink ENTIRECOMPLETEHOUSE+GARDEN+FENCE in EACHcell to75%currentwidthandheight, centeredwithinitscell. Restorecompleteuncroppedrightfenceofthelastbottomrightlivingroofhouse. LeaveATLEAST40pixel TRUEALPHAguttersbetweencompleteplotfences/shadows, ATLEAST30pixeloutermarginatall4sheetedges. Scale entireplots together, sohouse-to-yard proportionsstay smallandgenerous. No redrawingarchitecture/reordering. All18completeplots includingallfenceedges mustbe fullyisolatedanduncropped, safelycenteredintheircell. No detachedspecksfaraway. Genuinealpha, nobackground/checkerboard/text/people/talltrees/smoke. Preserve exact3rows6columns and current climate.",
+      "generatedSource": "/workspace/generated_images/exec-393221f8-0335-4b8f-833e-5ce9a509ded2.png",
+      "accepted": true
+    },
+    {
+      "phase": "Desert1Correction",
+      "prompt": "Production sprite-sheet layout correction only. This18-house sheet is excellent architecturally and MUST preserve all18houseidentities, gardenplants/materials/climate, physicalorientation1 (frontdoor/frontgate/path facesLOWER-RIGHT), camerageometry and lighting. Exactly3rows6columns. Eachcell currentlytoofull, somefences/shadowsnearlytouch; rightmostbottomplotfencetouchescanvas andneedsrestoration. Uniformly shrink ENTIRECOMPLETEHOUSE+GARDEN+FENCE in EACHcell to75%currentwidthandheight, centeredwithinitscell. Restorecompleteuncroppedrightfenceofthelastbottomrightlivingroofhouse. LeaveATLEAST40pixel TRUEALPHAguttersbetweencompleteplotfences/shadows, ATLEAST30pixeloutermarginatall4sheetedges. Scale entireplots together, sohouse-to-yard proportionsstay smallandgenerous. No redrawingarchitecture/reordering. All18completeplots includingallfenceedges mustbe fullyisolatedanduncropped, safelycenteredintheircell. No detachedspecksfaraway. Genuinealpha, nobackground/checkerboard/text/people/talltrees/smoke. Preserve exact3rows6columns and current climate.",
+      "generatedSource": "/workspace/generated_images/exec-d520f802-eae2-4981-998a-d18fad521079.png",
+      "accepted": true
+    }
+  ],
+  "newHouseSpriteCount": 108,
+  "runtimeDensities": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "architecturalDesigns": {
+    "1": [
+      "weathered timber cottage",
+      "old rough stone cottage",
+      "brick workers cottage",
+      "new cream family house",
+      "classic brick bay-window townhouse",
+      "ecological solar timber family house",
+      "classic small stone country villa",
+      "modern white flat-roof glass villa",
+      "ecological timber green-roof villa"
+    ],
+    "2": [
+      "new timber prefab flat-roof home",
+      "old granite cottage",
+      "classic plaster/half-timber cottage",
+      "modern brick flat-roof family home",
+      "renovated traditional timber/plaster house",
+      "new brick solar bungalow",
+      "restored classic pale-stone villa",
+      "modern charcoal timber/glass villa",
+      "ecological clay-plaster green-roof home"
+    ]
+  }
+}

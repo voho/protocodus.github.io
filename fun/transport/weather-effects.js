@@ -48,9 +48,9 @@ export function createWeatherEffects({ reducedMotion = () => false } = {}) {
   }
   let stats = { enabled: false, rain: 0, snow: 0, cloud: 0, particles: 0, particleLimit: MAX_WEATHER_PARTICLES, bytes: particles.byteLength };
 
-  function draw(c, { game, layers, camera, width, height }) {
+  function draw(c, { game, layers, camera, width, height, day = game.day || 0 }) {
     if (layers.weather === false) { stats = { ...stats, enabled: false, rain: 0, snow: 0, cloud: 0, particles: 0 }; return; }
-    const day = Number(game.day) || 0;
+    day = Number(day) || 0;
     const x = Math.max(0, Math.min(game.width - 1, camera.x / 32));
     const y = Math.max(0, Math.min(game.height - 1, camera.y / 32));
     const weather = weatherPresentation(game, x, y, day), { rain, snow, cloud } = weather, season = seasonPresentation(game, day);

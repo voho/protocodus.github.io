@@ -1,0 +1,134 @@
+{
+  "source": "source-scale-gardens-2026-10-05.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "meaningfulPixelsPreserved": 554761,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        35,
+        131,
+        390,
+        404
+      ],
+      "offset": [
+        142,
+        183
+      ],
+      "pixels": 50231
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        450,
+        118,
+        809,
+        405
+      ],
+      "offset": [
+        140,
+        176
+      ],
+      "pixels": 52988
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        868,
+        124,
+        1227,
+        404
+      ],
+      "offset": [
+        140,
+        180
+      ],
+      "pixels": 54435
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        19,
+        530,
+        403,
+        821
+      ],
+      "offset": [
+        128,
+        174
+      ],
+      "pixels": 61462
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        436,
+        530,
+        820,
+        821
+      ],
+      "offset": [
+        128,
+        174
+      ],
+      "pixels": 61679
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        856,
+        536,
+        1238,
+        820
+      ],
+      "offset": [
+        129,
+        178
+      ],
+      "pixels": 58991
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        8,
+        917,
+        414,
+        1236
+      ],
+      "offset": [
+        117,
+        160
+      ],
+      "pixels": 69869
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        424,
+        926,
+        830,
+        1235
+      ],
+      "offset": [
+        117,
+        165
+      ],
+      "pixels": 69241
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        842,
+        916,
+        1254,
+        1236
+      ],
+      "offset": [
+        114,
+        160
+      ],
+      "pixels": 75865
+    }
+  ]
+}

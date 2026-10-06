@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "biome": "desert",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    256,
+    128,
+    64,
+    32,
+    16
+  ],
+  "groundline": 240,
+  "masterCellSize": 256,
+  "order": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "houses": [
+    {
+      "id": "house-cheap-1",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        183,
+        219,
+        457,
+        421
+      ],
+      "rawAlphaBounds": [
+        182,
+        218,
+        456,
+        422
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.917175,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        0,
+        0,
+        640,
+        640
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        24,
+        87,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        153
+      ],
+      "offset": [
+        24,
+        87
+      ],
+      "architecturalStyle": "new timber prefab flat-roof home"
+    },
+    {
+      "id": "house-cheap-2",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        184,
+        209,
+        456,
+        430
+      ],
+      "rawAlphaBounds": [
+        183,
+        209,
+        457,
+        431
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.916765,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        640,
+        0,
+        1280,
+        640
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        24,
+        71,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        169
+      ],
+      "offset": [
+        24,
+        71
+      ],
+      "architecturalStyle": "old granite cottage"
+    },
+    {
+      "id": "house-cheap-3",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        186,
+        208,
+        454,
+        431
+      ],
+      "rawAlphaBounds": [
+        185,
+        208,
+        455,
+        432
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.918655,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        1280,
+        0,
+        1920,
+        640
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 208,
+      "normalizedBounds": [
+        24,
+        67,
+        232,
+        240
+      ],
+      "drawSize": [
+        208,
+        173
+      ],
+      "offset": [
+        24,
+        67
+      ],
+      "architecturalStyle": "classic plaster/half-timber cottage"
+    },
+    {
+      "id": "house-normal-1",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        179,
+        207,
+        461,
+        432
+      ],
+      "rawAlphaBounds": [
+        178,
+        207,
+        462,
+        433
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.90998,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        0,
+        640,
+        640,
+        1280
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        16,
+        61,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        179
+      ],
+      "offset": [
+        16,
+        61
+      ],
+      "architecturalStyle": "modern brick flat-roof family home"
+    },
+    {
+      "id": "house-normal-2",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        178,
+        206,
+        462,
+        434
+      ],
+      "rawAlphaBounds": [
+        177,
+        205,
+        463,
+        435
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.911421,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        640,
+        640,
+        1280,
+        1280
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        16,
+        60,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        180
+      ],
+      "offset": [
+        16,
+        60
+      ],
+      "architecturalStyle": "renovated traditional timber/plaster house"
+    },
+    {
+      "id": "house-normal-3",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        183,
+        209,
+        456,
+        430
+      ],
+      "rawAlphaBounds": [
+        183,
+        208,
+        457,
+        431
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.914165,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        1280,
+        640,
+        1920,
+        1280
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 224,
+      "normalizedBounds": [
+        16,
+        59,
+        240,
+        240
+      ],
+      "drawSize": [
+        224,
+        181
+      ],
+      "offset": [
+        16,
+        59
+      ],
+      "architecturalStyle": "new brick solar bungalow"
+    },
+    {
+      "id": "house-expensive-1",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        176,
+        203,
+        464,
+        436
+      ],
+      "rawAlphaBounds": [
+        175,
+        202,
+        465,
+        437
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.904407,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        0,
+        1280,
+        640,
+        1920
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        8,
+        46,
+        248,
+        240
+      ],
+      "drawSize": [
+        240,
+        194
+      ],
+      "offset": [
+        8,
+        46
+      ],
+      "architecturalStyle": "restored classic pale-stone villa"
+    },
+    {
+      "id": "house-expensive-2",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        179,
+        211,
+        461,
+        428
+      ],
+      "rawAlphaBounds": [
+        178,
+        211,
+        462,
+        429
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.911321,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        640,
+        1280,
+        1280,
+        1920
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        8,
+        55,
+        248,
+        240
+      ],
+      "drawSize": [
+        240,
+        185
+      ],
+      "offset": [
+        8,
+        55
+      ],
+      "architecturalStyle": "modern charcoal timber/glass villa"
+    },
+    {
+      "id": "house-expensive-3",
+      "source": "source-variety-2026-10-05-packed.png",
+      "sourceSha256": "e09553c36b428b5dbc6ca2d8efeec0c02c2f7eff2a59580bb6b7cef7fdadbd2b",
+      "originalSize": [
+        640,
+        640
+      ],
+      "sourceBounds": [
+        179,
+        209,
+        460,
+        430
+      ],
+      "rawAlphaBounds": [
+        178,
+        209,
+        460,
+        431
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.909138,
+      "inputMode": "normalized-atlas",
+      "atlasBounds": [
+        1280,
+        1280,
+        1920,
+        1920
+      ],
+      "trimmedInvisibleMatte": false,
+      "groundline": 240,
+      "widthLimit": 240,
+      "normalizedBounds": [
+        8,
+        51,
+        248,
+        240
+      ],
+      "drawSize": [
+        240,
+        189
+      ],
+      "offset": [
+        8,
+        51
+      ],
+      "architecturalStyle": "ecological clay-plaster green-roof home"
+    }
+  ],
+  "design": 2,
+  "rotation": 0,
+  "frontEntranceDirection": "lower-left projected street axis",
+  "generator": "built-in image_gen"
+}

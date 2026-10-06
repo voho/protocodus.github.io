@@ -1,5 +1,4 @@
-import { CARGO } from './data.js';
-import { chainProducts } from './chains.js';
+import { CARGO, INDUSTRIES } from './data.js';
 import { priceFor, inflationInfo, calendarYear } from './economy-pricing.js';
 import { activeCities } from './settlements.js';
 
@@ -10,7 +9,7 @@ import { activeCities } from './settlements.js';
 export const ACHIEVEMENT_TIERS = Object.freeze(['bronze', 'silver', 'gold', 'platinum']);
 export const TIER_NAMES = Object.freeze({ bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' });
 // Bit order is saved: append only.
-export const CARGO_ORDER = Object.freeze(['passengers', 'timber', 'lumber', 'coal', 'iron', 'steel', 'grain', 'food', 'furniture', 'machinery', 'fish', 'oil', 'fuel', 'stone', 'sand', 'glass', 'copper', 'wire', 'cement', 'goods', 'mail']);
+export const CARGO_ORDER = Object.freeze(['passengers', 'timber', 'lumber', 'coal', 'iron', 'steel', 'grain', 'food', 'furniture', 'machinery', 'fish', 'oil', 'fuel', 'stone', 'sand', 'glass', 'copper', 'wire', 'cement', 'goods', 'mail', 'milk', 'produce', 'livestock']);
 export const CARGO_BIT = Object.freeze(Object.fromEntries(CARGO_ORDER.map((key, i) => [key, 1 << i])));
 export const CARGO_MASK = 2 ** CARGO_ORDER.length - 1;
 // Ships reach a load of 1,000 with the 1981 models, trains with the 2001 models. A vehicle is first 50 years past its model year in 2000.
@@ -25,7 +24,13 @@ const masks = new Map();
 /** Every cargo the landscape's industries make, and mail; passengers are left out. */
 export function cargoMask(biome) {
   let mask = masks.get(biome);
-  if (mask === undefined) { mask = CARGO_BIT.mail; for (const key of chainProducts(biome)) mask |= CARGO_BIT[key] || 0; masks.set(biome, mask); }
+  if (mask === undefined) {
+    mask = CARGO_BIT.mail;
+    // Optional player-built chains do not add compulsory cargo to a landscape
+    // achievement that an existing company may already be working toward.
+    for (const definition of Object.values(INDUSTRIES)) if(!definition.buildOnly&&definition.biomes.includes(biome)) for(const key of Object.keys(definition.outputs)) mask |= CARGO_BIT[key] || 0;
+    masks.set(biome, mask);
+  }
   return mask;
 }
 export const cargoCount = bits => { let n = 0; for (let b = bits >>> 0; b; b &= b - 1) n++; return n; };

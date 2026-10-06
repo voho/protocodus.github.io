@@ -1,0 +1,21 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-05",
+  "transparent_background": true,
+  "source": "/workspace/generated_images/exec-d0ab7a88-19e6-491b-9fe7-fd383178e456.png",
+  "reference": "../../industries-taiga/atlas.png",
+  "prompt": "Create a new replacement sprite atlas for the farming and food supply industries in Transport. Use the reference only for the miniature game-isometric visual style, scale, materials, and camera, not its buildings or content. EXACT equal 3 columns by 3 rows; 7 complete isolated sites in reading order and 2 fully transparent empty cells at bottom center and bottom right. No words, labels, numbers, borders, grid lines, watermark or background. Genuine transparent alpha with generous transparent gutters between cells. Strict orthographic 2:1 DIMETRIC isometry: both ground axes diagonal \u00b126.565 degrees, vertical walls vertical, roofs visible, no perspective convergence. Each whole industrial site is a small 3\u00d73-tile DIAMOND ground footprint, approximately twice as wide as deep, matching reference scale and upper-left sunlight. Building sizes modest, one-story barns and two-story compact processing plants, only part of the property occupied by buildings so fields and yards read clearly; detailed grainy earth, grass and gravel, crisp roof tiles, fences, shrubs, integrated short soft shadows. Realistic painted strategy-game sprite detail, muted materials, no toy gloss. Each site entirely in its square cell with at least 12% clear margins; wider than tall. Seven sites left-to-right top-to-bottom: [1] DAIRY FARM: white and rusty red compact barn, stainless milk tank and pipe, two tiny black-and-white cows in a fenced grass paddock, small hay stacks, earth delivery gate. [2] VEGETABLE FARM: compact timber potting shed, irrigated parallel vegetable beds with cabbages and carrots, a small transparent glass greenhouse, water barrel, basket crates, gated fence. [3] ORCHARD: six small recognizable fruit trees in neat rows, red/yellow apples visible, a small stone packing shed, fruit crates, fence and dirt access path. [4] LIVESTOCK FARM: long rustic timber animal barn, two fenced paddocks containing tiny pink pigs and tan cattle, feeding troughs, hay bales and grain feeder. [5] DAIRY PROCESSING PLANT: small cream industrial building with blue slate roof, three shiny stainless milk vats and pipes, a clean covered loading dock with milk churns and palletized packaged food. [6] CANNERY: compact red brick canning workshop with green sawtooth metal roof, one small vent chimney, metal storage tanks, crates of colorful vegetables and stacks of silver food tins by its loading doors. [7] MEAT PACKING PLANT: compact beige stone and pale red brick cold-storage industrial hall with muted red roof, visible refrigeration boxes, enclosed livestock receiving gate at one side and packaged food pallets at a clean loading bay, no blood or gore. Cells 8 and 9 MUST stay completely empty and transparent. Never overlap, never merge neighboring ground diamonds, never clip a building or tree. Climate: warm dry desert towns, pale ochre gravel and sandy soil, beige stucco walls, weathered sun-bleached timber, irrigated dark green farm plots surrounded by tan ground, a few olive-green drought-resistant shrubs; maintain all seven distinct structures. Do not show snow.",
+  "columns": 3,
+  "rows": 3,
+  "order": [
+    "industry:dairy-farm:desert",
+    "industry:vegetable-farm:desert",
+    "industry:orchard:desert",
+    "industry:livestock-farm:desert",
+    "industry:dairy-plant:desert",
+    "industry:cannery:desert",
+    "industry:meat-packer:desert",
+    null,
+    null
+  ]
+}
