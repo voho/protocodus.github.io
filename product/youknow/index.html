@@ -11,11 +11,11 @@
   <meta property="og:description" content="Persistent voice cards, a nonlinear filter and clocked stereo chorus. Play 144 presets, expand to 16 voices or explore original firmware performance timing.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://protocodus.cz/product/youknow/">
-  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp?v=20261004">
+  <meta property="og:image" content="https://protocodus.cz/product/youknow/youknow-plugin-panel.webp?v=20261006">
   <link rel="canonical" href="https://protocodus.cz/product/youknow/">
   <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
   <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/assets/css/style.css?v=20260911-studio-7">
+  <link rel="stylesheet" href="/assets/css/style.css?v=20261006-instrument-releases">
   <link rel="stylesheet" href="youknow.css?v=20260915-demos">
 </head>
 
@@ -82,8 +82,8 @@
           </div>
         </div>
         <figure class="shot hero-shot">
-          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20261004" aria-label="View the YouKnow interface screenshot at full size">
-            <img src="youknow-plugin-panel.webp?v=20261004" width="1360" height="747" fetchpriority="high" decoding="async" alt="YouKnow standalone interface with synthesis controls, keyboard, voice monitor and output and timing menus">
+          <a class="screenshot-link" href="youknow-plugin-panel.webp?v=20261006" aria-label="View the YouKnow interface screenshot at full size">
+            <img src="youknow-plugin-panel.webp?v=20261006" width="1360" height="747" fetchpriority="high" decoding="async" alt="YouKnow standalone interface with synthesis controls, keyboard, voice monitor and output and timing menus">
             <span class="shot-caption">Standalone interface <span>View full size <span aria-hidden="true">↗</span></span></span>
           </a>
         </figure>
@@ -159,16 +159,16 @@
             <summary><span class="circuit-number" aria-hidden="true">02</span><span class="circuit-heading">Envelopes &amp; control electronics<span class="circuit-summary">The shape of the attack. The feel of the controls.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
               <li><h3>23 destinations, one converter</h3><p>A shared 12-bit converter scans 23 control destinations in the service chart’s write order. Per-destination holds and circuit-specific smoothing shape when and how changes reach the voices. Control response is part of the model, right down to the voltage-distribution buffers.</p></li>
-              <li><h3>Envelopes and performance timing</h3><p>Firmware-derived envelopes retain the original rounding, gate and retrigger behaviour. Direct timing gives you the familiar host response. Optional Original timing runs the assigner, serial link and voice-board firmware at nominal clocks, so chord attacks and retriggers follow its scan phase. It uses six voices and hardware tone resolution, with a higher CPU cost.</p></li>
+              <li><h3>Envelopes and performance timing</h3><p>Firmware-derived envelopes retain the original rounding, gate and retrigger behaviour. New instances start in Original timing: the assigner, serial link and voice-board firmware run at nominal clocks, so chord attacks and retriggers follow its scan phase. It uses six voices and hardware tone resolution, with a higher CPU cost. Choose Direct for immediate host response and up to sixteen voices; existing Direct sessions keep that setting.</p></li>
               <li><h3>Movement with the right phrasing</h3><p>The LFO’s onset and depth arithmetic, its separate PWM path, and the portamento glide law follow the recovered control logic. The portamento knob also follows its loaded potentiometer response, keeping the sweep of the control connected to the phrasing of the notes.</p></li>
             </ul>
           </details>
           <details class="circuit-group">
             <summary><span class="circuit-number" aria-hidden="true">03</span><span class="circuit-heading">Filter, amplifier &amp; unit character<span class="circuit-summary">Resonance, saturation and the differences between voices.</span></span><span class="circuit-toggle" aria-hidden="true"></span></summary>
             <ul class="features model-features">
-              <li><h3>Resonance from the circuit</h3><p>Four nonlinear transconductor stages are solved with their resonance feedback and input compensation. A transistor-junction model brings resonance in gradually; service procedures anchor full self-oscillation. Fixed trims preserve the filter’s response to signal level and resonance. A six-card profile measured from one serviced unit with replacement voice cards adds individual filter calibration.</p></li>
+              <li><h3>Resonance from the circuit</h3><p>Four nonlinear transconductor stages are solved with their resonance feedback and input compensation. A transistor-junction model brings resonance in gradually; service procedures anchor full self-oscillation. The current model uses nominal original voice-module tuning and a component-derived resonance offset. These are explicit estimates rather than measurements of original modules.</p></li>
               <li><h3>The amplifier has a sound, too</h3><p>The BA662 voice amplifier models its transistor current-control circuit, control capacitor and saturating signal path. Service gain sets the drive into the pair, adding compression and harmonics as the input level rises. Its response changes with the modelled card temperature. Resistor noise and current-dependent transistor noise follow the filter and amplifier circuits, including the quiet parts of a note.</p></li>
-              <li><h3>An individual instrument</h3><p>Unit Character adjusts component tolerances, filter offsets, slow cutoff wander and chorus-line imbalance. A shared-clock temperature proxy and analogue card warm-up model let pitch, resonance and amplifier response develop together. Aging adds filter-trim drift and noise inspired by a documented hardware recalibration. The measured filter-card profile stays active with added tolerances turned down.</p></li>
+              <li><h3>An individual instrument</h3><p>Unit Character adjusts component tolerances, filter offsets, slow cutoff wander and chorus-line imbalance. A shared-clock temperature proxy and analogue card warm-up model let pitch, resonance and amplifier response develop together. Aging adds filter-trim drift and noise inspired by a documented hardware recalibration. Turn added tolerances down to hear the nominal original-module model.</p></li>
             </ul>
           </details>
           <details class="circuit-group">
@@ -200,8 +200,8 @@
         </div>
         <ul class="features">
           <li><h3>The factory sounds, from their original settings</h3><p>All 128 original factory tone settings were decoded and cross-checked across three archives. YouKnow adds 16 original basses and pads, plus INIT. Start with familiar brass, strings, keys or plucks, then make them your own.</p></li>
-          <li><h3>Find your instrument’s character</h3><p>Keep the measured filter-card character with added tolerances turned down, or raise Unit Character for more variation. Use Aging to explore the filter drift and noise of a synth further from its last service.</p></li>
-          <li><h3>Choose the playing response</h3><p>Direct timing starts with six voices and can expand to sixteen, with adjustable velocity, unison and portamento. Select Original in the TIMING menu to explore six-voice firmware allocation and serial timing. Direct remains the default; changing modes clears held notes and tails.</p></li>
+          <li><h3>Find your instrument’s character</h3><p>Start with nominal original-module tuning, or raise Unit Character for more variation. Use Aging to explore the filter drift and noise of a synth further from its last service.</p></li>
+          <li><h3>Choose the playing response</h3><p>New instances use Original timing for six-voice firmware allocation and serial timing. Select Direct in the TIMING menu for up to sixteen voices, adjustable velocity, unison and portamento. Saved Direct sessions keep their setting; changing modes clears held notes and tails.</p></li>
           <li><h3>Chorus to suit the patch</h3><p>Choose Chorus I or II for stereo movement, or explore YouKnow’s additional I+II mode for a narrower, coloured sound. A separate Chorus Noise control lets you set how much hiss accompanies the effect.</p></li>
           <li><h3>A place for your own sounds</h3><p>Import and export hardware-format SysEx tone data. Save a host preset or DAW project to keep the complete YouKnow setup, including its additional performance controls.</p></li>
           <li><h3>A panel you can settle into</h3><p>Scale the interface to your screen and hover a control or reach it with Tab for contextual help. Oscillators, filter, envelope and chorus stay together, with a voice monitor and session menus for output connections and timing below the keyboard.</p></li>
@@ -215,7 +215,7 @@
           <span class="tag">Reason Rack Extension</span>
           <h2 class="title">YouKnow, in the rack.</h2>
           <p class="lede">A dedicated edition for the Reason rack, with up to sixteen voices, eight CV inputs and 42 automatable controls. Sync LFO makes the LFO rate and delayed onset follow song-tempo note lengths. Explore a separate bank of 99 original Protocodus sounds plus Init.</p>
-          <p class="lede">The Rack Extension has its own layout and release cycle. The current 1.2.0f1 candidate requires Reason 14 or later and is in development.</p>
+          <p class="lede">The Rack Extension has its own layout and release cycle. Its latest source now uses the same current circuit model as the plug-in. The retained 1.2.0f1 candidate requires Reason 14 or later; the new DSP has not yet been packaged or validated in Reason. <a href="/product/releases/#rack" class="text-link">Read the development notes</a>.</p>
           <a class="text-link resource-link" href="YouKnow_User_Manual.pdf?v=20261004">Read the Rack Extension guide (PDF) <span aria-hidden="true">↗</span></a>
         </div>
         <figure class="shot">
@@ -242,7 +242,8 @@
           <dl class="platforms">
             <div><dt>macOS 11+</dt><dd>Apple silicon &amp; Intel<br>VST3, Audio Unit, CLAP, standalone</dd></div>
             <div><dt>Windows x64</dt><dd>VST3, CLAP, standalone</dd></div>
-            <div><dt>Linux x64</dt><dd>VST3, standalone</dd></div>
+            <div><dt>Linux x64</dt><dd>VST3, CLAP, standalone</dd></div>
+            <div><dt>Latest build</dt><dd>1.2.0 · Linux development build, 6 October 2026<br><a href="/product/releases/#youknow" class="text-link">Version &amp; release notes</a></dd></div>
           </dl>
         </aside>
       </div>
