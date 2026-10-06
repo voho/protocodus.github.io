@@ -22,25 +22,12 @@
 @media(max-width:950px){
  .tool-card{min-height:73px;padding:8px}
 }
-@media(max-width:700px){
- .build-tabs{gap:0}
- .tool-card{padding:8px 8px;min-height:68px}
- .tool-card svg{width:18px;height:18px;margin-bottom:8px}
- .tool-card .tool-title{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
 .building-card{position:relative;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);text-align:left;padding:0 8px 12px;transition:background .15s,border .15s;min-height:133px;overflow:hidden}
 .building-card:hover{background:var(--well);border-color:var(--ink)}
 .building-card.active{background:var(--well);border-color:var(--ink);box-shadow:none;outline:1px solid var(--ink);outline-offset:0}
 .building-card canvas{width:100%;height:82px;object-fit:contain;display:block;image-rendering:pixelated}
 .building-card .building-tier{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0;color:var(--ink-2);margin:0 0 4px}
 .building-card strong{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;display:block;min-height:25px}
-@media(max-width:700px){
- .building-card{padding:0 8px 8px;min-height:125px}
- .building-card canvas{height:73px}
- .building-card strong{font-size:var(--fs-small);line-height:var(--lh-small)}
- .building-card .building-tier{font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0}
-}
 .build-tabs{gap:0;justify-content:space-between;margin-bottom:16px}
 .tool-grid{gap:8px}
 .tool-card{min-height:92px;padding:12px}
@@ -69,14 +56,6 @@
 .building-price{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin-top:8px}
 @media(min-width:1650px){
  .tool-card{min-height:96px}
-}
-@media(max-width:700px){
- .build-tabs button{font-size:var(--fs-small);line-height:var(--lh-small)}
- .tool-card{min-height:89px;padding:12px}
- .tool-card svg{width:24px;height:24px;margin-bottom:8px}
- .tool-card .tool-title{font-size:var(--fs-small);line-height:var(--lh-small)}
- .building-card{padding:0 8px 12px;min-height:146px}
- .building-card canvas{height:77px}
 }
 #active-tool-bar{position:absolute;left:20px;top:78px;z-index:var(--z-toolbar);display:flex;align-items:center;gap:12px;width:max-content;max-width:calc(100% - 40px);padding:8px 8px 8px 12px;border:1px solid var(--rule);border-radius:var(--r-4);background:var(--paper);box-shadow:var(--e1);backdrop-filter:blur(9px);color:var(--ink)}
 #active-tool-icon{display:grid;place-items:center;flex:0 0 28px;color:var(--ink)}
@@ -114,28 +93,10 @@
 @media(max-width:950px){
  #active-tool-bar{left:14px;top:72px;max-width:calc(100% - 28px)}
 }
-@media(max-width:700px){
- #active-tool-bar{left:12px;top:70px;max-width:calc(100% - 24px);gap:8px;padding:8px 8px 8px 12px}
- #active-tool-icon{flex-basis:24px}
- #active-tool-icon svg{width:24px;height:24px}
- .active-tool-copy{max-width:calc(100vw - 162px)}
- #active-tool-name{font-size:var(--fs-body);line-height:var(--lh-body)}
- #active-tool-hint{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- #cancel-tool-button{min-width:58px;padding:12px 12px;margin-left:2px}
- .tool-grid .tool-card{min-height:92px;padding:12px}
- .tool-grid .tool-card .tool-title{font-size:var(--fs-body);line-height:var(--lh-body)}
-}
 .tool-card .tool-art{display:block;width:60px;height:38px;margin:0 0 4px;object-fit:contain}
 .building-card canvas,.industry-art{image-rendering:auto;object-fit:contain}
-/* A touch aim holds the quote above its tile with a Place button; the rest of the tip lets taps through to the map. */
-.placement-tip.aim{box-shadow:var(--e2)}
-.placement-tip.aim:has(.tip-place){display:flex;align-items:center;gap:12px;padding:8px 8px 8px 12px;border-radius:var(--r-3)}
-.tip-place{flex:0 0 auto;min-width:64px;min-height:44px;padding:12px 16px;border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;pointer-events:auto}
-.tip-place:hover{background:var(--ink-2)}
-.tip-place:disabled{background:var(--well);color:var(--ink-3);cursor:default}
-.compact-play:not(.page-zoomed) .tip-place{touch-action:none}
-/* The drawer repeats the goal only where the map cannot show it: on phones, or with the Next goal layer off. */
-@media(min-width:701px){#app:not(.goal-layer-off) .project-card{display:none}}
+/* The drawer repeats the goal when the Next goal layer is off. */
+#app:not(.goal-layer-off) .project-card{display:none}
 .project-card{margin:16px 0 4px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .project-card summary{cursor:pointer;min-height:24px;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500}
 .project-card p{line-height:1.6;margin:12px 0;color:var(--ink-2)}
@@ -153,54 +114,11 @@
 .compact-play #active-tool-hint{font-size:var(--fs-caption);line-height:var(--lh-caption);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
 .compact-play #active-tool-icon,.compact-play #active-tool-icon svg{width:22px;flex-basis:22px}
 .compact-play #cancel-tool-button{min-height:36px;min-width:52px;padding:8px 12px;font-size:var(--fs-small);line-height:var(--lh-small)}
-@media(max-width:700px){
- .compact-play #active-tool-bar{left:10px;top:10px;max-width:calc(100% - 20px)}
- .compact-play #active-tool-bar{width:calc(100% - 20px)}
- .compact-play .active-tool-copy{flex:1;max-width:none}
- .compact-play #active-tool-hint{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
-/* The tool hint keeps its rule to two lines; on phones recent tools sit beside Done as 44 px glyph buttons. */
-#active-tool-dock{display:flex;flex:0 0 auto;gap:8px}
-#active-tool-dock button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);color:var(--ink-2)}
-#active-tool-dock button:hover{background:var(--well);border-color:var(--rule)}
-#active-tool-dock button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
-#active-tool-dock svg{width:22px;height:22px}
-@media(max-width:700px){
- .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])){gap:8px}
- .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-icon{display:none}
- .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) .active-tool-copy{gap:1px}
- .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- .compact-play #active-tool-bar:has(#active-tool-dock:not([hidden])) #active-tool-hint{line-height:1.3}
-}
-.compact-play #active-tool-bar{margin-left:var(--safe-l);max-width:calc(100% - 24px - var(--safe-l) - var(--safe-r))}
-@media(max-width:700px){
- .compact-play #active-tool-bar{max-width:calc(100% - 20px - var(--safe-l) - var(--safe-r))}
-}
-@media(max-height:500px) and (orientation:landscape){
- .compact-play .build-tabs{margin-bottom:12px}
- .compact-play .tool-grid{grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
- .compact-play .tool-grid .tool-card{min-height:0;padding:8px 8px 8px}
- .compact-play .tool-grid .tool-card .tool-art{width:40px;height:31px;margin:0 0 4px}
- .compact-play .tool-grid .tool-card svg{width:20px;height:20px;margin-bottom:4px}
- .compact-play .tool-grid .tool-card .tool-title{font-size:var(--fs-small);line-height:var(--lh-small)}
- .compact-play .tool-grid .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption);margin-top:1px;white-space:nowrap}
-}
-@media(hover:none) and (pointer:coarse){
- .tool-card .shortcut,.compact-tool>span{display:none}
-}
 /* Build › Town: the Workshop's factory portrait pairs with Industrial, and Found a town takes the whole row, like Bulldoze in Network. */
 .tool-card[data-tool=workshop] .tool-art{width:48px;height:50px;margin:-8px 0 -2px -8px}
 .tool-grid .tool-card[data-tool=city]{grid-column:1/-1;display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:12px;min-height:60px}
 .tool-grid .tool-card[data-tool=city] svg,.tool-grid .tool-card[data-tool=city] .tool-cost{margin:0}
 .tool-grid .tool-card[data-tool=city] .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-@media(max-width:700px){
- .tool-grid .tool-card[data-tool=city]{padding:12px 12px;gap:8px}
-}
-@media(max-height:500px) and (orientation:landscape){
- .compact-play .tool-grid .tool-card[data-tool=workshop] .tool-art{width:36px;height:38px;margin:-6px 0 0 -6px}
- .compact-play .tool-grid .tool-card[data-tool=city]{min-height:44px;padding:8px 12px}
- .compact-play .tool-grid .tool-card[data-tool=city] svg{margin:0}
-}
 /* Build › Network: the Airport card waits on the well, with its year, until air travel arrives; Turn turns the runway. */
 .tool-grid .tool-card[aria-disabled="true"]{background:var(--well);cursor:default}
 .tool-grid .tool-card[aria-disabled="true"] .tool-art{opacity:.5}
@@ -211,10 +129,6 @@
 #active-tool-turn[hidden]{display:none}
 #active-tool-turn:not([hidden])+#cancel-tool-button{margin-left:0}
 /* The Airport card takes its own row between the places and Bulldozer: portrait, then name over price. */
-/* On a phone the Airport tool's Turn takes the recent-tools dock's place, so its hint keeps room. */
-.compact-play #active-tool-bar:has(#active-tool-turn:not([hidden])) #active-tool-dock{display:none}
 /* A placement's forecast (city-investment-feedback): what a zone stroke or a placed home, shop or workshop would bring, as the tip's second line. */
 .placement-tip .tip-forecast{display:block;margin-top:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
 .placement-tip.warning .tip-forecast{color:inherit}
-.placement-tip.aim:has(.tip-forecast){flex-wrap:wrap}
-.placement-tip.aim .tip-forecast{order:1;flex-basis:100%;margin-top:0}

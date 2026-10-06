@@ -14,7 +14,7 @@ try {
  await page.goto(url);await createWorldFromMenu(page);
  assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[512,512,48]);
  await page.locator('.main-nav [data-view="build"]').click();
- // Wide screens leave the goal to its map card; the drawer copy stays for phones and a hidden goal layer.
+ // Wide screens leave the goal to its map card; the drawer copy stays for a hidden goal layer.
  assert.equal(await page.locator('.project-card').isVisible(),false);
  assert.match(await page.locator('#objective-title').textContent(),/first cargo route/);
  await page.locator('#close-management').click();

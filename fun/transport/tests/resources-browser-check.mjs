@@ -12,7 +12,6 @@ const watch = page => {
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
-const fits = async (page, selector) => page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1);
 try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(page);
@@ -191,7 +190,7 @@ try {
 
   // Inspectors link places to their services: a quarry plans its stone route, then the stop, the road and the bulldozer name it.
   // The open drawer covers the inspector, so each inspection closes it first.
-  const closeDrawer = async () => { if (await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open'))) await page.locator('#close-management').click(); };
+  const closeDrawer = async () => { if (await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) await page.locator('#close-management').click(); };
   const inspectAt = async (point, kind = '') => { await closeDrawer(); await page.evaluate(({ point, kind }) => transport.inspect(point.x, point.y, kind), { point, kind }); };
   await closeDrawer();
   const quarry = await page.evaluate(async () => {
@@ -278,41 +277,6 @@ try {
   assert.equal(await page.locator('.tool-card[data-tool="stop"]').getAttribute('aria-pressed'), 'true', 'Place a stop nearby picks the Stop tool');
   await page.keyboard.press('Escape');
 
-  for (const width of [390, 320]) {
-    await page.setViewportSize({ width, height: 844 });
-    await page.waitForTimeout(250);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px page has no horizontal overflow`);
-    if (!(await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
-    await page.waitForTimeout(300);
-    await page.locator('[data-mobile-view="routes"]').click();
-    await page.locator('#new-route-button').click();
-    assert.equal(await fits(page, '#panel-content'), true, `${width}px route panel fits`);
-    assert.equal(await page.locator('.cargo-choice').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1)), true, `${width}px cargo names fit their buttons`);
-    await page.locator('.cargo-field').evaluate(el => el.scrollIntoView({ block: 'start' }));
-    await page.screenshot({ path: `${output}/mobile-${width}-cargo.png` });
-    await page.locator('[data-mobile-view="industry"]').click();
-    assert.equal(await fits(page, '#panel-content'), true, `${width}px industry panel fits`);
-    const typeSize = await page.locator('.entity-card h3').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
-    assert.ok(typeSize >= 13, `${width}px industry names remain large enough to read (${typeSize}px)`);
-    await page.screenshot({ path: `${output}/mobile-${width}-industry.png` });
-    await openGameAction(page, 'help-button');
-    await page.locator('[data-help-tab="chains"]').click();
-    assert.equal(await fits(page, '#modal'), true, `${width}px production guide fits`);
-    await page.screenshot({ path: `${output}/mobile-${width}-guide.png` });
-    await page.keyboard.press('Escape');
-    await openGameAction(page, 'help-button');
-    await page.locator('[data-help-tab="resources"]').click();
-    assert.equal(await fits(page, '#modal'), true, `${width}px resource key fits`);
-    assert.equal(await page.locator('.resource-entry').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1)), true, `${width}px resource names fit their cards`);
-    await page.screenshot({ path: `${output}/mobile-${width}-resource-key.png` });
-    await page.locator('.payment-rates').scrollIntoViewIfNeeded();
-    await page.waitForTimeout(100);
-    assert.equal(await page.locator('.modal-inner').evaluate(el => el.scrollWidth - el.clientWidth), 0, `${width}px payment rates fit the Guide`);
-    assert.equal(await page.locator('.payment-grid text').first().evaluate(el => getComputedStyle(el).fontSize), '12px', `${width}px axis text stays at the 12 px floor`);
-    await page.screenshot({ path: `${output}/mobile-${width}-payment-rates.png` });
-    await page.keyboard.press('Escape');
-    await page.locator('.mobile-panel-toggle').click();
-  }
   assert.equal(Object.keys(cargo).length, 21);
   assert.deepEqual(errors, [], 'no browser console or runtime errors');
   console.log(`Transport resource UI checks passed. Screenshots: ${output}`);

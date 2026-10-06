@@ -2,7 +2,7 @@
 // and tools/ui-specimen.html. Both functions are self-contained, so page.evaluate can send them to the page as they are.
 
 // Runs in the page: every violation of the static rules, as [rule, selector, detail].
-export function audit(phone) {
+export function audit() {
   const found = [], seen = new Set();
   const name = el => {
     const own = el.id ? `${el.localName}#${el.id}` : el.localName + [...el.classList].slice(0, 3).map(c => '.' + c).join('');
@@ -52,11 +52,6 @@ export function audit(phone) {
     const fg = color.a < 1 ? over(color, base) : color, hi = Math.max(lum(fg), lum(base)), lo = Math.min(lum(fg), lum(base)), ratio = (hi + .05) / (lo + .05);
     const large = size >= 24 || (size >= 18.66 && parseInt(s.fontWeight) >= 700);
     if (ratio < (large ? 3 : 4.5)) add('contrast', el, ratio.toFixed(2));
-  }
-  if (phone) for (const el of document.querySelectorAll('button, [role="button"]')) {
-    if (!live(el) || !shown(el) || el.closest('.ref--prose')) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width < 44 || r.height < 44) add('target', el, `${Math.round(r.width)}x${Math.round(r.height)}`);
   }
   return { found, overflow: document.documentElement.scrollWidth > innerWidth ? document.documentElement.scrollWidth : 0 };
 }

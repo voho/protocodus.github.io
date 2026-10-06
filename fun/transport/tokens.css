@@ -16,25 +16,16 @@
 /* Type (4.5): Inter for every word and figure, Space Grotesk for the brand; seven sizes with their line heights, three weights (700 for numerals and the wordmark), two trackings. */
 :root{--font:Inter,system-ui,sans-serif;--font-brand:Space,system-ui,sans-serif;--fs-caption:12px;--lh-caption:16px;--fs-small:13px;--lh-small:18px;--fs-body:14px;--lh-body:20px;--fs-lead:16px;--lh-lead:22px;--fs-title:18px;--lh-title:24px;--fs-display:22px;--lh-display:28px;--fs-hero:32px;--lh-hero:36px;--fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--tr-tight:-0.01em;--tr-hero:-0.02em}
 /* Space and size (4.6). */
-:root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:32px;--control-dense:28px;--control-touch:44px;--rail-h:48px;--goal-h:40px;--tabbar-h:56px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px;--row-touch:48px}
+:root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:32px;--control-dense:28px;--rail-h:48px;--goal-h:40px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px}
 /* Radii (4.7), elevation and stacking (4.8), focus (4.9), motion (4.10). */
 :root{--r-1:4px;--r-2:6px;--r-3:8px;--r-4:12px;--r-5:14px;--r-round:999px}
 :root{--e1:0 1px 2px rgb(20 35 25 / .18),0 0 0 1px rgb(20 35 25 / .08);--e2:0 14px 34px -10px rgb(20 35 25 / .34),0 0 0 1px rgb(20 35 25 / .08);--e3:0 14px 30px -10px rgb(6 16 10 / .55);--e4:0 28px 70px -12px rgb(15 27 21 / .40)}
 :root{--z-map:0;--z-map-overlay:10;--z-rail:20;--z-goal:22;--z-sheet:30;--z-toolbar:34;--z-toast:40;--z-headline:42;--z-popover:50;--z-tooltip:55;--z-dialog:60;--z-loading:70}
 :root{--focus-width:2px;--focus-offset:2px;--t-quick:120ms;--t-toast:160ms;--t-panel:180ms;--t-row:160ms;--t-meter:300ms;--t-tint:600ms;--t-camera-min:280ms;--t-camera-max:480ms;--ease:cubic-bezier(.2,.7,.2,1)}
-@media(max-width:700px){
- :root{--gutter:8px;--panel-pad:14px}
-}
-@media(max-width:360px){
- :root{--gutter:6px}
-}
 /* Layout values the surfaces share. */
-:root{--sidebar-width:300px;--safe-t:env(safe-area-inset-top,0px);--safe-l:env(safe-area-inset-left,0px);--safe-r:env(safe-area-inset-right,0px);--safe-b:env(safe-area-inset-bottom,0px)}
+:root{--sidebar-width:300px}
 @media(max-width:950px){
  :root{--sidebar-width:280px}
-}
-@media(max-width:700px){
- :root{--sidebar-width:min(270px,calc(100vw - 48px))}
 }
 :root{color-scheme:light;font-family:var(--font);color:var(--ink);font-synthesis:none;font-optical-sizing:auto;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 /* The brand keeps Space Grotesk: the wordmark and the hero titles of the start menu and loading screen. */
@@ -46,7 +37,6 @@ html,body{width:100%;height:100%;overflow:clip;overscroll-behavior:none}
 #app,dialog,#start-menu{font-variant-numeric:tabular-nums}
 .prose{font-variant-numeric:proportional-nums}
 button,input,select{font:inherit}
-button,a,input,select{-webkit-tap-highlight-color:transparent}
 button{cursor:pointer;color:inherit;border:0;background:none}
 /* Focus is restyled, never removed: an orange ring on paper and well, signal orange on ink, inset on the map. */
 :focus-visible,button:focus-visible,a:focus-visible,canvas:focus-visible,input:focus-visible,select:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset)}

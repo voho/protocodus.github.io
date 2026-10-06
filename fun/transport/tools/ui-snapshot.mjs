@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Screenshots and computed styles of every UI harness state (tests/ui-states) at four viewports.
-//   node fun/transport/tools/ui-snapshot.mjs --out DIR [--viewports desk,compact,phone,narrow,landscape] [--only REGEX] [--jobs 3] [--no-png]
+// Screenshots and computed styles of every UI harness state (tests/ui-states) at desktop and laptop viewports.
+//   node fun/transport/tools/ui-snapshot.mjs --out DIR [--viewports desk,compact] [--only REGEX] [--jobs 3] [--no-png]
 //   node fun/transport/tools/ui-snapshot.mjs --diff A B
 // Capturing needs the game served (TRANSPORT_URL) and Playwright (TRANSPORT_PLAYWRIGHT). Every capture runs with
 // reduced motion, after fonts have loaded, on a fresh page. --diff exits non-zero when any element or property differs.
@@ -11,11 +11,8 @@ import { join } from 'node:path';
 export const VIEWPORTS = {
   desk: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
   compact: { viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1 },
-  phone: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-  narrow: { viewport: { width: 320, height: 640 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true },
-  landscape: { viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
 };
-export const DEFAULT_VIEWPORTS = ['desk', 'compact', 'phone', 'narrow'];
+export const DEFAULT_VIEWPORTS = ['desk', 'compact'];
 export const LAUNCH = { channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] };
 
 const args = process.argv.slice(2), option = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : fallback; };

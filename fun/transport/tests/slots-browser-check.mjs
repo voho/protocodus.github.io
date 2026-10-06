@@ -13,7 +13,6 @@ const card = (page, id) => page.locator(`[data-save-slot="${id}"]`);
 const action = (page, id, name) => card(page, id).locator(`[data-save-action="${name}"]`);
 const confirm = (page, id, name) => card(page, id).locator(`[data-save-confirm="${name}"]`);
 const slotRaw = (page, id) => page.evaluate(id => localStorage.getItem(`transport-slot-v1:${id}`), id);
-const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
 async function openSaves(page) {
   await openGameAction(page, 'save-button');
   await page.locator('.saves-explorer').waitFor({ state: 'visible' });
@@ -232,7 +231,7 @@ try {
   assert.equal(await slotRaw(page, betaId), updatedBetaRaw, 'deleting one slot leaves another intact');
   await closeSaves(page);
 
-  // Extra independent slots make mobile scrolling and the sticky close control meaningful.
+  // Extra independent slots verify that multiple named companies survive a reload.
   const extraIds = await page.evaluate(async () => {
     const { writeSaveSlot } = await import('./save-slots.js'), ids = [];
     for (let index = 1; index <= 4; index++) {
@@ -255,19 +254,6 @@ try {
   for (const id of [betaId, ...extraIds]) assert.equal(await card(page, id).count(), 1, 'named slots survive a page reload');
   await closeSaves(page);
 
-  for (const width of [390, 320]) {
-    await page.setViewportSize({ width, height: 844 });
-    await openSaves(page);
-    assert.equal(await fits(page, '#modal'), true, `${width}px save dialog fits`);
-    assert.equal(await fits(page, '.saves-explorer'), true, `${width}px save content fits`);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await card(page, betaId).scrollIntoViewIfNeeded();
-    const close = await page.locator('.saves-explorer .close-modal').boundingBox();
-    assert.ok(close && close.y >= 0 && close.y + close.height <= 844 && close.x >= 0 && close.x + close.width <= width, `${width}px Close remains on screen after scrolling`);
-    assert.equal(await page.evaluate(() => scrollY), 0, 'dialog scrolling leaves the game header fixed');
-    await page.screenshot({ path: `${output}/mobile-${width}-slots.png` });
-    await closeSaves(page);
-  }
   assert.deepEqual(errors, [], 'no uncaught browser errors');
   console.log(`Transport save-slot browser checks passed. Screenshots: ${output}`);
 } finally {

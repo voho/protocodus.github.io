@@ -1,7 +1,7 @@
 // Company property in a real browser: a cottage placed near Alderbrook with the Build tool earns rent as the month closes at
 // 8×, which floats up above the town's name as one pill with the Rent pictogram and no chime, and hides with Income off. The
 // first rent arrives once as a toast, never again after a reload. The inspector shows Rent, Occupancy, Worth and Sell, confirmed
-// in place; Ctrl+Z then refuses. The Company report's Property section fits at 1440 and 390, and a fresh world shows none of it.
+// in place; Ctrl+Z then refuses. The Company report's Property section fits on desktop, and a fresh world shows none of it.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -30,7 +30,6 @@ async function open(context, viewport = { width: 1440, height: 900 }) {
 }
 const firstRent = page => page.evaluate(() => window.__toasts.filter(text => /^First rent from your property/.test(text)).length);
 const overflow = page => page.evaluate(() => { const modal = document.querySelector('#modal'); return { page: document.documentElement.scrollWidth - innerWidth, modal: modal.open ? modal.scrollWidth - modal.clientWidth : 0 }; });
-const closeDialog = async page => { await page.locator('#modal .close-modal').click(); await page.waitForFunction(() => !document.querySelector('#modal').open); };
 const screen = (page, point) => page.evaluate(point => { const p = transport.renderer.worldToScreen(point.x, point.y), rect = document.querySelector('#world').getBoundingClientRect(); return { x: p.x + rect.left, y: p.y + rect.top }; }, point);
 
 try {
@@ -138,7 +137,7 @@ try {
   await sell.waitFor();
   assert.deepEqual(await page.evaluate(site => ({ money: transport.game.money, owner: transport.game.tiles[site.y * transport.game.width + site.x].building.owner }), site), before, 'Keep it changes nothing');
 
-  // The Company report's Property section at 1440 and 390.
+  // The Company report's Property section on desktop.
   await openGameAction(page, 'company-button');
   const section = page.locator('#modal .company-property');
   await section.waitFor();
@@ -150,21 +149,9 @@ try {
   assert.deepEqual(await overflow(page), { page: 0, modal: 0 });
   await section.scrollIntoViewIfNeeded(); await page.waitForTimeout(150);
   await page.screenshot({ path: `${output}/company-property-1440.png` });
-  await closeDialog(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(300);
-  await openGameAction(page, 'company-button');
-  await section.waitFor();
-  assert.deepEqual(await overflow(page), { page: 0, modal: 0 }, 'the section stacks at 390 px');
-  assert.equal(await section.locator('thead th:nth-child(2)').isVisible(), false, 'plots and buildings give way on a phone');
-  await section.scrollIntoViewIfNeeded(); await page.waitForTimeout(150);
-  await page.screenshot({ path: `${output}/company-property-390.png` });
   await section.locator('[data-property-show]').click();
   await page.waitForFunction(() => !document.querySelector('#modal').open && document.querySelector('#inspector-title')?.textContent === 'Alderbrook');
-  await page.screenshot({ path: `${output}/show-town-390.png` });
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.waitForTimeout(300);
-
+  await page.screenshot({ path: `${output}/show-town-1440.png` });
   // The town's economy names the rent; selling hands the cottage over for 60% of its value and Ctrl+Z then refuses.
   await page.evaluate(town => transport.inspect(town.x, town.y, 'city'), town);
   assert.equal(await page.locator('.town-economy .economy-lead').innerText(), `$${rent.history.toLocaleString('en-US')} a month`);

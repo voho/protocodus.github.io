@@ -1,4 +1,4 @@
-// Real pointer, keyboard and touch input in isolated browser contexts.
+// Real pointer and keyboard input in isolated browser contexts.
 // Serve the repository root before running; the player's browser saves are untouched.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -10,8 +10,8 @@ const output = process.env.TRANSPORT_SCREENSHOTS || '/tmp/transport-controls-qa'
 await mkdir(output, { recursive: true });
 const errors = [];
 
-async function start(viewport, touch = false) {
-  const page = await browser.newPage({ viewport, hasTouch: touch, isMobile: touch });
+async function start(viewport) {
+  const page = await browser.newPage({ viewport });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
   await createWorldFromMenu(page);
@@ -411,17 +411,6 @@ async function constructionUndo() {
   await page.locator('#world').focus(); await page.keyboard.press('Control+z');
   assert.equal(await placed(), false, 'a single stop undoes');
   await page.close();
-
-  const mobile = await start({ width: 390, height: 844 }, true), phone = await fixture(mobile);
-  await keyTool(mobile, 's', /Stop/);
-  const [tap] = await points(mobile, [phone.stop]);
-  await mobile.touchscreen.tap(tap.x, tap.y);
-  const action = mobile.locator('#toast-region .toast-action', { hasText: 'Undo' });
-  await action.waitFor(); await action.evaluate(el => Promise.all(el.closest('.toast').getAnimations().map(animation => animation.finished)));
-  await mobile.screenshot({ path: `${output}/mobile-undo-toast.png` });
-  await action.tap();
-  assert.equal(await mobile.evaluate(p => transport.game.stations.some(stop => stop.x === p.x && stop.y === p.y), phone.stop), false, 'a tap on Undo removes the new stop');
-  await mobile.close();
 }
 
 // Keyboard play: Enter shows a tile cursor in the middle of the view, arrows step it along the grid,
@@ -513,9 +502,8 @@ async function keyboardCursor() {
   await page.close();
 }
 
-// Long strokes scroll the map at its edge and follow keyboard pans; touch shows the tip above the finger,
-// builds a stop on the first tap and flashes its reach, and aims a costly site until Place or a second tap.
-async function longStrokesAndTouch() {
+// Long strokes scroll the map at its edge and follow keyboard pans.
+async function longStrokes() {
   const watch = async page => {
     await page.evaluate(() => { const r = transport.renderer, render = r.render; r.render = (now, state) => { const end = state.preview.at(-1); window.stroke = { hover: state.hover && { x: state.hover.x, y: state.hover.y }, selected: state.selected && { x: state.selected.x, y: state.selected.y }, preview: state.preview.length, end: end && `${end.x},${end.y}`, tip: document.querySelector('#placement-tip').textContent }; return render(now, state); }; });
     return () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(window.stroke)))));
@@ -542,80 +530,6 @@ async function longStrokesAndTouch() {
   await page.keyboard.press('Escape'); await page.mouse.up();
   await page.close();
 
-  const mobile = await start({ width: 390, height: 844 }, true), phone = await fixture(mobile), seen = await watch(mobile);
-  const cdp = await mobile.context().newCDPSession(mobile);
-  const touch = (id, x, y) => ({ id, x, y, radiusX: 6, radiusY: 6, force: 1 });
-  const send = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
-  const tip = () => mobile.evaluate(() => { const t = document.querySelector('#placement-tip'), r = t.getBoundingClientRect(); return { visible: !t.hidden, text: t.textContent, invalid: t.classList.contains('invalid'), place: t.querySelector('.tip-place') ? !t.querySelector('.tip-place').disabled : null, x: r.x, y: r.y, bottom: r.bottom }; });
-  const money = () => mobile.evaluate(() => transport.game.money);
-  await keyTool(mobile, 'r', /Road/);
-  const [f0, f1] = await points(mobile, [phone.open, { x: phone.open.x + 3, y: phone.open.y }]), untouched = await snapshot(mobile, phone);
-  await send('touchStart', [touch(1, f0.x, f0.y)]);
-  for (let i = 1; i <= 6; i++) await send('touchMove', [touch(1, f0.x + (f1.x - f0.x) * i / 6, f0.y + (f1.y - f0.y) * i / 6)]);
-  await seen();
-  const dragged = await tip();
-  assert.equal(dragged.visible, true);
-  assert.ok(dragged.bottom <= f1.y - 40, `the tip clears the finger: bottom ${dragged.bottom}, finger ${f1.y}`);
-  await mobile.screenshot({ path: `${output}/mobile-tip-above-finger.png` });
-  const reach = (await seen()).preview, before = await camera(mobile);
-  await send('touchMove', [touch(1, 390 - 14, f1.y)]);
-  await mobile.waitForTimeout(600);
-  assert.notEqual((await camera(mobile)).x, before.x, 'a finger held at the edge scrolls the map');
-  assert.ok((await seen()).preview > reach, 'and the stroke grows with it');
-  await send('touchCancel', []);
-  assert.equal(await snapshot(mobile, phone), untouched, 'a cancelled touch stroke builds nothing');
-
-  await keyTool(mobile, 's', /Stop/);
-  let spent = await money();
-  const [grass] = await points(mobile, [{ x: phone.stop.x, y: phone.stop.y + 2 }]);
-  await mobile.touchscreen.tap(grass.x, grass.y);
-  assert.deepEqual(await tip().then(t => [t.visible, t.invalid, t.text, t.place]), [true, true, 'Build a road here first.', null], 'a refused tap names its reason in the tip');
-  assert.equal(await money(), spent, 'and spends nothing');
-  const [stop] = await points(mobile, [phone.stop]);
-  await mobile.touchscreen.tap(stop.x, stop.y);
-  assert.equal(await mobile.evaluate(p => transport.game.stations.find(s => s.x === p.x && s.y === p.y)?.mode, phone.stop), 'road', 'a stop builds on the first tap');
-  assert.ok(await money() < spent, 'and is paid for');
-  assert.deepEqual(await seen().then(s => [s.hover, s.selected]), [null, { x: phone.stop.x, y: phone.stop.y }], 'its reach ring stays up after the finger lifts');
-  await mobile.screenshot({ path: `${output}/mobile-stop-reach.png` });
-  await mobile.waitForTimeout(1700);
-  assert.equal((await seen()).selected, null, 'and fades after a moment and a half');
-
-  await mobile.evaluate(() => transport.setTool('city'));
-  assert.equal(await mobile.locator('#active-tool-hint').innerText(), 'Tap to preview · Tap again to place');
-  const towns = () => mobile.evaluate(() => transport.game.cities.length), count = await towns();
-  spent = await money();
-  const [site1] = await points(mobile, [phone.open]);
-  await mobile.touchscreen.tap(site1.x, site1.y);
-  const aimed = await tip();
-  assert.equal(await money(), spent, 'the first tap on a costly site spends nothing');
-  assert.equal(await towns(), count);
-  assert.match(aimed.text, /^Found a town · \$[\d,]+Place$/, 'the tip quotes the town');
-  assert.equal(aimed.place, true, 'and offers Place');
-  assert.ok(aimed.bottom <= site1.y - 40, 'above the aimed tile');
-  await mobile.screenshot({ path: `${output}/mobile-aim-town.png` });
-  const view = await camera(mobile);
-  await send('touchStart', [touch(1, 200, 700)]);
-  for (let i = 1; i <= 8; i++) await send('touchMove', [touch(1, 200 + i * 8, 700 - i * 5)]);
-  await send('touchEnd', []);
-  await seen();
-  const followed = await tip();
-  assert.notEqual((await camera(mobile)).x, view.x, 'a swipe after aiming pans the map');
-  assert.equal(await towns(), count, 'without building');
-  assert.equal(followed.visible, true);
-  assert.ok(Math.abs(followed.x - aimed.x - 64) <= 2 && Math.abs(followed.y - aimed.y + 40) <= 2, `the tip follows its tile: ${aimed.x},${aimed.y} → ${followed.x},${followed.y}`);
-  const [site2] = await points(mobile, [phone.open]);
-  await mobile.touchscreen.tap(site2.x, site2.y);
-  assert.equal(await towns(), count + 1, 'a second tap on the aimed tile founds the town');
-  assert.equal(spent - await money(), Number(aimed.text.match(/\$([\d,]+)/)[1].replaceAll(',', '')), 'for exactly the quote');
-  assert.equal((await tip()).visible, false);
-  await mobile.evaluate(() => transport.setTool('hospital'));
-  const [site3] = await points(mobile, [{ x: phone.open.x - 4, y: phone.open.y - 6 }]);
-  await mobile.touchscreen.tap(site3.x, site3.y);
-  assert.equal((await tip()).place, true);
-  await mobile.locator('#cancel-tool-button').tap();
-  assert.equal((await tip()).visible, false, 'Done drops the aim');
-  assert.equal((await seen()).hover, null);
-  await mobile.close();
 }
 
 async function menus(page) {
@@ -664,7 +578,7 @@ async function menus(page) {
 async function layout(page, selectors) {
   const size = page.viewportSize();
   for (const selector of selectors) {
-    // Wait for the mobile sidebar's real slide-in transition before measuring.
+    // Wait for the drawer's slide-in transition before measuring.
     await page.waitForFunction(selector => {
       const box = document.querySelector(selector).getBoundingClientRect();
       return box.x >= -1 && box.y >= -1 && box.right <= innerWidth + 1 && box.bottom <= innerHeight + 1;
@@ -682,62 +596,6 @@ async function home(page) {
   await page.waitForFunction(() => !document.querySelector('#toast-region .toast'));
 }
 
-// Only dialogs pinch-zoom the page; the game chrome never does, and a zoomed page can always pinch back out.
-async function gestures(page, send, touch) {
-  const size = page.viewportSize(), middle = { x: size.width / 2, y: size.height / 2 }, scale = () => page.evaluate(() => visualViewport.scale);
-  const center = async selector => {
-    const box = await page.locator(selector).boundingBox(), p = { x: box.x + box.width / 2, y: box.y + Math.min(box.height / 2, 80) };
-    assert.ok(await page.evaluate(({ p, selector }) => [p.x - 12, p.x + 12].every(x => document.elementFromPoint(x, p.y)?.closest(selector)), { p, selector }), `both fingers start on ${selector}`);
-    return p;
-  };
-  const pinch = async ({ x, y }, from, to) => {
-    const at = (id, dx) => touch(id, Math.max(4, Math.min(size.width - 4, x + dx)), y);
-    await send('touchStart', [at(1, -from), at(2, from)]);
-    for (let i = 1; i <= 8; i++) await send('touchMove', [at(1, -from - (to - from) * i / 8), at(2, from + (to - from) * i / 8)]);
-    await send('touchEnd', []); await page.waitForTimeout(250);
-  };
-  await page.keyboard.press('Escape');
-  for (const selector of ['.topbar', '.view-controls']) {
-    await pinch(await center(selector), 12, 140);
-    assert.equal(await scale(), 1, `a spread on ${selector} never zooms the page`);
-  }
-  await page.locator('.mobile-panel-toggle').click();
-  await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
-  await pinch(await center('.sidebar'), 12, 140);
-  assert.equal(await scale(), 1, 'a spread on the drawer never zooms the page');
-  // The Town category's building catalogue is taller than any phone, so the drawer has something to scroll.
-  await page.locator('#panel-content [data-category="towns"]').click();
-  const panel = await page.locator('#panel-content').boundingBox(), swipeX = panel.x + panel.width / 2, swipeY = panel.y + panel.height - 30;
-  await page.locator('#panel-content').evaluate(el => { el.scrollTop = 0; });
-  await send('touchStart', [touch(1, swipeX, swipeY)]);
-  for (let i = 1; i <= 8; i++) await send('touchMove', [touch(1, swipeX, swipeY - i * 30)]);
-  await send('touchEnd', []);
-  assert.ok(await page.locator('#panel-content').evaluate(el => el.scrollTop) > 0, 'one finger still scrolls the drawer');
-  await page.locator('#panel-content [data-category="network"]').click();
-  await page.locator('#panel-content [data-tool="road"]').click(); await page.locator('#active-tool-bar').waitFor();
-  await pinch(await center('#active-tool-bar'), 12, 140);
-  assert.equal(await scale(), 1, 'a spread on the active tool bar never zooms the page');
-  await page.locator('#cancel-tool-button').click();
-  await page.evaluate(() => { const city = transport.game.cities[0]; transport.inspect(city.x, city.y); });
-  await page.locator('#inspector').waitFor();
-  await pinch(await center('#inspector'), 12, 140);
-  assert.equal(await scale(), 1, 'a spread on the inspector never zooms the page');
-  await page.locator('#world').focus(); await page.keyboard.press('Escape'); await page.locator('#inspector').waitFor({ state: 'hidden' });
-  await openGameAction(page, 'help-button'); await page.locator('#modal').waitFor();
-  await pinch(middle, 12, 140);
-  assert.ok(await scale() > 1, 'the Field guide stays pinch-zoomable');
-  await page.waitForFunction(() => document.querySelector('#app').classList.contains('page-zoomed'));
-  await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
-  for (let i = 0; i < 3; i++) await pinch(middle, 90, 10);
-  assert.ok(await scale() <= 1.01, 'pinching in over the map undoes a page zoom');
-  await page.waitForFunction(() => !document.querySelector('#app').classList.contains('page-zoomed'), undefined, { timeout: 2000 }).catch(() => {});
-  assert.equal(await page.locator('#app').evaluate(el => el.classList.contains('page-zoomed')), false, 'the map takes pinches back once the page is at its normal size');
-  await page.evaluate(() => transport.renderer.setZoom(1));
-  assert.equal(await page.evaluate(p => document.elementFromPoint(p.x, p.y)?.id, middle), 'world');
-  await pinch(middle, 30, 90);
-  assert.equal(await page.evaluate(() => transport.renderer.getCamera().zoom), 2, 'after recovery a map pinch steps the map zoom again');
-  assert.equal(await scale(), 1);
-}
 
 try {
   await strokeInput();
@@ -745,7 +603,7 @@ try {
   await terrainRoutes();
   await constructionUndo();
   await keyboardCursor();
-  await longStrokesAndTouch();
+  await longStrokes();
   await areaZoning();
   const page = await start({ width: 1440, height: 1000 });
   await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
@@ -828,60 +686,6 @@ try {
   await page.screenshot({ path: `${output}/desktop-zoom-menu.png` });
   await page.close();
 
-  for (const width of [390, 320]) {
-    const mobile = await start({ width, height: 844 }, true);
-    await menus(mobile);
-    await mobile.locator('.mobile-panel-toggle').click();
-    assert.equal(await mobile.locator('#panel-content > .tool-grid [data-tool]').count(), 6);
-    await layout(mobile, ['.sidebar', '.mobile-panel-toggle']);
-    await mobile.screenshot({ path: `${output}/mobile-${width}-network.png` });
-    await mobile.locator('[data-tool="road"]').click();
-    assert.equal(await mobile.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')), false, 'choosing a mobile tool reveals the map');
-    await mobile.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().right <= 1);
-    await layout(mobile, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#game-menu-button']);
-    await mobile.screenshot({ path: `${output}/mobile-${width}-build.png` });
-    const mobileSite = await fixture(mobile);
-    const cdp = await mobile.context().newCDPSession(mobile);
-    const touch = (id, x, y) => ({ id, x, y, radiusX: 6, radiusY: 6, force: 1 });
-    const send = (type, touchPoints) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
-    const [p] = await points(mobile, [mobileSite.open]);
-    const untouched = await snapshot(mobile, mobileSite), cameraBefore = await mobile.evaluate(() => transport.renderer.getCamera());
-    await send('touchStart', [touch(1, p.x - 35, p.y)]);
-    await send('touchStart', [touch(1, p.x - 35, p.y), touch(2, p.x + 35, p.y)]);
-    await send('touchMove', [touch(1, p.x + 15, p.y + 35), touch(2, p.x + 85, p.y + 35)]);
-    await send('touchEnd', [touch(2, p.x + 85, p.y + 35)]);
-    await send('touchMove', [touch(2, p.x + 95, p.y + 45)]);
-    await send('touchEnd', []);
-    assert.notEqual(await mobile.evaluate(() => transport.renderer.getCamera().x), cameraBefore.x, 'two-finger touch pans the map');
-    assert.equal(await snapshot(mobile, mobileSite), untouched, 'lifting one then both fingers cannot commit a road');
-    const [pinch] = await points(mobile, [mobileSite.open]);
-    await send('touchStart', [touch(1, pinch.x - 30, pinch.y), touch(2, pinch.x + 30, pinch.y)]);
-    await send('touchMove', [touch(1, pinch.x - 90, pinch.y), touch(2, pinch.x + 90, pinch.y)]);
-    await send('touchEnd', []);
-    assert.equal(await mobile.evaluate(() => transport.renderer.getCamera().zoom), 2, 'pinch snaps to the next of three crisp zoom levels');
-    assert.equal(await snapshot(mobile, mobileSite), untouched, 'pinching cannot paint construction');
-    await mobile.evaluate(() => transport.renderer.setZoom(1));
-    await keyTool(mobile, 's', /Stop/);
-    const [stop] = await points(mobile, [mobileSite.stop]);
-    await send('touchStart', [touch(1, stop.x, stop.y)]);
-    await send('touchMove', [touch(1, stop.x + 75, stop.y + 15)]);
-    await send('touchEnd', []);
-    assert.equal(await snapshot(mobile, mobileSite), untouched, 'a finger swipe cannot accidentally place a stop');
-    const [tap] = await points(mobile, [mobileSite.stop]);
-    await mobile.touchscreen.tap(tap.x, tap.y);
-    assert.equal(await mobile.evaluate(p => transport.game.stations.find(s => s.x === p.x && s.y === p.y)?.mode, mobileSite.stop), 'road', 'a deliberate touch tap still places a contextual stop');
-    await home(mobile);
-    await mobile.locator('#zoom-level').click();
-    await layout(mobile, ['#zoom-menu', '.view-controls']);
-    await mobile.screenshot({ path: `${output}/mobile-${width}-zoom.png` });
-    await mobile.keyboard.press('Escape');
-    await openGameAction(mobile, 'map-options-button');
-    await layout(mobile, ['#map-options', '#game-menu-button']);
-    await mobile.screenshot({ path: `${output}/mobile-${width}-map-options.png` });
-    await gestures(mobile, send, touch);
-    await mobile.screenshot({ path: `${output}/mobile-${width}-after-pinches.png` });
-    await mobile.close();
-  }
   assert.deepEqual(errors, [], 'all controls run without uncaught browser errors');
   console.log(`Controls browser checks passed; screenshots: ${output}`);
 } finally {

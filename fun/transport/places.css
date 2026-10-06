@@ -5,10 +5,6 @@
 .inspector .button{margin-top:16px}
 .entity-card:hover{border-color:var(--ink)}
 .ledger{display:grid;gap:12px}
-@media(max-width:700px){
- .inspector{left:12px;bottom:108px;width:230px;padding:16px}
- .sidebar.mobile-open~.map-section .inspector{display:none}
-}
 .inspector-building{display:flex;align-items:center;gap:16px;background:var(--well);border-radius:var(--r-2);padding:4px 12px;margin-bottom:12px}
 .micro-note{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 /* A list row: the name and its figure, then where it is and one status line (DESIGN.md 12). */
@@ -46,10 +42,6 @@
 .condition-icon.condition-good{color:var(--ok)}
 .condition-icon.condition-concern{outline:1px solid var(--warn);outline-offset:-1px}
 .ledger-row .cargo-badge{border-color:transparent;background:none;padding-left:0}
-@media(max-width:700px){
- .inspector{left:12px;bottom:111px;width:300px;max-width:calc(100% - 24px);max-height:calc(100% - 175px);padding:16px}
- .inspector h3{font-size:var(--fs-display);line-height:var(--lh-display)}
-}
 .inspector .inspector-grid + .coverage-note{margin-top:12px}
 .inspector h3:has(+.rename-button){display:inline-block;max-width:calc(100% - 30px);vertical-align:middle}
 .inspector h3:has(>.rename-input){display:block;max-width:none}
@@ -114,10 +106,6 @@
 .inspector-industry-art .cargo-recipe{flex-wrap:wrap}
 .inspector-station-art{display:block;width:96px;height:75px;object-fit:contain;margin:0 auto 8px}
 #inspector{overscroll-behavior:contain}
-/* A phone card (a stop, site or vehicle) rises above the lens chip, so both stay readable and the chip's × stays in reach. */
-@media(max-width:700px){
- .compact-play .map-section:has(.cargo-lens-chip) .inspector{bottom:112px;max-height:calc(100% - 188px)}
-}
 .entity-search{display:block;margin:0 0 12px}
 .entity-search input,.entity-search select{width:100%;min-height:44px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);font:inherit;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .entity-card .site-status{margin:0;color:var(--ink-2)}
@@ -138,33 +126,7 @@
 .inspector .town-grow p{margin:4px 0 12px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .inspector .town-grow .town-room{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .entity-card .town-tag{padding:0 8px;border-radius:var(--r-4);background:var(--well);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;color:var(--ink-2)}
-.compact-play .inspector{left:12px;bottom:12px;max-height:calc(100% - 86px);margin-left:var(--safe-l);margin-bottom:var(--safe-b)}
-@media(max-width:700px){
- .compact-play .sidebar.mobile-open~.map-section .inspector{display:none}
-}
-/* Phones in portrait: the inspector is a bottom sheet over the map's lower half; its grabber raises it to the full map. Toasts move up while it or the drawer is open. */
-.sheet-grabber{display:none}
-@media(max-width:700px) and (min-height:501px){
- .compact-play #inspector{left:0;right:0;bottom:0;z-index:var(--z-sheet);width:auto;max-width:none;max-height:46%;margin:0;padding:24px 16px calc(16px + var(--safe-b));border-width:1px 0 0;border-radius:var(--r-5) var(--r-5) 0 0;box-shadow:var(--e2);overscroll-behavior:contain}
- .compact-play #inspector.expanded{max-height:calc(100% - 8px)}
- .compact-play #inspector .sheet-grabber{display:block;position:absolute;top:0;left:50%;width:120px;height:36px;margin-left:-60px;padding:0;border:0;border-radius:0 0 var(--r-3) var(--r-3);background:none;cursor:pointer}
- .compact-play #inspector .sheet-grabber[hidden]{display:none}
- .compact-play #inspector .sheet-grabber::before{content:'';display:block;width:36px;height:4px;margin:12px auto 0;border-radius:var(--r-1);background:var(--well)}
- .compact-play #inspector .sheet-grabber[aria-expanded=true]::before{background:var(--well)}
- .compact-play #inspector .sheet-grabber:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
- .compact-play #inspector .tiny-button{display:grid;place-items:center;min-width:44px;min-height:44px;margin:-16px -12px -16px 0;padding:0}
-}
-@media(max-width:700px){
- .compact-play .inspector{left:10px;bottom:62px;max-height:calc(100% - 138px);max-width:calc(100% - 20px - var(--safe-l) - var(--safe-r))}
-}
-@media(max-height:500px) and (orientation:landscape){
- .compact-play .inspector,.compact-play .map-section:has(.cargo-lens-chip) .inspector{bottom:12px;max-height:calc(100% - 24px - var(--safe-b))}
- .compact-play .map-section:has(#active-tool-bar:not([hidden])) .inspector{max-height:calc(100% - 86px - var(--safe-b))}
- .compact-play .map-section:has(.route-pick-banner) .inspector{max-height:calc(100% - 98px - var(--safe-b))}
-}
-@media(pointer:coarse){
- #inspector .tiny-button{min-width:44px;min-height:44px;display:grid;place-items:center;margin:-16px -12px -16px 0;padding:0}
-}
+.compact-play .inspector{left:12px;bottom:12px;max-height:calc(100% - 86px)}
 /* Town opinion: a closed fold near the foot of the town inspector with its reasons. */
 .town-opinion{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
 .town-opinion>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;min-height:32px;padding:4px 0;cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
@@ -189,9 +151,6 @@
 .town-action[data-active] .small-button:disabled{color:var(--ink-2)}
 .town-action .price{font-weight:400}
 .inspector .town-action p{margin:4px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
-@media(max-width:700px),(pointer:coarse){
- .town-opinion>summary,.town-action .small-button{min-height:var(--control-touch)}
-}
 /* Town hall: its own closed fold after the opinion, with the two optional purchases. */
 .town-hall{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
 .town-hall>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:32px;padding:4px 0;cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
@@ -199,13 +158,6 @@
 .town-hall .town-hall-chevron{width:16px;height:16px;flex:0 0 auto;color:var(--ink-2);transition:transform var(--t-quick) var(--ease)}
 .town-hall[open] .town-hall-chevron{transform:rotate(180deg)}
 .town-hall>summary+.town-action{margin-top:8px}
-@media(max-width:700px),(pointer:coarse){
- .town-hall>summary{min-height:var(--control-touch)}
-}
-/* The sheet grabber is a touch target too: 44 px tall, its bar where it was. */
-@media(max-width:700px) and (min-height:501px){
- .compact-play #inspector .sheet-grabber{height:var(--control-touch)}
-}
 /* Town economy: a closed fold in the town inspector with three demand bars, the shops' wants this month and the market bonus. */
 .town-economy{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
 .town-economy>summary{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:8px;min-height:32px;padding:4px 0;cursor:pointer;list-style:none;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink)}
@@ -230,9 +182,6 @@
 .want-figure b{font-weight:600;color:var(--ink)}
 .want .want-check{color:var(--ok)}
 .inspector .economy-foot{margin:8px 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
-@media(max-width:700px),(pointer:coarse){
- .town-economy>summary{min-height:var(--control-touch)}
-}
 /* Workshops: a workshop's recipes beside its portrait, and the Town economy's Workshops block, set like the shops' wants. */
 .workshop-recipes{display:grid;gap:4px;min-width:0}
 .workshop-recipes .cargo-recipe{flex-wrap:nowrap;gap:4px;margin:0}
@@ -253,9 +202,6 @@
 .inspector .property-sell p{margin:0;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink)}
 .property-sell-actions{display:flex;justify-content:flex-end;gap:8px}
 .town-economy .town-property{margin-top:8px}
-@media(max-width:700px),(pointer:coarse){
- .property .button{min-height:var(--control-touch)}
-}
 /* A town's returns (city-investment-feedback): its card's rent row, the past year's rent, market bonus and workshop freight, and a small line of its months. */
 .entity-card .property-metric{color:var(--ink)}
 .town-economy .town-returns{display:flex;align-items:center;gap:var(--s-3);margin-top:var(--s-2)}

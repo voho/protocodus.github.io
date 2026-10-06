@@ -3,7 +3,7 @@
 // every town warns that it is too far to develop; the cottage tool forecasts rent and a school forecasts nothing. A cottage, a
 // workshop and a lumber route to it, run for 13 months, give Alderbrook's Town economy a year of returns with a small line, a
 // Your property row in the Towns list and its sort, and a Past 12 months column in the Company report. The map outlines the
-// property only while building in towns from the Town view in; the outlines cost under 0.3 ms a frame. Desk and phone widths.
+// property only while building in towns from the Town view in; the outlines cost under 0.3 ms a frame. Desktop controls.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -191,28 +191,6 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await outlines(page), 0, 'Explore with nothing selected outlines nothing');
 
-  // A phone: the inspector with the returns, and a forecast tip, never scroll sideways.
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(300);
-  await page.evaluate(town => { transport.renderer.focus(town.x, town.y); transport.inspect(town.x, town.y, 'city'); }, town);
-  await page.locator('.town-economy .town-returns').waitFor();
-  assert.ok(await page.locator('#inspector').evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'the phone inspector never scrolls sideways');
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-  await page.locator('.town-economy .town-returns').scrollIntoViewIfNeeded(); await page.waitForTimeout(150);
-  await page.screenshot({ path: `${output}/town-economy-390.png` });
-  const spare = await page.evaluate(async () => {
-    const { buildProblem } = await import('./model.js'), { townOf } = await import('./town-market.js'), g = transport.game, home = g.cities[0], spots = [];
-    for (let dy = -9; dy <= 9; dy++) for (let dx = -9; dx <= 9; dx++) if (!buildProblem(g, 'shop-grocery', home.x + dx, home.y + dy) && townOf(g, home.x + dx, home.y + dy) === home) spots.push({ x: home.x + dx, y: home.y + dy, d: Math.hypot(dx, dy) });
-    return spots.sort((a, b) => a.d - b.d)[0];
-  });
-  await page.evaluate(site => { document.querySelector('#inspector .tiny-button')?.click(); transport.setTool('shop-grocery'); transport.renderer.focus(site.x, site.y); }, spare);
-  await frames(page);
-  const phoneTip = await hover(page, spare);
-  assert.match(phoneTip.forecast, /^Alderbrook, about \$\d+ a month in rent or \$\d+ stocked with food, pays back in about \d+ years$/, JSON.stringify(phoneTip));
-  assert.equal(phoneTip.fits, true);
-  await page.evaluate(() => { for (const toast of document.querySelectorAll('#toast-region .toast')) toast.remove(); });
-  assert.ok(await page.locator('#placement-tip').evaluate(el => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }), 'the tip stays on screen');
-  await page.screenshot({ path: `${output}/tip-390.png` });
   // The outlines' cost at the Town view, with every free lot around Alderbrook zoned and built on at once: batches of renders
   // with and without them, in alternation, so the timer's grain and machine load weigh on both alike.
   await page.setViewportSize({ width: 1440, height: 900 });

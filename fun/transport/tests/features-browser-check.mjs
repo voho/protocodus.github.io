@@ -20,13 +20,8 @@ const accents = locator => locator.evaluate(root => {
   return [root, ...root.querySelectorAll('*')].filter(el => el.getClientRects().length).flatMap(el => { const style = getComputedStyle(el); return [style.color, style.borderTopColor, style.backgroundColor].filter(value => orange.has(value)).map(value => `${el.className || el.tagName} ${value}`); });
 });
 async function openChains(page) {
-  if (await page.locator('.main-nav').isVisible()) {
-    await openGameAction(page, 'help-button');
-    await page.locator('[data-help-tab="chains"]').click();
-  } else {
-    if (!(await page.locator('.sidebar').evaluate(element => element.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
-    await page.locator('.mobile-management [data-open-chains]').click();
-  }
+  await openGameAction(page, 'help-button');
+  await page.locator('[data-help-tab="chains"]').click();
   await page.locator('.chains-explorer').waitFor({ state: 'visible' });
 }
 async function mapPoint(page, point) {
@@ -49,11 +44,9 @@ async function clickStationBadge(page, station) {
   await page.mouse.click(badge.x, badge.y);
 }
 async function chooseView(page, view) {
-  if (await page.locator('.main-nav').isVisible()) await page.locator(`.main-nav [data-view="${view}"]`).click();
-  else {
-    if (!(await page.locator('.sidebar').evaluate(element => element.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
-    await page.locator(`[data-mobile-view="${view}"]`).click();
-  }
+  const button = page.locator(`.main-nav [data-view="${view}"]`);
+  const open = await page.locator('.sidebar').evaluate(element => element.classList.contains('drawer-open'));
+  if (!open || !(await button.evaluate(element => element.classList.contains('active')))) await button.click();
 }
 async function verifyConnection(page, state, valid) {
   await page.waitForFunction(({ state, valid }) => {
@@ -131,26 +124,22 @@ try {
     return card && card.top >= drawer.top - 1 && card.bottom <= drawer.bottom + 1;
   }, stoneRoute.id, { timeout: 3000 });
   await quarryPage.screenshot({ path: `${output}/desktop-quarry-launched.png` });
-  await quarryPage.setViewportSize({ width: 390, height: 844 });
   await quarryPage.waitForTimeout(250);
   await quarryPage.evaluate(() => transport.setView('routes'));
   await quarryPage.locator('#new-route-button').click();
-  assert.equal(await quarryPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px planner fits the screen');
-  assert.equal(await fits(quarryPage, '#panel-content'), true, '390px planner fits the drawer');
   assert.equal(await fits(quarryPage, '.route-swap'), true);
   assert.match(await quarryPage.locator('#route-connection').textContent(), /Already served by/);
   assert.match(await quarryPage.locator('.forecast-summary').textContent(), /^(≈ \+\$[\d.,]+k? \/ month · pays back in about|Likely to earn less than its upkeep)/, 'the planner forecasts one more truck');
   assert.match(await quarryPage.locator('.forecast-facts').innerText(), /Source makes ≈ [\d.]+ \/ day · (≈ [\d.]+ spare|all taken)/, 'the launched route takes its share of the supply');
-  assert.equal(await fits(quarryPage, '#route-forecast'), true, '390px forecast fits');
   await quarryPage.locator('#route-forecast').scrollIntoViewIfNeeded();
-  await quarryPage.screenshot({ path: `${output}/mobile-390-route-forecast.png` });
+  await quarryPage.screenshot({ path: `${output}/desktop-route-forecast.png` });
   await quarryPage.locator('#swap-route-stops').scrollIntoViewIfNeeded();
-  await quarryPage.screenshot({ path: `${output}/mobile-390-quarry-planner.png` });
+  await quarryPage.screenshot({ path: `${output}/desktop-quarry-repeat-planner.png` });
   await quarryPage.locator('#route-form [name="mode"]').selectOption('rail');
   assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'changing transport clears the stops and the forecast');
   await quarryPage.close();
   assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
-  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, forecast, folded planner, 390px.');
+  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, forecast, folded planner.');
 
   // Full load: an optional order under More options, for freight only. A quarry too slow to fill the truck makes it wait
   // at the stop; the card reads Loading, the line survives a reload, the truck's card says where it waits, and unticking
@@ -202,7 +191,7 @@ try {
   await loadAutosaveFromMenu(loadPage);
   assert.equal(await loadPage.evaluate(id => transport.game.routes.find(route => route.id === id)?.fullLoad, loadRoute.id), true, 'the order survives a reload');
   assert.deepEqual(await waitingLine(loadPage, loadRoute.id), line, 'the same trucks wait since the same moments');
-  if (await loadPage.locator('.sidebar.mobile-open').count()) await loadPage.locator('#close-management').click();
+  if (await loadPage.locator('.sidebar.drawer-open').count()) await loadPage.locator('#close-management').click();
   const truckAt = await loadPage.evaluate(id => {
     const vehicle = transport.game.vehicles.find(item => item.id === id), at = transport.renderer.vehicleWorldPoint(vehicle), r = document.querySelector('#world').getBoundingClientRect();
     transport.renderer.setZoom(2); transport.renderer.focus(at.x, at.y); transport.renderer.render(performance.now(), {});
@@ -227,39 +216,11 @@ try {
   await loadPage.waitForFunction(id => !transport.game.vehicles.some(vehicle => vehicle.routeId === id && typeof vehicle.fullLoadSince === 'number'), loadRoute.id, { timeout: 2000 });
   assert.equal(await loadPage.evaluate(id => transport.game.routes.find(route => route.id === id).fullLoad, loadRoute.id), false);
   await loadPage.close();
-  // On a phone, More options fits the drawer and its rows are finger-sized; the card keeps its height.
-  const loadTouch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
-  const loadPhone = await loadTouch.newPage();
-  watch(loadPhone);
-  await loadPhone.goto(url);
-  await createWorldFromMenu(loadPhone, { biome: 'taiga', size: 'square512', seed: 1847 });
-  const phoneStops = await quarryStop(loadPhone);
-  await loadPhone.evaluate(() => transport.setView('routes'));
-  await loadPhone.locator('#route-form [name="from"]').selectOption(phoneStops.station.id);
-  await loadPhone.locator('#route-form [name="to"]').selectOption(phoneStops.alder.id);
-  await loadPhone.locator('[data-cargo-choice="stone"]').click();
-  await loadPhone.locator('.route-options summary').click();
-  await loadPhone.locator('[data-route-option="full-load"]').check();
-  assert.equal(await loadPhone.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, '390px planner fits the screen');
-  assert.equal(await fits(loadPhone, '#panel-content'), true, '390px More options fits the drawer');
-  for (const selector of ['.route-options summary', '.route-option']) assert.ok((await loadPhone.locator(selector).boundingBox()).height >= 44, `${selector} is at least 44px tall on touch`);
-  await loadPhone.locator('.route-options').scrollIntoViewIfNeeded();
-  await loadPhone.screenshot({ path: `${output}/mobile-390-full-load-options.png` });
-  await loadPhone.locator('#route-form button[type="submit"]').click();
-  const phoneRoute = await loadPhone.evaluate(() => transport.game.routes.at(-1).id), phoneCard = loadPhone.locator(`.route-card[data-route-id="${phoneRoute}"]`);
-  await phoneCard.scrollIntoViewIfNeeded();
-  const phoneHeight = (await phoneCard.boundingBox()).height;
-  assert.equal(await phoneCard.evaluate(card => card.scrollWidth <= card.clientWidth + 1), true, 'the 390px full-load card does not overflow');
-  await phoneCard.screenshot({ path: `${output}/mobile-390-full-load-card.png` });
-  await loadPhone.evaluate(async id => { (await import('./model.js')).setRouteFullLoad(transport.game, id, false); transport.setView('routes'); }, phoneRoute);
-  await phoneCard.scrollIntoViewIfNeeded();
-  assert.equal((await phoneCard.boundingBox()).height, phoneHeight, 'the order adds nothing to the 390px card');
-  await loadTouch.close();
   assert.deepEqual(errors, [], 'full load runs without console or runtime errors');
-  console.log('Full load checks passed: freight only, folded option, launch, Loading card, reload, truck card, edit off, 390px touch.');
+  console.log('Full load checks passed: freight only, folded option, launch, Loading card, reload, truck card, edit off.');
 
   // A route card buys and sells vehicles on its own service; the fleet survives an autosave reload.
-  const fleetPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const fleetPage = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   watch(fleetPage);
   await fleetPage.goto(url);
   await createWorldFromMenu(fleetPage);
@@ -278,9 +239,7 @@ try {
   assert.equal(await starterCard.locator('.vehicle-model').getAttribute('title'), '2 Hollin Mk 1. Newer buses arrive in 1951.', 'an up-to-date fleet says when newer models arrive');
   assert.equal(await starterCard.locator('[data-sell-vehicle]').isDisabled(), false);
   assert.deepEqual(await starterCard.locator('.route-actions button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label') || b.textContent)), ['Show on map', 'Edit route', 'Retire'], 'an up-to-date card keeps three actions');
-  assert.ok((await starterCard.boundingBox()).height <= 300, `390px route card stays compact: ${(await starterCard.boundingBox()).height}px`);
-  assert.equal(await fits(fleetPage, '#panel-content'), true, '390px fleet controls fit the drawer');
-  await starterCard.screenshot({ path: `${output}/mobile-390-fleet-card.png` });
+  await starterCard.screenshot({ path: `${output}/desktop-fleet-card.png` });
   // Delivery pay: the timetable estimate until a delivery, then the measured days; a slow trip shows its share of the fare.
   const trip = starterCard.locator('[data-route-trip]');
   assert.match(await trip.innerText(), /^\d+ tiles, about \d+ days?\n\$[\d,]+ each$/, 'the card estimates the trip before any delivery');
@@ -301,7 +260,7 @@ try {
   assert.deepEqual(await accents(starterCard), [], 'room for more adds no orange');
   assert.doesNotMatch(await starterCard.innerText(), /Add a bus|Passengers waiting/i);
   assert.equal(await fleetPage.evaluate(() => document.querySelector('#offline-routes').hidden), true, 'room never counts as attention');
-  await starterCard.screenshot({ path: `${output}/mobile-390-slow-trip-card.png` });
+  await starterCard.screenshot({ path: `${output}/desktop-slow-trip-card.png` });
   await starterCard.locator('[data-remove-route]').click();
   assert.match(await fleetPage.locator('#modal').innerText(), /Its 2 buses sell for \$16,200/);
   assert.equal(await fleetPage.locator('#confirm-retire').textContent(), 'Retire · +$16,200');
@@ -321,7 +280,7 @@ try {
   assert.deepEqual(await fleetPage.evaluate(() => [transport.game.routes.length, transport.game.vehicles.length]), [1, 3], 'the planner adds to the existing route instead of duplicating it');
   await fleetPage.close();
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
-  console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse, 390px card.');
+  console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse.');
 
   // Mail: two town stops keep Passengers and offer Mail second; a mail truck launches, delivers with its envelope floater and survives a reload.
   const mailPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
@@ -369,19 +328,16 @@ try {
   const waitingMail = await mailPage.evaluate(() => transport.game.cities.slice(0, 2).map(city => city.mail));
   assert.ok(waitingMail.every(n => Number.isFinite(n) && n >= 0), `towns keep their waiting mail: ${waitingMail}`);
   await mailPage.evaluate(() => transport.persist());
-  await mailPage.setViewportSize({ width: 390, height: 844 });
   await mailPage.goto(url);
   await loadAutosaveFromMenu(mailPage);
   assert.deepEqual(await mailPage.evaluate(id => [transport.game.routes.find(route => route.id === id)?.cargo, transport.game.cities.every(city => Number.isFinite(city.mail))], mail.id), ['mail', true], 'the mail route and waiting mail survive a reload');
   await mailPage.evaluate(() => transport.setView('routes'));
-  const phoneMailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
-  await phoneMailCard.scrollIntoViewIfNeeded();
-  assert.equal(await fits(mailPage, '#panel-content'), true, 'the 390px drawer fits the mail card');
-  assert.equal(await phoneMailCard.evaluate(card => card.scrollWidth <= card.clientWidth + 1), true, 'the 390px mail card does not overflow');
-  await phoneMailCard.screenshot({ path: `${output}/mobile-390-mail-card.png` });
+  const savedMailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
+  await savedMailCard.scrollIntoViewIfNeeded();
+  await savedMailCard.screenshot({ path: `${output}/desktop-mail-reloaded-card.png` });
   await mailPage.close();
   assert.deepEqual(errors, [], 'mail runs without console or runtime errors');
-  console.log('Mail checks passed: second cargo, Passengers kept, Mail fits, name, truck portrait, quote, delivery floater, card, reload, 390px.');
+  console.log('Mail checks passed: second cargo, Passengers kept, Mail fits, name, truck portrait, quote, delivery floater, card, reload.');
 
   // Edit moves the stone route to Pinehaven by Pick on map and keeps its trucks; a new freight asks before dropping the load.
   const editPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -447,15 +403,9 @@ try {
   await stoneCard.locator('[data-edit-route]').click();
   await editPage.locator('#cancel-route-edit').click();
   assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'New route', 'Cancel leaves the edit');
-  await editPage.setViewportSize({ width: 390, height: 844 });
-  await editPage.evaluate(() => transport.setView('routes'));
-  await stoneCard.locator('[data-edit-route]').click();
-  assert.equal(await fits(editPage, '#panel-content'), true, '390px edit form fits the drawer');
-  await editPage.locator('#cancel-route-edit').scrollIntoViewIfNeeded();
-  await editPage.screenshot({ path: `${output}/mobile-390-edit-route.png` });
   await editPage.close();
   assert.deepEqual(errors, [], 'editing a route runs without console or runtime errors');
-  console.log('Edit checks passed: fixed transport, no purchase, pick the end on the map, same trucks, no cost, default name follows, freight change confirm, Cancel, 390px.');
+  console.log('Edit checks passed: fixed transport, no purchase, pick the end on the map, same trucks, no cost, default name follows, freight change confirm, Cancel.');
 
   // A stop renamed in its inspector reaches the planner's list, the route card and search; a route renames on its card.
   const namePage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
@@ -666,27 +616,8 @@ try {
   await vehiclePage.locator('#inspector .tiny-button').click();
   await vehiclePage.close();
 
-  // On a touch screen the route picker says Tap and takes a stop sign within a finger's reach.
-  const touchContext = await browser.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true });
-  const touchPage = await touchContext.newPage();
-  watch(touchPage);
-  await touchPage.goto(url);
-  await createWorldFromMenu(touchPage);
-  await touchPage.evaluate(() => transport.setView('routes'));
-  await touchPage.locator('[data-pick-route="from"]').tap();
-  assert.match(await touchPage.locator('#route-pick-banner').innerText(), /^Tap the start road stop/);
-  const reach = await touchPage.evaluate(() => {
-    const station = transport.game.stations[0]; transport.renderer.focus(station.x, station.y);
-    const rect = document.querySelector('#world').getBoundingClientRect(), marker = transport.renderer.stationMarker(station);
-    return { id: station.id, x: rect.left + marker.x + marker.size + 12, y: rect.top + marker.y + marker.size / 2 };
-  });
-  await touchPage.touchscreen.tap(reach.x, reach.y);
-  await touchPage.locator('#route-pick-banner').filter({ hasText: 'Tap the end road stop' }).waitFor();
-  assert.equal(await touchPage.locator('#route-form [name="from"]').inputValue(), reach.id, 'a tap 12 px beside a sign picks its stop');
-  assert.equal(await touchPage.locator('.toast.error').count(), 0, 'a near tap raises no error');
-  await touchContext.close();
   assert.deepEqual(errors, [], 'vehicle cards and stop signs run without console or runtime errors');
-  console.log('Vehicle and stop sign checks passed: badge and bus picks at 3 zooms, hidden vehicles, sign picks, Follow, Show route, touch picking, plane card.');
+  console.log('Vehicle and stop sign checks passed: badge and bus picks at 3 zooms, hidden vehicles, sign picks, Follow, Show route, plane card.');
 
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(page);
@@ -1105,8 +1036,8 @@ try {
   assert.equal(highlights.stop.ringDark, true, 'the roundel has an ink ring');
   assert.equal(highlights.stop.signPixels, 0, 'no lettered B/T sign pixels remain');
 
-  for (const width of [390, 320]) {
-    await page.setViewportSize({ width, height: 844 });
+  for (const width of [1024, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
     await page.waitForTimeout(250);
     assert.ok((await page.locator('.topbar').boundingBox()).height <= 60, `${width}px header stays in one lane`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}px page fits the screen`);
@@ -1127,7 +1058,7 @@ try {
     assert.equal(await fits(page, '.chains-explorer'), true, `${width}px explorer contains its scrolling graph`);
     await page.locator('[data-chain-industry="steel-mill"]').click();
     assert.equal(await page.locator('[data-chain-site]').count(), steelSites.length);
-    await page.screenshot({ path: `${output}/mobile-${width}-chains.png` });
+    await page.screenshot({ path: `${output}/desktop-${width}-chains.png` });
     await page.keyboard.press('Escape');
     await chooseView(page, 'routes');
     assert.equal(await fits(page, '#panel-content'), true, `${width}px route panel fits`);
@@ -1145,8 +1076,8 @@ try {
     await page.locator('#route-connection').scrollIntoViewIfNeeded();
     assert.equal(await page.evaluate(() => scrollY), 0, `${width}px route selection only scrolls the management panel`);
     assert.equal((await page.locator('.topbar').boundingBox()).y, 0, `${width}px header remains visible after station selection`);
-    await page.screenshot({ path: `${output}/mobile-${width}-route-picker.png` });
-    await page.locator('.mobile-panel-toggle').click();
+    await page.screenshot({ path: `${output}/desktop-${width}-route-picker.png` });
+    await page.locator('#close-management').click();
   }
   assert.deepEqual(errors, [], 'no browser console or runtime errors');
   console.log(`Transport chain and network-planning checks passed. Screenshots: ${output}`);

@@ -9,8 +9,8 @@ const output=process.env.TRANSPORT_SCREENSHOTS||'/tmp/transport-earthworks';
 await mkdir(output,{recursive:true});
 const errors=[];
 
-async function start(viewport,hasTouch=false){
- const page=await browser.newPage({viewport,hasTouch,isMobile:hasTouch});
+async function start(viewport){
+ const page=await browser.newPage({viewport});
  page.on('pageerror',error=>errors.push(error.message));
  await page.goto(url);await createWorldFromMenu(page);return page;
 }
@@ -46,7 +46,7 @@ async function screen(page,tiles,vertices=false){return page.evaluate(({tiles,ve
  return tiles.map(p=>{const screen=vertices?transport.renderer.gridPointToScreen(p.x,p.y):transport.renderer.worldToScreen(p.x,p.y);return{x:r.left+screen.x,y:r.top+screen.y};});
 },{tiles,vertices});}
 // Choosing a tool, or a crossing mode while a span tool is active, closes the drawer.
-async function drawer(page){if(!await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')))await page.locator(await page.locator('.mobile-panel-toggle').isVisible()?'.mobile-panel-toggle':'.main-nav [data-view="build"]').click();}
+async function drawer(page){if(!await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open')))await page.locator('.main-nav [data-view="build"]').click();}
 async function choose(page,tool){
  await drawer(page);
  if(!await page.locator('.engineering-tools').evaluate(el=>el.open))await page.locator('.engineering-tools summary').click();
@@ -113,14 +113,5 @@ try{
  const loaded=await state(page,site);assert.deepEqual(JSON.parse(loaded.tiles),JSON.parse(saved.tiles),'terrain and crossing metadata survive real local-storage reload');
  await page.close();
 
- for(const width of [390,320]){
-  const mobile=await start({width,height:844},true);await choose(mobile,'raise');
-  assert.equal(await mobile.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')),false,'choosing a terrain tool returns to the map');
-  await mobile.locator('.mobile-panel-toggle').click();await mobile.locator('[data-crossing-mode="rail"]').click();await mobile.locator('[data-tool="railtunnel"]').click();
-  assert.equal(await mobile.locator('#active-tool-name').innerText(),'Rail tunnel');
-  assert.ok(await mobile.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal page overflow');
-  await mobile.locator('.mobile-panel-toggle').click();await mobile.locator('.engineering-tools').scrollIntoViewIfNeeded();
-  await mobile.screenshot({path:`${output}/terrain-tools-mobile-${width}.png`});await mobile.close();
- }
- assert.deepEqual(errors,[]);console.log('PASS: terrain gestures, level/cost previews, all four spans, cancellation, protected tiles, atomic rejection, local save/reload, and 320/390px controls.');
+ assert.deepEqual(errors,[]);console.log('PASS: terrain gestures, level/cost previews, all four spans, cancellation, protected tiles, atomic rejection, and local save/reload.');
 }finally{await browser.close();}

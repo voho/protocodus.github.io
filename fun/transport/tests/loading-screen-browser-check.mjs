@@ -91,28 +91,28 @@ try{
   assert.notEqual(await page.evaluate(()=>localStorage.getItem('transport-save-v1')),before.autosave);
   await context.close();
 
-  const mobile=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,reducedMotion:'reduce'});
-  const mobilePage=await mobile.newPage();mobilePage.on('pageerror',error=>errors.push(error.message));
-  let releaseMobile,failImport=true;const mobileGate=new Promise(resolve=>releaseMobile=resolve);
-  await mobilePage.route('**/app.js',async route=>{await mobileGate;if(failImport){failImport=false;await route.abort();}else await route.continue();});
-  await mobilePage.goto(url,{waitUntil:'commit'});await mobilePage.locator('#start-menu').waitFor({state:'visible'});
-  const mobileSeed=Number(await mobilePage.locator('#start-world-form [name="seed"]').inputValue());
-  await mobilePage.locator('#start-create').click();await mobilePage.locator('#loading-screen').waitFor({state:'visible'});
-  const mobileLayout=await mobilePage.evaluate(()=>{
+  const retryContext=await browser.newContext({viewport:{width:1280,height:900},deviceScaleFactor:2,reducedMotion:'reduce'});
+  const retryPage=await retryContext.newPage();retryPage.on('pageerror',error=>errors.push(error.message));
+  let releaseRetry,failImport=true;const retryGate=new Promise(resolve=>releaseRetry=resolve);
+  await retryPage.route('**/app.js',async route=>{await retryGate;if(failImport){failImport=false;await route.abort();}else await route.continue();});
+  await retryPage.goto(url,{waitUntil:'commit'});await retryPage.locator('#start-menu').waitFor({state:'visible'});
+  const retrySeed=Number(await retryPage.locator('#start-world-form [name="seed"]').inputValue());
+  await retryPage.locator('#start-create').click();await retryPage.locator('#loading-screen').waitFor({state:'visible'});
+  const retryLayout=await retryPage.evaluate(()=>{
     const screen=document.querySelector('#loading-screen'),box=screen.getBoundingClientRect();
     const title=document.querySelector('#loading-title').getBoundingClientRect(),status=document.querySelector('#loading-status').getBoundingClientRect();
     return{width:innerWidth,height:innerHeight,scroll:document.documentElement.scrollWidth,box:{x:box.x,y:box.y,width:box.width,height:box.height},title:{left:title.left,right:title.right,top:title.top,bottom:title.bottom},status:{left:status.left,right:status.right,top:status.top,bottom:status.bottom},animations:screen.getAnimations({subtree:true}).filter(a=>a.playState==='running').length};
   });
-  assert.equal(mobileLayout.scroll,mobileLayout.width);assert.ok(mobileLayout.box.width>=mobileLayout.width&&mobileLayout.box.height>=mobileLayout.height);
-  for(const rect of [mobileLayout.title,mobileLayout.status])assert.ok(rect.left>=0&&rect.right<=mobileLayout.width&&rect.top>=0&&rect.bottom<=mobileLayout.height);
-  assert.equal(mobileLayout.animations,0,'reduced motion disables the loading animation');
-  await mobilePage.screenshot({path:`${output}/mobile-reduced-motion.png`});releaseMobile();
-  await mobilePage.locator('#loading-retry').waitFor({state:'visible'});assert.match(await mobilePage.locator('#loading-title').innerText(),/couldn.t start/i);
-  assert.equal(await mobilePage.locator('#app').evaluate(el=>el.inert),true);
-  await mobilePage.screenshot({path:`${output}/mobile-startup-failure.png`});await mobilePage.locator('#loading-retry').click();
-  await mobilePage.locator('#start-menu').waitFor({state:'visible'});await mobilePage.locator('#start-load').click();
-  await mobilePage.locator('#start-saves .start-save').first().click();await ready(mobilePage);
-  assert.equal(await mobilePage.evaluate(()=>transport.game.seed),mobileSeed,'retry can load the company created before its module failed');
-  await mobile.close();
-  assert.deepEqual(errors,[]);console.log(JSON.stringify({results,mobileLayout,output},null,2));
+  assert.equal(retryLayout.scroll,retryLayout.width);assert.ok(retryLayout.box.width>=retryLayout.width&&retryLayout.box.height>=retryLayout.height);
+  for(const rect of [retryLayout.title,retryLayout.status])assert.ok(rect.left>=0&&rect.right<=retryLayout.width&&rect.top>=0&&rect.bottom<=retryLayout.height);
+  assert.equal(retryLayout.animations,0,'reduced motion disables the loading animation');
+  await retryPage.screenshot({path:`${output}/desktop-reduced-motion.png`});releaseRetry();
+  await retryPage.locator('#loading-retry').waitFor({state:'visible'});assert.match(await retryPage.locator('#loading-title').innerText(),/couldn.t start/i);
+  assert.equal(await retryPage.locator('#app').evaluate(el=>el.inert),true);
+  await retryPage.screenshot({path:`${output}/desktop-startup-failure.png`});await retryPage.locator('#loading-retry').click();
+  await retryPage.locator('#start-menu').waitFor({state:'visible'});await retryPage.locator('#start-load').click();
+  await retryPage.locator('#start-saves .start-save').first().click();await ready(retryPage);
+  assert.equal(await retryPage.evaluate(()=>transport.game.seed),retrySeed,'retry can load the company created before its module failed');
+  await retryContext.close();
+  assert.deepEqual(errors,[]);console.log(JSON.stringify({results,retryLayout,output},null,2));
 }finally{await browser.close();}

@@ -4,22 +4,17 @@ const $ = selector => document.querySelector(selector);
 
 /** Keep secondary controls available without reserving space around the map. */
 export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onShortcuts, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {}, shortcuts = {} }) {
-  const app = $('#app'), sidebar = $('.sidebar'), mobileToggle = $('.mobile-panel-toggle');
+  const app = $('#app'), sidebar = $('.sidebar');
   const topbar = $('.topbar'), canvas = $('#world'), minimap = $('.minimap-wrap');
   app.classList.add('compact-play');
   sidebar.id ||= 'management-panel';
-  sidebar.classList.remove('mobile-open');
+  sidebar.classList.remove('drawer-open');
 
   const drawerHeading = document.createElement('div');
   drawerHeading.className = 'management-drawer-heading';
   // The drawer's own heading names the view (DESIGN.md 6.1: no eyebrows), so this row only holds the close button.
   drawerHeading.innerHTML = `<button id="close-management" type="button" aria-label="Close panel" title="Close panel (Esc)">${icon('close')}</button>`;
   sidebar.prepend(drawerHeading);
-
-  // Reuse the mobile control so its existing gesture cancellation stays intact.
-  topbar.insertBefore(mobileToggle, $('.main-nav'));
-  mobileToggle.setAttribute('aria-controls', sidebar.id);
-  mobileToggle.addEventListener('click', syncManagement);
 
   const menuWrap = document.createElement('div');
   menuWrap.className = 'compact-menu-wrap';
@@ -108,12 +103,9 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
     actions.querySelector('button')?.focus({ preventScroll: true });
   }
   function syncManagement() {
-    const open = sidebar.classList.contains('mobile-open');
+    const open = sidebar.classList.contains('drawer-open');
     sidebar.inert = !open;
     sidebar.setAttribute('aria-hidden', String(!open));
-    mobileToggle.classList.toggle('open', open);
-    mobileToggle.setAttribute('aria-expanded', String(open));
-    mobileToggle.innerHTML = `${open ? icon('close') : ''}<span>Manage</span>`;
     for (const button of document.querySelectorAll('.main-nav [data-view]')) {
       const active = open && button.dataset.view === getView();
       button.classList.toggle('active', active);
@@ -124,17 +116,17 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
     if (!open && sidebar.contains(document.activeElement)) canvas.focus({ preventScroll: true });
   }
   function openManagement() {
-    closeMenu(); sidebar.classList.add('mobile-open'); syncManagement();
+    closeMenu(); sidebar.classList.add('drawer-open'); syncManagement();
   }
   function closeManagement(restoreFocus = false) {
-    sidebar.classList.remove('mobile-open'); syncManagement();
+    sidebar.classList.remove('drawer-open'); syncManagement();
     if (restoreFocus) {
-      const trigger = window.innerWidth <= 700 ? mobileToggle : document.querySelector(`.main-nav [data-view="${getView()}"]`);
+      const trigger = document.querySelector(`.main-nav [data-view="${getView()}"]`);
       trigger?.focus({ preventScroll: true });
     }
   }
   function toggleManagement(next) {
-    if (sidebar.classList.contains('mobile-open') && next === getView()) { closeManagement(); return; }
+    if (sidebar.classList.contains('drawer-open') && next === getView()) { closeManagement(); return; }
     onView(next); openManagement();
   }
   $('#close-management').addEventListener('click', () => closeManagement(true));

@@ -22,8 +22,8 @@ async function portraits(page, selector, density, minimum = 1) {
   }
 }
 try {
-  for(const profile of [{name:'desktop',width:1440,height:1000,density:1},{name:'mobile',width:390,height:844,density:2}]) {
-    const page = await browser.newPage({ viewport:{width:profile.width,height:profile.height}, deviceScaleFactor:profile.density, isMobile:profile.name==='mobile', hasTouch:profile.name==='mobile' });
+  for(const profile of [{name:'desktop',width:1440,height:1000,density:1},{name:'desktop-hidpi',width:1440,height:1000,density:2}]) {
+    const page = await browser.newPage({ viewport:{width:profile.width,height:profile.height}, deviceScaleFactor:profile.density });
     page.on('pageerror',error=>errors.push(error.message));
     await page.goto(url);await createWorldFromMenu(page);
     await page.evaluate(()=>{transport.setSpeed(0);transport.setView('build');});

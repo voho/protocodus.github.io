@@ -32,7 +32,7 @@ svg.i.i24{stroke-width:1.75px}
 .coverage-note>strong{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;margin-bottom:8px}
 .coverage-cargo{display:flex;flex-wrap:wrap;gap:4px}
 .eyebrow{font-weight:600;display:flex;align-items:center;gap:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);letter-spacing:0}
-/* Rename: a quiet pencil beside a stop or route title; its field keeps the title's type. Route cards show it on hover, touch always. */
+/* Rename: a quiet pencil beside a stop or route title; its field keeps the title's type. Route cards show it on hover or keyboard focus. */
 .rename-button{position:relative;display:inline-grid;place-items:center;width:22px;height:22px;margin:-4px 0 -4px 4px;padding:0;border:0;border-radius:var(--r-2);background:none;color:var(--ink-2);vertical-align:middle;cursor:pointer}
 .rename-button svg{width:15px;height:15px}
 .rename-button::after{content:'';position:absolute;inset:-5px}
@@ -40,21 +40,15 @@ svg.i.i24{stroke-width:1.75px}
 .rename-button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .rename-input{box-sizing:border-box;width:100%;min-width:0;margin:-4px 0;padding:2px 8px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);color:inherit;font:inherit;letter-spacing:inherit}
 .rename-input:focus-visible{outline-offset:1px}
-@media(hover:none) and (pointer:coarse){
- .rename-button::after{inset:-11px}
-}
 .option-check{margin-left:auto;visibility:hidden;color:var(--ink-2)}
 [aria-pressed=true]>.option-check{visibility:visible}
-/* Buttons (12.6): a 14/500 label with a 16 px icon before it and a tabular .price after it; 32 px tall, 28 dense (desktop lists), 44 on touch. Hover changes colour only. The legacy classes share their equivalents' rules until the surfaces migrate: button-primary is primary, button-outline secondary, button-orange signal, small-button dense secondary (danger with .danger), text-button quiet and tiny-button an icon button. */
+/* Buttons (12.6): a 14/500 label with a 16 px icon before it and a tabular .price after it; 32 px tall, 28 dense (desktop lists). Hover changes colour only. The legacy classes share their equivalents' rules until the surfaces migrate: button-primary is primary, button-outline secondary, button-orange signal, small-button dense secondary (danger with .danger), text-button quiet and tiny-button an icon button. */
 .button,.small-button,.text-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);min-height:var(--control);padding:var(--s-1) var(--s-3);border:1px solid transparent;border-radius:var(--r-2);background:none;color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);transition:background-color var(--t-quick) var(--ease),border-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
 .button{white-space:nowrap}
 .button svg,.small-button svg,.text-button svg{width:16px;height:16px}
 /* An icon that says it all: square, with its name in the tooltip and aria-label. */
 .small-button.icon-only{min-width:var(--control);padding:var(--s-1)}
 .small-button.icon-only svg{width:18px;height:18px}
-@media(pointer:coarse),(max-width:700px){
- .small-button.icon-only,.compact-play .small-button.icon-only,.compact-play .route-actions .small-button.icon-only{min-width:var(--control-touch);min-height:var(--control-touch)}
-}
 .button--dense,.small-button{min-height:var(--control-dense);padding:var(--s-1) var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small)}
 .button--primary,.button-primary{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
 .button--primary:hover:not(:disabled),.button-primary:hover:not(:disabled){border-color:var(--ink-2);background:var(--ink-2)}
@@ -79,13 +73,13 @@ svg.i.i24{stroke-width:1.75px}
 .text-button{width:100%;justify-content:space-between;padding:var(--s-1) 0;border-top-color:var(--rule);border-radius:0}
 .small-button.danger{margin-left:auto}
 .tiny-button{margin:calc(var(--s-2) * -1) calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0}
-/* Icon buttons (12.6): 32 px (44 on touch) with a 20 px glyph, always with an aria-label and a tooltip. */
+/* Icon buttons (12.6): 32 px with a 20 px glyph, always with an aria-label and a tooltip. */
 .icon-button,.tiny-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:var(--control);height:var(--control);padding:0;border-radius:var(--r-2);color:var(--ink-2);transition:background-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
 .icon-button svg,.tiny-button svg{width:20px;height:20px}
 .icon-button:hover:not(:disabled),.tiny-button:hover:not(:disabled),.icon-button.active,.icon-button[aria-pressed=true],.icon-button[aria-expanded=true]{background:var(--well);color:var(--ink)}
 .icon-button:disabled,.tiny-button:disabled{background:none;color:var(--ink-3);opacity:1}
 .tiny-button{font-size:var(--fs-lead);line-height:1}
-/* Segmented control (12.8): a well trough with 2 px padding and 28 px segments (44 on touch); the selected one is ink. A segment is a button with aria-pressed or aria-selected, or a label around a radio, and may end in a count (data-num). */
+/* Segmented control (12.8): a well trough with 2 px padding and 28 px segments; the selected one is ink. A segment is a button with aria-pressed or aria-selected, or a label around a radio, and may end in a count (data-num). */
 .segmented{display:inline-flex;align-items:stretch;gap:2px;max-width:100%;padding:2px;border-radius:var(--r-2);background:var(--well)}
 .segmented>:is(button,label,a){position:relative;display:inline-flex;align-items:center;justify-content:center;gap:var(--s-1);min-height:var(--control-dense);padding:0 var(--s-3);border-radius:var(--r-1);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);white-space:nowrap;cursor:pointer;transition:background-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
 .segmented>:is(button,label,a):hover:not(:disabled){color:var(--ink)}
@@ -103,7 +97,7 @@ svg.i.i24{stroke-width:1.75px}
 .stepper>button:hover:not(:disabled){background:var(--well)}
 .stepper>button:disabled{color:var(--ink-3);opacity:1}
 .stepper>:not(button){display:inline-flex;align-items:center;padding:0 var(--s-2);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);font-variant-numeric:tabular-nums;white-space:nowrap}
-/* Fields (12.8): inputs and selects on paper in an --edge border, 32 px (44 on touch), 14 px text, an ink-2 placeholder. A .field wrapper may start with a 16 px icon (search) and end a select with chevronDown. */
+/* Fields (12.8): inputs and selects on paper in an --edge border, 32 px, 14 px text, an ink-2 placeholder. A .field wrapper may start with a 16 px icon (search) and end a select with chevronDown. */
 :is(input,select).field,.field>:is(input,select){width:100%;min-width:0;min-height:var(--control);margin:0;padding:0 var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body);transition:border-color var(--t-quick) var(--ease)}
 :is(input,select).field::placeholder,.field>input::placeholder{color:var(--ink-2);opacity:1}
 :is(input,select).field:hover:not(:disabled),.field>:is(input,select):hover:not(:disabled){border-color:var(--ink-2)}
@@ -157,7 +151,7 @@ svg.i.i24{stroke-width:1.75px}
 .disclosure:hover{background:var(--well)}
 .disclosure>svg:last-child{width:16px;height:16px;margin-left:auto;color:var(--ink-2);transition:transform var(--t-row) var(--ease)}
 .disclosure[aria-expanded=true]>svg:last-child,[open]>.disclosure>svg:last-child{transform:rotate(180deg)}
-/* Rows (12.4): at least 40 px (48 on touch), 12 by 16 px of padding, hairlines between rows and the well on hover; the one expanded row is well. */
+/* Rows (12.4): at least 40 px, 12 by 16 px of padding, hairlines between rows and the well on hover; the one expanded row is well. */
 .row{display:flex;align-items:center;gap:var(--s-3);width:100%;min-height:var(--row);padding:var(--s-3) var(--s-4);color:var(--ink);text-align:left;transition:background-color var(--t-quick) var(--ease)}
 .row+.row{border-top:1px solid var(--rule)}
 .row:hover,.row--expanded{background:var(--well)}
@@ -168,7 +162,7 @@ svg.i.i24{stroke-width:1.75px}
 .tooltip{z-index:var(--z-tooltip);width:max-content;max-width:240px;padding:var(--s-1) var(--s-2);border-radius:var(--r-1);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:var(--fw-regular);pointer-events:none}
 /* Placement tip (12.14): the ink tag that follows the pointer: the tool, the quantity and the price, then coverage, a forecast, or what went wrong and how to fix it. */
 .tip{display:grid;gap:var(--s-1);width:max-content;max-width:280px;padding:var(--s-2) var(--s-3);border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);font-size:var(--fs-small);line-height:var(--lh-small);pointer-events:none}
-/* Menus and popovers (12.10): paper sheets on --e2. Items are 40 px (44 on touch): a 20 px icon, a 14/500 label and an optional .kbd or .switch at the end; a label item holds the switch. An hr is a rule. */
+/* Menus and popovers (12.10): paper sheets on --e2. Items are 40 px: a 20 px icon, a 14/500 label and an optional .kbd or .switch at the end; a label item holds the switch. An hr is a rule. */
 .menu,.popover{z-index:var(--z-popover);padding:var(--s-1);border-radius:var(--r-4);background:var(--paper);color:var(--ink);box-shadow:var(--e2)}
 .menu{width:280px;max-width:100%}
 .menu>:is(button,a,label),.popover>:is(button,a,label){display:flex;align-items:center;gap:var(--s-3);width:100%;min-height:var(--row);padding:0 var(--s-3);border-radius:var(--r-2);color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);text-align:left;cursor:pointer;transition:background-color var(--t-quick) var(--ease)}
@@ -205,13 +199,3 @@ svg.i.i24{stroke-width:1.75px}
 .tool-bar__rule{grid-column:2;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .tool-bar:not(:has(.tool-bar__rule)) .tool-bar__name{grid-row:1/3}
 .tool-bar__actions{grid-column:3;grid-row:1/3;display:flex;align-items:center;gap:var(--s-2)}
-/* Touch and phones (4.6, 4.11): 44 px controls, rows of 48 and a 44 px reach around the switch. */
-@media(max-width:700px),(pointer:coarse){
- .button,.button--dense,.small-button,.text-button,:is(input,select).field,.field>:is(input,select),.segmented>:is(button,label,a),.menu>:is(button,a,label),.popover>:is(button,a,label){min-height:var(--control-touch)}
- .segmented>:is(button,label,a){min-width:var(--control-touch)}
- .icon-button,.tiny-button{width:var(--control-touch);height:var(--control-touch)}
- .stepper{height:calc(var(--control-touch) + 2px)}
- .stepper>button{width:var(--control-touch)}
- .row,.disclosure{min-height:var(--row-touch)}
- .switch::after{content:'';position:absolute;inset:-13px -6px}
-}

@@ -1,6 +1,6 @@
 // Workshops in a real browser: Build › Town shows the Workshop with its factory art beside a full-width Found a town; a
 // workshop placed near Alderbrook with real pointer events, its inspector with recipes, stock and Expand, the town's stop
-// buying lumber, the Town economy's Workshops block, and the route form offering lumber from a sawmill stop. Desk and phone.
+// buying lumber, the Town economy's Workshops block, and the route form offering lumber from a sawmill stop. Desktop.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -13,12 +13,11 @@ await mkdir(output, { recursive: true });
 const errors = [];
 const screen = (page, point) => page.evaluate(point => { const p = transport.renderer.worldToScreen(point.x, point.y), rect = document.querySelector('#world').getBoundingClientRect(); return { x: p.x + rect.left, y: p.y + rect.top }; }, point);
 const fits = (page, selector) => page.locator(selector).evaluate(el => el.scrollWidth <= el.clientWidth + 1);
-const drawer = async (page, phone) => { if (phone && !await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open'))) await page.locator('.mobile-panel-toggle').click(); };
 
 try {
-  for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 844 }]) {
-    const phone = viewport.width < 700, name = phone ? 'phone' : 'desk';
-    const page = await browser.newPage({ viewport, deviceScaleFactor: phone ? 2 : 1, hasTouch: phone, isMobile: phone });
+  for (const viewport of [{ width: 1440, height: 960 }]) {
+    const name = 'desk';
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
     await createWorldFromMenu(page, { seed: 1847 });
@@ -34,7 +33,6 @@ try {
 
     // Build › Town: the Workshop card draws the factory, and Found a town takes the whole row.
     await page.evaluate(() => transport.setView('build'));
-    await drawer(page, phone);
     await page.locator('[data-category="towns"]').click();
     const card = page.locator('.tool-grid [data-tool="workshop"]');
     await card.waitFor();
@@ -54,8 +52,7 @@ try {
     await page.waitForTimeout(200);
     const at = await screen(page, site);
     await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', at);
-    if (phone) await page.touchscreen.tap(at.x, at.y);
-    else { await page.mouse.move(at.x, at.y); await page.locator('#placement-tip').waitFor(); assert.match(await page.locator('#placement-tip').innerText(), /^Workshop/); await page.mouse.click(at.x, at.y); }
+    await page.mouse.move(at.x, at.y); await page.locator('#placement-tip').waitFor(); assert.match(await page.locator('#placement-tip').innerText(), /^Workshop/); await page.mouse.click(at.x, at.y);
     await page.waitForFunction(site => transport.game.tiles[site.y * transport.game.width + site.x].building?.owner === 'player', site);
     await page.locator('#toast-region', { hasText: 'Workshop built' }).waitFor();
     await page.screenshot({ path: `${output}/${name}-placed.png` });
@@ -96,13 +93,11 @@ try {
     assert.equal(await box.locator('.town-economy .workshop-line').count(), 2);
     assert.match(await box.locator('.town-economy .workshop-lines + .economy-foot').innerText(), /^Nothing waiting yet\. Deliver lumber or steel/);
     assert.ok(await fits(page, '#inspector'));
-    if (phone) await box.locator('.town-economy h4').first().scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     await box.screenshot({ path: `${output}/${name}-economy.png` });
 
     // The route form offers lumber from the sawmill stop to Alderbrook.
     await page.evaluate(() => transport.setView('routes'));
-    await drawer(page, phone);
     await page.locator('#route-form [name="from"]').selectOption(stops.sawmill);
     await page.locator('#route-form [name="to"]').selectOption(stops.center);
     await page.locator('[data-cargo-choice="lumber"][data-fits="true"]').waitFor();

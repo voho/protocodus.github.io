@@ -1,5 +1,5 @@
 // References and camera (DESIGN.md 7 and 10) on seed 1847 with the stone route: linked hover, the glide, a cut under reduced
-// motion, the edge pointer and back chip, the inspector's Back line, Esc's focus return, map hover linking and a touch preview.
+// motion, the edge pointer and back chip, the inspector's Back line, Esc's focus return, map hover linking.
 // Serve the repository root first (TRANSPORT_URL); screenshots go to TRANSPORT_OUTPUT.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -114,7 +114,7 @@ try {
   await page.waitForTimeout(250); // the drawer's slide
   const drawn = await page.evaluate(town => {
     const box = document.querySelector('#inspector').getBoundingClientRect(), drawer = document.querySelector('.sidebar'), d = drawer.getBoundingClientRect(), map = document.querySelector('.map-section'), s = getComputedStyle(map), band = side => parseFloat(s.getPropertyValue(`--band-${side}`)) || 0, p = transport.renderer.worldToScreen(town.x, town.y);
-    return { covered: drawer.classList.contains('mobile-open') && box.left < d.right && box.right > d.left && box.top < d.bottom && box.bottom > d.top, title: document.querySelector('#inspector-title').textContent, dx: p.x - (band('l') + map.clientWidth - band('r')) / 2, dy: p.y - (band('t') + map.clientHeight - band('b')) / 2 };
+    return { covered: drawer.classList.contains('drawer-open') && box.left < d.right && box.right > d.left && box.top < d.bottom && box.bottom > d.top, title: document.querySelector('#inspector-title').textContent, dx: p.x - (band('l') + map.clientWidth - band('r')) / 2, dy: p.y - (band('t') + map.clientHeight - band('b')) / 2 };
   }, drawerTown);
   assert.equal(drawn.title, drawerTown.name);
   assert.equal(drawn.covered, false, 'the inspector is never left under the drawer');
@@ -169,30 +169,6 @@ try {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.keyboard.press('Escape');
   await page.close();
-
-  // 8. Touch: a press held 450 ms previews the target without moving the camera or opening it; its click is swallowed.
-  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  watch(phone);
-  await phone.goto(url);
-  await createWorldFromMenu(phone, { seed: 1847 });
-  await inject(phone, [quarry.ref]);
-  const touch = await phone.evaluate(async ref => {
-    const el = document.querySelector(`#ref-check [data-ref="${ref}"]`), box = el.getBoundingClientRect(), at = { clientX: box.left + 8, clientY: box.top + 8, pointerType: 'touch', pointerId: 7, bubbles: true, isPrimary: true };
-    const start = transport.renderer.getCamera(), wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    el.dispatchEvent(new PointerEvent('pointerdown', at));
-    await wait(560);
-    const menu = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }); el.dispatchEvent(menu);
-    const during = { hoverRef: transport.renderer.getStats().hoverRef, camera: transport.renderer.getCamera(), menuBlocked: menu.defaultPrevented };
-    el.dispatchEvent(new PointerEvent('pointerup', at)); el.click();
-    await wait(50);
-    return { during, start, after: transport.renderer.getStats().hoverRef, inspector: !document.querySelector('#inspector').hidden };
-  }, quarry.ref);
-  assert.equal(touch.during.hoverRef, quarry.ref, 'a long press previews the quarry');
-  assert.deepEqual(touch.during.camera, touch.start, 'without moving the camera');
-  assert.equal(touch.during.menuBlocked, true, 'its context menu is suppressed');
-  assert.equal(touch.after, null, 'letting go ends the preview');
-  assert.equal(touch.inspector, false, 'and the click after a preview opens nothing');
-  await phone.close();
 
   assert.deepEqual(errors, []);
   console.log(`Interconnection checks passed. Screenshots: ${output}`);

@@ -1,4 +1,4 @@
-// tools/ui-specimen.html at desk 1440 and phone 390: it loads without errors, shows every class DESIGN.md 16.3 gives
+// tools/ui-specimen.html at desktop and laptop widths: it loads without errors, shows every class DESIGN.md 16.3 gives
 // components.css, passes the UI floor of ui-system-browser-check (the same tests/ui-audit.mjs rules, over the whole page),
 // shows a visible ring at every Tab stop, and its forced hover and focus samples really differ from rest. Full-page
 // screenshots land in TRANSPORT_OUTPUT. Serve the repository root first (TRANSPORT_URL).
@@ -25,7 +25,7 @@ function forced() {
 }
 
 const browser = await chromium.launch(LAUNCH), failures = [];
-for (const viewport of ['desk', 'phone']) {
+for (const viewport of ['desk', 'compact']) {
   const { width } = VIEWPORTS[viewport].viewport, context = await browser.newContext(VIEWPORTS[viewport]), page = await context.newPage(), errors = [];
   const fail = message => failures.push(`${viewport}: ${message}`);
   page.on('pageerror', error => errors.push(error.message));
@@ -39,7 +39,7 @@ for (const viewport of ['desk', 'phone']) {
 
   // The audit reads only what is on screen, so the viewport first grows to the whole page.
   await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
-  const { found, overflow } = await page.evaluate(audit, width <= 700);
+  const { found, overflow } = await page.evaluate(audit);
   for (const [rule, selector, detail] of found) fail(`${rule} ${selector} (${detail})`);
   if (overflow) fail(`the page scrolls sideways to ${overflow}px`);
 

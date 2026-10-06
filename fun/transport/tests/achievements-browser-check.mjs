@@ -1,7 +1,7 @@
 // Achievements in a real browser: the dialog from the Game menu (six groups, nothing earned, five hidden rows, the
 // clock paused), one bronze toast with its medal and Open achievements, no second toast that game month, a burst of two
 // the next month as one gold toast that stays 8 s, a gold record as a headline, a reload and an older save that celebrate
-// nothing, the Company report's line, no HUD badge and an unchanged goal card, and phone widths with no sideways scroll.
+// nothing, the Company report's line, no HUD badge and an unchanged goal card,.
 // Serve the repository root on a fresh no-store port first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -191,24 +191,6 @@ try {
   await closeDialog(page);
   await context.close();
 
-  // 9. Phones: the dialog never scrolls sideways and a toast fits.
-  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
-    const phone = await browser.newContext({ viewport, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-    const small = await open(phone);
-    await createWorldFromMenu(small, { seed: 1847 });
-    await small.evaluate(() => { const g = transport.game; g.totalDelivered = 1e6; g.achievements.cargo = 7; transport.setSpeed(1); });
-    await small.waitForFunction(() => document.querySelector('#toast-region .toast.achievement'), undefined, { timeout: 8000 });
-    await small.evaluate(() => transport.setSpeed(0));
-    const box = await small.locator('#toast-region .toast.achievement').first().boundingBox();
-    assert.ok(box.x >= 0 && box.x + box.width <= viewport.width, `the toast fits at ${viewport.width}: ${JSON.stringify(box)}`);
-    await small.screenshot({ path: `${output}/toast-${viewport.width}.png` });
-    await openAchievements(small);
-    assert.deepEqual(await overflow(small), { page: 0, modal: 0 }, `no sideways scroll at ${viewport.width}`);
-    await small.screenshot({ path: `${output}/dialog-${viewport.width}.png` });
-    await small.locator('.achievement-row[data-family="every-cargo"]').scrollIntoViewIfNeeded();
-    await small.screenshot({ path: `${output}/dialog-cargo-${viewport.width}.png` });
-    await phone.close();
-  }
   assert.deepEqual(errors, []);
   console.log('achievements browser check passed');
 } finally {

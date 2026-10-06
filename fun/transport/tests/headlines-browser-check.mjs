@@ -12,8 +12,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport, options = {}) {
-  const phone = viewport.width <= 700;
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone, ...options });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, ...options });
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   // Every card added to the slot, with the most present at once, and every toast shown.
@@ -257,44 +256,6 @@ try {
   assert.ok(!overlaps(await box(compact, '.headline-card'), await box(compact, '#objective-card')), 'the card leaves the goal card clear');
   await compact.screenshot({ path: `${output}/goal-1024.png` });
   await compact.close();
-
-  // Phones: inside the gutters, a 44 px close, and hidden under a tool, the drawer or a raised sheet.
-  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }]) {
-    const phone = await open(viewport);
-    await createWorldFromMenu(phone, { paused: false });
-    await arrive(phone, [5]);
-    await waitForCard(phone, 1);
-    await phone.waitForTimeout(400);
-    const edge = await box(phone, '.headline-card'), close = await box(phone, '.headline-close'), gutter = viewport.width <= 360 ? 6 : 8;
-    assert.ok(edge.left >= gutter - .5 && edge.right <= viewport.width - gutter + .5, `inside the ${gutter} px gutters at ${viewport.width}`);
-    assert.deepEqual([Math.round(close.width), Math.round(close.height)], [44, 44]);
-    await phone.screenshot({ path: `${output}/arrival-${viewport.width}.png` });
-    await phone.evaluate(() => transport.setTool('road'));
-    await phone.waitForTimeout(250);
-    assert.equal(await visibility(phone), 'hidden', 'a tool hides the card');
-    await phone.evaluate(() => transport.setTool('inspect'));
-    await phone.locator('.mobile-panel-toggle').click();
-    await phone.waitForTimeout(250);
-    assert.equal(await visibility(phone), 'hidden', 'the drawer hides the card');
-    await phone.locator('.mobile-panel-toggle').click();
-    await phone.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); });
-    await phone.locator('#inspector').waitFor({ state: 'visible' });
-    await phone.evaluate(() => document.querySelector('#toast-region').replaceChildren());
-    await phone.waitForTimeout(250);
-    assert.equal(await visibility(phone), 'visible', 'a half sheet leaves the card');
-    // A sheet moves toasts to the top of the band; the card steps aside while one shows.
-    await phone.evaluate(() => { const g = transport.game; g.notifications.unshift({ id: 'notice-headline-test', day: g.day, message: 'Test notice', text: 'Test notice', type: 'info' }); g.money += 1; });
-    await phone.locator('#toast-region .toast').first().waitFor();
-    assert.equal(await visibility(phone), 'hidden', 'a toast at the top hides the card');
-    await phone.evaluate(() => document.querySelector('#toast-region').replaceChildren());
-    await phone.waitForTimeout(250);
-    assert.equal(await visibility(phone), 'visible');
-    await phone.locator('#inspector .sheet-grabber').click();
-    await phone.waitForTimeout(250);
-    assert.equal(await visibility(phone), 'hidden', 'a raised sheet hides the card');
-    assert.ok(await phone.evaluate(() => transport.headline), 'the hidden card is still waiting');
-    await phone.close();
-  }
 
   assert.deepEqual(errors, []);
   console.log(`Headlines browser check passed. Screenshots: ${output}`);

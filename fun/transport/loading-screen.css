@@ -56,6 +56,3 @@
  .loading-train,.loading-scene::after,.loading-pulse{animation:none!important}
  #loading-progress::-webkit-progress-value{transition:none}
 }
-@media(max-width:360px){
- #loading-title{font-size:var(--fs-display);line-height:var(--lh-display)}
-}

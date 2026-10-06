@@ -15,9 +15,6 @@
 /* The mark alone, where space is tight: a route's bullet in a toast lead or a table. */
 .ref--compact{padding:2px;border-radius:var(--r-2);line-height:0}
 .ref--compact .ref-mark{margin:0}
-@media(pointer:coarse),(max-width:700px){
- .ref--compact{display:inline-grid;place-items:center;min-width:var(--control-touch);min-height:var(--control-touch)}
-}
 /* On ink (toasts, tips): the underline in paper at 40%, a paper wash when linked and the signal focus ring. */
 .ref--on-ink .ref-label{text-decoration-color:color-mix(in srgb,var(--paper) 40%,transparent)}
 .ref--on-ink:hover .ref-label,.ref--on-ink:focus-visible .ref-label,.ref--on-ink.is-linked .ref-label{text-decoration-color:currentColor}
@@ -26,11 +23,6 @@
 .ref--gone{color:inherit}
 .ref .cargo-tile,.strip .cargo-tile{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:var(--r-1);background:var(--well)}
 .ref .cargo-tile .cargo-icon,.strip .cargo-tile .cargo-icon{width:14px;height:14px}
-/* Touch: prose references reach 44 px through a layer the line never sees; their own text sits above every such layer, so a tap on a reference's words never lands on the one on the next line. */
-@media(pointer:coarse){
- .ref--prose::after{content:'';position:absolute;inset:-12px 0}
- .ref--prose>*{position:relative;z-index:1}
-}
 /* The route bullet (8.1): the numeral in 12/700 on the line colour (--c, --on from ui-line.js), shaped by mode and wider from two digits. */
 .bullet{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box;min-width:20px;height:20px;padding:0 var(--s-1);background:var(--c);color:var(--on);font-size:var(--fs-caption);line-height:1;font-weight:var(--fw-bold);font-variant-numeric:tabular-nums;white-space:nowrap;vertical-align:middle}
 .bullet--16{min-width:16px;height:16px}
@@ -111,16 +103,10 @@
 /* After a long jump: 'Back to where you were' at the bottom left of the visible band for 8 s. */
 .back-chip{position:absolute;left:calc(var(--band-l,0px) + var(--gutter));bottom:calc(var(--band-b,0px) + var(--gutter));z-index:var(--z-toolbar);display:flex;align-items:center;gap:var(--s-2);min-height:var(--control);padding:0 var(--s-3) 0 var(--s-2);border:0;border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);box-shadow:var(--e3);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium);white-space:nowrap;pointer-events:auto;cursor:pointer}
 .back-chip:hover{background:color-mix(in srgb,var(--ink) 88%,var(--on-ink))}
-@media(pointer:coarse),(max-width:700px){
- .edge-pointer,.back-chip{min-height:var(--control-touch)}
-}
 /* The inspector's Back line (12.5), a quiet button above the header when it was reached through a reference. */
 .inspector-back{display:inline-flex;align-items:center;gap:var(--s-1);max-width:100%;min-height:28px;margin:0 0 var(--s-2) calc(0px - var(--s-2));padding:0 var(--s-2) 0 var(--s-1);border-radius:var(--r-2);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);text-align:left}
 .inspector-back>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .inspector-back:hover{background:var(--well);color:var(--ink)}
-@media(pointer:coarse),(max-width:700px){
- .inspector-back{min-height:var(--control-touch)}
-}
 /* Motion that answers the player (DESIGN.md 10.1): the well tint behind a changed figure, the money delta beside the balance and an inspector's crossfade. */
 .is-tinted{animation:tint var(--t-tint) var(--ease)}
 @keyframes tint{

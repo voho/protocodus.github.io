@@ -32,7 +32,6 @@ async function fixture(page) {
 }
 async function choose(page,key) {
   await page.evaluate(()=>transport.setView('build'));
-  if(await page.locator('.mobile-panel-toggle').isVisible()&&!await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')))await page.locator('.mobile-panel-toggle').click();
   if(['level','raise','lower'].includes(key)&&!await page.locator('.engineering-tools').evaluate(el=>el.open))await page.locator('.engineering-tools summary').click();
   const button=page.locator(`[data-tool="${key}"]`);await button.waitFor({state:'visible'});await button.click();
 }
@@ -46,37 +45,28 @@ async function snapshot(page,center) {
     return{money:game.money,tiles};
   },center);
 }
-async function drag(page,session,mobile,a,b) {
+async function drag(page,a,b) {
   const from=await screen(page,a),to=await screen(page,b);
   for(const p of [from,to])await page.waitForFunction(p=>document.elementFromPoint(p.x,p.y)?.id==='world',p,{timeout:5000});
-  if(mobile){
-    await page.evaluate(()=>{window.levelingTouchPosition=null;if(!window.levelingTouchListening){document.querySelector('#world').addEventListener('pointermove',e=>{window.levelingTouchPosition={x:e.clientX,y:e.clientY};});window.levelingTouchListening=true;}});
-    const touch=p=>[{x:p.x,y:p.y,id:1,radiusX:1,radiusY:1,force:1}];
-    await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:touch(from)});
-    for(let n=1;n<=8;n++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:touch({x:from.x+(to.x-from.x)*n/8,y:from.y+(to.y-from.y)*n/8})});
-    // Chrome coalesces touch moves until a frame; wait until the app receives the final endpoint.
-    await page.waitForFunction(p=>window.levelingTouchPosition&&Math.abs(window.levelingTouchPosition.x-p.x)<1&&Math.abs(window.levelingTouchPosition.y-p.y)<1,to);
-    return()=>session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-  }
   await page.mouse.move(from.x,from.y);await page.mouse.down();await page.mouse.move(to.x,to.y,{steps:8});return()=>page.mouse.up();
 }
 
 try {
-  for(const profile of [{name:'desktop',width:1440,height:960,dpr:1},{name:'mobile',width:390,height:844,dpr:2}]){
+  for(const profile of [{name:'desktop',width:1440,height:960,dpr:1},{name:'desktop-hidpi',width:1440,height:960,dpr:2}]){
     if(process.env.TRANSPORT_PROFILE&&process.env.TRANSPORT_PROFILE!==profile.name)continue;
-    const mobile=profile.name==='mobile',context=await browser.newContext({viewport:{width:profile.width,height:profile.height},deviceScaleFactor:profile.dpr,hasTouch:mobile,isMobile:mobile});
-    const page=await context.newPage(),session=await context.newCDPSession(page);
+    const context=await browser.newContext({viewport:{width:profile.width,height:profile.height},deviceScaleFactor:profile.dpr});
+    const page=await context.newPage();
     page.on('pageerror',error=>errors.push(`${profile.name}: ${error.message}`));
     await page.goto(url);await createWorldFromMenu(page);
     const center=await fixture(page),point=(dx,dy)=>({x:center.x+dx,y:center.y+dy});
     await choose(page,'level');assert.equal(await page.locator('#active-tool-name').innerText(),'Level land');
     assert.match(await page.locator('#active-tool-hint').innerText(),/area.*first point/i);
-    if(mobile)assert.equal(await page.locator('.sidebar').evaluate(el=>el.classList.contains('mobile-open')),false,'choosing Level returns to the map');
+    assert.equal(await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open')),false,'choosing Level returns to the map');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
 
     // A complex diagonal slope rejects the complete ordinary road gesture.
     await choose(page,'road');const beforeRoad=await snapshot(page,center);
-    let release=await drag(page,session,mobile,point(-1,0),point(1,0));
+    let release=await drag(page,point(-1,0),point(1,0));
     assert.match(await page.locator('#placement-tip').innerText(),/Level this slope first/);
     assert.equal(await page.locator('#placement-tip').evaluate(el=>el.classList.contains('invalid')),true);
     await release();assert.deepEqual(await snapshot(page,center),beforeRoad,'rejected road changes neither terrain nor balance');
@@ -88,7 +78,7 @@ try {
       const points=[start];for(let y=Math.min(start.y,end.y);y<=Math.max(start.y,end.y);y++)for(let x=Math.min(start.x,end.x);x<=Math.max(start.x,end.x);x++)if(x!==start.x||y!==start.y)points.push({x,y});
       const quote=(await import('./model.js')).quoteTerraformLevel(transport.game,points);return{cost:quote.cost,level:quote.level,count:quote.placements.length};
     },{start,end});
-    const beforeLevel=await snapshot(page,center);release=await drag(page,session,mobile,start,end);
+    const beforeLevel=await snapshot(page,center);release=await drag(page,start,end);
     const tip=await page.locator('#placement-tip').innerText();assert.match(tip,/25 points/);assert.match(tip,new RegExp(`Level ${expected.level}\\b`));
     const quoted=Number(tip.match(/\$([\d,]+)/)?.[1].replaceAll(',',''));assert.equal(quoted,expected.cost);
     await page.screenshot({path:`${output}/${profile.name}-level-preview.png`});
@@ -99,14 +89,14 @@ try {
     },{start,end,level:expected.level}),true,'all 25 selected grid points reach the quoted height');
 
     // The same road stroke becomes usable after the paid grading operation.
-    await choose(page,'road');release=await drag(page,session,mobile,point(-1,0),point(1,0));
+    await choose(page,'road');release=await drag(page,point(-1,0),point(1,0));
     assert.equal(await page.locator('#placement-tip').evaluate(el=>el.classList.contains('invalid')),false);await release();
     assert.equal(await page.evaluate(center=>[-1,0,1].every(dx=>transport.game.tiles[center.y*transport.game.width+center.x+dx].road),center),true);
 
     // Lowering one clear corner creates a lower target; the intervening road
     // must reject the whole leveling area, even when other cells are editable.
     await page.evaluate(start=>{const game=transport.game;game.tiles[start.y*game.width+start.x].elevation=3/7;game.revision++;},start);
-    await choose(page,'level');const protectedBefore=await snapshot(page,center);release=await drag(page,session,mobile,start,end);
+    await choose(page,'level');const protectedBefore=await snapshot(page,center);release=await drag(page,start,end);
     assert.match(await page.locator('#placement-tip').innerText(),/Clear buildings|networks/);await release();
     assert.deepEqual(await snapshot(page,center),protectedBefore,'protected-area rejection is atomic');
     await page.evaluate(()=>{transport.setTool('inspect');return transport.persist();});
@@ -116,7 +106,7 @@ try {
     assert.deepEqual((await snapshot(page,center)).tiles,saved.tiles,'graded land and roads survive actual local-storage reload');
     await page.screenshot({path:`${output}/${profile.name}-graded-road.png`});
     await context.close();
-    console.log(`${profile.name}: Level tool, ${mobile?'touch':'mouse'} rectangle, exact quote/payment, protected rejection, slope rejection/graded road and local-storage reload passed`);
+    console.log(`${profile.name}: Level tool, mouse rectangle, exact quote/payment, protected rejection, slope rejection/graded road and local-storage reload passed`);
   }
   assert.deepEqual(errors,[]);
 } finally { await browser.close(); }

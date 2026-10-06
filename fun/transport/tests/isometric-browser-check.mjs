@@ -186,10 +186,7 @@ try {
   await app.evaluate(() => { const city = transport.game.cities[0]; transport.renderer.setZoom(2); transport.renderer.focus(city.x + 2, city.y); });
   await app.screenshot({ path: `${output}/app-desktop.png` }); interactions.push('road drag', 'raise terrain', 'pointer pan', 'opaque roof inspection', 'local save reload');
   await openGameAction(app, 'world-button'); await app.locator('#start-world-form').waitFor(); await app.screenshot({ path: `${output}/new-world-preview.png` }); await app.keyboard.press('Escape');
-  await app.setViewportSize({ width: 390, height: 844 }); await app.evaluate(() => { transport.renderer.resize(); transport.renderer.focus(transport.game.cities[0].x, transport.game.cities[0].y); });
-  await app.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().right <= 1);
-  assert.ok(await app.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile has no horizontal overflow');
-  await app.screenshot({ path: `${output}/app-mobile.png` }); await context.close();
+  await context.close();
   assert.deepEqual(errors, []);
   const report = { passed: true, profiles, interactions, errors };
   await writeFile(`${output}/results.json`, JSON.stringify(report, null, 2));

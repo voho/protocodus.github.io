@@ -10,8 +10,8 @@ const screen = (page, point) => page.evaluate(point => {
   return { x: p.x + rect.left, y: p.y + rect.top };
 }, point);
 try {
-  for (const mobile of [false, true]) {
-    const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1440, height: 960 }, deviceScaleFactor: mobile ? 2 : 1, isMobile: mobile, hasTouch: mobile });
+  for (const deviceScaleFactor of [1, 2]) {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 960 }, deviceScaleFactor });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url); await createWorldFromMenu(page);
     const site = await page.evaluate(async () => {
@@ -43,7 +43,7 @@ try {
     await page.evaluate(p => { transport.setSpeed(0); transport.renderer.setZoom(1); transport.renderer.focus(p.x + 1, p.y + 1); }, site);
     const corner = { x: site.x + 2, y: site.y + 2 }, p = await screen(page, corner);
     await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', p);
-    if (mobile) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y);
+    await page.mouse.click(p.x, p.y);
     await page.waitForFunction(() => !document.querySelector('#inspector').hidden);
     assert.match(await page.locator('#inspector .eyebrow').innerText(), /3 × 3 site/);
     assert.match(await page.locator('#inspector').innerText(), /Bulldoze any part to clear the whole site/);
@@ -52,7 +52,7 @@ try {
     await page.evaluate(() => transport.setTool('bulldoze'));
     const a = await screen(page, corner), b = await screen(page, { x: site.x, y: site.y + 2 });
     await page.mouse.move(a.x, a.y);
-    if (!mobile) assert.match(await page.locator('#placement-tip').innerText(), /3 × 3/);
+    assert.match(await page.locator('#placement-tip').innerText(), /3 × 3/);
     await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
     const after = await page.evaluate(async p => {
       const g = transport.game, { terrainObjectAt } = await import('./terrain-objects.js'), { constructionCost } = await import('./model.js');
@@ -62,7 +62,7 @@ try {
     }, site);
     assert.equal(after.object, null); assert.equal(before - after.money, after.cost);
     assert.ok(after.tiles.every(t => t.terrain === 'grass' && t.detail === '' && t.elevation === 6 / 16));
-    console.log(`${mobile ? 'mobile' : 'desktop'}: saved 3×3 grove, far-corner click, inspector, quote and single-charge whole-parcel clearing passed`);
+    console.log(`desktop DPR ${deviceScaleFactor}: saved 3×3 grove, far-corner click, inspector, quote and single-charge whole-parcel clearing passed`);
     await page.close();
   }
   assert.deepEqual(errors, []);

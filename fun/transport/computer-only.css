@@ -1,0 +1,13 @@
+#computer-required {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  color: var(--ink);
+  background: var(--paper);
+  font: var(--fw-medium) var(--fs-lead)/var(--lh-lead) var(--font);
+  text-align: center;
+}
+
+#computer-required[hidden] { display: none; }

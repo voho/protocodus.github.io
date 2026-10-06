@@ -1,7 +1,7 @@
 // References (DESIGN.md 7): every mention of a route, stop, town, industry, vehicle or cargo is the same button, built only
 // here. ref(), refFor() and renderTemplate() return markup and resolveRef() finds what a reference points at, so all of them
-// run in Node; installReferences() adds the one delegated set of document listeners that links hover, focus, clicks and long
-// presses to the map, and linkFromMap() lets map hover light panel rows.
+// run in Node; installReferences() adds the one delegated set of document listeners that links hover, focus and clicks to
+// the map, and linkFromMap() lets map hover light panel rows.
 import { CARGO, INDUSTRIES } from './data.js';
 import { icon, modeGlyph } from './ui-icons.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -16,7 +16,7 @@ const LISTS = { route: 'routes', stop: 'stations', town: 'cities', industry: 'in
 // What a template says for something that has gone: plain words, never a dead button.
 const GONE = { route: 'a retired route', stop: 'a removed stop', town: 'a former town', industry: 'a closed industry', vehicle: 'a sold vehicle' };
 const VARIANTS = { prose: 'ref ref--prose', row: 'ref ref--row', compact: 'ref ref--compact', onInk: 'ref ref--prose ref--on-ink' };
-const TOKEN = /\{(route|stop|town|industry|vehicle|cargo|money|date):([^{}]+)\}/g, INTENT_MS = 150, LONG_PRESS_MS = 450, SHOW_MS = 4000;
+const TOKEN = /\{(route|stop|town|industry|vehicle|cargo|money|date):([^{}]+)\}/g, INTENT_MS = 150, SHOW_MS = 4000;
 const cargoTile = cargo => `<span class="cargo-tile">${cargoIcon(cargo, { decorative: true })}</span>`;
 
 /** 'town:city-3' or {kind, id} as {kind, id}; null for anything that is not a reference. */
@@ -117,20 +117,19 @@ let installed = null;
 /** The one delegated set of document listeners (7.3). Pointer hover counts after 150 ms of intent and keyboard focus at once;
  * either sets view.hoverRef, which the map highlights, and links every [data-ref] with the same value. A click or Enter calls
  * onOpen(ref, {source, open: true, hold: 0, keyboard}); data-ref-action="show" asks for {open: false, hold: 4000}; a cargo
- * reference calls onCargo(cargo, {source}) instead. A touch press held 450 ms previews the target without opening it, and
- * its context menu and click are swallowed. Returns {clear, relink}. */
+ * reference calls onCargo(cargo, {source}) instead. Returns {clear, relink}. */
 export function installReferences({ getGame, view, onOpen, onCargo }) {
   if (installed) return installed;
-  let pending = 0, leaving = 0, press = null, pressed = false;
+  let pending = 0, leaving = 0;
   const owner = node => node?.closest?.('[data-ref]'), live = el => el && !el.classList.contains('ref--gone') ? el.dataset.ref : null;
   const set = value => { clearTimeout(pending); clearTimeout(leaving); if (view.hoverRef === value) return; view.hoverRef = value; linked.hover = value; relink(); };
   document.addEventListener('pointerover', e => {
-    const value = e.pointerType === 'touch' ? null : live(owner(e.target));if (!value) return;
+    const value = live(owner(e.target));if (!value) return;
     clearTimeout(leaving); clearTimeout(pending);
     if (value !== view.hoverRef) pending = setTimeout(() => set(value), INTENT_MS);
   });
   document.addEventListener('pointerout', e => {
-    const from = e.pointerType === 'touch' ? null : live(owner(e.target));if (!from || from === live(owner(e.relatedTarget))) return;
+    const from = live(owner(e.target));if (!from || from === live(owner(e.relatedTarget))) return;
     clearTimeout(pending);if (view.hoverRef !== from) return;
     // The edge pointer is a reference to the same target, so the pointer keeps the hover on its way there.
     clearTimeout(leaving); leaving = setTimeout(() => set(null), document.querySelector(`.edge-pointer[data-ref="${CSS.escape(from)}"]`) ? 700 : 60);
@@ -139,24 +138,11 @@ export function installReferences({ getGame, view, onOpen, onCargo }) {
   document.addEventListener('focusout', e => { const from = live(owner(e.target)); if (from && from === view.hoverRef && from !== live(owner(e.relatedTarget))) set(null); });
   document.addEventListener('click', e => {
     const el = owner(e.target), value = live(el), parsed = parseRef(value);if (!parsed) return;
-    if (pressed) { pressed = false; e.preventDefault(); e.stopPropagation(); return; }
     if (parsed.kind === 'cargo') { onCargo?.(parsed.id, { source: el }); return; }
     const show = el.dataset.refAction === 'show';
     if (resolveRef(getGame?.(), value).exists) onOpen?.(value, { source: el, open: !show, hold: show ? SHOW_MS : 0, keyboard: e.detail === 0 });
   });
   // Enter opens a reference that is not a button itself (a row); buttons click on Enter already.
   document.addEventListener('keydown', e => { const el = owner(e.target); if (e.key !== 'Enter' || e.defaultPrevented || el !== e.target || el.matches('button,a,input,select,textarea,summary')) return; e.preventDefault(); el.click(); });
-  document.addEventListener('pointerdown', e => {
-    const value = e.pointerType === 'touch' ? live(owner(e.target)) : null;if (!value) return;
-    clearTimeout(press?.timer); pressed = false;
-    press = { x: e.clientX, y: e.clientY, timer: setTimeout(() => { pressed = true; set(value); }, LONG_PRESS_MS) };
-  });
-  document.addEventListener('pointermove', e => { if (press && e.pointerType === 'touch' && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) { clearTimeout(press.timer); press = null; } });
-  for (const type of ['pointerup', 'pointercancel']) document.addEventListener(type, e => {
-    if (e.pointerType !== 'touch' || !press) return;
-    clearTimeout(press.timer); press = null;
-    if (pressed) { set(null); setTimeout(() => { pressed = false; }, 400); }
-  });
-  document.addEventListener('contextmenu', e => { if ((press || pressed) && owner(e.target)) e.preventDefault(); });
   return installed = { clear: () => set(null), relink };
 }

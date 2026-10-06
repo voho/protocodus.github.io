@@ -1,6 +1,6 @@
 // Town opinion and the town hall in a real browser: two closed folds at the foot of the town inspector, the
 // opinion's reasons and the town hall's priced purchases, a funded year bought at 8× that survives live refreshes
-// and a reload, the zone inspector's funded line, the phone sheet, and a single Outstanding moment.
+// and a reload, the zone inspector's funded line, and a single Outstanding moment.
 // Serve the repository root first; the page uses fresh browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -77,7 +77,7 @@ try {
   await openHall(page);
   assert.equal(await hall(page).locator('[data-town-action="fund"] ~ .micro-note').innerText(), 'Your 4 zoned tiles here would develop twice as fast.');
 
-  // Safari and iPad never focus a clicked button, so focus cannot shield the inspector from a live refresh.
+  // A pointer click can leave focus on the map; live refresh must preserve the inspector independently of focus.
   await page.evaluate(() => document.addEventListener('mousedown', event => { if (event.target.closest('#inspector button')) event.preventDefault(); }, true));
   const books = () => page.evaluate(() => ({ money: transport.game.money, revenue: transport.game.totalRevenue, running: transport.game.totalOperatingExpenses || 0, month: transport.game.lastMonth, day: transport.game.day }));
   await page.evaluate(() => { document.querySelector('#inspector .town-hall').dataset.before = '1'; transport.setSpeed(8); });
@@ -131,21 +131,6 @@ try {
   const desk = await fits(page, 32);
   assert.ok(desk.ok, `desk ${JSON.stringify(desk)}`);
   await page.screenshot({ path: `${output}/town-desk.png` });
-
-  // On a phone the open fold fits the sheet and its buttons are touch-sized.
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(400);
-  await inspectTown(page);
-  await openHall(page);
-  await page.evaluate(() => document.querySelector('#inspector .sheet-grabber:not([hidden])')?.click());
-  await page.waitForTimeout(300);
-  await page.locator('#inspector .town-hall').scrollIntoViewIfNeeded();
-  const phone = await fits(page, 44);
-  assert.ok(phone.ok, `phone ${JSON.stringify(phone)}`);
-  assert.ok(await page.locator('#inspector .town-opinion summary').evaluate(el => el.getBoundingClientRect().height >= 44));
-  await page.screenshot({ path: `${output}/town-phone.png` });
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.waitForTimeout(400);
 
   // A town that comes to rate the company Outstanding is celebrated once.
   await page.evaluate(() => { const status = document.querySelector('#status-message'); window.outstandingSeen = 0; new MutationObserver(() => { if (status.textContent.includes('now rates your company Outstanding')) window.outstandingSeen++; }).observe(status, { childList: true, characterData: true, subtree: true }); });

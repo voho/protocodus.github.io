@@ -126,26 +126,6 @@ try {
     await other.close();
   }
 
-  // Phones: the pill opens, Plan road returns to the map with the banner on top.
-  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  watch(phone);
-  await phone.goto(url);
-  await createWorldFromMenu(phone, { biome: 'taiga', seed: 1847 });
-  await phone.locator('#objective-chip').click();
-  assert.equal(await phone.locator('#objective-plan').isVisible(), true);
-  const row = await phone.locator('.objective-actions').evaluate(el => [...el.children].filter(child => !child.hidden).map(child => Math.round(child.getBoundingClientRect().top)));
-  assert.equal(new Set(row).size, 1, 'the goal actions share one row on a phone');
-  await phone.screenshot({ path: `${output}/phone-card.png` });
-  await phone.locator('#objective-plan').click();
-  await phone.locator('#connection-plan-banner').waitFor({ state: 'visible' });
-  assert.equal(await phone.locator('#objective-body').isVisible(), false, 'planning returns to the pill');
-  assert.equal(overlaps(await box(phone, '#connection-plan-banner'), await box(phone, '#objective-card')), false);
-  assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await phone.screenshot({ path: `${output}/phone-plan.png` });
-  await phone.locator('#build-connection-plan').click();
-  await phone.locator('#route-form').waitFor({ state: 'visible' });
-  await phone.screenshot({ path: `${output}/phone-built.png` });
-  await phone.close();
   assert.deepEqual(errors, []);
   console.log(`Plan road checks passed. Screenshots: ${output}`);
 } finally { await browser.close(); }

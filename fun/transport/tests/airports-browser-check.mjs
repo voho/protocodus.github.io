@@ -1,6 +1,6 @@
 // Airports and flights in a real browser (seed 1847): the 1952 debut, placing and turning a 6 × 2 site, footprint
 // lookups, an air route between two towns, planes on the ground and aloft, lights, layers, the art's weight beside
-// the houses, saves, bulldozing and a phone-width tool bar. Serve the repository root first; storage is isolated.
+// the houses, saves and bulldozing. Serve the repository root first; storage is isolated.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
@@ -26,8 +26,9 @@ const money = page => page.evaluate(() => transport.game.money);
 const canvasCrop = (page, rect) => page.evaluate(rect => { const c = document.querySelector('#world'), d = devicePixelRatio || 1; return Array.from(c.getContext('2d').getImageData(Math.round(rect.x * d), Math.round(rect.y * d), Math.max(1, Math.round(rect.w * d)), Math.max(1, Math.round(rect.h * d))).data); }, rect);
 const differs = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++; return n; };
 async function chooseView(page, view) {
-  if (await page.locator('.main-nav').isVisible()) { if (!(await page.locator(`.main-nav [data-view="${view}"]`).evaluate(el => el.classList.contains('active')))) await page.locator(`.main-nav [data-view="${view}"]`).click(); }
-  else { if (!(await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click(); await page.locator(`[data-mobile-view="${view}"]`).click(); }
+  const button = page.locator(`.main-nav [data-view="${view}"]`);
+  const open = await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'));
+  if (!open || !(await button.evaluate(el => el.classList.contains('active')))) await button.click();
 }
 const networkCards = page => page.locator('#panel-content > .tool-grid').first().locator('.tool-card');
 
@@ -346,28 +347,6 @@ try {
     }
     await view.close();
   }
-
-  // 14. Phone width: six cards without overflow, and a Turn button with a 44 px hit area.
-  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
-  watch(phone);
-  await phone.goto(url);
-  await createWorldFromMenu(phone, { biome: 'taiga', size: 'square512', seed: 1847 });
-  await phone.evaluate(() => { const g = transport.game; g.day = 730.02; g.lastDailyDay = 730; g.lastMonth = 24; g.revision++; transport.setView('build'); });
-  await phone.waitForTimeout(400);
-  await chooseView(phone, 'build');
-  await phone.locator('[data-category="network"]').click();
-  assert.equal(await networkCards(phone).count(), 6);
-  assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.querySelector('#panel-content').scrollWidth <= document.querySelector('#panel-content').clientWidth + 1), true, 'no horizontal overflow');
-  await phone.screenshot({ path: `${output}/phone-build.png` });
-  if (await phone.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open'))) await phone.locator('.mobile-panel-toggle').click();
-  await phone.evaluate(() => transport.setTool('airport'));
-  await phone.locator('#active-tool-turn').waitFor({ state: 'visible' });
-  await phone.waitForTimeout(500);
-  const turn = await phone.locator('#active-tool-turn').boundingBox();
-  assert.ok(turn.width >= 44 && turn.height >= 44, `Turn has a 44 px hit area (${turn.width} × ${turn.height})`);
-  assert.equal(await phone.locator('#active-tool-hint').textContent(), 'Tap to preview, again to place. Turn for the other way.');
-  await phone.screenshot({ path: `${output}/phone-tool.png` });
-  await phone.close();
 
   assert.deepEqual(errors, [], 'no uncaught browser errors');
   console.log(`airports browser check passed; screenshots in ${output}`);

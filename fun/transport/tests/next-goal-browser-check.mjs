@@ -1,4 +1,4 @@
-// Next goal card: the seed-1847 first route checklist, alternatives, the folded preference and its layer, and phone layout.
+// Next goal card: the seed-1847 first route checklist, alternatives, the folded preference and its layer.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
@@ -125,38 +125,8 @@ try {
   await page.locator('#game-menu-button').click();
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the game menu hides the card');
   await page.keyboard.press('Escape');
-  // A portrait tablet keeps the card in its corner; the paused state lives under the date, clear of it.
-  await page.setViewportSize({ width: 768, height: 1024 });
-  if (await page.locator('#close-management').isVisible()) await page.locator('#close-management').click();
-  await page.locator('#objective-body').waitFor({ state: 'visible' });
-  assert.equal(await page.locator('#date-note').textContent(), 'Paused');
-  assert.equal(overlaps(await box(page, '.date-block'), await box(page, '#objective-card')), false, 'the paused cue clears the card on a tablet');
-  await page.screenshot({ path: `${output}/tablet-paused.png` });
   await page.close();
 
-  for (const width of [390, 320]) {
-    const phone = await browser.newPage({ viewport: { width, height: width === 390 ? 844 : 640 }, isMobile: true, hasTouch: true });
-    watch(phone);
-    await phone.goto(url);
-    await createWorldFromMenu(phone, { biome: 'taiga', seed: 1847 });
-    await phone.locator('#objective-chip').waitFor({ state: 'visible' });
-    assert.equal(await phone.locator('#objective-body').isVisible(), false, 'phones show a one-line pill');
-    assert.equal(await phone.locator('#objective-chip').evaluate(chip => getComputedStyle(chip, '::before').backgroundColor), 'rgb(30, 50, 40)', 'the dot turns orange only for a new goal');
-    assert.equal(overlaps(await box(phone, '#objective-card'), await box(phone, '.view-controls')), false, 'the pill clears the zoom control');
-    assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-    await phone.screenshot({ path: `${output}/phone-${width}.png` });
-    await phone.locator('#objective-chip').click();
-    assert.equal(await phone.locator('#objective-body').isVisible(), true, 'a tap expands the pill');
-    await phone.screenshot({ path: `${output}/phone-${width}-open.png` });
-    await phone.locator('[data-goal-step="0"]').click();
-    assert.equal(await phone.locator('#active-tool-bar').isVisible(), true);
-    assert.equal(await phone.locator('#objective-body').isVisible(), false, 'acting on a step returns to the pill');
-    const pill = await box(phone, '#objective-card');
-    assert.equal(overlaps(pill, await box(phone, '#active-tool-bar')), false, 'the pill clears the tool bar');
-    assert.equal(overlaps(pill, await box(phone, '.view-controls')), false);
-    await phone.screenshot({ path: `${output}/phone-${width}-tool.png` });
-    await phone.close();
-  }
   // A card folded under the old title-based key stays folded.
   const migrated = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   watch(migrated);

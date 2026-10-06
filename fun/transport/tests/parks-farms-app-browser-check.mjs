@@ -14,8 +14,8 @@ const farms = ['farm', 'dairy-farm', 'vegetable-farm', 'orchard', 'livestock-far
 const errors = [], results = [];
 
 async function drawer(page) {
-  if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')))
-    await page.locator(await page.locator('.mobile-panel-toggle').isVisible() ? '.mobile-panel-toggle' : '.main-nav [data-view="build"]').click();
+  if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open')))
+    await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('.sidebar').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
 }
 async function choose(page, kind, group) {
@@ -24,7 +24,7 @@ async function choose(page, kind, group) {
   if (group) await page.locator('#building-group').selectOption(group);
   await page.locator(`#panel-content [data-tool="${kind}"]`).click();
   assert.equal(await page.locator(`#panel-content [data-tool="${kind}"]`).getAttribute('aria-pressed'), 'true');
-  assert.equal(await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open')), false, 'selection returns to the map');
+  assert.equal(await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open')), false, 'selection returns to the map');
 }
 async function screen(page, point, { focus = true, zoom = 1 } = {}) {
   return page.evaluate(({ point, focus, zoom }) => {
@@ -34,10 +34,10 @@ async function screen(page, point, { focus = true, zoom = 1 } = {}) {
     return { x: p.x + rect.left, y: p.y + rect.top };
   }, { point, focus, zoom });
 }
-async function clickWorld(page, point, mobile) {
-  const p = await screen(page, point, { zoom: mobile ? .5 : 1 });
+async function clickWorld(page, point) {
+  const p = await screen(page, point, { zoom: 1 });
   await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', p);
-  if (mobile) await page.touchscreen.tap(p.x, p.y); else await page.mouse.click(p.x, p.y);
+  await page.mouse.click(p.x, p.y);
   return p;
 }
 async function findSite(page, kind, { nearTown = false, near } = {}) {
@@ -111,26 +111,16 @@ async function assertPreview(page, site) {
   assert.equal(coverage.outside, false, 'the rendered preview stops at the field boundary');
   return coverage;
 }
-async function place(page, site, mobile, preview = false) {
-  const before = await state(page, site), p = await screen(page, site, { zoom: mobile ? .5 : 1 });
+async function place(page, site, preview = false) {
+  const before = await state(page, site), p = await screen(page, site, { zoom: 1 });
   if (preview) await capturePreview(page);
   let coverage;
   try {
-    if (mobile) {
-      await page.touchscreen.tap(p.x, p.y);
-      if (site.cost >= 20000) {
-        assert.equal((await state(page, site)).industry || (await state(page, site)).building, null, 'costly first tap only aims the site');
-        assert.match(await page.locator('#placement-tip').innerText(), new RegExp(`${site.span} × ${site.span}`));
-        if (preview) { coverage = await assertPreview(page, site); await page.screenshot({ path: `${output}/mobile-field-aim.png` }); }
-        await page.locator('#placement-tip .tip-place').tap();
-      }
-    } else {
-      await page.mouse.move(p.x, p.y);
-      await page.waitForFunction(() => !document.querySelector('#placement-tip').hidden);
-      assert.match(await page.locator('#placement-tip').innerText(), new RegExp(`${site.span} × ${site.span}`));
-      if (preview) { coverage = await assertPreview(page, site); await page.screenshot({ path: `${output}/desktop-field-preview.png` }); }
-      await page.mouse.click(p.x, p.y);
-    }
+    await page.mouse.move(p.x, p.y);
+    await page.waitForFunction(() => !document.querySelector('#placement-tip').hidden);
+    assert.match(await page.locator('#placement-tip').innerText(), new RegExp(`${site.span} × ${site.span}`));
+    if (preview) { coverage = await assertPreview(page, site); await page.screenshot({ path: `${output}/desktop-field-preview.png` }); }
+    await page.mouse.click(p.x, p.y);
   } finally { if (preview) await page.evaluate(() => window.restorePreviewCapture?.()); }
   const after = await state(page, site), built = after.industry || after.building?.building;
   assert.equal(built?.kind, site.kind, `${site.name} builds through the actual pointer gesture`);
@@ -169,23 +159,23 @@ async function catalog(page, profile) {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'catalog stays within the viewport');
   return counts;
 }
-async function inspectSite(page, site, mobile) {
+async function inspectSite(page, site) {
   await page.locator('#cancel-tool-button').click();
   const corner = { x: site.x + site.span - 1, y: site.y + site.span - 1 };
-  const p = await screen(page, corner, { zoom: mobile ? .5 : 1 });
+  const p = await screen(page, corner, { zoom: 1 });
   // A paused app redraws changed cameras on its next poll. Inspect the drawn
-  // site's pick targets, including touch slop, before sending the real gesture.
+  // site's pick targets before sending the real click.
   await page.waitForTimeout(300);
-  const target = await page.evaluate(({ site, mobile, p, field }) => {
+  const target = await page.evaluate(({ site, p, field }) => {
     const r = transport.renderer, rect = document.querySelector('#world').getBoundingClientRect();
     const hit = point => {
-      if (document.elementFromPoint(point.x, point.y)?.id !== 'world' || r.vehicleAt(point.x, point.y, { slop: mobile ? 12 : 0 })) return false;
-      const tile = r.screenToInspectTile(point.x, point.y, { slop: mobile ? 12 : 0 });
+      if (document.elementFromPoint(point.x, point.y)?.id !== 'world' || r.vehicleAt(point.x, point.y, { slop: 0 })) return false;
+      const tile = r.screenToInspectTile(point.x, point.y, { slop: 0 });
       return tile.x === site.x && tile.y === site.y;
     };
     if (hit(p)) return p;
     if (field) return null; // Every farm still has to inspect from its far field corner.
-    // Small raised plots can overlap a street vehicle in projection. Tap a
+    // Small raised plots can overlap a street vehicle in projection. Click a
     // visible part of their artwork rather than the vehicle's valid hit target.
     const center = r.worldToScreen(site.x + (site.span - 1) / 2, site.y + (site.span - 1) / 2), z = r.getCamera().zoom;
     for (let y = center.y - (36 * site.span + 12) * z; y <= center.y + 12 * site.span * z; y += 3)
@@ -194,9 +184,9 @@ async function inspectSite(page, site, mobile) {
         if (hit(point)) return point;
       }
     return null;
-  }, { site, mobile, p, field: farms.includes(site.kind) });
+  }, { site, p, field: farms.includes(site.kind) });
   assert.ok(target, `${site.name} has an unobscured map inspection target`);
-  if (mobile) await page.touchscreen.tap(target.x, target.y); else await page.mouse.click(target.x, target.y);
+  await page.mouse.click(target.x, target.y);
   await page.locator('#inspector h3').waitFor();
   assert.match(await page.locator('#inspector .eyebrow').innerText(), new RegExp(`${site.span} × ${site.span}`));
   if (parks.includes(site.kind)) {
@@ -208,23 +198,20 @@ async function inspectSite(page, site, mobile) {
     assert.match(await property.innerText(), /Rent[\s\S]*a month/);
     assert.match(await property.innerText(), /Deliver food to keep its shelves full/);
   }
-  await page.screenshot({ path: `${output}/${mobile ? 'mobile' : 'desktop'}-${site.kind}-inspector.png` });
+  await page.screenshot({ path: `${output}/desktop-${site.kind}-inspector.png` });
   await page.locator('#inspector [aria-label="Close inspector"]').click();
 }
-async function fieldLifecycle(page, site, mobile) {
+async function fieldLifecycle(page, site) {
   const corner = { x: site.x + 6, y: site.y + 6 }, before = await state(page, corner);
   await page.locator('#world').focus(); await page.keyboard.press('r');
-  await clickWorld(page, corner, mobile);
+  await clickWorld(page, corner);
   const blocked = await state(page, corner);
   assert.deepEqual(blocked, before, 'a road cannot invade a visually empty far field cell');
   await page.locator('#world').focus(); await page.keyboard.press('x');
   const cost = await page.evaluate(async p => (await import('./model.js')).constructionCost(transport.game, 'bulldoze', p.x, p.y), corner);
-  if (mobile) await clickWorld(page, corner, true);
-  else {
-    await screen(page, { x: site.x + 3, y: site.y + 6 });
-    const a = await screen(page, corner, { focus: false }), b = await screen(page, { x: site.x, y: site.y + 6 }, { focus: false });
-    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 12 }); await page.mouse.up();
-  }
+  await screen(page, { x: site.x + 3, y: site.y + 6 });
+  const a = await screen(page, corner, { focus: false }), b = await screen(page, { x: site.x, y: site.y + 6 }, { focus: false });
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 12 }); await page.mouse.up();
   const removed = await state(page, corner);
   assert.equal(removed.industry, null); assert.equal(before.money - removed.money, cost, 'one field demolition, including a drag across it, charges once');
   assert.equal(await page.evaluate(id => transport.game.industries.some(i => i.id === id), site.id), false);
@@ -247,28 +234,28 @@ async function savedSites(page, sites) {
 }
 
 try {
-  for (const profile of [{ name: 'desktop', width: 1440, height: 1000, dpr: 1 }, { name: 'mobile', width: 390, height: 844, dpr: 2 }]) {
+  for (const profile of [{ name: 'desktop', width: 1440, height: 1000, dpr: 1 }]) {
     if (process.env.TRANSPORT_PROFILE && process.env.TRANSPORT_PROFILE !== profile.name) continue;
-    const mobile = profile.name === 'mobile', page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr, hasTouch: mobile, isMobile: mobile });
+    const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr });
     page.on('pageerror', error => errors.push(error.message));
     try {
       await page.goto(url); await createWorldFromMenu(page, { seed: 1847, generationVersion: 9 });
       assert.equal(await page.evaluate(() => transport.game.generationVersion), 9);
       const counts = await catalog(page, profile.name), sites = [];
-      for (const kind of mobile ? [parks[0], malls[0]] : [...parks, ...malls]) {
+      for (const kind of [...parks, ...malls]) {
         const site = await findSite(page, kind, { nearTown: true });
         await choose(page, kind, parks.includes(kind) ? 'community' : 'shops');
-        await place(page, site, mobile); await inspectSite(page, site, mobile); sites.push(site);
+        await place(page, site); await inspectSite(page, site); sites.push(site);
       }
       let preview;
-      for (const kind of mobile ? [farms[0]] : farms) {
+      for (const kind of farms) {
         const site = await findSite(page, kind, { near: sites[0] }); await choose(page, kind);
-        const placed = await place(page, site, mobile, kind === 'farm'); preview ||= placed.coverage;
-        await inspectSite(page, site, mobile); sites.push(site);
-        if (kind === 'farm') await fieldLifecycle(page, site, mobile);
+        const placed = await place(page, site, kind === 'farm'); preview ||= placed.coverage;
+        await inspectSite(page, site); sites.push(site);
+        if (kind === 'farm') await fieldLifecycle(page, site);
       }
       // The normal calendar close updates mall outlets and monthly food wants.
-      if (!mobile) {
+      {
         const nextMonth = await page.evaluate(() => (Math.floor(transport.game.day / 30) + 1) * 30 + 1);
         await page.locator('[data-speed="8"]').click();
         await page.waitForFunction(day => transport.game.day >= day, nextMonth, { timeout: 45000 });
@@ -292,7 +279,7 @@ try {
       assert.equal(await page.evaluate(() => transport.game.generationVersion), 9);
       await page.evaluate(p => { transport.setTool('inspect'); transport.renderer.setZoom(.5); transport.renderer.focus(p.x, p.y); }, sites[0]);
       await page.mouse.move(2, 2); await page.screenshot({ path: `${output}/${profile.name}-new-neighborhood.png` });
-      if (!mobile) {
+      {
         await page.waitForFunction(() => !document.querySelector('#toast-region .toast'), undefined, { timeout: 15000 });
         await page.evaluate(site => {
           const city = transport.game.cities[0], r = transport.renderer;

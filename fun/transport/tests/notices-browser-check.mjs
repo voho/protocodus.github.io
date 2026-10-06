@@ -11,7 +11,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport) {
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: viewport.width <= 700, hasTouch: viewport.width <= 700 });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));
   // Record every toast as it is shown, including ones that later scroll out of the region.
   // A reference's mark (a route's numbered bullet, a cargo or town icon) is not part of the sentence.
@@ -91,7 +91,6 @@ async function industryOpening(viewport, name) {
 
 try {
   await industryOpening({ width: 1440, height: 960 }, 'desktop');
-  await industryOpening({ width: 390, height: 844 }, '390');
   const page = await open({ width: 1440, height: 960 });
   await createWorldFromMenu(page);
   await waitForToast(page, /^Welcome to /);
@@ -328,26 +327,8 @@ try {
   assert.deepEqual((await toastsSince(page, from)).filter(toast => /^Welcome|^New for|^Prices rise/.test(toast.text)), [], 'activating a later-year save shows no year toast');
   await page.close();
 
-  // Phone layout: a toast with an action fits beside the map controls.
-  const phone = await open({ width: 390, height: 844 });
-  await createWorldFromMenu(phone);
-  await waitForToast(phone, /^Welcome to /);
-  await clearToasts(phone);
-  await phone.evaluate(() => { const g = transport.game, site = g.industries[0]; g.notifications.unshift({ id: 'notice-test-phone', day: g.day, message: `${site.name} expanded to 150% capacity.`, text: '', type: 'success', topic: 'industry-growth', target: { kind: 'industry', id: site.id } }, { id: 'notice-test-phone-2', day: g.day, message: 'Test line has lost its connection. Repair the network to resume.', text: '', type: 'warning' }); g.money += 1; });
-  await phone.waitForFunction(() => document.querySelectorAll('#toast-region .toast').length === 2);
-  const layout = await phone.evaluate(() => ({ overflow: document.documentElement.scrollWidth > innerWidth, toasts: [...document.querySelectorAll('#toast-region .toast')].map(el => { const box = el.getBoundingClientRect(); return { left: box.left, right: box.right }; }) }));
-  assert.equal(layout.overflow, false);
-  assert.ok(layout.toasts.every(box => box.left >= 0 && box.right <= 390), 'toasts stay on screen at 390px');
-  await phone.waitForTimeout(300);
-  await phone.screenshot({ path: `${output}/toasts-390.png` });
-  await openGameAction(phone, 'news-button');
-  await phone.locator('.news-list').waitFor();
-  assert.equal(await phone.evaluate(() => document.querySelector('#modal').scrollWidth <= document.querySelector('#modal').clientWidth + 1), true, 'News fits a phone');
-  await phone.screenshot({ path: `${output}/news-390.png` });
-  await phone.close();
-
   assert.deepEqual(errors, []);
-  console.log('Notices browser check passed: a quiet industry opening with Show, News and its saved date at 1440 and 390px, welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, a quiet mail route, first delivery, town milestones, quiet save loading, 390px layout.');
+  console.log('Notices browser check passed: a quiet industry opening with Show, News and its saved date on desktop, welcome, three-notice burst, grouped disconnects with Show and the attention chip, a lost producer listed under Needs attention, News with Show, January toast and upgrade review, Towns search focus, a quiet mail route, first delivery, town milestones, quiet save loading.');
 } finally {
   await browser.close();
 }

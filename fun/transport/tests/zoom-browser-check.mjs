@@ -252,32 +252,6 @@ try {
     summaries.push({ dpr: deviceScaleFactor, profiles: rendererChecks.profiles.length,
       maxCacheMiB: Math.round(Math.max(...rendererChecks.tour.map(stats => stats.cacheBytes)) / 1024 / 1024) });
 
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.waitForTimeout(100);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'mobile zoom controls do not overflow');
-    for (const [zoom, name] of views) {
-      await chooseView(page, zoom);
-      assert.equal(await cameraZoom(page), zoom, 'each view remains selectable on mobile');
-      await page.screenshot({ path: `${output}/mobile-dpr${deviceScaleFactor}-${name}.png` });
-    }
-    await page.setViewportSize({ width: 320, height: 740 });
-    await page.waitForTimeout(100);
-    await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth, null, { timeout: 3000 });
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the narrowest layout does not overflow');
-    for (const [zoom] of views) {
-      await chooseView(page, zoom);
-      assert.equal(await cameraZoom(page), zoom, 'presets remain reachable at 320 pixels');
-    }
-    // The mini map starts hidden; open it to check that the two never overlap.
-    await openGameAction(page, 'overview-button');
-    const narrowBounds = await page.evaluate(() => {
-      const controls = document.querySelector('.view-controls').getBoundingClientRect();
-      const minimap = document.querySelector('#minimap').getBoundingClientRect();
-      return { left: controls.left, right: controls.right, top: controls.top, mapLeft: minimap.left, mapBottom: minimap.bottom };
-    });
-    assert.ok(narrowBounds.left >= 0 && narrowBounds.right <= 320, 'zoom controls fit on a 320-pixel screen');
-    assert.ok(narrowBounds.right <= narrowBounds.mapLeft || narrowBounds.top >= narrowBounds.mapBottom, 'zoom controls do not cover the minimap');
-    await page.screenshot({ path: `${output}/narrow-dpr${deviceScaleFactor}-detail.png` });
     await context.close();
   }
   assert.deepEqual(errors, [], 'no browser errors at either pixel density');

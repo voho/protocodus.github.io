@@ -44,9 +44,6 @@
 .route-header:has(.rename-input)>span:last-child{display:none}
 .route-header .rename-button{opacity:0;transition:opacity .12s}
 .route-header:hover .rename-button,.route-header .rename-button:focus-visible{opacity:1}
-@media(hover:none) and (pointer:coarse){
- .route-header .rename-button{opacity:1}
-}
 .route-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .route-filters label{min-width:0;color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption)}
 .route-filters label>span{display:block;margin-bottom:4px}
@@ -169,10 +166,6 @@
 .coverage-pick:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 .inspector .coverage-pick svg{pointer-events:none}
 .route-card:has(.route-health[data-state=blocked]) .route-header>span:last-child{color:var(--warn)}
-@media(max-width:700px){
- .route-pick-banner{left:12px;max-width:calc(100% - 24px);gap:8px;top:70px}
- .route-pick-banner button{min-height:44px;font-size:var(--fs-small);line-height:var(--lh-small)}
-}
 .route-mode-icon canvas{display:block;width:48px;height:38px;object-fit:contain}
 .purchase-vehicle{display:flex;align-items:center;gap:8px}
 .purchase-vehicle>canvas{display:block;width:64px;height:52px;flex:0 0 64px;object-fit:contain}
@@ -181,16 +174,6 @@
 .route-health[data-state=waiting],.route-health[data-state=blocked]{color:var(--warn)}
 .route-header>span:last-child{letter-spacing:0;color:var(--ink-2);padding-top:2px;max-width:96px;text-align:right;font-size:var(--fs-caption);line-height:var(--lh-caption)}
 .compact-play .route-pick-banner{left:12px;top:12px;max-width:calc(100% - 24px)}
-@media(max-width:700px){
- .compact-play .route-pick-banner{left:10px;top:10px;max-width:calc(100% - 20px)}
-}
-.compact-play .route-pick-banner{margin-left:var(--safe-l);max-width:calc(100% - 24px - var(--safe-l) - var(--safe-r))}
-@media(max-width:700px){
- .compact-play .route-pick-banner{max-width:calc(100% - 20px - var(--safe-l) - var(--safe-r))}
-}
-@media(pointer:coarse){
- .compact-play .small-button,.compact-play .route-actions .small-button{min-height:40px}
-}
 .route-vehicle-spec,.route-rate,.fleet-upgrade-heading small{color:var(--ink-2)}
 /* Delivery pay: the card's length, days on the way and pay for one unit; the same estimate under the forecast. */
 .route-trip,.route-forecast-trip{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 var(--s-2);margin:var(--s-2) 0 0;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);font-variant-numeric:tabular-nums}
@@ -211,9 +194,6 @@
 .route-option{display:flex;align-items:center;gap:var(--s-2);min-height:var(--control);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);cursor:pointer}
 .route-option input{width:18px;height:18px;margin:0;accent-color:var(--ink)}
 .route-options .form-note{margin:var(--s-1) 0 var(--s-2)}
-@media(max-width:700px),(pointer:coarse){
- .route-options>summary,.route-option{min-height:var(--control-touch)}
-}
 /* Spare demand: a quiet ink-2 line under the fleet, never a state or an orange call to action (DESIGN.md 6.4). */
 .route-vehicle-spec .route-room{grid-column:1/-1;min-width:0;color:var(--ink-2)}
 /* A running route's explanation lives in the tooltip of its waiting count (quietHealth in app.js). */

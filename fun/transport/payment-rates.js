@@ -58,7 +58,7 @@ export function paymentRatesHTML(game) {
   return `<section class="payment-rates" aria-labelledby="payment-rates-title"><h3 id="payment-rates-title">Cargo payment rates</h3><p class="panel-description">What ${PAYMENT_UNITS} of each cargo earn over ${PAYMENT_TILES} tiles at today’s prices, by days on the way. Longer trips pay more; slow ones keep less, never under half.</p><div class="payment-plot">${svgHTML(series, 560)}<div class="payment-tip" hidden></div></div><p class="payment-note">This year a ${PAYMENT_TILES}-tile trip takes about ${listJoin(trips)}.</p><div class="payment-legend">${groups}</div>${table}</section>`;
 }
 
-/** Crosshair on hover, touch and arrow keys: the line nearest the pointer, its value and its share of the full fare. */
+/** Crosshair on hover, click and arrow keys: the line nearest the pointer, its value and its share of the full fare. */
 export function bindPaymentRates(root, game) {
   const plot = root.querySelector('.payment-plot'); if (!plot) return { dispose() {} };
   const tip = plot.querySelector('.payment-tip'), series = paymentRateSeries(game), { max } = yScale(series), controller = new AbortController(), { signal } = controller;
@@ -96,7 +96,7 @@ export function bindPaymentRates(root, game) {
       day = Math.max(0, Math.min(PAYMENT_DAYS, day + move[0])); index = (index + move[1] + series.length) % series.length; show();
     }, { signal });
   }
-  // Redraw at the plot's width, so axis text keeps its size on phones.
+  // Redraw at the plot's width, so axis text keeps its size when the panel resizes.
   function draw() {
     const next = Math.max(200, Math.floor(plot.clientWidth || 560)); if (next === width) return;
     const shown = !tip.hidden; width = next; svg().outerHTML = svgHTML(series, width); bindSvg(); if (shown) show();

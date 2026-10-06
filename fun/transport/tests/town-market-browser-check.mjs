@@ -1,5 +1,5 @@
 // Town economy in a real browser: the fold stays closed and changes nothing until opened, shows three demand
-// rows and the shops' wants, ticks a want once it is delivered, survives the live refresh and fits a phone.
+// rows and the shops' wants, ticks a want once it is delivered, survives the live refresh without sideways scrolling.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -14,8 +14,8 @@ const inspectHome = page => page.evaluate(() => { const town = transport.game.ci
 const saved = page => page.evaluate(async () => { const { encodeGame } = await import('./save-codec.js'); return JSON.stringify(encodeGame(transport.game)); });
 
 try {
-  for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 844 }]) {
-    const phone = viewport.width < 700, page = await browser.newPage({ viewport, deviceScaleFactor: phone ? 2 : 1, hasTouch: phone, isMobile: phone });
+  for (const viewport of [{ width: 1440, height: 960 }]) {
+    const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url);
     await createWorldFromMenu(page, { seed: 1847 });
@@ -52,7 +52,6 @@ try {
     assert.notEqual(await page.locator('#inspector .economy-lead').textContent(), 'Wants food');
     const fit = await page.locator('#inspector').evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth }));
     assert.ok(fit.scroll <= fit.client, `no sideways scroll: ${fit.scroll} > ${fit.client}`);
-    if (phone) await page.locator('#inspector .town-economy').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${output}/economy-met-${viewport.width}.png` });
     await page.close();
   }

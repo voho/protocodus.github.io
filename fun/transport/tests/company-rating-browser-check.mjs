@@ -1,6 +1,6 @@
 // Company rating in a real browser: the finances card's Title row, the first review, a new title as company news
 // (a headline, or a toast with headlines off), the Company report's rating block and its folded measures, the
-// century as news that opens its card only on demand, a reload that replays nothing, and phone widths.
+// century as news that opens its card only on demand, a reload that replays nothing.
 // Serve the repository root on a fresh no-store port first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -13,8 +13,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport, context = null) {
-  const phone = viewport.width <= 700;
-  const page = await (context || browser).newPage(context ? {} : { viewport, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
+  const page = await (context || browser).newPage(context ? {} : { viewport, deviceScaleFactor: 1 });
   if (context) await page.setViewportSize(viewport);
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -181,37 +180,6 @@ try {
   await closeDialog(reloaded);
   await reloaded.close();
   await context.close();
-
-  // 6. Phones: the century as a headline, its card, the report and the finance card never scroll sideways.
-  const phone = await open({ width: 390, height: 844 });
-  await createWorldFromMenu(phone);
-  // December 2049 closes: the model module the page runs, one step across 1 January 2050.
-  await phone.evaluate(async () => { const model = await import('./model.js'), g = transport.game; g.day = 36524.9; g.lastDailyDay = 36524; g.lastMonth = 1199; model.tick(g, .1); g.revision++; });
-  assert.equal(await phone.evaluate(() => transport.game.performance?.century?.day), 36525);
-  await phone.waitForFunction(() => window.__headlines.some(entry => entry.title === 'A century of transport'), undefined, { timeout: 5000 });
-  assert.deepEqual((await headlines(phone)).find(entry => entry.title === 'A century of transport'), { title: 'A century of transport', kicker: 'Company news', action: 'See evaluation' });
-  await phone.screenshot({ path: `${output}/headline-century-390.png` });
-  await phone.locator('.headline-action').click();
-  await phone.locator('#modal .century-card').waitFor();
-  assert.deepEqual(await overflow(phone), { page: 0, modal: 0 }, 'the century card fits');
-  await phone.screenshot({ path: `${output}/century-card-390.png` });
-  await phone.locator('#century-report').click();
-  await phone.locator('#modal .rating-summary').waitFor();
-  await phone.locator('.rating-details summary').click();
-  assert.deepEqual(await overflow(phone), { page: 0, modal: 0 }, 'the report fits');
-  assert.equal(await phone.locator('.rating-table thead th:nth-child(3)').isVisible(), false, 'full marks move into each row’s tooltip');
-  assert.match(await phone.locator('.rating-table tbody tr:first-child').getAttribute('title'), /^Full marks: 250$/);
-  await phone.screenshot({ path: `${output}/company-rating-390.png` });
-  await phone.locator('.rating-details').scrollIntoViewIfNeeded();
-  await phone.screenshot({ path: `${output}/what-counts-390.png` });
-  await closeDialog(phone);
-  await phone.locator('#company-stats').tap();
-  await phone.locator('#rating-row').waitFor();
-  assert.deepEqual(await overflow(phone), { page: 0, modal: 0 }, 'the finance card fits');
-  const row = await phone.locator('#rating-row').evaluate(el => ({ fits: el.scrollWidth <= el.clientWidth, right: el.getBoundingClientRect().right }));
-  assert.ok(row.fits && row.right <= 390, JSON.stringify(row));
-  await phone.screenshot({ path: `${output}/tooltip-390.png` });
-  await phone.close();
 
   assert.deepEqual(errors, []);
   console.log('company rating browser check passed');

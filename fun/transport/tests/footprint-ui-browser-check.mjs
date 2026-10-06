@@ -23,9 +23,9 @@ async function siteState(page, point) {
 }
 
 try {
-  for (const profile of [{ name: 'desktop', width: 1440, height: 960, dpr: 1 }, { name: 'mobile', width: 390, height: 844, dpr: 2 }]) {
+  for (const profile of [{ name: 'desktop', width: 1440, height: 960, dpr: 1 }]) {
     if (process.env.TRANSPORT_PROFILE && process.env.TRANSPORT_PROFILE !== profile.name) continue;
-    const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr, hasTouch: profile.name === 'mobile', isMobile: profile.name === 'mobile' });
+    const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr });
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(url); await createWorldFromMenu(page);
     const site = await page.evaluate(async () => {
@@ -46,7 +46,7 @@ try {
       transport.renderer.setZoom(1); transport.renderer.focus(site.x + 1, site.y + 1); transport.setView('build');
       return site;
     });
-    if (profile.name === 'mobile' && !await page.locator('.sidebar').evaluate(el => el.classList.contains('mobile-open'))) await page.locator('.mobile-panel-toggle').click();
+    if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) await page.locator('.main-nav [data-view="build"]').click();
     await page.locator('[data-category="towns"]').click();
     await page.locator('#building-group').selectOption('community');
     assert.match(await page.locator('[data-tool="hospital"] .building-price').innerText(), /2 × 2/);
@@ -57,18 +57,9 @@ try {
     assert.match(await page.locator('#active-tool-hint').innerText(), /3 × 3/);
     const anchor = await screen(page, site);
     await page.waitForFunction(p => document.elementFromPoint(p.x, p.y)?.id === 'world', anchor);
-    if (profile.name === 'mobile') {
-      // A costly site is aimed first: the tip quotes it above the tile, and Place builds it.
-      await page.touchscreen.tap(anchor.x, anchor.y);
-      assert.match(await page.locator('#placement-tip').innerText(), /^Stadium · 3 × 3 · \$[\d,]+/);
-      assert.equal((await siteState(page, site)).site, null, 'the first tap only aims the stadium');
-      await page.screenshot({ path: `${output}/${profile.name}-stadium-aim.png` });
-      await page.locator('#placement-tip .tip-place').tap();
-    } else {
-      await page.mouse.move(anchor.x, anchor.y);
-      assert.match(await page.locator('#placement-tip').innerText(), /3 × 3/);
-      await page.mouse.click(anchor.x, anchor.y);
-    }
+    await page.mouse.move(anchor.x, anchor.y);
+    assert.match(await page.locator('#placement-tip').innerText(), /3 × 3/);
+    await page.mouse.click(anchor.x, anchor.y);
     const corner = { x: site.x + 2, y: site.y + 2 };
     await page.waitForFunction(({ x, y }) => transport.game.tiles[y * transport.game.width + x].building?.kind === 'stadium', site);
     const built = await siteState(page, corner);

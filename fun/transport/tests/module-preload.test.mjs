@@ -12,13 +12,16 @@ const dependenciesFirst = (list, label) => list.forEach((name, i) => { for (cons
 const html = read('index.html'), menu = graph('start-menu.js'), app = graph('app.js');
 const preloads = [...html.matchAll(/<link rel="modulepreload" href="\.\/([\w.-]+\.js)">/g)].map(match => match[1]);
 
-test('index.html preloads the loader and the whole start menu graph, dependencies first, before boot.js', () => {
+test('the startup template keeps the loader and menu graph inert until computer detection', () => {
   assert.ok(menu.size > 30 && menu.has('loading-screen.js') && menu.has('model.js') && menu.has('app-preload.js'));
   assert.deepEqual(sorted(preloads), sorted(new Set([...menu, 'loading-screen.js'])));
   assert.equal(new Set(preloads).size, preloads.length, 'each module is preloaded once');
   assert.equal(preloads[0], 'loading-screen.js', 'boot.js needs the loader first');
   dependenciesFirst(preloads, 'index.html');
   assert.equal((html.match(/rel="modulepreload"/g) || []).length, preloads.length, 'every modulepreload link uses the checked form');
+  const template = html.match(/<template id="startup-preloads">([\s\S]*?)<\/template>/)?.[1];
+  assert.ok(template, 'menu preloads are inert template contents before the computer gate');
+  assert.equal((template.match(/rel="modulepreload"/g) || []).length, preloads.length, 'every graph preload stays in the template');
   assert.ok(html.lastIndexOf('rel="modulepreload"') < html.indexOf('<script type="module" src="./boot.js">'));
   assert.ok(!preloads.includes('app.js') && !preloads.includes('world-worker.js'), 'the game graph waits for the menu');
 });

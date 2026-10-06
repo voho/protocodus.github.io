@@ -120,16 +120,7 @@ try{
   await page.waitForFunction(id=>document.querySelector(`.route-card[data-route-id="${id}"] .vehicle-model`)?.textContent==='Hollin Mk 2–3',setup.first);
   assert.match(await page.locator(`.route-card[data-route-id="${setup.first}"] .vehicle-model`).getAttribute('title'),/^\d+ Hollin Mk 2 and 1 Hollin Mk 3$/);
   await page.locator(`.route-card[data-route-id="${setup.first}"]`).screenshot({path:`${output}/mixed-fleet-card-desktop.png`});
-  for(const width of [390,320]){
-    await page.setViewportSize({width,height:844});await page.evaluate(()=>transport.setView('routes'));
-    assert.equal(await page.locator('#panel-content').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true,`${width}px fleet controls fit`);
-    const rows=await page.locator('.route-vehicle-spec').evaluateAll(list=>list.map(row=>{const model=row.querySelector('.vehicle-model'),box=model.getBoundingClientRect();return {fits:row.scrollWidth<=row.clientWidth+1,line:box.height<=1.5*parseFloat(getComputedStyle(model).lineHeight),text:model.textContent};}));
-    for(const row of rows)assert.deepEqual([row.fits,row.line],[true,true],`${width}px ${row.text} stays on one line inside the vehicle row`);
-    await page.locator('#upgrade-fleet').scrollIntoViewIfNeeded();
-    await page.screenshot({path:`${output}/fleet-${width}.png`});
-    const card=page.locator(`.route-card[data-route-id="${setup.first}"]`);await card.scrollIntoViewIfNeeded();await card.screenshot({path:`${output}/mixed-fleet-card-${width}.png`});
-  }
   assert.equal(await page.locator('.vehicle-old').count(),0,'nothing marks a vehicle as old');
   assert.deepEqual(errors,[]);
-  console.log(`Annual upgrades, bulk affordability, inflation prices, bulldozer and mobile checks passed. Screenshots: ${output}`);
+  console.log(`Annual upgrades, bulk affordability, inflation prices, and bulldozer checks passed. Screenshots: ${output}`);
 }finally{await browser.close();}

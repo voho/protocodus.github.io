@@ -8,7 +8,7 @@ Some feature specs set their own colours, sizes or wording, such as literal hex 
 
 ## 1. What the UI is for
 
-Transport is a calm isometric game about transport and town building. The map is generated and painterly (moss greens, turquoise water, warm roofs), and it is the hero. The UI is the instrument panel around its edges.
+Transport is a calm isometric game about transport and town building for computers. Desktop and laptop browsers use keyboard, mouse and trackpad controls. Phones and tablets show `please use computer to play the game` before gameplay starts (section 13). The map is generated and painterly (moss greens, turquoise water, warm roofs), and it is the hero. The UI is the instrument panel around its edges.
 
 The UI has one job. It lets the player read the state of the world and act on it in as few obvious steps as possible. The player moves between the map and the panels without losing their place.
 
@@ -59,7 +59,7 @@ Two of three judges chose quiet instrument as the base, and all three wanted par
 | Map labels | Keep the paper nameplate pills. Replace the lettered B/T stop sign with a roundel that carries route bullets. | Atlas's stroke-halo labels looked crude over roofs. The B sign collided with town names. |
 | Selection | Orange footprint outline on a paper casing, plus an ink name tag. | Quiet instrument's pale outline was too faint. Orange means here. |
 | Panel ↔ map | Linked state on every matching reference, a map highlight, and an edge pointer for off-screen targets. | Atlas's leader lines were restless and looked like rendering glitches. |
-| Type | Inter for words and figures, Space Grotesk for the brand. 14 px body. 12 px floor everywhere, canvas included. | Quiet instrument's 11 px floor was marginal on phones. Space Grotesk's narrow counters and quirky figures read poorly at 12–13 px in ink-2, so text moved to Inter, which was drawn for small screen sizes. |
+| Type | Inter for words and figures, Space Grotesk for the brand. 14 px body. 12 px floor everywhere, canvas included. | Quiet instrument's 11 px floor was marginal for small labels. Space Grotesk's narrow counters and quirky figures read poorly at 12–13 px in ink-2, so text moved to Inter, which was drawn for small screen sizes. |
 | Speed | Text segments: pause, 1×, 3×, 8×. | Play-glyph variants were harder to read. |
 | Paused | Lit pause segment, "Paused" under the date, and a 2 px orange line along the top edge of the map. | A lit segment alone could read as an error. |
 | Goal | One line by default. The ladder opens on demand, on paper, with the current step's priced action. | The dark expanded ladder was a heavy slab. |
@@ -211,18 +211,16 @@ Both fall back to `system-ui, sans-serif`.
   2 px is used only for hairline offsets.
 - Control heights:
   - `--control` 32 px on desktop;
-  - `--control-dense` 28 px, in desktop lists only;
-  - `--control-touch` 44 px at 700 px or narrower, or with `pointer: coarse`.
+  - `--control-dense` 28 px, in desktop lists only.
 - Fixed sizes:
   - `--rail-h` 48 px
   - `--goal-h` 40 px
-  - `--tabbar-h` 56 px
   - `--drawer-w` 400 px
   - `--inspector-w` 368 px
   - `--toast-max` 480 px
-- `--gutter` is 12 px on desktop, 8 px on phones and 6 px at 360 px or narrower.
-- Panel padding is 16 px (14 on phones).
-- Rows are at least 40 px tall on desktop and 48 px on touch.
+- `--gutter` is 12 px.
+- Panel padding is 16 px.
+- Rows are at least 40 px tall.
 
 ### 4.7 Radii by hierarchy
 
@@ -232,7 +230,7 @@ Both fall back to `system-ui, sans-serif`.
 | `--r-2` | 6 | Controls: buttons, fields, segments, steppers |
 | `--r-3` | 8 | Tiles, toasts, placement tips, hover wells in rows |
 | `--r-4` | 12 | Rails, sheets, dialogs, the tool bar, the headline card |
-| `--r-5` | 14 | Top corners of phone sheets |
+| `--r-5` | 14 | Large rounded surfaces |
 | `--r-round` | 999 | Dots, rail and water bullets, roundels, capsules |
 
 ### 4.8 Elevation and stacking
@@ -254,7 +252,7 @@ z-index tokens, from lowest to highest:
 | `--z-map-overlay` | 10 | Edge pointers, map tags |
 | `--z-rail` | 20 | Rails |
 | `--z-goal` | 22 | Goal line |
-| `--z-sheet` | 30 | Drawer, inspector, phone sheets |
+| `--z-sheet` | 30 | Drawer, inspector |
 | `--z-toolbar` | 34 | Active-tool bar, back chip |
 | `--z-toast` | 40 | Toasts |
 | `--z-headline` | 42 | Headline card |
@@ -286,10 +284,8 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
 ### 4.11 Breakpoints
 
 - **Wide**, 1200 px or more: the drawer (left) and the inspector (right) sit side by side.
-- **Compact**, 701–1199 px: the inspector overlays the drawer, and closing it returns to the drawer.
-- **Phone**: 700 px or narrower, or `pointer: coarse` with a height of 500 px or less (short landscape).
-- **Narrow**: 360 px or narrower.
-- `pointer: coarse` gives 44 px targets at any width.
+- **Compact computer window**, below 1200 px: the inspector overlays the drawer, and closing it returns to the drawer.
+- Viewport width does not select a phone interface. Computer windows retain the same keyboard and pointer controls at smaller widths and under browser zoom.
 
 ## 5. Icons
 
@@ -304,7 +300,7 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
 - **Geometry.** Two families, both taken from the subject:
   - **Network** glyphs (routes, stops, vehicles, UI) use 0°, 45° and 90° strokes, with circles for stops, like a route map.
   - **Land** glyphs (road, rail, layers, raise, lower, level, zones, build) use the map's 2:1 isometric diagonal.
-- **Sizes.** 16 (inline, buttons, rows), 20 (nav, rails, tools) and 24 (phone tab bar).
+- **Sizes.** 16 (inline, buttons, rows), 20 (nav, rails, tools) and 24 (large glyphs).
 - **Labels.** Text only where an icon alone would not be clear. An icon that says it all stands alone, with its name in an `aria-label` and a tooltip: rails, icon buttons, the cargo picker's tiles, cargo badges in panels, route-card and vehicle-card actions, local conditions. Names, figures, prices, primary and destructive actions keep visible words.
 - **One glyph, one meaning.** Never reuse a glyph for two ideas. Guide topics each get their own glyph, or none.
 
@@ -397,7 +393,7 @@ Replace `×` (close), `↗`, `→`, `•••`, `⌃`, `✓` and text `+`/`−`
 
 - Money formats:
   - `$372,875` in the HUD, ledgers and confirmations;
-  - `$18k` or `$1.2M` in buttons, tags and the phone HUD.
+  - `$18k` or `$1.2M` in buttons, tags and the HUD.
 
   `copy.js money()` is the only formatter.
 - Money over time:
@@ -556,8 +552,6 @@ A contract is shown as its two place references plus a dashed proposed strip.
 
 **`data-ref-action="show"`** glides and highlights for 4 s. It never opens a panel.
 
-**Touch.** A tap is a click. Press and hold (450 ms) previews the target with the locator ring or an edge pointer, without moving the camera.
-
 ### 7.4 Map → panels
 
 - Hovering an entity on the map outlines it and gives `.is-linked` to its rows and references in open panels. Nothing scrolls.
@@ -696,7 +690,6 @@ Map ink tags and pointers are DOM overlays in `#map-overlays`, positioned with `
 | Drawer open / close | 8 px slide + fade from the nav rail | 180 ms | Instant |
 | Inspector open | 8 px slide from the right + fade | 180 ms | Instant |
 | Inspector changes entity | Content crossfade; old height held as `min-height` | 120 ms | Instant |
-| Phone sheet detent | Translate | 180 ms | Instant |
 | Row expand / collapse | `grid-template-rows` 0fr → 1fr | 160 ms | Instant |
 | Toast in / out | Rise 8 px + fade / fade | 160 / 120 ms | Instant |
 | Camera | Glide (10.2) | 280–480 ms | Cut, then a static ring for 1.2 s |
@@ -713,10 +706,10 @@ Ambient income never animates in the DOM; the canvas floaters show it. The `.inc
 - **When it glides.** On reference clicks, Show on map, goal steps, toast and News actions, and edge pointer clicks.
 - **How long.** `280 + 60 × screens` ms, clamped to 280–480 ms, with `--ease`.
 - **Long jumps.** Beyond 3 screens the camera cuts instead of gliding, then shows the locator ring. A "Back to where you were" ink chip appears at the bottom left of the band for 8 s.
-- **Cancelling.** Any drag, wheel, pinch or key pan cancels a glide at once.
+- **Cancelling.** Any drag, wheel, trackpad pinch or key pan cancels a glide at once.
 - **The camera never moves unless the player asked:**
   - Opening a panel never moves it.
-  - If a panel would cover the selection (phone sheets, compact widths), the selection pans into the visible band. This only happens when it would otherwise be hidden.
+  - If a panel would cover the selection in a compact computer window, the selection pans into the visible band. This only happens when it would otherwise be hidden.
 - **Framing** always uses the visible band: the canvas minus open panels. The band is kept in `--band-l`, `--band-r`, `--band-t` and `--band-b` on `.map-section` and passed to `renderer.setBand`.
 
 ### 10.3 Reduced motion
@@ -738,7 +731,6 @@ Ambient income never animates in the DOM; the canvas floaters show it. The `.inc
 - **Rows.** Rows expand in place, and the rows above never move. Buttons keep their width when their label changes to a pending state.
 - **Inspector.** It refreshes in place, keyed by entity (inspector-stable-refresh). When it switches entity it crossfades and holds the old height until the new content has been measured.
 - **Overlays.** Toasts, headlines and the tool bar sit in reserved overlay slots, so nothing pushes the layout.
-- **Narrow screens.** At 360 px or narrower, a row's status moves to its own line instead of being truncated.
 - **Goal.** Collapsing the goal changes nothing around it.
 
 ### 10.5 Context is kept
@@ -753,7 +745,6 @@ Ambient income never animates in the DOM; the canvas floaters show it. The `.inc
   A popover or menu that is open closes before the tool. It sits on top and holds focus, and a tool ended under an open menu would leave the menu in place. With nothing left open, Esc clears the cargo lens.
 - Closing any panel returns focus to where it was opened from, or to the canvas if that is gone.
 - Opening a reference from a toast doesn't dismiss the other toasts.
-- On phones, the inspector sheet replaces the routes sheet, and Back returns to it at the same scroll.
 - Only changes the player caused are marked: a well tint behind the changed figure, and the money delta beside the balance.
 
 ## 11. Minimalism
@@ -810,7 +801,7 @@ Working state (wide):
 - The Fleet upgrades box. It becomes a line in the route row, and a News entry.
 - Three filter selects, "Clear filters" and "n of n routes".
 - The Explore / Done box in Build.
-- Keyboard letters on cards stay, as a small corner hint on desktop (hidden on touch), and every card's tooltip names its key too: players asked for convenient shortcuts, and the corner letter is where they learn them. Rails and menu rows carry theirs in tooltips and `.kbd` hints; the whole set lives on the Keyboard shortcuts sheet (12.11).
+- Keyboard letters on cards stay, as a small corner hint, and every card's tooltip names its key too: players asked for convenient shortcuts, and the corner letter is where they learn them. Rails and menu rows carry theirs in tooltips and `.kbd` hints; the whole set lives on the Keyboard shortcuts sheet (12.11).
 - The terrain tip paragraph.
 - Coordinates, "Activity", "Coverage 5 tiles", the numbered target list and the minimap by default.
 - About 196 dead selectors.
@@ -821,10 +812,10 @@ Working state (wide):
 |---|---|
 | Finance detail | Ledger tooltip on the balance; click opens Company |
 | Production chains, Guide, Achievements, Saved games, Sound, New world | Menu |
-| Map layers | Zoom rail (desktop); menu (phones) |
-| Overview map | Zoom rail button and M (desktop); menu (phones) |
+| Map layers | Zoom rail and Game menu |
+| Overview map | Zoom rail button, M and Game menu |
 | Home town | Zoom menu: "Back to home town (H)" |
-| News | Cluster button with an unread dot (desktop); menu with the dot on the menu button (phones) |
+| News | Game menu with an unread dot on the menu button |
 | Route rename, upgrade, retire | The route row's More menu |
 | Tool rules | Active-tool bar, only while a tool is active |
 | Explanations | Guide, or one reason line |
@@ -847,7 +838,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 ### 12.1 Rails
 
-- **Shared:** paper, `--e1`, `--r-4`, height `--rail-h`, 4 px padding. Items inside are 40 px tall (44 on touch). A 1 px `--rule` separator between groups marks a group boundary.
+- **Shared:** paper, `--e1`, `--r-4`, height `--rail-h`, 4 px padding. Items inside are 40 px tall. A 1 px `--rule` separator between groups marks a group boundary.
 - **Nav rail** (top left). Its minimum width is `--drawer-w` at wide and compact widths, so the drawer can grow out of it. Contents:
   - The t tile: 32 px, `--signal` fill, paper "t" italic 700. It links to `/fun/` with the label "All games".
   - The tabs Build, Routes, Towns, Industries: icon 20 and label 14/500 in ink-2. Hover shows the well.
@@ -878,7 +869,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
   The footer shows "Part 1 of 4" and "All goals".
 - **Onboarding.** The first-route checklist uses the same ladder.
-- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Build drawer repeats the goal only on phones or with the Next goal layer off.
+- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Build drawer repeats the goal with the Next goal layer off.
 - **With the inspector.** When the inspector opens at wide widths, the inspector starts under the goal line. The line stays one line.
 
 ### 12.3 Drawer
@@ -891,7 +882,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 ### 12.4 List rows
 
-- A row is at least 40 px tall (48 on touch), with 12 px of vertical and 16 px of horizontal padding and `--rule` dividers. Hover shows `--well`.
+- A row is at least 40 px tall, with 12 px of vertical and 16 px of horizontal padding and `--rule` dividers. Hover shows `--well`.
 - **Routes row:**
   - Line 1: bullet 20, name 14/600, and money on the right (with "a month" in caption under it).
   - Line 2: cargo tile 16, "Stone by road, 2 trucks" in 13 ink-2, and the status mark on the right.
@@ -911,8 +902,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 - **Placement:**
   - wide: right column, `--inspector-w`, under the goal line;
-  - compact: overlays the drawer;
-  - phone: inside a sheet.
+  - compact: overlays the drawer.
 
   It uses `--e2` and scrolls inside.
 - **Back line** (when the inspector was reached through a reference): "‹ Back to Stone quarry", a quiet button.
@@ -935,12 +925,12 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 | `.button--signal` | Signal fill, ink text | Only the current goal step's action |
 | `.button--danger` | Quiet style in `--error` | Retire, Remove; always confirmed in place |
 
-- **Sizes:** 32 by default, 28 with `.button--dense` (desktop lists), 44 on touch.
+- **Sizes:** 32 by default, 28 with `.button--dense` (desktop lists).
 - **Text:** 14/500 label, with a 16 px icon on the left.
 - **Price:** `.price` follows the label, tabular.
 - **Disabled:** well fill and ink-3 text, with the reason in a tooltip. Quiet and danger buttons keep no fill, since a fill would make them louder disabled than at rest.
 - **Pending:** `.is-pending`, with the pending label in `data-pending` ("Saving…"), keeps its width: the label stays in place, hidden, and the pending label shows over it.
-- **Icon buttons:** 32 (44 on touch), glyph 20, `--r-2`, always with an `aria-label` and a tooltip.
+- **Icon buttons:** 32, glyph 20, `--r-2`, always with an `aria-label` and a tooltip.
 
 ### 12.7 Facts, sections, disclosure
 
@@ -953,21 +943,21 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 ### 12.8 Controls
 
-- **`.segmented`:** a well trough with 2 px padding and segments 28 px tall (44 on touch). The selected segment is an ink fill with on-ink text. A segment may hold a count.
+- **`.segmented`:** a well trough with 2 px padding and segments 28 px tall. The selected segment is an ink fill with on-ink text. A segment may hold a count.
 - **`.stepper`:** "[− 2 trucks +]", with a `--edge` border and a 14 `data-num` value. The + button is disabled when unaffordable, with the tooltip "Need $18k". The tooltip on − shows the refund.
-- **`.field`:** 32 px tall (44 on touch), paper, `--edge` border, `--r-2`, 14 px text, ink-2 placeholder. A leading icon is used for search, and selects get a chevron.
+- **`.field`:** 32 px tall, paper, `--edge` border, `--r-2`, 14 px text, ink-2 placeholder. A leading icon is used for search, and selects get a chevron.
 - **`.switch`:** a native checkbox styled as a 32 × 18 track. On is ink, with a paper knob.
 
 ### 12.9 Toasts
 
 - **Surface:** ink, `--e3`, `--r-3`.
 - **Width:** `min(--toast-max, band width − 2 gutters)`.
-- **Position:** bottom centre of the visible band, 16 px from the bottom and above the tool bar. On phones they move to the top of the band while a sheet is open.
+- **Position:** bottom centre of the visible band, 16 px from the bottom and above the tool bar.
 - **Anatomy:**
   1. Lead: the subject's reference (compact bullet, cargo tile or town glyph) or a state glyph.
   2. Message from `renderTemplate`, 14/20, at most two lines.
   3. Optional figure ("+$1,356" in ok-on-ink).
-  4. One action: "Show on map" (icon-only on phones) or a named fix. A fix opens the place where the fix happens with the button focused; it never spends money.
+  4. One action: "Show on map" or a named fix. A fix opens the place where the fix happens with the button focused; it never spends money.
   5. Repeat count "×3".
 - **Timing:** 5 s for ok, 8 s for warn and error. The timer pauses on hover or focus. There is no close button, and pointer events stay on.
 - **Grouping:** notices that share a topic become one toast, for example "3 routes lost their connection: [1] [3] [4]". Its Show on map frames all the breaks.
@@ -986,21 +976,20 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - Towns served
 - **Menu:** paper, `--e2`, `--r-4`, 280 px wide.
   - Header line: weather and "Saved 2 min ago" in 13 ink-2.
-  - Rows: icon 20, label 14/500, and a shortcut hint in 12 ink-2 on the right (`.kbd`). Rows are 40 px tall, 44 on touch.
-  - Order, in four groups split by rules: Company (Shift+C), Company goals (Shift+G), Achievements, News (Shift+N); Production chains (C), Map layers (L), Mini map, Map options; Sound effects, Guide, Keyboard shortcuts (?); Saved games (Ctrl+S), New world, Main menu. Keys are hidden on touch.
+  - Rows: icon 20, label 14/500, and a shortcut hint in 12 ink-2 on the right (`.kbd`). Rows are 40 px tall.
+  - Order, in four groups split by rules: Company (Shift+C), Company goals (Shift+G), Achievements, News (Shift+N); Production chains (C), Map layers (L), Mini map, Map options; Sound effects, Guide, Keyboard shortcuts (?); Saved games (Ctrl+S), New world, Main menu.
   - The footer keeps the save status only; coordinates stay out of sight (6.1 rule 11).
 - **Popover** (layers, zoom menu, overview): paper, `--e2`, anchored to its button, closed by Esc and by clicking outside.
 
 ### 12.11 Dialogs
 
-- **Keyboard shortcuts** (?): four groups (Time, Map, Build, Panels), each a list of `kbd` keys and a 13 ink-2 action, two columns wide and one on phones, with "Open the guide" at its foot. A letter picks a tool; Shift with a letter opens a panel; comma and full stop step the speed; F shows the selection or follows a vehicle.
+- **Keyboard shortcuts** (?): four groups (Time, Map, Build, Panels), each a list of `kbd` keys and a 13 ink-2 action, two columns wide, with "Open the guide" at its foot. A letter picks a tool; Shift with a letter opens a panel; comma and full stop step the speed; F shows the selection or follows a vehicle.
 
 - **Surface:** native `<dialog>`, paper, `--r-4`, `--e4` over `--scrim`.
 - **Size:** maximum width 720 (Production chains and Company 960), padding 24.
 - **Header:** the title in `--fs-display`, an optional sub-line in 14 ink-2, and a close button.
 - **Body:** sections divided by `--rule`, with 14/600 headings.
 - **Footer:** actions on the right.
-- **Phones:** a full-screen sheet with a sticky header.
 - **Focus:** moves to the title on open and back to the opener on close.
 
 ### 12.12 Tags, meters, states, cargo tiles
@@ -1017,8 +1006,8 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - A paper card at the top centre of the band: maximum width 440, `--e2`, `--r-4`.
 - **Kicker line:** the kicker in 12/500 ink-2 on the left and the date on the right, above a double hairline. This is the one newspaper touch, and it uses no middle dot.
 - **Content:** the title in `--fs-display`; the detail in 14 `.prose`; one action; a close button.
-- One headline at a time. It is hidden while a menu, dialog, the tool bar or a phone sheet (beyond half height) is open.
-- On phones the title steps down to `--fs-title`. While a sheet sends toasts to the top of the band, the card steps aside until they go. The title, like the detail, uses proportional figures.
+- One headline at a time. It is hidden while a menu, dialog or the tool bar is open.
+- The title, like the detail, uses proportional figures.
 
 ### 12.14 Active-tool bar, placement tip, picking
 
@@ -1027,11 +1016,10 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - `__name`: 14/600.
   - `__rule`: one line of 13 ink-2 that teaches the tool.
   - Optional mode segment (Road | Rail for bridges and tunnels).
-  - Optional secondary **Turn** before Done for the Airport tool (44 px); on phones it takes the recent-tools dock's place.
+  - Optional secondary **Turn** before Done for the Airport tool.
   - `__actions` with the primary "Done" (Esc).
-  - On phones, a recent-tools dock of up to 3 icon buttons sits left of Done.
 - **Route picking** uses the same bar: "Picking stops. Click a stop on the map, or press Esc."
-- **`.tip`** (placement tip): an ink tag, `--e3`, `--r-3`. It follows the pointer, and sits above the finger on touch.
+- **`.tip`** (placement tip): an ink tag, `--e3`, `--r-3`. It follows the pointer or the keyboard tile cursor.
   - Line 1: the tool and quantity ("Road, 7 tiles") and the price `data-num`.
   - Optional lines: coverage ("Serves [Stone quarry]") and forecasts.
   - Invalid: an error-on-ink glyph and what happened plus how to fix it ("Can't build on water. Use a bridge.").
@@ -1074,57 +1062,17 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - Buttons: New world, Continue, Load a saved game.
 - The loading screen shows "Step 1 of 3" and the train loop (paused under reduced motion). Errors offer "Try again".
 
-## 13. Phones and small screens
+## 13. Computer-only support
 
-At 700 px or narrower the weather word under the date goes, and "Paused" gives way to the attention count when routes need attention; the lit pause segment and the orange line still say it.
+On 2026-10-06 the user removed phone support because maintaining a phone interface added friction. Transport supports desktop and laptop browsers with keyboard, mouse and trackpad controls.
 
-- **Top bar** (700 px or narrower): docked, 52 px plus `safe-area-inset-top`, paper, with a `--rule` bottom hairline. Contents:
-  - the t tile;
-  - the balance (compact money, 16/600) with the profit under it (12);
-  - the date and its second line;
-  - pause (44 px);
-  - one speed button (44 px) that cycles 1×, 3×, 8×;
-  - the menu (44 px), carrying the News unread dot. News moves into the menu.
-- **Tab bar:** docked, 56 px plus `safe-area-inset-bottom`, paper, with a `--rule` top hairline. It holds Build, Routes, Towns and Industries, each with a 24 px icon over a 12/500 label. The active tab has an ink label and a 2 px ink bar on its top edge. Routes shows the attention count.
-- **Goal pill:** 36 px, at the left under the top bar: flag, title (with ellipsis) and figure. Tapping it opens the ladder as a sheet. It hides while any sheet is open.
-- **Sheets:** the drawer and the inspector are bottom sheets above the tab bar. They use `--e2`, `--r-5` top corners and a grabber (32 × 4, `--edge`). They have three detents:
-  - peek, 88 px (title row and status);
-  - half, 50%;
-  - full: the viewport minus the top bar minus 8 px.
+Phones and tablets show only the exact message:
 
-  Dragging and Esc/Back move between detents. The inspector sheet replaces the drawer sheet, and Back restores it with the same scroll and expanded row. Opening a sheet or changing its detent pans the selection into the band above the sheet, but only if it would otherwise be hidden.
-- **Toasts:** at the bottom above the tab bar. While a sheet is open they move to the top of the band. Their actions are icon-only, with an `aria-label`.
-- **Zoom:** pinch, plus 44 px + and − buttons stacked at the bottom right above the tab bar. The buttons hide while a sheet is open. Layers and Overview map live in the menu.
-- **Touch:**
-  - Every target is at least 44 × 44. References in prose get a 44 px hit area through an invisible layer under their text, not bigger type. (Padding would let a reference on the next line take taps meant for the one above it.)
-  - Long-press previews references.
-  - No information is available only on hover: the ledger opens on tap.
-- **Narrow** (360 px or narrower):
-  - the t tile is hidden;
-  - money is compact;
-  - a row's status moves to its own line;
-  - secondary buttons in rows become icon-only with an `aria-label`; primary buttons keep their label and price;
-  - nothing scrolls horizontally at 320 px.
-- **Short landscape** (`pointer: coarse` and a height of 500 px or less):
-  - the top bar is 44 px;
-  - the tab bar becomes a left rail of 4 icon buttons;
-  - sheets become right-hand panels (60% of the width, full height);
-  - toasts appear at the top centre of the remaining band.
-- **Safe areas:** bars, sheets, toasts and the tool bar all respect `env(safe-area-inset-*)`.
+> please use computer to play the game
 
-```
-┌──────────────────────────────────────┐
-│ t  $372.9k       Jan 1950   ❚❚  1×  ≡•│
-│    +$1,034       Rain                 │
-├──────────────────────────────────────┤
-│ ⚑ First 100 deliveries  24 of 100     │
-│                                      │
-│               (map)             [+]  │
-│  [toast]                        [−]  │
-├──────────────────────────────────────┤
-│  Build    Routes ▲2   Towns   Industries│
-└──────────────────────────────────────┘
-```
+Show this before loading the start menu or game runtime. The unsupported-device page must not generate or restore a world, start simulation, or change saved games. Do not add mobile gameplay, touch placement, phone navigation, bottom sheets, multi-touch map gestures, safe-area layout variants or phone gameplay test matrices.
+
+Device detection must not reject a computer merely because its window is narrow, browser zoom is high, or its screen supports touch. Keep laptop layouts, keyboard accessibility, mouse and trackpad controls, and display density support. A focused entry-screen check verifies the phone message; gameplay QA targets computers.
 
 ## 14. Accessibility floor
 
@@ -1136,14 +1084,14 @@ At 700 px or narrower the weather word under the date goes, and "Paused" gives w
   - Everything is reachable, and references are buttons.
   - Esc follows the order in 10.5.
   - The map has a keyboard cursor, focus is always visible, and focus returns to where it came from.
-- **Target sizes:** at least 24 × 24 on desktop and 44 × 44 on touch.
+- **Target sizes:** at least 24 × 24.
 - **Names:** icon-only controls have an `aria-label` and a tooltip. A reference's accessible name is "<name>, <kind>".
 - **Live regions:**
   - `#status-message` is polite and receives plain text from `copy.plain`;
   - the toast region is polite;
   - errors are assertive.
 - **Reduced motion** as in 10.3.
-- **Zoom:** at 200% browser zoom a 1280 px window falls into the phone layout and still works.
+- **Zoom:** browser zoom keeps the computer interface and its keyboard and pointer controls; it never selects a phone interface.
 - **Language:** `lang="en"`.
 
 ## 15. Planned surfaces and where they live
@@ -1160,7 +1108,6 @@ At 700 px or narrower the weather word under the date goes, and "Paused" gives w
 | ttd-airports | Air bullet (diamond), `plane` glyph, "airport" stop kind, Place card. No new chrome. |
 | city-market, city-property, city-town-hall, city-workshops, city-investment-feedback, town-needs, town-outlook, ttd-town-authority, service-share-growth, town-street-growth | Town inspector sections (12.16), Build Town category, rent floaters (paper pills), placement tip forecasts |
 | industry-status-markers, overlay-placer-and-badges, delivery-floaters | Map vocabulary (9) |
-| inspector-bottom-sheet, mobile-layout-pass, gesture-containment | Phone rules (13) |
 | active-tool-bar, construction-ergonomics, area-zoning, construction-undo, truthful-construction-preview | Tool bar and tips (12.14). Undo as a toast action ("Road built. [Undo]"). |
 | clickable-vehicles-and-stops, inspector-service-links | Vehicle references and vehicle card. Stop inspector "Routes here" and "New route from here". |
 | cargo-lens | Cargo references turn the lens on. The lens chip is itself a cargo reference with a close glyph. |
@@ -1178,7 +1125,7 @@ At 700 px or narrower the weather word under the date goes, and "Paused" gives w
 | `tokens.css` | All tokens (section 4), base element rules, focus, reduced motion |
 | `components.css` | Shared primitives (section 12, contract 16.3) |
 | `refs.css` | References, the line language, map overlays |
-| `hud.css` | Rails, drawer shell, menu, zoom, overview panel, phone bars |
+| `hud.css` | Rails, drawer shell, menu, zoom, overview panel |
 | `build.css` | Build drawer, placement tips |
 | `routes.css` | Routes drawer |
 | `places.css` | Inspector, Towns and Industries lists |
@@ -1202,7 +1149,7 @@ At 700 px or narrower the weather word under the date goes, and "Paused" gives w
 - `tests/copy.test.mjs`
 - `tests/route-lines.test.mjs`
 - `tests/ui-refs.test.mjs`
-- `tests/ui-system-browser-check.mjs`: contrast, type floor, overflow, focus, targets and budgets over every state at desk, phone and narrow sizes.
+- `tests/ui-system-browser-check.mjs`: contrast, type floor, overflow, focus, targets and budgets over every state at desktop and laptop sizes.
 - `tests/interconnection-browser-check.mjs`
 
 **Harness:**
@@ -1230,7 +1177,7 @@ Keep every existing id and `data-*` attribute that tests use, unless an item say
 2. Use tokens only.
 3. Build every entity mention with `ref()` or `renderTemplate()`, and every figure with `copy.js`.
 4. Add the new state to `tests/ui-states/<surface>.mjs`.
-5. Capture it with `tools/ui-snapshot.mjs` at 1440, 1024, 390 and 320, and look at every screenshot.
+5. Capture it with `tools/ui-snapshot.mjs` at 1440 and 1024, and look at every screenshot.
 6. If a rule here turns out to be wrong, change this file in the same commit and say why.
 
 Reference mockups from the design round may still exist in the session scratchpad (`ui/wayfinding`, `ui/instrument`, `ui/atlas`). They are illustrations only; this file is authoritative.
@@ -1245,5 +1192,5 @@ Reference mockups from the design round may still exist in the session scratchpa
 - [ ] Motion only in answer to the player, and none under reduced motion.
 - [ ] No layout jump. Panels keep their scroll, and Esc and focus return work.
 - [ ] Nothing new on the default screen. At most one orange-filled button.
-- [ ] Works at 1440, 1024, 390 and 320, and in short landscape. 44 px targets on touch.
+- [ ] Works at desktop and laptop sizes, with keyboard, mouse and trackpad controls. The unsupported-device entry screen still shows the required message.
 - [ ] Screenshots taken and looked at.

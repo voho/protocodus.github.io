@@ -27,15 +27,5 @@ try{
  await page.keyboard.press('Escape');await page.reload();await loadAutosaveFromMenu(page);
  assert.equal(await page.evaluate(()=>transport.game.width),2048);assert.equal(await page.evaluate(()=>transport.game.seed),27048);
  await page.close();
- for(const width of[390,320]){
-  const mobile=await browser.newPage({viewport:{width,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});mobile.on('pageerror',e=>errors.push(e.message));
-  await mobile.goto(url);await mobile.locator('#start-new').click();
-  for(const card of await mobile.locator('#start-world-form .start-biome, #start-world-form [name="size"]').all())assert.equal(await card.evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
-  assert.equal(await mobile.locator('#start-menu').evaluate(el=>el.scrollWidth<=el.clientWidth+1),true);
-  await mobile.screenshot({path:`${output}/mobile-${width}-worlds.png`});
-  await createWorldFromMenu(mobile);await openGameAction(mobile,'overview-button');await mobile.locator('#atlas-button').click();
-  const bounds=await mobile.locator('#atlas-map').evaluate(el=>({width:el.clientWidth,height:el.clientHeight}));assert.ok(Math.abs(bounds.width-bounds.height)<=1);
-  await mobile.screenshot({path:`${output}/mobile-${width}-atlas.png`});await mobile.close();
- }
- assert.deepEqual(errors,[]);console.log('Square world UI passed:512²/1024²/2048² creation, autosave reload, bounded square atlas/minimap and mobile options.');
+ assert.deepEqual(errors,[]);console.log('Square world UI passed:512²/1024²/2048² creation, autosave reload, bounded square atlas/minimap.');
 }finally{await browser.close();}

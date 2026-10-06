@@ -219,36 +219,6 @@ try {
   assert.equal(await page.locator('#objective-title').textContent(), 'Your first cargo route', 'passive bus deliveries never complete the next goal');
   assert.equal(await page.locator('#objective-card').isVisible(), true);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.waitForTimeout(100);
-  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'mobile has no horizontal overflow');
-  await page.locator('.mobile-panel-toggle').click();
-  assert.equal(await page.locator('.mobile-panel-toggle').getAttribute('aria-expanded'), 'true');
-  await page.locator('[data-mobile-view="industry"]').click();
-  assert.ok(await page.locator('[data-industry]').count() >= 3, 'mobile exposes industry management');
-  await page.locator('[data-mobile-view="towns"]').click();
-  assert.ok(await page.locator('[data-city]').count() >= 3, 'mobile exposes town management');
-  await openGameAction(page, 'help-button');
-  assert.equal(await page.locator('#modal').evaluate(el => el.open), true);
-  await page.keyboard.press('Escape');
-  await openGameAction(page, 'save-button');
-  await page.locator('.saves-explorer').waitFor({ state: 'visible' });
-  await page.keyboard.press('Escape');
-  await page.locator('.mobile-panel-toggle').click();
-  await page.locator('[data-mobile-view="build"]').click();
-  await page.locator('[data-category="towns"]').click();
-  await page.locator('[data-tool="residential"]').click();
-  assert.equal(await page.locator('.mobile-panel-toggle').getAttribute('aria-expanded'), 'false', 'choosing a mobile tool reveals the map');
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().right <= 1);
-  const mobileCanvas = await page.locator('#world').boundingBox();
-  const panBefore = await page.evaluate(() => transport.renderer.getCamera());
-  await page.mouse.move(mobileCanvas.x + 160, mobileCanvas.y + 220);
-  await page.mouse.down();
-  await page.mouse.move(mobileCanvas.x + 230, mobileCanvas.y + 260, { steps: 5 });
-  await page.mouse.up();
-  assert.notDeepEqual(await page.evaluate(() => transport.renderer.getCamera()), panBefore, 'map panning works in narrow layout');
-  await page.screenshot({ path: `${output}/mobile.png` });
   assert.deepEqual(errors, [], 'no browser console or runtime errors');
   console.log(`Transport browser smoke passed. Cached renderer: ${rendererChecks.cachedFrameMs.toFixed(2)} ms/frame in this local sample. Screenshots: ${output}`);
 } finally {

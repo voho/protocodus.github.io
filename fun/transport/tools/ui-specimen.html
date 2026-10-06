@@ -76,9 +76,6 @@
     .cargo-tiles>figure{display:grid;justify-items:start;gap:var(--s-1);margin:0}
     .cargo-tiles>figure>div{display:flex;align-items:center;gap:var(--s-2)}
     .cargo-tiles figcaption{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
-    @media(max-width:700px){
-     body{padding:var(--s-4)}
-    }
   </style>
 </head>
 <body>
@@ -86,7 +83,7 @@
     <h1>Transport components</h1>
     <p>The shared primitives of components.css, from DESIGN.md 12 and its class contract in 16.3, each in every state on paper and, where it can appear there, on ink. Hover and focus are forced with the classes is-hover and is-focus, whose rules this page copies from the stylesheets, so they always match the real ones.</p>
     <p id="coverage">Reading the class contract…</p>
-    <div class="page-check"><button type="button" class="button button--secondary" id="check-page">Check this page</button><p id="check-result">Runs the UI floor of ui-system-browser-check here: AA contrast, the 12 px floor, no sideways scroll and, on phones, 44 px buttons.</p></div>
+    <div class="page-check"><button type="button" class="button button--secondary" id="check-page">Check this page</button><p id="check-result">Runs the UI floor of ui-system-browser-check here: AA contrast, the 12 px floor and no sideways scroll.</p></div>
   </header>
   <main class="specimen" id="specimen"></main>
   <script type="module">
@@ -246,29 +243,29 @@
     // Prose (4.5).
     const prose = `<p class="prose">Cargo pays more the farther and the faster it travels. A load of stone that crosses 14 tiles in 9 days earns about $1,356, and the same load by rail arrives sooner and earns more. Prose sets its figures proportionally, so 1,111 and 1,956 sit as they would in a book.</p>`;
 
-    // Icons (5): the phone tab bar's 24 px glyphs over their 12/500 labels, then every glyph at 16 and 20 px.
+    // Icons (5): the main navigation's labelled glyphs, then every glyph at 16 and 20 px.
     const tabGlyphs = `<div class="tab-glyphs">${[['build', 'Build'], ['routes', 'Routes'], ['town', 'Towns'], ['industry', 'Industries']].map(([name, label]) => `<figure>${icon(name, { size: 24 })}<figcaption>${label}</figcaption></figure>`).join('')}</div>`;
     const glyphs = `${tabGlyphs}<div class="glyphs">${names().map(name => `<figure class="glyph" data-glyph="${name}"><div>${i16(name)}${i20(name)}</div><figcaption>${name}</figcaption></figure>`).join('')}</div>`;
 
     document.querySelector('#specimen').innerHTML = [
       section('buttons', 'Buttons', 'A 14/500 label with a 16 px icon before it and a tabular price after it; 32 px tall. Hover changes colour only. Disabled is a well with ink-3 text and the reason in the tooltip. Pending keeps the width and shows data-pending in place of the label.', buttons, true),
       section('icon-buttons', 'Icon buttons', 'A 20 px glyph in a 32 px square with the --r-2 corner.', iconButtons),
-      section('segmented', 'Segmented control', 'Segments are 28 px (44 on touch) in a well trough with 2 px of padding.', segments),
+      section('segmented', 'Segmented control', 'Segments are 28 px in a well trough with 2 px of padding.', segments),
       section('stepper', 'Stepper', 'Minus, a 14 px figure and plus inside an --edge border.', steppers),
       section('switch', 'Switch', 'A native checkbox with role switch, drawn as a 32 by 18 track: --edge off, ink on, a paper knob.', switches),
-      section('fields', 'Fields', 'Paper in an --edge border, 32 px tall (44 on touch), 14 px text and an ink-2 placeholder.', fields, true),
+      section('fields', 'Fields', 'Paper in an --edge border, 32 px tall, 14 px text and an ink-2 placeholder.', fields, true),
       section('tags-meters', 'Tags and meters', 'Tags hold quantities. Meters are a 4 px well track with an ink fill; warn only when the value is a problem, signal only for goal progress.', tags + meters),
       section('states', 'States', 'A 16 px glyph and a 13/500 word in the state colour, then the reason in ink. No pills and no tints.', states),
       section('facts', 'Facts', 'A 112 px label column in 13 ink-2 and values in 14 ink, 8 px apart.', facts),
       section('sections', 'Sections and disclosure', 'Structure inside a sheet comes from hairlines, never from boxes.', sections),
-      section('rows', 'Rows', 'At least 40 px (48 on touch), 12 by 16 px of padding, hairlines between rows and the well on hover. The one expanded row is well.', rows),
+      section('rows', 'Rows', 'At least 40 px, 12 by 16 px of padding, hairlines between rows and the well on hover. The one expanded row is well.', rows),
       section('empty', 'Empty states', 'What will appear here and how to get it, in one sentence.', empties),
       section('ink', 'Tooltips and tips', 'Ink surfaces live briefly or follow the pointer. A .kbd hint is 12 ink-2 on paper and on-ink-2 on ink.', tooltips + tips),
-      section('menus', 'Menus and popovers', 'Items are 40 px (44 on touch).', menus),
+      section('menus', 'Menus and popovers', 'Items are 40 px.', menus),
       section('tool-bar', 'Tool bar', 'The paper rail of an active tool and of route picking, with its glyph, name, one-line rule and actions.', toolBars, true),
       section('prose', 'Prose', 'Guide text and headline detail: 14/22, at most 64 characters a line, proportional figures.', prose),
       section('cargo', 'Cargo tiles', 'Every cargo pictogram on its well tile at 16, 20 and 32 px.', cargoTiles, true),
-      section('icons', `Icons, ${names().length}`, 'The phone tab bar at 24 px, then every ui-icons.js glyph at 16 and 20 px.', glyphs, true),
+      section('icons', `Icons, ${names().length}`, 'The navigation glyphs at 24 px, then every ui-icons.js glyph at 16 and 20 px.', glyphs, true),
     ].join('');
 
     // Hover and focus, forced: a copy of each :hover or :focus-visible rule for .is-hover or .is-focus, inserted right after
@@ -300,14 +297,14 @@
 
     // The UI floor of ui-system-browser-check, run over the whole page a screen at a time.
     document.querySelector('#check-page').addEventListener('click', () => {
-      const y = scrollY, phone = innerWidth <= 700, found = new Map();
+      const y = scrollY, found = new Map();
       let overflow = 0;
-      for (let top = 0; top < document.documentElement.scrollHeight; top += innerHeight) { scrollTo(0, top); const result = audit(phone); for (const [rule, selector, detail] of result.found) found.set(`${rule} ${selector}`, detail); overflow ||= result.overflow; }
+      for (let top = 0; top < document.documentElement.scrollHeight; top += innerHeight) { scrollTo(0, top); const result = audit(); for (const [rule, selector, detail] of result.found) found.set(`${rule} ${selector}`, detail); overflow ||= result.overflow; }
       scrollTo(0, y);
       if (overflow) found.set('overflow html', `${overflow}px`);
       const out = document.querySelector('#check-result');
       out.dataset.state = found.size ? 'fail' : 'pass';
-      out.textContent = found.size ? `${found.size} ${found.size === 1 ? 'finding' : 'findings'}: ${[...found].map(([key, detail]) => `${key} (${detail})`).join('; ')}.` : `Every text passes AA and the 12 px floor and nothing scrolls sideways${phone ? ', and every button is 44 px or more' : ''}.`;
+      out.textContent = found.size ? `${found.size} ${found.size === 1 ? 'finding' : 'findings'}: ${[...found].map(([key, detail]) => `${key} (${detail})`).join('; ')}.` : `Every text passes AA and the 12 px floor and nothing scrolls sideways.`;
     });
     await document.fonts.ready;
     document.body.dataset.ready = 'true';

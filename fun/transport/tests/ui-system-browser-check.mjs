@@ -1,7 +1,7 @@
-// The UI floor (DESIGN.md 14 and 17) over every harness state at desk, phone and narrow widths: no page errors, no
-// sideways scroll, text of 12 px or more, AA contrast on opaque surfaces, a visible ring on every Tab stop and 44 px
-// buttons on phones. Violations are keyed 'viewport|state|rule|selector'; the check fails only on keys missing from
-// tests/ui-baseline/<surface>.json. UI_BASELINE_WRITE=1 records today's violations as the new ceiling.
+// The desktop UI floor (DESIGN.md 14 and 17) over every harness state: no page errors, no sideways scroll, text of
+// 12 px or more, AA contrast on opaque surfaces and a visible ring on every Tab stop. Violations are keyed
+// 'viewport|state|rule|selector'; the check fails on keys missing from tests/ui-baseline/<surface>.json.
+// UI_BASELINE_WRITE=1 records today's violations as the new ceiling.
 // Serve the repository root first (TRANSPORT_URL); TRANSPORT_OUTPUT receives report.json.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -17,7 +17,7 @@ const only = process.env.UI_STATES ? new RegExp(process.env.UI_STATES) : null;
 const baselineDir = new URL('./ui-baseline/', import.meta.url);
 await mkdir(output, { recursive: true });
 
-const viewports = ['desk', 'phone', 'narrow'], jobs = [];
+const viewports = ['desk'], jobs = [];
 for (const viewport of viewports) for (const state of states) if (!only || only.test(state.name)) jobs.push({ viewport, state });
 const browser = await chromium.launch(LAUNCH), violations = new Map(), failures = [];
 let next = 0;
@@ -32,7 +32,7 @@ await Promise.all(Array.from({ length: Number(process.env.UI_JOBS || 4) }, async
       await page.waitForFunction(() => document.querySelector('#start-menu')?.open);
       await state.setup(page);
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const { found, overflow } = await page.evaluate(audit, VIEWPORTS[viewport].viewport.width <= 700);
+      const { found, overflow } = await page.evaluate(audit);
       for (const [rule, selector, detail] of found) add(rule, selector, detail);
       if (overflow) add('overflow', 'html', `${overflow}px`);
       for (let step = 0; step < 40; step++) {

@@ -79,35 +79,8 @@
  .chains-caption>span{display:inline}
  .chain-sites-list{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 }
-@media(max-width:700px){
- .chains-explorer{padding:24px 16px}
- .chains-toolbar{align-items:stretch;flex-direction:column;gap:12px;padding:12px;margin:20px 0 16px}
- .chains-toolbar label{font-size:var(--fs-caption);line-height:var(--lh-caption);gap:8px}
- .chains-toolbar select{width:100%;font-size:var(--fs-body);line-height:var(--lh-body);min-width:0}
- .chain-key{font-size:var(--fs-body);line-height:var(--lh-body)}
- .chain-key>.cargo-icon{width:33px;height:33px}
- .chain-key small{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .chain-board{padding:16px;gap:24px;min-width:calc(var(--chain-stages) * 195px + 5px)}
- .chain-node{padding:12px 12px}
- .chain-sites-title h3{font-size:var(--fs-title);line-height:var(--lh-title)}
- .chain-places{grid-template-columns:1fr;gap:12px}
- .chain-map-wrap{max-width:430px;width:100%}
- .chain-sites-list{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
- .chain-site{padding:12px}
- .chain-site-section{padding-top:20px}
- .chain-no-sites{padding:20px 16px}
- .chain-sites-title .eyebrow{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .chains-caption{margin-bottom:20px}
- .chain-consumers{gap:8px}
- .chain-consumers>span{width:100%;margin:0}
- .chain-build{padding:12px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
 .chain-node-heading{display:flex;align-items:center;gap:8px;min-width:0}
 .chain-node-heading canvas{width:48px;height:48px;flex:0 0 48px;object-fit:contain;image-rendering:auto}
 .chain-node-heading strong{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500;min-width:0}
-@media(max-height:500px) and (orientation:landscape){
- .chains-explorer{padding:16px}
- .chains-heading h2{margin:8px 0}
-}
 /* The Back link carries its chevron glyph inline. */
 .chain-back{display:inline-flex;align-items:center;gap:var(--s-1)}

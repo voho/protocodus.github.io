@@ -1,5 +1,5 @@
 // Transport contracts in a real browser: offers arrive silently after the first freight delivery and
-// stay folded below Fleet upgrades at 1440px and 390px, Show frames both sites, a served pair wins with
+// stay folded below Fleet upgrades on desktop, Show frames both sites, a served pair wins with
 // one toast and a card badge, a reload replays nothing, and the finished contract says what it earned.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -12,7 +12,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport) {
-  const phone = viewport.width <= 700, page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: phone, hasTouch: phone });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.addInitScript(() => {
     window.__toasts = [];
@@ -27,9 +27,9 @@ async function open(viewport) {
 const toasts = (page, pattern) => page.evaluate(source => window.__toasts.filter(toast => new RegExp(source).test(toast.text)), pattern.source);
 const settle = page => page.waitForTimeout(1200);
 async function routesView(page) {
-  if (await page.locator('.main-nav').isVisible()) { await page.locator('.main-nav [data-view="routes"]').click(); return; }
-  if (!(await page.locator('.sidebar').evaluate(element => element.classList.contains('mobile-open')))) await page.locator('.mobile-panel-toggle').click();
-  await page.locator('[data-mobile-view="routes"]').click();
+  const open = await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'));
+  const button = page.locator('.main-nav [data-view="routes"]');
+  if (!open || !(await button.evaluate(el => el.classList.contains('active')))) await button.click();
 }
 // Seed 1847: stone from the quarry beside Alderbrook is the first freight; the next month brings offers.
 async function firstFreight(page) {
@@ -122,39 +122,6 @@ try {
   await routesView(page);
   await page.waitForFunction(id => !document.querySelector(`[data-route-rate="${id}"]`)?.hasAttribute('data-contract'), route);
   await page.close();
-
-  // Phone: the folded block, a compact awarded card and Show above the sheet.
-  const phone = await open({ width: 390, height: 844 });
-  await firstFreight(phone);
-  const phoneOffer = await phone.evaluate(() => transport.game.contracts[0].id);
-  const served = await serveContract(phone);
-  await routesView(phone);
-  await phone.waitForFunction(() => !document.querySelector('#contract-offers')?.hidden);
-  assert.equal(await phone.locator('#contract-offers').evaluate(details => details.open), false, 'collapsed on phones too');
-  await phone.locator('#contract-offers > summary').click();
-  assert.ok(await phone.locator('#panel-content').evaluate(panel => panel.scrollWidth <= panel.clientWidth + 1), 'no sideways scroll');
-  await phone.locator('#contract-offers').screenshot({ path: `${output}/offers-390.png` });
-  const card = phone.locator(`.route-card[data-route-id="${served.route}"]`);
-  await phone.waitForFunction(id => document.querySelector(`[data-route-rate="${id}"]`)?.hasAttribute('data-contract'), served.route);
-  await card.scrollIntoViewIfNeeded();
-  await phone.locator('#toast-region').evaluate(region => { region.style.visibility = 'hidden'; });
-  await card.screenshot({ path: `${output}/card-390.png` });
-  // The badge takes the rate's place beside Net earned: the card gains no row.
-  const rows = await card.evaluate(element => {
-    const rate = element.querySelector('.route-rate'), net = element.querySelector('.route-earnings strong'), awarded = { height: element.getBoundingClientRect().height, top: rate.getBoundingClientRect().top, net: net.getBoundingClientRect().top };
-    const text = rate.textContent;rate.removeAttribute('data-contract');rate.textContent = '≈ $4.1k / month';
-    const plain = element.getBoundingClientRect().height;rate.textContent = text;rate.setAttribute('data-contract', '');
-    return { ...awarded, plain };
-  });
-  assert.ok(Math.abs(rows.top - rows.net) < 8, 'the contract rate stays on the Net earned line');
-  assert.ok(rows.height <= rows.plain + .5, `390px awarded card stays as compact as without a contract: ${rows.height}px vs ${rows.plain}px`);
-  await phone.locator('#toast-region').evaluate(region => { region.style.visibility = ''; });
-  await phone.locator(`[data-show-contract="${phoneOffer}"]`).click();
-  await phone.waitForTimeout(500);
-  const phoneShown = await onScreen(phone, phoneOffer);
-  assert.ok(phoneShown.source && phoneShown.target, 'both sites on a phone screen');assert.equal(phoneShown.inspector, false, 'no inspector over the map on a phone');
-  await phone.screenshot({ path: `${output}/show-390.png` });
-  await phone.close();
 
   assert.deepEqual(errors, []);
   console.log(`Contracts browser check passed. Screenshots: ${output}`);

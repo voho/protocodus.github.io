@@ -117,16 +117,6 @@ try {
   assert.equal(await page.locator('#route-form [type="submit"]').isDisabled(),true);
   assert.match(await page.locator('#route-connection').innerText(),/water|river|lake|sea/i);
 
-  for(const width of [390,320]){
-    await page.setViewportSize({width,height:844});
-    await page.evaluate(()=>transport.setView('routes'));
-    assert.equal(await page.locator('#panel-content').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true,`${width}px shipping form fits`);
-    await page.locator('#route-form [name="mode"]').scrollIntoViewIfNeeded();
-    assert.equal(await page.locator('#route-form [name="mode"]').inputValue(),'water');
-    await page.screenshot({path:`${output}/shipping-form-${width}.png`});
-    await page.evaluate(()=>transport.setView('build'));
-    assert.equal(await page.locator('[data-tool="port"]').count(),1,'port remains accessible on mobile');
-  }
   assert.deepEqual(errors,[]);
-  console.log(`Shipping UI checks passed: generated river, ports, ferry delivery, water filters, disconnected lake, saves, mobile. Screenshots: ${output}`);
+  console.log(`Shipping UI checks passed: generated river, ports, ferry delivery, water filters, disconnected lake, saves. Screenshots: ${output}`);
 } finally { await browser.close(); }

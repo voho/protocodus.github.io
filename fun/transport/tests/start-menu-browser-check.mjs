@@ -8,7 +8,6 @@ const errors=[],results=[];
 async function ready(page){await page.waitForFunction(()=>window.transport&&document.querySelector('#loading-screen').hidden,{},{timeout:60000});await page.evaluate(()=>transport.setSpeed(0));}
 // Continue is offered after the menu's first paint; wait past that before asserting it is absent.
 const settled=page=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,80))));
-const overlaps=(a,b)=>a.x<b.x+b.width&&b.x<a.x+a.width&&a.y<b.y+b.height&&b.y<a.y+a.height;
 try{
  const page=await browser.newPage({viewport:{width:1440,height:960}});page.on('pageerror',e=>errors.push(e.message));await page.goto(base);await page.locator('#start-menu').waitFor();
  assert.equal(await page.evaluate(()=>Boolean(window.transport)),false);assert.equal(await page.evaluate(()=>localStorage.length),0);
@@ -58,11 +57,6 @@ try{
  await page.locator('#start-load').click();assert.match(await page.locator('.start-save').filter({hasText:'Autosave'}).locator('small').innerText(),/^Desert, Jan 1950, \$[\d,]+, \d+ × \d+, 1 route$/);
  await page.screenshot({path:`${out}/desktop-continue.png`});await resume.click();await ready(page);
  assert.deepEqual(await page.evaluate(()=>transport.game.generationOptions),company.options);assert.equal(await page.evaluate(()=>transport.game.seed),1847);
- const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true,reducedMotion:'reduce'});mobile.on('pageerror',e=>errors.push(e.message));await mobile.goto(base);await mobile.locator('#start-menu').waitFor();
- assert.equal(await mobile.evaluate(()=>document.documentElement.scrollWidth),390);const box=await mobile.locator('#start-create').boundingBox();assert.ok(box.x>=0&&box.x+box.width<=390&&box.height>=44);
- await mobile.screenshot({path:`${out}/mobile-menu.png`});await mobile.locator('#start-create').click();await ready(mobile);await mobile.screenshot({path:`${out}/mobile-game.png`});
- const mobileNote=mobile.locator('#date-note');assert.equal(await mobileNote.innerText(),'Paused');await mobile.evaluate(()=>transport.setTool('road'));
- const noteBox=await mobileNote.boundingBox(),barBox=await mobile.locator('#active-tool-bar').boundingBox();assert.ok(noteBox.x>=0&&noteBox.x+noteBox.width<=390&&!overlaps(noteBox,barBox),'the paused cue sits in the top bar, clear of the active tool bar');
- await mobile.screenshot({path:`${out}/mobile-paused-tool.png`});assert.deepEqual(errors,[]);
+ assert.deepEqual(errors,[]);
  console.log(JSON.stringify({results,errors,out},null,2));
 }finally{await browser.close();}

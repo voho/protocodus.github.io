@@ -21,7 +21,7 @@
 .sidebar-foot>span:nth-child(2){font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 #panel-content{overflow:auto;padding:20px 20px;scrollbar-width:thin;scrollbar-color:var(--edge) transparent;flex:1}
 .map-section{flex:1;position:relative;min-width:0;overflow:hidden;background:var(--art-map-ground);isolation:isolate}
-#world{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#world{width:100%;height:100%;display:block;cursor:grab}
 #world.build-mode{cursor:crosshair}
 #world.dragging{cursor:grabbing}
 .map-topline{position:absolute;top:18px;left:20px;right:20px;display:flex;align-items:center;gap:8px;pointer-events:none}
@@ -42,7 +42,6 @@
 .statusbar{height:33px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--rule);background:var(--paper);font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .statusbar>div{display:flex;align-items:center;gap:8px}
 .statusbar .live-dot{width:4px;height:4px}
-.mobile-panel-toggle{display:none}
 @media(min-width:1650px){
  .sidebar{width:290px}
  .topbar{gap:64px}
@@ -80,48 +79,10 @@
  .view-controls .icon-button{height:25px;width:23px}
  #zoom-label{font-size:var(--fs-caption);line-height:var(--lh-caption);min-width:31px}
 }
-@media(max-width:700px){
- .topbar{padding:0 12px;gap:16px;height:56px}
- .brand-symbol{margin-right:8px;width:25px;height:28px;font-size:var(--fs-display);line-height:var(--lh-display)}
- .main-nav{margin-left:auto;gap:12px;display:none}
- .nav-button{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .nav-button[data-view=industry],.nav-button[data-view=towns]{display:none}
- .header-actions .button svg{width:17px;height:17px}
- .header-actions{margin-left:0}
- .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .speed-control button{width:23px}
- .workspace{height:calc(100dvh - 147px);display:block}
- .sidebar{position:absolute;left:0;top:0;bottom:0;background:var(--paper);backdrop-filter:blur(8px);transform:translateX(-100%);transition:transform .2s;box-shadow:var(--e2);width:var(--sidebar-width)}
- .sidebar.mobile-open{transform:translateX(0)}
- #panel-content{padding:16px 12px}
- .sidebar-foot{padding:8px}
- .sidebar-foot>span:nth-child(2){font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .map-section{height:100%;width:100%}
- .map-topline{left:12px;top:12px;right:12px}
- .map-title{font-size:var(--fs-caption);line-height:var(--lh-caption);gap:8px;padding:8px}
- .map-topline .map-chip{margin-left:auto}
- .map-chip>span:nth-child(2){display:none}
- .minimap-wrap{width:115px;right:12px;bottom:13px}
- .minimap-label{height:21px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .view-controls .icon-button{width:23px;height:26px}
- #zoom-label{min-width:29px}
- .map-bottomline{left:12px;bottom:13px;right:138px;justify-content:center}
- .map-bottomline .icon-button#routes-toggle{display:none}
- .statusbar{height:27px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .statusbar .status-right{display:none}
- #status-message{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:calc(100vw - 42px)}
- .mobile-panel-toggle.open span{display:none}
-}
-.mobile-management{display:none}
 .sidebar-foot button{width:21px;height:21px;margin-left:0}
 .sidebar-foot #panel-help{margin-left:auto}
 .sidebar-foot{gap:4px}
 .sidebar-foot>span:nth-child(2){flex:1;white-space:nowrap;font-size:var(--fs-caption);line-height:var(--lh-caption)}
-@media(max-width:700px){
- .mobile-management button.active{background:var(--well);color:var(--ink)}
- .sidebar-foot>span:nth-child(2){font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .sidebar-foot{padding:8px 4px;gap:4px}
-}
 button.minimap-label{width:100%;cursor:pointer}
 button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .zoom-levels{display:flex;align-items:center;gap:2px;padding:2px;background:var(--well);border-radius:var(--r-2)}
@@ -132,9 +93,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .view-controls #zoom-label{min-width:0}
 @media(max-width:950px){
  .zoom-levels button{min-width:34px;padding:0 4px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
-@media(max-width:700px){
- .zoom-levels button{min-width:30px;padding:0 4px;height:26px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
 }
 .nav-button{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .date-block>span{font-size:var(--fs-small);line-height:var(--lh-small)}
@@ -174,46 +132,12 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .zoom-levels button{min-width:39px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .statusbar{font-size:var(--fs-caption);line-height:var(--lh-caption)}
 }
-@media(max-width:700px){
- .topbar{gap:8px;padding:0 12px}
- .wordmark{font-size:var(--fs-display);line-height:var(--lh-display)}
- .nav-button{font-size:var(--fs-small);line-height:var(--lh-small)}
- .header-actions .button{gap:0;padding:8px}
- .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption);margin-bottom:4px}
- .speed-control button{width:24px;height:22px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
- #panel-content{padding:16px 16px}
- .panel-heading h2{font-size:var(--fs-title);line-height:var(--lh-title)}
- .sidebar-foot{padding:8px 12px;gap:4px}
- .sidebar-foot>span:nth-child(2){font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .sidebar-foot .icon-button{width:25px}
- .map-title{font-size:var(--fs-caption);line-height:var(--lh-caption);gap:8px;padding:12px}
- .map-chip{padding:8px}
- .minimap-wrap{width:94px}
- .minimap-label{font-size:var(--fs-caption);line-height:var(--lh-caption);height:25px;padding:0 4px}
- .minimap-label svg{width:12px;height:12px}
- #minimap{height:64px}
- .map-bottomline{right:116px;justify-content:flex-start}
- .view-controls{flex-shrink:0;padding:2px;gap:1px}
- .view-controls .icon-button{height:31px;width:23px}
- .zoom-levels{gap:1px;padding:1px}
- .zoom-levels button{min-width:33px;height:29px;font-size:var(--fs-caption);line-height:var(--lh-caption);padding:0 2px}
- .mobile-panel-toggle svg{width:18px;height:18px}
-}
-@media(max-width:350px){
- .wordmark{font-size:var(--fs-title);line-height:var(--lh-title)}
- .brand-symbol{width:23px;margin-right:4px}
- .topbar{gap:8px}
- .main-nav{gap:8px}
- .nav-button{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .speed-control button{width:22px}
- .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
 /* Finance card: loan rows only with a loan. A pinned or focused card takes the pointer for Open report; so does a hovered
-   dropdown on wide screens, where a strip bridges the gap. The full-width phone card lets unpinned taps through. */
+   dropdown on wide screens, where a strip bridges the gap. */
 .hud-tooltip>div[hidden]{display:none}
 .hud-finance-wrap:has(#open-report:focus-visible) .hud-tooltip{display:block}
 .hud-finance-wrap:has(#open-report:focus-visible) .hud-tooltip,.hud-finances[aria-expanded=true]+.hud-tooltip{pointer-events:auto}
-@media(hover:hover) and (min-width:701px){
+@media(hover:hover){
  .hud-finance-wrap:hover .hud-tooltip{pointer-events:auto}
 }
 .hud-tooltip::before{content:'';position:absolute;left:0;right:0;top:-9px;height:9px}
@@ -221,10 +145,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .hud-report:hover{color:var(--ink)}
 .hud-report:focus-visible{outline:2px solid var(--focus);outline-offset:3px;border-radius:var(--r-1)}
 #world.route-picking{cursor:crosshair}
-@media(max-width:700px){
- .main-nav [data-open-chains]{display:none}
- .mobile-management button{flex:1;border-radius:var(--r-1);font-size:var(--fs-caption);line-height:var(--lh-caption);padding:12px 4px;color:var(--ink-2);min-height:35px}
-}
 #app{position:fixed;inset:0;display:flex;flex-direction:column;overflow:clip}
 #app>.workspace{flex:1;min-height:0;height:auto}
 #app>.statusbar{flex-shrink:0}
@@ -279,29 +199,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .hud-finances{gap:12px;padding:4px}
  .workspace{height:calc(100dvh - 97px)}
 }
-@media(max-width:700px){
- .topbar{height:60px;padding:0 12px;gap:12px}
- .hud-finance-wrap{margin-left:auto}
- .hud-finances{gap:12px}
- .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .topbar .speed-control{gap:1px;padding:2px}
- .topbar .speed-control button{width:21px;height:21px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
- .topbar .header-actions .button{padding:8px}
- .topbar .header-actions .button svg{width:17px;height:17px}
- .workspace{height:calc(100dvh - 87px)}
- .hud-tooltip{right:-80px;min-width:235px}
- .mobile-management{background:var(--well);gap:4px;padding:12px 12px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding-bottom:8px;border-bottom:1px solid var(--rule)}
- .map-title{padding:8px}
- .map-title #weather{display:flex}
-}
-@media(max-width:370px){
- .topbar{gap:8px;padding:0 8px}
- .topbar .brand-symbol{width:23px;font-size:var(--fs-display);line-height:var(--lh-display)}
- .hud-finances{gap:8px;padding:4px 0}
- .topbar .header-actions .button{padding:4px}
- .topbar .speed-control button{width:19px}
- .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption)}
-}
 /* A paid delivery briefly brightens this month's profit. */
 #profit.income-pulse{animation:income-pulse .6s ease-out}
 @keyframes income-pulse{
@@ -324,9 +221,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 }
 .map-display-tools{display:flex;align-items:center;gap:8px;margin-left:auto;pointer-events:auto}
 #layers-button[aria-expanded=true]{background:var(--well);border-color:var(--rule);color:var(--ink-2)}
-@media(max-width:700px){
- .map-display-tools .map-chip{margin-left:0;min-height:38px;padding:8px 8px}
-}
 /* Keep the map's common actions visible; secondary choices open on demand. */
 .map-display-tools .map-chip{margin-left:0;min-height:44px;min-width:44px;padding:12px 12px;border:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body)}
 #map-options-button{padding:0;width:44px;flex:0 0 44px;justify-content:center}
@@ -355,50 +249,21 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  #map-options{right:14px;top:66px}
  .map-bottomline{right:160px}
 }
-@media(max-width:700px){
- .map-display-tools{gap:8px}
- .map-display-tools .map-chip{min-height:44px;padding:12px 12px}
- #map-options-button{padding:0}
- #map-options{right:12px;top:64px;width:190px}
- .map-bottomline{left:12px;right:116px;bottom:13px;justify-content:flex-start;gap:0}
- .map-bottomline .view-controls{padding:2px;gap:0}
- .view-controls .icon-button{width:44px;height:44px}
- #zoom-level{min-width:74px;padding:8px 8px;gap:4px}
- #zoom-menu{min-width:166px}
- .mobile-panel-toggle{position:absolute;display:flex;align-items:center;justify-content:center;gap:8px;left:12px;background:var(--paper);box-shadow:var(--e1);border:1px solid var(--rule);border-radius:var(--r-3);z-index:var(--z-rail);color:var(--ink-2);min-height:44px;bottom:71px;padding:12px 16px;font-size:var(--fs-body);line-height:var(--lh-body)}
- .workspace:has(#zoom-menu:not([hidden]))>.mobile-panel-toggle:not(.open){visibility:hidden}
- .mobile-panel-toggle.open{bottom:auto;top:12px;min-width:44px;min-height:44px;padding:12px;left:calc(var(--sidebar-width) + 4px)}
-}
 @media(prefers-reduced-motion:reduce){
  .view-controls button,.map-popover button{transition:none}
 }
-/* Pinches on the game chrome never zoom the page; dialogs stay zoomable, and a zoomed page takes map pinches back. */
-.compact-play:not(.page-zoomed)>:is(.topbar,.workspace,.statusbar){touch-action:pan-x pan-y}
-.compact-play:not(.page-zoomed) :is(.map-bottomline,#active-tool-bar,.route-pick-banner,.toast-action){touch-action:none}
-.compact-play.page-zoomed #world{touch-action:pinch-zoom}
 #panel-content,#game-menu{overscroll-behavior:contain}
-/* Cargo lens: a chip beside the zoom control names the highlighted cargo; its × clears it. On phones it rises above the zoom control, clear of the goal pill. */
+/* Cargo lens: a chip beside the zoom control names the highlighted cargo; its × clears it. */
 .cargo-lens-chip{display:flex;align-items:center;gap:8px;min-width:0;max-width:300px;min-height:38px;margin-right:8px;padding:2px 2px 2px 8px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);box-shadow:var(--e1);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;white-space:nowrap;pointer-events:auto}
 .cargo-lens-chip .cargo-icon{flex:0 0 20px;width:20px;height:20px}
 .cargo-lens-name{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .cargo-lens-dot{color:var(--ink-2)}
 .cargo-lens-chip button{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border-radius:var(--r-2);font-size:var(--fs-title);line-height:1;color:var(--ink-2)}
 .cargo-lens-chip button:hover,.cargo-lens-chip button:focus-visible{background:var(--well)}
-@media(max-width:700px){
- .compact-play .cargo-lens-chip{position:absolute;right:0;bottom:calc(100% + 8px);max-width:calc(100vw - 20px);margin:0}
- .compact-play .cargo-lens-chip button{flex-basis:36px;width:36px;height:36px}
-}
-/* Touch-only screens have no scroll wheel to pan with. */
-@media(hover:none) and (pointer:coarse){
- #scroll-mode{display:none}
-}
 .hud-tooltip{min-width:275px;max-height:calc(100dvh - 90px);overflow:auto}
-@media(max-width:700px){
- .hud-tooltip{position:fixed;top:61px;left:8px;right:8px;min-width:0;max-width:370px;margin:auto}
-}
 #minimap{height:auto;aspect-ratio:1}
 /* Quiet game chrome: management and information are opened when needed. */
-.compact-play{--drawer-width:320px;--play-header:calc(52px + var(--safe-t))}
+.compact-play{--drawer-width:320px;--play-header:52px}
 .compact-play .topbar{height:var(--play-header);min-height:var(--play-header);padding:0 12px;gap:16px;z-index:var(--z-rail)}
 /* The rail's menu and ledger are popovers: while one is open the rail rises above the drawer, sheets and toasts. */
 .topbar:has(#game-menu:not([hidden]),#company-stats[aria-expanded=true],#company-stats:focus-visible,.hud-finance-wrap:hover){z-index:var(--z-popover)}
@@ -416,18 +281,14 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .compact-play .header-actions,.compact-play .map-topline,.compact-play>.statusbar,.compact-play .map-hint,.compact-play .sidebar-foot{display:none}
 .compact-play>.workspace{position:relative;display:block;height:calc(100dvh - var(--play-header));overflow:hidden}
 .compact-play .map-section{width:100%;height:100%;min-width:0}
-.compact-play .sidebar{position:absolute;z-index:var(--z-sheet);left:8px;top:8px;bottom:8px;width:var(--drawer-width);max-width:calc(100% - 16px);border:1px solid var(--rule);border-radius:var(--r-4);background:var(--paper);box-shadow:var(--e2);backdrop-filter:none;visibility:hidden;pointer-events:none;transition:transform .16s ease-out,visibility .16s;overflow:hidden;margin-left:var(--safe-l);margin-bottom:var(--safe-b);transform:translateX(calc(-100% - 12px - var(--safe-l)))}
-.compact-play .sidebar.mobile-open{transform:translateX(0);visibility:visible;pointer-events:auto}
+.compact-play .sidebar{position:absolute;z-index:var(--z-sheet);left:8px;top:8px;bottom:8px;width:var(--drawer-width);max-width:calc(100% - 16px);border:1px solid var(--rule);border-radius:var(--r-4);background:var(--paper);box-shadow:var(--e2);backdrop-filter:none;visibility:hidden;pointer-events:none;transition:transform .16s ease-out,visibility .16s;overflow:hidden;transform:translateX(calc(-100% - 12px))}
+.compact-play .sidebar.drawer-open{transform:translateX(0);visibility:visible;pointer-events:auto}
 .management-drawer-heading button{display:grid;place-items:center;width:34px;height:34px;border-radius:var(--r-2);color:var(--ink-2)}
 .management-drawer-heading button:hover{background:var(--well)}
 .management-drawer-heading svg{width:17px;height:17px}
 .compact-play #panel-content{padding:16px 16px}
 .compact-play .panel-heading{margin-bottom:12px}
 .compact-play .panel-heading h2{font-size:var(--fs-title);line-height:var(--lh-title)}
-.compact-play .mobile-panel-toggle{display:none;position:static;transform:none;box-shadow:none;background:var(--well);border:0;border-radius:var(--r-2);padding:8px 12px;min-height:36px;color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);gap:8px}
-.compact-play .mobile-panel-toggle.open{position:static;left:auto;top:auto;bottom:auto;padding:8px 12px}
-.compact-play .mobile-panel-toggle.open span{display:inline}
-.compact-play .mobile-panel-toggle svg{width:17px;height:17px}
 .compact-menu-wrap{position:relative;flex:0 0 36px;display:flex;align-items:center}
 #game-menu-button{width:36px;height:36px;background:var(--well);color:var(--ink-2)}
 #game-menu-button:hover,#game-menu-button[aria-expanded=true]{background:var(--well)}
@@ -478,76 +339,12 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .speed-control{padding:1px}
  .compact-play .hud-finances{gap:12px}
 }
-@media(max-width:700px){
- .compact-play .topbar{gap:8px;padding:0 8px}
- .compact-play .main-nav{display:none}
- .compact-play .mobile-panel-toggle{display:flex;flex:0 0 auto}
- .compact-play .hud-finance-wrap{margin-left:auto;min-width:0;flex-shrink:1}
- .compact-play .hud-finances{display:block;padding:4px;line-height:1.25}
- .compact-play .hud-tooltip{top:calc(var(--play-header) + 4px)}
- .compact-play .mobile-management{display:flex;padding:4px;border-bottom:1px solid var(--rule);background:var(--paper)}
- .compact-play .mobile-management button{min-height:38px;font-size:var(--fs-caption);line-height:var(--lh-caption);padding:8px 4px}
- .compact-play .management-drawer-heading{flex-basis:40px}
- .compact-play .view-controls .icon-button{width:40px;height:40px}
- .compact-play #zoom-level{min-height:40px;min-width:66px}
- .compact-play .map-bottomline{bottom:10px;right:10px}
- .compact-play .minimap-wrap{right:10px;bottom:64px;width:178px}
- .compact-play .workspace:has(#zoom-menu:not([hidden]))>.mobile-panel-toggle{visibility:visible}
-}
-@media(max-width:370px){
- .compact-play .topbar{gap:4px;padding:0 8px}
- .compact-play .topbar .wordmark{display:none}
- .compact-play .mobile-panel-toggle{padding:8px}
- .compact-play .topbar .speed-control button{width:22px}
-}
 @media(prefers-reduced-motion:reduce){
  .compact-play .sidebar{transition:none}
 }
-/* The map stays full-bleed under the notch; only the chrome moves. Margins add the insets to each overlay's own offsets. */
-.compact-play .topbar{padding-top:var(--safe-t);padding-left:max(12px,var(--safe-l));padding-right:max(12px,var(--safe-r))}
-.compact-play .map-bottomline,.compact-play .minimap-wrap{margin-right:var(--safe-r);margin-bottom:var(--safe-b)}
-.compact-play #map-options{top:8px;right:8px;max-height:calc(100% - 24px);margin-right:var(--safe-r)}
-#game-menu{position:absolute;top:calc(100% + 10px);right:0;width:262px;max-width:calc(100vw - 16px);max-height:calc(100dvh - var(--play-header) - 16px);overflow:auto;border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);background:var(--paper);padding:8px;max-height:calc(100dvh - var(--play-header) - 16px - var(--safe-b))}
-@media(max-width:700px){
- .compact-play{--drawer-width:min(328px,calc(100vw - 16px - var(--safe-l) - var(--safe-r)))}
- .compact-play .topbar{padding-left:max(8px,var(--safe-l));padding-right:max(8px,var(--safe-r))}
-}
-@media(max-width:370px){
- .compact-play .topbar{padding-left:max(8px,var(--safe-l));padding-right:max(8px,var(--safe-r))}
-}
-/* Short landscape: the close button joins the tabs row, tool cards shrink to three or four a row and the start menu fits without scrolling. */
-@media(max-height:500px) and (orientation:landscape){
- .compact-play{--drawer-width:min(344px,calc(100vw - 16px - var(--safe-l) - var(--safe-r)))}
- .compact-play .management-drawer-heading{position:absolute;top:0;right:0;z-index:1;padding:4px;border:0}
- .compact-play .management-drawer-heading>span{display:none}
- .compact-play #close-management{margin:0;border-radius:var(--r-3);background:var(--well);box-shadow:none}
- .compact-play .mobile-management{padding-right:48px}
- .compact-play #panel-content{padding:12px}
- .compact-play .panel-heading{min-height:34px;margin-bottom:8px;padding-right:40px}
- .compact-play .panel-heading h2{font-size:var(--fs-lead);line-height:var(--lh-lead)}
-}
-/* The close button sits in the tab row, which already names the view, so a heading with nothing beside it gives its row to the tools. */
-@media(max-width:700px) and (max-height:500px) and (orientation:landscape){
- .compact-play .panel-heading{padding-right:0}
- .compact-play .panel-heading:has(>h2:only-child){display:none}
-}
-/* Touch: speed buttons reach 44 px through a transparent extension, close buttons are 44 px and small actions 40 px. */
-@media(pointer:coarse){
- .compact-play .topbar .speed-control button{position:relative}
- .compact-play .topbar .speed-control button::after{content:'';position:absolute;inset:-8px 0}
- #close-management,#close-minimap{min-width:44px;min-height:44px}
- #close-management{margin:-4px 0}
- .compact-menu-wrap{flex-basis:40px}
- #game-menu-button{width:40px;height:40px}
-}
-@media(pointer:coarse) and (max-width:900px){
- .compact-play .topbar .speed-control button{height:28px;min-width:24px}
-}
+.compact-play #map-options{top:8px;right:8px;max-height:calc(100% - 24px)}
+#game-menu{position:absolute;top:calc(100% + 10px);right:0;width:262px;max-width:calc(100vw - 16px);max-height:calc(100dvh - var(--play-header) - 16px);overflow:auto;border:1px solid var(--rule);border-radius:var(--r-4);box-shadow:var(--e2);background:var(--paper);padding:8px}
 .management-drawer-heading{display:flex;align-items:center;justify-content:space-between;flex:0 0 41px;gap:12px;padding:4px 8px 4px 16px;border-bottom:1px solid var(--rule);font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0;color:var(--ink)}
-/* Game menu rows are 44 px on touch (DESIGN 12.10), so every row, Achievements included, meets the touch target. */
-@media(max-width:700px),(pointer:coarse){
- #game-menu .compact-menu-action{min-height:var(--control-touch)}
-}
 /* Instrument cluster (DESIGN.md 12.1): the balance, this month's profit under it, and the date over the weather word, which
    reads "Paused" in orange while the game is paused. A paused map also wears a 2 px orange line along its top edge. */
 .compact-play .hud-finances{flex-direction:column;align-items:flex-end;justify-content:center;gap:0;padding:4px 8px;text-align:right}
@@ -568,42 +365,21 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  #date{font-size:var(--fs-caption);line-height:var(--lh-caption)}
  #balance{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
-@media(max-width:700px){
- .compact-play .hud-finances{display:flex;padding:4px}
- .compact-play .hud-finance-wrap{flex-shrink:0}
- #balance{min-width:0}
- .hud-period{display:none}
-}
-@media(hover:none) and (pointer:coarse){
- #shortcuts-button{display:none}
-}
 /* The game menu's groups: company, map, help and the game itself, each row with its key on the right. */
 .compact-menu-rule{height:1px;margin:var(--s-1) var(--s-2);background:var(--rule)}
 #game-menu .compact-menu-action .kbd{margin-left:auto;padding-left:var(--s-3)}
-@media(pointer:coarse){
- #game-menu .compact-menu-action .kbd{display:none}
-}
 /* The drawer names its view in its own heading (no eyebrow): the close button sits at the heading's right end. */
 .compact-play .management-drawer-heading{position:absolute;top:var(--s-3);right:var(--s-3);z-index:1;flex:none;padding:0;border:0}
 .compact-play .panel-heading{padding-right:40px}
-.compact-play .mobile-management{padding-right:52px}
 /* The zoom rail names its view (Region, Town, Detail); its menu adds Back to home town. */
 .zoom-caret{display:flex;transform:none}
 .zoom-caret svg{width:14px;height:14px}
 .compact-play #zoom-level{min-width:76px}
 #zoom-menu #zoom-home{border-top:1px solid var(--rule);border-radius:0 0 var(--r-2) var(--r-2)}
-/* On wider screens the drawer is only as tall as its view (DESIGN.md 12.3), up to the map's height. */
-@media(min-width:701px) and (min-height:501px){
- .compact-play .sidebar{bottom:auto;max-height:calc(100% - 16px)}
-}
+/* The drawer is only as tall as its view (DESIGN.md 12.3), up to the map's height. */
+.compact-play .sidebar{bottom:auto;max-height:calc(100% - 16px)}
 /* The close button floats over the drawer's scrolling view: it keeps a paper disc, and a view scrolled into place stops
    below it. */
 .compact-play #close-management{background:var(--paper);outline:4px solid var(--paper);outline-offset:0}
 .compact-play #close-management:hover{background:var(--well)}
 .compact-play #panel-content{scroll-padding-top:52px}
-/* Phones keep the top bar in one lane: the weather word goes, and "Paused" gives way to the attention count (the lit
-   pause segment and the orange line still say it). */
-@media(max-width:700px){
- #date-note:not(.paused){display:none}
- .date-block:has(>#offline-routes:not([hidden])) #date-note{display:none}
-}

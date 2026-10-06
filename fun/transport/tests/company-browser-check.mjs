@@ -12,8 +12,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport) {
-  const small = viewport.width <= 700;
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: small, hasTouch: small });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     window.__toasts = [];
@@ -140,39 +139,6 @@ try {
   await page.locator('#modal [data-close]').click();
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1, 'keeping it running retires nothing');
   await page.close();
-
-  // A phone: the Company menu entry, charts in one column, no sideways scrolling.
-  const phone = await open({ width: 390, height: 844 });
-  await createWorldFromMenu(phone);
-  assert.equal(await phone.evaluate(() => transport.game.money), 400000, 'the default start stays relaxed');
-  await advance(phone, 3 * 365 + 20);
-  await settle(phone);
-  await phone.evaluate(() => document.querySelector('#toast-region').replaceChildren());
-  await openGameAction(phone, 'company-button');
-  await phone.locator('#modal .company-report').waitFor();
-  const layout = await phone.evaluate(() => {
-    const [a, b] = [...document.querySelectorAll('.company-chart')].map(chart => chart.getBoundingClientRect()), modal = document.querySelector('#modal');
-    return { stacked: b.top >= a.bottom, width: a.width, page: document.documentElement.scrollWidth, modal: modal.scrollWidth - modal.clientWidth, table: document.querySelector('.company-table').scrollWidth - document.querySelector('.company-table').clientWidth };
-  });
-  assert.equal(layout.stacked, true, 'sparklines stack on a phone');
-  assert.ok(layout.width > 280);
-  assert.ok(layout.page <= 390 && layout.modal <= 0 && layout.table <= 0, `no sideways scrolling: ${JSON.stringify(layout)}`);
-  await phone.screenshot({ path: `${output}/company-phone.png` });
-  await phone.locator('.company-routes').scrollIntoViewIfNeeded();
-  await phone.screenshot({ path: `${output}/company-phone-routes.png` });
-  await phone.locator('#company-borrow').scrollIntoViewIfNeeded();
-  await phone.locator('#company-borrow').click();
-  await phone.locator('#company-repay').waitFor();
-  await phone.screenshot({ path: `${output}/company-phone-loan.png` });
-  await phone.locator('#modal .close-modal').click();
-  // A tap on the balance opens the finances card, whose Open report reaches the same dialog.
-  await phone.locator('#company-stats').tap();
-  await phone.locator('#open-report').waitFor();
-  assert.match(await phone.locator('#company-tooltip').innerText(), /Loan[\s\S]*Interest/);
-  await phone.screenshot({ path: `${output}/finance-card-phone.png` });
-  await phone.locator('#open-report').tap();
-  await phone.locator('#modal .company-report').waitFor();
-  await phone.close();
 
   assert.deepEqual(errors, []);
   console.log('company browser check passed');

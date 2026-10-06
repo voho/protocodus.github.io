@@ -14,7 +14,7 @@ const lens = page => page.evaluate(() => transport.renderer.getStats().lens);
 const chip = page => page.locator('#cargo-lens-chip');
 const cleared = async (page, why) => { await page.waitForFunction(() => !transport.renderer.getStats().lens && !document.querySelector('#cargo-lens-chip')); assert.equal(await lens(page), null, why); };
 const showing = (page, cargo) => page.waitForFunction(cargo => transport.renderer.getStats().lens?.cargo === cargo, cargo);
-const routes = async page => { if (!await page.evaluate(() => document.querySelector('.sidebar').classList.contains('mobile-open') && Boolean(document.querySelector('#route-planner')))) await page.locator('.main-nav [data-view="routes"]').click(); if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click(); };
+const routes = async page => { if (!await page.evaluate(() => document.querySelector('.sidebar').classList.contains('drawer-open') && Boolean(document.querySelector('#route-planner')))) await page.locator('.main-nav [data-view="routes"]').click(); if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click(); };
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
@@ -177,26 +177,6 @@ try {
   assert.equal(await page.evaluate(() => Object.keys(transport.game).some(key => /lens/i.test(key))), false, 'the lens never enters the game state');
   await page.close();
 
-  // Phones: the chip rises above the zoom control, clear of the goal pill, within 320 px.
-  const phone = await browser.newPage({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  phone.on('pageerror', error => errors.push(error.message));
-  await phone.goto(url);
-  await createWorldFromMenu(phone);
-  await phone.locator('.mobile-panel-toggle').tap();
-  await phone.locator('[data-mobile-view="industry"]').tap();
-  await phone.locator('#industry-kind').selectOption('steel-mill');
-  await phone.locator('#entity-list [data-industry]').first().tap();
-  await phone.evaluate(() => { document.querySelector('#inspector .tiny-button')?.click(); document.querySelector('#toast-region').replaceChildren(); });
-  await chip(phone).waitFor({ state: 'visible' });
-  const box = await chip(phone).boundingBox(), zoom = await phone.locator('.view-controls').boundingBox(), goal = await phone.locator('#objective-card').boundingBox();
-  const apart = (a, b) => !b || a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
-  assert.ok(box.x >= 0 && box.x + box.width <= 320, 'the chip fits a 320 px screen');
-  assert.ok(apart(box, zoom) && apart(box, goal), 'the chip clears the zoom control and the goal pill');
-  assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth - innerWidth), 0, 'no horizontal scroll');
-  await phone.screenshot({ path: `${output}/lens-phone-320.png` });
-  await phone.locator('#cargo-lens-chip button').tap();
-  await cleared(phone, 'tapping × clears the lens');
-  await phone.close();
   assert.deepEqual(errors, []);
   console.log(`Cargo lens browser check passed · screenshots in ${output}`);
 } finally {

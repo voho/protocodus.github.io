@@ -1,5 +1,5 @@
 // Company milestones in a real browser: one celebration each and at most one a month, the first
-// merged into the first-delivery toast, Company goals at 1440px and 390px, and nothing replayed after a reload.
+// merged into the first-delivery toast, Company goals on desktop, and nothing replayed after a reload.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
@@ -11,7 +11,7 @@ await mkdir(output, { recursive: true });
 const errors = [];
 
 async function open(viewport) {
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, isMobile: viewport.width <= 700, hasTouch: viewport.width <= 700 });
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message)); page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.addInitScript(() => {
     window.__toasts = [];
@@ -135,23 +135,6 @@ try {
   await legacy.waitForTimeout(1500);
   assert.deepEqual(await toasts(legacy), [], 'the backfill is silent');
   await legacy.close();
-
-  // Phones: Company goals fits 390px, and a milestone toast stays on screen.
-  const phone = await open({ width: 390, height: 844 });
-  await createWorldFromMenu(phone, { biome: 'taiga', seed: 1847 });
-  await days(phone, 1);
-  await phone.evaluate(() => { transport.game.cities[0].population = 2100; });
-  await days(phone, 1);await settle(phone);
-  const toast = phone.locator('#toast-region .toast', { hasText: 'Milestone · A town of 2,000' });
-  assert.equal(await toast.count(), 1);
-  const box = await toast.boundingBox();assert.ok(box.x >= 0 && box.x + box.width <= 390, 'the toast fits the phone');
-  await phone.screenshot({ path: `${output}/phone-toast.png` });
-  await openGameAction(phone, 'goals-button');
-  await phone.locator('.goal-chapters').waitFor();
-  assert.equal(await phone.evaluate(() => document.querySelector('#modal').scrollWidth <= document.querySelector('#modal').clientWidth + 1), true, 'Company goals fits a phone');
-  assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
-  await phone.screenshot({ path: `${output}/phone-goals.png` });
-  await phone.close();
 
   assert.deepEqual(errors, []);
   console.log(`Milestone checks passed. Screenshots: ${output}`);

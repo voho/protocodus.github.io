@@ -338,22 +338,6 @@ try {
   assert.equal(await miniSamples(),512*512,'opening the mini map samples the whole overview once');
   await page.locator('#close-minimap').click();
 
-  for(const width of [390,320]){
-    await page.setViewportSize({width,height:844});await openLayers(page);
-    assert.equal(await fits(page,'#layers-panel'),true,`${width}px panel has no horizontal overflow`);
-    const box=await page.locator('#layers-panel').boundingBox();
-    assert.ok(box.x>=0&&box.y>=0&&box.x+box.width<=width&&box.y+box.height<=844,`${width}px panel stays within the screen`);
-    const manage=await page.locator('.mobile-panel-toggle').boundingBox();
-    assert.ok(box.y>=manage.y+manage.height,`${width}px panel clears the Manage control`);
-    await page.locator('[data-layer="grid"]').scrollIntoViewIfNeeded();
-    const close=await page.locator('[data-layers-close]').boundingBox();
-    assert.ok(close.y>=0&&close.y+close.height<=844,`${width}px Close remains accessible while scrolling`);
-    await setLayer(page,'grid',false);await setLayer(page,'grid',true);
-    await page.screenshot({path:`${output}/mobile-${width}-layers.png`});
-    await page.keyboard.press('Escape');await page.locator('#layers-panel').waitFor({state:'hidden'});
-    assert.equal(await page.evaluate(()=>scrollY),0);
-    assert.equal((await page.locator('.topbar').boundingBox()).y,0);
-  }
   assert.deepEqual(errors,[],'no uncaught browser errors');
   console.log(`Transport Layers browser checks passed (${rasterResults.length} zooms × ${keys.length} pixel checks). Screenshots: ${output}`);
 } finally { await browser.close(); }
