@@ -1,0 +1,245 @@
+{
+  "date": "2026-10-06",
+  "release_kind": "local-development-builds",
+  "instruments": [
+    {
+      "product": "YouKnow",
+      "version": "1.2.0",
+      "source_revision": "73a8e62070983bd5353fa664fd02ae097486453a",
+      "built_utc_date": "2026-10-06",
+      "platform": "Linux-x64",
+      "status": "development",
+      "formats": [
+        "VST3",
+        "CLAP",
+        "standalone"
+      ],
+      "compiler": "14.2.0",
+      "runtime_minimum_symbols": {
+        "GLIBC": "2.38",
+        "GLIBCXX": "3.4.32"
+      },
+      "required_shared_libraries": [
+        "ld-linux-x86-64.so.2",
+        "libasound.so.2",
+        "libc.so.6",
+        "libfontconfig.so.1",
+        "libfreetype.so.6",
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libstdc++.so.6"
+      ],
+      "known_issue": null,
+      "binaries": {
+        "CLAP/YouKnow.clap": "5ee82b6147d02247c344e3c3efabcad315ed0a3b1477612151eba1c91983d95a",
+        "Standalone/YouKnow": "a35523af46e1921e8893138b01927877f239d0810e22f00ca86a043263e2d895",
+        "VST3/YouKnow.vst3/Contents/x86_64-linux/YouKnow.so": "0b2d80b8be556d1264dfa431e32be09992d5f2ab6622eb338cacf1ee8a5c1e9d"
+      },
+      "distribution_version": "1.2.0-build.20261006",
+      "archive": "YouKnow-1.2.0-73a8e620-20261006-Linux-x64.tar.gz",
+      "archive_sha256": "b51a9a085bdee8d0639a61ded739f18131e39236ec7ae36ded0e139b38146c85",
+      "archive_bytes": 13733764,
+      "checks": {
+        "build": "passed",
+        "dynamic_vst3_midi_state": "passed",
+        "standalone_window": "passed",
+        "archive_contents_and_checksums": "passed",
+        "processor": "passed",
+        "dynamic_clap_midi_state": "passed"
+      }
+    },
+    {
+      "product": "Acustra",
+      "version": "1.0.0",
+      "source_revision": "c321d7d7d900fa8fb05f498864072b84767ab8d2",
+      "built_utc_date": "2026-10-06",
+      "platform": "Linux-x64",
+      "status": "review-only",
+      "formats": [
+        "VST3",
+        "standalone"
+      ],
+      "compiler": "14.2.0",
+      "runtime_minimum_symbols": {
+        "GLIBC": "2.38",
+        "GLIBCXX": "3.4.32"
+      },
+      "required_shared_libraries": [
+        "ld-linux-x86-64.so.2",
+        "libasound.so.2",
+        "libc.so.6",
+        "libfontconfig.so.1",
+        "libfreetype.so.6",
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libstdc++.so.6"
+      ],
+      "known_issue": "Pre-existing PluginProcessor first-chord sweep assertion",
+      "binaries": {
+        "Standalone/Acustra": "f2551f07742878a0a458c74d8e7f9de33ea34509609485ab1e64e9b00a8da306",
+        "VST3/Acustra.vst3/Contents/x86_64-linux/Acustra.so": "e8da97263da1a127ee0ee11747ca11ca14e9e678069fb383406c7ea3349daff8"
+      },
+      "archive": "Acustra-1.0.0-c321d7d7-20261006-Linux-x64.tar.gz",
+      "archive_sha256": "b005875039e537bb74efb8b4c12229d4c10a284385cd127eb978da8ca7e6755c",
+      "archive_bytes": 9976528,
+      "checks": {
+        "build": "passed",
+        "dynamic_vst3_midi_state": "passed",
+        "standalone_window": "passed",
+        "archive_contents_and_checksums": "passed",
+        "processor": "known-baseline-failure"
+      }
+    },
+    {
+      "product": "Electry",
+      "version": "1.2.0",
+      "source_revision": "6dacb95e00b63181eae3de94eb933dc52e945428",
+      "built_utc_date": "2026-10-06",
+      "platform": "Linux-x64",
+      "status": "development",
+      "formats": [
+        "VST3",
+        "CLAP",
+        "standalone"
+      ],
+      "compiler": "14.2.0",
+      "runtime_minimum_symbols": {
+        "GLIBC": "2.38",
+        "GLIBCXX": "3.4.32"
+      },
+      "required_shared_libraries": [
+        "ld-linux-x86-64.so.2",
+        "libasound.so.2",
+        "libc.so.6",
+        "libfontconfig.so.1",
+        "libfreetype.so.6",
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libstdc++.so.6"
+      ],
+      "known_issue": null,
+      "binaries": {
+        "CLAP/Electry.clap": "6eef3dd44395e831c207eaa3032d8a79edfb0e212c2820e0a22dacc1a5021613",
+        "Standalone/Electry": "f827d6211d28f0cd5d3b4aae10fb6692126f41150c70587071c4af0192ccbe6f",
+        "VST3/Electry.vst3/Contents/x86_64-linux/Electry.so": "cb303e9b8d99d48d7ef83249f78a31759834ff418bf8dffc59aafb8a83e1001b"
+      },
+      "archive": "Electry-1.2.0-6dacb95e-20261006-Linux-x64.tar.gz",
+      "archive_sha256": "efa3418d5e84c9c305fc4bba88b4f7752ed908ab5d44c3d85965d86b6df825fc",
+      "archive_bytes": 7402315,
+      "checks": {
+        "build": "passed",
+        "dynamic_vst3_midi_state": "passed",
+        "standalone_window": "passed",
+        "archive_contents_and_checksums": "passed",
+        "processor": "passed",
+        "dynamic_clap_midi_state": "passed"
+      }
+    },
+    {
+      "product": "Septum",
+      "version": "0.9.0",
+      "source_revision": "39b24e5ab723e3cb1b306f31987552504079df89",
+      "built_utc_date": "2026-10-06",
+      "platform": "Linux-x64",
+      "status": "development",
+      "formats": [
+        "VST3",
+        "standalone"
+      ],
+      "compiler": "14.2.0",
+      "runtime_minimum_symbols": {
+        "GLIBC": "2.38",
+        "GLIBCXX": "3.4.32"
+      },
+      "required_shared_libraries": [
+        "ld-linux-x86-64.so.2",
+        "libasound.so.2",
+        "libc.so.6",
+        "libfontconfig.so.1",
+        "libfreetype.so.6",
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libstdc++.so.6"
+      ],
+      "known_issue": null,
+      "binaries": {
+        "Standalone/Septum": "55dee3d440b31ee5977b8b30ba14b1aebecf6999589a9756d7fef80b6ac3e5e8",
+        "VST3/Septum.vst3/Contents/x86_64-linux/Septum.so": "e77ea7c67752e7d119db4df49bcf97a514360a9a3865c83f504e40a0bca0c5f3"
+      },
+      "archive": "Septum-0.9.0-39b24e5a-20261006-Linux-x64.tar.gz",
+      "archive_sha256": "9b0225b433b6488cbffe876c8d18b98ae1907508203832504fd0c8f918678d1d",
+      "archive_bytes": 5418921,
+      "checks": {
+        "build": "passed",
+        "dynamic_vst3_midi_state": "passed",
+        "standalone_window": "passed",
+        "archive_contents_and_checksums": "passed",
+        "processor": "passed"
+      }
+    },
+    {
+      "product": "Taikor",
+      "version": "1.0.0",
+      "source_revision": "d25128ef4c452789426bcae7da8b9a49d9d2775e",
+      "built_utc_date": "2026-10-06",
+      "platform": "Linux-x64",
+      "status": "development",
+      "formats": [
+        "VST3",
+        "CLAP",
+        "standalone"
+      ],
+      "compiler": "14.2.0",
+      "runtime_minimum_symbols": {
+        "GLIBC": "2.38",
+        "GLIBCXX": "3.4.32"
+      },
+      "required_shared_libraries": [
+        "ld-linux-x86-64.so.2",
+        "libasound.so.2",
+        "libc.so.6",
+        "libfontconfig.so.1",
+        "libfreetype.so.6",
+        "libgcc_s.so.1",
+        "libm.so.6",
+        "libstdc++.so.6"
+      ],
+      "known_issue": null,
+      "binaries": {
+        "CLAP/Taikor.clap": "6120606d9f10ddd0caa422664c2bae42a8ec69d229f7ad5bb8da70367935a0ee",
+        "Standalone/Taikor": "4a24e2b5a3676b15d2e37f7e6c1c47b28bfcd694c07adbe4c94685b647009f6b",
+        "VST3/Taikor.vst3/Contents/x86_64-linux/Taikor.so": "3e58a956c92a73b4093f87119b471e039e6e856d10bf9d8cb2cb83c06185981f"
+      },
+      "archive": "Taikor-1.0.0-d25128ef-20261006-Linux-x64.tar.gz",
+      "archive_sha256": "80d39ce425c2c489b1754e9bd6e50043fc615f90f2b878539628f9be74457e83",
+      "archive_bytes": 26118021,
+      "checks": {
+        "build": "passed",
+        "dynamic_vst3_midi_state": "passed",
+        "standalone_window": "passed",
+        "archive_contents_and_checksums": "passed",
+        "processor": "passed",
+        "dynamic_clap_midi_state": "passed"
+      }
+    }
+  ],
+  "rack": {
+    "source_revision": "10e44dbabf9439ff111a69f577ccb01e75eb673a",
+    "Acustra": {
+      "version": "1.0.0f8",
+      "source_pin": "c321d7d7d900fa8fb05f498864072b84767ab8d2"
+    },
+    "YouKnow": {
+      "version": "1.2.0f1",
+      "source_pin": "73a8e62070983bd5353fa664fd02ae097486453a"
+    },
+    "Maremba": {
+      "version": "1.4.0f6",
+      "source_ownership": "full-instrument"
+    },
+    "universal45_builds": "blocked-missing-licensed-Jukebox-SDK",
+    "new_rack_artifacts": [],
+    "reason_validation": "not-run"
+  },
+  "other_platforms": "No new local macOS or Windows artifacts; YouKnow CI is still running."
+}
