@@ -38,7 +38,7 @@
 .objective-step{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .objective-step svg,.step-circle{width:20px;height:20px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
 .objective-step b{display:block;font-weight:400;margin-top:4px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
-.toast{font-size:var(--fs-small);line-height:var(--lh-small)}
+.toast{font-size:var(--fs-small);line-height:var(--lh-small);pointer-events:auto}
 @media(max-width:1200px){
  .objective-card{width:235px}
 }

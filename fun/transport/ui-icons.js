@@ -4,7 +4,8 @@
 export const GLYPHS = Object.freeze({
   // Navigation
   build: '<path d="M3 15.5 12 11l9 4.5-9 4.5Z"/><path d="M12 3v6M9 6h6"/>',
-  routes: '<circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="6" r="2.5"/><path d="M7.5 18H11l8-8V8.5"/>',
+  routes: '<circle cx="5" cy="18" r="3"/><circle cx="19" cy="6" r="3"/><path d="M8 18h3l8-8V9"/>',
+  gallery: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
   town: '<path d="M3 20v-8l4.5-4.5L12 12v8Z"/><path d="M12 20h8.5v-6.5l-3.75-3.75L12 14.5"/><path d="M6.25 20v-3.5h2.5V20"/>',
   industry: '<path d="M3 20v-9l4.5 4.5V11l4.5 4.5V11l4.5 4.5V4H20v16Z"/>',
   news: '<path d="M4.5 5.5h11v13a2 2 0 0 0 2 2h-11a2 2 0 0 1-2-2Z"/><path d="M15.5 9.5h4v9a2 2 0 0 1-4 0"/><path d="M7.5 9h5M7.5 12.5h5M7.5 16h3"/>',
@@ -54,7 +55,7 @@ export const GLYPHS = Object.freeze({
   train: '<rect x="5.5" y="3" width="13" height="14" rx="2"/><path d="M5.5 10h13M9 17l-3 3M15 17l3 3"/><circle cx="9" cy="13.5" r="1" class="dot"/><circle cx="15" cy="13.5" r="1" class="dot"/>',
   ship: '<path d="M2.5 14h19l-5 5h-9Z"/><path d="M6.5 14v-4h10v4M10 10V6h3v4"/>',
   plane: '<path d="M10.5 18.5V5a1.5 1.5 0 0 1 3 0v13.5"/><path d="m10.5 9.5-8 4.5v2l8-2.5M13.5 9.5l8 4.5v2l-8-2.5M10.5 18.5 8 20.5M13.5 18.5l2.5 2"/>',
-  stop: '<circle cx="12" cy="8" r="5"/><path d="M3.5 8h17M12 13v8.5"/>',
+  stop: '<circle cx="12" cy="8.5" r="5.5"/><path d="M6.5 8.5h11M12 14v7"/>',
   flag: '<path d="M5.5 21V3.5"/><path d="M5.5 4h13l-4 4 4 4h-13"/>',
   stock: '<rect x="3" y="12.5" width="8" height="8" rx="2"/><rect x="13" y="12.5" width="8" height="8" rx="2"/><rect x="8" y="3.5" width="8" height="8" rx="2"/>',
   coin: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.25a2.5 2.5 0 0 0-2.25-1.5h-.75a2.1 2.1 0 0 0 0 4.2h1a2.1 2.1 0 0 1 0 4.2h-.75a2.5 2.5 0 0 1-2.25-1.5M12 6v1.75M12 16.15V18"/>',
@@ -65,11 +66,12 @@ export const GLYPHS = Object.freeze({
   leaf: '<path d="M19.5 4.5C9 4 4.5 9 5 15.5c7 .5 14.5-2 14.5-11Z"/><path d="m4.5 20 9-9"/>',
   label: '<path d="M3 5v6.5l9.5 9.5 8.5-8.5L11.5 3H5a2 2 0 0 0-2 2Z"/><circle cx="7.5" cy="7.5" r="1.25" class="dot"/>',
   // Tools (land family)
-  road: '<path d="m2 14.5 14-7M8 17.5l14-7"/><path d="m7.5 14.75 2.5-1.25M14 11.5l2.5-1.25"/>',
-  rail: '<path d="m2 14 14-7M8 17l14-7"/><path d="m4 12.5 7 3.5M8.5 10.25l7 3.5M13 8l7 3.5"/>',
+  // A wide carriageway and a narrow sleeper ladder stay distinct at 16 px.
+  road: '<path d="m2 14 12-6M10 18l12-6"/><path d="m7 15.5 3-1.5M14 12l3-1.5"/>',
+  rail: '<path d="m3 15.5 14-7M7 17.5l14-7"/><path d="m3 14.5 6 3M7 12.5l6 3M11 10.5l6 3M15 8.5l6 3"/>',
   bridge: '<path d="M2.5 8.5h19"/><path d="M5 8.5V20M19 8.5V20"/><path d="M5 17a7 7 0 0 1 14 0"/>',
   tunnel: '<path d="M2.5 20.5h19"/><path d="M3 20.5V11l5-5h8l5 5v9.5"/><path d="M8 20.5V15a4 4 0 0 1 8 0v5.5"/>',
-  bulldoze: '<rect x="3" y="15.5" width="12" height="5" rx="2"/><path d="M5 15.5v-6h5l3 3v3"/><path d="M15 18h3M18.5 11v9.5H21"/>',
+  bulldoze: '<rect x="3" y="15.5" width="12" height="5" rx="2"/><path d="M5 15.5V7h7v8.5M12 11h3v4.5"/><path d="M15 18h4M19 10v10.5h2.5"/>',
   raise: '<path d="m2 20 10-5 10 5"/><path d="M12 12V3M8 7l4-4 4 4"/>',
   lower: '<path d="m2 20 10-5 10 5"/><path d="M12 3v9M8 8l4 4 4-4"/>',
   level: '<path d="m2 16.5 10-5 10 5-10 5Z"/><path d="M7 3v6M4.5 6.5 7 9l2.5-2.5M17 9V3M14.5 5.5 17 3l2.5 2.5"/>',

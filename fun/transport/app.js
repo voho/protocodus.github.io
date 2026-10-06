@@ -63,6 +63,7 @@ import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './
 import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
+import { createToastLifetime } from './ui-toast-lifetime.js';
 import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
 import { contractState, contractSites } from './contracts.js';
 import { loanTerms, borrow, repay } from './model.js';
@@ -217,13 +218,32 @@ function chime() {
 function toast(message, options=false) {
  const {type=options===true?'error':'ok',action=null,key=message,silent=false,tier='',template=''}=typeof options==='object'&&options?options:{},region=$('#toast-region');
  let el=[...region.children].find(node=>node.toastKey===key),count=1;
- if(el){count=el.toastCount+1;clearTimeout(el.toastTimer);}else{el=document.createElement('div');region.append(el);}
+ if(el){count=el.toastCount+1;el.toastLifetime?.dispose();clearTimeout(el.toastTimer);}else{
+  el=document.createElement('div');region.append(el);
+  el.dismissToast=()=>{
+   const focused=el.contains(document.activeElement),back=el.toastReturnFocus;
+   el.toastLifetime?.dispose();el.remove();
+   if(focused)(back?.isConnected&&!back.disabled&&!back.closest('[inert],[hidden],dialog:not([open])')&&back.getClientRects().length?back:canvas).focus({preventScroll:true});
+  };
+  el.addEventListener('pointerenter',()=>el.toastLifetime?.pause('pointer'));
+  el.addEventListener('pointerleave',()=>el.toastLifetime?.resume('pointer'));
+  el.addEventListener('focusin',e=>{
+   if(!el.contains(e.relatedTarget)&&e.relatedTarget instanceof HTMLElement&&e.relatedTarget!==document.body)el.toastReturnFocus=e.relatedTarget;
+   el.toastLifetime?.pause('focus');
+  });
+  el.addEventListener('focusout',()=>queueMicrotask(()=>{if(!el.contains(document.activeElement))el.toastLifetime?.resume('focus');}));
+ }
+ const focused=el.contains(document.activeElement),focusIndex=[...el.querySelectorAll('.toast-action')].indexOf(document.activeElement),focusRef=focused?document.activeElement.dataset.ref:null;
  el.className='toast'+(type==='ok'?'':' '+type)+(tier?` achievement tier-${tier}`:'');el.toastKey=key;el.toastCount=count;
  const actions=[action].flat().filter(Boolean),buttons=actions.map(item=>`<button type="button" class="toast-action">${escapeHTML(item.label)}</button>`).join('');
  el.innerHTML=(tier?medalIcon(tier):icon(type==='ok'||type==='milestone'?'check':'warning'))+`<span>${template?renderTemplate(template,game,{onInk:true}):escapeHTML(message)}</span>`+(count>1?`<b class="toast-count">×${count}</b>`:'')+(actions.length>1?`<div class="toast-actions">${buttons}</div>`:buttons);
- el.querySelectorAll('.toast-action').forEach((button,index)=>{button.onclick=()=>{el.remove();actions[index].run();};});
- while(region.children.length>3) region.firstChild.remove();
- el.toastTimer=setTimeout(()=>el.remove(),type==='warning'||type==='error'||tier==='gold'||tier==='platinum'?8000:5000); $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
+ el.querySelectorAll('.toast-action').forEach((button,index)=>{button.onclick=()=>{el.dismissToast();actions[index].run();};});
+ el.toastLifetime=createToastLifetime(type==='warning'||type==='error'||tier==='gold'||tier==='platinum'?8000:5000,()=>el.dismissToast(),{onTimer:timer=>{el.toastTimer=timer;}});
+ if(el.matches(':hover'))el.toastLifetime.pause('pointer');
+ if(focused){const target=focusRef?el.querySelector(`[data-ref="${CSS.escape(focusRef)}"]`):el.querySelectorAll('.toast-action')[focusIndex];(target||el.querySelector('.toast-action')||canvas).focus({preventScroll:true});}
+ if(el.contains(document.activeElement))el.toastLifetime.pause('focus');
+ while(region.children.length>3){const oldest=[...region.children].find(node=>node!==el&&!node.matches(':hover')&&!node.contains(document.activeElement))||region.firstChild;if(oldest.dismissToast)oldest.dismissToast();else oldest.remove();}
+ $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
 function changeSpeed(next) { const now=performance.now();simulation.setSpeed(next,now,{blocked:capturingSave,reserved:preview});simulation.setActive(!document.hidden&&!isLoading()&&!$('#start-menu')?.open,now,{blocked:capturingSave,reserved:preview});renderer.setPresentation(simulation.motion,simulation.getPresentationDay());if(next>0)previousSpeed=next;if(speed===0&&next>0)lastFrame=now;speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); syncPaused();wakeFrame(); }
 // A frozen world can look hung, so pausing names itself (DESIGN.md 12.1): "Paused" under the date in orange, where the
@@ -450,28 +470,48 @@ function buildPanel() {
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small></span></button>`).join('')}</div>`;
  return `<div class="panel-heading"><h2>Build</h2></div>${constructionNext?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}<div class="stop-mode-picker" data-build-stop-mode role="group" aria-label="Stop type at road and rail crossings"${tool==='stop'?'':' hidden'}><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>${category==='network'?engineeringTools():''}${category!=='network'?`<div class="build-bottom-tools"><button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze" aria-keyshortcuts="X" title="Bulldozer (X)">${icon('bulldoze')} Bulldozer <span>X</span></button></div>`:''}${category==='towns'?buildingPalette():projectCard()}`;
 }
+const cargoValidationSignature=options=>JSON.stringify(options.filter(option=>editCargo(option.cargo)).map(({cargo,valid,message})=>({cargo,valid,message})));
 function cargoChoices(options=[]) {
- const available=options.filter(option=>editCargo(option.cargo));
- return `<fieldset class="cargo-field"><legend>2 · Choose cargo <span class="cargo-chosen">${escapeHTML(formDraft.cargoChosen?CARGO[formDraft.cargo]?.name||'':'')}</span></legend><select name="cargo" hidden aria-hidden="true" tabindex="-1">${available.map(({cargo})=>`<option value="${cargo}" ${formDraft.cargo===cargo?'selected':''}>${CARGO[cargo].name}</option>`).join('')}</select><div class="cargo-picker" role="group" aria-label="Choose cargo">${available.map(option=>`<button type="button" class="cargo-choice" data-cargo-choice="${option.cargo}" aria-pressed="${Boolean(formDraft.cargoChosen)&&formDraft.cargo===option.cargo}" data-fits="${option.valid}" title="${escapeHTML(option.valid?`Carry ${CARGO[option.cargo].name.toLowerCase()}`:option.message)}">${cargoIcon(option.cargo,{decorative:true})}<span>${escapeHTML(CARGO[option.cargo].name)}</span></button>`).join('')}</div>${available.length?'':'<p class="form-note">Neither stop supplies cargo yet. Choose stops near a town or a producer.</p>'}</fieldset>`;
+ const available=options.filter(option=>editCargo(option.cargo)),unavailable=available.filter(option=>!option.valid),selectedUnavailable=formDraft.cargoChosen&&unavailable.some(option=>option.cargo===formDraft.cargo);
+ const reasons=unavailable.length?`<details class="route-unavailable-cargo" ${selectedUnavailable?'open':''}><summary>Why some cargo cannot be carried</summary><ul>${unavailable.map(option=>`<li><strong>${escapeHTML(CARGO[option.cargo].name)}</strong><span>${escapeHTML(option.message)}</span></li>`).join('')}</ul><button type="button" class="small-button" data-route-review-stops>Change stops</button></details>`:'';
+ return `<fieldset class="cargo-field"><legend>2 · Choose cargo <span class="cargo-chosen">${escapeHTML(formDraft.cargoChosen?CARGO[formDraft.cargo]?.name||'':'')}</span></legend><select name="cargo" hidden aria-hidden="true" tabindex="-1">${available.map(({cargo})=>`<option value="${cargo}" ${formDraft.cargo===cargo?'selected':''}>${CARGO[cargo].name}</option>`).join('')}</select><div class="cargo-picker" role="group" aria-label="Choose cargo">${available.map(option=>`<button type="button" class="cargo-choice" data-cargo-choice="${option.cargo}" aria-pressed="${Boolean(formDraft.cargoChosen)&&formDraft.cargo===option.cargo}" data-fits="${option.valid}" title="${escapeHTML(option.valid?`Carry ${CARGO[option.cargo].name.toLowerCase()}`:option.message)}">${cargoIcon(option.cargo,{decorative:true})}<span>${escapeHTML(CARGO[option.cargo].name)}</span></button>`).join('')}</div>${reasons}${available.length?'':'<p class="form-note">Neither stop supplies cargo yet. Choose stops near a town or a producer.</p>'}</fieldset>`;
 }
 // Air joins the route form and filters once air travel has arrived, or where a company already has an airport.
 const airOffered=()=>airAvailable(game)||game.stations.some(s=>s.mode==='air');
+function routeStopPrerequisite(start,editing) {
+ const counts=new Map();for(const stop of game.stations)counts.set(stop.mode,(counts.get(stop.mode)||0)+1);
+ if(!start&&!editing&&[...counts.values()].some(count=>count>=2))return '';
+ const mode=start?.mode||editing?.mode||(counts.size===1?[...counts.keys()][0]:formDraft.mode),count=counts.get(mode)||0;
+ if(count>=2)return '';
+ const names={road:['road stop','road stops'],rail:['rail station','rail stations'],water:['port','ports'],air:['airport','airports']},[singular,plural]=names[mode];
+ const detail=mode==='rail'?'Place stations on connected tracks near the places you want to serve.':mode==='water'?'Place ports on the same river, lake or sea near the places you want to serve.':mode==='air'?`Place airports near two different towns, at least ${AIRPORT_MIN_TILES} tiles apart.`:'Place stops near the places you want to serve. Suitable bare land includes a road underneath.';
+ return `<section class="route-stop-empty" aria-label="Stops needed"><strong>${count?`Add a second ${singular}`:`Build ${plural} first`}</strong><p>${count?`A route needs two ${plural}.`:`No ${plural} yet.`} ${detail}</p><button type="button" class="button button-primary" data-route-build-stop="${mode}">${icon(mode==='rail'?'train':mode==='road'?'bus':transportIcon(mode))} Build ${singular}</button></section>`;
+}
 function routeForm() {
  const editing=editingRoute(),purchase=getVehiclePurchase(game,formDraft.mode),ready=routeStopsReady(),chosen=ready&&formDraft.cargoChosen,expanded=Boolean(editing||!chosen||formDraft.editStops);
  // Older saves can hold two stops of one name; their tiles tell them apart.
  const named=new Map();for(const s of game.stations)named.set(s.name,(named.get(s.name)||0)+1);
  const option=(s,key)=>`<option value="${s.id}" ${String(s.id)===String(formDraft[key])?'selected':''}>${escapeHTML(named.get(s.name)>1?`${s.name} · ${s.x}, ${s.y}`:s.name)}</option>`;
- const opts=key=>{const stations=game.stations.filter(s=>(key==='from'&&!editing||s.mode===formDraft.mode)&&(key!=='to'||String(s.id)!==String(formDraft.from)));return '<option value="">Choose a stop…</option>'+['road','rail','water','air'].map(mode=>{const group=stations.filter(s=>s.mode===mode);return group.length?`<optgroup label="${escapeHTML(({road:'Road stops',rail:'Rail stations',water:'Ports',air:'Airports'})[mode])}">${group.map(s=>option(s,key)).join('')}</optgroup>`:'';}).join('');};
+ const stopsFor=key=>game.stations.filter(s=>(key==='from'&&!editing||s.mode===formDraft.mode)&&(key!=='to'||String(s.id)!==String(formDraft.from)));
+ const opts=key=>{const stations=stopsFor(key);return '<option value="">Choose a stop…</option>'+['road','rail','water','air'].map(mode=>{const group=stations.filter(s=>s.mode===mode);return group.length?`<optgroup label="${escapeHTML(({road:'Road stops',rail:'Rail stations',water:'Ports',air:'Airports'})[mode])}">${group.map(s=>option(s,key)).join('')}</optgroup>`:'';}).join('');};
  const plan=draftPlan(),options=ready?routeCargoOptions(game,formDraft):[],autoName=defaultRouteName(game,plan,formDraft.cargo),names=routePickStops().map(s=>s.name).join(' → '),existing=!editing&&game.routes.find(r=>r.id===plan.existingRouteId);
- const stopField=(key,label)=>`<div class="route-stop-field"><label class="form-field"><span>${label}</span><div class="route-stop-controls"><select name="${key}" required ${key==='to'&&!formDraft.from?'disabled':''}>${opts(key)}</select><button type="button" class="small-button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map" ${key==='to'&&!formDraft.from?'disabled':''}>${icon('focus')} Map</button></div></label></div>`;
+ const stopField=(key,label)=>{const unavailable=!stopsFor(key).length||key==='to'&&!formDraft.from;return `<div class="route-stop-field"><label class="form-field"><span>${label}</span><div class="route-stop-controls"><select name="${key}" required ${unavailable?'disabled':''}>${opts(key)}</select><button type="button" class="small-button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map" ${unavailable?'disabled':''}>${icon('focus')} Map</button></div></label></div>`;};
+ const prerequisite=routeStopPrerequisite(game.stations.find(stop=>String(stop.id)===String(formDraft.from)),editing);
  const nameField=existing?`<p class="form-note route-existing-name">Vehicles join <strong>${escapeHTML(existing.name)}</strong>${existing.fullLoad?' · waits for a full load':''}.</p>`:`<label class="form-field route-name-field"><span>Route name <button class="route-auto-name" type="button" id="reset-route-name" ${formDraft.name.trim()?'':'hidden'}>Use automatic name</button></span><input name="name" maxlength="36" value="${escapeHTML(formDraft.name||autoName)}" placeholder="${escapeHTML(autoName)}" aria-description="Named after the connected towns and cargo. Type to override it."></label>`;
  const vehicles=editing?editNote(editing):`${nameField}<label class="form-field route-quantity-field"><span>Vehicles</span><div class="route-quantity"><button type="button" data-route-quantity="-1" aria-label="Buy one fewer vehicle" ${Number(formDraft.vehicleCount??1)<=1?'disabled':''}>−</button><input name="vehicleCount" type="number" min="1" max="${MAX_VEHICLES}" step="1" required value="${escapeHTML(formDraft.vehicleCount??1)}" aria-label="Number of vehicles"><button type="button" data-route-quantity="1" aria-label="Buy one more vehicle">+</button></div></label><div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec" title="${escapeHTML(purchaseSpec(purchase).title)}">${escapeHTML(purchaseSpec(purchase).text)}</span><span id="vehicle-purchase-price">${money(purchase.cost)} each</span></div></div>`;
- return `<section id="route-planner" class="route-planner route-planner-focused" aria-label="${editing?'Edit route':'Create route'}"><form id="route-form" class="panel-form" data-cargo-options="${options.filter(o=>editCargo(o.cargo)).map(o=>o.cargo).join(',')}" data-stops-ready="${ready}" data-cargo-chosen="${chosen}" data-existing-route="${escapeHTML(plan.existingRouteId||'')}"><input name="mode" type="hidden" value="${formDraft.mode}"><section class="route-step" id="route-stops-step"><div class="route-step-heading"><h3>1 · Choose stops</h3>${chosen&&!editing?'<button class="small-button" type="button" id="change-route-stops">Change stops</button>':''}</div><div id="route-stop-fields" ${expanded?'':'hidden'}>${stopField('from','Start stop')}${stopField('to','End stop')}${ready?'<button class="route-swap-inline" type="button" id="swap-route-stops">Swap start and end</button>':''}</div>${expanded?'':`<p class="route-selected-stops">${escapeHTML(names)}</p>`}${formDraft.from?`<p class="route-mode-note">${icon(transportIcon(formDraft.mode))} ${escapeHTML(({road:'Road connection',rail:'Rail connection',water:'Water connection',air:'Air connection'})[formDraft.mode])}</p>`:''}</section><section class="route-step" id="route-cargo-step" ${ready?'':'hidden'}>${cargoChoices(options)}</section><div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid&&Boolean(chosen)}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div><section class="route-step" id="route-vehicles-step" ${chosen?'':'hidden'}><h3>${editing?'3 · Review changes':'3 · Buy vehicles'}</h3>${vehicles}${existing?'':routeOptions()}</section><div id="route-estimate" class="route-estimate-footer">${routeForecast(plan)}<div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}" ${chosen?'':'hidden'}>${launchButtons(plan)}</div></div></form></section>`;
+ return `<section id="route-planner" class="route-planner route-planner-focused" aria-label="${editing?'Edit route':'Create route'}"><form id="route-form" class="panel-form" data-cargo-options="${options.filter(o=>editCargo(o.cargo)).map(o=>o.cargo).join(',')}" data-cargo-validation="${escapeHTML(cargoValidationSignature(options))}" data-stops-ready="${ready}" data-cargo-chosen="${chosen}" data-existing-route="${escapeHTML(plan.existingRouteId||'')}"><input name="mode" type="hidden" value="${formDraft.mode}"><section class="route-step" id="route-stops-step"><div class="route-step-heading"><h3>1 · Choose stops</h3>${chosen&&!editing?'<button class="small-button" type="button" id="change-route-stops">Change stops</button>':''}</div>${prerequisite}<div id="route-stop-fields" ${expanded?'':'hidden'}>${stopField('from','Start stop')}${stopField('to','End stop')}${ready?'<button class="route-swap-inline" type="button" id="swap-route-stops">Swap start and end</button>':''}</div>${expanded?'':`<p class="route-selected-stops">${escapeHTML(names)}</p>`}${formDraft.from?`<p class="route-mode-note">${icon(transportIcon(formDraft.mode))} ${escapeHTML(({road:'Road connection',rail:'Rail connection',water:'Water connection',air:'Air connection'})[formDraft.mode])}</p>`:''}</section><section class="route-step" id="route-cargo-step" ${ready?'':'hidden'}>${cargoChoices(options)}</section><div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid&&Boolean(chosen)}" data-awaiting-cargo="${routeAwaitingCargo(plan)}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div><section class="route-step" id="route-vehicles-step" ${chosen?'':'hidden'}><h3>${editing?'3 · Review changes':'3 · Buy vehicles'}</h3>${vehicles}${existing?'':routeOptions()}</section><div id="route-estimate" class="route-estimate-footer">${routeForecast(plan)}<div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}" ${chosen?'':'hidden'}>${launchButtons(plan)}</div></div></form></section>`;
 }
-function openNewRoute() {
- cancelRoutePicking();if(formDraft.editing)leaveRouteEdit(true);
- formDraft.open=true;formDraft.cargoChosen=false;formDraft.editStops=true;setView('routes',{routeScreen:'new'});$('#route-form [name=from]')?.focus({preventScroll:true});
+function openNewRoute(station=null) {
+ cancelRoutePicking();
+ formDraft={name:'',mode:station?.mode||preferredMode,from:station?String(station.id):'',to:'',cargo:'passengers',cargoChosen:false,vehicleCount:1,fullLoad:false,optionsOpen:false,open:true,editStops:true};
+ setView('routes',{routeScreen:'new'});
+ ($('#route-form [data-route-build-stop]')||$(`#route-form [name=${station?'to':'from'}]:not(:disabled)`))?.focus({preventScroll:true});
 }
+$('#panel-content').addEventListener('click',event=>{
+ const change=event.target.closest?.('[data-route-review-stops]');if(change){formDraft.editStops=true;renderPanel();$('#route-form [name=from]')?.focus({preventScroll:true});return;}
+ const button=event.target.closest?.('[data-route-build-stop]');if(!button)return;
+ category='network';setView('build');setTool(({road:'bus-stop',rail:'train-stop',water:'port',air:'airport'})[button.dataset.routeBuildStop]);
+});
 function routesPanel() {
  if(routeScreen!=='list')return `<button class="panel-back" type="button" id="route-back">${icon('chevronLeft')} Back to routes</button><div class="panel-heading"><h2>${routeScreen==='edit'?'Edit route':'New route'}</h2></div>${routeForm()}`;
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
@@ -720,8 +760,9 @@ function commitRouteEdit(route,plan) {
  toast(shown.message,!shown.ok);
  if(shown.ok){routeScreen='list';cancelRoutePicking();leaveRouteEdit();renderPanel();compactUI?.openManagement();updateHud();persist();flashRoute(route.id);}
 }
-function routePlanText(plan) { if(routeStopsReady()&&!formDraft.cargoChosen&&plan.connected)return 'Connection ready. Choose what to carry.';const existing=plan.valid&&plan.existingRouteId&&plan.existingRouteId!==formDraft.editing&&game.routes.find(route=>route.id===plan.existingRouteId);return existing?`Already served by ${existing.name}. Add vehicles to it.`:plan.message; }
-function routePlanMessage(plan) { return icon(plan.valid?'check':plan.state==='missing'?'route':'warning')+`<span>${escapeHTML(routePlanText(plan))}</span>`; }
+function routeAwaitingCargo(plan) { return routeStopsReady()&&!formDraft.cargoChosen&&plan.connected&&routeCargoOptions(game,formDraft).some(option=>option.valid&&editCargo(option.cargo)); }
+function routePlanText(plan) { if(routeAwaitingCargo(plan))return 'Connection ready. Choose what to carry.';const existing=plan.valid&&plan.existingRouteId&&plan.existingRouteId!==formDraft.editing&&game.routes.find(route=>route.id===plan.existingRouteId);return existing?`Already served by ${existing.name}. Add vehicles to it.`:plan.message; }
+function routePlanMessage(plan) { return icon(plan.valid||routeAwaitingCargo(plan)?'check':plan.state==='missing'?'route':'warning')+`<span>${escapeHTML(routePlanText(plan))}</span>`; }
 // Keep the total quote visible; supply, throughput and trip assumptions stay folded.
 const forecastDetailsOpen = () => { try { return localStorage.getItem('transport-forecast-details')==='open'; } catch { return false; } };
 const perDay = n => (n<9.95?Math.round(n*10)/10:Math.round(n)).toLocaleString('en-US');
@@ -751,7 +792,21 @@ function routeEstimate(plan,outlook) {
 function refreshRoutePlan() {
  const status=$('#route-connection'),form=$('#route-form');if(!status||!form)return;
  autoSelectCargo();const cargoResults=routeStopsReady()?routeCargoOptions(game,formDraft).filter(o=>editCargo(o.cargo)):[],cargoOptions=cargoResults.map(o=>o.cargo).join(','),plan=draftPlan();
- if(form.dataset.cargoOptions!==cargoOptions||form.dataset.stopsReady!==String(routeStopsReady())||form.dataset.cargoChosen!==String(routeStopsReady()&&Boolean(formDraft.cargoChosen))||form.dataset.existingRoute!==(plan.existingRouteId||'')){const active=document.activeElement,key=active?.name,cargo=active?.dataset.cargoChoice;renderPanel();const target=key?$(`#route-form [name=${key}]`):cargo?$(`[data-cargo-choice="${cargo}"]`):null;target?.focus({preventScroll:true});return;}
+ if(form.dataset.cargoOptions!==cargoOptions||form.dataset.cargoValidation!==cargoValidationSignature(cargoResults)||form.dataset.stopsReady!==String(routeStopsReady())||form.dataset.cargoChosen!==String(routeStopsReady()&&Boolean(formDraft.cargoChosen))||form.dataset.existingRoute!==(plan.existingRouteId||'')){
+  const panel=$('#panel-content'),active=document.activeElement,owned=panel.contains(active),key=active?.name,hook=['data-cargo-choice','data-route-option','data-route-quantity','data-pick-route','data-route-build-stop','data-route-review-stops'].find(attribute=>active?.hasAttribute(attribute));
+  const disclosure=active?.closest('details'),disclosureClass=['route-options','forecast-details','route-unavailable-cargo'].find(name=>disclosure?.classList.contains(name)),disclosureOpen=disclosure?.open;
+  const selector=key?`#route-form [name="${CSS.escape(key)}"]`:active?.id?`#${CSS.escape(active.id)}`:hook?`[${hook}="${CSS.escape(active.getAttribute(hook))}"]`:active?.matches('summary')&&disclosureClass?`.${disclosureClass}>summary`:active?.closest('#route-launch')&&active.type==='submit'?'#route-launch [type=submit]':null;
+  const selection=typeof active?.selectionStart==='number'&&typeof active?.selectionEnd==='number'?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection||'none'}:null;
+  renderPanel();
+  if(owned){
+   const nextDisclosure=disclosureClass?panel.querySelector(`.${disclosureClass}`):null;if(nextDisclosure)nextDisclosure.open=disclosureOpen;
+   const surviving=selector?panel.querySelector(selector):null,visible=element=>element&&!element.disabled&&!element.closest('[hidden],[inert]')&&element.getClientRects().length;
+   const target=[surviving,...(active?.hasAttribute('data-route-quantity')?[panel.querySelector('[name=vehicleCount]')]:[]),panel.querySelector('[data-cargo-choice][aria-pressed=true]'),panel.querySelector('[data-cargo-choice]'),panel.querySelector('[data-route-build-stop]'),panel.querySelector('[name=from]'),panel.querySelector('#route-back')].find(visible);
+   target?.focus({preventScroll:true});
+   if(target===surviving&&selection&&typeof target?.setSelectionRange==='function'&&typeof target.selectionStart==='number')target.setSelectionRange(selection.start,selection.end,selection.direction);
+  }
+  return;
+ }
  for(const option of cargoResults){const button=form.querySelector(`[data-cargo-choice="${option.cargo}"]`);if(button){button.dataset.fits=String(option.valid);button.title=option.valid?`Carry ${CARGO[option.cargo].name.toLowerCase()}`:option.message;}}
  const text=routePlanText(plan),name=form.querySelector('[name=name]'),placeholder=defaultRouteName(game,plan,formDraft.cargo)||'Route name';
  if(status.dataset.message!==text){status.innerHTML=routePlanMessage(plan);status.dataset.message=text;}
@@ -761,7 +816,7 @@ function refreshRoutePlan() {
  const options=form.querySelector('.route-options'),town=isTownTraffic(formDraft.cargo);if(options&&options.hidden!==town)options.hidden=town;
  const launch=$('#route-launch'),existing=plan.existingRouteId||'';
  const buttons=launchButtons(plan);if(launch&&launch.dataset.shown!==buttons){const active=document.activeElement,id=active?.id,type=active?.type;launch.innerHTML=buttons;launch.dataset.existing=existing;launch.dataset.shown=buttons;if(active&&!active.isConnected)(id?$(`#${id}`):type==='submit'?launch.querySelector('[type=submit]'):null)?.focus({preventScroll:true});}
- status.dataset.state=plan.state;status.dataset.valid=String(plan.valid&&Boolean(formDraft.cargoChosen));
+ status.dataset.state=plan.state;status.dataset.valid=String(plan.valid&&Boolean(formDraft.cargoChosen));status.dataset.awaitingCargo=String(routeAwaitingCargo(plan));
  const forecast=$('#route-forecast'),outlook=routeOutlook(plan),estimate=routeEstimate(plan,outlook);
  if(forecast){forecast.dataset.outlook=outlook?.outlook||'';for(const key of ['cost','revenue','net']){const node=forecast.querySelector(`[data-estimate-${key}]`);if(node.textContent!==estimate[key])node.textContent=estimate[key];}const summary=forecast.querySelector('.forecast-summary'),details=forecast.querySelector('.forecast-details');summary.hidden=!outlook;details.hidden=!outlook;if(outlook){if(summary.textContent!==outlook.summary)summary.textContent=outlook.summary;forecast.querySelector('.route-forecast-trip').textContent=outlook.trip;if(forecast.dataset.facts!==outlook.facts){forecast.querySelector('.forecast-facts').innerHTML=outlook.facts;forecast.dataset.facts=outlook.facts;}}}
  const minus=form.querySelector('[data-route-quantity="-1"]');if(minus)minus.disabled=Number(formDraft.vehicleCount??1)<=1;
@@ -1547,7 +1602,7 @@ function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
  if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){inspectorGallery?.refresh();focusTitle();return;}
  compactUI?.hideMinimap();closeManagement();closeMapMenus();layersView?.close();disposeInspectorGallery();box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();references?.relink();box.querySelector('.tiny-button').onclick=closeInspector;mountInspectorGallery(gallery);
- if($('#station-route'))$('#station-route').onclick=()=>{if(formDraft.editing)leaveRouteEdit(true);if(formDraft.mode!==station.mode||formDraft.to===String(station.id))formDraft.to='';formDraft.mode=station.mode;formDraft.from=String(station.id);setView('routes',{routeScreen:'new'});scrollIntoViewSafe($('#route-form'),{block:'nearest'});};
+ if($('#station-route'))$('#station-route').onclick=()=>openNewRoute(station);
  if($('#expand-workshop'))$('#expand-workshop').onclick=()=>{const result=expandWorkshop(game,x,y);toast(result.message,!result.ok);if(!result.ok)return;updateHud();persist();invalidateScene();inspect(x,y,kind,'keyboard');};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
  const opinionFold=box.querySelector('.town-opinion');if(opinionFold)opinionFold.ontoggle=()=>{townOpinionOpen=opinionFold.open;};
@@ -1618,7 +1673,7 @@ function markSaveFailed(){
  if(announce)toast(`Autosave failed: browser storage is full or blocked. Delete older saves in Save / load (Ctrl+S) to free space.`,{type:'error',key:'autosave-failed'});
  return announce;
 }
-function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.remove();toast('Autosave is working again.');}
+function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.dismissToast();toast('Autosave is working again.');}
 function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
 function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();noteAutosaveTime();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
 function persist(notify=false){
@@ -1696,7 +1751,7 @@ function activateGame(next) {
  resetMoments();
  drainAchievementUnlocks(game);
  canvas.classList.remove('build-mode','dragging','route-picking');$('#placement-tip').hidden=true;
- $('#inspector').hidden=true;$('#inspector').replaceChildren();$('#toast-region').replaceChildren();
+ $('#inspector').hidden=true;$('#inspector').replaceChildren();for(const notice of $('#toast-region').children)notice.toastLifetime?.dispose();$('#toast-region').replaceChildren();
  rentSeen=(game.totalProperty||0)>0;sellAsk='';
  renderer.setGame(game);renderer.setZoom(1);
  const center=game.cities[0]||{x:game.width/2,y:game.height/2};
@@ -2098,7 +2153,7 @@ function undoBuild(entry) {
  undoStack=undoStack.filter(item=>!undoStale(game,item));const target=entry||undoStack.at(-1);
  if(!target||!undoStack.includes(target)){toast(entry?'This build can no longer be undone.':'Nothing to undo.',{type:'warning'});return;}
  const result=undoConstruction(game,target);undoStack=undoStack.filter(item=>item!==target);toast(result.message,{type:result.ok?'ok':'warning'});if(!result.ok)return;
- [...$('#toast-region').children].find(el=>el.toastKey===target)?.remove();
+ [...$('#toast-region').children].find(el=>el.toastKey===target)?.dismissToast();
  if(!game.notifications.some(notice=>notice.id===lastNoticeId))lastNoticeId=game.notifications[0]?.id;
  preview=[];refreshRouteConnections(game);updateHud();invalidateScene();persistSoon();if(view!=='build')renderPanel();
  if(hover&&updatePlacementTip.at)updatePlacementTip();
@@ -2313,7 +2368,7 @@ document.addEventListener('pointerdown',e=>{
 $('#audio-button').onclick=()=>{sounds=!sounds;$('#audio-button').innerHTML=icon(sounds?'volume':'muted');$('#audio-button').setAttribute('aria-label',sounds?'Disable sound':'Enable sound');beep();};$('#audio-button').innerHTML=icon('muted');
 $('#company-stats').onclick=()=>{const el=$('#company-stats');el.setAttribute('aria-expanded',String(el.getAttribute('aria-expanded')!=='true'));};
 document.addEventListener('pointerdown',e=>{if(!e.target.closest('.hud-finance-wrap'))$('#company-stats').setAttribute('aria-expanded','false');});
-$('#company-stats').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#company-stats').setAttribute('aria-expanded','false');e.currentTarget.blur();}});
+$('.hud-finance-wrap').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();$('#company-stats').setAttribute('aria-expanded','false');canvas.focus({preventScroll:true});}});
 $('#open-report').onclick=()=>{$('#company-stats').setAttribute('aria-expanded','false');$('#open-report').blur();openCompany();};
 // A remembered sound choice resumes audio on the first click; browsers keep it silent until a gesture.
 $('#audio-button').addEventListener('click',()=>{try{localStorage.setItem('transport-sound-v1',sounds?'on':'off');}catch{}});
@@ -2420,18 +2475,12 @@ document.addEventListener('keydown',e=>{
  if(e.key.toLowerCase()==='s'&&(e.ctrlKey||e.metaKey)){e.preventDefault();if(!saveDialogController)openSaves();return;}
  if(keyCursorKey(e)){e.preventDefault();return;}
  if(e.key==='Escape'&&isRoutePicking()){e.preventDefault();returnFromRoutePicking();return;}
- if($('#modal').open||e.target.matches('input,select,textarea')||e.target.closest('#layers-panel, #layers-button'))return;
- if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();if(!pointer)undoBuild();return;}
- if(e.ctrlKey||e.metaKey||e.altKey)return;
- if(e.code==='Space'){
-  const control=e.target.closest('button,a,summary,[role=button]');if(control&&control!==pointerFocus)return;
-  e.preventDefault();spaceConsumed=true;if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
- }
- if(e.repeat)return;const key=e.key.toLowerCase();
- // Esc steps back one level at a time (DESIGN.md 10.5): an open popover or menu (the zoom menu, map options and layers close
- // above), a stroke, the tool or a planned connection, the inspector (to its Back target first), the drawer; with nothing left
- // open it clears the cargo lens.
- if(key==='escape'){
+ if($('#modal').open)return;
+ // Escape still steps back when a search or route field has focus. Inline edits
+ // handle and prevent their own Escape; an open native select consumes it first.
+ // Prevent the search field's native clear action so closing keeps its filter.
+ if(e.key==='Escape'){
+  e.preventDefault();if(e.repeat)return;
   if($('#game-menu')&&!$('#game-menu').hidden){compactUI?.closeMenu(true);return;}
   if(pointer&&!pointer.pan&&tool!=='inspect'){cancelGesture();return;}
   if(tool!=='inspect'||connectionPlan){setTool('inspect');return;}
@@ -2439,6 +2488,14 @@ document.addEventListener('keydown',e=>{
   if($('.sidebar').classList.contains('drawer-open')){const inside=$('.sidebar').contains(document.activeElement);if(compactUI)compactUI.closeManagement(inside);else closeManagement();dropCargoLens('routes','industry');return;}
   setCargoLens(null);return;
  }
+ if(e.target.matches('input,select,textarea')||e.target.closest('#layers-panel, #layers-button'))return;
+ if((e.ctrlKey||e.metaKey)&&!e.altKey&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();if(!pointer)undoBuild();return;}
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ if(e.code==='Space'){
+  const control=e.target.closest('button,a,summary,[role=button]');if(control&&control!==pointerFocus)return;
+  e.preventDefault();spaceConsumed=true;if(!e.repeat){spaceDown=true;spaceUsedForPan=false;spaceStarted=performance.now();if(pointer){pointer.pan=true;preview=[];spaceUsedForPan=true;canvas.classList.add('dragging');}}return;
+ }
+ if(e.repeat)return;const key=e.key.toLowerCase();
  // Shift with a letter opens the panel or dialog it names, while the letter alone picks a tool (see the shortcuts sheet).
  if(e.shiftKey&&!pointer&&shiftShortcut(key)){e.preventDefault();return;}
  // Comma and full stop step the speed down and up, pause included; F shows the selection, or follows the selected vehicle.
@@ -2455,7 +2512,9 @@ document.addEventListener('keydown',e=>{
  if(key==='l'){e.preventDefault();closeMapMenus();cancelGesture();layersView?.toggle();}
  if(key==='m')openAtlas();if(key==='c'&&!e.ctrlKey&&!e.metaKey)openChains();if(key==='g')$('#grid-button').click();if(key==='h')$('#home-view').click();if(key==='?')openShortcuts();
  if(key==='='||key==='+')$('#zoom-in').click();if(key==='-')$('#zoom-out').click();
- if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);refreshStroke();}
+ // Arrow keys on panel buttons and disclosure headers keep their native scroll
+ // behavior. Map panning belongs to the canvas or otherwise unfocused page.
+ if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&(e.target===canvas||e.target===document.body||e.target===document.documentElement)){e.preventDefault();renderer.pan(e.key==='ArrowLeft'?90:e.key==='ArrowRight'?-90:0,e.key==='ArrowUp'?90:e.key==='ArrowDown'?-90:0);refreshStroke();}
 });
 document.addEventListener('keyup',e=>{if(e.code==='Space'){if(spaceConsumed){e.preventDefault();spaceConsumed=false;}if(!isLoading()&&spaceDown&&!spaceUsedForPan&&!pointer&&performance.now()-spaceStarted<260)changeSpeed(speed===0?previousSpeed:0);spaceDown=false;}});
 window.addEventListener('blur',()=>{spaceDown=false;spaceUsedForPan=false;cancelGesture();});

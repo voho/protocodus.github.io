@@ -4,7 +4,7 @@ import { GLYPHS, ALIASES, icon, has, names, modeGlyph } from '../ui-icons.js';
 
 // DESIGN.md 5.2, every group.
 const VOCABULARY = {
-  navigation: ['build', 'routes', 'town', 'industry', 'news', 'menu', 'guide', 'chains', 'overview', 'layers', 'company', 'achievements', 'saved', 'world', 'sound', 'soundOff', 'search', 'keyboard'],
+  navigation: ['build', 'routes', 'gallery', 'town', 'industry', 'news', 'menu', 'guide', 'chains', 'overview', 'layers', 'company', 'achievements', 'saved', 'world', 'sound', 'soundOff', 'search', 'keyboard'],
   actions: ['close', 'plus', 'minus', 'locate', 'chevronRight', 'chevronLeft', 'chevronDown', 'chevronUp', 'more', 'edit', 'retire', 'undo', 'swap', 'check', 'pause', 'play'],
   states: ['ok', 'warn', 'error', 'broken', 'info', 'lock', 'clock', 'trendUp', 'trendDown'],
   things: ['bus', 'truck', 'train', 'ship', 'plane', 'stop', 'flag', 'stock', 'coin', 'house', 'shop', 'workshop', 'tree', 'leaf', 'label'],

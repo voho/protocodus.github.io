@@ -12,7 +12,7 @@ The game opens at its main menu. Choose **New game**, pick a landscape and a map
 
 When this browser holds an autosave, **Continue** heads the menu with its landscape, game date, balance and how long ago it was saved; one click reopens that company. Choose **Load game** to open the autosave or a named local save; each lists its landscape, game date, balance, map size and routes. Opening the menu alone does not generate a map or overwrite a save. Creating a new world replaces the autosave after a successful write; named saves remain unchanged. During play, **Game menu → Main menu** pauses the company and offers **Resume**, New game and Load game.
 
-The main toolbar provides **Road**, **Railway**, **Stop**, **Bulldozer** and **Gallery** directly. Construction shortcuts keep their R/T/S/X keys and show the active tool. Gallery opens the shared building/object catalog; labels compact and the toolbar scrolls within narrow computer windows. A rail stop uses a station house and platform canopy, distinct from a road shelter.
+The main toolbar provides **Road**, **Railway**, **Stop**, **Bulldozer** and **Gallery** directly. Construction shortcuts keep their R/T/S/X keys and show the active tool. Road and Railway have distinct carriageway and sleeper icons; Gallery uses a collection grid. The construction labels stay visible on typical desktop and laptop widths; the brand compacts first, then narrower computer windows use icons and a scrolling toolbar. A rail stop uses a station house and platform canopy, distinct from a road shelter.
 
 ## Your first connection
 
@@ -38,6 +38,8 @@ Passenger and mail routes need two different towns within their stations' catchm
 Capacity is the biggest lever on a busy line. On a route card, **+** buys another vehicle at the current price and **−** sells one for 45% of what it cost, including upgrades; the oldest generation goes first, then the emptiest, and any cargo aboard is lost. The last vehicle stays until you retire the route. A new vehicle starts in the middle of the widest gap in the round trip, so a fleet spreads out instead of running as a convoy. **Waiting** on the card counts the stock at the start stop's producers, or the passengers in the quieter of the two towns; the town inspector shows each town's waiting passengers. Once a route has run for a month and two full fleet loads (at least 50) wait at its start, or four in each of its towns, a quiet *Room for more* under its vehicles (the count is on the **Waiting** tag beside it); point at it to see about how many more another vehicle would carry a month. A running route's explanation, such as *Passengers travel both ways.*, is the Waiting tag's tooltip; a route with a problem keeps its reason on the card. It is only a hint: the route still reads *Running*, and nothing counts it as a problem. Next to this year's profit, the card shows the monthly average since the route's accounts began, and last year's profit once a year has closed.
 
 Use the route search and mode, status and cargo filters to find services in a large network. In **New route**, choose the start stop from the list or with its **Map** button. The start determines the transport; the end list and map picker then accept only matching stops. Cancel the picker or press Escape to return to normal map controls. The connection check updates as you change stops or infrastructure.
+
+**New route** starts with fresh stops, an automatic name, one vehicle and default orders. Opening it from a stop starts with that stop selected. When a second compatible stop is missing, the planner explains where to place it and offers **Build road stop**, **Build rail station**, **Build port** or **Build airport**. Choosing that tool spends nothing. Cargo that cannot run on the selected connection has a readable explanation and a **Change stops** action; selecting it opens the explanation. Live changes to cargo availability preserve your draft, focus and text selection.
 
 Every route has a number and a line colour, like a transit map. The number is its own for as long as it runs: route 2 stays route 2 when others open or retire, and a new route takes the lowest free number, so retiring route 2 lets the next route be route 2. A new route takes a colour that no route at its stops wears, the one fewest of your routes use, so lines that meet always differ; colours never change afterwards. The nine colours alternate deep and light and leave out green, teal and orange, which belong to the land, the water and the map's own marks. A route shows as a numbered bullet in its colour, shaped by its transport: a rounded square for road, a circle for rail and a pill for water. Companies saved before numbers get them on loading, oldest route first, and keep their colours: the old teal, for example, now reads as Cobalt.
 
@@ -141,6 +143,8 @@ When a month closes with the balance below zero, a warning suggests borrowing or
 ## Notices and news
 
 Every company notice reaches the screen, including news of a new industry near your towns. Notices that arrive together appear one after another, oldest first and warnings first. When several routes lose their connection at once, one demolition leaves several routes without a supplier or buyer, or several industries expand or open on the same day, one notice names them all. Repeating the same rejected action adds a count to its notice instead of stacking copies. Warnings and errors stay for 8 seconds, other notices for 5.
+
+Point at a notice or focus its action to pause its remaining display time, including **Undo** after construction. The timer resumes after both the pointer and keyboard focus leave. Escape works inside form fields and dismisses one layer at a time; arrow keys scroll panels and move the map when the map has focus.
 
 A notice about a route, town or industry has a **Show** button: a route is framed and lit on the map and opens at its card in Routes, and a town or industry is framed and inspected. A new company greets you when it opens; loading a save never replays old notices. Each January 1 names one of the year's new models (your most-used kind of vehicle, or a new series when one begins) and the year's price rise. Once a whole year has closed, the notice adds that year's operating profit, its change on the year before and its best route, such as *1952 operating profit +$51.9k (+4%) · best route Alderbrook – Pinehaven*, and **Open report** opens the company report. When vehicles can be upgraded, **Review upgrades** opens Routes at **Upgrade all**; it never spends money. The first delivery of each new freight route, and a served town passing 1,000 residents, are announced as they happen. With sound on, only warnings, errors and these moments play a tone, at most once per batch.
 
@@ -452,6 +456,14 @@ The construction-toolbar check covers direct Road, Railway, Stop and Bulldozer c
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/construction-toolbar-browser-check.mjs
+```
+
+The route-entry check covers fresh drafts from the route list and stop inspectors, correct construction tools for missing stops, unsuitable cargo explanations and preserving focus and text selection during live updates. Keyboard-panel and notice-action checks cover Escape inside fields, native panel scrolling, map arrow controls, pausing notice expiry during hover/focus, Undo and finance popover focus:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/route-entry-browser-check.mjs
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/keyboard-panel-browser-check.mjs
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/notice-actions-browser-check.mjs
 ```
 
 The focused station-art check compares direct and prepared road/rail pixels, native display sizes, missing-art fallback and shared portraits at Region, Town and Detail on standard and Retina displays:

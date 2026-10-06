@@ -105,6 +105,32 @@ test('passenger planning requires two different towns and refuses adjacent stops
   assert.match(close.message, /too close/);
 });
 
+test('passengers and mail between stops serving the same town explain the different-town requirement', () => {
+  const game = emptyGame();
+  game.cities = [{ id: 'town-shared', name: 'Alderbrook', x: 14, y: 10 }];
+  assert.equal(buildPath(game, 'road', line(10, 18, 13)).ok, true);
+  for (const x of [10, 18]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
+  const [from, to] = game.stations;
+  for (const stop of [from, to]) {
+    const coverage = stationCoverage(game, stop);
+    assert.deepEqual(coverage.cities.map(city => city.id), ['town-shared']);
+    for (const cargo of ['passengers', 'mail']) {
+      assert.ok(coverage.produces.includes(cargo));
+      assert.ok(coverage.accepts.includes(cargo));
+    }
+  }
+  const before = JSON.stringify({ money: game.money, revision: game.revision, cities: game.cities, stations: game.stations, routes: game.routes, vehicles: game.vehicles });
+  const draft = { mode: 'road', from: from.id, to: to.id }, options = routeCargoOptions(game, draft);
+  for (const cargo of ['passengers', 'mail']) {
+    const plan = validateRoutePlan(game, { ...draft, cargo });
+    assert.equal(plan.connected, true);
+    assert.equal(plan.valid, false);
+    assert.equal(plan.message, 'Connected. Each stop must serve a different town within 5 tiles.');
+    assert.equal(options.find(option => option.cargo === cargo).message, plan.message);
+  }
+  assert.equal(JSON.stringify({ money: game.money, revision: game.revision, cities: game.cities, stations: game.stations, routes: game.routes, vehicles: game.vehicles }), before, 'clarifying the verdict changes no world state');
+});
+
 function quarryFixture() {
   const game = emptyGame();
   assert.equal(build(game, 'quarry', 10, 7).ok, true);
@@ -123,7 +149,7 @@ test('cargo options follow the chosen stops: a quarry stop and a town stop carry
   assert.deepEqual(options.map(option => option.cargo).sort(), ['mail', 'passengers', 'stone'], 'only cargo supplied at either selected stop gets a verdict');
   assert.deepEqual(fitting(options), ['stone']);
   assert.deepEqual(options[0], { cargo: 'stone', valid: true, reversed: false, message: 'Connected by road, 20 tiles.' });
-  assert.match(options.find(option => option.cargo === 'passengers').message, /each stop needs a different town/);
+  assert.match(options.find(option => option.cargo === 'passengers').message, /Each stop must serve a different town/);
   const reversed = routeCargoOptions(game, { ...draft, from: draft.to, to: draft.from });
   assert.deepEqual(fitting(reversed), ['stone']);
   assert.equal(reversed[0].reversed, true, 'loading at the end stop is still a fit');
@@ -179,7 +205,7 @@ test('connected stops without a shared cargo name what each end handles', () => 
   assert.deepEqual(fitting(options), []);
   const gap = 'No cargo fits both stops. The start loads stone, and the end accepts timber.';
   assert.ok(options.length > 0 && options.every(option => option.message === gap));
-  assert.equal(validateRoutePlan(game, draft).message, gap);
+  assert.equal(validateRoutePlan(game, { ...draft, cargo: 'stone' }).message, gap, 'shared freight gaps still explain what each end handles');
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 30, y: 10 }];
   assert.match(validateRoutePlan(game, { ...draft, cargo: 'coal' }).message, /coal supplier and a buyer/, 'a single wrong cargo keeps its own advice');
 });

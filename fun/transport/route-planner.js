@@ -60,7 +60,7 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false, ignoreFlee
   if (mode === 'air' && !isTownTraffic(cargo)) return fail('Planes carry passengers and mail.');
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (isTownTraffic(cargo)) {
-    if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
+    if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : 'Connected. Each stop must serve a different town within 5 tiles.');
   } else if (!freightFits(game, coverage[0], coverage[1], cargo)) {
     if (freightFits(game, coverage[1], coverage[0], cargo)) result.reversed = true;
     else return fail(workshopLoop(game, coverage[0], coverage[1], cargo) || sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);

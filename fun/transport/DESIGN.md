@@ -309,7 +309,7 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
 
 | Group | Glyphs |
 |---|---|
-| Navigation | `build` (iso tile with a plus), `routes` (two roundels joined by a stepped line), `town` (two gables), `industry` (sawtooth roof), `news` (folded paper), `menu`, `guide` (open book), `chains` (two boxes feeding one), `overview` (folded map), `layers` (stacked iso tiles), `company` (ledger), `achievements` (medal roundel), `saved` (disk), `world` (globe, for New world), `sound`, `soundOff`, `search`, `keyboard` (Keyboard shortcuts) |
+| Navigation | `build` (iso tile with a plus), `routes` (two roundels joined by a stepped line), `gallery` (four collection tiles), `town` (two gables), `industry` (sawtooth roof), `news` (folded paper), `menu`, `guide` (open book), `chains` (two boxes feeding one), `overview` (folded map), `layers` (stacked iso tiles), `company` (ledger), `achievements` (medal roundel), `saved` (disk), `world` (globe, for New world), `sound`, `soundOff`, `search`, `keyboard` (Keyboard shortcuts) |
 | Actions | `close`, `plus`, `minus`, `locate` (roundel with four ticks, used by every Show on map), `chevronRight` (opens something deeper), `chevronLeft` (Back), `chevronDown`, `chevronUp`, `more`, `edit`, `retire`, `undo`, `swap`, `check`, `pause`, `play` |
 | States | `ok`, `warn`, `error`, `broken` (a line cut by two slashes, identical to the strip cut), `info`, `lock`, `clock`, `trendUp`, `trendDown` |
 | Modes and things | `bus`, `truck`, `train`, `ship`, `plane`, `stop` (roundel on a post), `flag` (goals), `stock` (crates), `coin` (income), `house`, `shop`, `workshop`, `tree`, `leaf`, `label` |
@@ -966,6 +966,8 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 The planner is a focused top-left surface, separate from existing routes. Reveal decisions in order: start and end stops, supplied cargo, then automatic name and vehicle quantity. The start stop determines transport. Stops collapse to a summary after cargo selection, with an explicit way to change them. Show only cargo produced at either stop, and explain when a destination cannot receive it. Fill names with the towns and cargo; keep manual overrides until cleared. A matching existing service offers one action to add vehicles and keeps its name and orders. Always show total purchase cost, approximate monthly revenue and net profit in a sticky footer; put detailed assumptions and full-load orders behind disclosure. Frame and gently pulse the connected draft on the map. Reduced motion keeps the preview steady. Edits retain the fleet and show zero purchase cost.
 
+An explicit **New route** starts a fresh draft with one vehicle and default orders; opening it from a stop preselects that stop. If fewer than two compatible stops exist, explain the missing prerequisite and offer its construction tool without spending money. Disable map pickers with no eligible stops. Keep unsuitable cargo reasons readable in a disclosure with **Change stops**, and open it when that cargo is selected. Physical connectivity must not hide minimum-distance or cargo requirements. Choosing cargo for a usable connection is ordinary guidance, without warning colour. Live suitability updates preserve draft values, focus, caret and text selection.
+
 ### 12.9 Toasts
 
 - **Surface:** ink, `--e3`, `--r-3`.
@@ -1045,6 +1047,8 @@ The planner is a focused top-left surface, separate from existing routes. Reveal
 
 ### 12.15 Build drawer
 
+- Main-toolbar construction shortcuts retain text labels on normal desktop and laptop widths. Compact the brand first; use icons and horizontal scrolling when the computer window is narrower. Road, Railway, Stop, Bulldozer and Gallery have distinct shared glyphs.
+- Active construction instructions use the shared top-left anchor. The goal card yields that space until construction finishes, keeping its open or folded preference.
 - **Header:** "Build", with a segmented control "Network | Town | Industry".
 - **Network** has two groups:
   - **Place:** sprite cards in 2 columns (Road, Rail, Stop, Port, Airport, Bulldozer). Each card has a 48 px sprite, the name in 14/600 and a price line in 13 ink-2 ("from $180 a tile"). The selected card has a 2 px ink outline. Airport and Bulldozer are ordinary cards; none spans the row. Airport waits greyed with "From 1952".

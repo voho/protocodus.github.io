@@ -19,6 +19,10 @@ const state = page => page.evaluate(() => ({
   stations:transport.game.stations.length, routes:transport.game.routes.length, revision:transport.game.revision,
 }));
 const saveValid = page => page.evaluate(async () => (await import('./model.js')).validateGame(transport.game));
+const goalState = page => page.locator('#objective-card').evaluate(card => ({
+  hidden:card.hidden, collapsed:card.classList.contains('collapsed'), open:card.classList.contains('open'),
+  preference:localStorage.getItem('transport-next-goal-v2'), layers:localStorage.getItem('transport-visibility-v1'),
+}));
 
 async function pressed(page, expected) {
   assert.deepEqual(await page.locator('.topbar [data-toolbar-tool]').evaluateAll(buttons => buttons.filter(button => button.getAttribute('aria-pressed') === 'true').map(button => button.dataset.toolbarTool)), expected ? [expected] : [], 'the toolbar shows exactly the active construction tool');
@@ -44,6 +48,10 @@ async function layout(page, width) {
     assert.deepEqual(control.edgeHits,[true,true], `${width}px ${control.tool} is fully visible and clickable at both edges`);
     assert.ok(control.icon||control.label, `${width}px ${control.tool} has a visible icon or label`);
     if(control.tool==='gallery')assert.equal(control.label,true, `${width}px Gallery keeps its visible name`);
+    else {
+      assert.equal(control.icon,true, `${width}px ${control.tool} keeps its identifying icon`);
+      assert.equal(control.label,width>1280, `${width}px ${control.tool} keeps a readable desktop label or the laptop icon fallback`);
+    }
   }
   assert.equal(await page.locator('#game-menu [data-open-gallery]').count(), 0, 'Gallery stays on the main toolbar');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth+1), true, `${width}px header adds no horizontal page overflow`);
@@ -200,13 +208,26 @@ try {
     await explore(page);
     const controls=await layout(page,profile.width);
     const finance=profile.name==='narrow'?await financeLayouts(page,profile.width):[];
-    if(profile.width===1440){for(const width of [1280,1100]){await page.setViewportSize({width,height:1000});await layout(page,width);await page.screenshot({path:`${output}/toolbar-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
+    if(profile.width===1440){for(const width of [1366,1280,1100]){await page.setViewportSize({width,height:1000});await layout(page,width);await page.screenshot({path:`${output}/toolbar-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
     const initial=await state(page);
-    for(const tool of tools){
-      const button=toolButton(page,tool);assert.equal(await button.getAttribute('aria-keyshortcuts'),shortcuts[tool]);
-      await button.click();await pressed(page,tool);
-      assert.equal(await page.locator('#active-tool-bar').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement?.id),'world','direct tools focus the map');
-      assert.deepEqual(await state(page),initial,'choosing a direct tool only changes the active UI');
+    for(const goal of ['open','folded']){
+      await page.locator(goal==='open'?'#objective-chip':'#dismiss-objective').click();
+      const beforeGoal=await goalState(page);
+      assert.equal(beforeGoal.collapsed,goal==='folded','the goal starts in the requested state');
+      for(const tool of tools){
+        const button=toolButton(page,tool);assert.equal(await button.getAttribute('aria-keyshortcuts'),shortcuts[tool]);
+        await button.click();await pressed(page,tool);
+        assert.equal(await page.locator('#active-tool-bar').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement?.id),'world','direct tools focus the map');
+        assert.equal(await page.locator('#objective-card').isVisible(),false,`${tool} instructions get the shared map-side space without a goal underneath`);
+        assert.deepEqual(await goalState(page),beforeGoal,`${tool} temporarily hiding the goal preserves its ${goal} state and display setting`);
+        assert.deepEqual(await state(page),initial,'choosing a direct tool only changes the active UI');
+        await page.locator('#cancel-tool-button').click();await pressed(page,null);
+        assert.equal(await page.locator('#active-tool-bar').isVisible(),false,'finishing construction removes its instructions');
+        assert.deepEqual(await goalState(page),beforeGoal,'the reopened Build drawer preserves the goal state');
+        await page.locator('#close-management').click();
+        assert.equal(await page.locator('#objective-card').isVisible(),true,'the goal returns when construction and its drawer finish');
+        assert.deepEqual(await goalState(page),beforeGoal,`the restored goal keeps its ${goal} state and display setting`);
+      }
     }
     await toolButton(page,'road').focus();await page.keyboard.press('Space');await pressed(page,'road');
     await toolButton(page,'rail').focus();await page.keyboard.press('Enter');await pressed(page,'rail');
