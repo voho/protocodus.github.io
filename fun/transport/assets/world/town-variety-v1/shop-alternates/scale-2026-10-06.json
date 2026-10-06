@@ -1,0 +1,114 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "entries": [
+    {
+      "id": "civic:shop-hardware:{biome}:design-1",
+      "name": "Hardware shop",
+      "footprint": 1,
+      "description": "Traditional one-storey brick hardware shop with a strong slate roof and broad ochre window canopy. Ordinary2.1m entrance, no tool grids."
+    },
+    {
+      "id": "civic:shop-florist:{biome}:design-1",
+      "name": "Florist",
+      "footprint": 1,
+      "description": "Traditional small timber florist with a clean green pitched roof, broad dark glazing and two broad muted plant clusters. No flower dots."
+    },
+    {
+      "id": "civic:shop-grocery:{biome}:design-2",
+      "name": "Grocer",
+      "footprint": 1,
+      "description": "Modern one-storey pale grocery with a broad muted green flat-roof fascia, one large dark display window and simple2.1m door."
+    },
+    {
+      "id": "civic:shop-bakery:{biome}:design-2",
+      "name": "Bakery",
+      "footprint": 1,
+      "description": "Modern one-storey brick-and-pale-plaster bakery with a broad terracotta parapet, warm window and one clean ochre awning."
+    },
+    {
+      "id": "civic:shop-butcher:{biome}:design-2",
+      "name": "Butcher",
+      "footprint": 1,
+      "description": "Modern one-storey pale stone butcher with a broad red fascia and clean dark window, normal2.1m door."
+    },
+    {
+      "id": "civic:shop-hardware:{biome}:design-2",
+      "name": "Hardware shop",
+      "footprint": 1,
+      "description": "Modern one-storey low hardware store with pale stone facade, broad dark slate flat roof and a single ochre fascia. No fine racks."
+    },
+    {
+      "id": "civic:shop-florist:{biome}:design-2",
+      "name": "Florist",
+      "footprint": 1,
+      "description": "Modern ecological one-storey timber-and-glass florist with one broad planted roof strip and two restrained plant clusters. No tiny flower speckles."
+    },
+    null,
+    null
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorMasterPixels": 35,
+      "targetDoorMasterPixels": 22.400000000000002,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "shop-hardware",
+          "beforeCalibrationMasterPixels": 34,
+          "afterCalibrationMasterPixels": 21.76,
+          "afterCalibrationWorldPixels": 4.08
+        },
+        {
+          "id": "shop-florist",
+          "beforeCalibrationMasterPixels": 34,
+          "afterCalibrationMasterPixels": 21.76,
+          "afterCalibrationWorldPixels": 4.08
+        },
+        {
+          "id": "shop-grocery",
+          "beforeCalibrationMasterPixels": 36,
+          "afterCalibrationMasterPixels": 23.040000000000003,
+          "afterCalibrationWorldPixels": 4.32
+        },
+        {
+          "id": "shop-bakery",
+          "beforeCalibrationMasterPixels": 33,
+          "afterCalibrationMasterPixels": 21.12,
+          "afterCalibrationWorldPixels": 3.96
+        },
+        {
+          "id": "shop-butcher",
+          "beforeCalibrationMasterPixels": 36,
+          "afterCalibrationMasterPixels": 23.040000000000003,
+          "afterCalibrationWorldPixels": 4.32
+        },
+        {
+          "id": "shop-hardware:modern",
+          "beforeCalibrationMasterPixels": 35,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "shop-florist:modern",
+          "beforeCalibrationMasterPixels": 35,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ]
+    }
+  },
+  "registration": "Original disconnected RGBA pixels retained. A measured doorway factor is uniform for every complete cutout in a source family/footprint tier; alpha bounds locate ground contact only, never choose scale. Fixed master contact anchor (128,244), full 256px parcel grid retained. No runtime per-kind multiplier.",
+  "rejectedCorrection": "A follow-up imagegen shrink edit did not honor tier scale consistently; original fresh sources retained and registered with explicit tier calibration."
+}

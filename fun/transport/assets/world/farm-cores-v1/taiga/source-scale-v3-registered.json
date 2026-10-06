@@ -1,0 +1,89 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 438930,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "farm-core:farm:taiga",
+      "sourceBounds": [
+        0,
+        131,
+        514,
+        496
+      ],
+      "offset": [
+        31,
+        183
+      ],
+      "pixels": 93260
+    },
+    {
+      "cell": 1,
+      "id": "farm-core:dairy-farm:taiga",
+      "sourceBounds": [
+        512,
+        168,
+        1026,
+        496
+      ],
+      "offset": [
+        31,
+        220
+      ],
+      "pixels": 87356
+    },
+    {
+      "cell": 2,
+      "id": "farm-core:vegetable-farm:taiga",
+      "sourceBounds": [
+        1024,
+        170,
+        1536,
+        496
+      ],
+      "offset": [
+        32,
+        222
+      ],
+      "pixels": 85505
+    },
+    {
+      "cell": 3,
+      "id": "farm-core:orchard:taiga",
+      "sourceBounds": [
+        0,
+        609,
+        514,
+        945
+      ],
+      "offset": [
+        31,
+        212
+      ],
+      "pixels": 86250
+    },
+    {
+      "cell": 4,
+      "id": "farm-core:livestock-farm:taiga",
+      "sourceBounds": [
+        512,
+        625,
+        1026,
+        945
+      ],
+      "offset": [
+        31,
+        228
+      ],
+      "pixels": 86559
+    },
+    {
+      "cell": 5,
+      "empty": true
+    }
+  ]
+}

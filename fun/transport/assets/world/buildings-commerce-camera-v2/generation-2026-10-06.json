@@ -1,0 +1,230 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-06",
+  "sharedPromptFunction": "buildingGenerationPrompt()",
+  "sharedDefinition": "sprite-art-direction.js",
+  "operation": "Fresh art in every active city slot, climate-only edits, then explicit measured doorway calibration in full parcel cells; no silhouette fitting",
+  "active": [
+    {
+      "biome": "taiga",
+      "job": {
+        "family": "buildings-commerce-camera-v2",
+        "columns": 3,
+        "rows": 3,
+        "biome": "taiga",
+        "entries": [
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce."
+          },
+          {
+            "id": "shop-hardware",
+            "name": "Hardware shop",
+            "footprint": 1,
+            "description": "One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids."
+          },
+          {
+            "id": "shop-florist",
+            "name": "Florist",
+            "footprint": 1,
+            "description": "Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals."
+          },
+          {
+            "id": "service-post-office",
+            "name": "Post office",
+            "footprint": 1,
+            "description": "Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door."
+          },
+          {
+            "id": "service-bank",
+            "name": "Bank",
+            "footprint": 2,
+            "description": "Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door."
+          },
+          {
+            "id": "service-hotel",
+            "name": "Hotel",
+            "footprint": 2,
+            "description": "Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings."
+          },
+          {
+            "id": "service-garage",
+            "name": "Garage",
+            "footprint": 2,
+            "description": "Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles."
+          },
+          {
+            "id": "service-barber",
+            "name": "Barber",
+            "footprint": 1,
+            "description": "Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door."
+          },
+          {
+            "id": "factory",
+            "name": "City workshop",
+            "footprint": 2,
+            "description": "A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Keep the same pixel-to-metre calibration across all slots. Do not independently fit each building's bounding box.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce.\nSlot 2: Hardware shop; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids.\nSlot 3: Florist; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals.\nSlot 4: Post office; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door.\nSlot 5: Bank; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door.\nSlot 6: Hotel; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings.\nSlot 7: Garage; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles.\nSlot 8: Barber; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door.\nSlot 9: City workshop; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry.\nCRITICAL ART DIRECTION: Create fresh art from scratch. This is a quiet, low-detail gouache game sprite sheet, NOT a photorealistic architectural model or ornate toy. Roof surfaces are untextured solid paint masses with just one broad ridge highlight, NEVER roof tiles. Wall surfaces are quiet colour planes, NEVER visible individual bricks. Planting is simple broad bushes with no visible leaves or flower dots. Only essential architecture and large identity features. Strict scale reference: the SCHOOL/BANK/HOTEL doors in 2x2 slots are HALF the pixel height of the small SHOP/PUB doors in1x1 slots. Their storeys are also HALF the pixel height. The institutional buildings are low broad campuses with substantially more windows/wings, NOT giant two-floor houses. On the square source canvas each cell is exactly1/3canvas width; after normalized to256px, 2x2 entrance door must be11px tall and1x1 entrance22px tall. Keep ground parcel contact at fixed cell coordinates and broad transparent margins. No fine material decoration whatsoever.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-b33b6232-a7d5-42e9-936e-431f2ef348e3.png",
+      "reference": null
+    },
+    {
+      "biome": "tundra",
+      "job": {
+        "family": "buildings-commerce-camera-v2",
+        "columns": 3,
+        "rows": 3,
+        "biome": "tundra",
+        "entries": [
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce."
+          },
+          {
+            "id": "shop-hardware",
+            "name": "Hardware shop",
+            "footprint": 1,
+            "description": "One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids."
+          },
+          {
+            "id": "shop-florist",
+            "name": "Florist",
+            "footprint": 1,
+            "description": "Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals."
+          },
+          {
+            "id": "service-post-office",
+            "name": "Post office",
+            "footprint": 1,
+            "description": "Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door."
+          },
+          {
+            "id": "service-bank",
+            "name": "Bank",
+            "footprint": 2,
+            "description": "Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door."
+          },
+          {
+            "id": "service-hotel",
+            "name": "Hotel",
+            "footprint": 2,
+            "description": "Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings."
+          },
+          {
+            "id": "service-garage",
+            "name": "Garage",
+            "footprint": 2,
+            "description": "Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles."
+          },
+          {
+            "id": "service-barber",
+            "name": "Barber",
+            "footprint": 1,
+            "description": "Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door."
+          },
+          {
+            "id": "factory",
+            "name": "City workshop",
+            "footprint": 2,
+            "description": "A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nCool pale grass, restrained snow caps and evergreen planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce.\nSlot 2: Hardware shop; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids.\nSlot 3: Florist; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals.\nSlot 4: Post office; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door.\nSlot 5: Bank; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door.\nSlot 6: Hotel; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings.\nSlot 7: Garage; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles.\nSlot 8: Barber; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door.\nSlot 9: City workshop; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry.\nCLIMATE EDIT ONLY of this approved source sheet: change the climate finish to restrained snow caps on roof planes, pale snowy planting and cool grey shadows. Keep some roof material colour showing; do not bury entrances. EXACTLY preserve all nine sprites, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite, or independently fit its bounds. Fixed3x3rowmajor slots. The final physicaldoorcalibration is alreadyhandled in the atlas packing pipeline; this climate edit must preserve sourcegeometry precisely. Keep clean broad roof/wall colours, no fine roof/brick/flower texture, no extra objects, no writing or labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-4904beed-00c5-45f5-969f-774920534ef8.png",
+      "reference": "exec-b33b6232-a7d5-42e9-936e-431f2ef348e3.png"
+    },
+    {
+      "biome": "desert",
+      "job": {
+        "family": "buildings-commerce-camera-v2",
+        "columns": 3,
+        "rows": 3,
+        "biome": "desert",
+        "entries": [
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce."
+          },
+          {
+            "id": "shop-hardware",
+            "name": "Hardware shop",
+            "footprint": 1,
+            "description": "One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids."
+          },
+          {
+            "id": "shop-florist",
+            "name": "Florist",
+            "footprint": 1,
+            "description": "Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals."
+          },
+          {
+            "id": "service-post-office",
+            "name": "Post office",
+            "footprint": 1,
+            "description": "Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door."
+          },
+          {
+            "id": "service-bank",
+            "name": "Bank",
+            "footprint": 2,
+            "description": "Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door."
+          },
+          {
+            "id": "service-hotel",
+            "name": "Hotel",
+            "footprint": 2,
+            "description": "Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings."
+          },
+          {
+            "id": "service-garage",
+            "name": "Garage",
+            "footprint": 2,
+            "description": "Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles."
+          },
+          {
+            "id": "service-barber",
+            "name": "Barber",
+            "footprint": 1,
+            "description": "Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door."
+          },
+          {
+            "id": "factory",
+            "name": "City workshop",
+            "footprint": 2,
+            "description": "A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nWarm dusty sand, pale stone and plaster, terracotta and sparse dry planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce.\nSlot 2: Hardware shop; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids.\nSlot 3: Florist; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals.\nSlot 4: Post office; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door.\nSlot 5: Bank; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door.\nSlot 6: Hotel; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings.\nSlot 7: Garage; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles.\nSlot 8: Barber; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door.\nSlot 9: City workshop; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry.\nCLIMATE EDIT ONLY of this approved source sheet: warm dusty stone/plaster, muted dry ochre planting, sparse sage-green shrub masses, sunny broad roofplanes. Preserve everybuilding identity and structuralmaterial(colour canwarm slightly butredbrick staysbrick, green/bluegreyroof keepidentity). EXACTLY preserve all nine sprites, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite or independently fit its bounds. Fixed3x3rowmajor slots. The final physicaldoorcalibration is alreadyhandled in atlaspacking; thisclimateedit must preserve sourcegeometry precisely. Clean broad roof/wallcolours, no fine texture or extraobjects, no palmfrondnoise, no writing/labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-f6e74d7c-33e9-4782-ac2b-dd7bae872f61.png",
+      "reference": "exec-b33b6232-a7d5-42e9-936e-431f2ef348e3.png"
+    }
+  ],
+  "rejectedCalibrationEdit": {
+    "generatedFile": "exec-f66a091e-93e9-44eb-91fd-1c0f7996d2f0.png",
+    "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce.\nSlot 2: Hardware shop; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids.\nSlot 3: Florist; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals.\nSlot 4: Post office; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door.\nSlot 5: Bank; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door.\nSlot 6: Hotel; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings.\nSlot 7: Garage; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles.\nSlot 8: Barber; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door.\nSlot 9: City workshop; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry.\nCALIBRATION EDIT ONLY: Keep the nine existing identities, exact architectural design, broad painted materials and1:2dimetric camera. Correct the actual physical scale by SHRINKING EACH COMPLETE ISOLATED CUTOUT in its original fixed3x3cell, uniformly with NO stretching. Do not independently refit or enlarge the building after shrinking. Anchor each object on the same ground contact centre; preserve wide empty transparent margins around it. The full parcel is terrain, so the artwork must not fill it. Ordinary doors must be about22px normalizedheight in1x1slots,11px in2x2slots,7.5px in3x3slots; use existing doors, shrink all complete sprites by the specified linear factor. Keep this exactly3x3squaregrid. Keep reduced-detail flat roofs and clear wall planes; simplify any remaining tile seams, remove individual small flower dots. No additional objects. Slot1: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot2: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot3: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot4: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot5: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot6: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot7: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot8: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot9: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.",
+    "reason": "Requested footprint-tier shrink factors were not followed consistently. The fresh original was retained and registered using documented uniform door calibration."
+  }
+}

@@ -21,8 +21,8 @@
     null,
     null
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "285204af6d1830dc4df7e959818f52a01e38ac64dbadee88b975f3148d1c71e4",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "1d60aab475f713ae5be276273eb0242b95f755486cda8ea5c5e1d579b5f6aab6",
   "sprites": [
     {
       "id": "civic:shop-hardware:tundra:design-1",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          61,
-          134,
-          372,
-          388
+          54,
+          115,
+          203,
+          245
         ],
         "rawAlphaBounds": [
-          59,
-          57,
-          373,
-          390
+          56,
+          116,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.686317
+        "transparentFraction": 0.821884
       },
       "bounds": [
-        12,
-        55,
-        244,
+        56,
+        116,
+        201,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "civic:shop-florist:tundra:design-1",
       "cell": 1,
       "sourceBounds": [
-        418,
+        256,
         0,
-        836,
-        418
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          65,
-          107,
-          376,
-          387
+          56,
+          125,
+          200,
+          245
         ],
         "rawAlphaBounds": [
-          62,
-          107,
-          404,
-          388
+          58,
+          126,
+          198,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.677806
+        "transparentFraction": 0.834595
       },
       "bounds": [
-        12,
-        35,
-        244,
+        58,
+        126,
+        198,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "civic:shop-grocery:tundra:design-2",
       "cell": 2,
       "sourceBounds": [
-        836,
+        512,
         0,
-        1254,
-        418
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          47,
-          114,
-          360,
-          389
+          52,
+          128,
+          203,
+          246
         ],
         "rawAlphaBounds": [
-          47,
-          114,
-          364,
-          396
+          54,
+          129,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.649447
+        "transparentFraction": 0.833069
       },
       "bounds": [
-        12,
-        40,
-        244,
+        54,
+        129,
+        201,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          50,
-          99,
-          384,
-          375
+          49,
+          116,
+          207,
+          245
         ],
         "rawAlphaBounds": [
-          47,
-          31,
-          418,
-          418
+          51,
+          117,
+          205,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.629513
+        "transparentFraction": 0.811905
       },
       "bounds": [
-        12,
-        52,
-        244,
+        51,
+        117,
+        205,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "civic:shop-butcher:tundra:design-2",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          58,
-          82,
-          387,
-          384
+          52,
+          122,
+          204,
+          245
         ],
         "rawAlphaBounds": [
-          7,
-          5,
-          414,
-          402
+          54,
+          123,
+          203,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.593336
+        "transparentFraction": 0.825882
       },
       "bounds": [
-        12,
-        31,
-        244,
+        54,
+        123,
+        203,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "civic:shop-hardware:tundra:design-2",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          40,
-          94,
-          383,
-          380
+          52,
+          125,
+          203,
+          245
         ],
         "rawAlphaBounds": [
-          25,
-          47,
-          387,
-          389
+          54,
+          126,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.626777
+        "transparentFraction": 0.832809
       },
       "bounds": [
-        12,
-        51,
-        244,
+        54,
+        126,
+        201,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          51,
-          69,
-          403,
-          335
+          48,
+          124,
+          207,
+          245
         ],
         "rawAlphaBounds": [
-          41,
-          0,
-          404,
-          362
+          50,
+          125,
+          206,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.641183
+        "transparentFraction": 0.827713
       },
       "bounds": [
-        12,
-        69,
-        244,
+        50,
+        125,
+        206,
         244
       ]
     },
@@ -289,5 +289,191 @@
     {
       "id": null
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 35,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "shop-hardware",
+            "beforeCalibrationMasterPixels": 34,
+            "afterCalibrationMasterPixels": 21.76,
+            "afterCalibrationWorldPixels": 4.08
+          },
+          {
+            "id": "shop-florist",
+            "beforeCalibrationMasterPixels": 34,
+            "afterCalibrationMasterPixels": 21.76,
+            "afterCalibrationWorldPixels": 4.08
+          },
+          {
+            "id": "shop-grocery",
+            "beforeCalibrationMasterPixels": 36,
+            "afterCalibrationMasterPixels": 23.040000000000003,
+            "afterCalibrationWorldPixels": 4.32
+          },
+          {
+            "id": "shop-bakery",
+            "beforeCalibrationMasterPixels": 33,
+            "afterCalibrationMasterPixels": 21.12,
+            "afterCalibrationWorldPixels": 3.96
+          },
+          {
+            "id": "shop-butcher",
+            "beforeCalibrationMasterPixels": 36,
+            "afterCalibrationMasterPixels": 23.040000000000003,
+            "afterCalibrationWorldPixels": 4.32
+          },
+          {
+            "id": "shop-hardware:modern",
+            "beforeCalibrationMasterPixels": 35,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-florist:modern",
+            "beforeCalibrationMasterPixels": 35,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:shop-hardware:tundra:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "civic:shop-florist:tundra:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "civic:shop-grocery:tundra:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "civic:shop-bakery:tundra:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "civic:shop-butcher:tundra:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "civic:shop-hardware:tundra:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "civic:shop-florist:tundra:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "empty": true
+      },
+      {
+        "cell": 8,
+        "empty": true
+      }
+    ]
+  }
 }

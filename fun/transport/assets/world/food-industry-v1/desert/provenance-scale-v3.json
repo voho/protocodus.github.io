@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "source": "source-scale-v3.png",
+  "sourceSha256": "b5e28f8a57fef53081b0ed0b7cee6298be7286b1183038ce2fff8217b36af7d1",
+  "generator": "image_gen.imagegen",
+  "sharedPrompt": "generation-prompt.json",
+  "sharedScaleAndStyle": "sprite-art-direction.js",
+  "visualFootprint": 5,
+  "operation": "Generated at fixed physical scale; registered with one uniform family pixel-to-metre scale; premultiplied mip packing without microdetail sharpening."
+}

@@ -43,7 +43,7 @@ for(const mode of ['road','rail','water','air'])test(`recorded ${mode} movement 
 
 test('recorded full-load waits retain dwell and apply loading only at the daily release',()=>{
   const game=emptyGame();
-  assert.equal(build(game,'logging-camp',10,9).ok,true);assert.equal(build(game,'sawmill',30,9).ok,true);
+  assert.equal(build(game,'logging-camp',10,7).ok,true);assert.equal(build(game,'sawmill',30,7).ok,true);
   assert.equal(buildPath(game,'road',line(10,30,12)).ok,true);
   for(const x of [10,30])assert.equal(build(game,'bus-stop',x,12).ok,true);
   game.industries[0].inventory.timber=0;

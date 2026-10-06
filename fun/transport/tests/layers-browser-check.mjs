@@ -106,6 +106,7 @@ try {
   // At Region zoom the fourteen-pixel stop badge extends beyond its map tile.
   // Only a visible badge may intercept that neighboring tile in the route picker.
   await page.locator('.main-nav [data-view="routes"]').click();
+  await page.locator('#new-route-button').click();
   // A second Routes click while the drawer slides open would close it again.
   await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
   const station=await page.evaluate(()=>transport.game.stations.find(stop=>stop.mode==='road'));
@@ -118,7 +119,7 @@ try {
   },station);
   assert.notDeepEqual(stationPoints.rawBadge,{x:station.x,y:station.y},'stop badge target is outside its own map tile');
   // Picking on the map closes the Routes drawer; Escape leaves it closed.
-  const resetStops=async()=>{if(!(await page.locator('#route-form [name="mode"]').isVisible()))await page.locator('.main-nav [data-view="routes"]').click();await page.locator('#route-form [name="mode"]').selectOption('rail');await page.locator('#route-form [name="mode"]').selectOption('road');};
+  const resetStops=async()=>{if(!(await page.locator('#route-form [name="mode"]').isVisible())){await page.evaluate(()=>transport.setView('routes'));await page.locator('#new-route-button').click();}await page.locator('#route-form [name="mode"]').selectOption('rail');await page.locator('#route-form [name="mode"]').selectOption('road');};
   await resetStops();await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'a visible stop badge can select its stop beyond its tile');
@@ -126,13 +127,11 @@ try {
   await page.keyboard.press('Escape');await page.evaluate(()=>transport.setView('routes'));await resetStops();
   await openLayers(page);await setLayer(page,'stations',false);await page.locator('[data-layers-close]').click();
   // The game menu that holds Layers closes the Routes drawer.
-  if(!(await page.locator('[data-pick-route="from"]').isVisible()))await page.locator('.main-nav [data-view="routes"]').click();
+  if(!(await page.locator('[data-pick-route="from"]').isVisible())){await page.evaluate(()=>transport.setView('routes'));await page.locator('#new-route-button').click();}
   await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
-  assert.equal(await page.locator('#route-form [name="from"]').inputValue(),'','a hidden stop badge cannot intercept the neighboring tile');
-  assert.equal(await page.locator('[data-pick-route="from"]').getAttribute('aria-pressed'),'true','a miss keeps the start-stop picker active');
-  await page.mouse.click(stationPoints.tile.x,stationPoints.tile.y);
-  assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'the actual stop tile remains selectable while stop artwork is hidden');
+  assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'picking reveals matching stops even when the ordinary station layer is hidden');
+  assert.equal(await page.locator('[data-pick-route="to"]').getAttribute('aria-pressed'),'true','the selected departure proceeds to picking the arrival');
   await page.keyboard.press('Escape');await openLayers(page);await setLayer(page,'stations',true);await page.locator('[data-layers-close]').click();
   await page.evaluate(()=>transport.renderer.setZoom(1));await page.locator('.main-nav [data-view="build"]').click();
 

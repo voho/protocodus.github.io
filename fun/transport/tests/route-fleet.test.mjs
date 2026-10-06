@@ -10,7 +10,7 @@ const phase = (route, vehicle) => { const L = route.path.length - 1; return (veh
 // A stone quarry with a deep stockpile, 20 road tiles from a town that buys stone.
 function quarryFixture(stock = 2000) {
   const game = emptyGame(); game.cities = [town('Stoneford', 30, 9)];
-  assert.equal(build(game, 'quarry', 9, 9).ok, true);
+  assert.equal(build(game, 'quarry', 9, 7).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   const quarry = game.industries[0]; quarry.inventory.stone = stock;

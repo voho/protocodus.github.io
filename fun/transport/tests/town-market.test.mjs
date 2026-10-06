@@ -31,7 +31,7 @@ function foodLine(fixture, trucks = 1) {
 // A food plant beside a road east to a 900-resident town without shops, as in the cargo payment tests.
 function foodRun() {
   const game = emptyGame();
-  assert.ok(build(game, 'food-plant', 10, 8).ok);
+  assert.ok(build(game, 'food-plant', 10, 7).ok);
   const city = town(game, 30, 9, 900, 'town');
   assert.ok(buildPath(game, 'road', line(10, 30, 12)).ok);
   for (const x of [10, 30]) assert.ok(build(game, 'bus-stop', x, 12).ok);

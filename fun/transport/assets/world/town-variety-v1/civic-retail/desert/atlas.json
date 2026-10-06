@@ -21,8 +21,8 @@
     "civic:shop-bakery:desert:design-1",
     "civic:shop-butcher:desert:design-1"
   ],
-  "source": "source-registered.png",
-  "sourceSha256": "c1fe7f74241d9ac4d3d1dbd09ba05936302acfc7f1db756f0abe8925a39b31a0",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "2a56b5712383aae5fd65ee1baec84ed3db15b59542ab9ebc9bb2d799e64d9891",
   "sprites": [
     {
       "id": "civic:park-village:desert",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          149,
-          177,
-          490,
-          462
+          62,
+          133,
+          193,
+          246
         ],
         "rawAlphaBounds": [
-          149,
-          177,
-          491,
-          463
+          64,
+          135,
+          192,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.847092
+        "transparentFraction": 0.881439
       },
       "bounds": [
-        12,
-        50,
-        244,
+        64,
+        135,
+        192,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "civic:park-formal:desert",
       "cell": 1,
       "sourceBounds": [
-        640,
+        256,
         0,
-        1280,
-        640
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          141,
-          172,
-          498,
-          467
+          62,
+          137,
+          194,
+          246
         ],
         "rawAlphaBounds": [
-          140,
-          171,
-          499,
-          468
+          64,
+          139,
+          192,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.856111
+        "transparentFraction": 0.881958
       },
       "bounds": [
-        12,
-        52,
-        244,
+        64,
+        139,
+        192,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "civic:park-woodland:desert",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        512,
         0,
-        1920,
-        640
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          145,
-          164,
-          494,
-          476
+          80,
+          161,
+          177,
+          246
         ],
         "rawAlphaBounds": [
-          144,
+          82,
           163,
-          495,
-          477
+          175,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.821826
+        "transparentFraction": 0.933289
       },
       "bounds": [
-        12,
-        37,
-        244,
+        82,
+        163,
+        175,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          145,
-          169,
-          494,
-          470
+          64,
+          141,
+          193,
+          246
         ],
         "rawAlphaBounds": [
-          144,
-          168,
-          495,
-          471
+          65,
+          143,
+          191,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.827886
+        "transparentFraction": 0.875122
       },
       "bounds": [
-        12,
-        44,
-        244,
+        65,
+        143,
+        191,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "civic:mall-shopping:desert",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          136,
-          151,
-          504,
-          488
+          76,
+          173,
+          179,
+          246
         ],
         "rawAlphaBounds": [
-          135,
-          151,
-          505,
-          489
+          78,
+          175,
+          177,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.802957
+        "transparentFraction": 0.929733
       },
       "bounds": [
-        12,
-        32,
-        244,
+        78,
+        175,
+        177,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "civic:mall-modern:desert",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          136,
-          162,
-          504,
-          477
+          80,
+          174,
+          177,
+          246
         ],
         "rawAlphaBounds": [
-          135,
-          161,
-          505,
-          478
+          82,
+          176,
+          175,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.81394
+        "transparentFraction": 0.936569
       },
       "bounds": [
-        12,
-        45,
-        244,
+        82,
+        176,
+        175,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          150,
-          170,
-          490,
-          469
+          59,
+          105,
+          198,
+          245
         ],
         "rawAlphaBounds": [
-          149,
-          169,
-          491,
-          470
+          60,
+          106,
+          197,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.837632
+        "transparentFraction": 0.814056
       },
       "bounds": [
-        12,
-        40,
-        244,
+        60,
+        106,
+        197,
         244
       ]
     },
@@ -287,36 +287,36 @@
       "id": "civic:shop-bakery:desert:design-1",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        256,
+        512,
+        512,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          157,
-          169,
-          482,
-          470
+          61,
+          104,
+          196,
+          245
         ],
         "rawAlphaBounds": [
-          156,
-          168,
-          483,
-          471
+          62,
+          105,
+          195,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.842092
+        "transparentFraction": 0.81163
       },
       "bounds": [
-        12,
-        29,
-        244,
+        62,
+        105,
+        195,
         244
       ]
     },
@@ -324,38 +324,258 @@
       "id": "civic:shop-butcher:desert:design-1",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        512,
+        512,
+        768,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          149,
-          167,
-          490,
-          473
+          55,
+          121,
+          200,
+          245
         ],
         "rawAlphaBounds": [
-          148,
-          166,
-          490,
-          474
+          56,
+          122,
+          199,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.830981
+        "transparentFraction": 0.839722
       },
       "bounds": [
-        12,
-        36,
-        244,
+        56,
+        122,
+        199,
         244
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 30,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "shop-grocery",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-bakery",
+            "beforeCalibrationMasterPixels": 31,
+            "afterCalibrationMasterPixels": 23.14666666666667,
+            "afterCalibrationWorldPixels": 4.34
+          },
+          {
+            "id": "shop-butcher",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      },
+      "2": {
+        "referenceDoorMasterPixels": 21,
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "mall-neighborhood",
+            "beforeCalibrationMasterPixels": 21,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      },
+      "3": {
+        "referenceDoorMasterPixels": 20,
+        "targetDoorMasterPixels": 7.466666666666667,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "mall-shopping",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 7.466666666666667,
+            "afterCalibrationWorldPixels": 4.199999999999999
+          },
+          {
+            "id": "mall-modern",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 7.466666666666667,
+            "afterCalibrationWorldPixels": 4.199999999999999
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park-village:desert",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "civic:park-formal:desert",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "civic:park-woodland:desert",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "civic:mall-neighborhood:desert",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "civic:mall-shopping:desert",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "civic:mall-modern:desert",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "civic:shop-grocery:desert:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "id": "civic:shop-bakery:desert:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          640,
+          1280,
+          1280,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-butcher:desert:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          1280,
+          1280,
+          1920,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      }
+    ]
+  }
 }

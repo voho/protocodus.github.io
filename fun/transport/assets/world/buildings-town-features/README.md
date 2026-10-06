@@ -1,10 +1,10 @@
-# Town features (placeholder art)
+# Generated town features
 
-Simple images for the town features added with recipe 8: parks, play and sport, the town hall and three newer shops. They are rendered from the code drawings in [`town-feature-sprites.js`](../../../town-feature-sprites.js) by [`tools/render-town-features.mjs`](../../../tools/render-town-features.mjs), and are meant to be replaced by painted art in the style of the other buildings.
+All eleven town features use image-generated, hand-painted artwork matching the civic and commerce families. The previous procedural placeholder atlases were replaced on 2026-10-06. The code in [`town-feature-sprites.js`](../../../town-feature-sprites.js) remains the loading/error fallback; it is not the source of the shipped images.
 
 ## Sheet
 
-Each climate folder (`taiga/`, `tundra/`, `desert/`) holds one sheet at five densities: `atlas-16.png`, `atlas-32.png`, `atlas-64.png`, `atlas-128.png` and `atlas-256.png`, each exactly 4 × 3 cells of 16, 32, 64, 128 or 256 px. `raster-buildings.js` registers the cells in this order:
+Each climate folder (`taiga/`, `tundra/`, `desert/`) holds a 4 × 3 sheet at five densities: `atlas-16.png`, `atlas-32.png`, `atlas-64.png`, `atlas-128.png` and `atlas-256.png`. `atlas.png` is the 256px master. The runtime registration in `raster-buildings.js` keeps this order:
 
 | Row | Cells |
 | --- | --- |
@@ -12,24 +12,24 @@ Each climate folder (`taiga/`, `tundra/`, `desert/`) holds one sheet at five den
 | 2 | `tennis-courts` (1 × 1), `ballpark` (3 × 3), `sports-hall` (2 × 2), `town-hall` (2 × 2) |
 | 3 | `shop-cafe` (1 × 1), `shop-pharmacy` (1 × 1), `shop-bookshop` (1 × 1), empty |
 
-## Camera and scale
+## Shared art direction and scale
 
-The game's fixed 2:1 dimetric camera, as for every painted building ([camera audit](../camera-audit.md)). A cell is the sprite's 32-unit box whatever the footprint: the renderer scales it by the footprint, so a 3 × 3 ballpark is drawn in the same cell as a 1 × 1 café. The footprint's plate is a diamond centred at (16, 24) units, 29 units wide and 14.5 tall: in a 256 px cell, centred at (128, 192), corners at x 12 and 244 and y 134 and 250. Buildings rise from the plate towards the top of the cell; keep the background transparent.
+Every generation uses `buildingGenerationPrompt()` from [`sprite-art-direction.js`](../../../sprite-art-direction.js), with footprints read from `BUILDINGS`. The fresh generated civic sheet is the style reference: fixed 2:1 dimetric camera, northwest light, softly painted natural materials, broad roof and wall masses, and recognizable sports surfaces. A tile represents 16 metres; normal personnel entrances are 2.1m high and storeys are 3m. Larger parcels add rooms, wings and garden space without enlarging human features.
 
-## Replacing the images
+`scale-2026-10-06.json` records measured personnel-door edges in the accepted Taiga source. Every complete cutout within a footprint tier receives one shared uniform calibration; bounds locate the ground contact and never determine scale. Shops measure approximately 3.9–4.3 world pixels per doorway, and the pool pavilion and town hall approximately 4.1–4.3 pixels, against the shared 4.2px target. Tundra and desert are image-generation edits of that accepted base, preserving its building geometry.
 
-Generate one transparent 256 px image per identity and climate with the camera and plate above, matching the painted buildings in `buildings-civic/` (prompts in [isometric-architecture-prompts.json](../isometric-architecture-prompts.json)). Pack them into the 4 × 3 sheet in the order above and write all five densities; `tools/build-world-atlases.py` makes the smaller densities from a 256 px master. Climate finishes follow the other buildings: snow on tundra roofs, sandstone and palms in the desert.
+Original RGBA cutouts are preserved with genuine transparent backgrounds. Packing only registers and uniformly resamples them with premultiplied alpha. The full calibrated 256px parcel grid is retained, and mipmaps do not sharpen tiny details. All eleven sprites are separate alpha components in each raw sheet; the bottom-right slot is empty. Actual Town and Region previews were reviewed before climate derivation.
 
-What each image shows:
+## Provenance and rebuilding
 
-- **Park**: lawns, crossing gravel paths, a round fountain, trees, benches and flower beds.
-- **Playground**: a soft play surface, swings, a slide, a sandpit, a roundabout and a low fence.
-- **Swimming pool**: an outdoor pool with lanes, a paved deck with loungers and parasols, and a changing pavilion.
-- **Sports field**: a marked football pitch with goals, a small covered stand and floodlights.
-- **Tennis courts**: a marked hard court (clay in the desert) with a net and a wire fence.
-- **Ballpark**: a baseball diamond with stands curling behind home plate, light towers and a scoreboard.
-- **Sports hall**: a long indoor hall under a barrel roof, a glazed entrance and a few parked cars.
-- **Town hall**: a symmetrical civic building with a columned portico, a clock tower and a flag.
-- **Café**, **Pharmacy**, **Bookshop**: two-storey shops; a striped awning with tables outside, a green cross sign, a window of books.
+Each climate includes the raw `source-generated-2026-10-06.png`, its calibrated registered sheet, `generation-2026-10-06.json` with the canonical job and exact image-generation/edit prompt, `packing-2026-10-06.json`, `atlas.json`, and isolated master cutouts in `sources/`. An initial generation with touching sports/planting gutters was rejected; a subsequent image-generation edit created the accepted separate sprites. The rejected Taiga draft is retained only as that edit's source reference and is never loaded by the game.
 
-Until a density loads, and if it fails, the sprites draw the same features in code, so the images can change without touching the game.
+To repack these accepted sources at the recorded shared physical scale:
+
+```sh
+python3 tools/pack-town-feature-atlases.py assets/world/buildings-town-features
+```
+
+The helper validates eleven complete disconnected sprites, preserves their original RGBA pixels, applies the shared tier calibration, then calls the common atlas packer with `--aligned --preserve-grid-scale --no-sharpen`. New source generations must follow the canonical instructions and be measured and reviewed at game zoom levels before replacing the accepted files. `tools/render-town-features.mjs` exports native fallback previews to `/tmp/transport-native-town-features` by default so those previews cannot overwrite this production art.
+
+The park has a fountain and crossing paths; the playground has a slide and swings; the pool has a modest changing pavilion; the football pitch, tennis court and baseball diamond retain distinct surfaces; the sports hall has a barrel roof; the town hall has a clock turret. The café, pharmacy and bookshop use shared high-street proportions with restrained awnings and large identifying symbols, without lettering or book-spine grids.

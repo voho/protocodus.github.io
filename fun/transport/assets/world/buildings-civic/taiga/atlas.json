@@ -21,8 +21,8 @@
     "shop-grocery",
     "shop-bakery"
   ],
-  "source": "source-isometric-packed.png",
-  "sourceSha256": "1f6538366e2e2718f4ef79fa19398495533b71e7c67f3ed195fcdb9105eec3a3",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "da5c59c266296f49f08bb4a516d36d3202b38916453b044c5edb1951f2778ecd",
   "sprites": [
     {
       "id": "school",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          169,
-          166,
-          470,
-          474
+          54,
+          142,
+          202,
+          245
         ],
         "rawAlphaBounds": [
-          168,
-          165,
-          471,
-          475
+          55,
+          143,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.869241
+        "transparentFraction": 0.85939
       },
       "bounds": [
-        14,
-        12,
-        241,
+        55,
+        143,
+        201,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "hospital",
       "cell": 1,
       "sourceBounds": [
-        640,
+        256,
         0,
-        1280,
-        640
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          178,
-          191,
-          462,
-          448
+          50,
+          134,
+          204,
+          245
         ],
         "rawAlphaBounds": [
-          177,
-          190,
-          463,
-          449
+          52,
+          135,
+          203,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.88012
+        "transparentFraction": 0.82814
       },
       "bounds": [
-        12,
-        34,
-        244,
+        52,
+        135,
+        203,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "police-station",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        512,
         0,
-        1920,
-        640
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          176,
-          187,
-          464,
-          453
+          64,
+          115,
+          192,
+          246
         ],
         "rawAlphaBounds": [
-          175,
-          187,
-          465,
-          454
+          66,
+          116,
+          190,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.875117
+        "transparentFraction": 0.874832
       },
       "bounds": [
-        12,
-        30,
-        244,
+        66,
+        116,
+        190,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          167,
-          175,
-          473,
-          465
+          56,
+          125,
+          201,
+          245
         ],
         "rawAlphaBounds": [
-          166,
-          175,
-          474,
-          466
+          58,
+          127,
+          199,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.868081
+        "transparentFraction": 0.84407
       },
       "bounds": [
-        12,
-        24,
-        244,
+        58,
+        127,
+        199,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "stadium",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          155,
-          178,
-          484,
-          461
+          56,
+          137,
+          199,
+          246
         ],
         "rawAlphaBounds": [
-          154,
-          177,
-          485,
-          462
+          58,
+          139,
+          198,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.846614
+        "transparentFraction": 0.856308
       },
       "bounds": [
-        12,
-        44,
-        244,
+        58,
+        139,
+        198,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "church",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          177,
-          158,
-          462,
-          482
+          69,
+          88,
+          189,
+          246
         ],
         "rawAlphaBounds": [
-          176,
-          157,
-          463,
-          483
+          70,
+          90,
+          187,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.875759
+        "transparentFraction": 0.857971
       },
       "bounds": [
-        26,
-        12,
-        230,
+        70,
+        90,
+        187,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          172,
-          186,
-          468,
-          453
+          41,
+          82,
+          216,
+          245
         ],
         "rawAlphaBounds": [
-          171,
-          185,
-          469,
-          454
+          42,
+          83,
+          215,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.871538
+        "transparentFraction": 0.711395
       },
       "bounds": [
-        12,
-        35,
-        244,
+        42,
+        83,
+        215,
         244
       ]
     },
@@ -287,36 +287,36 @@
       "id": "shop-grocery",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        256,
+        512,
+        512,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          175,
-          184,
-          465,
-          455
+          42,
+          81,
+          214,
+          245
         ],
         "rawAlphaBounds": [
-          174,
-          184,
-          466,
-          456
+          43,
+          82,
+          213,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.873135
+        "transparentFraction": 0.717163
       },
       "bounds": [
-        12,
-        27,
-        244,
+        43,
+        82,
+        213,
         244
       ]
     },
@@ -324,38 +324,276 @@
       "id": "shop-bakery",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        512,
+        512,
+        768,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          179,
-          198,
-          461,
-          441
+          41,
+          81,
+          216,
+          245
         ],
         "rawAlphaBounds": [
-          178,
-          197,
-          462,
-          442
+          42,
+          83,
+          214,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.875779
+        "transparentFraction": 0.72345
       },
       "bounds": [
-        12,
-        44,
-        244,
+        42,
+        83,
+        214,
         244
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 30,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "pub",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-grocery",
+            "beforeCalibrationMasterPixels": 26,
+            "afterCalibrationMasterPixels": 19.413333333333338,
+            "afterCalibrationWorldPixels": 3.6400000000000006
+          },
+          {
+            "id": "shop-bakery",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      },
+      "2": {
+        "referenceDoorMasterPixels": 20,
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "school",
+            "beforeCalibrationMasterPixels": 18,
+            "afterCalibrationMasterPixels": 10.080000000000002,
+            "afterCalibrationWorldPixels": 3.7800000000000007
+          },
+          {
+            "id": "hospital",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "police-station",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "fire-station",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "church",
+            "beforeCalibrationMasterPixels": 22,
+            "afterCalibrationMasterPixels": 12.320000000000002,
+            "afterCalibrationWorldPixels": 4.620000000000001
+          }
+        ]
+      },
+      "3": {
+        "referenceDoorMasterPixels": 16,
+        "targetDoorMasterPixels": 7.466666666666667,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "stadium",
+            "beforeCalibrationMasterPixels": 16,
+            "afterCalibrationMasterPixels": 7.466666666666667,
+            "afterCalibrationWorldPixels": 4.199999999999999
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "school",
+        "footprint": 2,
+        "uniformTierFactor": 0.56,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.34296650717703353,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "hospital",
+        "footprint": 2,
+        "uniformTierFactor": 0.56,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.34296650717703353,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "police-station",
+        "footprint": 2,
+        "uniformTierFactor": 0.56,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.34296650717703353,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "fire-station",
+        "footprint": 2,
+        "uniformTierFactor": 0.56,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.34296650717703353,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "stadium",
+        "footprint": 3,
+        "uniformTierFactor": 0.4666666666666667,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.2858054226475279,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "church",
+        "footprint": 2,
+        "uniformTierFactor": 0.56,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.34296650717703353,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "pub",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "id": "shop-grocery",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          640,
+          1280,
+          1280,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 8,
+        "id": "shop-bakery",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          1280,
+          1280,
+          1920,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      }
+    ]
+  }
 }

@@ -8,12 +8,12 @@ import { emptyGame, tileAt } from './helpers.mjs';
 
 test('new site definitions and stored compact instances have distinct sizes',()=>{
   for(const [kind,size] of [['house-cheap-1',1],['house-normal-3',1],['pub',1],['school',2],['house-expensive-1',2],['service-bank',2],['stadium',3],['factory',2],['apartment',2],['office',2]])assert.equal(buildingFootprint(kind),size,kind);
-  assert.equal(industryFootprint('oil-well'),3);assert.equal(industryFootprint('steel-mill'),3);
+  assert.equal(industryFootprint('oil-well'),5);assert.equal(industryFootprint('steel-mill'),5);
   assert.equal(buildingSize({kind:'stadium'}),1);assert.equal(industrySize({kind:'steel-mill'}),1);
 });
 
-test('a stored extent is one, two or three tiles and anything else is a one-tile site',()=>{
-  for(const [footprint,size] of [[1,1],[2,2],[3,3],[0,1],[4,1],[-2,1],[2.5,1],['2',1],[null,1],[undefined,1],[NaN,1]])assert.equal(siteSize({footprint}),size,String(footprint));
+test('stored site extents include current 5×5 and legacy 7×7 industries',()=>{
+  for(const [footprint,size] of [[1,1],[2,2],[3,3],[5,5],[7,7],[0,1],[4,1],[6,1],[-2,1],[2.5,1],['2',1],[null,1],[undefined,1],[NaN,1]])assert.equal(siteSize({footprint}),size,String(footprint));
   assert.equal(siteSize(null),1);assert.equal(siteSize(undefined),1);assert.equal(buildingSize({kind:'stadium',footprint:3}),3);
 });
 
@@ -73,18 +73,20 @@ test('zoned expansion preserves its growth anchor and consumes only child zone r
   assert.equal(build(game,'bulldoze',21,21).ok,true);assert.equal(game.zones.length,0);assert.equal(tileAt(game,20,20).zone,null);
 });
 
-test('3×3 buildings and industries survive lossless current saves',()=>{
+test('3×3 buildings and 5×5 industries survive lossless current saves',()=>{
   const game=emptyGame();build(game,'stadium',20,20);build(game,'steel-mill',30,20);
   const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(validateGame(loaded),true);
-  assert.equal(buildingAt(loaded,22,22).building.footprint,3);assert.equal(industryAt(loaded,32,22).footprint,3);
+  assert.equal(buildingAt(loaded,22,22).building.footprint,3);assert.equal(industryAt(loaded,34,24).footprint,5);
   assert.deepEqual(loaded.tiles,game.tiles);assert.equal(loaded.revision,game.revision);
-  assert.equal(industryTiles(loaded.industries[0]).length,9);
+  assert.equal(industryTiles(loaded.industries[0]).length,25);
 });
 
 test('save validation rejects inconsistent extents and occupied footprint cells',()=>{
   const base=emptyGame();build(base,'stadium',20,20);build(base,'steel-mill',30,20);
   const corruptions=[
     g=>{tileAt(g,20,20).building.footprint=4;},
+    g=>{tileAt(g,20,20).building.footprint=5;},
+    g=>{tileAt(g,20,20).building.footprint=7;},
     g=>{tileAt(g,20,20).building.footprint='3';},
     g=>{tileAt(g,20,20).building.kind='pub';},
     g=>{tileAt(g,g.width-1,20).building=tileAt(g,20,20).building;tileAt(g,20,20).building=null;},
@@ -98,8 +100,9 @@ test('save validation rejects inconsistent extents and occupied footprint cells'
     g=>{g.industries[0].footprint=null;},
     g=>{g.industries[0].footprint='3';},
     g=>{g.industries[0].footprint=4;},
-    g=>{tileAt(g,32,22).rail=true;},
-    g=>{g.stations.push({id:'invalid-stop',name:'Invalid',mode:'road',x:32,y:22});},
+    g=>{g.industries[0].footprint=7;},
+    g=>{tileAt(g,34,24).rail=true;},
+    g=>{g.stations.push({id:'invalid-stop',name:'Invalid',mode:'road',x:34,y:24});},
   ];
   for(const corrupt of corruptions){const game=structuredClone(base);corrupt(game);assert.equal(validateGame(game),false,String(corrupt));assert.equal(restoreGame(game),null,String(corrupt));}
 });
@@ -109,8 +112,8 @@ test('legacy migration expands clear sites in place and preserves all operating 
   tileAt(game,20,20).building={kind:'stadium',level:2,populationCityId:null};
   build(game,'steel-mill',30,20);const industry=game.industries[0];industry.footprint=2;industry.capacity=1.7;industry.inventory.coal=71;industry.production=14;industry.shipped=33;
   const before=structuredClone(industry),building=structuredClone(tileAt(game,20,20).building),money=game.money;
-  const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(loaded.siteFootprintVersion,2);assert.equal(loaded.money,money);
-  assert.deepEqual(buildingAt(loaded,22,22).building,{...building,footprint:3});assert.deepEqual(loaded.industries[0],{...before,footprint:3});assert.equal(validateGame(loaded),true);
+  const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(loaded.siteFootprintVersion,3);assert.equal(loaded.money,money);
+  assert.deepEqual(buildingAt(loaded,22,22).building,{...building,footprint:3});assert.deepEqual(loaded.industries[0],{...before,footprint:5});assert.equal(validateGame(loaded),true);
   const again=restoreGame(encodeGame(loaded));assert.equal(again.revision,loaded.revision);assert.deepEqual(again.tiles,loaded.tiles);
 });
 
@@ -138,10 +141,10 @@ test('demolishing a prestige home from a child tile removes its residents exactl
   assert.equal(build(game,'bulldoze',20,20).ok,false);assert.equal(city.population,population);
 });
 
-test('3×3 industry demolition from a far corner frees all nine cells with one charge',()=>{
-  const game=emptyGame();build(game,'steel-mill',20,20);const before=game.money,cost=constructionCost(game,'bulldoze',22,22);
-  assert.equal(build(game,'bulldoze',22,22).ok,true);assert.equal(game.money,before-cost);assert.equal(game.industries.length,0);
-  for(let y=20;y<23;y++)for(let x=20;x<23;x++)assert.equal(build(game,'road',x,y).ok,true);
+test('5×5 industry demolition from a far corner frees all 25 cells with one charge',()=>{
+  const game=emptyGame();build(game,'steel-mill',20,20);const before=game.money,cost=constructionCost(game,'bulldoze',24,24);
+  assert.equal(build(game,'bulldoze',24,24).ok,true);assert.equal(game.money,before-cost);assert.equal(game.industries.length,0);
+  for(let y=20;y<25;y++)for(let x=20;x<25;x++)assert.equal(build(game,'road',x,y).ok,true);
   assert.equal(validateGame(game),true);
 });
 

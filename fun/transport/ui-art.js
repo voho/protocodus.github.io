@@ -54,7 +54,7 @@ export function drawUIArtwork(root, game) {
       context.drawImage(sprite, 16, 8, 64, 80);
     } else if (canvas.dataset.industrySprite) {
       const kind = canvas.dataset.industrySprite;
-      if (industrySize !== 7 || !drawFarmPortrait(context, kind, game.biome, { x: 8, y: 0, width: 96, height: 108, pixelScale: density, variant: industryVariant }))
+      if (industrySize < 5 || !drawFarmPortrait(context, kind, game.biome, { x: 8, y: 0, width: 96, height: 108, pixelScale: density, variant: industryVariant, footprint: industrySize }))
         context.drawImage(sprites(kind, industryVariant, industrySize), 8, 0, 96, 108);
     } else if (canvas.dataset.infrastructureSprite) {
       const size = Math.min(width, height);

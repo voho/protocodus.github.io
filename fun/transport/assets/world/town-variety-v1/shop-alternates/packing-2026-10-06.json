@@ -1,0 +1,410 @@
+{
+  "operation": "Measured human-door scale; uniform complete-cell calibration within footprint tiers, fixed contact anchor, no silhouette fitting, premultiplied-alpha mipmaps without sharpening",
+  "sheets": [
+    {
+      "biome": "taiga",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "ffaf5ed1871f3c6823934e378a3b1904ad80cab7f4284687d68251803a83f65f",
+      "calibratedSha256": "8c4c7d8c615744b35811978f1fa41ca33b06780c2e249091cbd0c0e847727f2d",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:shop-hardware:taiga:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:shop-florist:taiga:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:shop-grocery:taiga:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:shop-bakery:taiga:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:shop-butcher:taiga:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:shop-hardware:taiga:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-florist:taiga:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "empty": true
+        },
+        {
+          "cell": 8,
+          "empty": true
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "afc72a893bade7b21d213a2043aa24b1792d262bb8ddda890295a0d3f3c3e006",
+      "calibratedSha256": "1d60aab475f713ae5be276273eb0242b95f755486cda8ea5c5e1d579b5f6aab6",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:shop-hardware:tundra:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:shop-florist:tundra:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:shop-grocery:tundra:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:shop-bakery:tundra:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:shop-butcher:tundra:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:shop-hardware:tundra:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-florist:tundra:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "empty": true
+        },
+        {
+          "cell": 8,
+          "empty": true
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "e289b37d316d87348b8547c72239f61d1ee81020f5e4c7a6602b1e5050c3a27c",
+      "calibratedSha256": "8a2fa56755cbdc708ca4b8dd001bc60acf0bc59fbe3dc9b52a5b9814fd8345cf",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:shop-hardware:desert:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:shop-florist:desert:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:shop-grocery:desert:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:shop-bakery:desert:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:shop-butcher:desert:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:shop-hardware:desert:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-florist:desert:design-2",
+          "footprint": 1,
+          "uniformTierFactor": 0.64,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3919617224880383,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "empty": true
+        },
+        {
+          "cell": 8,
+          "empty": true
+        }
+      ]
+    }
+  ]
+}

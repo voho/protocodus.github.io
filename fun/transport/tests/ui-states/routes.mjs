@@ -1,6 +1,5 @@
 // Routes states over the audit's stone route: the list, room for more, a route being edited, a filled New route form,
-// picking a stop on the map and the retire confirmation. Route cards have no collapsed form yet, so the
-// edit form stands in for the expanded route until the routes drawer gets rows.
+// picking a stop on the map and the retire confirmation. Creation and editing use separate focused screens.
 import { freshWorld, openView, rest, settle, stoneRoute } from './setup.mjs';
 import { clearToasts } from './setup.mjs';
 
@@ -14,7 +13,6 @@ async function routes(page) {
 export const states = [
   { name: 'routes-list', async setup(page) {
     await routes(page);
-    if (await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
     await rest(page);
     await settle(page);
   } },
@@ -29,7 +27,7 @@ export const states = [
   } },
   { name: 'routes-new-form', async setup(page) {
     await routes(page);
-    if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
+    await page.locator('#new-route-button').click();
     const stop = await page.evaluate(() => String(transport.game.stations.find(station => station.x === 219 && station.y === 251).id));
     await page.locator('#route-form select[name="from"]').selectOption(stop);
     await page.locator('#route-form select[name="to"]').selectOption('station-2');
@@ -39,7 +37,7 @@ export const states = [
   } },
   { name: 'routes-picking', async setup(page) {
     await routes(page);
-    if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
+    await page.locator('#new-route-button').click();
     await page.locator('[data-pick-route="from"]').click();
     await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
     await settle(page);
@@ -48,7 +46,7 @@ export const states = [
   { name: 'routes-room', async setup(page) {
     await routes(page);
     await page.evaluate(async () => { const { tick } = await import('./model.js'); for (let day = 0; day < 90; day++) tick(transport.game, 1); });
-    if (await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click();
+    await page.locator('.route-card-details').evaluateAll(list => list.forEach(el => el.open=true));
     const room = page.locator('[data-route-room]:not([hidden])').first();
     await room.waitFor();
     await room.evaluate(el => el.closest('.route-card').scrollIntoView({ block: 'center' }));

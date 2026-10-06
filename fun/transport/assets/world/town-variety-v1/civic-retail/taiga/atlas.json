@@ -21,8 +21,8 @@
     "civic:shop-bakery:taiga:design-1",
     "civic:shop-butcher:taiga:design-1"
   ],
-  "source": "source-registered.png",
-  "sourceSha256": "a042575919fb8e6a18b277787b6285e3e863ecea3ba9664cd00467350e088de5",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "248b005d3ffdbcf2135177bb7c3eaf799084e3424e5d5cd6e43cda0c51360efc",
   "sprites": [
     {
       "id": "civic:park-village:taiga",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          173,
-          196,
-          466,
-          443
+          64,
+          137,
+          193,
+          246
         ],
         "rawAlphaBounds": [
-          172,
-          195,
-          467,
-          444
+          66,
+          138,
+          191,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.887346
+        "transparentFraction": 0.889069
       },
       "bounds": [
-        12,
-        48,
-        244,
+        66,
+        138,
+        191,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "civic:park-formal:taiga",
       "cell": 1,
       "sourceBounds": [
-        640,
+        256,
         0,
-        1280,
-        640
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          166,
-          192,
-          474,
-          448
+          64,
+          140,
+          193,
+          246
         ],
         "rawAlphaBounds": [
-          165,
-          192,
-          475,
-          449
+          66,
+          142,
+          191,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.892732
+        "transparentFraction": 0.888885
       },
       "bounds": [
-        12,
-        51,
-        244,
+        66,
+        142,
+        191,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "civic:park-woodland:taiga",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        512,
         0,
-        1920,
-        640
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          167,
-          180,
-          473,
-          460
+          80,
+          162,
+          175,
+          246
         ],
         "rawAlphaBounds": [
-          166,
-          179,
-          474,
-          461
+          82,
+          164,
+          173,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.860464
+        "transparentFraction": 0.936264
       },
       "bounds": [
-        12,
-        32,
-        244,
+        82,
+        164,
+        173,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          162,
-          184,
-          477,
-          455
+          64,
+          145,
+          192,
+          246
         ],
         "rawAlphaBounds": [
-          161,
-          183,
-          478,
-          456
+          66,
+          146,
+          190,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.858188
+        "transparentFraction": 0.880844
       },
       "bounds": [
-        12,
-        44,
-        244,
+        66,
+        146,
+        190,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "civic:mall-shopping:taiga",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          158,
-          166,
-          481,
-          473
+          78,
+          175,
+          179,
+          246
         ],
         "rawAlphaBounds": [
-          157,
-          166,
-          482,
-          474
+          80,
+          177,
+          177,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.83646
+        "transparentFraction": 0.9328
       },
       "bounds": [
-        12,
-        23,
-        244,
+        80,
+        177,
+        177,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "civic:mall-modern:taiga",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          156,
+          80,
           176,
-          484,
-          463
+          176,
+          246
         ],
         "rawAlphaBounds": [
-          155,
-          175,
-          485,
-          464
+          82,
+          178,
+          174,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.845027
+        "transparentFraction": 0.938843
       },
       "bounds": [
-        12,
-        41,
-        244,
+        82,
+        178,
+        174,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          172,
-          183,
-          468,
-          457
+          61,
+          113,
+          196,
+          245
         ],
         "rawAlphaBounds": [
-          171,
-          182,
-          469,
-          457
+          62,
+          114,
+          195,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.865493
+        "transparentFraction": 0.830185
       },
       "bounds": [
-        12,
-        29,
-        244,
+        62,
+        114,
+        195,
         244
       ]
     },
@@ -287,36 +287,36 @@
       "id": "civic:shop-bakery:taiga:design-1",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        256,
+        512,
+        512,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          178,
-          183,
-          462,
-          456
+          63,
+          108,
+          193,
+          245
         ],
         "rawAlphaBounds": [
-          177,
-          182,
-          462,
-          456
+          64,
+          109,
+          192,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.872036
+        "transparentFraction": 0.823761
       },
       "bounds": [
-        12,
-        21,
-        244,
+        64,
+        109,
+        192,
         244
       ]
     },
@@ -324,38 +324,258 @@
       "id": "civic:shop-butcher:taiga:design-1",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        512,
+        512,
+        768,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          173,
-          183,
-          467,
-          456
+          57,
+          127,
+          199,
+          245
         ],
         "rawAlphaBounds": [
-          172,
-          182,
-          468,
-          457
+          58,
+          128,
+          198,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.86415
+        "transparentFraction": 0.853226
       },
       "bounds": [
-        12,
-        29,
-        244,
+        58,
+        128,
+        198,
         244
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 30,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "shop-grocery",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-bakery",
+            "beforeCalibrationMasterPixels": 31,
+            "afterCalibrationMasterPixels": 23.14666666666667,
+            "afterCalibrationWorldPixels": 4.34
+          },
+          {
+            "id": "shop-butcher",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      },
+      "2": {
+        "referenceDoorMasterPixels": 21,
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "mall-neighborhood",
+            "beforeCalibrationMasterPixels": 21,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      },
+      "3": {
+        "referenceDoorMasterPixels": 20,
+        "targetDoorMasterPixels": 7.466666666666667,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "mall-shopping",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 7.466666666666667,
+            "afterCalibrationWorldPixels": 4.199999999999999
+          },
+          {
+            "id": "mall-modern",
+            "beforeCalibrationMasterPixels": 20,
+            "afterCalibrationMasterPixels": 7.466666666666667,
+            "afterCalibrationWorldPixels": 4.199999999999999
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park-village:taiga",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "civic:park-formal:taiga",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "civic:park-woodland:taiga",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "civic:mall-neighborhood:taiga",
+        "footprint": 2,
+        "uniformTierFactor": 0.5333333333333334,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.32663476874003194,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "civic:mall-shopping:taiga",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "civic:mall-modern:taiga",
+        "footprint": 3,
+        "uniformTierFactor": 0.37333333333333335,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.22864433811802232,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "civic:shop-grocery:taiga:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "id": "civic:shop-bakery:taiga:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          640,
+          1280,
+          1280,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-butcher:taiga:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          1280,
+          1280,
+          1920,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      }
+    ]
+  }
 }

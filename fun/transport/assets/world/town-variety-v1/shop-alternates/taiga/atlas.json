@@ -21,8 +21,8 @@
     null,
     null
   ],
-  "source": "source-generated.png",
-  "sourceSha256": "729536f4a1136c548bf4da82089456f523ba91db1a8c84b1c0c25126f2a0ef90",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "8c4c7d8c615744b35811978f1fa41ca33b06780c2e249091cbd0c0e847727f2d",
   "sprites": [
     {
       "id": "civic:shop-hardware:taiga:design-1",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          67,
-          135,
-          369,
-          383
+          54,
+          117,
+          203,
+          246
         ],
         "rawAlphaBounds": [
-          0,
-          71,
-          418,
-          418
+          56,
+          118,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.699663
+        "transparentFraction": 0.826736
       },
       "bounds": [
-        12,
-        53,
-        244,
+        56,
+        118,
+        201,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "civic:shop-florist:taiga:design-1",
       "cell": 1,
       "sourceBounds": [
-        418,
+        256,
         0,
-        836,
-        418
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          72,
-          108,
-          370,
-          382
+          56,
+          126,
+          199,
+          245
         ],
         "rawAlphaBounds": [
-          1,
-          21,
-          418,
-          418
+          58,
+          128,
+          198,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.690632
+        "transparentFraction": 0.839111
       },
       "bounds": [
-        12,
-        31,
-        244,
+        58,
+        128,
+        198,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "civic:shop-grocery:taiga:design-2",
       "cell": 2,
       "sourceBounds": [
-        836,
+        512,
         0,
-        1254,
-        418
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          49,
-          114,
-          353,
-          384
+          53,
+          128,
+          203,
+          246
         ],
         "rawAlphaBounds": [
-          0,
-          21,
-          402,
-          418
+          54,
+          129,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.665329
+        "transparentFraction": 0.836777
       },
       "bounds": [
-        12,
-        38,
-        244,
+        54,
+        129,
+        201,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          56,
-          100,
-          382,
-          371
+          51,
+          115,
+          206,
+          246
         ],
         "rawAlphaBounds": [
-          0,
-          7,
-          418,
-          418
+          52,
+          117,
+          205,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.642425
+        "transparentFraction": 0.813721
       },
       "bounds": [
-        12,
-        51,
-        244,
+        52,
+        117,
+        205,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "civic:shop-butcher:taiga:design-2",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          62,
-          84,
-          383,
-          382
+          52,
+          123,
+          205,
+          245
         ],
         "rawAlphaBounds": [
-          1,
-          0,
-          418,
-          418
+          54,
+          124,
+          203,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.606082
+        "transparentFraction": 0.828842
       },
       "bounds": [
-        12,
-        29,
-        244,
+        54,
+        124,
+        203,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "civic:shop-hardware:taiga:design-2",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          45,
-          95,
-          375,
-          378
+          53,
+          126,
+          203,
+          245
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          396,
-          418
+          55,
+          127,
+          201,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.638001
+        "transparentFraction": 0.838089
       },
       "bounds": [
-        12,
-        45,
-        244,
+        55,
+        127,
+        201,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          256,
+          256
         ],
         "sourceBounds": [
-          54,
-          66,
-          400,
-          330
+          48,
+          121,
+          206,
+          245
         ],
         "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          399
+          50,
+          123,
+          205,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.649075
+        "transparentFraction": 0.82872
       },
       "bounds": [
-        12,
-        67,
-        244,
+        50,
+        123,
+        205,
         244
       ]
     },
@@ -289,5 +289,191 @@
     {
       "id": null
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 35,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "shop-hardware",
+            "beforeCalibrationMasterPixels": 34,
+            "afterCalibrationMasterPixels": 21.76,
+            "afterCalibrationWorldPixels": 4.08
+          },
+          {
+            "id": "shop-florist",
+            "beforeCalibrationMasterPixels": 34,
+            "afterCalibrationMasterPixels": 21.76,
+            "afterCalibrationWorldPixels": 4.08
+          },
+          {
+            "id": "shop-grocery",
+            "beforeCalibrationMasterPixels": 36,
+            "afterCalibrationMasterPixels": 23.040000000000003,
+            "afterCalibrationWorldPixels": 4.32
+          },
+          {
+            "id": "shop-bakery",
+            "beforeCalibrationMasterPixels": 33,
+            "afterCalibrationMasterPixels": 21.12,
+            "afterCalibrationWorldPixels": 3.96
+          },
+          {
+            "id": "shop-butcher",
+            "beforeCalibrationMasterPixels": 36,
+            "afterCalibrationMasterPixels": 23.040000000000003,
+            "afterCalibrationWorldPixels": 4.32
+          },
+          {
+            "id": "shop-hardware:modern",
+            "beforeCalibrationMasterPixels": 35,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-florist:modern",
+            "beforeCalibrationMasterPixels": 35,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:shop-hardware:taiga:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "civic:shop-florist:taiga:design-1",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "civic:shop-grocery:taiga:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "civic:shop-bakery:taiga:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "civic:shop-butcher:taiga:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "civic:shop-hardware:taiga:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "civic:shop-florist:taiga:design-2",
+        "footprint": 1,
+        "uniformTierFactor": 0.64,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.3919617224880383,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "empty": true
+      },
+      {
+        "cell": 8,
+        "empty": true
+      }
+    ]
+  }
 }

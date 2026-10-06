@@ -100,7 +100,7 @@ test('mail needs two different towns, and a freight pair never fits it', () => {
   assert.equal(addRoute(game, { mode: 'road', cargo: 'passengers', stops }).message, 'Passenger stops must serve two different towns within 5 tiles.');
   assert.equal(validateRoutePlan(game, { mode: 'road', cargo: 'mail', from: stops[0], to: stops[1] }).valid, false);
   const freight = emptyGame(); freight.cities = [town('solo', 'Alderbrook', 30, 10)]; freight.revision++;
-  assert.equal(build(freight, 'quarry', 9, 9).ok, true); assert.equal(buildPath(freight, 'road', line(10, 30, 12)).ok, true);
+  assert.equal(build(freight, 'quarry', 9, 7).ok, true); assert.equal(buildPath(freight, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(freight, 'bus-stop', x, 12).ok, true);
   const plan = validateRoutePlan(freight, { mode: 'road', cargo: 'mail', from: freight.stations[0].id, to: freight.stations[1].id });
   assert.equal(plan.valid, false); assert.match(plan.message, /different town/);

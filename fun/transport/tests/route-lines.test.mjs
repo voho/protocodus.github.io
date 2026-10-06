@@ -47,7 +47,7 @@ test('a new line avoids the colours at its stops, spreads over the palette and f
 // Three stone routes from one quarry stop: the second and third share the quarry with the first.
 function quarry() {
   const game = emptyGame();
-  assert.equal(build(game, 'quarry', 10, 9).ok, true);
+  assert.equal(build(game, 'quarry', 10, 7).ok, true);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 30, y: 10 }, { id: 'town-b', name: 'Pinehaven', x: 50, y: 10 }];
   assert.equal(buildPath(game, 'road', line(10, 50, 12)).ok, true);
   for (const x of [10, 30, 50]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);

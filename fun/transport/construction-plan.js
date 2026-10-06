@@ -121,7 +121,7 @@ function quotePlacements(game, tool, placements) {
   // One stop, port or town reads build()'s own verdict; strokes of zones or
   // demolition stay partial and say how much of the drag will be built.
   const refusal = n === 1 || !buildable ? buildProblem(game, first.tool, first.x, first.y) : null, partial = buildable > 0 && buildable < n;
-  const message = refusal ? refusal.message : partial ? `Builds ${buildable} of ${n}.${blocked ? ` ${tileCount(blocked)} ${blocked === 1 ? 'is' : 'are'} blocked.` : ''}${unaffordable ? ` Funds cover ${buildable}.` : ''}` : tool === 'city' ? 'A new town center.' : '';
+  const message = refusal ? refusal.message : partial ? `Builds ${buildable} of ${n}.${blocked ? ` ${tileCount(blocked)} ${blocked === 1 ? 'is' : 'are'} blocked.` : ''}${unaffordable ? ` Funds cover ${buildable}.` : ''}` : tool === 'city' ? 'A new town center.' : n===1&&first.tool==='bus-stop'&&!tileAt(game,first.x,first.y)?.road ? 'Road underneath included in the price.' : '';
   return { placements, cost, issues, buildable, blocked, unaffordable, partial, ok: !refusal && buildable > 0, message, ...ZONE_TOOLS.has(tool) && { needRoad: placements.filter(p => p.needsRoad).length } };
 }
 

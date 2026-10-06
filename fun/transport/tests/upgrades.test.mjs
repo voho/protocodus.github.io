@@ -11,8 +11,8 @@ const movement = vehicle => Object.fromEntries(['load', 'x', 'y', 'progress', 'd
 
 function fleetFixture(modes = ['road']) {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 7).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 7).ok, true);
   game.industries[0].inventory.timber = 900;
   for (const [index, mode] of modes.entries()) {
     const y = 13 + index;

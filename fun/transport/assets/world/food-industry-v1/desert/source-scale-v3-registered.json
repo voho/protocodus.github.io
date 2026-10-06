@@ -1,0 +1,123 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 608,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.42105263157894735,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 571585,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:dairy-farm:desert",
+      "sourceBounds": [
+        16,
+        36,
+        520,
+        337
+      ],
+      "offset": [
+        52,
+        278
+      ],
+      "pixels": 76040
+    },
+    {
+      "cell": 1,
+      "id": "industry:vegetable-farm:desert",
+      "sourceBounds": [
+        518,
+        48,
+        1022,
+        339
+      ],
+      "offset": [
+        52,
+        288
+      ],
+      "pixels": 74145
+    },
+    {
+      "cell": 2,
+      "id": "industry:orchard:desert",
+      "sourceBounds": [
+        1018,
+        47,
+        1528,
+        343
+      ],
+      "offset": [
+        49,
+        283
+      ],
+      "pixels": 77750
+    },
+    {
+      "cell": 3,
+      "id": "industry:livestock-farm:desert",
+      "sourceBounds": [
+        6,
+        350,
+        520,
+        667
+      ],
+      "offset": [
+        47,
+        262
+      ],
+      "pixels": 83252
+    },
+    {
+      "cell": 4,
+      "id": "industry:dairy-plant:desert",
+      "sourceBounds": [
+        515,
+        348,
+        1022,
+        670
+      ],
+      "offset": [
+        50,
+        257
+      ],
+      "pixels": 84603
+    },
+    {
+      "cell": 5,
+      "id": "industry:cannery:desert",
+      "sourceBounds": [
+        1019,
+        365,
+        1527,
+        673
+      ],
+      "offset": [
+        50,
+        271
+      ],
+      "pixels": 84648
+    },
+    {
+      "cell": 6,
+      "id": "industry:meat-packer:desert",
+      "sourceBounds": [
+        13,
+        674,
+        564,
+        996
+      ],
+      "offset": [
+        28,
+        257
+      ],
+      "pixels": 91147
+    },
+    {
+      "cell": 7,
+      "empty": true
+    },
+    {
+      "cell": 8,
+      "empty": true
+    }
+  ]
+}

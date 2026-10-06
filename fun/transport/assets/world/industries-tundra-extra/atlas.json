@@ -13,8 +13,8 @@
   "order": [
     "industry:equipment-factory:tundra"
   ],
-  "source": "source-isometric.png",
-  "sourceSha256": "5bb5cd85e1bffbe09cb73481afb2852deffe263f8fb6e07383718bfdb594769b",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "c9f1b0dfd5624df20d9cb28991b252bf67e5a1595bb0b49a0dae7454bd51b62f",
   "sprites": [
     {
       "id": "industry:equipment-factory:tundra",
@@ -22,36 +22,41 @@
       "sourceBounds": [
         0,
         0,
-        1254,
-        1254
+        1411,
+        1411
       ],
       "normalization": {
         "originalSize": [
-          1254,
-          1254
+          1411,
+          1411
         ],
         "sourceBounds": [
-          35,
-          279,
-          1221,
-          1140
+          84,
+          657,
+          1327,
+          1342
         ],
         "rawAlphaBounds": [
-          0,
-          21,
-          1221,
-          1144
+          83,
+          656,
+          1328,
+          1343
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.553035
+        "transparentFraction": 0.742848
       },
       "bounds": [
-        12,
-        76,
-        244,
-        244
+        13,
+        117,
+        243,
+        246
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 5,
+  "scaleContract": "../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

@@ -78,6 +78,9 @@ export function constructionCost(game,tool,x,y) {
     if(tile[mode]&&(!bridge||tile.bridge)&&(!tunnel||tile.tunnel))return 0;
     if(!tunnel)base+=tile.terrain==='forest'?80:tile.terrain==='rock'?100:0;
   }
+  // A road stop includes the short road underneath it when the parcel is bare.
+  // Quote both parts before construction so insufficient funds never leave half a stop.
+  if(tool==='bus-stop'&&tile&&!validNetwork(tile,'road'))return priceFor(game,base)+constructionCost(game,'road',x,y);
   return priceFor(game,base);
 }
 /** Why an airport cannot open with its north-west tile at (x, y): the whole 6 × 2 site must be dry, clear and level. */
@@ -107,7 +110,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
-    version:1, siteFootprintVersion:2, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
+    version:1, siteFootprintVersion:3, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
     money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -351,7 +354,11 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
       if(!DIRECTIONS.some(([dx,dy])=>{const shore=tileAt(game,x+dx,y+dy);return shore&&shore.terrain!=='water';}))return fail('Place a port directly beside the shore.','terrain');
     }else{
       if(industry||site||t.zone) return fail('Choose an unoccupied road or rail tile.');
-      if(!validNetwork(t,mode)) return fail(`Build a ${mode==='road'?'road':'railway'} here first.`);
+      if(!validNetwork(t,mode)) {
+        if(mode!=='road')return fail('Build a railway here first.');
+        const roadProblem=buildProblem(game,'road',x,y,{money:Infinity});
+        if(roadProblem)return roadProblem;
+      }
       if(t.bridge||t.tunnel) return fail('Stops can’t sit on a bridge or in a tunnel. Pick open ground beside it.');
     }
     const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} for this stop.`,'funds'):null;
@@ -446,12 +453,13 @@ export function build(game,tool,x,y) {
   }
   if(tool==='bus-stop'||tool==='train-stop'||tool==='port') {
     const mode=tool==='port'?'water':tool==='bus-stop'?'road':'rail';
-    const cost=constructionCost(game,tool,x,y);
+    const cost=constructionCost(game,tool,x,y),automaticRoad=mode==='road'&&!validNetwork(t,'road');
+    if(automaticRoad)build(game,'road',x,y); // buildProblem checked the land and combined balance before either part changes.
     const nearIndustry=game.industries.find(i=>industryDistance(i,point)<=STATION_RADIUS),nearCity=closestCity(game,point,STATION_RADIUS);
     const name=nextStationName(game,`${nearCity?.name||nearIndustry?.name||(mode==='water'?'Coastal':'Rural')} ${mode==='water'?'Port':mode==='road'?'Stop':'Station'}`);
     const newStation={id:makeId(game,'station'),name,x,y,mode};
-    spend(game,cost);game.stations.push(newStation);invalidateNetwork(game,[point]);
-    return result(true,`${name} opened.${spent(cost)}`,{cost,station:newStation});
+    spend(game,automaticRoad?priceFor(game,BUILD_COSTS[tool]):cost);game.stations.push(newStation);invalidateNetwork(game,[point]);
+    return result(true,`${name} opened${automaticRoad?' with a road':''}.${spent(cost)}`,{cost,station:newStation,...automaticRoad?{automaticRoad:true}:{}});
   }
   const cost=constructionCost(game,tool,x,y);
   if(ZONE_TYPES.includes(tool)) {
@@ -1290,12 +1298,12 @@ export function tick(game,days,{reserved=[],motion=null}={}) {
 }
 
 function finite(value,min=-Infinity,max=Infinity) {return typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max;}
-function validFootprint(site,maximum) {return site.footprint===undefined||[1,2,3,7].includes(site.footprint)&&site.footprint<=maximum;}
+function validFootprint(site,maximum) {return site.footprint===undefined||[1,2,3,5,7].includes(site.footprint)&&site.footprint<=maximum;}
 function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p.y)&&p.x>=0&&p.y>=0&&p.x<game.width&&p.y<game.height;}
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
   if(game.terrainObjectVersion!==undefined&&game.terrainObjectVersion!==1)return false;
-  if(game.siteFootprintVersion!==undefined&&![1,2].includes(game.siteFootprintVersion))return false;
+  if(game.siteFootprintVersion!==undefined&&![1,2,3].includes(game.siteFootprintVersion))return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!validGenerationOptions(game.size,game.generationOptions)||(game.generationOptions&&!(game.generationVersion>=7)))return false;
@@ -1324,7 +1332,7 @@ export function validateGame(game) {
   if(!game.tiles.every(tile=>tile.building?.populationCityId===undefined||tile.building.populationCityId===null||game.cities.some(city=>city.id===tile.building.populationCityId)))return false;
   if(!game.cities.every(c=>c.lastSupply===undefined||(c.lastSupply&&typeof c.lastSupply==='object'&&!Array.isArray(c.lastSupply)&&Object.entries(c.lastSupply).every(([cargo,day])=>TOWN_CARGO.includes(cargo)&&finite(day,0,game.day)))))return false;
   if(!game.industries.every(i=>validPoint(game,i)&&uniqueId(i)&&owns(INDUSTRIES,i.kind)&&typeof i.name==='string'&&finite(i.capacity,.1,10)&&finite(i.activity,0)&&finite(i.production,0)&&finite(i.shipped,0)&&finite(i.received,0)&&finite(i.idleDays,0)&&i.inventory&&Object.entries(i.inventory).every(([cargo,n])=>owns(CARGO,cargo)&&finite(n,0,1e9))))return false;
-  if(!game.industries.every(i=>validFootprint(i,industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
+  if(!game.industries.every(i=>validFootprint(i,isFarmIndustry(i.kind)?7:industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))&&(i.openedDay===undefined||(Number.isInteger(i.openedDay)&&finite(i.openedDay,0,Math.floor(game.day))))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)&&(s.mode==='air'?['x','y'].includes(s.axis):s.axis===undefined)))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
@@ -1420,15 +1428,21 @@ function expandRestoredSites(game) {
   }
   if(changed)game.revision++;
 }
-// Industries outgrew their sites twice, from single tiles and then from 2 × 2 (version 2). A save from before
-// grows each smaller site to its full plot where free land allows, still covering the ground it had.
-function expandCompactIndustries(game) {
+// Catalogue plots are now uniformly 5 × 5. Expansion keeps every old occupied
+// tile and never takes construction from a neighbor. Old 7 × 7 fields can shrink
+// within their land title only when every freight stop still reaches the farm.
+function resizeRestoredIndustries(game) {
   let changed=false;
   for(const industry of game.industries){
-    // A saved farm's compact extent is its land title. New fields never take
-    // adjoining tiles from an existing company, even when they are empty.
-    if(isFarmIndustry(industry.kind))continue;
     const size=industryFootprint(industry.kind),slack=size-industrySize(industry);
+    if(slack<0){
+      const excess=-slack,covered=game.stations.filter(stop=>stop.mode!=='air'&&industryDistance(industry,stop)<=STATION_RADIUS),candidates=[];
+      for(let dy=0;dy<=excess;dy++)for(let dx=0;dx<=excess;dx++)candidates.push({x:industry.x+dx,y:industry.y+dy,footprint:size,offset:Math.abs(dx-excess/2)+Math.abs(dy-excess/2)});
+      candidates.sort((a,b)=>a.offset-b.offset||a.y-b.y||a.x-b.x);
+      const site=candidates.find(candidate=>!industrySiteProblem(game,industry.kind,candidate.x,candidate.y,size,industry)&&covered.every(stop=>industryDistance(candidate,stop)<=STATION_RADIUS));
+      if(site){Object.assign(industry,{x:site.x,y:site.y,footprint:size});changed=true;}
+      continue;
+    }
     for(let i=0;slack>0&&i<(slack+1)**2;i++){
       const x=industry.x-i%(slack+1),y=industry.y-Math.floor(i/(slack+1));
       if(industrySiteProblem(game,industry.kind,x,y,size,industry))continue;
@@ -1441,7 +1455,7 @@ function expandCompactIndustries(game) {
 export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
-    if(game.siteFootprintVersion!==2){if(game.siteFootprintVersion!==1)expandRestoredSites(game);expandCompactIndustries(game);game.siteFootprintVersion=2;}
+    if(game.siteFootprintVersion!==3){if(game.siteFootprintVersion===undefined)expandRestoredSites(game);resizeRestoredIndustries(game);game.siteFootprintVersion=3;}
     if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
     game.networkRevision??=0;
     if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;

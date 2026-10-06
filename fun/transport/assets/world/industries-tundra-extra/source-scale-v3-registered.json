@@ -1,0 +1,25 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 1411,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.18143160878809356,
+  "sourceColumnPixels": 1254.0,
+  "meaningfulPixelsPreserved": 509023,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:equipment-factory:tundra",
+      "sourceBounds": [
+        5,
+        294,
+        1250,
+        981
+      ],
+      "offset": [
+        83,
+        656
+      ],
+      "pixels": 509023
+    }
+  ]
+}

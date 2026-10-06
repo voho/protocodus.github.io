@@ -10,7 +10,7 @@ export function partitionScenery(objects, scale, { maxObjects = 32, maxWidth = 1
     if (!b) { flush(); groups.push({ objects: [object], bounds: null }); continue; }
     // A diagonal has a narrow projected height. Crossing its right-to-left
     // wrap creates a mostly empty bitmap and crosses many vehicle depths.
-    if (group && group.objects[0].depth !== object.depth) flush();
+    if (group && (group.objects[0].depth !== object.depth || Boolean(group.objects[0].dimEligible) !== Boolean(object.dimEligible))) flush();
     const bounds = group ? {
       left: Math.min(group.bounds.left, b.left), top: Math.min(group.bounds.top, b.top),
       right: Math.max(group.bounds.right, b.right), bottom: Math.max(group.bounds.bottom, b.bottom),

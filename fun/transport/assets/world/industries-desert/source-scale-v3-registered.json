@@ -1,0 +1,145 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 702140,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:farm:desert",
+      "sourceBounds": [
+        17,
+        48,
+        515,
+        345
+      ],
+      "offset": [
+        39,
+        251
+      ],
+      "pixels": 71431
+    },
+    {
+      "cell": 1,
+      "id": "industry:food-plant:desert",
+      "sourceBounds": [
+        509,
+        58,
+        1027,
+        345
+      ],
+      "offset": [
+        29,
+        261
+      ],
+      "pixels": 73993
+    },
+    {
+      "cell": 2,
+      "id": "industry:oil-well:desert",
+      "sourceBounds": [
+        1021,
+        69,
+        1526,
+        345
+      ],
+      "offset": [
+        35,
+        272
+      ],
+      "pixels": 68314
+    },
+    {
+      "cell": 3,
+      "id": "industry:refinery:desert",
+      "sourceBounds": [
+        7,
+        339,
+        515,
+        672
+      ],
+      "offset": [
+        34,
+        215
+      ],
+      "pixels": 83292
+    },
+    {
+      "cell": 4,
+      "id": "industry:quarry:desert",
+      "sourceBounds": [
+        509,
+        339,
+        1027,
+        680
+      ],
+      "offset": [
+        29,
+        207
+      ],
+      "pixels": 89374
+    },
+    {
+      "cell": 5,
+      "id": "industry:cement-works:desert",
+      "sourceBounds": [
+        1021,
+        339,
+        1533,
+        686
+      ],
+      "offset": [
+        32,
+        201
+      ],
+      "pixels": 82509
+    },
+    {
+      "cell": 6,
+      "id": "industry:sand-pit:desert",
+      "sourceBounds": [
+        6,
+        685,
+        515,
+        975
+      ],
+      "offset": [
+        33,
+        258
+      ],
+      "pixels": 77775
+    },
+    {
+      "cell": 7,
+      "id": "industry:glassworks:desert",
+      "sourceBounds": [
+        509,
+        702,
+        1027,
+        977
+      ],
+      "offset": [
+        29,
+        273
+      ],
+      "pixels": 76084
+    },
+    {
+      "cell": 8,
+      "id": "industry:copper-mine:desert",
+      "sourceBounds": [
+        1021,
+        680,
+        1534,
+        976
+      ],
+      "offset": [
+        31,
+        252
+      ],
+      "pixels": 79368
+    }
+  ]
+}

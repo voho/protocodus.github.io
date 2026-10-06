@@ -679,6 +679,18 @@ The strip shows a route's state at a glance, left to right from the first stop t
 
 Map ink tags and pointers are DOM overlays in `#map-overlays`, positioned with `renderer.worldToScreen`. They are recomputed only when the camera or the target changes.
 
+### 9.1 World sprite scale and recognition
+
+Buildings use one physical scale across houses, civic buildings, shops, malls and industry. [sprite-art-direction.js](sprite-art-direction.js) is the canonical source of camera, dimensions and generation style; every building image-generation job uses its `buildingGenerationPrompt()`. Native fallbacks and atlas normalization use its `SPRITE_SCALE` and feature conversion helpers. [SPRITES.md](SPRITES.md) describes the production workflow.
+
+The current scale is a 16 m tile, a 1.75 m person, a 2.1 m personnel door, a 3 m storey and a 4.2 m vehicle loading bay. Bigger buildings gain rooms, wings, floors and repeated bays while their human features keep the same dimensions. Small houses leave room for gardens and low fences and read at the same scale as trucks and buses. Preserve complete calibrated parcel cells; independently enlarging each silhouette to fit its cell breaks that relationship.
+
+Every new industry occupies **5 × 5 tiles**, including extractors, processors and farms. A farm's **2 × 2 building core** sits within surrounding fields, an access lane and fences inside the 5 × 5 plot. All 25 tiles participate in placement, selection, catchment and demolition. Recipe 10 generates these plots. Published recipes 1–9 remain frozen; existing saves resize only where neighboring construction and every existing freight-stop connection remain safe, otherwise their saved footprint remains.
+
+At Region and Town views, recognition comes from a clear silhouette, roof and wall colour masses, facade shading and large identifiers such as silos, chimneys, greenhouses, shop awnings or sports surfaces. Omit tiny brick joints, roof tiles, lettering, flower dots, dense crate grids and fine railings or mullions. High display density must sharpen the chosen level of detail without making Region noisy. Compare multiple building kinds with vehicles at actual Region and Town size, then check Detail, standard and Retina displays, and the native fallbacks.
+
+Gardens blend with their climate's world terrain, and slope foundations use natural stones. Farm fields follow the terrain while fences and objects stay registered to the grid. Artwork QA follows the computer-only policy in section 13.
+
 ## 10. Fluency
 
 ### 10.1 Motion only answers

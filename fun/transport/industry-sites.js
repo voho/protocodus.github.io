@@ -4,11 +4,14 @@ import { stationSiteAt } from './station-sites.js';
 
 // Missing footprint means a legacy single-tile site until a safe load migration expands it.
 export const industrySize = siteSize;
-export const industryFootprint = kind => INDUSTRIES[kind]?.footprint || 3;
+export const industryFootprint = kind => INDUSTRIES[kind]?.footprint || 5;
 export const isFarmIndustry = kind => Boolean(INDUSTRIES[kind]?.farming);
 // Recipes 5–7 are save baselines: retain their original mixed site allocation.
 const legacyLargeIndustries = new Set(['steel-mill','food-plant','furniture-factory','machine-works','refinery','cement-works','goods-factory','equipment-factory']);
 export const legacyIndustryFootprint = kind => legacyLargeIndustries.has(kind) ? 3 : 2;
+// A procedural save regenerates its original parcels before applying saved edits.
+// Published recipes therefore retain their dimensions even when the catalogue grows.
+export const generatedIndustryFootprint = (kind,version) => version>=10?industryFootprint(kind):version>=9&&isFarmIndustry(kind)?7:version>=8?3:version>=5?legacyIndustryFootprint(kind):version>=3?2:1;
 export const industryContains = (industry,x,y) => x>=industry.x&&y>=industry.y&&x<industry.x+industrySize(industry)&&y<industry.y+industrySize(industry);
 export function industryTiles(industry){
   const result=[],size=industrySize(industry);
@@ -33,7 +36,8 @@ export function industrySpacingProblem(game,kind,x,y,size=industryFootprint(kind
 export function industrySiteProblem(game,kind,x,y,size=industryFootprint(kind),exclude=null){
   const def=INDUSTRIES[kind];if(!def)return 'Unknown industry.';
   if(!def.biomes.includes(game.biome))return 'This industry is unavailable in this environment.';
-  if(![1,2,3,7].includes(size)||size>industryFootprint(kind)||!Number.isInteger(x)||!Number.isInteger(y))return 'Invalid industry footprint.';
+  const maximum=isFarmIndustry(kind)?7:industryFootprint(kind);
+  if(![1,2,3,5,7].includes(size)||size>maximum||!Number.isInteger(x)||!Number.isInteger(y))return 'Invalid industry footprint.';
   if(x<0||y<0||x+size>game.width||y+size>game.height)return `The whole ${size} × ${size} site must fit inside the map.`;
   const tile=(px,py)=>px>=0&&py>=0&&px<game.width&&py<game.height?game.tiles[py*game.width+px]:null;
   const anchor=tile(x,y);

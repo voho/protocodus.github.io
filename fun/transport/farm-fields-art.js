@@ -1,7 +1,8 @@
 import { randomSource } from './world-noise.js';
-import { industrySize, isFarmIndustry } from './industry-sites.js';
+import { industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
 import { drawRasterFarmCore } from './raster-industries.js';
 import { drawNativeFarmCore } from './processing-sprites.js';
+import { featureWorldPixels, SPRITE_SCALE } from './sprite-art-direction.js';
 
 const TILE = 32, TEXTURE_SIZE = 128;
 const textures = new Map();
@@ -10,7 +11,7 @@ const PALETTES = {
   desert: { soil:'#a18452', light:'#debd7b', grain:'#e6c674', straw:'#a18b46', leaf:'#809b46', highlight:'#c9cf6c', shade:'#4c5d2f', fence:'#ceb184', post:'#997248' },
   tundra: { soil:'#84795f', light:'#cdc1a0', grain:'#d4c9a0', straw:'#aaa07a', leaf:'#7b8d61', highlight:'#c2caa2', shade:'#55614d', fence:'#c6bca0', post:'#897c61' },
 };
-export const isLargeFarm = site => Boolean(site && isFarmIndustry(site.kind) && industrySize(site) === 7);
+export const isLargeFarm = site => Boolean(site && isFarmIndustry(site.kind) && industrySize(site) >= 5);
 export const farmCore = site => ({ x:site.x+1, y:site.y+1, span:2 });
 export const farmCrop = (site, seed = 0) => site.kind === 'farm' ? ((site.variant ?? (Math.imul(site.x,31)+site.y+seed)) & 1 ? 'corn' : 'wheat') : site.kind === 'vegetable-farm' ? 'vegetables' : site.kind === 'orchard' ? 'orchard' : 'pasture';
 
@@ -18,7 +19,7 @@ export const farmCrop = (site, seed = 0) => site.kind === 'farm' ? ((site.varian
 // crops occupy the rest of the plot, with the original meadow between beds.
 export function farmFieldCell(site, x, y) {
   const u=x-site.x,v=y-site.y;
-  return isLargeFarm(site) && u>=0 && v>=0 && u<7 && v<7 && !(u<3&&v<3);
+  return isLargeFarm(site) && u>=0 && v>=0 && u<industrySize(site) && v<industrySize(site) && !(u<3&&v<3);
 }
 
 function texture(crop, biome) {
@@ -83,7 +84,7 @@ export function paintFarmFields(c, bounds, industryAt, biome, seed = 0) {
     let plot=plots.get(site);if(!plot){plot={field:new Path2D(),yard:new Path2D(),lane:new Path2D()};plots.set(site,plot);}
     const u=x-site.x,v=y-site.y,left=x*TILE,top=y*TILE;
     if(u<3&&v<3){if(u>=1&&v>=1)plot.yard.rect(left,top,TILE,TILE);continue;}
-    const margin=2.4,px=left+(u===0?5:margin),py=top+(v===0?5:margin),w=TILE-(u===0||u===6?5:margin)-margin,h=TILE-(v===0||v===6?5:margin)-margin;
+    const margin=2.4,px=left+(u===0?5:margin),py=top+(v===0?5:margin),w=TILE-(u===0||u===industrySize(site)-1?5:margin)-margin,h=TILE-(v===0||v===industrySize(site)-1?5:margin)-margin;
     // Headland lanes separate planted beds, and the loading lane remains
     // clear all the way from the front gate to the barn's working apron.
     if(u===1||u===2){
@@ -109,13 +110,13 @@ export function paintFarmFields(c, bounds, industryAt, biome, seed = 0) {
 export function farmFenceSections(site, x, y) {
   if(!isLargeFarm(site))return [];
   const u=x-site.x,v=y-site.y,result=[];
-  if(v===0)result.push({a:[x+(u===0?.12:0),y+.12],b:[x+(u===6?.88:1),y+.12],front:false});
-  if(u===0)result.push({a:[x+.12,y+(v===0?.12:0)],b:[x+.12,y+(v===6?.88:1)],front:false});
-  if(u===6)result.push({a:[x+.88,y+(v===0?.12:0)],b:[x+.88,y+(v===6?.88:1)],front:true});
-  if(v===6){
+  if(v===0)result.push({a:[x+(u===0?.12:0),y+.12],b:[x+(u===industrySize(site)-1?.88:1),y+.12],front:false});
+  if(u===0)result.push({a:[x+.12,y+(v===0?.12:0)],b:[x+.12,y+(v===industrySize(site)-1?.88:1)],front:false});
+  if(u===industrySize(site)-1)result.push({a:[x+.88,y+(v===0?.12:0)],b:[x+.88,y+(v===industrySize(site)-1?.88:1)],front:true});
+  if(v===industrySize(site)-1){
     // Two shorter runs leave a real opening rather than painting a fence
     // through the vehicle access lane.
-    if(u!==1&&u!==2)result.push({a:[x+(u===0?.12:0),y+.88],b:[x+(u===6?.88:1),y+.88],front:true});
+    if(u!==1&&u!==2)result.push({a:[x+(u===0?.12:0),y+.88],b:[x+(u===industrySize(site)-1?.88:1),y+.88],front:true});
     else if(u===1)result.push({a:[x,y+.88],b:[site.x+1.72,y+.88],front:true});
     else result.push({a:[site.x+2.28,y+.88],b:[x+1,y+.88],front:true});
   }
@@ -123,11 +124,11 @@ export function farmFenceSections(site, x, y) {
 }
 
 export function paintFarmFence(c, section, project, biome) {
-  const p=PALETTES[biome]||PALETTES.taiga,a=project(...section.a),b=project(...section.b),height=4.7;
+  const p=PALETTES[biome]||PALETTES.taiga,a=project(...section.a),b=project(...section.b),height=featureWorldPixels(SPRITE_SCALE.fenceHeightMetres);
   c.save();c.lineCap='round';c.lineJoin='round';
   c.strokeStyle=p.post;c.lineWidth=1.3;
   for(const t of [0,.5,1]){const x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;c.beginPath();c.moveTo(x,y);c.lineTo(x,y-height);c.stroke();}
-  for(const lift of [1.8,3.7]){
+  for(const lift of [height*.35,height*.8]){
     c.strokeStyle=p.post;c.lineWidth=1.1;c.beginPath();c.moveTo(a.x,a.y-lift+.5);c.lineTo(b.x,b.y-lift+.5);c.stroke();
     c.strokeStyle=p.fence;c.lineWidth=.7;c.beginPath();c.moveTo(a.x,a.y-lift);c.lineTo(b.x,b.y-lift);c.stroke();
   }
@@ -164,16 +165,16 @@ export const farmFieldsArtStats = () => ({ textures:textures.size, textureBytes:
 
 // Build menus show the same field layout and small core as the map, rather
 // than stretching the barn to the size of the entire agricultural plot.
-export function drawFarmPortrait(c, kind, biome = 'taiga', { x=0, y=0, width=96, height=108, pixelScale=1, variant=0 } = {}) {
+export function drawFarmPortrait(c, kind, biome = 'taiga', { x=0, y=0, width=96, height=108, pixelScale=1, variant=0, footprint=industryFootprint(kind) } = {}) {
   if(!isFarmIndustry(kind))return false;
-  const site={kind,x:0,y:0,footprint:7,variant},image=document.createElement('canvas');image.width=image.height=7*TILE;
+  const span=footprint===7?7:5,site={kind,x:0,y:0,footprint:span,variant},image=document.createElement('canvas');image.width=image.height=span*TILE;
   const ground=image.getContext('2d');ground.fillStyle=biome==='desert'?'#b7ac77':biome==='tundra'?'#9aa58a':'#8caa65';ground.fillRect(0,0,image.width,image.height);
-  paintFarmFields(ground,{x0:0,y0:0,x1:7,y1:7},()=>site,biome);
-  const scale=Math.min((width-8)/(14*TILE),(height-8)/(8*TILE)),ox=x+width/2,oy=y+(height-7*TILE*scale)/2;
+  paintFarmFields(ground,{x0:0,y0:0,x1:span,y1:span},()=>site,biome);
+  const scale=Math.min((width-8)/(2*span*TILE),(height-8)/((span+1)*TILE)),ox=x+width/2,oy=y+(height-span*TILE*scale)/2;
   const project=(u,v)=>({x:ox+(u-v)*TILE*scale,y:oy+(u+v)*TILE/2*scale});
   c.save();c.transform(scale,scale/2,-scale,scale/2,ox,oy);c.drawImage(image,0,0);c.restore();
   const objects=[];
-  for(let v=0;v<7;v++)for(let u=0;u<7;u++){
+  for(let v=0;v<span;v++)for(let u=0;u<span;u++){
     for(const section of farmFenceSections(site,u,v))objects.push({depth:(section.a[0]+section.b[0]+section.a[1]+section.b[1])/2,draw:()=>{c.save();c.translate(ox,oy);c.scale(scale,scale);paintFarmFence(c,section,(a,b)=>({x:(a-b)*TILE,y:(a+b)*TILE/2}),biome);c.restore();}});
     for(const object of farmFieldObjects(site,u,v))objects.push({depth:object.x+object.y,draw:()=>{const p=project(object.x,object.y);c.save();c.translate(p.x,p.y);c.scale(scale,scale);paintFarmFieldObject(c,object,{x:0,y:0},biome);c.restore();}});
   }

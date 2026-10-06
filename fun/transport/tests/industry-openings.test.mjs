@@ -18,7 +18,7 @@ const roundTrip = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game)
 function farmTown({ delivered = true } = {}) {
   const game = emptyGame();
   assert.equal(build(game, 'farm', 10, 6).ok, true);
-  assert.equal(build(game, 'food-plant', 30, 10).ok, true);
+  assert.equal(build(game, 'food-plant', 30, 8).ok, true);
   assert.equal(build(game, 'city', 50, 10).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 50, 13)).ok, true);
   for (const x of [10, 30, 50]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
@@ -68,6 +68,7 @@ test('forced openings obey every placement rule and announce themselves', () => 
   for (let month = 24; month < 120 && sites.length < 3; month++) { const site = openIndustry(game, month, { force: true }); if (site) sites.push(site); }
   assert.ok(sites.length >= 2, `opened ${sites.length}`);
   for (const site of sites) {
+    assert.equal(site.footprint,5,'every newly opened industry has a 5 × 5 site');
     assertRules(game, site);
     assert.ok(['farm', 'food-plant'].includes(site.kind), site.kind);
     assert.equal(site.owner, 'world');

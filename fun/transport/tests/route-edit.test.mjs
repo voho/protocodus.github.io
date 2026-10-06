@@ -10,7 +10,7 @@ const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 1
 // A road stub near Stoneford is not joined to it, and a rail station stands apart.
 function networkFixture() {
   const game = emptyGame(); game.cities = [town('Stoneford', 30, 9), town('Millbrook', 75, 9)];
-  for (const [kind, x, y] of [['quarry', 9, 9], ['logging-camp', 12, 9], ['sawmill', 76, 13]]) assert.equal(build(game, kind, x, y).ok, true, kind);
+  for (const [kind, x, y] of [['quarry', 9, 7], ['logging-camp', 14, 7], ['sawmill', 76, 13]]) assert.equal(build(game, kind, x, y).ok, true, kind);
   assert.equal(buildPath(game, 'road', line(10, 75, 12)).ok, true);
   assert.equal(buildPath(game, 'road', line(25, 28, 6)).ok, true);
   assert.equal(buildPath(game, 'rail', line(30, 36, 20)).ok, true);

@@ -23,6 +23,16 @@ const RELIEF_NEIGHBORS = {
   mesa: ['butte','canyon'], butte: ['mesa','canyon'], canyon: ['mesa','butte'],
 };
 const ROCKS = ['taiga-boulder','taiga-scree','tundra-glacial','tundra-snow','desert-boulder','desert-dunes','desert-salt','desert-strata','tundra-ice'];
+// Read-only authored identities for the field guide; the renderer keeps its
+// existing compositions and variant selection. Copies prevent catalog callers
+// from changing those internal species lists.
+const frozenClimateLists = lists => Object.freeze(Object.fromEntries(Object.entries(lists).map(([biome, kinds]) => [biome, Object.freeze([...kinds])])));
+export const NATURE_ART_CATALOG = Object.freeze({
+  trees: frozenClimateLists(TREE_KINDS),
+  ground: frozenClimateLists(GROUND_KINDS),
+  mountains: Object.freeze([...MOUNTAINS]),
+  rocks: Object.freeze([...ROCKS]),
+});
 for (const [biome, kinds] of Object.entries(TREE_KINDS)) {
   const id = `nature-trees-${biome}`;
   registerAtlas({ id, path: `./assets/world/${id}/atlas`, biome, columns: 3, rows: 3, maxCell: 256, entries: kinds.map(kind => `${id}:${kind}`) });

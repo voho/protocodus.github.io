@@ -29,7 +29,10 @@ try{
      const ox=kind%3*256,oy=Math.floor(kind/3)*256;let removed=0,changed=0,roofChanges=0,fullyRevealed=0,visible=0;
      for(let y=0;y<256;y++)for(let x=0;x<256;x++){
       const n=((oy+y)*768+ox+x)*4;if(a[n+3]>32)visible++;
-      if(a[n+3]!==b[n+3]){changed++;removed+=a[n+3]-b[n+3];if(y<135||Math.abs(x-128)<57&&y<180)roofChanges++;if(a[n+3]>200&&b[n+3]===0)fullyRevealed++;}
+      // These rectangles contain the roof/facade core of the calibrated
+      // masters. Foreground garden starts closer to the smaller prestige
+      // architecture than it did in the former magnified-house artwork.
+      if(a[n+3]!==b[n+3]){changed++;removed+=a[n+3]-b[n+3];if(y<100||x>82&&x<174&&y<152)roofChanges++;if(a[n+3]>200&&b[n+3]===0)fullyRevealed++;}
      }
      rows.push({biome,design,rotation,kind:q.h.HOUSE_KINDS[kind],changed,removed,roofChanges,fullyRevealed,visible});
     }

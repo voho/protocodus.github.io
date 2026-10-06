@@ -15,8 +15,8 @@
     "industry:refinery:taiga",
     "industry:quarry:taiga"
   ],
-  "source": "source-isometric.png",
-  "sourceSha256": "b29bcda1a340fe28ff1880ed00806631933a31454016013c120b6051b2456d94",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "8b6e924fcc1d54aef2ee7e35c30c989c0195659f8e03270c6963d9c1031d5c67",
   "sprites": [
     {
       "id": "industry:oil-well:taiga",
@@ -24,110 +24,115 @@
       "sourceBounds": [
         0,
         0,
-        724,
-        724
+        815,
+        815
       ],
       "normalization": {
         "originalSize": [
-          724,
-          724
+          815,
+          815
         ],
         "sourceBounds": [
-          21,
-          150,
-          714,
-          673
+          49,
+          313,
+          765,
+          775
         ],
         "rawAlphaBounds": [
-          0,
-          17,
-          722,
-          704
+          48,
+          313,
+          764,
+          776
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.609667
+        "transparentFraction": 0.711538
       },
       "bounds": [
-        12,
-        69,
-        244,
-        244
+        14,
+        96,
+        241,
+        245
       ]
     },
     {
       "id": "industry:refinery:taiga",
       "cell": 1,
       "sourceBounds": [
-        724,
+        815,
         0,
-        1448,
-        724
+        1630,
+        815
       ],
       "normalization": {
         "originalSize": [
-          724,
-          724
+          815,
+          815
         ],
         "sourceBounds": [
-          16,
-          71,
-          708,
-          671
+          44,
+          233,
+          770,
+          775
         ],
         "rawAlphaBounds": [
-          1,
-          53,
-          724,
-          702
+          44,
+          233,
+          771,
+          775
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.593995
+        "transparentFraction": 0.68713
       },
       "bounds": [
-        12,
-        43,
-        244,
-        244
+        13,
+        71,
+        243,
+        245
       ]
     },
     {
       "id": "industry:quarry:taiga",
       "cell": 2,
       "sourceBounds": [
-        1448,
+        1630,
         0,
-        2172,
-        724
+        2445,
+        815
       ],
       "normalization": {
         "originalSize": [
-          724,
-          724
+          815,
+          815
         ],
         "sourceBounds": [
-          11,
-          128,
-          708,
-          673
+          51,
+          278,
+          764,
+          775
         ],
         "rawAlphaBounds": [
-          11,
-          3,
-          709,
-          680
+          52,
+          277,
+          765,
+          776
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.581717
+        "transparentFraction": 0.670822
       },
       "bounds": [
-        12,
-        63,
-        244,
-        244
+        15,
+        86,
+        242,
+        245
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 5,
+  "scaleContract": "../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

@@ -12,7 +12,7 @@ test('every environment-specific industry can be built on its supported terrain'
       const game = emptyGame(biome);
       const tile = tileAt(game, 20, 20);
       if (definition.terrain) tile.terrain = definition.terrain[0];
-      if (definition.coastal) tileAt(game, 23, 20).terrain = 'water';
+      if (definition.coastal) tileAt(game, 25, 20).terrain = 'water';
       const before = game.money;
       const result = build(game, kind, 20, 20);
       if (definition.biomes.includes(biome)) {
@@ -188,7 +188,7 @@ test('town needs list what each biome can make, and a delivery records its day',
   assert.deepEqual(townNeeds({ biome: 'desert', day: 200 }, { lastSupply: { goods: 79.5 } }).map(need => need.met), [false, false, false, false]);
 
   const game = emptyGame(); game.money = 400000;
-  build(game, 'food-plant', 30, 10); build(game, 'city', 50, 10); buildPath(game, 'road', line(30, 50, 13));
+  build(game, 'food-plant', 30, 8); build(game, 'city', 50, 10); buildPath(game, 'road', line(30, 50, 13));
   for (const x of [30, 50]) build(game, 'bus-stop', x, 13);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'food', stops: game.stations.map(stop => stop.id) }).ok, true);
   game.industries[0].inventory.food = 60;

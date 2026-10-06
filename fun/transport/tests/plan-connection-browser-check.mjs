@@ -34,12 +34,12 @@ try {
   assert.match(await page.locator('#connection-plan-banner span').textContent(), /^Then a truck \$[\d,]+ · uses Alderbrook Central$/);
   assert.deepEqual(await company(page), before, 'nothing is spent or built before Build');
   assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'the map stays in Explore');
-  assert.equal(overlaps(await box(page, '#connection-plan-banner'), await box(page, '#objective-card')), false, 'the banner clears the goal card');
+  assert.equal(await page.locator('#objective-card').isVisible(), false, 'the active plan banner replaces the goal card at the shared top-left anchor');
   assert.equal(await page.locator('#date-note').textContent(), 'Paused', 'the paused cue stays in the top bar, clear of the banner');
   await page.waitForFunction(() => !transport.renderer.getStats().gliding); // the camera glides to the plan (DESIGN.md 10.2)
-  const framed =await page.evaluate(() => { const quarry = transport.game.industries.find(site => site.x === 217 && site.y === 255), town = transport.game.cities[0], c = document.querySelector('#world'), card = document.querySelector('#objective-card').getBoundingClientRect();
-    return [quarry, town].every(site => { const p = transport.renderer.worldToScreen(site.x + .5, site.y + .5); return p.x > 0 && p.y > 0 && p.x < card.left && p.y < c.clientHeight; }); });
-  assert.equal(framed, true, 'the quarry and Alderbrook are both in view beside the card');
+  const framed =await page.evaluate(() => { const quarry = transport.game.industries.find(site => site.x === 217 && site.y === 255), town = transport.game.cities[0], c = document.querySelector('#world'), map=c.getBoundingClientRect(), card = document.querySelector('#connection-plan-banner').getBoundingClientRect();
+    return [quarry, town].every(site => { const p = transport.renderer.worldToScreen(site.x, site.y); return p.x > 0 && p.y > 0 && p.x < c.clientWidth && p.y < c.clientHeight && !(p.x>=card.left-map.left&&p.x<=card.right-map.left&&p.y>=card.top-map.top&&p.y<=card.bottom-map.top); }); });
+  assert.equal(framed, true, 'the quarry and Alderbrook are both visible clear of the active plan banner');
   await page.screenshot({ path: `${output}/desktop-plan.png` });
 
   // Cancel and Escape drop the plan; planning again gives the same line.
@@ -52,6 +52,7 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#connection-plan-banner').count(), 0, 'Escape drops the plan');
   await page.locator('#objective-plan').click();
+  await page.locator('#cancel-connection-plan').click();
   await page.locator('#objective-another').click();
   assert.equal(await page.locator('#connection-plan-banner').count(), 0, 'another idea drops the plan');
   while (!(await page.locator('#objective-detail').textContent()).includes('Stone quarry')) await page.locator('#objective-another').click();

@@ -1,0 +1,145 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 746119,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:coal-mine:tundra",
+      "sourceBounds": [
+        4,
+        21,
+        522,
+        343
+      ],
+      "offset": [
+        29,
+        226
+      ],
+      "pixels": 75451
+    },
+    {
+      "cell": 1,
+      "id": "industry:iron-mine:tundra",
+      "sourceBounds": [
+        521,
+        20,
+        1020,
+        346
+      ],
+      "offset": [
+        38,
+        222
+      ],
+      "pixels": 72155
+    },
+    {
+      "cell": 2,
+      "id": "industry:steel-mill:tundra",
+      "sourceBounds": [
+        1018,
+        17,
+        1534,
+        353
+      ],
+      "offset": [
+        30,
+        212
+      ],
+      "pixels": 83289
+    },
+    {
+      "cell": 3,
+      "id": "industry:machine-works:tundra",
+      "sourceBounds": [
+        2,
+        352,
+        524,
+        654
+      ],
+      "offset": [
+        27,
+        246
+      ],
+      "pixels": 84458
+    },
+    {
+      "cell": 4,
+      "id": "industry:fishery:tundra",
+      "sourceBounds": [
+        522,
+        366,
+        1020,
+        658
+      ],
+      "offset": [
+        39,
+        256
+      ],
+      "pixels": 78325
+    },
+    {
+      "cell": 5,
+      "id": "industry:fish-processor:tundra",
+      "sourceBounds": [
+        1019,
+        366,
+        1536,
+        655
+      ],
+      "offset": [
+        29,
+        259
+      ],
+      "pixels": 78728
+    },
+    {
+      "cell": 6,
+      "id": "industry:oil-well:tundra",
+      "sourceBounds": [
+        2,
+        688,
+        519,
+        995
+      ],
+      "offset": [
+        29,
+        241
+      ],
+      "pixels": 85140
+    },
+    {
+      "cell": 7,
+      "id": "industry:refinery:tundra",
+      "sourceBounds": [
+        520,
+        646,
+        1021,
+        1002
+      ],
+      "offset": [
+        37,
+        192
+      ],
+      "pixels": 86421
+    },
+    {
+      "cell": 8,
+      "id": "industry:quarry:tundra",
+      "sourceBounds": [
+        1021,
+        669,
+        1536,
+        1010
+      ],
+      "offset": [
+        30,
+        207
+      ],
+      "pixels": 102152
+    }
+  ]
+}

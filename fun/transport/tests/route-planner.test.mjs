@@ -12,8 +12,8 @@ import { money } from '../copy.js';
 
 function fixture(mode = 'road') {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 8).ok, true);
   assert.equal(buildPath(game, mode, line(10, 30, 13)).ok, true);
   const tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
   assert.equal(build(game, tool, 10, 13).ok, true);
@@ -107,7 +107,7 @@ test('passenger planning requires two different towns and refuses adjacent stops
 
 function quarryFixture() {
   const game = emptyGame();
-  assert.equal(build(game, 'quarry', 10, 9).ok, true);
+  assert.equal(build(game, 'quarry', 10, 7).ok, true);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 30, y: 10 }];
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   assert.equal(build(game, 'bus-stop', 10, 12).ok, true);
@@ -165,7 +165,7 @@ test('default route names describe the freight flow after reversal', () => {
 test('connected stops without a shared cargo name what each end handles', () => {
   const { game, draft } = quarryFixture();
   game.cities = [];
-  assert.equal(build(game, 'sawmill', 29, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 29, 7).ok, true);
   const options = routeCargoOptions(game, draft);
   assert.deepEqual(fitting(options), []);
   const gap = 'No cargo fits both stops. The start loads stone, and the end accepts timber.';
@@ -220,7 +220,7 @@ test('the needs-attention filter lists exactly the routes the top bar counts', (
 // A quarry and a town `tiles` apart on flat ground, joined by road or rail.
 function quarryLine(mode, tiles) {
   const game = emptyGame(), end = 10 + tiles, tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
-  assert.equal(build(game, 'quarry', 10, 9).ok, true);
+  assert.equal(build(game, 'quarry', 10, 7).ok, true);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: end, y: 10, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
   assert.equal(buildPath(game, mode, line(10, end, 12)).ok, true);
   assert.equal(build(game, tool, 10, 12).ok, true);
@@ -287,7 +287,7 @@ test('with full load, a train the quarry cannot fill stands at the idle rate, an
 
 test('the forecast times a trip and prices one unit after its days on the way', () => {
   const game = emptyGame(), level = getVehiclePurchase(game, 'road').level;
-  assert.equal(build(game, 'food-plant', 10, 8).ok, true);
+  assert.equal(build(game, 'food-plant', 10, 7).ok, true);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 120, y: 10, population: 900, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
   assert.equal(buildPath(game, 'road', line(10, 120, 12)).ok, true);
   for (const x of [10, 120]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
@@ -301,8 +301,8 @@ test('the forecast times a trip and prices one unit after its days on the way', 
 
 test('a ship forecast uses the timetable of ships', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 8).ok, true);
   for (const point of line(10, 30, 13)) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0 });
   game.revision++; game.networkRevision++;
   for (const x of [10, 30]) assert.equal(build(game, 'port', x, 13).ok, true);
@@ -369,7 +369,7 @@ test('a bus forecast carries both towns’ passengers both ways', () => {
 // Alderbrook buys lumber for its workshop and sells what it makes to Brookby; the fourth stop is a second one in Alderbrook.
 function workshopTowns() {
   const game = emptyGame(), place = (id, name, x) => ({ id, name, x, y: 10, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null });
-  assert.equal(build(game, 'sawmill', 10, 9).ok, true);
+  assert.equal(build(game, 'sawmill', 10, 7).ok, true);
   game.cities.push(place('town-a', 'Alderbrook', 30), place('town-b', 'Brookby', 50)); game.revision++;
   assert.equal(buildPath(game, 'road', line(10, 50, 12)).ok, true);
   for (const x of [10, 30, 50, 27]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
@@ -403,7 +403,7 @@ test('air plans: two airports, passengers and mail, 16 tiles apart, with a strai
   const town = (id, x, y) => ({ id, name: id, x, y, population: 1500, activity: 0, growth: 0, passengers: 400, mail: 40, delivered: 0, supplies: 0, lastServiceDay: null });
   game.cities = [town('Ash', 13, 16), town('Birch', 83, 56), town('Cove', 13, 36)];
   const a = build(game, 'airport-x', 10, 20).station, b = build(game, 'airport-y', 80, 50).station, c = build(game, 'airport-x', 10, 30).station;
-  assert.equal(build(game, 'bus-stop', 20, 20).ok, false, 'no road there');
+  assert.equal(build(game, 'bus-stop', 20, 20).automaticRoad, true, 'a road stop supplies its own paid road');
   buildPath(game, 'road', line(20, 22, 10)); const bus = build(game, 'bus-stop', 20, 10).station;
   const draft = { mode: 'air', cargo: 'passengers', from: a.id, to: b.id };
   assert.equal(validateRoutePlan(game, { ...draft, to: bus.id }).message, 'Choose two airports.');

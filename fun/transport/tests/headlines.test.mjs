@@ -64,7 +64,7 @@ test('the first bus into a new town, then the first train, merged with the town 
 
 test('freight arrivals say supplied by; a first train to an industry names its stop', () => {
   const game = withTowns(['home', 'Home', 5, 40], ['second', 'Second', 5, 60], ['cedar', 'Cedarbridge', 40, 10]), watch = headlineWatch(game);
-  ok(build(game, 'food-plant', 10, 8)); game.industries[0].inventory.food = 500;
+  ok(build(game, 'food-plant', 10, 7)); game.industries[0].inventory.food = 500;
   ok(buildPath(game, 'road', line(10, 40, 12))); ok(build(game, 'bus-stop', 10, 12)); ok(build(game, 'bus-stop', 40, 12));
   const food = ok(addRoute(game, { mode: 'road', stops: stopsOf(game, 'road'), cargo: 'food' })).route;
   const entries = run(game, watch, 40);
@@ -74,7 +74,7 @@ test('freight arrivals say supplied by; a first train to an industry names its s
   assert.ok(entries[0].detail.includes('supplied by'), entries[0].detail);
   assert.equal(entries[0].routeId, food.id);
 
-  ok(build(game, 'logging-camp', 10, 20)); ok(build(game, 'sawmill', 30, 20));
+  ok(build(game, 'logging-camp', 10, 18)); ok(build(game, 'sawmill', 30, 18));
   game.industries.find(industry => industry.kind === 'logging-camp').inventory.timber = 300;
   ok(buildPath(game, 'rail', line(10, 30, 23))); ok(build(game, 'train-stop', 10, 23)); ok(build(game, 'train-stop', 30, 23));
   const timber = ok(addRoute(game, { mode: 'rail', stops: stopsOf(game, 'rail'), cargo: 'timber' })).route;

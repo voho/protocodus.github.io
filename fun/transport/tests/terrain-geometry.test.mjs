@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { HEIGHT_STEP, MAX_HEIGHT, TERRAIN_SLOPE_LIMIT, projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundIsFlat, pickGround, transportHeight, bridgeDeckHeight, bridgeSurface, terrainGeometryStats, clearTerrainGeometryCache } from '../terrain-geometry.js';
+import { TERRAIN_HEIGHT_VIEWS } from '../terrain-view.js';
+import { facetLight } from '../terrain-mesh.js';
 
 const close=(a,b,message='')=>assert.ok(Math.abs(a-b)<1e-8,`${message}: ${a} ≠ ${b}`);
 function world(width=64,height=64,elevation=6/16){return{width,height,revision:0,tiles:Array.from({length:width*height},()=>({terrain:'grass',elevation,road:false,rail:false,bridge:false,tunnel:false}))};}
@@ -15,6 +17,37 @@ test('eight vertex heights project an elevated quadrilateral without changing sa
   assert.deepEqual(surface.triangles,[[surface.nw,surface.ne,surface.se],[surface.nw,surface.se,surface.sw]]);
   for(const p of surface.corners)close(p.height,surface.center.height,'uniform multi-tile sites stay level');
   for(const u of [19,20,21,22,23])for(const v of [19,20,21,22,23])close(surfaceHeight(game,u,v),surface.center.height);
+  assert.equal(JSON.stringify(game),before);
+});
+
+test('all relief views preserve terrain levels and have unfolded, reversible projected faces',()=>{
+  const game=world(36,36);let seed=1847;
+  for(const t of game.tiles){seed=(Math.imul(seed,1664525)+1013904223)>>>0;t.elevation=(seed>>>8)/0xffffff;if(seed%11===0)t.terrain='water';}
+  const before=JSON.stringify(game),cached=terrainGeometryStats(game).builtChunks;
+  for(const {value:heightStep} of TERRAIN_HEIGHT_VIEWS){
+    for(let y=0;y<36;y++)for(let x=0;x<36;x++){
+      const surface=tileSurface(game,x,y,heightStep);
+      for(const triangle of surface.triangles)assert.ok(area(triangle)>=128-1e-8,`${heightStep}px relief keeps ${x},${y} front facing`);
+      close(surface.center.height,surfaceHeight(game,x+.5,y+.5),'height remains a terrain level');
+      if((x+y)%7===0){const u=x+.37,v=y+.64,p=projectGround(game,u,v,heightStep),picked=pickGround(game,p.x,p.y,heightStep);assert.ok(picked);close(picked.x,u);close(picked.y,v);}
+    }
+  }
+  const warmed=terrainGeometryStats(game).builtChunks;
+  assert.ok(warmed>cached);
+  projectGround(game,20,20,0);projectGround(game,20,20,28);
+  assert.equal(terrainGeometryStats(game).builtChunks,warmed,'views share cached levels without rebuilding the world');
+  assert.equal(JSON.stringify(game),before,'changing projection never writes saved terrain');
+});
+
+test('flattened relief removes slope lighting without changing bridge or engineering heights',()=>{
+  const game=crossing(),before=JSON.stringify(game),deck=bridgeDeckHeight(game,25,20);
+  for(const {value:heightStep} of TERRAIN_HEIGHT_VIEWS){
+    const slope=tileSurface(game,28,20,heightStep).triangles[0];
+    if(heightStep===0)close(facetLight(slope,heightStep),1,'a visibly flat surface uses flat lighting');
+    const point=projectTerrainPoint(25.5,20.5,deck,heightStep);
+    close(point.y,46*16-deck*heightStep);
+    close(transportHeight(game,25,20),deck,'bridge level is independent of its displayed relief');
+  }
   assert.equal(JSON.stringify(game),before);
 });
 

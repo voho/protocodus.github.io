@@ -3,7 +3,7 @@ import { BUILDINGS, residentialKind, SHOP_KINDS } from './buildings.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 import { generatedElevation } from './world-tiles.js';
 import { buildingFootprint, placeBuildingSite } from './building-sites.js';
-import { industryFootprint, industrySiteProblem, industrySpacingProblem, isFarmIndustry } from './industry-sites.js';
+import { generatedIndustryFootprint, industrySiteProblem, industrySpacingProblem } from './industry-sites.js';
 import { generateTerrainV8, levelElevation, WATER_POND } from './world-terrain-v8.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -372,8 +372,8 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
   for (const [district, anchor] of anchors.entries()) {
     const extent = district === 0 ? 24 : 20 + random() ** 2 * (30 + Math.sqrt(width) * 1.2);
     for (const kind of kinds) {
-      // Saved recipe 8 predates field plots and always regenerates its 3 × 3 farms.
-      const def = INDUSTRIES[kind], size = game.generationVersion < 9 && isFarmIndustry(kind) ? 3 : industryFootprint(kind), extraction = !Object.keys(def.inputs).length, wanted = resource(kind);
+      // Saved recipes regenerate the parcels that existed when the company began.
+      const def = INDUSTRIES[kind], size = generatedIndustryFootprint(kind,game.generationVersion), extraction = !Object.keys(def.inputs).length, wanted = resource(kind);
       let best = null, bestScore = -Infinity;
       const consider = (x, y, scale = extent, strict = true) => {
         if (x < 3 || y < 3 || x + size >= width - 3 || y + size >= height - 3 || !open(x, y, size) || nearTown(x + (size >> 1), y + (size >> 1), 11)) return;

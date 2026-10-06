@@ -9,8 +9,8 @@ import { emptyGame, line } from './helpers.mjs';
 function freight(L = 20, cargo = 'timber', mode = 'road') {
   const game = emptyGame(), pairs = { timber: ['logging-camp', 'sawmill'], food: ['food-plant', null] };
   const [source, buyer] = pairs[cargo];
-  assert.equal(build(game, source, 10, 8).ok, true);
-  if (buyer) assert.equal(build(game, buyer, 10 + L - 1, 8).ok, true);
+  assert.equal(build(game, source, 10, 7).ok, true);
+  if (buyer) assert.equal(build(game, buyer, 10 + L - 1, 7).ok, true);
   else { game.cities.push({ id: 'town', name: 'Town', x: 10 + L, y: 9, population: 900, activity: 0, passengers: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null }); game.revision++; }
   assert.equal(buildPath(game, mode, line(10, 10 + L, 12)).ok, true);
   for (const x of [10, 10 + L]) assert.equal(build(game, mode === 'road' ? 'bus-stop' : 'train-stop', x, 12).ok, true);
@@ -150,7 +150,7 @@ test('the timetable estimate reads the shared base speeds', () => {
 
 test('a detour pays at most twice the grid distance between the stops', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'coal-mine', 16, 8).ok, true);
+  assert.equal(build(game, 'coal-mine', 16, 7).ok, true);
   assert.equal(build(game, 'steel-mill', 33, 7).ok, true);
   const U = [...Array.from({ length: 71 }, (_, i) => ({ x: 20, y: 12 + i })), ...line(21, 32, 82), ...Array.from({ length: 70 }, (_, i) => ({ x: 32, y: 81 - i }))];
   assert.equal(buildPath(game, 'rail', U).ok, true);

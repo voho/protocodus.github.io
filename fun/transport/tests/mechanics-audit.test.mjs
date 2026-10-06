@@ -139,7 +139,7 @@ test('route connectivity can refresh while paused without moving vehicles or cha
 
 test('a complete affordable food chain conserves cargo and earns positive operating profit', () => {
   const game = emptyGame(); game.money = 400000;
-  build(game, 'farm', 10, 6); build(game, 'food-plant', 30, 10); build(game, 'city', 50, 10); buildPath(game, 'road', line(10, 50, 13));
+  build(game, 'farm', 10, 6); build(game, 'food-plant', 30, 8); build(game, 'city', 50, 10); buildPath(game, 'road', line(10, 50, 13));
   for (const x of [10, 30, 50]) build(game, 'bus-stop', x, 13);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'grain', stops: game.stations.slice(0, 2).map(stop => stop.id) }).ok, true);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'food', stops: game.stations.slice(1, 3).map(stop => stop.id) }).ok, true);

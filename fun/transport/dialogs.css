@@ -25,6 +25,7 @@
 .modal-heading p,.guide-item p{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display)}
 .close-modal{flex-shrink:0;background:var(--well);font-size:var(--fs-title);line-height:var(--lh-title);border-radius:50%;width:34px;height:34px;color:var(--ink-2)}
+#app #modal{position:fixed;inset:auto;margin:0;left:8px;top:calc(var(--play-header,52px) + 8px);max-height:calc(100dvh - var(--play-header,52px) - 16px);max-width:calc(100vw - 16px)}
 .guide-item>span{display:flex;align-items:center;gap:8px;font-weight:500;font-size:var(--fs-lead);line-height:var(--lh-lead)}
 .keyboard-help,.keyboard-help kbd{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .modal-tabbar button{padding-bottom:12px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}

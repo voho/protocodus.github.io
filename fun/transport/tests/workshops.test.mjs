@@ -216,7 +216,7 @@ test('freight that never touches a workshop earns exactly as before, even into a
   assert.ok(placeBuildingSite(game, 'factory', B.x + 7, B.y + 1, { size: 2, building: { kind: 'factory', level: 2 } })); game.revision++;
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
   assert.ok(build(game, 'quarry', A.x - 19, 49).ok);
-  assert.ok(build(game, 'furniture-factory', A.x - 14, 44).ok);
+  assert.ok(build(game, 'furniture-factory', A.x - 14, 43).ok);
   game.industries.at(-1).inventory.furniture = 900;
   const stop = build(game, 'bus-stop', A.x - 18, 48).station;
   const furniture = addRoute(game, { mode: 'road', stops: [stop.id, sb.id], cargo: 'furniture' }).route, stone = addRoute(game, { mode: 'road', stops: [stop.id, sb.id], cargo: 'stone' }).route;
@@ -267,10 +267,10 @@ test('a new sawmill may open near a town whose workshops buy lumber', () => {
   const game = emptyGame(), city = town(game, 40, 30, 'Ashford');
   assert.ok(build(game, 'logging-camp', 10, 30).ok);
   assert.equal(openingSiteProblem(game, 'sawmill', 20, 30), 'spacing', 'the camp it would buy from stands too close');
-  assert.equal(openingSiteProblem(game, 'sawmill', 27, 30), 'partner');
+  assert.equal(openingSiteProblem(game, 'sawmill', 26, 30), 'partner');
   workshop(game, 43, 33);
   assert.equal(workshopLevels(game, city), 1);
-  assert.equal(openingSiteProblem(game, 'sawmill', 27, 30), null);
+  assert.equal(openingSiteProblem(game, 'sawmill', 26, 30), null);
 });
 
 // The review's calibration (t3.mjs): two logging camps feed a sawmill 19 tiles east of Ashford's stop, which is never refilled.

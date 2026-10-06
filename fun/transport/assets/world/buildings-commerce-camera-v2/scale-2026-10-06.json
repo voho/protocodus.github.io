@@ -1,0 +1,143 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "entries": [
+    {
+      "id": "shop-butcher",
+      "name": "Butcher",
+      "footprint": 1,
+      "description": "Two-storey warm red brick butcher shop with a broad red-and-cream awning and one dark display window; no hanging meats or tiny produce."
+    },
+    {
+      "id": "shop-hardware",
+      "name": "Hardware shop",
+      "footprint": 1,
+      "description": "One-storey pale stone hardware shop with a low slate pitched roof, broad dark window and quiet ochre sign without lettering; no tool racks or plank grids."
+    },
+    {
+      "id": "shop-florist",
+      "name": "Florist",
+      "footprint": 1,
+      "description": "Small one-storey pale plaster florist with a green pitched roof, broad glass greenhouse annex and two broad muted flower-colour plant clusters; no individual petals."
+    },
+    {
+      "id": "service-post-office",
+      "name": "Post office",
+      "footprint": 1,
+      "description": "Compact two-storey plaster post office with a simple muted green roof, a broad red entrance panel and one simple red postbox. Normal2.1m door."
+    },
+    {
+      "id": "service-bank",
+      "name": "Bank",
+      "footprint": 2,
+      "description": "Wide two-storey stone bank, modest pediment and four broad columns. The columns are3m per storey and the central door is normal2.1m high, not a giant ceremonial door."
+    },
+    {
+      "id": "service-hotel",
+      "name": "Hotel",
+      "footprint": 2,
+      "description": "Wide four-storey warm brick hotel with repeated normal-scale room window bands and a simple slate mansard roof; no fine dormer grids or tiny railings."
+    },
+    {
+      "id": "service-garage",
+      "name": "Garage",
+      "footprint": 2,
+      "description": "Low broad brick garage with three4.2m vehicle bays, a normal2.1m side personnel door, simple slate roof and a compact office wing; no parked vehicles."
+    },
+    {
+      "id": "service-barber",
+      "name": "Barber",
+      "footprint": 1,
+      "description": "Tiny one-storey pale stone barber shop with a clean teal pitched roof and large three-colour barber pole beside the normal2.1m door."
+    },
+    {
+      "id": "civic:factory:{biome}",
+      "name": "City workshop",
+      "footprint": 2,
+      "description": "A small2x2-tile brick workshop building with two broad roof skylights, one4.2m loading bay, normal2.1m side personnel door and one short chimney. This city workshop is2x2, not a standalone5x5 industry."
+    }
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorMasterPixels": 30,
+      "targetDoorMasterPixels": 22.400000000000002,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "shop-butcher",
+          "beforeCalibrationMasterPixels": 33,
+          "afterCalibrationMasterPixels": 24.64,
+          "afterCalibrationWorldPixels": 4.62
+        },
+        {
+          "id": "shop-hardware",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "shop-florist",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "service-post-office",
+          "beforeCalibrationMasterPixels": 31,
+          "afterCalibrationMasterPixels": 23.14666666666667,
+          "afterCalibrationWorldPixels": 4.34
+        },
+        {
+          "id": "service-barber",
+          "beforeCalibrationMasterPixels": 26,
+          "afterCalibrationMasterPixels": 19.413333333333338,
+          "afterCalibrationWorldPixels": 3.6400000000000006
+        }
+      ]
+    },
+    "2": {
+      "referenceDoorMasterPixels": 22,
+      "targetDoorMasterPixels": 11.200000000000001,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "service-bank",
+          "beforeCalibrationMasterPixels": 18,
+          "afterCalibrationMasterPixels": 9.163636363636364,
+          "afterCalibrationWorldPixels": 3.4363636363636365
+        },
+        {
+          "id": "service-hotel",
+          "beforeCalibrationMasterPixels": 22,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "service-garage",
+          "beforeCalibrationMasterPixels": 24,
+          "afterCalibrationMasterPixels": 12.218181818181819,
+          "afterCalibrationWorldPixels": 4.581818181818182
+        },
+        {
+          "id": "factory",
+          "beforeCalibrationMasterPixels": 22,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ]
+    }
+  },
+  "registration": "Original disconnected RGBA pixels retained. A measured doorway factor is uniform for every complete cutout in a source family/footprint tier; alpha bounds locate ground contact only, never choose scale. Fixed master contact anchor (128,244), full 256px parcel grid retained. No runtime per-kind multiplier.",
+  "rejectedCorrection": "A follow-up imagegen shrink edit did not honor tier scale consistently; original fresh sources retained and registered with explicit tier calibration."
+}

@@ -14,7 +14,7 @@ const lens = page => page.evaluate(() => transport.renderer.getStats().lens);
 const chip = page => page.locator('#cargo-lens-chip');
 const cleared = async (page, why) => { await page.waitForFunction(() => !transport.renderer.getStats().lens && !document.querySelector('#cargo-lens-chip')); assert.equal(await lens(page), null, why); };
 const showing = (page, cargo) => page.waitForFunction(cargo => transport.renderer.getStats().lens?.cargo === cargo, cargo);
-const routes = async page => { if (!await page.evaluate(() => document.querySelector('.sidebar').classList.contains('drawer-open') && Boolean(document.querySelector('#route-planner')))) await page.locator('.main-nav [data-view="routes"]').click(); if (!await page.locator('#route-planner').evaluate(el => el.open)) await page.locator('#route-planner > summary').click(); };
+const routes = async page => { if (!await page.locator('#route-form').count() || !await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open'))) { await page.evaluate(()=>transport.setView('routes')); await page.locator('#new-route-button').click(); } };
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
@@ -29,6 +29,7 @@ try {
     transport.renderer.setZoom(.5); transport.renderer.focus(site.x - 6, site.y + 6); return { id: site.id, x: site.x, y: site.y, span: site.footprint || 1 };
   });
   await page.locator('.main-nav [data-view="routes"]').click();
+  await page.locator('#new-route-button').click();
   await page.locator('#route-planner').waitFor({ state: 'visible' });
   // Samples a marker's pale left edge while rendering in one task: plain, without industry icons (the ground beneath) and as the app draws it now.
   await page.evaluate(() => {
@@ -102,8 +103,8 @@ try {
   await routes(page);
   await page.locator('[data-cargo-choice="iron"]').click();
   await showing(page, 'iron');
-  await page.locator('#route-planner > summary').click();
-  await cleared(page, 'folding the route planner clears the lens');
+  await page.locator('#route-back').click();
+  await cleared(page, 'returning to the route list clears the lens');
   await routes(page);
   await page.locator('[data-cargo-choice="iron"]').click();
   await showing(page, 'iron');

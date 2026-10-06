@@ -1,4 +1,4 @@
-// Real catalog and pointer gestures on untouched recipe-9 terrain. Model and
+// Real catalog and pointer gestures on untouched recipe-10 terrain. Model and
 // artwork matrix tests cover other climates; this check exercises player flows.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -60,7 +60,7 @@ async function findSite(page, kind, { nearTown = false, near } = {}) {
         for (let sy = y; sy <= y + span; sy++) for (let sx = x; sx <= x + span; sx++) {
           const h = surfaceHeight(g, sx, sy); low = Math.min(low, h); high = Math.max(high, h);
         }
-        if (span === 7 && high - low > 1) continue;
+        if (span === 5 && high - low > 1) continue;
         return { x, y, kind, span, name: definition.name, cost: quote.cost, townId: center.id };
       }
     throw new Error(`No real clear ${span}×${span} plot for ${kind}`);
@@ -75,7 +75,8 @@ async function state(page, point) {
 }
 
 // Capture the actual filled preview polygon from the live world canvas, in CSS
-// pixels. This proves the outline includes all 49 cells rather than just the barn.
+// pixels. This proves the outline includes the complete field, including cells
+// outside the separate 2×2 barn core.
 async function capturePreview(page) {
   await page.evaluate(() => {
     const ctx = document.querySelector('#world').getContext('2d'), probe = document.createElement('canvas').getContext('2d');
@@ -104,10 +105,10 @@ async function assertPreview(page, site) {
       return result;
     };
     let cells = 0;
-    for (let dy = 0; dy < 7; dy++) for (let dx = 0; dx < 7; dx++) cells += inside(r.worldToScreen(site.x + dx, site.y + dy));
-    return { cells, outside: inside(r.worldToScreen(site.x + 7, site.y + 6)), vertices: polygon.length };
+    for (let dy = 0; dy < site.span; dy++) for (let dx = 0; dx < site.span; dx++) cells += inside(r.worldToScreen(site.x + dx, site.y + dy));
+    return { cells, outside: inside(r.worldToScreen(site.x + site.span, site.y + site.span - 1)), vertices: polygon.length };
   }, site);
-  assert.equal(coverage.cells, 49, 'the rendered field preview covers all 49 ground cells');
+  assert.equal(coverage.cells, 25, 'the rendered field preview covers all 25 ground cells');
   assert.equal(coverage.outside, false, 'the rendered preview stops at the field boundary');
   return coverage;
 }
@@ -155,7 +156,8 @@ async function catalog(page, profile) {
   }
   assert.deepEqual(counts, expected.groups, 'the catalog exposes every building in its group');
   await drawer(page); await page.locator('[data-category="industry"]').click();
-  for (const kind of farms) assert.match(await page.locator(`.industry-tool[data-tool="${kind}"] .tool-cost`).innerText(), /7 × 7/);
+  const industryKinds = await page.evaluate(async () => Object.entries((await import('./data.js')).INDUSTRIES).filter(([, definition]) => definition.biomes.includes(transport.game.biome)).map(([kind]) => kind));
+  for (const kind of industryKinds) assert.match(await page.locator(`.industry-tool[data-tool="${kind}"] .tool-cost`).innerText(), /5 × 5/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'catalog stays within the viewport');
   return counts;
 }
@@ -202,15 +204,15 @@ async function inspectSite(page, site) {
   await page.locator('#inspector [aria-label="Close inspector"]').click();
 }
 async function fieldLifecycle(page, site) {
-  const corner = { x: site.x + 6, y: site.y + 6 }, before = await state(page, corner);
+  const corner = { x: site.x + site.span - 1, y: site.y + site.span - 1 }, before = await state(page, corner);
   await page.locator('#world').focus(); await page.keyboard.press('r');
   await clickWorld(page, corner);
   const blocked = await state(page, corner);
   assert.deepEqual(blocked, before, 'a road cannot invade a visually empty far field cell');
   await page.locator('#world').focus(); await page.keyboard.press('x');
   const cost = await page.evaluate(async p => (await import('./model.js')).constructionCost(transport.game, 'bulldoze', p.x, p.y), corner);
-  await screen(page, { x: site.x + 3, y: site.y + 6 });
-  const a = await screen(page, corner, { focus: false }), b = await screen(page, { x: site.x, y: site.y + 6 }, { focus: false });
+  await screen(page, { x: site.x + (site.span - 1) / 2, y: corner.y });
+  const a = await screen(page, corner, { focus: false }), b = await screen(page, { x: site.x, y: corner.y }, { focus: false });
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 12 }); await page.mouse.up();
   const removed = await state(page, corner);
   assert.equal(removed.industry, null); assert.equal(before.money - removed.money, cost, 'one field demolition, including a drag across it, charges once');
@@ -219,9 +221,9 @@ async function fieldLifecycle(page, site) {
   assert.deepEqual(await state(page, corner), before, 'normal construction Undo restores the whole field and account');
   assert.equal(await page.evaluate(async site => {
     const { industryAt } = await import('./model.js'); let count = 0;
-    for (let dy = 0; dy < 7; dy++) for (let dx = 0; dx < 7; dx++) count += industryAt(transport.game, site.x + dx, site.y + dy)?.id === site.id;
+    for (let dy = 0; dy < site.span; dy++) for (let dx = 0; dx < site.span; dx++) count += industryAt(transport.game, site.x + dx, site.y + dy)?.id === site.id;
     return count;
-  }, site), 49);
+  }, site), 25);
 }
 async function savedSites(page, sites) {
   return page.evaluate(async sites => {
@@ -239,8 +241,8 @@ try {
     const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr });
     page.on('pageerror', error => errors.push(error.message));
     try {
-      await page.goto(url); await createWorldFromMenu(page, { seed: 1847, generationVersion: 9 });
-      assert.equal(await page.evaluate(() => transport.game.generationVersion), 9);
+      await page.goto(url); await createWorldFromMenu(page, { seed: 1847, generationVersion: 10 });
+      assert.equal(await page.evaluate(() => transport.game.generationVersion), 10);
       const counts = await catalog(page, profile.name), sites = [];
       for (const kind of [...parks, ...malls]) {
         const site = await findSite(page, kind, { nearTown: true });
@@ -275,8 +277,8 @@ try {
       const checkpoint = await savedSites(page, sites);
       assert.equal(await page.evaluate(() => transport.persist()), true);
       await page.reload(); await loadAutosaveFromMenu(page);
-      assert.deepEqual(await savedSites(page, sites), checkpoint, 'actual autosave restores every new park, mall and 7×7 farm');
-      assert.equal(await page.evaluate(() => transport.game.generationVersion), 9);
+      assert.deepEqual(await savedSites(page, sites), checkpoint, 'actual autosave restores every new park, mall and 5×5 farm');
+      assert.equal(await page.evaluate(() => transport.game.generationVersion), 10);
       await page.evaluate(p => { transport.setTool('inspect'); transport.renderer.setZoom(.5); transport.renderer.focus(p.x, p.y); }, sites[0]);
       await page.mouse.move(2, 2); await page.screenshot({ path: `${output}/${profile.name}-new-neighborhood.png` });
       {

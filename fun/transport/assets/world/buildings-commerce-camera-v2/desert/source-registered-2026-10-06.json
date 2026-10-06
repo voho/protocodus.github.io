@@ -1,0 +1,136 @@
+{
+  "source": "source-style-2026-10-06.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "coreAlphaThreshold": 16,
+  "meaningfulAlphaThreshold": 8,
+  "meaningfulPixelsPreserved": 739264,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        22,
+        55,
+        404,
+        414
+      ],
+      "offset": [
+        129,
+        140
+      ],
+      "pixels": 86897
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        441,
+        141,
+        817,
+        409
+      ],
+      "offset": [
+        132,
+        186
+      ],
+      "pixels": 62588
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        844,
+        116,
+        1241,
+        411
+      ],
+      "offset": [
+        121,
+        172
+      ],
+      "pixels": 69316
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        22,
+        494,
+        367,
+        815
+      ],
+      "offset": [
+        147,
+        159
+      ],
+      "pixels": 66046
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        377,
+        491,
+        864,
+        847
+      ],
+      "offset": [
+        76,
+        142
+      ],
+      "pixels": 110665
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        854,
+        433,
+        1243,
+        845
+      ],
+      "offset": [
+        125,
+        114
+      ],
+      "pixels": 108985
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        5,
+        893,
+        531,
+        1228
+      ],
+      "offset": [
+        57,
+        152
+      ],
+      "pixels": 101068
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        527,
+        949,
+        791,
+        1191
+      ],
+      "offset": [
+        188,
+        199
+      ],
+      "pixels": 41401
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        799,
+        889,
+        1249,
+        1220
+      ],
+      "offset": [
+        95,
+        154
+      ],
+      "pixels": 92298
+    }
+  ]
+}

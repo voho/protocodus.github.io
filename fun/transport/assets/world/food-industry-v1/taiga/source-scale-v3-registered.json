@@ -1,0 +1,123 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 622861,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:dairy-farm:taiga",
+      "sourceBounds": [
+        4,
+        38,
+        532,
+        347
+      ],
+      "offset": [
+        24,
+        239
+      ],
+      "pixels": 87949
+    },
+    {
+      "cell": 1,
+      "id": "industry:vegetable-farm:taiga",
+      "sourceBounds": [
+        531,
+        30,
+        1015,
+        348
+      ],
+      "offset": [
+        46,
+        230
+      ],
+      "pixels": 80807
+    },
+    {
+      "cell": 2,
+      "id": "industry:orchard:taiga",
+      "sourceBounds": [
+        1014,
+        38,
+        1531,
+        351
+      ],
+      "offset": [
+        29,
+        235
+      ],
+      "pixels": 87814
+    },
+    {
+      "cell": 3,
+      "id": "industry:livestock-farm:taiga",
+      "sourceBounds": [
+        7,
+        353,
+        521,
+        687
+      ],
+      "offset": [
+        31,
+        214
+      ],
+      "pixels": 92326
+    },
+    {
+      "cell": 4,
+      "id": "industry:dairy-plant:taiga",
+      "sourceBounds": [
+        516,
+        351,
+        1017,
+        686
+      ],
+      "offset": [
+        37,
+        213
+      ],
+      "pixels": 91998
+    },
+    {
+      "cell": 5,
+      "id": "industry:cannery:taiga",
+      "sourceBounds": [
+        1013,
+        360,
+        1531,
+        683
+      ],
+      "offset": [
+        29,
+        225
+      ],
+      "pixels": 89031
+    },
+    {
+      "cell": 6,
+      "id": "industry:meat-packer:taiga",
+      "sourceBounds": [
+        4,
+        685,
+        536,
+        1011
+      ],
+      "offset": [
+        22,
+        222
+      ],
+      "pixels": 92936
+    },
+    {
+      "cell": 7,
+      "empty": true
+    },
+    {
+      "cell": 8,
+      "empty": true
+    }
+  ]
+}

@@ -15,16 +15,20 @@ from PIL import Image
 from scipy.ndimage import distance_transform_edt, find_objects, label
 
 
-def prepare(source_path, output_path):
+def prepare(source_path, output_path, expected_objects=None, core_alpha=8):
     source = np.asarray(Image.open(source_path).convert('RGBA'))
     height, width = source.shape[:2]
     meaningful = source[:, :, 3] > 8
-    labels, _ = label(meaningful, np.ones((3, 3)))
+    # Faint antialiased snow/shadow gutters can connect otherwise isolated
+    # cutouts. A caller may identify their solid cores more strictly; every
+    # original meaningful pixel is still assigned and retained below.
+    labels, _ = label(source[:, :, 3] > core_alpha, np.ones((3, 3)))
     counts = np.bincount(labels.ravel())
     slices = find_objects(labels)
     objects = [index for index in range(1, len(counts)) if counts[index] > width * height * .001]
-    if len(objects) not in (8, 9):
-        raise ValueError(f'Expected eight or nine separate buildings, found {len(objects)}; inspect or regenerate.')
+    expected = (expected_objects,) if expected_objects is not None else (8, 9)
+    if len(objects) not in expected:
+        raise ValueError(f'Expected {expected} separate buildings, found {len(objects)}; inspect or regenerate.')
     owner = np.zeros(labels.shape, np.int16)
     ids = set()
     for component in objects:
@@ -61,7 +65,7 @@ def prepare(source_path, output_path):
     assert preserved == int(meaningful.sum()), 'A meaningful source pixel was lost or duplicated'
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result.save(output_path, optimize=True)
-    output_path.with_suffix('.json').write_text(json.dumps({'source': source_path.name, 'cell': cell, 'operation': 'Original RGBA pixels registered by disconnected alpha components; no resampling', 'meaningfulPixelsPreserved': preserved, 'cells': records}, indent=2) + '\n')
+    output_path.with_suffix('.json').write_text(json.dumps({'source': source_path.name, 'cell': cell, 'operation': 'Original RGBA pixels registered by disconnected alpha components; no resampling', 'coreAlphaThreshold': core_alpha, 'meaningfulAlphaThreshold': 8, 'meaningfulPixelsPreserved': preserved, 'cells': records}, indent=2) + '\n')
     print(json.dumps({'source': source_path.name, 'output': str(output_path), 'objects': len(objects), 'preservedPixels': preserved}))
 
 
@@ -69,5 +73,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
     parser.add_argument('output', type=Path)
+    parser.add_argument('--expected-objects', type=int, choices=range(1, 10))
+    parser.add_argument('--core-alpha', type=int, choices=range(8, 255), default=8)
     args = parser.parse_args()
-    prepare(args.source, args.output)
+    prepare(args.source, args.output, args.expected_objects, args.core_alpha)

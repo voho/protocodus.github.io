@@ -106,6 +106,9 @@ try {
   const fern = await page.evaluate(() => transport.game.stations.find(s => s.name === 'Fernford Airport'));
   assert.deepEqual({ x: fern.x, y: fern.y, axis: fern.axis, mode: fern.mode }, { ...FERN.anchor, axis: 'x', mode: 'air' });
   assert.equal(before - await money(page), quote.cost, 'the airport costs its quote');
+  await page.locator('[data-construction-next="stop"]').click();
+  assert.equal(await page.locator('#active-tool-name').textContent(),'Airport','Add another stop continues the same airport mode');
+  assert.equal(await page.locator('#active-tool-turn').isVisible(),true,'the continuation keeps the turnable runway tool');
   // A sloped site: raise one vertex beside Fernford's airport and the tip turns red with the model's reason.
   const slope = await page.evaluate(async () => {
     const { build, quoteBuildPlan } = await Promise.all([import('./model.js'), import('./construction-plan.js')]).then(([m, c]) => ({ build: m.build, quoteBuildPlan: c.quoteBuildPlan }));
@@ -151,6 +154,7 @@ try {
 
   // 7. Routes: Air joins the form, both airports picked by their signs, a straight flight.
   await chooseView(page, 'routes');
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
   assert.ok((await page.locator('#route-form [name="mode"] option').allTextContents()).includes('Air'));
   await page.locator('#route-form [name="mode"]').selectOption('air');

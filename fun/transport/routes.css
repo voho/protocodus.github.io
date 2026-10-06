@@ -201,3 +201,22 @@
 /* The route name needs no label line: its placeholder is the name it will take. */
 .form-field--bare{margin-top:0}
 .route-list-heading[hidden]{display:none}
+.panel-back{display:inline-flex;align-items:center;gap:4px;min-height:32px;margin:0 0 8px;padding:4px 0;color:var(--ink-2);font-size:var(--fs-small)}
+.panel-back svg{width:16px;height:16px}
+.panel-back:hover{color:var(--ink)}
+.route-planner-focused{border:0;margin:0;background:none}
+.route-planner-focused>summary{display:none}
+.route-planner-focused>.panel-form{padding:0;border:0}
+.route-filter-details{grid-column:1/-1}
+.route-filter-details>summary,.route-card-details>summary,.fleet-upgrades>summary{display:flex;align-items:center;gap:8px;cursor:pointer;min-height:36px;color:var(--ink-2);font-size:var(--fs-small);list-style:none}
+.route-filter-details>summary::-webkit-details-marker,.route-card-details>summary::-webkit-details-marker,.fleet-upgrades>summary::-webkit-details-marker{display:none}
+.route-filter-details>summary:after,.route-card-details>summary:after,.fleet-upgrades>summary:after{content:'+';margin-left:auto}
+.route-filter-details[open]>summary:after,.route-card-details[open]>summary:after,.fleet-upgrades[open]>summary:after{content:'−'}
+.route-filter-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:8px}
+.route-card-details>summary{border-top:1px solid var(--rule);margin-top:4px}
+.route-card-details>summary .cargo-badge{padding:0;border:0;background:none}
+.route-card-details>summary>span:last-of-type{font-size:var(--fs-caption)}
+.fleet-upgrades{margin-top:16px}
+.fleet-upgrades:not([open]){display:block;padding:4px 12px}
+.route-actions{margin-top:8px}
+.empty-state .button,.empty-state .small-button{display:block;margin:12px auto 0}

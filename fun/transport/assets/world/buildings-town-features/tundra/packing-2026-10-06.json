@@ -1,0 +1,199 @@
+{
+  "source": "source-generated-2026-10-06.png",
+  "sourceSha256": "c400167df547fed893293f5c93ea5e76074bd14537c9c5f05732e894968039cc",
+  "operation": "Original RGBA complete cutouts; one measured doorway scale per footprint tier, fixed ground-contact anchor, alpha-preserving mip filtering without sharpening",
+  "meaningfulPixelsPreserved": 685543,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "civic:park:tundra",
+      "footprint": 2,
+      "sourceBounds": [
+        14,
+        47,
+        421,
+        397
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 72759
+    },
+    {
+      "cell": 1,
+      "id": "civic:playground:tundra",
+      "footprint": 1,
+      "sourceBounds": [
+        442,
+        120,
+        705,
+        378
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 36482
+    },
+    {
+      "cell": 2,
+      "id": "civic:swimming-pool:tundra",
+      "footprint": 2,
+      "sourceBounds": [
+        714,
+        56,
+        1084,
+        390
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 66861
+    },
+    {
+      "cell": 3,
+      "id": "civic:sports-field:tundra",
+      "footprint": 2,
+      "sourceBounds": [
+        1091,
+        55,
+        1446,
+        394
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 63513
+    },
+    {
+      "cell": 4,
+      "id": "civic:tennis-courts:tundra",
+      "footprint": 1,
+      "sourceBounds": [
+        29,
+        465,
+        344,
+        746
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 46836
+    },
+    {
+      "cell": 5,
+      "id": "civic:ballpark:tundra",
+      "footprint": 3,
+      "sourceBounds": [
+        345,
+        403,
+        752,
+        741
+      ],
+      "originalPixelScale": 0.35555555555555557,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 87017
+    },
+    {
+      "cell": 6,
+      "id": "civic:sports-hall:tundra",
+      "footprint": 2,
+      "sourceBounds": [
+        748,
+        425,
+        1109,
+        750
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 65235
+    },
+    {
+      "cell": 7,
+      "id": "civic:town-hall:tundra",
+      "footprint": 2,
+      "sourceBounds": [
+        1101,
+        399,
+        1446,
+        752
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 66446
+    },
+    {
+      "cell": 8,
+      "id": "civic:shop-cafe:tundra",
+      "footprint": 1,
+      "sourceBounds": [
+        50,
+        766,
+        353,
+        1059
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 59008
+    },
+    {
+      "cell": 9,
+      "id": "civic:shop-pharmacy:tundra",
+      "footprint": 1,
+      "sourceBounds": [
+        403,
+        764,
+        715,
+        1061
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 60677
+    },
+    {
+      "cell": 10,
+      "id": "civic:shop-bookshop:tundra",
+      "footprint": 1,
+      "sourceBounds": [
+        737,
+        753,
+        1052,
+        1062
+      ],
+      "originalPixelScale": 0.3862068965517242,
+      "contactAnchor": [
+        128,
+        244
+      ],
+      "preservedSourcePixels": 60709
+    },
+    {
+      "cell": 11,
+      "empty": true
+    }
+  ]
+}

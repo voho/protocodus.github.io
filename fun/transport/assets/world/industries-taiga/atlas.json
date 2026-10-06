@@ -21,8 +21,8 @@
     "industry:furniture-factory:taiga",
     "industry:machine-works:taiga"
   ],
-  "source": "source-isometric-packed.png",
-  "sourceSha256": "da9d8998589e1af372561abb1d7a0823c693c5fcc67c7a3dbd22b2827e8c4e85",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "286eee1fb08a7e97596a0775f00cae414bbad677e9c1c5801b508d2e41b1695f",
   "sprites": [
     {
       "id": "industry:logging-camp:taiga",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        576,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          118,
-          168,
-          526,
-          543
+          32,
+          259,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          109,
-          117,
-          530,
+          32,
+          258,
+          545,
           548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.77647
+        "transparentFraction": 0.760682
       },
       "bounds": [
-        12,
-        32,
-        244,
+        13,
+        114,
+        243,
         244
       ]
     },
@@ -65,74 +65,74 @@
       "id": "industry:sawmill:taiga",
       "cell": 1,
       "sourceBounds": [
-        640,
+        576,
         0,
-        1280,
-        640
+        1152,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          116,
-          222,
-          522,
-          538
+          31,
+          247,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          112,
-          98,
-          527,
-          546
+          30,
+          246,
+          545,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.795588
+        "transparentFraction": 0.750115
       },
       "bounds": [
-        12,
-        63,
-        244,
-        244
+        13,
+        110,
+        243,
+        245
       ]
     },
     {
       "id": "industry:coal-mine:taiga",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        1152,
         0,
-        1920,
-        640
+        1728,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          116,
-          170,
-          522,
-          541
+          42,
+          235,
+          533,
+          547
         ],
         "rawAlphaBounds": [
-          111,
-          101,
-          528,
-          545
+          41,
+          235,
+          534,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.794905
+        "transparentFraction": 0.777627
       },
       "bounds": [
-        12,
-        32,
-        244,
-        244
+        17,
+        103,
+        238,
+        245
       ]
     },
     {
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        576,
+        576,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          117,
-          146,
-          528,
-          499
+          25,
+          239,
+          550,
+          547
         ],
         "rawAlphaBounds": [
-          110,
-          122,
-          530,
-          506
+          24,
+          239,
+          551,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.778127
+        "transparentFraction": 0.755356
       },
       "bounds": [
-        12,
-        45,
-        244,
+        10,
+        105,
+        246,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "industry:steel-mill:taiga",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        576,
+        576,
+        1152,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          114,
-          128,
-          524,
-          499
+          34,
+          221,
+          541,
+          547
         ],
         "rawAlphaBounds": [
-          111,
-          122,
-          528,
-          508
+          33,
+          220,
+          542,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.760859
+        "transparentFraction": 0.733145
       },
       "bounds": [
-        12,
-        34,
-        244,
+        14,
+        97,
+        242,
         244
       ]
     },
@@ -213,37 +213,37 @@
       "id": "industry:farm:taiga",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        1152,
+        576,
+        1728,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          115,
-          171,
-          524,
-          503
+          43,
+          251,
+          533,
+          547
         ],
         "rawAlphaBounds": [
-          111,
-          135,
-          528,
-          510
+          42,
+          250,
+          534,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.783787
+        "transparentFraction": 0.783899
       },
       "bounds": [
-        12,
-        56,
-        244,
-        244
+        18,
+        110,
+        239,
+        245
       ]
     },
     {
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        1152,
+        576,
+        1728
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          123,
-          133,
-          524,
-          485
+          25,
+          255,
+          551,
+          547
         ],
         "rawAlphaBounds": [
-          112,
-          133,
-          527,
-          521
+          24,
+          254,
+          551,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.785503
+        "transparentFraction": 0.735945
       },
       "bounds": [
-        12,
-        40,
-        244,
+        9,
+        112,
+        246,
         244
       ]
     },
@@ -287,75 +287,80 @@
       "id": "industry:furniture-factory:taiga",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        576,
+        1152,
+        1152,
+        1728
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          110,
-          133,
-          527,
-          480
+          38,
+          262,
+          538,
+          547
         ],
         "rawAlphaBounds": [
-          107,
-          133,
-          532,
-          489
+          37,
+          261,
+          539,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.775603
+        "transparentFraction": 0.765908
       },
       "bounds": [
-        12,
-        51,
-        244,
-        244
+        15,
+        115,
+        240,
+        245
       ]
     },
     {
       "id": "industry:machine-works:taiga",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        1152,
+        1152,
+        1728,
+        1728
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          118,
-          155,
-          520,
-          487
+          41,
+          268,
+          535,
+          547
         ],
         "rawAlphaBounds": [
-          113,
-          124,
-          527,
-          497
+          40,
+          267,
+          536,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.780918
+        "transparentFraction": 0.761646
       },
       "bounds": [
-        12,
-        52,
-        244,
-        244
+        17,
+        118,
+        239,
+        245
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 5,
+  "scaleContract": "../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

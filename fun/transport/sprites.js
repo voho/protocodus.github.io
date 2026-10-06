@@ -7,6 +7,7 @@ import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './
 import { drawTownBuilding } from './building-sprites.js';
 import { drawTownFeature } from './town-feature-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
+import { featureSpriteUnits, SPRITE_SCALE } from './sprite-art-direction.js';
 import { drawTerrainDetail } from './terrain-sprites.js';
 import { drawForest, drawTree } from './tree-sprites.js';
 import { drawMountain, drawBoulder } from './relief-sprites.js';
@@ -23,7 +24,7 @@ export const PALETTES = {
 export function rng(seed) { let a = seed >>> 0; return () => { a += 0x6d2b79f5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function polygon(ctx, points, fill) { ctx.fillStyle = fill; ctx.beginPath(); points.forEach(([x,y],i)=>i ? ctx.lineTo(x,y):ctx.moveTo(x,y)); ctx.closePath(); ctx.fill(); }
 function ellipse(ctx,x,y,rx,ry,fill) {ctx.fillStyle=fill;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();}
-function windowRow(ctx, x, y, count, color='#f4dfad', step=4) { ctx.fillStyle='#40565b'; for(let i=0;i<count;i++) {ctx.fillRect(x+i*step,y,2,3);ctx.fillStyle=color;ctx.fillRect(x+i*step,y,1,2);ctx.fillStyle='#40565b';} }
+function windowRow(ctx,x,y,count,color='#f4dfad',step=4,footprint=1) { const w=featureSpriteUnits(.9,footprint),h=featureSpriteUnits(SPRITE_SCALE.windowHeightMetres,footprint);ctx.fillStyle='#40565b';for(let i=0;i<count;i++){ctx.fillRect(x+i*step,y,w,h);ctx.fillStyle=color;ctx.fillRect(x+i*step,y,w*.55,h*.55);ctx.fillStyle='#40565b';} }
 function conifer(ctx,x,y,size,r,biome,detailLevel='town',species='pine') {
   drawTree(ctx,{x,y,size,species:biome==='desert'?'acacia':species,bare:false,seed:Math.floor(r()*4294967296)},biome,detailLevel);
 }
@@ -66,8 +67,8 @@ function building(ctx,kind,r,level,biome) {
   if(kind==='shop') {ctx.fillStyle='#5b7d6d';ctx.fillRect(x,y+9,17,3);ctx.fillStyle='#e9d9b2';for(let i=0;i<4;i++)ctx.fillRect(x+i*4,y+9,2,3);ctx.fillStyle='#3e5657';ctx.fillRect(x+3,23,6,3);}
   if(kind==='factory'){ctx.fillStyle='#8d715c';ctx.fillRect(22,2,4,12);ctx.fillStyle='#67534a';ctx.fillRect(21,2,6,2);}
 }
-function industry(ctx,kind,r,biome,detailLevel='town') {
-  if(drawProcessingPlant(ctx,kind,r,biome,detailLevel))return;
+function industry(ctx,kind,r,biome,detailLevel='town',footprint=5) {
+  if(drawProcessingPlant(ctx,kind,r,biome,detailLevel,footprint))return;
   ctx.fillStyle=biome==='desert'?'#b6a787':'#a1a68e';ctx.fillRect(2,12,28,17);
   ctx.fillStyle='#65766355';ctx.fillRect(1,29,30,1);ctx.fillStyle='#d0c3a0';ctx.fillRect(2,27,28,2);
   if(/mine|quarry|coal|iron|copper|ore|salt/.test(kind)) {
@@ -90,7 +91,7 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
     ellipse(ctx,25,23,4,4,'#a5aa92');ctx.fillStyle='#7c806a';ctx.fillRect(25,22,5,6);
   } else if(kind==='fishery') {
     ctx.fillStyle='#79989b';ctx.fillRect(3,21,27,9);ctx.fillStyle='#b49f74';ctx.fillRect(4,19,25,3);ctx.fillRect(24,19,4,11);
-    ctx.fillStyle='#ddd7b8';ctx.fillRect(3,10,18,12);polygon(ctx,[[2,10],[11,4],[22,10],[22,13],[2,13]],'#657e84');windowRow(ctx,6,15,3,'#c6ddd3');ctx.fillStyle='#415f63';ctx.fillRect(11,18,4,4);
+    ctx.fillStyle='#ddd7b8';ctx.fillRect(3,10,18,12);polygon(ctx,[[2,10],[11,4],[22,10],[22,13],[2,13]],'#657e84');windowRow(ctx,6,15,3,'#c6ddd3',4,footprint);ctx.fillStyle='#415f63';ctx.fillRect(11,22-featureSpriteUnits(SPRITE_SCALE.doorHeightMetres,footprint),featureSpriteUnits(SPRITE_SCALE.doorWidthMetres,footprint),featureSpriteUnits(SPRITE_SCALE.doorHeightMetres,footprint));
     ellipse(ctx,14,27,7,2.5,'#e2d7b3');ctx.fillStyle='#739197';ctx.fillRect(10,25,8,2);ctx.fillStyle='#bd8d62';ctx.fillRect(13,24,3,2);
   } else if(/oil|refinery|chemical/.test(kind)) {
     [6,16,26].forEach((x,i)=>{ctx.fillStyle='#b7b7a3';ctx.fillRect(x-3,13+i*3,6,11-i*3);ellipse(ctx,x,13+i*3,3,3,'#dfddc2');ctx.fillStyle='#848f85';ctx.fillRect(x,16+i*2,1,6);});
@@ -102,7 +103,7 @@ function industry(ctx,kind,r,biome,detailLevel='town') {
   } else { // Workshop, mill, food plant, steel works, and goods factories.
     ctx.fillStyle='#5b6f6c';ctx.fillRect(3,13,26,13);ctx.fillStyle='#c4c4ac';ctx.fillRect(3,19,26,8);
     polygon(ctx,[[2,18],[7,10],[12,10],[12,18]],'#8d9b92');polygon(ctx,[[11,18],[16,10],[21,10],[21,18]],'#7c8f89');polygon(ctx,[[20,18],[25,10],[30,10],[30,18]],'#9caaa0');
-    windowRow(ctx,5,21,6,'#b5d1c3');ctx.fillStyle='#496561';ctx.fillRect(16,24,7,3);
+    windowRow(ctx,5,21,6,'#b5d1c3',4,footprint);ctx.fillStyle='#496561';ctx.fillRect(16,27-featureSpriteUnits(SPRITE_SCALE.loadingBayHeightMetres,footprint),featureSpriteUnits(4,footprint),featureSpriteUnits(SPRITE_SCALE.loadingBayHeightMetres,footprint));
     ctx.fillStyle='#a68d70';ctx.fillRect(5,3,4,13);ctx.fillStyle='#705e4a';ctx.fillRect(4,3,6,2);ctx.fillStyle='#d0bb91';ctx.fillRect(5,8,4,2);
     ctx.fillStyle='#bb9954';ctx.fillRect(24,25,6,3);
   }
@@ -135,7 +136,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     variant=((Math.floor(variant)%variants)+variants)%variants;
     const houseRotation=house?variant%2:0,houseDesign=house?Math.floor(variant/6)%3:0;
     const shopDesign=shop?buildingArtworkDesign(variant):0;
-    const span=Math.max(1,Math.min(3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
+    const span=Math.max(1,Math.min(Object.hasOwn(INDUSTRIES,kind)?5:3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
     // Share repeated seeds while retaining each house design and orientation.
     const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign)||hasRasterBuilding(kind,biome,shopDesign))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
     const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`),cached=cache.get(key);
@@ -157,7 +158,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       let cityArt=false;
       if(kind==='factory'){ctx.save();ctx.scale(span,span);cityArt=drawRasterBuilding(ctx,kind,biome,density*span);ctx.restore();}
-      if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile);ctx.restore();}
+      if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span,footprint:span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile,span);ctx.restore();}
     }
     else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,detail,r,biome,profile);
@@ -173,7 +174,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     }
     else if(kind==='mountain') drawMountain(ctx,detail,r,biome,profile);
     else if(['house','apartment','shop','office','factory'].includes(kind)) building(ctx,kind,r,level,biome);
-    else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile);ctx.restore();}
+    else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile,span);ctx.restore();}
     cache.set(key,canvas);created++;return canvas;
   }
   sprite.getStats=()=>({...cache.getStats(),created,hits,shared:Boolean(sharedCache)});

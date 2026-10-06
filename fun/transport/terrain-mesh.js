@@ -5,10 +5,10 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 // Lighting follows the surface normal in world space. A horizontal face keeps
 // its authored color; northwest slopes brighten gently and opposite slopes dim.
-export function facetLight(triangle) {
+export function facetLight(triangle, heightStep = HEIGHT_STEP) {
   const [a, b, c] = triangle;
-  const ax = (b.u - a.u) * TILE, ay = (b.v - a.v) * TILE, az = (b.height - a.height) * HEIGHT_STEP;
-  const bx = (c.u - a.u) * TILE, by = (c.v - a.v) * TILE, bz = (c.height - a.height) * HEIGHT_STEP;
+  const ax = (b.u - a.u) * TILE, ay = (b.v - a.v) * TILE, az = (b.height - a.height) * heightStep;
+  const bx = (c.u - a.u) * TILE, by = (c.v - a.v) * TILE, bz = (c.height - a.height) * heightStep;
   let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
   if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }
   const length = Math.hypot(nx, ny, nz);
@@ -68,10 +68,10 @@ function lightTexture(image, level) {
   c.globalAlpha=1;c.globalCompositeOperation='source-over';
   return litSource;
 }
-function paintFaces(c,image,faces,sourceX,sourceY,sourceScale,padding,shade){
+function paintFaces(c,image,faces,sourceX,sourceY,sourceScale,padding,shade,heightStep){
   const groups=new Map();let count=0;
   for(const triangle of faces){
-    const level=shade?Math.round(facetLight(triangle)*256):256;
+    const level=shade?Math.round(facetLight(triangle,heightStep)*256):256;
     if(!groups.has(level))groups.set(level,[]);groups.get(level).push(triangle);
   }
   for(const[level,triangles]of groups){
@@ -89,19 +89,19 @@ function overlapFor(c,overlap){
 // sourceX/Y are the unprojected world-pixel origin of the chunk texture, and
 // sourceScale is its pixels per world pixel. The destination uses the caller's
 // current transform over absolute projected world coordinates.
-export function paintTerrainTile(c,image,{game,x,y,sourceX=0,sourceY=0,sourceScale=1,shade=true,overlap,surface:providedSurface}){
-  const surface=providedSurface||tileSurface(game,x,y),padding=overlapFor(c,overlap);
+export function paintTerrainTile(c,image,{game,x,y,sourceX=0,sourceY=0,sourceScale=1,shade=true,overlap,surface:providedSurface,heightStep=HEIGHT_STEP}){
+  const surface=providedSurface||tileSurface(game,x,y,heightStep),padding=overlapFor(c,overlap);
   const faces=surface.triangles||[[surface.nw,surface.ne,surface.se],[surface.nw,surface.se,surface.sw]];
-  return paintFaces(c,image,faces,sourceX,sourceY,sourceScale,padding,shade);
+  return paintFaces(c,image,faces,sourceX,sourceY,sourceScale,padding,shade,heightStep);
 }
 
-export function drawTerrainMesh(c,{game,canvas,sourceX=0,sourceY=0,sourceScale=1,bounds,shade=true,overlap}){
+export function drawTerrainMesh(c,{game,canvas,sourceX=0,sourceY=0,sourceScale=1,bounds,shade=true,overlap,heightStep=HEIGHT_STEP}){
   const x0=Math.max(0,bounds.x0),y0=Math.max(0,bounds.y0),x1=Math.min(game.width,bounds.x1),y1=Math.min(game.height,bounds.y1);
   let tiles=0;const faces=[],padding=overlapFor(c,overlap);
   for(let depth=x0+y0;depth<x1+y1-1;depth++)for(let y=Math.max(y0,depth-x1+1);y<y1&&y<=depth-x0;y++){
-    const x=depth-y,surface=tileSurface(game,x,y);faces.push(...surface.triangles);
+    const x=depth-y,surface=tileSurface(game,x,y,heightStep);faces.push(...surface.triangles);
     tiles++;
   }
-  const triangles=paintFaces(c,canvas,faces,sourceX,sourceY,sourceScale,padding,shade);
+  const triangles=paintFaces(c,canvas,faces,sourceX,sourceY,sourceScale,padding,shade,heightStep);
   return{tiles,triangles};
 }

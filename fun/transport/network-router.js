@@ -172,7 +172,9 @@ export function planConnection(game, source, target, mode = 'road', { margin = 1
     const quote = quoteBuildPlan(game, mode, path);
     if (!sound(quote)) { grid.steer(quote, onPath); continue; }
     const first = path[0], last = path.at(-1), ends = [from.find(stop => stop.x === first.x && stop.y === first.y) || null, to.length ? to[owner[index(last)]] : null];
-    const stops = [first, last].flatMap(({ x, y }, end) => ends[end] ? [] : [{ x, y, end, cost: constructionCost(game, stopTool, x, y) }]);
+    // The path quote already includes the road below each new road stop.
+    // Standalone stop construction adds that road itself; a complete connection pays for it once.
+    const stops = [first, last].flatMap(({ x, y }, end) => ends[end] ? [] : [{ x, y, end, cost: priceFor(game, BUILD_COSTS[stopTool]) }]);
     // A stop on a finished line passes build()'s own check now; the others wait for their line.
     if (stops.some(({ x, y }) => tileAt(game, x, y)[mode] && buildProblem(game, stopTool, x, y, { money: Infinity }))) return fail('no-site');
     const cost = quote.cost + stops.reduce((sum, stop) => sum + stop.cost, 0);

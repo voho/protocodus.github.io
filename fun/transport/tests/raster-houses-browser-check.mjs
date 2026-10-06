@@ -83,14 +83,14 @@ try {
           profiles.push({ biome, design, rotation, zoom, cell, houses, artwork: assets.getHouseAssetStats(biome,rotation,design) });
         }
       }
-      const {drawUIArtwork}=await import('./ui-art.js'),ui=[];
+      const {drawUIArtwork}=await import('./ui-art.js'),{BUILDINGS}=await import('./buildings.js'),ui=[];
       for(const biome of assets.HOUSE_BIOMES){
         const root=document.createElement('div'),portrait=canvas(96,100),density=Math.min(2,Math.max(1,devicePixelRatio));
         root.append(portrait);const sprite=q.createSprites(biome,{pixelScale:density*2,detailLevel:'detail'});
         for(const kind of assets.HOUSE_KINDS)for(const design of assets.HOUSE_DESIGNS)for(const rotation of assets.HOUSE_ROTATIONS){
           const variant=design*6+rotation;portrait.dataset.buildingSprite=kind;portrait.dataset.buildingVariant=String(variant);
           drawUIArtwork(root,{biome,routes:[],vehicles:[]});
-          const expected=canvas(96*density,100*density),c=expected.getContext('2d');c.scale(density,density);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(sprite(kind,variant,1),16,8,64,80);
+          const expected=canvas(96*density,100*density),c=expected.getContext('2d');c.scale(density,density);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(sprite(kind,variant,1,'',BUILDINGS[kind].footprint),16,8,64,80);
           const key=portrait.dataset.artDrawn,first=hash(portrait);drawUIArtwork(root,{biome,routes:[],vehicles:[]});
           ui.push({biome,kind,variant,matches:first===hash(expected),stable:portrait.dataset.artDrawn===key&&hash(portrait)===first});
         }

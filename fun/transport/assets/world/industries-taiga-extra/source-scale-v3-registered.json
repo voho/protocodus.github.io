@@ -1,0 +1,55 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 815,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.3141104294478528,
+  "sourceColumnPixels": 724.0,
+  "meaningfulPixelsPreserved": 612524,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:oil-well:taiga",
+      "sourceBounds": [
+        11,
+        159,
+        729,
+        623
+      ],
+      "offset": [
+        48,
+        312
+      ],
+      "pixels": 189864
+    },
+    {
+      "cell": 1,
+      "id": "industry:refinery:taiga",
+      "sourceBounds": [
+        724,
+        81,
+        1452,
+        625
+      ],
+      "offset": [
+        43,
+        232
+      ],
+      "pixels": 205451
+    },
+    {
+      "cell": 2,
+      "id": "industry:quarry:taiga",
+      "sourceBounds": [
+        1448,
+        131,
+        2163,
+        630
+      ],
+      "offset": [
+        50,
+        277
+      ],
+      "pixels": 217209
+    }
+  ]
+}

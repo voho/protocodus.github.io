@@ -4,7 +4,7 @@ export async function installBusyScenes() {
   const [{createGame},{createRenderer},{preloadWorldArt},{preloadHouses},{BUILDINGS},{INDUSTRIES},{weatherPresentation}]=await Promise.all([
     import('./model.js'),import('./renderer.js'),import('./atlas-runtime.js'),import('./raster-houses.js'),import('./buildings.js'),import('./data.js'),import('./weather-effects.js')]);
   await Promise.all([preloadWorldArt({biome:'taiga',waitMs:20000}),preloadHouses({biome:'taiga',waitMs:20000})]);
-  const generated=createGame({biome:'taiga',size:'square512',seed:418}), canvas=document.querySelector('canvas');
+  const generated=createGame({biome:'taiga',size:'square512',seed:418,generationVersion:10}), canvas=document.querySelector('canvas');
   let bestForest={x:128,y:128,count:0},bestCity=generated.cities[0];
   for(let y=40;y<472;y+=12)for(let x=40;x<472;x+=12){let count=0;for(let dy=-12;dy<=12;dy+=2)for(let dx=-12;dx<=12;dx+=2)if(generated.tiles[(y+dy)*512+x+dx].terrain==='forest')count++;if(count>bestForest.count)bestForest={x,y,count};}
   for(const city of generated.cities)if((city.population||0)>(bestCity.population||0))bestCity=city;

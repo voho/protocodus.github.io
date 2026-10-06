@@ -1,5 +1,5 @@
 // Isolated storage: verify idle invalidation, scoped artwork, and a large route
-// manager. Timings are reported, not asserted against machine-dependent limits.
+// manager, then check the existing desktop menu budgets on a recipe-10 world.
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 import {createWorldFromMenu} from './browser-start.mjs';
@@ -15,6 +15,9 @@ try{
  await page.waitForFunction(()=>window.transport&&document.querySelector('#loading-screen').hidden);
  result.startupMs=performance.now()-start;
  await page.evaluate(()=>transport.setSpeed(0));
+ // Artwork that sharpens after startup is a real scene change. Measure the
+ // unchanged idle scene after those requested densities finish decoding.
+ await page.waitForFunction(()=>{const s=transport.renderer.getStats();return !s.worldArtwork.loading&&s.houseArtwork.status!=='loading';});
  await page.waitForTimeout(1000);
  const cdp=await page.context().newCDPSession(page);await cdp.send('Performance.enable');
  await page.evaluate(()=>{
@@ -80,7 +83,7 @@ try{
  assert.equal(await page.locator('#route-list [data-route-id]').count(),50);
  assert.equal(await page.locator('#route-list [data-route-id]').first().getAttribute('data-route-id'),'perf-0');
  // Pure tool selections retain Build drawer cards and artwork on a vast world.
- await createWorldFromMenu(page,{size:'square2048',generationVersion:9});
+ await createWorldFromMenu(page,{size:'square2048',generationVersion:10});
  result.vastTools=await page.evaluate(()=>{
   transport.setView('build');const times=[];
   for(let n=0;n<9;n++)for(const tool of ['road','stop','inspect']){const start=performance.now();transport.setTool(tool);times.push(performance.now()-start);}
@@ -104,6 +107,10 @@ try{
  assert.ok(result.vastLists.openMs<25,`Industries opens on a 2048 world in ${result.vastLists.openMs.toFixed(1)} ms`);
  assert.ok(result.vastLists.refreshMs<15,`an Industries refresh on a 2048 world takes ${result.vastLists.refreshMs.toFixed(1)} ms`);
  assert.deepEqual(errors,[]);result.errors=errors;
- if(process.env.TRANSPORT_PERFORMANCE_OUTPUT)await writeFile(process.env.TRANSPORT_PERFORMANCE_OUTPUT,JSON.stringify(result,null,2));
  console.log(JSON.stringify(result,null,2));
-}finally{await browser.close();}
+}finally{
+ // Preserve measured stages even when a later budget fails, so the reported
+ // regression can be compared with earlier passing profiles.
+ if(process.env.TRANSPORT_PERFORMANCE_OUTPUT)await writeFile(process.env.TRANSPORT_PERFORMANCE_OUTPUT,JSON.stringify({...result,errors},null,2));
+ await browser.close();
+}

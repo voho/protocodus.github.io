@@ -1,0 +1,150 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "entries": [
+    {
+      "id": "school",
+      "name": "School",
+      "footprint": 2,
+      "description": "A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions."
+    },
+    {
+      "id": "hospital",
+      "name": "Hospital",
+      "footprint": 2,
+      "description": "A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width."
+    },
+    {
+      "id": "police-station",
+      "name": "Police station",
+      "footprint": 2,
+      "description": "A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors."
+    },
+    {
+      "id": "fire-station",
+      "name": "Fire station",
+      "footprint": 2,
+      "description": "A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof."
+    },
+    {
+      "id": "stadium",
+      "name": "Stadium",
+      "footprint": 3,
+      "description": "A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows."
+    },
+    {
+      "id": "church",
+      "name": "Church",
+      "footprint": 2,
+      "description": "A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway."
+    },
+    {
+      "id": "pub",
+      "name": "Village pub",
+      "footprint": 1,
+      "description": "A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text."
+    },
+    {
+      "id": "shop-grocery",
+      "name": "Grocer",
+      "footprint": 1,
+      "description": "A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles."
+    },
+    {
+      "id": "shop-bakery",
+      "name": "Bakery",
+      "footprint": 1,
+      "description": "A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses."
+    }
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorMasterPixels": 30,
+      "targetDoorMasterPixels": 22.400000000000002,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "pub",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "shop-grocery",
+          "beforeCalibrationMasterPixels": 26,
+          "afterCalibrationMasterPixels": 19.413333333333338,
+          "afterCalibrationWorldPixels": 3.6400000000000006
+        },
+        {
+          "id": "shop-bakery",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ]
+    },
+    "2": {
+      "referenceDoorMasterPixels": 20,
+      "targetDoorMasterPixels": 11.200000000000001,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "school",
+          "beforeCalibrationMasterPixels": 18,
+          "afterCalibrationMasterPixels": 10.080000000000002,
+          "afterCalibrationWorldPixels": 3.7800000000000007
+        },
+        {
+          "id": "hospital",
+          "beforeCalibrationMasterPixels": 20,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "police-station",
+          "beforeCalibrationMasterPixels": 20,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "fire-station",
+          "beforeCalibrationMasterPixels": 20,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "church",
+          "beforeCalibrationMasterPixels": 22,
+          "afterCalibrationMasterPixels": 12.320000000000002,
+          "afterCalibrationWorldPixels": 4.620000000000001
+        }
+      ]
+    },
+    "3": {
+      "referenceDoorMasterPixels": 16,
+      "targetDoorMasterPixels": 7.466666666666667,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "stadium",
+          "beforeCalibrationMasterPixels": 16,
+          "afterCalibrationMasterPixels": 7.466666666666667,
+          "afterCalibrationWorldPixels": 4.199999999999999
+        }
+      ]
+    }
+  },
+  "registration": "Original disconnected RGBA pixels retained. A measured doorway factor is uniform for every complete cutout in a source family/footprint tier; alpha bounds locate ground contact only, never choose scale. Fixed master contact anchor (128,244), full 256px parcel grid retained. No runtime per-kind multiplier.",
+  "rejectedCorrection": "A follow-up imagegen shrink edit did not honor tier scale consistently; original fresh sources retained and registered with explicit tier calibration."
+}

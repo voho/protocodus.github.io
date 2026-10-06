@@ -11,7 +11,7 @@ const families = Object.freeze({
     'shop-butcher', 'shop-hardware', 'shop-florist', 'service-post-office',
     'service-bank', 'service-hotel', 'service-garage', 'service-barber', 'factory',
   ]),
-  // Simple placeholder images in a 4 × 3 sheet, rendered by tools/render-town-features.mjs until painted art replaces them.
+  // Generated hand-painted town-feature cutouts in a fixed 4 × 3 parcel grid.
   'buildings-town-features': Object.freeze([
     'park', 'playground', 'swimming-pool', 'sports-field', 'tennis-courts', 'ballpark',
     'sports-hall', 'town-hall', 'shop-cafe', 'shop-pharmacy', 'shop-bookshop', null,

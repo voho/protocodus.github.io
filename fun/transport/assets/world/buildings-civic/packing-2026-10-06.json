@@ -1,0 +1,488 @@
+{
+  "operation": "Measured human-door scale; uniform complete-cell calibration within footprint tiers, fixed contact anchor, no silhouette fitting, premultiplied-alpha mipmaps without sharpening",
+  "sheets": [
+    {
+      "biome": "taiga",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "324570bfa77812e5a904237b34548f334bf5693dfb501b0130b19367dc83660d",
+      "calibratedSha256": "da5c59c266296f49f08bb4a516d36d3202b38916453b044c5edb1951f2778ecd",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "school",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "hospital",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "police-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "fire-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "stadium",
+          "footprint": 3,
+          "uniformTierFactor": 0.4666666666666667,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.2858054226475279,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "church",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "pub",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "shop-grocery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "shop-bakery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "a295a39e229d1c6c9961f9371d3ccfac4426ad375d702386a3c425284b4702c7",
+      "calibratedSha256": "721cf64e12bed7414ae5284111b2c30df4aeecef99790de8fa30c3ba8fa99ad7",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "school",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "hospital",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "police-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "fire-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "stadium",
+          "footprint": 3,
+          "uniformTierFactor": 0.4666666666666667,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.2858054226475279,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "church",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "pub",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "shop-grocery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "shop-bakery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "b074f36cf6d42ed9dc130e6cca9676bd006bd2d5192c3ff5fc356c001ec1e059",
+      "calibratedSha256": "1eb2e9b7a0e5d1d822bc7899752de4799fffc3e1522fec83a6da733f527a192f",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "school",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "hospital",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "police-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "fire-station",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "stadium",
+          "footprint": 3,
+          "uniformTierFactor": 0.4666666666666667,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.2858054226475279,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "church",
+          "footprint": 2,
+          "uniformTierFactor": 0.56,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.34296650717703353,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "pub",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "shop-grocery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "shop-bakery",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    }
+  ]
+}

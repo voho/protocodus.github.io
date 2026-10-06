@@ -21,8 +21,8 @@
     "service-barber",
     "civic:factory:taiga"
   ],
-  "source": "source-registered-2026-10-05.png",
-  "sourceSha256": "5266fbfab09f9506e32a257cff9c2d097d4a5d9716abcdf50449e31bf2c46c47",
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "89029397fa4fe86fd43ab59df1934058864f435bed6e86e4a27c5a412ce649e7",
   "sprites": [
     {
       "id": "shop-butcher",
@@ -30,34 +30,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        256,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          134,
-          133,
-          505,
-          506
+          41,
+          82,
+          217,
+          245
         ],
         "rawAlphaBounds": [
-          133,
-          132,
-          506,
-          507
+          42,
+          83,
+          215,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.76998
+        "transparentFraction": 0.72113
       },
       "bounds": [
-        12,
-        12,
-        243,
+        42,
+        83,
+        215,
         244
       ]
     },
@@ -65,36 +65,36 @@
       "id": "shop-hardware",
       "cell": 1,
       "sourceBounds": [
-        640,
+        256,
         0,
-        1280,
-        640
+        512,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          137,
-          143,
-          503,
-          497
+          42,
+          122,
+          214,
+          245
         ],
         "rawAlphaBounds": [
-          136,
-          142,
-          503,
-          498
+          43,
+          123,
+          213,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.794368
+        "transparentFraction": 0.798782
       },
       "bounds": [
-        12,
-        20,
-        244,
+        43,
+        123,
+        213,
         244
       ]
     },
@@ -102,36 +102,36 @@
       "id": "shop-florist",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        512,
         0,
-        1920,
-        640
+        768,
+        256
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          138,
-          141,
-          502,
-          498
+          37,
+          110,
+          219,
+          245
         ],
         "rawAlphaBounds": [
-          137,
-          140,
-          503,
-          499
+          38,
+          111,
+          218,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.769785
+        "transparentFraction": 0.778442
       },
       "bounds": [
-        12,
-        16,
-        244,
+        38,
+        111,
+        218,
         244
       ]
     },
@@ -140,35 +140,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        256,
+        256,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          132,
-          130,
-          508,
-          510
+          50,
+          100,
+          206,
+          246
         ],
         "rawAlphaBounds": [
-          131,
-          129,
-          509,
-          511
+          51,
+          101,
+          205,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.770667
+        "transparentFraction": 0.792343
       },
       "bounds": [
-        13,
-        12,
-        243,
+        51,
+        101,
+        205,
         244
       ]
     },
@@ -176,36 +176,36 @@
       "id": "service-bank",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        256,
+        256,
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          122,
-          126,
-          517,
-          513
+          51,
+          130,
+          205,
+          246
         ],
         "rawAlphaBounds": [
-          121,
-          125,
-          517,
-          514
+          53,
+          132,
+          203,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.748921
+        "transparentFraction": 0.833084
       },
       "bounds": [
-        12,
-        17,
-        244,
+        53,
+        132,
+        203,
         244
       ]
     },
@@ -213,36 +213,36 @@
       "id": "service-hotel",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        512,
+        256,
+        768,
+        512
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          134,
-          118,
-          505,
-          521
+          66,
+          115,
+          189,
+          246
         ],
         "rawAlphaBounds": [
-          133,
+          68,
           117,
-          506,
-          522
+          187,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.737539
+        "transparentFraction": 0.836517
       },
       "bounds": [
-        21,
-        12,
-        235,
+        68,
+        117,
+        187,
         244
       ]
     },
@@ -251,35 +251,35 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        512,
+        256,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          126,
-          157,
-          513,
-          482
+          45,
+          140,
+          211,
+          246
         ],
         "rawAlphaBounds": [
-          125,
-          156,
-          514,
-          483
+          47,
+          142,
+          209,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.795735
+        "transparentFraction": 0.850174
       },
       "bounds": [
-        12,
-        49,
-        244,
+        47,
+        142,
+        209,
         244
       ]
     },
@@ -287,36 +287,36 @@
       "id": "service-barber",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        256,
+        512,
+        512,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          131,
-          143,
-          508,
-          497
+          68,
+          135,
+          188,
+          245
         ],
         "rawAlphaBounds": [
-          130,
-          142,
-          509,
-          498
+          69,
+          136,
+          187,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.792019
+        "transparentFraction": 0.868011
       },
       "bounds": [
-        12,
-        26,
-        244,
+        69,
+        136,
+        187,
         244
       ]
     },
@@ -324,38 +324,269 @@
       "id": "civic:factory:taiga",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        512,
+        512,
+        768,
+        768
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          256,
+          256
         ],
         "sourceBounds": [
-          132,
-          156,
-          508,
-          483
+          57,
+          141,
+          199,
+          246
         ],
         "rawAlphaBounds": [
-          131,
-          155,
-          509,
-          484
+          59,
+          143,
+          197,
+          244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.80738
+        "transparentFraction": 0.86203
       },
       "bounds": [
-        12,
-        42,
-        244,
+        59,
+        143,
+        197,
         244
       ]
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorMasterPixels": 30,
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "shop-butcher",
+            "beforeCalibrationMasterPixels": 33,
+            "afterCalibrationMasterPixels": 24.64,
+            "afterCalibrationWorldPixels": 4.62
+          },
+          {
+            "id": "shop-hardware",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-florist",
+            "beforeCalibrationMasterPixels": 30,
+            "afterCalibrationMasterPixels": 22.400000000000002,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "service-post-office",
+            "beforeCalibrationMasterPixels": 31,
+            "afterCalibrationMasterPixels": 23.14666666666667,
+            "afterCalibrationWorldPixels": 4.34
+          },
+          {
+            "id": "service-barber",
+            "beforeCalibrationMasterPixels": 26,
+            "afterCalibrationMasterPixels": 19.413333333333338,
+            "afterCalibrationWorldPixels": 3.6400000000000006
+          }
+        ]
+      },
+      "2": {
+        "referenceDoorMasterPixels": 22,
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately \u00b12px); one median reference per footprint tier.",
+        "measurements": [
+          {
+            "id": "service-bank",
+            "beforeCalibrationMasterPixels": 18,
+            "afterCalibrationMasterPixels": 9.163636363636364,
+            "afterCalibrationWorldPixels": 3.4363636363636365
+          },
+          {
+            "id": "service-hotel",
+            "beforeCalibrationMasterPixels": 22,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "service-garage",
+            "beforeCalibrationMasterPixels": 24,
+            "afterCalibrationMasterPixels": 12.218181818181819,
+            "afterCalibrationWorldPixels": 4.581818181818182
+          },
+          {
+            "id": "factory",
+            "beforeCalibrationMasterPixels": 22,
+            "afterCalibrationMasterPixels": 11.200000000000001,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ]
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "shop-butcher",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          0,
+          0,
+          640,
+          640
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "shop-hardware",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          640,
+          0,
+          1280,
+          640
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "shop-florist",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          1280,
+          0,
+          1920,
+          640
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "service-post-office",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          0,
+          640,
+          640,
+          1280
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "service-bank",
+        "footprint": 2,
+        "uniformTierFactor": 0.5090909090909091,
+        "sourceCell": [
+          640,
+          640,
+          1280,
+          1280
+        ],
+        "originalPixelScale": 0.3117877337973032,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 5,
+        "id": "service-hotel",
+        "footprint": 2,
+        "uniformTierFactor": 0.5090909090909091,
+        "sourceCell": [
+          1280,
+          640,
+          1920,
+          1280
+        ],
+        "originalPixelScale": 0.3117877337973032,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 6,
+        "id": "service-garage",
+        "footprint": 2,
+        "uniformTierFactor": 0.5090909090909091,
+        "sourceCell": [
+          0,
+          1280,
+          640,
+          1920
+        ],
+        "originalPixelScale": 0.3117877337973032,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 7,
+        "id": "service-barber",
+        "footprint": 1,
+        "uniformTierFactor": 0.7466666666666667,
+        "sourceCell": [
+          640,
+          1280,
+          1280,
+          1920
+        ],
+        "originalPixelScale": 0.45728867623604463,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      },
+      {
+        "cell": 8,
+        "id": "civic:factory:taiga",
+        "footprint": 2,
+        "uniformTierFactor": 0.5090909090909091,
+        "sourceCell": [
+          1280,
+          1280,
+          1920,
+          1920
+        ],
+        "originalPixelScale": 0.3117877337973032,
+        "contactAnchor": [
+          128,
+          244
+        ]
+      }
+    ]
+  }
 }

@@ -1,0 +1,89 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 456118,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "farm-core:farm:desert",
+      "sourceBounds": [
+        8,
+        118,
+        521,
+        507
+      ],
+      "offset": [
+        31,
+        159
+      ],
+      "pixels": 95587
+    },
+    {
+      "cell": 1,
+      "id": "farm-core:dairy-farm:desert",
+      "sourceBounds": [
+        525,
+        179,
+        1033,
+        508
+      ],
+      "offset": [
+        34,
+        219
+      ],
+      "pixels": 88042
+    },
+    {
+      "cell": 2,
+      "id": "farm-core:vegetable-farm:desert",
+      "sourceBounds": [
+        1028,
+        181,
+        1534,
+        511
+      ],
+      "offset": [
+        35,
+        218
+      ],
+      "pixels": 88797
+    },
+    {
+      "cell": 3,
+      "id": "farm-core:orchard:desert",
+      "sourceBounds": [
+        8,
+        602,
+        522,
+        942
+      ],
+      "offset": [
+        31,
+        208
+      ],
+      "pixels": 90380
+    },
+    {
+      "cell": 4,
+      "id": "farm-core:livestock-farm:desert",
+      "sourceBounds": [
+        524,
+        597,
+        1043,
+        944
+      ],
+      "offset": [
+        28,
+        201
+      ],
+      "pixels": 93312
+    },
+    {
+      "cell": 5,
+      "empty": true
+    }
+  ]
+}

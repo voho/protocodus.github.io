@@ -1,0 +1,116 @@
+{
+  "source": "source-style-2026-10-06.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "coreAlphaThreshold": 16,
+  "meaningfulAlphaThreshold": 8,
+  "meaningfulPixelsPreserved": 524131,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        28,
+        78,
+        415,
+        406
+      ],
+      "offset": [
+        126,
+        156
+      ],
+      "pixels": 76728
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        453,
+        100,
+        819,
+        404
+      ],
+      "offset": [
+        137,
+        168
+      ],
+      "pixels": 69401
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        857,
+        108,
+        1241,
+        410
+      ],
+      "offset": [
+        128,
+        169
+      ],
+      "pixels": 71367
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        18,
+        481,
+        429,
+        812
+      ],
+      "offset": [
+        114,
+        154
+      ],
+      "pixels": 81280
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        441,
+        495,
+        837,
+        812
+      ],
+      "offset": [
+        122,
+        161
+      ],
+      "pixels": 76115
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        858,
+        500,
+        1245,
+        809
+      ],
+      "offset": [
+        126,
+        165
+      ],
+      "pixels": 73209
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        27,
+        859,
+        438,
+        1181
+      ],
+      "offset": [
+        114,
+        159
+      ],
+      "pixels": 76031
+    },
+    {
+      "cell": 7,
+      "empty": true
+    },
+    {
+      "cell": 8,
+      "empty": true
+    }
+  ]
+}

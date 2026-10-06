@@ -1,0 +1,226 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-06",
+  "sharedPromptFunction": "buildingGenerationPrompt()",
+  "sharedDefinition": "sprite-art-direction.js",
+  "operation": "Fresh art in every active city slot, climate-only edits, then explicit measured doorway calibration in full parcel cells; no silhouette fitting",
+  "active": [
+    {
+      "biome": "taiga",
+      "job": {
+        "family": "civic-retail",
+        "columns": 3,
+        "rows": 3,
+        "biome": "taiga",
+        "entries": [
+          {
+            "id": "park-village",
+            "name": "Village green",
+            "footprint": 2,
+            "description": "Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots."
+          },
+          {
+            "id": "park-formal",
+            "name": "Formal gardens",
+            "footprint": 2,
+            "description": "Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds."
+          },
+          {
+            "id": "park-woodland",
+            "name": "Woodland park",
+            "footprint": 3,
+            "description": "Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters."
+          },
+          {
+            "id": "mall-neighborhood",
+            "name": "Neighbourhood shopping centre",
+            "footprint": 2,
+            "description": "A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door."
+          },
+          {
+            "id": "mall-shopping",
+            "name": "Shopping mall",
+            "footprint": 3,
+            "description": "A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids."
+          },
+          {
+            "id": "mall-modern",
+            "name": "Modern shopping mall",
+            "footprint": 3,
+            "description": "A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves."
+          },
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Keep the same pixel-to-metre calibration across all slots. Do not independently fit each building's bounding box.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Village green; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots.\nSlot 2: Formal gardens; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds.\nSlot 3: Woodland park; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters.\nSlot 4: Neighbourhood shopping centre; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door.\nSlot 5: Shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids.\nSlot 6: Modern shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors.\nSlot 7: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates.\nSlot 8: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves.\nSlot 9: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs.\nCRITICAL ART DIRECTION: Fresh quiet low-detail gouache game sprites, not ornate photographic miniatures. Broad untextured roof colour planes with a single ridge highlight, quiet wall planes without any individual brick/tile/woodgrain, broad foliage masses without leaf or flower dots. Draw each full cutout only in the INNER65% of its cell, with broad transparent gutters. Buildings are intentionally low and wide:2x2mall entrances11px atnormalized256pxcell and3x3mall entrances7px; shops22px, ordinary-storey floors32px for1x1shops,16px for2x2mall,10.7px for3x3malls. Mature trees7m tall correspond to74.7px normalizedheight for2x2park,49.8px for3x3park; do not create huge trees. Broad clean paths and patches, no fencespickets grids or individual flowers. Slots8,9 inshop-alternates MUST stayEMPTY. No text, numbers or people.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-9215fb49-804a-47d7-9192-275290373a8c.png",
+      "reference": null
+    },
+    {
+      "biome": "tundra",
+      "job": {
+        "family": "civic-retail",
+        "columns": 3,
+        "rows": 3,
+        "biome": "tundra",
+        "entries": [
+          {
+            "id": "park-village",
+            "name": "Village green",
+            "footprint": 2,
+            "description": "Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots."
+          },
+          {
+            "id": "park-formal",
+            "name": "Formal gardens",
+            "footprint": 2,
+            "description": "Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds."
+          },
+          {
+            "id": "park-woodland",
+            "name": "Woodland park",
+            "footprint": 3,
+            "description": "Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters."
+          },
+          {
+            "id": "mall-neighborhood",
+            "name": "Neighbourhood shopping centre",
+            "footprint": 2,
+            "description": "A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door."
+          },
+          {
+            "id": "mall-shopping",
+            "name": "Shopping mall",
+            "footprint": 3,
+            "description": "A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids."
+          },
+          {
+            "id": "mall-modern",
+            "name": "Modern shopping mall",
+            "footprint": 3,
+            "description": "A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves."
+          },
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nCool pale grass, restrained snow caps and evergreen planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Village green; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots.\nSlot 2: Formal gardens; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds.\nSlot 3: Woodland park; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters.\nSlot 4: Neighbourhood shopping centre; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door.\nSlot 5: Shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids.\nSlot 6: Modern shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors.\nSlot 7: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates.\nSlot 8: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves.\nSlot 9: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs.\nCLIMATE EDIT ONLY of this approved source sheet: restrained snow caps on roof planes and broad shrub tops, pale snowy planting and cool grey shadows. Keep some roof material colour showing; paths clear. EXACTLY preserve every sprite, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite or independently fit its bounds. Fixed3x3rowmajor slots, lasttwoempty cells staycompletelytransparent forshop-alternates. The final physicaldoorcalibration is alreadyhandled in atlaspacking; thisclimateedit must preserve sourcegeometry precisely. Broad roof/wallcolours, no fine texture or extraobjects, no writing/labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-3b5c7aaf-03f1-43cc-a2df-d92029061607.png",
+      "reference": "exec-9215fb49-804a-47d7-9192-275290373a8c.png"
+    },
+    {
+      "biome": "desert",
+      "job": {
+        "family": "civic-retail",
+        "columns": 3,
+        "rows": 3,
+        "biome": "desert",
+        "entries": [
+          {
+            "id": "park-village",
+            "name": "Village green",
+            "footprint": 2,
+            "description": "Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots."
+          },
+          {
+            "id": "park-formal",
+            "name": "Formal gardens",
+            "footprint": 2,
+            "description": "Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds."
+          },
+          {
+            "id": "park-woodland",
+            "name": "Woodland park",
+            "footprint": 3,
+            "description": "Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters."
+          },
+          {
+            "id": "mall-neighborhood",
+            "name": "Neighbourhood shopping centre",
+            "footprint": 2,
+            "description": "A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door."
+          },
+          {
+            "id": "mall-shopping",
+            "name": "Shopping mall",
+            "footprint": 3,
+            "description": "A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids."
+          },
+          {
+            "id": "mall-modern",
+            "name": "Modern shopping mall",
+            "footprint": 3,
+            "description": "A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves."
+          },
+          {
+            "id": "shop-butcher",
+            "name": "Butcher",
+            "footprint": 1,
+            "description": "Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nWarm dusty sand, pale stone and plaster, terracotta and sparse dry planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: Village green; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots.\nSlot 2: Formal gardens; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds.\nSlot 3: Woodland park; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters.\nSlot 4: Neighbourhood shopping centre; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door.\nSlot 5: Shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids.\nSlot 6: Modern shopping mall; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors.\nSlot 7: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates.\nSlot 8: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves.\nSlot 9: Butcher; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs.\nCLIMATE EDIT ONLY of this approved source sheet: warm dusty stone/plaster paths, muted dry ochre planting, sparse sage-green shrub masses and broad sunny roofplanes. Preserveallbuildingidentity andstructuralmaterials; green/slate/terracotta roofidentity remains. EXACTLY preserve every sprite, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite or independently fit its bounds. Fixed3x3rowmajor slots, lasttwoempty cells staycompletelytransparent forshop-alternates. The final physicaldoorcalibration is alreadyhandled in atlaspacking; thisclimateedit must preserve sourcegeometry precisely. Broad roof/wallcolours, no fine texture or extraobjects, no palmfrondnoise, no writing/labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-48d497d6-ed0b-4e03-8f2b-f8b115887f41.png",
+      "reference": "exec-9215fb49-804a-47d7-9192-275290373a8c.png"
+    }
+  ],
+  "rejectedCalibrationEdit": null
+}

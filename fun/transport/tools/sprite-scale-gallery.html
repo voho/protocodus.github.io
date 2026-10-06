@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transport sprite scale gallery</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #253a31; background: #eef0e5; font: 14px system-ui, sans-serif; }
+  header { padding: 20px 24px; background: #fafbf6; border-bottom: 1px solid #ccd3c3; }
+  h1 { margin: 0 0 8px; font-size: 22px; }
+  p { margin: 6px 0; }
+  form { display: flex; gap: 16px; align-items: center; margin-top: 16px; }
+  label { display: flex; gap: 8px; align-items: center; }
+  select { padding: 5px; font: inherit; }
+  main { padding: 20px 24px; }
+  h2 { margin: 0 0 12px; font-size: 18px; }
+  #gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-width, 172px), 1fr)); gap: 12px; }
+  figure { margin: 0; padding: 8px; background: #fafbf6; border: 1px solid #ccd3c3; border-radius: 8px; overflow: hidden; }
+  canvas { display: block; margin: 0 auto; }
+  figcaption { padding: 8px 2px 2px; line-height: 1.4; }
+  figcaption small { display: block; color: #52604f; }
+  #status { font-weight: 600; }
+</style>
+<header>
+  <h1>Transport building scale and readability</h1>
+  <p>Every cutout uses the game’s actual billboard dimensions, without fitting its silhouette to the card.</p>
+  <p>The rulers and vehicle references keep the same world size for every parcel: 16 m tiles, 1.75 m humans and 2.1 m personnel doors.</p>
+  <form id="controls">
+    <label>Climate <select name="biome"><option value="taiga">Taiga</option><option value="tundra">Tundra</option><option value="desert">Desert</option></select></label>
+    <label>View <select name="zoom"><option value="0.5">Region · 0.5×</option><option value="1" selected>Town · 1×</option><option value="2">Detail · 2×</option></select></label>
+    <label>Family <select name="family"><option value="catalog">Building catalog</option><option value="houses">House designs and rotations</option><option value="industries">Industries · 5×5</option><option value="cores">Farm building cores · 2×2</option><option value="legacy">Legacy industry parcels · native art</option><option value="features">Recent town features</option></select></label>
+  </form>
+  <p id="status">Loading generated artwork…</p>
+</header>
+<main><h2 id="heading"></h2><div id="gallery"></div></main>
+<script type="module" src="./sprite-scale-gallery.js"></script>
+</html>

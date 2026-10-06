@@ -132,3 +132,7 @@
 /* A placement's forecast (city-investment-feedback): what a zone stroke or a placed home, shop or workshop would bring, as the tip's second line. */
 .placement-tip .tip-forecast{display:block;margin-top:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
 .placement-tip.warning .tip-forecast{color:inherit}
+.construction-next{padding:12px;margin:0 0 16px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);font-size:var(--fs-small);line-height:var(--lh-small)}
+.construction-next>strong{display:block;font-weight:500;color:var(--ink)}
+.construction-next>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.construction-next .button{min-height:36px;padding:8px 12px;font-size:var(--fs-small)}

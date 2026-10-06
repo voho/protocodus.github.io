@@ -1,21 +1,19 @@
 # Town parks and retail varieties
 
-Generated with the built-in image generation tool on 5 October 2026. Six complete transparent runtime sheets contain 48 new climate-specific cutouts: three parks, three malls, and two additional physical exteriors for each of the five existing shop identities, in temperate taiga, snowy tundra and dry desert finishes. The fifteen existing shop cutouts remain design 0; there are now 45 shop exteriors across the three climates.
+All active parks, malls and ten alternate shop exteriors were regenerated with `image_gen` on 6 October 2026. Clear shaded walls, broad roof colours and grouped planting replace fine material noise. Larger malls gain wings and repeated human-sized bays, while park furniture and trees retain their ordinary sizes.
 
-Parks contain distinct paths, benches, planting, fences, play structures or fountains. Their open landscaping has transparent gaps that reveal the world terrain. The malls are a low neighbourhood shopping court, a classic brick shopping arcade and a contemporary timber/glass centre with skylights, planted roof sections, solar panels and a loading dock. The shops add traditional timber/stone/brick and contemporary exteriors.
+`civic-retail` row-major order: village green, formal garden, woodland park / neighbourhood shops, classic arcade mall, modern mall / traditional grocery, bakery, butcher. `shop-alternates`: traditional hardware, florist, modern grocery / modern bakery, butcher, hardware / ecological florist, empty, empty. Saved identity and exterior choices are preserved.
 
-All art follows the game's fixed orthographic 2:1 dimetric camera with upright walls, detailed miniature materials and northwest lighting. Each source preserves a broad transparent gutter around the complete object. Ground contact surfaces use restrained stone or gravel with planted edges. Source artwork is retained together with exact generation, gutter-repair and climate-edit prompts in [generation.json](generation.json), original initial layouts under `generation/`, and source hashes in [packing.json](packing.json).
+Human-sized features use [sprite-art-direction.js](../../../sprite-art-direction.js): ordinary doors are 2.1m high, storeys 3m, windows 1.2m and loading bays 4.2m. Bigger parcels gain repeated bays, wings and floors at this same scale. Broad roof/wall colour masses replace tiny tiles, bricks, flower dots and ornamental texture; premultiplied-alpha mipmaps omit sharpening.
 
-`civic-retail` row-major order: village green, formal garden, woodland park / neighbourhood shopping centre, shopping arcade, modern mall / traditional grocery, bakery, butcher. `shop-alternates` order: traditional hardware, florist, modern grocery / modern bakery, butcher, hardware / eco florist, empty, empty.
+Each family’s `scale-2026-10-06.json` records manually measured source personnel doors (approximately ±2px precision), expected final heights and one uniform source-pixel calibration per footprint tier. Original disconnected RGBA cutouts are registered without resampling to preserve complete shadows and edges. Alpha bounds locate ground contact only and never choose scale; every cutout in a tier uses the same pixel scale and fixed `(128,244)` contact anchor. The resulting full 256px parcel grid is packed with `--aligned --preserve-grid-scale --no-sharpen`. There is no runtime per-kind multiplier.
 
-Rebuild all 16, 32, 64, 128 and 256px isolated cell densities with:
+The generated input in each climate is `source-style-2026-10-06.png`; `source-registered-2026-10-06.png` retains original RGBA pixels in safe cells and `source-calibrated-2026-10-06.png` is the physical-scale master. Exact jobs and shared prompts are retained in each family’s `generation-2026-10-06.json`. Climate edits preserve the temperate source geometry and pixel proportions.
+
+Rebuild all current climates and densities with:
 
 ```sh
 python3 fun/transport/assets/world/town-variety-v1/rebuild.py
 ```
 
-The civic/retail sheets first use the existing disconnected-alpha registration tool to preserve every meaningful source pixel while moving each complete cutout into a padded cell. The shared atlas builder preserves alpha, downsamples with premultiplied colours and sharpens only opaque interiors. It normalizes each complete cutout to a maximum 232px extent and groundline 244 inside its 256px master. No script paints or recolours generated art.
-
-`raster-buildings.js` registers all six new buildings and the shop design atlases. Shop seeds repeat every 15 states: identity uses the existing five-way selection, while `buildingArtworkDesign` selects `floor(normalizedVariant / 5)`. Sprite cache identities include the selected design; map sprites and inspector portraits retain that same choice. A late or unavailable alternate falls back first to the established artwork in the same climate and refreshes when generated art arrives.
-
-`tests/town-variety-art-browser-check.mjs` verifies all five densities, isolated transparent cells, the six building identities, the fifteen distinct shop identity/design combinations, authored cache reuse, UI portrait parity, native fallback and late-art recovery.
+Earlier `generation/`, `source-generated.png`, `source-registered.png`, `generation.json` and `packing.json` are historical 5 October archives, not active rebuild inputs. `raster-buildings.js` retains identity/design selection, same-climate fallback and late-art recovery. `tests/town-variety-art-browser-check.mjs` verifies decoded cells, fifteen shop exterior combinations, portraits and recovery.

@@ -1,9 +1,10 @@
 import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
 
 // Each biome has its own complete set of eligible industries. A site is drawn
-// as a square inside the caller's +8px sprite envelope. Processors and compact
-// saved industries use 96px for 3×3 sites, or 64px/32px for older smaller sites;
-// large farms use the separate 2×2 building-core atlases below.
+// as a square inside the caller's +8px sprite envelope. Five-tile compounds
+// use 160px; blocked legacy sites use the native drawings at their original
+// footprint, so their human-sized features retain the common metre scale.
+// Farm plots have separate fixed-scale 2×2 building-core atlases below.
 export const FOOD_INDUSTRY_KINDS = Object.freeze(['dairy-farm', 'vegetable-farm', 'orchard', 'livestock-farm', 'dairy-plant', 'cannery', 'meat-packer']);
 const sheets = [
   { family: 'taiga', biome: 'taiga', columns: 3, rows: 3, kinds: ['logging-camp', 'sawmill', 'coal-mine', 'iron-mine', 'steel-mill', 'farm', 'food-plant', 'furniture-factory', 'machine-works'] },
@@ -50,8 +51,11 @@ const loadedId = (kind, biome) => candidateIds(kind, biome).find(atlasAvailable)
 export function hasRasterIndustry(kind, biome = 'taiga') {
   return Boolean(loadedId(kind, biome));
 }
-export function drawRasterIndustry(c, kind, biome = 'taiga', pixelScale = 1, { size = 96 } = {}) {
-  const drawSize = Number.isFinite(size) && size > 0 ? size : 96;
+export function drawRasterIndustry(c, kind, biome = 'taiga', pixelScale = 1, { size = 160, footprint = 5 } = {}) {
+  // Five-tile artwork can be a small UI thumbnail, but must not masquerade as
+  // a smaller world parcel: downscaling the compound also downscales its doors.
+  if (footprint !== 5) return false;
+  const drawSize = Number.isFinite(size) && size > 0 ? size : 160;
   const density = Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1;
   for (const id of candidateIds(kind, biome)) {
     if (drawAtlas(c, id, 0, 0, drawSize, drawSize, { pixelScale: density })) return true;

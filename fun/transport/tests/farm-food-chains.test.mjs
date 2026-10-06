@@ -21,7 +21,7 @@ test('new farms and processors reserve their full fields and factory sites and e
     const game=emptyGame(biome);
     for(let i=0;i<newKinds.length;i++){
       const result=build(game,newKinds[i],10+i*13,20);ok(result);
-      assert.equal(result.industry.owner,'player');assert.equal(industryTiles(result.industry).length,INDUSTRIES[newKinds[i]].farming?49:9);
+      assert.equal(result.industry.owner,'player');assert.equal(industryTiles(result.industry).length,25);
     }
     const graph=productionChain(biome,'food');
     for(const kind of newKinds)assert.ok(graph.nodes.some(node=>node.kind===kind),`${biome} food graph includes ${kind}`);
@@ -53,7 +53,7 @@ function foodFixture(farm,processor,cargo){
   const game=emptyGame(),fed=Object.keys(INDUSTRIES[farm].inputs).length>0;
   if(fed)ok(build(game,'farm',10,5));
   const sourceX=fed?30:10,plantX=sourceX+20,townX=plantX+30;
-  ok(build(game,farm,sourceX,5));ok(build(game,processor,plantX,9));
+  ok(build(game,farm,sourceX,5));ok(build(game,processor,plantX,7));
   ok(build(game,'city',townX,12));ok(buildPath(game,'road',line(10,townX,12)));
   ok(build(game,'shop-grocery',townX+1,11));ok(build(game,'shop-bakery',townX+3,11));
   for(const x of [...fed?[10]:[],sourceX,plantX,townX])ok(build(game,'bus-stop',x,12));

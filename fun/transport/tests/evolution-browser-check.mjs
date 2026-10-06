@@ -23,6 +23,7 @@ try{
     return {first:g.routes[0].id,ship:ship.route.id};
   });
   await page.locator('.main-nav [data-view="routes"]').click();
+  await page.locator('.route-card-details,.fleet-upgrades').evaluateAll(list=>list.forEach(el=>el.open=true));
   assert.equal(await page.locator('[data-upgrade-route]').count(),0,'cards offer no upgrade before a newer model exists');
   assert.deepEqual(await page.locator('.route-vehicle-spec .vehicle-model').evaluateAll(list=>list.map(el=>/^[A-Z][a-z]+ Mk 1, 1950 model\. Newer (buses|ferries) arrive in 1951\.$/.test(el.title))),[true,true,true],'each card names its model and when newer ones arrive');
   // Named models: the card's vehicle row and the planner name the 1950 model; nothing marks a vehicle as old.
@@ -67,6 +68,7 @@ try{
   assert.equal(await page.evaluate(()=>transport.game.vehicles.filter(v=>v.level===1).length),1,'unaffordable fleet quote leaves remaining vehicles unchanged');
   await page.evaluate(budget=>{transport.game.money=budget;},budget);
   await page.waitForFunction(()=>!document.querySelector('#upgrade-fleet').disabled);
+  await page.locator('.fleet-upgrades').evaluate(el=>el.open=true);
   await page.locator('#upgrade-fleet').click();
   await page.waitForFunction(()=>transport.game.vehicles.every(v=>v.level===1));
   assert.equal(await page.evaluate(()=>transport.game.money),budget-fleet.cost,'bulk upgrade charges the complete quoted amount once');

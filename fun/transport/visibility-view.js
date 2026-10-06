@@ -7,7 +7,7 @@ const GLYPH = { trees: 'tree', buildings: 'house', zones: 'zones', roads: 'road'
 const NOTES = { industryIcons: ['Ring: served by a route', 'Bar: stored output', 'Amber: missing inputs'] };
 
 /** Lightweight map controls; visibility belongs to the app, not the current save. */
-export function mountVisibility(panel, button, { getLayers, onChange, onPreset }) {
+export function mountVisibility(panel, button, { getLayers, onChange, onPreset, onOpen }) {
   const events = new AbortController(), signal = events.signal;
   let disposed = false;
   if (!panel.id) panel.id = 'layers-panel';
@@ -34,7 +34,7 @@ export function mountVisibility(panel, button, { getLayers, onChange, onPreset }
   function toggle() {
     if (disposed) return;
     if (!panel.hidden) { close(); return; }
-    refresh(); panel.hidden = false; button.setAttribute('aria-expanded', 'true');
+    onOpen?.(); refresh(); panel.hidden = false; button.setAttribute('aria-expanded', 'true');
     panel.querySelector('[data-layer]')?.focus({ preventScroll: true });
   }
   function dispose() {

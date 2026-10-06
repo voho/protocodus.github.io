@@ -1,0 +1,693 @@
+{
+  "columns": 4,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "civic:park:taiga",
+    "civic:playground:taiga",
+    "civic:swimming-pool:taiga",
+    "civic:sports-field:taiga",
+    "civic:tennis-courts:taiga",
+    "civic:ballpark:taiga",
+    "civic:sports-hall:taiga",
+    "civic:town-hall:taiga",
+    "civic:shop-cafe:taiga",
+    "civic:shop-pharmacy:taiga",
+    "civic:shop-bookshop:taiga",
+    null
+  ],
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "44151dcf80bcd2f8d43372bd113ae9c69aaaa9376ffaa65b9fc22c8c31306029",
+  "sprites": [
+    {
+      "id": "civic:park:taiga",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        256,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          49,
+          116,
+          207,
+          245
+        ],
+        "rawAlphaBounds": [
+          50,
+          117,
+          206,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.830109
+      },
+      "bounds": [
+        50,
+        117,
+        206,
+        244
+      ]
+    },
+    {
+      "id": "civic:playground:taiga",
+      "cell": 1,
+      "sourceBounds": [
+        256,
+        0,
+        512,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          78,
+          148,
+          178,
+          245
+        ],
+        "rawAlphaBounds": [
+          79,
+          149,
+          177,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.917847
+      },
+      "bounds": [
+        79,
+        149,
+        177,
+        244
+      ]
+    },
+    {
+      "id": "civic:swimming-pool:taiga",
+      "cell": 2,
+      "sourceBounds": [
+        512,
+        0,
+        768,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          57,
+          123,
+          200,
+          245
+        ],
+        "rawAlphaBounds": [
+          58,
+          124,
+          199,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.84668
+      },
+      "bounds": [
+        58,
+        124,
+        199,
+        244
+      ]
+    },
+    {
+      "id": "civic:sports-field:taiga",
+      "cell": 3,
+      "sourceBounds": [
+        768,
+        0,
+        1024,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          59,
+          119,
+          197,
+          245
+        ],
+        "rawAlphaBounds": [
+          60,
+          120,
+          196,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.854691
+      },
+      "bounds": [
+        60,
+        120,
+        196,
+        244
+      ]
+    },
+    {
+      "id": "civic:tennis-courts:taiga",
+      "cell": 4,
+      "sourceBounds": [
+        0,
+        256,
+        256,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          67,
+          138,
+          189,
+          245
+        ],
+        "rawAlphaBounds": [
+          68,
+          139,
+          188,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.890625
+      },
+      "bounds": [
+        68,
+        139,
+        188,
+        244
+      ]
+    },
+    {
+      "id": "civic:ballpark:taiga",
+      "cell": 5,
+      "sourceBounds": [
+        256,
+        256,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          55,
+          127,
+          202,
+          245
+        ],
+        "rawAlphaBounds": [
+          56,
+          128,
+          201,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.830231
+      },
+      "bounds": [
+        56,
+        128,
+        201,
+        244
+      ]
+    },
+    {
+      "id": "civic:sports-hall:taiga",
+      "cell": 6,
+      "sourceBounds": [
+        512,
+        256,
+        768,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          57,
+          125,
+          198,
+          245
+        ],
+        "rawAlphaBounds": [
+          58,
+          126,
+          197,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.848587
+      },
+      "bounds": [
+        58,
+        126,
+        197,
+        244
+      ]
+    },
+    {
+      "id": "civic:town-hall:taiga",
+      "cell": 7,
+      "sourceBounds": [
+        768,
+        256,
+        1024,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          61,
+          107,
+          196,
+          245
+        ],
+        "rawAlphaBounds": [
+          62,
+          109,
+          195,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.843552
+      },
+      "bounds": [
+        62,
+        109,
+        195,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-cafe:taiga",
+      "cell": 8,
+      "sourceBounds": [
+        0,
+        512,
+        256,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          69,
+          131,
+          188,
+          245
+        ],
+        "rawAlphaBounds": [
+          70,
+          132,
+          187,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.861771
+      },
+      "bounds": [
+        70,
+        132,
+        187,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-pharmacy:taiga",
+      "cell": 9,
+      "sourceBounds": [
+        256,
+        512,
+        512,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          69,
+          130,
+          187,
+          245
+        ],
+        "rawAlphaBounds": [
+          70,
+          131,
+          186,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.861435
+      },
+      "bounds": [
+        70,
+        131,
+        186,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-bookshop:taiga",
+      "cell": 10,
+      "sourceBounds": [
+        512,
+        512,
+        768,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          70,
+          125,
+          186,
+          245
+        ],
+        "rawAlphaBounds": [
+          71,
+          126,
+          185,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.865112
+      },
+      "bounds": [
+        71,
+        126,
+        185,
+        244
+      ]
+    },
+    {
+      "id": null
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorSourcePixels": 58,
+        "measurements": [
+          {
+            "id": "shop-cafe",
+            "sourceDoorPixels": 54,
+            "afterCalibrationWorldPixels": 3.910344827586207
+          },
+          {
+            "id": "shop-pharmacy",
+            "sourceDoorPixels": 58,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-bookshop",
+            "sourceDoorPixels": 60,
+            "afterCalibrationWorldPixels": 4.344827586206897
+          }
+        ],
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      },
+      "2": {
+        "referenceDoorSourcePixels": 29,
+        "measurements": [
+          {
+            "id": "swimming-pool",
+            "sourceDoorPixels": 28,
+            "afterCalibrationWorldPixels": 4.055172413793104
+          },
+          {
+            "id": "town-hall",
+            "sourceDoorPixels": 30,
+            "afterCalibrationWorldPixels": 4.344827586206897
+          }
+        ],
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      },
+      "3": {
+        "referenceDoorSourcePixels": 21,
+        "measurements": [
+          {
+            "id": "ballpark",
+            "sourceDoorPixels": 21,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ],
+        "targetDoorMasterPixels": 7.466666666666667,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          14,
+          60,
+          417,
+          390
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 72792
+      },
+      {
+        "cell": 1,
+        "id": "civic:playground:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          440,
+          121,
+          694,
+          368
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 35032
+      },
+      {
+        "cell": 2,
+        "id": "civic:swimming-pool:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          707,
+          69,
+          1073,
+          380
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 65880
+      },
+      {
+        "cell": 3,
+        "id": "civic:sports-field:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          1084,
+          64,
+          1437,
+          385
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 62423
+      },
+      {
+        "cell": 4,
+        "id": "civic:tennis-courts:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          31,
+          465,
+          342,
+          736
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 46347
+      },
+      {
+        "cell": 5,
+        "id": "civic:ballpark:taiga",
+        "footprint": 3,
+        "sourceBounds": [
+          335,
+          405,
+          744,
+          730
+        ],
+        "originalPixelScale": 0.35555555555555557,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 85846
+      },
+      {
+        "cell": 6,
+        "id": "civic:sports-hall:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          737,
+          431,
+          1098,
+          737
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 65036
+      },
+      {
+        "cell": 7,
+        "id": "civic:town-hall:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          1095,
+          392,
+          1439,
+          744
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 66862
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-cafe:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          58,
+          761,
+          361,
+          1051
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 58961
+      },
+      {
+        "cell": 9,
+        "id": "civic:shop-pharmacy:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          409,
+          759,
+          710,
+          1052
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 59465
+      },
+      {
+        "cell": 10,
+        "id": "civic:shop-bookshop:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          746,
+          749,
+          1040,
+          1054
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 57178
+      },
+      {
+        "cell": 11,
+        "empty": true
+      }
+    ]
+  }
+}

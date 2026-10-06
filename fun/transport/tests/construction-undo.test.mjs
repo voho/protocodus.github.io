@@ -143,7 +143,7 @@ test('a demolition dents its town by a recorded amount, and undo takes back just
 test('a later tick keeps cargo, vehicles and growth instead of rewinding them', () => {
   const game = emptyGame(), city = town(game, 50, 20);
   for (let x = 20; x <= 34; x++) build(game, 'road', x, 30);
-  build(game, 'logging-camp', 17, 28); build(game, 'sawmill', 35, 28);
+  assert.equal(build(game, 'logging-camp', 17, 25).ok, true); assert.equal(build(game, 'sawmill', 35, 25).ok, true);
   build(game, 'bus-stop', 20, 30); build(game, 'bus-stop', 34, 30);
   const [camp, mill] = game.industries;
   camp.inventory.timber = 400;
@@ -298,4 +298,10 @@ test('a building the company owns undoes only within the month it was placed, be
   assert.equal(sellProperty(game, A.x + 1, A.y + 7).ok, true);
   assert.equal(canUndo(game, later), false); assert.match(undoProblem(game, later), /changed/);
   assert.equal(validateGame(game), true);
+});
+
+ test('a road stop on bare land undoes its stop, road, cleared vegetation and combined price together', () => {
+  const game=emptyGame();Object.assign(tileAt(game,10,10),{terrain:'forest',detail:'pine'});
+  const outcome=roundTrip(game,'stop',[{x:10,y:10}],{preferredMode:'road'});
+  assert.match(outcome.message,/Road stop removed/);
 });

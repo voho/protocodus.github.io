@@ -1,0 +1,230 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-06",
+  "sharedPromptFunction": "buildingGenerationPrompt()",
+  "sharedDefinition": "sprite-art-direction.js",
+  "operation": "Fresh art in every active city slot, climate-only edits, then explicit measured doorway calibration in full parcel cells; no silhouette fitting",
+  "active": [
+    {
+      "biome": "taiga",
+      "job": {
+        "family": "buildings-civic",
+        "columns": 3,
+        "rows": 3,
+        "biome": "taiga",
+        "entries": [
+          {
+            "id": "school",
+            "name": "School",
+            "footprint": 2,
+            "description": "A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions."
+          },
+          {
+            "id": "hospital",
+            "name": "Hospital",
+            "footprint": 2,
+            "description": "A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width."
+          },
+          {
+            "id": "police-station",
+            "name": "Police station",
+            "footprint": 2,
+            "description": "A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors."
+          },
+          {
+            "id": "fire-station",
+            "name": "Fire station",
+            "footprint": 2,
+            "description": "A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof."
+          },
+          {
+            "id": "stadium",
+            "name": "Stadium",
+            "footprint": 3,
+            "description": "A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows."
+          },
+          {
+            "id": "church",
+            "name": "Church",
+            "footprint": 2,
+            "description": "A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway."
+          },
+          {
+            "id": "pub",
+            "name": "Village pub",
+            "footprint": 1,
+            "description": "A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Keep the same pixel-to-metre calibration across all slots. Do not independently fit each building's bounding box.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: School; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions.\nSlot 2: Hospital; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width.\nSlot 3: Police station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors.\nSlot 4: Fire station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof.\nSlot 5: Stadium; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows.\nSlot 6: Church; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway.\nSlot 7: Village pub; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text.\nSlot 8: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles.\nSlot 9: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses.\nCRITICAL ART DIRECTION: Create fresh art from scratch. This is a quiet, low-detail gouache game sprite sheet, NOT a photorealistic architectural model or ornate toy. Roof surfaces are untextured solid paint masses with just one broad ridge highlight, NEVER roof tiles. Wall surfaces are quiet colour planes, NEVER visible individual bricks. Planting is simple broad bushes with no visible leaves or flower dots. Only essential architecture and large identity features. Strict scale reference: the SCHOOL/BANK/HOTEL doors in 2x2 slots are HALF the pixel height of the small SHOP/PUB doors in1x1 slots. Their storeys are also HALF the pixel height. The institutional buildings are low broad campuses with substantially more windows/wings, NOT giant two-floor houses. On the square source canvas each cell is exactly1/3canvas width; after normalized to256px, 2x2 entrance door must be11px tall and1x1 entrance22px tall. Keep ground parcel contact at fixed cell coordinates and broad transparent margins. No fine material decoration whatsoever.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-a5b93cab-ba97-4c5f-b24d-1bb9fada5f20.png",
+      "reference": null
+    },
+    {
+      "biome": "tundra",
+      "job": {
+        "family": "buildings-civic",
+        "columns": 3,
+        "rows": 3,
+        "biome": "tundra",
+        "entries": [
+          {
+            "id": "school",
+            "name": "School",
+            "footprint": 2,
+            "description": "A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions."
+          },
+          {
+            "id": "hospital",
+            "name": "Hospital",
+            "footprint": 2,
+            "description": "A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width."
+          },
+          {
+            "id": "police-station",
+            "name": "Police station",
+            "footprint": 2,
+            "description": "A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors."
+          },
+          {
+            "id": "fire-station",
+            "name": "Fire station",
+            "footprint": 2,
+            "description": "A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof."
+          },
+          {
+            "id": "stadium",
+            "name": "Stadium",
+            "footprint": 3,
+            "description": "A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows."
+          },
+          {
+            "id": "church",
+            "name": "Church",
+            "footprint": 2,
+            "description": "A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway."
+          },
+          {
+            "id": "pub",
+            "name": "Village pub",
+            "footprint": 1,
+            "description": "A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nCool pale grass, restrained snow caps and evergreen planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: School; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions.\nSlot 2: Hospital; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width.\nSlot 3: Police station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors.\nSlot 4: Fire station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof.\nSlot 5: Stadium; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows.\nSlot 6: Church; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway.\nSlot 7: Village pub; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text.\nSlot 8: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles.\nSlot 9: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses.\nCLIMATE EDIT ONLY of this approved source sheet: change the climate finish to restrained snow caps on roof planes, pale snowy planting and cool grey shadows. Keep some roof material colour showing; do not bury entrances. EXACTLY preserve all nine sprites, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite, or independently fit its bounds. Fixed3x3rowmajor slots. The final physicaldoorcalibration is alreadyhandled in the atlas packing pipeline; this climate edit must preserve sourcegeometry precisely. Keep clean broad roof/wall colours, no fine roof/brick/flower texture, no extra objects, no writing or labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-7c9f9cbc-5845-4f3b-94f9-816b9627b2de.png",
+      "reference": "exec-a5b93cab-ba97-4c5f-b24d-1bb9fada5f20.png"
+    },
+    {
+      "biome": "desert",
+      "job": {
+        "family": "buildings-civic",
+        "columns": 3,
+        "rows": 3,
+        "biome": "desert",
+        "entries": [
+          {
+            "id": "school",
+            "name": "School",
+            "footprint": 2,
+            "description": "A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions."
+          },
+          {
+            "id": "hospital",
+            "name": "Hospital",
+            "footprint": 2,
+            "description": "A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width."
+          },
+          {
+            "id": "police-station",
+            "name": "Police station",
+            "footprint": 2,
+            "description": "A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors."
+          },
+          {
+            "id": "fire-station",
+            "name": "Fire station",
+            "footprint": 2,
+            "description": "A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof."
+          },
+          {
+            "id": "stadium",
+            "name": "Stadium",
+            "footprint": 3,
+            "description": "A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows."
+          },
+          {
+            "id": "church",
+            "name": "Church",
+            "footprint": 2,
+            "description": "A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway."
+          },
+          {
+            "id": "pub",
+            "name": "Village pub",
+            "footprint": 1,
+            "description": "A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text."
+          },
+          {
+            "id": "shop-grocery",
+            "name": "Grocer",
+            "footprint": 1,
+            "description": "A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles."
+          },
+          {
+            "id": "shop-bakery",
+            "name": "Bakery",
+            "footprint": 1,
+            "description": "A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses."
+          }
+        ],
+        "direction": "Replace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.",
+        "cellPixels": 256
+      },
+      "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nWarm dusty sand, pale stone and plaster, terracotta and sparse dry planting; preserve every physical dimension.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: School; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions.\nSlot 2: Hospital; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width.\nSlot 3: Police station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors.\nSlot 4: Fire station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof.\nSlot 5: Stadium; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows.\nSlot 6: Church; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway.\nSlot 7: Village pub; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text.\nSlot 8: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles.\nSlot 9: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses.\nCLIMATE EDIT ONLY of this approved source sheet: warm dusty stone/plaster, muted dry ochre planting, sparse sage-green shrub masses, sunny broad roofplanes. Preserve everybuilding identity and structuralmaterial(colour canwarm slightly butredbrick staysbrick, green/bluegreyroof keepidentity). EXACTLY preserve all nine sprites, architecture, orientation, size, proportions, door dimensions, sourcepixelpositions, transparent gutters and contact shadows. Do NOT shrink or enlarge a sprite or independently fit its bounds. Fixed3x3rowmajor slots. The final physicaldoorcalibration is alreadyhandled in atlaspacking; thisclimateedit must preserve sourcegeometry precisely. Clean broad roof/wallcolours, no fine texture or extraobjects, no palmfrondnoise, no writing/labels. Genuine transparentbackground.",
+      "transparent_background": true,
+      "source": "source-style-2026-10-06.png",
+      "generatedFile": "exec-fa449189-43b2-4e96-be43-bc90346b01e3.png",
+      "reference": "exec-a5b93cab-ba97-4c5f-b24d-1bb9fada5f20.png"
+    }
+  ],
+  "rejectedCalibrationEdit": {
+    "generatedFile": "exec-944327f1-aeda-413f-939c-dd1245141b6a.png",
+    "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nReplace the referenced previous artwork with cleaner NEW architecture in this shared style, retaining these row-major identities only. The source sheet is square3x3. Every full cell represents its WHOLE parcel; fixed registration: ground diamond centered at(128,192) in a256px normalized cell, corners(12,192),(128,134),(244,192),(128,250). Building height rises above that diamond. Large parcels are campuses or wide low buildings, not enlarged dollhouses. Keep all roofs, trees and shadows inside their own cell with transparent gaps. Do not draw any painted opaque grass slab; only narrow paths and building ground contacts, so native terrain shows through. Calibration: a1x1 building door uses8.75% of cell height,2x2 door4.375%,3x3 door2.9167%. These exact relative proportions override previous artwork.\nSlot 1: School; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low two-storey red-brick school campus with two broad wings and a small central clock turret. School entrance has normal 2.1m personnel doors; each floor is3m. Two or three big grouped window bays, not fine mullions.\nSlot 2: Hospital; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A broad modern pale hospital with four 3m storeys, a large red medical cross, low connecting wings and a restrained ambulance canopy. Repeat normal-sized windows across its larger width.\nSlot 3: Police station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A three-storey blue-grey civic police station with a simple slate roof, small radio mast and a clear dark blue entrance canopy. Ordinary2.1m doors.\nSlot 4: Fire station; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A low red-brick fire engine hall: two4.2m vehicle bays clearly distinct from its much smaller2.1m personnel door, a simple hose-drying tower, broad grey roof.\nSlot 5: Stadium; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A compact open green sports arena with simple two-tone terraces, a broad ring roof and four distinct floodlight towers. All personnel entrances stay small2.1m high; no spectators or fine seat rows.\nSlot 6: Church; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A pale stone church with a long nave, strong slate roof, tall slender bell tower and simple arched windows. A normal2.1m side personnel doorway provides scale; no giant entrance doorway.\nSlot 7: Village pub; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A compact two-storey timber-and-plaster village pub with a dark green pitched roof, broad simple facade timber bands and a large quiet amber hanging sign with no text.\nSlot 8: Grocer; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey pale plaster grocer with a green-and-cream broad striped awning and one broad dark shop window. No crates, tiny fruit, lettering or separate roof tiles.\nSlot 9: Bakery; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A small two-storey warm brick bakery with a terracotta roof and broad cream-and-ochre awning; clear large warm shop window, no tiny bread loaves or tile courses.\nCALIBRATION EDIT ONLY: Keep the nine existing identities, exact architectural design, broad painted materials and1:2dimetric camera. Correct the actual physical scale by SHRINKING EACH COMPLETE ISOLATED CUTOUT in its original fixed3x3cell, uniformly with NO stretching. Do not independently refit or enlarge the building after shrinking. Anchor each object on the same ground contact centre; preserve wide empty transparent margins around it. The full parcel is terrain, so the artwork must not fill it. Ordinary doors must be about22px normalizedheight in1x1slots,11px in2x2slots,7.5px in3x3slots; use existing doors, shrink all complete sprites by the specified linear factor. Keep this exactly3x3squaregrid. Keep reduced-detail flat roofs and clear wall planes; simplify any remaining tile seams, remove individual small flower dots. No additional objects. Slot1: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot2: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot3: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot4: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot5: shrink the COMPLETE isolated cutout to 46 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot6: shrink the COMPLETE isolated cutout to 58 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot7: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot8: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.\nSlot9: shrink the COMPLETE isolated cutout to 75 percent of its CURRENT linear width and height, uniformly on both axes.",
+    "reason": "Requested footprint-tier shrink factors were not followed consistently. The fresh original was retained and registered using documented uniform door calibration."
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "biome": "taiga",
   "columns": 3,
   "rows": 3,
@@ -26,435 +26,442 @@
   "houses": [
     {
       "id": "house-cheap-1",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
       "sourceBounds": [
-        117,
-        167,
-        523,
-        473
+        16,
+        110,
+        426,
+        429
       ],
-      "rawAlphaBounds": [
-        116,
-        167,
-        523,
-        474
+      "originalSize": [
+        1254,
+        1254
       ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.839548,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        0,
-        0,
-        640,
-        640
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 208,
-      "normalizedBounds": [
-        24,
-        83,
-        232,
-        240
-      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
       "drawSize": [
-        208,
-        157
+        228,
+        178
       ],
       "offset": [
-        24,
-        83
-      ]
+        14,
+        62
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        14,
+        62,
+        242,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 73493,
+      "architecturalStyle": "small cream plaster cottage with terracotta gable roof and pale low picket fence",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
     },
     {
       "id": "house-cheap-2",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
       "sourceBounds": [
-        109,
-        155,
-        530,
-        484
-      ],
-      "rawAlphaBounds": [
-        108,
-        155,
-        531,
-        485
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.819089,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        640,
-        0,
-        1280,
-        640
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 208,
-      "normalizedBounds": [
-        24,
-        77,
-        232,
-        240
-      ],
-      "drawSize": [
-        208,
-        163
-      ],
-      "offset": [
-        24,
-        77
-      ]
-    },
-    {
-      "id": "house-cheap-3",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
-      "sourceBounds": [
-        120,
-        165,
-        520,
-        475
-      ],
-      "rawAlphaBounds": [
-        119,
-        164,
-        521,
-        476
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.829351,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        1280,
-        0,
-        1920,
-        640
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 208,
-      "normalizedBounds": [
-        24,
-        79,
-        232,
-        240
-      ],
-      "drawSize": [
-        208,
-        161
-      ],
-      "offset": [
-        24,
-        79
-      ]
-    },
-    {
-      "id": "house-normal-1",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
-      "sourceBounds": [
-        107,
-        162,
-        532,
-        478
-      ],
-      "rawAlphaBounds": [
+        431,
         106,
-        161,
-        533,
-        479
+        839,
+        437
       ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.810771,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        0,
-        640,
-        640,
-        1280
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 224,
-      "normalizedBounds": [
-        16,
-        73,
-        240,
-        240
-      ],
-      "drawSize": [
-        224,
-        167
-      ],
-      "offset": [
-        16,
-        73
-      ]
-    },
-    {
-      "id": "house-normal-2",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
       "originalSize": [
-        640,
-        640
+        1254,
+        1254
       ],
-      "sourceBounds": [
-        105,
-        158,
-        535,
-        482
-      ],
-      "rawAlphaBounds": [
-        105,
-        157,
-        536,
-        483
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.805356,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        640,
-        640,
-        1280,
-        1280
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 224,
-      "normalizedBounds": [
-        16,
-        71,
-        240,
-        240
-      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
       "drawSize": [
-        224,
-        169
-      ],
-      "offset": [
-        16,
-        71
-      ]
-    },
-    {
-      "id": "house-normal-3",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
-      "sourceBounds": [
-        114,
-        168,
-        525,
-        471
-      ],
-      "rawAlphaBounds": [
-        113,
-        167,
-        526,
-        472
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.829141,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        1280,
-        640,
-        1920,
-        1280
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 224,
-      "normalizedBounds": [
-        16,
-        75,
-        240,
-        240
-      ],
-      "drawSize": [
-        224,
-        165
-      ],
-      "offset": [
-        16,
-        75
-      ]
-    },
-    {
-      "id": "house-expensive-1",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
-      "sourceBounds": [
-        101,
-        152,
-        536,
-        487
-      ],
-      "rawAlphaBounds": [
-        102,
-        151,
-        537,
-        487
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.802007,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        0,
-        1280,
-        640,
-        1920
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 240,
-      "normalizedBounds": [
-        8,
-        55,
-        248,
-        240
-      ],
-      "drawSize": [
-        240,
-        185
-      ],
-      "offset": [
-        8,
-        55
-      ]
-    },
-    {
-      "id": "house-expensive-2",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
-      ],
-      "sourceBounds": [
-        100,
-        151,
-        540,
-        488
-      ],
-      "rawAlphaBounds": [
-        99,
-        151,
-        541,
-        489
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.796057,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        640,
-        1280,
-        1280,
-        1920
-      ],
-      "trimmedInvisibleMatte": false,
-      "groundline": 240,
-      "widthLimit": 240,
-      "normalizedBounds": [
-        8,
-        56,
-        248,
-        240
-      ],
-      "drawSize": [
-        240,
+        227,
         184
       ],
       "offset": [
-        8,
+        14,
         56
-      ]
-    },
-    {
-      "id": "house-expensive-3",
-      "source": "source-scale-gardens-2026-10-05-packed.png",
-      "sourceSha256": "ec676064292034a16e9f6efacbc99a1f0ed77a583228284c36a7dcd6e47188c1",
-      "originalSize": [
-        640,
-        640
       ],
-      "sourceBounds": [
-        111,
-        155,
-        531,
-        484
-      ],
-      "rawAlphaBounds": [
-        110,
-        154,
-        529,
-        485
-      ],
-      "trimAlphaThreshold": 8,
-      "trimPadding": 2,
-      "transparentFraction": 0.799116,
-      "inputMode": "normalized-atlas",
-      "atlasBounds": [
-        1280,
-        1280,
-        1920,
-        1920
-      ],
-      "trimmedInvisibleMatte": false,
       "groundline": 240,
-      "widthLimit": 240,
       "normalizedBounds": [
-        8,
-        52,
-        248,
+        14,
+        56,
+        241,
         240
       ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 74940,
+      "architecturalStyle": "small timber cabin with gray slate gable roof and rustic split rail fence",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-cheap-3",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        842,
+        107,
+        1246,
+        436
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
       "drawSize": [
+        225,
+        183
+      ],
+      "offset": [
+        15,
+        57
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        15,
+        57,
         240,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 75894,
+      "architecturalStyle": "small red brick cottage with terracotta gable roof and low iron fence",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-normal-1",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        14,
+        486,
+        439,
+        827
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        237,
+        190
+      ],
+      "offset": [
+        9,
+        50
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        9,
+        50,
+        246,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 80220,
+      "architecturalStyle": "two-storey cream gabled family home with slate roof and bay window",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-normal-2",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        429,
+        495,
+        840,
+        832
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        229,
         188
       ],
       "offset": [
-        8,
+        13,
         52
-      ]
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        13,
+        52,
+        242,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 77913,
+      "architecturalStyle": "two-storey brick family home with muted green gray hipped roof",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-normal-3",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        842,
+        495,
+        1250,
+        827
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        227,
+        185
+      ],
+      "offset": [
+        14,
+        55
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        14,
+        55,
+        241,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 77324,
+      "architecturalStyle": "cream single-storey bungalow with terracotta hipped roof and short porch",
+      "footprint": 1,
+      "targetDoorMasterPixels": 22.4,
+      "targetStoreyMasterPixels": 32,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-expensive-1",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        7,
+        878,
+        434,
+        1197
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        238,
+        178
+      ],
+      "offset": [
+        9,
+        62
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        9,
+        62,
+        247,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 70613,
+      "architecturalStyle": "stone country manor with slate roofs and two short side wings",
+      "footprint": 2,
+      "targetDoorMasterPixels": 11.2,
+      "targetStoreyMasterPixels": 16,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-expensive-2",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        428,
+        878,
+        840,
+        1201
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        229,
+        180
+      ],
+      "offset": [
+        13,
+        60
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        13,
+        60,
+        242,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 71023,
+      "architecturalStyle": "three-storey narrow brick townhouse with charcoal mansard roof",
+      "footprint": 2,
+      "targetDoorMasterPixels": 11.2,
+      "targetStoreyMasterPixels": 16,
+      "sourceGridPadding": 1.1
+    },
+    {
+      "id": "house-expensive-3",
+      "source": "source-readable-scale-2026-10-06.png",
+      "sourceSha256": "84537212a66e9f6f02ae95432b7fc8312b5f3c30129ebbe58bcef92a2da27fea",
+      "inputMode": "registered-generated-grid",
+      "sourceBounds": [
+        842,
+        878,
+        1252,
+        1202
+      ],
+      "originalSize": [
+        1254,
+        1254
+      ],
+      "sourceCellSize": 418.0,
+      "registeredCellSize": 460,
+      "sharedSourceScale": 0.5565217391304348,
+      "drawSize": [
+        228,
+        180
+      ],
+      "offset": [
+        14,
+        60
+      ],
+      "groundline": 240,
+      "normalizedBounds": [
+        14,
+        60,
+        242,
+        240
+      ],
+      "preserveGridScale": true,
+      "atlasCellTransform": {
+        "scale": 1,
+        "translate": [
+          0,
+          0
+        ]
+      },
+      "meaningfulSourcePixels": 71342,
+      "architecturalStyle": "cream two-storey courtyard villa with terracotta roofs",
+      "footprint": 2,
+      "targetDoorMasterPixels": 11.2,
+      "targetStoreyMasterPixels": 16,
+      "sourceGridPadding": 1.1
     }
-  ]
+  ],
+  "mipFilter": "independent premultiplied-alpha Lanczos; no sharpening",
+  "design": 0,
+  "rotation": 0,
+  "frontEntranceDirection": "lower-left projected street axis",
+  "generator": "built-in image_gen",
+  "generationDate": "2026-10-06",
+  "scaleContract": "sprite-art-direction.js: 16m tile, 2.1m personnel door, 3m storey; doors on two-tile parcels use half the normalized height of one-tile parcels."
 }

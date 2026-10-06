@@ -27,22 +27,23 @@ async function openChains(page) {
 async function mapPoint(page, point) {
   return page.evaluate(point => {
     transport.renderer.focus(point.x, point.y);
-    const rect = document.querySelector('#world').getBoundingClientRect(), camera = transport.renderer.getCamera();
-    return { x: rect.left + rect.width / 2 + ((point.x + .5) * 32 - camera.x) * camera.zoom,
-      y: rect.top + rect.height / 2 + ((point.y + .5) * 32 - camera.y) * camera.zoom };
+    const rect = document.querySelector('#world').getBoundingClientRect(), p=transport.renderer.worldToScreen(point.x,point.y);
+    return {x:rect.left+p.x,y:rect.top+p.y};
   }, point);
 }
+
 async function clickMap(page, point) {
   const screen = await mapPoint(page, point);
   await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', screen);
   await page.mouse.click(screen.x, screen.y);
 }
 async function clickStationBadge(page, station) {
-  const screen = await mapPoint(page, station), zoom = await page.evaluate(() => transport.renderer.getCamera().zoom);
-  const badge = { x: screen.x + 8 * zoom + 7, y: screen.y - 18 * zoom + 7 };
-  await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', badge);
-  await page.mouse.click(badge.x, badge.y);
+  await mapPoint(page,station);
+  const badge=await page.evaluate(station=>{const m=transport.renderer.stationMarker(station),rect=document.querySelector('#world').getBoundingClientRect();return{x:rect.left+m.x+m.size/2,y:rect.top+m.y+m.size/2};},station);
+  await page.waitForFunction(({x,y})=>document.elementFromPoint(x,y)?.id==='world',badge);
+  await page.mouse.click(badge.x,badge.y);
 }
+
 async function chooseView(page, view) {
   const button = page.locator(`.main-nav [data-view="${view}"]`);
   const open = await page.locator('.sidebar').evaluate(element => element.classList.contains('drawer-open'));
@@ -118,7 +119,7 @@ try {
   assert.equal(stoneRoute.cargo, 'stone');
   assert.equal(stoneRoute.name, 'Stone quarry to Alderbrook', 'an empty name uses the default');
   assert.equal(stoneRoute.number, 2, 'the stone route is route 2');
-  assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), false);
+  assert.equal(await quarryPage.locator('#route-form').count(), 0);
   await quarryPage.waitForFunction(id => {
     const drawer = document.querySelector('#panel-content').getBoundingClientRect(), card = document.querySelector(`[data-route-id="${id}"]`)?.getBoundingClientRect();
     return card && card.top >= drawer.top - 1 && card.bottom <= drawer.bottom + 1;
@@ -157,6 +158,7 @@ try {
   await createWorldFromMenu(loadPage, { biome: 'taiga', size: 'square512', seed: 1847 });
   const loadStops = await quarryStop(loadPage);
   await loadPage.evaluate(() => transport.setView('routes'));
+  await loadPage.locator('#new-route-button').click();
   await loadPage.locator('#route-form [name="from"]').selectOption(loadStops.station.id);
   await loadPage.locator('#route-form [name="to"]').selectOption(loadStops.alder.id);
   await loadPage.locator('[data-cargo-choice="passengers"]').click();
@@ -175,6 +177,7 @@ try {
   const loadRoute = await loadPage.evaluate(() => { const route = transport.game.routes.at(-1); return { id: route.id, cargo: route.cargo, fullLoad: route.fullLoad }; });
   assert.deepEqual([loadRoute.cargo, loadRoute.fullLoad], ['stone', true], 'the route launches with full load');
   const loadCard = loadPage.locator(`.route-card[data-route-id="${loadRoute.id}"]`);
+  await loadCard.locator('.route-card-details > summary').click();
   assert.deepEqual(await loadCard.locator('.route-actions button').evaluateAll(buttons => buttons.map(b => b.getAttribute('aria-label') || b.textContent)), ['Show on map', 'Edit route', 'Retire'], 'the route card gains no controls');
   // The truck left full; a quarry at its smallest size, with its store emptied, leaves it waiting when it returns.
   await loadPage.evaluate(stop => { const quarry = transport.game.industries.filter(site => site.kind === 'quarry').sort((a, b) => Math.hypot(a.x - stop.x, a.y - stop.y) - Math.hypot(b.x - stop.x, b.y - stop.y))[0]; quarry.inventory.stone = 0; quarry.capacity = .1; }, loadStops.station);
@@ -226,6 +229,7 @@ try {
   await createWorldFromMenu(fleetPage);
   await fleetPage.evaluate(() => transport.setView('routes'));
   const starterCard = fleetPage.locator('.route-card[data-route-id]').first(), fleetMoney = await fleetPage.evaluate(() => transport.game.money);
+  await starterCard.locator('.route-card-details > summary').click();
   // Spare demand is never a state: the starter card has no orange accent and never asks for a bus.
   assert.deepEqual(await accents(starterCard), [], 'the starter card has no orange accent');
   assert.doesNotMatch(await starterCard.innerText(), /Add a bus|Passengers waiting/i);
@@ -252,6 +256,7 @@ try {
   assert.match(await trip.innerText(), /^\d+ tiles, \d+ days\n\$[\d,]+ each, \d+% of full pay$/, 'a slow trip keeps less of the fare, and says how much');
   assert.match(await trip.locator('span').first().getAttribute('title'), /^Recent deliveries took \d+ days over \d+ tiles\. Each passenger pays \$[\d,]+ at today’s prices, \d+% of the full fare/);
   // A quarter on, both towns hold four busloads: a quiet ink-2 line under the fleet, still no orange and no request.
+  await starterCard.locator('.route-card-details').evaluate(el=>el.open=true);
   const room = starterCard.locator('[data-route-room]');
   await fleetPage.waitForFunction(() => document.querySelector('[data-route-room]')?.hidden === false);
   assert.equal(await room.innerText(), 'Room for more', 'the count stays on the Waiting tag beside it');
@@ -320,6 +325,7 @@ try {
   await mailPage.evaluate(() => transport.setSpeed(0));
   await mailPage.screenshot({ path: `${output}/desktop-mail-floater.png` });
   const mailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
+  await mailCard.locator('.route-card-details > summary').click();
   await mailPage.waitForFunction(id => document.querySelector(`[data-route-health="${id}"]`)?.textContent === 'Mail travels both ways.', mail.id);
   assert.equal(await mailCard.locator('[data-route-status]').textContent(), 'Running');
   assert.equal(await mailCard.locator('[data-cargo-icon="mail"]').count(), 1, 'the card shows the envelope');
@@ -333,6 +339,7 @@ try {
   assert.deepEqual(await mailPage.evaluate(id => [transport.game.routes.find(route => route.id === id)?.cargo, transport.game.cities.every(city => Number.isFinite(city.mail))], mail.id), ['mail', true], 'the mail route and waiting mail survive a reload');
   await mailPage.evaluate(() => transport.setView('routes'));
   const savedMailCard = mailPage.locator(`.route-card[data-route-id="${mail.id}"]`);
+  await savedMailCard.locator('.route-card-details > summary').click();
   await savedMailCard.scrollIntoViewIfNeeded();
   await savedMailCard.screenshot({ path: `${output}/desktop-mail-reloaded-card.png` });
   await mailPage.close();
@@ -369,20 +376,31 @@ try {
   await verifyConnection(editPage, 'connected', true);
   await editPage.screenshot({ path: `${output}/desktop-edit-route.png` });
   await editPage.locator('#route-form [type="submit"]').click();
-  await editPage.locator('#route-planner summary h3').filter({ hasText: 'New route' }).waitFor();
+  await editPage.locator('#route-list').waitFor();
   const moved = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { stops: route.stops, name: route.name, money: transport.game.money, vehicles: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).map(vehicle => vehicle.id) }; }, stone.id);
   assert.deepEqual(moved.stops, [stone.start, stone.pine.id], 'the route now ends at Pinehaven');
   assert.equal(moved.money, editMoney, 'an edit costs nothing');
   assert.deepEqual(moved.vehicles, stone.vehicles, 'the same trucks run the new route');
   assert.equal(moved.name, 'Stone quarry to Pinehaven', 'a default name follows its stops');
   assert.match(await stoneCard.locator('.route-journey').textContent(), /Pinehaven Central$/, 'the card journey shows the new end');
-  assert.equal(await editPage.locator('#route-planner').evaluate(element => element.open), false, 'saving folds the planner');
+  assert.equal(await editPage.locator('#route-form').count(), 0, 'saving returns to the service list');
   // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead: the nearest site the stop covers
   // that keeps the industry spacing from the region's own refinery and machine works.
   const fuelMoney = await editPage.evaluate(async start => {
-    const { build, buildProblem } = await import('./model.js'), { industryDistance } = await import('./industry-sites.js'), game = transport.game, stop = game.stations.find(station => station.id === start), sites = [];
-    for (let dy = -7; dy <= 5; dy++) for (let dx = -7; dx <= 5; dx++) if (industryDistance({ x: stop.x + dx, y: stop.y + dy, footprint: 3 }, stop) <= 5) sites.push([dx, dy]);
-    const site = sites.sort((a, b) => Math.hypot(...a) - Math.hypot(...b)).find(([dx, dy]) => !buildProblem(game, 'refinery', stop.x + dx, stop.y + dy));
+    const { build, buildProblem } = await import('./model.js'), { industryDistance, industryFootprint } = await import('./industry-sites.js'), game = transport.game, stop = game.stations.find(station => station.id === start), sites = [], size = industryFootprint('refinery');
+    for (let dy = -size-5; dy <= 5; dy++) for (let dx = -size-5; dx <= 5; dx++) if (industryDistance({ x: stop.x + dx, y: stop.y + dy, footprint: size }, stop) <= 5) sites.push([dx, dy]);
+    sites.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
+    let site = sites.find(([dx, dy]) => !buildProblem(game, 'refinery', stop.x + dx, stop.y + dy));
+    // Recipe 7's terrain was laid out for a 3×3 refinery. Prepare an empty 5×5
+    // plot for this edit fixture, while still checking funds, occupation and spacing.
+    if (!site) for (const candidate of sites) {
+      const tiles = Array.from({length:size*size},(_,i)=>game.tiles[(stop.y+candidate[1]+Math.floor(i/size))*game.width+stop.x+candidate[0]+i%size]);
+      if (tiles.some(tile=>!tile)) continue;
+      const terrain = tiles.map(tile=>tile.terrain);
+      tiles.forEach(tile=>tile.terrain='grass');
+      if (!buildProblem(game, 'refinery', stop.x + candidate[0], stop.y + candidate[1])) { site = candidate; break; }
+      tiles.forEach((tile,i)=>tile.terrain=terrain[i]);
+    }
     if (!site || !build(game, 'refinery', stop.x + site[0], stop.y + site[1]).ok) throw new Error('No room for a refinery by the quarry stop');
     transport.setView('routes');
     return game.money;
@@ -402,7 +420,7 @@ try {
   assert.equal(fuel.name, 'Oil refinery to Pinehaven', 'the default name follows the new freight');
   await stoneCard.locator('[data-edit-route]').click();
   await editPage.locator('#cancel-route-edit').click();
-  assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'New route', 'Cancel leaves the edit');
+  assert.equal(await editPage.locator('#route-form').count(), 0, 'Cancel returns to the service list');
   await editPage.close();
   assert.deepEqual(errors, [], 'editing a route runs without console or runtime errors');
   console.log('Edit checks passed: fixed transport, no purchase, pick the end on the map, same trucks, no cost, default name follows, freight change confirm, Cancel.');
@@ -430,13 +448,16 @@ try {
   await namePage.evaluate(() => transport.setView('routes'));
   const nameCard = namePage.locator('.route-card[data-route-id]').first(), cardTitle = nameCard.locator('.route-header strong');
   assert.match(await nameCard.locator('.route-journey').textContent(), /^Harbour gate/, 'the route card journey uses the new stop name');
+  await namePage.locator('#new-route-button').click();
   assert.ok((await namePage.locator('#route-form [name="from"] option').allTextContents()).includes('Harbour gate'), 'the planner lists the new stop name');
+  await namePage.locator('#route-back').click();
   await namePage.locator('#route-search').fill('harbour');
   assert.equal(await namePage.locator('.route-card[data-route-id]').count(), 1, 'route search finds the renamed stop');
   await namePage.locator('#clear-route-filters').click();
   assert.equal(await namePage.evaluate(() => document.activeElement?.id), 'route-search', 'Clear filters hides itself and hands focus to the search field');
   const starterName = await cardTitle.textContent();
   await namePage.mouse.move(0, 0);
+  await namePage.waitForFunction(() => getComputedStyle(document.querySelector('.route-card .rename-button')).opacity === '0');
   assert.equal(await nameCard.locator('.rename-button').evaluate(el => getComputedStyle(el).opacity), '0', 'the card pencil stays out of sight until pointed at');
   await nameCard.locator('.route-header').hover();
   await namePage.waitForFunction(() => getComputedStyle(document.querySelector('.route-card .rename-button')).opacity === '1');
@@ -461,6 +482,7 @@ try {
   assert.equal(await namePage.evaluate(() => transport.game.routes[0].name), 'Valley shuttle');
   // Older saves may hold two stops of one name; the planner tells them apart by tile.
   const twin = await namePage.evaluate(() => { const [a, b] = transport.game.stations.filter(stop => stop.mode === 'road'); b.name = a.name; transport.setView('routes'); return b; });
+  await namePage.locator('#new-route-button').click();
   assert.ok((await namePage.locator('#route-form [name="from"] option').allTextContents()).includes(`Harbour gate · ${twin.x}, ${twin.y}`), 'duplicate stop names show their tile');
   await namePage.evaluate(() => transport.persist());
   await namePage.goto(url);
@@ -482,9 +504,9 @@ try {
     return { id: route.id, name: route.name, stops: route.stops.map(id => transport.game.stations.find(station => station.id === id)) };
   });
   const vehicleTargets = zoom => vehiclePage.evaluate(zoom => {
-    const vehicle = transport.game.vehicles[0], renderer = transport.renderer;
-    renderer.setZoom(zoom); renderer.focus(vehicle.x + 2, vehicle.y - 2); renderer.render(performance.now(), {});
-    const rect = document.querySelector('#world').getBoundingClientRect(), p = renderer.worldToScreen(vehicle.x, vehicle.y), badge = (zoom === 2 ? 22 : 18) + 13;
+    const vehicle = transport.game.vehicles[0], renderer = transport.renderer, at = renderer.vehicleWorldPoint(vehicle);
+    renderer.setZoom(zoom); renderer.focus(at.x + 2, at.y - 2); renderer.render(performance.now(), {});
+    const rect = document.querySelector('#world').getBoundingClientRect(), p = renderer.worldToScreen(at.x, at.y), badge = (zoom === 2 ? 22 : 18) + 13;
     return { point: { x: rect.left + p.x, y: rect.top + p.y }, badge: { x: rect.left + p.x, y: rect.top + p.y - 10 * zoom - badge / 2 - 5 } };
   }, zoom);
   for (const zoom of [.5, 1, 2]) {
@@ -557,7 +579,7 @@ try {
     assert.equal(await vehiclePage.locator('[data-vehicle-action="follow"]').getAttribute('aria-pressed'), 'true');
     await vehiclePage.locator('[data-speed="3"]').click();
   };
-  const followGap = () => vehiclePage.evaluate(() => { const vehicle = transport.game.vehicles[0], camera = transport.renderer.getCamera(); return Math.hypot(camera.x / 32 - .5 - vehicle.x, camera.y / 32 - .5 - vehicle.y); });
+  const followGap = () => vehiclePage.evaluate(() => { const at = transport.renderer.vehicleWorldPoint(transport.game.vehicles[0]), camera = transport.renderer.getCamera(); return Math.hypot(camera.x / 32 - .5 - at.x, camera.y / 32 - .5 - at.y); });
   // Once stopped, the camera holds still while the bus travels on.
   const cameraStays = async message => {
     const start = await vehiclePage.evaluate(() => { const vehicle = transport.game.vehicles[0], camera = transport.renderer.getCamera(); return { x: vehicle.x, y: vehicle.y, camera: [camera.x, camera.y] }; });
@@ -593,7 +615,7 @@ try {
   const retired = await vehiclePage.evaluate(stop => { transport.renderer.focus(stop.x, stop.y); transport.renderer.render(performance.now(), {}); return transport.renderer.getStats().stopSigns; }, starterRoute.stops[0]);
   assert.ok(retired.drawn >= 1 && retired.idle === retired.drawn, `with its route retired the stop's sign turns pale: ${JSON.stringify(retired)}`);
   // Air: the route form offers planes once air travel arrives, and a plane's card names its model and its trip.
-  const modes = () => vehiclePage.evaluate(() => { transport.setView('routes'); return [...document.querySelectorAll('#route-form [name="mode"] option')].map(option => option.textContent); });
+  const modes = () => vehiclePage.evaluate(() => { transport.setView('routes',{routeScreen:'new'}); return [...document.querySelectorAll('#route-form [name="mode"] option')].map(option => option.textContent); });
   assert.ok(!(await modes()).includes('Air'), 'no planes before 1952');
   const plane = await vehiclePage.evaluate(async () => {
     const model = await import('./model.js'), g = transport.game; g.day = 730.02; g.lastDailyDay = 730; g.lastMonth = 24; g.money = 5e6;
@@ -725,9 +747,10 @@ try {
   await page.locator('#entity-list [data-entity-page="next"]').first().click();
   assert.deepEqual(await cards('[data-industry]'), places.sites.slice(40, 80), 'Next shows the following 40 sites');
   // The periodic refresh keeps the page, its order and the scroll, even after the view moves.
-  await page.locator('#panel-content').evaluate(panel => { panel.scrollTop = 600; document.querySelector('#entity-list .entity-card').dataset.stale = 'yes'; });
-  await page.evaluate(() => { transport.renderer.focus(40, 40); transport.game.revision++; });
-  await page.waitForFunction(() => !document.querySelector('#entity-list [data-stale]'), undefined, { timeout: 10000 });
+  await page.locator('#panel-content').evaluate(panel => { panel.scrollTop = 600; window.qaEntityCard = document.querySelector('#entity-list .entity-card'); });
+  await page.evaluate(() => { transport.renderer.focus(40, 40); transport.game.revision++; document.querySelector('#world').focus(); });
+  await page.waitForTimeout(8000); // allow the seven-second secondary-list refresh
+  assert.equal(await page.evaluate(() => document.querySelector('#entity-list .entity-card') === window.qaEntityCard), true, 'an unchanged refresh keeps its existing cards');
   assert.deepEqual(await cards('[data-industry]'), places.sites.slice(40, 80), 'a refresh keeps the page and its order');
   assert.equal(await page.locator('#panel-content').evaluate(panel => panel.scrollTop), 600, 'a refresh keeps the scroll position');
   await page.locator('#entity-sort').selectOption('name');
@@ -823,6 +846,7 @@ try {
     return { from, to, railFrom, railTo, gap: { x: from.x + 12, y: from.y }, railGap: { x: from.x + 12, y: railY } };
   });
   await chooseView(page, 'routes');
+  if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="name"]').fill('Orchard food delivery');
   await page.locator('[data-cargo-choice="food"]').click();
   await page.locator('[data-pick-route="from"]').click();
@@ -864,6 +888,7 @@ try {
   await page.keyboard.press('Escape');
   // A construction tool closes the drawer; Routes reopens the planner with its stops.
   await chooseView(page, 'routes');
+  if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
   await verifyConnection(page, 'connected', true);
   await page.locator('#offline-routes').waitFor({ state: 'hidden' });
   assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 0, 'a repaired route drops its pin');
@@ -873,7 +898,7 @@ try {
   const freight = await page.evaluate(() => transport.game.routes.find(route => route.name === 'Orchard food delivery'));
   assert.equal(freight.cargo, 'food');
   assert.equal(await page.evaluate(id => transport.game.vehicles.find(vehicle => vehicle.routeId === id).load, freight.id), 24, 'new freight loads the selected resource');
-  assert.equal(await page.locator('#route-planner').evaluate(element => element.open), false, 'a launch folds the planner away');
+  assert.equal(await page.locator('#route-form').count(), 0, 'a launch returns to the service list');
   assert.equal(await page.locator(`.route-card[data-route-id="${freight.id}"]`).evaluate(element => element.classList.contains('route-flash')), true, 'the new route card flashes');
   await page.locator('#new-route-button').click();
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'the planner keeps its stops for another vehicle');
@@ -895,6 +920,7 @@ try {
   await page.locator('#route-search').fill('no such connection');
   assert.equal(await page.locator('.route-card[data-route-id]').count(), 0, 'no-match search does not retain unrelated routes');
   await page.locator('#route-search').fill('');
+  await page.locator('.route-filter-details').evaluate(el=>el.open=true);
   await page.locator('#route-filter-mode').selectOption('rail');
   assert.equal(await page.locator('.route-card[data-route-id]').count(), 1);
   assert.match(await page.locator('.route-card[data-route-id]').innerText(), /Valley passenger express/);
@@ -934,6 +960,7 @@ try {
   await page.keyboard.press('Escape');
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
   await chooseView(page, 'routes');
+  if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
   await page.evaluate(() => transport.renderer.setZoom(.5));
   await page.locator('[data-pick-route="from"]').click();
   await clickStationBadge(page, fixture.from);
@@ -941,6 +968,7 @@ try {
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'Region view accepts the departure stop badge beyond its tile');
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id, 'Region view accepts the arrival stop badge beyond its tile');
+  await page.locator('#route-back').click();
   await page.evaluate(() => transport.renderer.setZoom(1));
   // Show frames the whole starter route, then lights it for a few seconds.
   const starter = await page.evaluate(() => transport.game.routes[0].id);
@@ -1061,6 +1089,7 @@ try {
     await page.screenshot({ path: `${output}/desktop-${width}-chains.png` });
     await page.keyboard.press('Escape');
     await chooseView(page, 'routes');
+    if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
     assert.equal(await fits(page, '#panel-content'), true, `${width}px route panel fits`);
     await page.locator('#route-form [name="mode"]').selectOption('road');
     await page.locator('[data-cargo-choice="passengers"]').click();

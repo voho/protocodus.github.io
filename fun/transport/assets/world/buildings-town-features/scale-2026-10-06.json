@@ -1,0 +1,143 @@
+{
+  "columns": 4,
+  "rows": 3,
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "referenceSourceWidth": 1448,
+  "entries": [
+    {
+      "id": "park",
+      "footprint": 2,
+      "name": "Park",
+      "description": "A welcoming municipal park: mature rounded tree groups, cross-shaped gravel paths, one stone fountain, broad lawn areas and a few low benches. No opaque foundation slab. Calm natural planted masses."
+    },
+    {
+      "id": "playground",
+      "footprint": 1,
+      "name": "Playground",
+      "description": "An intimate playground: clear yellow-orange slide, blue swing frame, broad sandy play area and low wooden fence. No people, no tiny decorative accessories. All equipment at true human scale."
+    },
+    {
+      "id": "swimming-pool",
+      "footprint": 2,
+      "name": "Swimming pool",
+      "description": "Outdoor pool: a clearly blue rectangular swimming basin with just three broad lane divisions, pale paved deck and modest one-storey brick changing pavilion with slate roof, one personnel door. No microscopic loungers or crowded details."
+    },
+    {
+      "id": "sports-field",
+      "footprint": 2,
+      "name": "Sports field",
+      "description": "Small community football sports field: grass pitch with white touchline, center circle, two goals and one modest covered spectator stand behind the far side. Plain green surface, minimal poles. The field dominates the 32m site."
+    },
+    {
+      "id": "tennis-courts",
+      "footprint": 1,
+      "name": "Tennis courts",
+      "description": "Single community tennis court: dark green surround and muted red inner court, readable white court geometry, one simple net, quiet low perimeter fence. No people, no large poles."
+    },
+    {
+      "id": "ballpark",
+      "footprint": 3,
+      "name": "Ballpark",
+      "description": "Compact baseball park: green outfield, warm ochre baseball diamond clearly visible, restrained low bleachers curving behind home plate, one tiny service entrance at human scale. Broad planted border, no huge opaque plinth."
+    },
+    {
+      "id": "sports-hall",
+      "footprint": 2,
+      "name": "Sports hall",
+      "description": "A handsome indoor sports hall: red brick low rectangular sports volume, broad blue-grey barrel roof, small pale plaster entrance annex, two modest standard personnel doors, sparse trees. Fits a 32m square parcel. Architecture matches the civic reference, never synthetic vector blocks."
+    },
+    {
+      "id": "town-hall",
+      "footprint": 2,
+      "name": "Town hall",
+      "description": "A handsome traditional town hall: pale warm stone civic facade, dark slate hipped roof, modest central clock turret, two side wings, small portico and one ordinary personnel entrance. Two 3m storeys; no enormous doors. Muted materials and hand-painted softness like reference police station/school."
+    },
+    {
+      "id": "shop-cafe",
+      "footprint": 1,
+      "name": "Café",
+      "description": "A charming two-storey pale-plaster corner cafe with terracotta roof, one deep green striped awning, warm broad shop window, ordinary side personnel door and two quiet outdoor tables. One 16m parcel, shared 3m storeys. Match reference grocery/bakery style."
+    },
+    {
+      "id": "shop-pharmacy",
+      "footprint": 1,
+      "name": "Pharmacy",
+      "description": "A charming two-storey cream stone neighbourhood pharmacy with blue-grey slate roof, one muted green canopy, broad shop windows, a single green cross symbol without text and ordinary personnel door. One 16m parcel, shared 3m storeys. Match reference grocery style."
+    },
+    {
+      "id": "shop-bookshop",
+      "footprint": 1,
+      "name": "Bookshop",
+      "description": "A charming two-storey red-brick bookshop with dark blue-grey roof, one restrained burgundy awning, one broad warm storefront and ordinary personnel door. A simple open-book emblem, no book-spine grids or lettering. One 16m parcel, shared 3m storeys. Match reference pub/bakery style."
+    },
+    null
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorSourcePixels": 58,
+      "measurements": [
+        {
+          "id": "shop-cafe",
+          "sourceDoorPixels": 54,
+          "afterCalibrationWorldPixels": 3.910344827586207
+        },
+        {
+          "id": "shop-pharmacy",
+          "sourceDoorPixels": 58,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "shop-bookshop",
+          "sourceDoorPixels": 60,
+          "afterCalibrationWorldPixels": 4.344827586206897
+        }
+      ],
+      "targetDoorMasterPixels": 22.400000000000002,
+      "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately ±2px); the median factor is shared by every full parcel in each footprint tier."
+    },
+    "2": {
+      "referenceDoorSourcePixels": 29,
+      "measurements": [
+        {
+          "id": "swimming-pool",
+          "sourceDoorPixels": 28,
+          "afterCalibrationWorldPixels": 4.055172413793104
+        },
+        {
+          "id": "town-hall",
+          "sourceDoorPixels": 30,
+          "afterCalibrationWorldPixels": 4.344827586206897
+        }
+      ],
+      "targetDoorMasterPixels": 11.200000000000001,
+      "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately ±2px); the median factor is shared by every full parcel in each footprint tier."
+    },
+    "3": {
+      "referenceDoorSourcePixels": 21,
+      "measurements": [
+        {
+          "id": "ballpark",
+          "sourceDoorPixels": 21,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ],
+      "targetDoorMasterPixels": 7.466666666666667,
+      "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately ±2px); the median factor is shared by every full parcel in each footprint tier."
+    }
+  },
+  "registration": "Original RGBA pixels retained; each complete cutout receives one shared measured doorway factor for its footprint tier. Alpha bounds locate ground contact only, never choose scale. Ground contact anchor (128,244), full 256px parcel cells retained.",
+  "styleReference": "../buildings-civic/taiga/source-style-2026-10-06.png",
+  "rejectedInitial": "Initial imagegen result had neighbouring sports and planting shadows touching. A second imagegen edit added clear transparent gutters; all eleven accepted source components are separate."
+}

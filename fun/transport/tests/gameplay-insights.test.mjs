@@ -207,7 +207,7 @@ test('a route without full load never reads the line and reads as before', () =>
 
 test('routes need attention only while they cannot run, and the count follows every cause', () => {
   const game=emptyGame();
-  assert.equal(build(game,'logging-camp',10,10).ok,true);assert.equal(build(game,'sawmill',30,10).ok,true);
+  assert.equal(build(game,'logging-camp',10,8).ok,true);assert.equal(build(game,'sawmill',30,8).ok,true);
   assert.equal(buildPath(game,'road',line(10,30,13)).ok,true);
   assert.equal(build(game,'bus-stop',10,13).ok,true);assert.equal(build(game,'bus-stop',30,13).ok,true);
   const stops=game.stations.map(stop=>stop.id);
@@ -222,7 +222,7 @@ test('routes need attention only while they cannot run, and the count follows ev
   two.active=true;assert.equal(routesNeedingAttention(game),0);
   assert.equal(build(game,'bulldoze',10,10).ok,true);
   assert.equal(routeHealth(game,one).label,'No supplier');assert.equal(routesNeedingAttention(game),2,'both routes lost their supplier');
-  assert.equal(build(game,'logging-camp',6,13).ok,true);assert.equal(routesNeedingAttention(game),0,'a new producer in reach restores them');
+  assert.equal(build(game,'logging-camp',5,13).ok,true);assert.equal(routesNeedingAttention(game),0,'a new producer in reach restores them');
 });
 
 test('optional projects progress through deliberate freight and town building, not passive starter bus revenue', () => {
@@ -308,7 +308,7 @@ test('the first route card offers a planned line until the two ends are joined',
 
 test('first route steps tick exactly when each stop, connection, route and delivery exists', () => {
   const game=emptyGame();game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
-  assert.equal(build(game,'quarry',10,40).ok,true);
+  assert.equal(build(game,'quarry',8,40).ok,true);
   const quarry=game.industries[0],choice={source:quarry,buyer:{id:'town',kind:'city',name:'Town',x:40,y:41},cargo:'stone'};
   const done=()=>firstRouteSteps(game,choice).map(step=>step.done);
   assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);
@@ -336,7 +336,7 @@ test('first route steps tick exactly when each stop, connection, route and deliv
 test('next projects are memoised without going stale as the company grows', () => {
   const game=emptyGame();
   game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
-  assert.equal(build(game,'quarry',10,40).ok,true);assert.equal(build(game,'logging-camp',10,70).ok,true);assert.equal(build(game,'sawmill',40,70).ok,true);
+  assert.equal(build(game,'quarry',8,40).ok,true);assert.equal(build(game,'logging-camp',10,70).ok,true);assert.equal(build(game,'sawmill',40,70).ok,true);
   const same=label=>assert.deepEqual(nextProject(game),nextProject(structuredClone(game)),label);
   same('fresh world');
   assert.equal(buildPath(game,'road',line(16,37,41)).ok,true);assert.equal(build(game,'bus-stop',16,41).ok,true);assert.equal(build(game,'bus-stop',37,41).ok,true);
@@ -394,7 +394,7 @@ test('Waiting reads the town the airport actually serves, measured from its near
 
 test('the first-route checklist never counts an airport as a stop', () => {
   const game = airGame(); game.cities = [airTown('a', 44, 68), airTown('b', 104, 68)];
-  assert.equal(build(game, 'logging-camp', 40, 60).ok, true); assert.equal(build(game, 'sawmill', 100, 60).ok, true);
+  assert.equal(build(game, 'logging-camp', 40, 59).ok, true); assert.equal(build(game, 'sawmill', 100, 59).ok, true);
   assert.equal(build(game, 'airport-x', 40, 64).ok, true); assert.equal(build(game, 'airport-x', 100, 64).ok, true);
   const [camp, mill] = game.industries, choice = { source: camp, buyer: { id: mill.id, kind: 'industry', name: mill.name, x: mill.x, y: mill.y }, cargo: 'timber' };
   const steps = firstRouteSteps(game, choice);

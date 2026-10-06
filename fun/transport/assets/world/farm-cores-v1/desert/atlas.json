@@ -18,8 +18,8 @@
     "farm-core:livestock-farm:desert",
     null
   ],
-  "source": "source-isolated.png",
-  "sourceSha256": "241f84fc572dc9ea7cb360c1f63850512ceca058ec6d701f32320b377244ee4e",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "8d6a0b65b64c4070f873288d1225d58128c296d3ec681d5446dd33007422ae83",
   "sprites": [
     {
       "id": "farm-core:farm:desert",
@@ -27,34 +27,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        576,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          112,
-          126,
-          528,
-          516
+          32,
+          160,
+          543,
+          547
         ],
         "rawAlphaBounds": [
-          112,
-          126,
-          528,
-          514
+          32,
+          159,
+          544,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.733657
+        "transparentFraction": 0.70792
       },
       "bounds": [
-        12,
-        26,
-        244,
+        13,
+        70,
+        243,
         244
       ]
     },
@@ -62,73 +62,73 @@
       "id": "farm-core:dairy-farm:desert",
       "cell": 1,
       "sourceBounds": [
-        640,
+        576,
         0,
-        1280,
-        640
+        1152,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          117,
-          127,
-          522,
-          513
+          35,
+          220,
+          541,
+          547
         ],
         "rawAlphaBounds": [
-          117,
-          128,
-          522,
-          513
+          34,
+          219,
+          541,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.736968
+        "transparentFraction": 0.731569
       },
       "bounds": [
-        12,
-        23,
-        244,
-        244
+        14,
+        97,
+        242,
+        245
       ]
     },
     {
       "id": "farm-core:vegetable-farm:desert",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        1152,
         0,
-        1920,
-        640
+        1728,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          114,
-          135,
-          526,
-          504
+          36,
+          219,
+          540,
+          547
         ],
         "rawAlphaBounds": [
-          114,
-          135,
-          526,
-          504
+          37,
+          218,
+          541,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.755708
+        "transparentFraction": 0.729378
       },
       "bounds": [
-        12,
-        36,
-        244,
+        15,
+        96,
+        241,
         244
       ]
     },
@@ -137,77 +137,82 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        576,
+        576,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          115,
-          126,
-          525,
-          514
+          32,
+          209,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          115,
-          126,
-          525,
-          514
+          32,
+          208,
+          545,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.745935
+        "transparentFraction": 0.724606
       },
       "bounds": [
-        12,
-        24,
-        244,
-        244
+        13,
+        92,
+        243,
+        245
       ]
     },
     {
       "id": "farm-core:livestock-farm:desert",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        576,
+        576,
+        1152,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          98,
-          136,
-          541,
-          504
+          29,
+          202,
+          546,
+          547
         ],
         "rawAlphaBounds": [
-          98,
-          136,
-          541,
-          504
+          28,
+          201,
+          546,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.742449
+        "transparentFraction": 0.715953
       },
       "bounds": [
         12,
-        51,
+        89,
         244,
-        244
+        245
       ]
     },
     {
       "id": null
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 2,
+  "scaleContract": "../../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

@@ -28,7 +28,7 @@ import json
 from pathlib import Path
 import tempfile
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw
 
 HOUSE_IDS = tuple(f"house-{tier}-{variant}" for tier in ("cheap", "normal", "expensive") for variant in (1, 2, 3))
 BIOMES = {"taiga": "#78934d", "tundra": "#b6c2ad", "desert": "#cba869"}
@@ -87,16 +87,13 @@ def resize_alpha(image: Image.Image, size: tuple[int, int]) -> Image.Image:
 
 
 def sharpen_interior(image: Image.Image, cell_size: int) -> Image.Image:
-    """A small detail lift, strictly inside opaque pixels; never sharpen alpha."""
-    radius = .35 if cell_size <= 32 else .5 if cell_size <= 64 else .6
-    percent = 20 if cell_size <= 32 else 30 if cell_size <= 64 else 35
-    alpha = image.getchannel("A")
-    interior = alpha.point(lambda value: 255 if value >= 248 else 0).filter(ImageFilter.MinFilter(3))
-    rgb = image.convert("RGB")
-    sharpened = rgb.filter(ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=3))
-    result = Image.composite(sharpened, rgb, interior).convert("RGBA")
-    result.putalpha(alpha)
-    return result
+    """Keep painted masses quiet: mip filtering must not amplify tiny detail.
+
+    Retain this helper for callers of the original preparation API. Independent
+    premultiplied-alpha resampling already preserves the useful silhouette;
+    sharpening made roof seams and planting specks compete at Region zoom.
+    """
+    return image.copy()
 
 
 def normalize(image: Image.Image, house_id: str) -> tuple[Image.Image, dict]:
@@ -203,7 +200,7 @@ def atlas_name(size: int) -> str:
     return "house-atlas.png" if size == MASTER_SIZE else f"house-atlas-{size}.png"
 
 
-def aligned_atlas_cells(path: Path, normalize_cells=False) -> tuple[list[Image.Image], list[dict]]:
+def aligned_atlas_cells(path: Path, normalize_cells=False, preserve_grid_scale=False) -> tuple[list[Image.Image], list[dict]]:
     """Split an edited atlas and preserve common framing across its nine cells."""
     with Image.open(path) as opened:
         if opened.format != "PNG":
@@ -238,6 +235,15 @@ def aligned_atlas_cells(path: Path, normalize_cells=False) -> tuple[list[Image.I
             cells.append(normalized)
             record.update({**placement, "inputMode": "normalized-atlas"})
         return cells, records
+    if preserve_grid_scale:
+        cells = [resize_alpha(cell, (MASTER_SIZE, MASTER_SIZE)) for cell in inputs]
+        for normalized, record in zip(cells, records):
+            occupied = alpha_bbox(normalized, TRIM_ALPHA_THRESHOLD)
+            margins = [occupied[0], occupied[1], MASTER_SIZE - occupied[2], MASTER_SIZE - occupied[3]]
+            if min(margins) < MIN_MARGIN:
+                raise ValueError(f"{path} / {record['id']}: calibrated grid has insufficient padding; register full silhouettes without per-object fitting")
+            record.update({"normalizedBounds": list(alpha_bbox(normalized)), "drawSize": [MASTER_SIZE, MASTER_SIZE], "offset": [0, 0], "atlasCellTransform": {"scale": 1, "translate": [0, 0]}, "preserveGridScale": True})
+        return cells, records
     # Keep one shared affine transform for every house in a biome. This avoids
     # moving individual windows around when new snow/foliage expands a sprite.
     for inset in range(17):
@@ -259,11 +265,127 @@ def aligned_atlas_cells(path: Path, normalize_cells=False) -> tuple[list[Image.I
     raise ValueError(f"{path}: the biome atlas requires more than a 16-pixel common inset; inspect source framing")
 
 
-def build(manifest_path: Path | None, output_dir: Path, qa_dir: Path | None, validate_only=False, atlas_path: Path | None = None, atlas_biome: str | None = None, normalize_atlas=False) -> dict:
+def generated_atlas_cells(path: Path, source_grid_padding=1.1) -> tuple[list[Image.Image], list[dict]]:
+    """Register complete generated silhouettes using one physical grid scale.
+
+    Generation sometimes places a fence a few pixels across a nominal gutter.
+    Disconnected alpha assigns those pixels to their original plot. Only
+    translation varies per plot; all nine retain the same scale, including the
+    smaller doors painted for two-tile prestige gardens. Declared source-grid
+    padding protects fences and their antialiased edges without bounding-box
+    fitting. No artwork colours or alpha values are reconstructed.
+    """
+    import numpy as np
+    from scipy.ndimage import distance_transform_edt, find_objects, label
+
+    with Image.open(path) as opened:
+        if opened.format != "PNG":
+            raise ValueError(f"{path}: expected PNG input")
+        source = np.asarray(opened.convert("RGBA"))
+    height, width = source.shape[:2]
+    if width != height or width < 768:
+        raise ValueError(f"{path}: generated house sheet must be a square 3 × 3 atlas")
+    meaningful = source[:, :, 3] > TRIM_ALPHA_THRESHOLD
+    labels, _ = label(meaningful, np.ones((3, 3)))
+    counts = np.bincount(labels.ravel())
+    slices = find_objects(labels)
+    components = [i for i in range(1, len(counts)) if counts[i] > width * height * .001]
+    owner = np.zeros(labels.shape, np.int16)
+    slots = set()
+    partitions = []
+    if len(components) == 9:
+        for component in components:
+            ys, xs = slices[component - 1]
+            column = min(2, int((xs.start + xs.stop) / 2 / width * 3))
+            row = min(2, int((ys.start + ys.stop) / 2 / height * 3))
+            identity = row * 3 + column + 1
+            if identity in slots:
+                raise ValueError(f"{path}: two plots occupy slot {identity}")
+            slots.add(identity)
+            owner[labels == component] = identity
+    elif 6 <= len(components) < 9:
+        # Two complete perimeter fence tips can touch through a one-pixel alpha
+        # bridge. Partition at the least occupied vertical gutter in that row,
+        # without deleting, duplicating, repainting or scaling any source pixel.
+        # Broad overlapping plots remain invalid and require generation repair.
+        rows = [[] for _ in range(3)]
+        for component in components:
+            ys, _ = slices[component - 1]
+            if ys.stop - ys.start > height / 3:
+                raise ValueError(f"{path}: overlapping atlas rows require generation repair")
+            rows[min(2, int((ys.start + ys.stop) / 2 / height * 3))].append(component)
+        for row, row_components in enumerate(rows):
+            if not row_components:
+                raise ValueError(f"{path}: row {row + 1} contains no complete garden plots")
+            major = np.isin(labels, row_components)
+            occupancy = major.sum(axis=0)
+            seams = []
+            for column in (1, 2):
+                nominal = width * column / 3
+                candidates = range(round(nominal-width/18), round(nominal+width/18))
+                seam = min(candidates, key=lambda x: (occupancy[x], abs(x-nominal)))
+                if occupancy[seam] > 12:
+                    raise ValueError(f"{path}: broad joined plots in row {row + 1} require generation repair")
+                seams.append(seam)
+            partitions.append({"row": row, "verticalSeams": seams, "bridgePixels": [int(occupancy[x]) for x in seams]})
+            for column, (left, right) in enumerate(zip([0, *seams], [*seams, width])):
+                segment = major[:, left:right]
+                identity = row * 3 + column + 1
+                if int(segment.sum()) < width * height * .001:
+                    raise ValueError(f"{path}: slot {identity} is not a complete plot")
+                owner[:, left:right][segment] = identity
+                slots.add(identity)
+    else:
+        raise ValueError(f"{path}: expected nine garden plots, found {len(components)} major silhouettes")
+    _, nearest = distance_transform_edt(owner == 0, return_indices=True)
+    owner = owner[nearest[0], nearest[1]]
+    if not 1 <= source_grid_padding <= 1.25:
+        raise ValueError("source grid padding must be between 1 and 1.25")
+    source_cell = width / 3
+    registered_cell = round(source_cell * source_grid_padding)
+    shared_scale = MASTER_SIZE / registered_cell
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    cells, records, preserved = [], [], 0
+    for index, house_id in enumerate(HOUSE_IDS):
+        mask = meaningful & (owner == index + 1)
+        ys, xs = np.nonzero(mask)
+        x0, y0 = max(0, int(xs.min()) - 2), max(0, int(ys.min()) - 2)
+        x1, y1 = min(width, int(xs.max()) + 3), min(height, int(ys.max()) + 3)
+        crop = source[y0:y1, x0:x1].copy()
+        crop[owner[y0:y1, x0:x1] != index + 1] = 0
+        preserved += int((crop[:, :, 3] > TRIM_ALPHA_THRESHOLD).sum())
+        original = Image.fromarray(crop)
+        target = (round(original.width * shared_scale), round(original.height * shared_scale))
+        sprite = resize_alpha(original, target)
+        offset = ((MASTER_SIZE - target[0]) // 2, GROUNDLINE - target[1])
+        cell = Image.new("RGBA", (MASTER_SIZE, MASTER_SIZE))
+        cell.paste(sprite, offset)
+        bounds = alpha_bbox(cell, TRIM_ALPHA_THRESHOLD)
+        margins = [bounds[0], bounds[1], MASTER_SIZE - bounds[2], MASTER_SIZE - bounds[3]]
+        if min(margins) < MIN_MARGIN:
+            raise ValueError(f"{path} / {house_id}: full plot exceeds calibrated grid; regenerate generous gutters")
+        cells.append(cell)
+        records.append({"id": house_id, "source": path.name, "sourceSha256": digest,
+                        "inputMode": "registered-generated-grid", "sourceBounds": [x0, y0, x1, y1],
+                        "originalSize": [width, height], "sourceCellSize": source_cell,
+                        "sourceGridPadding": source_grid_padding,
+                        "registeredCellSize": registered_cell, "sharedSourceScale": shared_scale,
+                        "drawSize": list(target), "offset": list(offset), "groundline": GROUNDLINE,
+                        "normalizedBounds": list(alpha_bbox(cell)), "preserveGridScale": True,
+                        "atlasCellTransform": {"scale": 1, "translate": [0, 0]},
+                        "meaningfulSourcePixels": int(mask.sum())})
+        if partitions:
+            records[-1]["sourceGutterPartitions"] = partitions
+    if preserved != int(meaningful.sum()):
+        raise ValueError(f"{path}: a meaningful generated pixel was lost or duplicated during registration")
+    return cells, records
+
+
+def build(manifest_path: Path | None, output_dir: Path, qa_dir: Path | None, validate_only=False, atlas_path: Path | None = None, atlas_biome: str | None = None, normalize_atlas=False, preserve_grid_scale=False, generated_atlas=False, source_grid_padding=1.1) -> dict:
     jobs = {atlas_biome: []} if atlas_path else load_manifest(manifest_path)
     reports = {}
     for biome, houses in jobs.items():
-        cells, records = aligned_atlas_cells(atlas_path, normalize_atlas) if atlas_path else ([], [])
+        cells, records = (generated_atlas_cells(atlas_path, source_grid_padding) if generated_atlas else aligned_atlas_cells(atlas_path, normalize_atlas, preserve_grid_scale)) if atlas_path else ([], [])
         for house_id, source in houses:
             with Image.open(source) as opened:
                 if opened.format != "PNG":
@@ -276,7 +398,7 @@ def build(manifest_path: Path | None, output_dir: Path, qa_dir: Path | None, val
         levels, atlases = {}, {}
         for size in CELL_SIZES:
             atlases[size], levels[size] = pack_cells(cells, size)
-        metadata = {"version": 1, "biome": biome, "columns": 3, "rows": 3, "cellSizes": list(CELL_SIZES), "groundline": GROUNDLINE, "masterCellSize": MASTER_SIZE, "order": list(HOUSE_IDS), "houses": records}
+        metadata = {"version": 2 if preserve_grid_scale else 1, "biome": biome, "columns": 3, "rows": 3, "cellSizes": list(CELL_SIZES), "groundline": GROUNDLINE, "masterCellSize": MASTER_SIZE, "order": list(HOUSE_IDS), "houses": records, "mipFilter": "independent premultiplied-alpha Lanczos; no sharpening"}
         if not validate_only:
             destination = output_dir / biome
             for house_id, cell in zip(HOUSE_IDS, cells):
@@ -345,6 +467,39 @@ def self_test():
         for cell in inset_cells:
             left, top, right, bottom = alpha_bbox(cell)
             assert min(left, top, 256 - right, 256 - bottom) >= MIN_MARGIN
+        # Full generated plots can differ in silhouette width while doors keep
+        # one physical calibration. A per-object fit would silently change it.
+        generated = Image.new("RGBA", (1026, 1026))
+        draw = ImageDraw.Draw(generated)
+        for index in range(9):
+            cx, cy = index % 3 * 342 + 171, index // 3 * 342 + 220
+            plot_width = 220 + index * 4
+            draw.polygon([(cx, cy-65), (cx+plot_width//2, cy), (cx, cy+65), (cx-plot_width//2, cy)], fill=(140, 157, 68, 255))
+            door_height = 28 if index < 6 else 14
+            draw.rectangle((cx-18, cy-48, cx+18, cy+2), fill=(201, 180, 142, 255))
+            draw.rectangle((cx-4, cy+2-door_height, cx+4, cy+2), fill=(27, 39, 52, 255))
+        generated_path = directory / "calibrated.png"
+        save_png(generated, generated_path)
+        generated_cells, generated_records = generated_atlas_cells(generated_path)
+        assert len({record["sharedSourceScale"] for record in generated_records}) == 1, "every plot must retain one shared source grid scale"
+        assert generated_records[0]["drawSize"][0] < generated_records[-1]["drawSize"][0], "different parcel silhouettes must not be independently fitted to equal widths"
+        door_heights = []
+        for cell in generated_cells:
+            dark = cell.convert("RGB")
+            alpha = cell.getchannel("A")
+            ys = [y for y in range(256) for x in range(120, 137) if alpha.getpixel((x,y)) > 240 and sum(dark.getpixel((x,y))) < 140]
+            door_heights.append(max(ys)-min(ys)+1)
+        assert min(door_heights[:6]) >= max(door_heights[6:]) * 1.7, "two-tile source doors must remain half the one-tile cell height"
+        assert min(door_heights[:6]) / max(door_heights[6:]) <= 2.3, "registration must preserve, not exaggerate, the shared human scale"
+        # Thin touching fence tips must be separated by pixel ownership alone.
+        # This fixture connects the three bottom parcels through one-pixel ink.
+        draw.line((292, 904, 391, 904), fill=(140, 157, 68, 255), width=1)
+        draw.line((636, 904, 731, 904), fill=(140, 157, 68, 255), width=1)
+        save_png(generated, generated_path)
+        bridge_cells, bridge_records = generated_atlas_cells(generated_path)
+        assert len(bridge_cells) == 9 and bridge_records[6]["sourceGutterPartitions"], "joined fence tips must retain nine registered plots"
+        source_count = sum(generated.getchannel("A").histogram()[TRIM_ALPHA_THRESHOLD+1:])
+        assert sum(record["meaningfulSourcePixels"] for record in bridge_records) == source_count, "gutter partitioning must preserve every meaningful source pixel exactly once"
         try:
             validate_source(Image.new("RGBA", (256, 256), (255, 255, 255, 255)), "opaque sheet")
         except ValueError:
@@ -365,6 +520,9 @@ def main():
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--atlas", type=Path, help="An aligned transparent 3 × 3 biome-variant atlas; preserves cell framing")
     parser.add_argument("--normalize-atlas", action="store_true", help="Normalize each atlas cell using the same tier sizes and groundline as standalone sources")
+    parser.add_argument("--preserve-grid-scale", action="store_true", help="Preserve complete registered cell calibration; never fit a sprite or automatically inset the grid")
+    parser.add_argument("--generated-atlas", action="store_true", help="Register all nine generated alpha silhouettes at one shared source-grid scale, never per-object fit")
+    parser.add_argument("--source-grid-padding", type=float, default=1.1, help="One explicit uniform registration cushion for the entire generated sheet; use 1 for sources with generation-time padding")
     parser.add_argument("--biome", choices=BIOMES, help="Required with --atlas")
     parser.add_argument("--output-dir", type=Path, default=Path(__file__).resolve().parents[1] / "assets" / "houses")
     parser.add_argument("--qa-dir", type=Path)
@@ -378,8 +536,12 @@ def main():
         parser.error("provide exactly one of --manifest or --atlas")
     if args.atlas and not args.biome:
         parser.error("--biome is required with --atlas")
+    if args.preserve_grid_scale and (not args.atlas or args.normalize_atlas):
+        parser.error("--preserve-grid-scale requires --atlas and cannot be combined with --normalize-atlas")
+    if args.generated_atlas and (not args.atlas or args.normalize_atlas):
+        parser.error("--generated-atlas requires --atlas and cannot be combined with --normalize-atlas")
     try:
-        result = build(args.manifest.resolve() if args.manifest else None, args.output_dir, args.qa_dir, args.validate_only, args.atlas, args.biome, args.normalize_atlas)
+        result = build(args.manifest.resolve() if args.manifest else None, args.output_dir, args.qa_dir, args.validate_only, args.atlas, args.biome, args.normalize_atlas, args.preserve_grid_scale, args.generated_atlas, args.source_grid_padding)
     except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"House atlas build failed: {error}\n")
     print(json.dumps(result, indent=2))

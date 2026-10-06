@@ -21,8 +21,8 @@
     null,
     null
   ],
-  "source": "source-isolated.png",
-  "sourceSha256": "a431a29e4f7e5fb409f0fa37cec3b706bbcb41c41c6083441b572105a20133de",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "1f0264f78b767a0fdd2654b3efec9954910f4a26f12f81702b42d70f14538f17",
   "sprites": [
     {
       "id": "industry:dairy-farm:desert",
@@ -30,109 +30,109 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        608,
+        608
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          115,
-          192,
-          524,
-          448
+          53,
+          279,
+          555,
+          578
         ],
         "rawAlphaBounds": [
-          115,
-          192,
-          524,
-          448
+          53,
+          278,
+          556,
+          579
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.840955
+        "transparentFraction": 0.79048
       },
       "bounds": [
-        12,
-        99,
-        244,
-        244
+        21,
+        116,
+        235,
+        245
       ]
     },
     {
       "id": "industry:vegetable-farm:desert",
       "cell": 1,
       "sourceBounds": [
-        640,
+        608,
         0,
-        1280,
-        640
+        1216,
+        608
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          121,
-          191,
-          518,
-          449
+          53,
+          289,
+          555,
+          578
         ],
         "rawAlphaBounds": [
-          121,
-          191,
-          518,
-          449
+          52,
+          288,
+          556,
+          579
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.843547
+        "transparentFraction": 0.796085
       },
       "bounds": [
-        12,
-        93,
-        244,
-        244
+        21,
+        121,
+        235,
+        245
       ]
     },
     {
       "id": "industry:orchard:desert",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        1216,
         0,
-        1920,
-        640
+        1824,
+        608
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          116,
-          188,
-          524,
-          451
+          50,
+          284,
+          558,
+          578
         ],
         "rawAlphaBounds": [
-          116,
-          188,
-          524,
-          451
+          49,
+          283,
+          558,
+          579
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.825574
+        "transparentFraction": 0.786447
       },
       "bounds": [
-        12,
-        94,
-        244,
-        244
+        20,
+        118,
+        236,
+        245
       ]
     },
     {
@@ -140,110 +140,110 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        608,
+        608,
+        1216
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          112,
-          195,
-          528,
-          445
+          48,
+          263,
+          560,
+          578
         ],
         "rawAlphaBounds": [
-          112,
-          195,
-          528,
-          445
+          47,
+          263,
+          561,
+          578
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.833928
+        "transparentFraction": 0.771206
       },
       "bounds": [
-        12,
-        105,
-        244,
-        244
+        19,
+        109,
+        237,
+        245
       ]
     },
     {
       "id": "industry:dairy-plant:desert",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        608,
+        608,
+        1216,
+        1216
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          123,
-          184,
-          517,
-          456
+          51,
+          258,
+          556,
+          578
         ],
         "rawAlphaBounds": [
-          123,
-          184,
-          517,
-          456
+          53,
+          257,
+          557,
+          579
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.829058
+        "transparentFraction": 0.767402
       },
       "bounds": [
-        12,
-        84,
-        244,
-        244
+        21,
+        107,
+        235,
+        245
       ]
     },
     {
       "id": "industry:cannery:desert",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        1216,
+        608,
+        1824,
+        1216
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          118,
-          192,
-          522,
-          447
+          51,
+          272,
+          557,
+          578
         ],
         "rawAlphaBounds": [
-          118,
-          192,
-          522,
-          447
+          50,
+          272,
+          558,
+          578
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.827583
+        "transparentFraction": 0.767778
       },
       "bounds": [
-        12,
-        98,
-        244,
-        244
+        20,
+        113,
+        236,
+        245
       ]
     },
     {
@@ -251,36 +251,36 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        1280,
-        640,
-        1920
+        1216,
+        608,
+        1824
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          608,
+          608
         ],
         "sourceBounds": [
-          101,
-          179,
-          538,
-          460
+          29,
+          258,
+          578,
+          578
         ],
         "rawAlphaBounds": [
-          101,
-          179,
-          538,
-          460
+          28,
+          257,
+          579,
+          578
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.801562
+        "transparentFraction": 0.750151
       },
       "bounds": [
-        12,
-        95,
-        244,
-        244
+        11,
+        107,
+        245,
+        245
       ]
     },
     {
@@ -289,5 +289,10 @@
     {
       "id": null
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 5,
+  "scaleContract": "../../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

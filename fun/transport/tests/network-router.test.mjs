@@ -250,7 +250,7 @@ test('a walled-off buyer or a boxed-in producer has no plan', () => {
   zone(game, Array.from({ length: game.height }, (_, y) => [32, y]));
   assert.deepEqual([connect(game, farm, plant).ok, connect(game, farm, plant).reason], [false, 'no-route']);
   const boxed = flat(), [site, buyer] = farmAndPlant(boxed), cells = [];
-  for (let y = 14; y <= 32; y++) for (let x = 14; x <= 32; x++) if (x < 20 || x > 26 || y < 20 || y > 26) cells.push([x, y]);
+  for (let y = 14; y <= 32; y++) for (let x = 14; x <= 32; x++) if (x < 20 || x > 24 || y < 20 || y > 24) cells.push([x, y]);
   zone(boxed, cells);
   assert.equal(connect(boxed, site, buyer).reason, 'no-site');
 });

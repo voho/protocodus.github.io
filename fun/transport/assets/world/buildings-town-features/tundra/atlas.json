@@ -1,0 +1,693 @@
+{
+  "columns": 4,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "civic:park:tundra",
+    "civic:playground:tundra",
+    "civic:swimming-pool:tundra",
+    "civic:sports-field:tundra",
+    "civic:tennis-courts:tundra",
+    "civic:ballpark:tundra",
+    "civic:sports-hall:tundra",
+    "civic:town-hall:tundra",
+    "civic:shop-cafe:tundra",
+    "civic:shop-pharmacy:tundra",
+    "civic:shop-bookshop:tundra",
+    null
+  ],
+  "source": "source-calibrated-2026-10-06.png",
+  "sourceSha256": "4d6255f89583c10ec470a16f8ddbcc632b3ea356dbd5cec6602745663da7a6b3",
+  "sprites": [
+    {
+      "id": "civic:park:tundra",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        256,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          49,
+          108,
+          208,
+          245
+        ],
+        "rawAlphaBounds": [
+          50,
+          109,
+          207,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.829758
+      },
+      "bounds": [
+        50,
+        109,
+        207,
+        244
+      ]
+    },
+    {
+      "id": "civic:playground:tundra",
+      "cell": 1,
+      "sourceBounds": [
+        256,
+        0,
+        512,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          76,
+          143,
+          180,
+          245
+        ],
+        "rawAlphaBounds": [
+          77,
+          144,
+          179,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.913055
+      },
+      "bounds": [
+        77,
+        144,
+        179,
+        244
+      ]
+    },
+    {
+      "id": "civic:swimming-pool:tundra",
+      "cell": 2,
+      "sourceBounds": [
+        512,
+        0,
+        768,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          55,
+          114,
+          200,
+          245
+        ],
+        "rawAlphaBounds": [
+          56,
+          116,
+          199,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.84314
+      },
+      "bounds": [
+        56,
+        116,
+        199,
+        244
+      ]
+    },
+    {
+      "id": "civic:sports-field:tundra",
+      "cell": 3,
+      "sourceBounds": [
+        768,
+        0,
+        1024,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          59,
+          112,
+          198,
+          245
+        ],
+        "rawAlphaBounds": [
+          60,
+          114,
+          197,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.851547
+      },
+      "bounds": [
+        60,
+        114,
+        197,
+        244
+      ]
+    },
+    {
+      "id": "civic:tennis-courts:tundra",
+      "cell": 4,
+      "sourceBounds": [
+        0,
+        256,
+        256,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          66,
+          134,
+          190,
+          245
+        ],
+        "rawAlphaBounds": [
+          67,
+          135,
+          189,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.889038
+      },
+      "bounds": [
+        67,
+        135,
+        189,
+        244
+      ]
+    },
+    {
+      "id": "civic:ballpark:tundra",
+      "cell": 5,
+      "sourceBounds": [
+        256,
+        256,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          55,
+          123,
+          202,
+          245
+        ],
+        "rawAlphaBounds": [
+          56,
+          124,
+          201,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.82724
+      },
+      "bounds": [
+        56,
+        124,
+        201,
+        244
+      ]
+    },
+    {
+      "id": "civic:sports-hall:tundra",
+      "cell": 6,
+      "sourceBounds": [
+        512,
+        256,
+        768,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          57,
+          117,
+          198,
+          245
+        ],
+        "rawAlphaBounds": [
+          58,
+          118,
+          197,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.846863
+      },
+      "bounds": [
+        58,
+        118,
+        197,
+        244
+      ]
+    },
+    {
+      "id": "civic:town-hall:tundra",
+      "cell": 7,
+      "sourceBounds": [
+        768,
+        256,
+        1024,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          61,
+          107,
+          196,
+          245
+        ],
+        "rawAlphaBounds": [
+          62,
+          108,
+          195,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.84462
+      },
+      "bounds": [
+        62,
+        108,
+        195,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-cafe:tundra",
+      "cell": 8,
+      "sourceBounds": [
+        0,
+        512,
+        256,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          69,
+          130,
+          188,
+          245
+        ],
+        "rawAlphaBounds": [
+          70,
+          131,
+          187,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.861908
+      },
+      "bounds": [
+        70,
+        131,
+        187,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-pharmacy:tundra",
+      "cell": 9,
+      "sourceBounds": [
+        256,
+        512,
+        512,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          67,
+          128,
+          189,
+          245
+        ],
+        "rawAlphaBounds": [
+          68,
+          129,
+          188,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.858185
+      },
+      "bounds": [
+        68,
+        129,
+        188,
+        244
+      ]
+    },
+    {
+      "id": "civic:shop-bookshop:tundra",
+      "cell": 10,
+      "sourceBounds": [
+        512,
+        512,
+        768,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          66,
+          124,
+          190,
+          245
+        ],
+        "rawAlphaBounds": [
+          67,
+          125,
+          189,
+          244
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.857635
+      },
+      "bounds": [
+        67,
+        125,
+        189,
+        244
+      ]
+    },
+    {
+      "id": null
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "tiers": {
+      "1": {
+        "referenceDoorSourcePixels": 58,
+        "measurements": [
+          {
+            "id": "shop-cafe",
+            "sourceDoorPixels": 54,
+            "afterCalibrationWorldPixels": 3.910344827586207
+          },
+          {
+            "id": "shop-pharmacy",
+            "sourceDoorPixels": 58,
+            "afterCalibrationWorldPixels": 4.2
+          },
+          {
+            "id": "shop-bookshop",
+            "sourceDoorPixels": 60,
+            "afterCalibrationWorldPixels": 4.344827586206897
+          }
+        ],
+        "targetDoorMasterPixels": 22.400000000000002,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      },
+      "2": {
+        "referenceDoorSourcePixels": 29,
+        "measurements": [
+          {
+            "id": "swimming-pool",
+            "sourceDoorPixels": 28,
+            "afterCalibrationWorldPixels": 4.055172413793104
+          },
+          {
+            "id": "town-hall",
+            "sourceDoorPixels": 30,
+            "afterCalibrationWorldPixels": 4.344827586206897
+          }
+        ],
+        "targetDoorMasterPixels": 11.200000000000001,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      },
+      "3": {
+        "referenceDoorSourcePixels": 21,
+        "measurements": [
+          {
+            "id": "ballpark",
+            "sourceDoorPixels": 21,
+            "afterCalibrationWorldPixels": 4.2
+          }
+        ],
+        "targetDoorMasterPixels": 7.466666666666667,
+        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          14,
+          47,
+          421,
+          397
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 72759
+      },
+      {
+        "cell": 1,
+        "id": "civic:playground:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          442,
+          120,
+          705,
+          378
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 36482
+      },
+      {
+        "cell": 2,
+        "id": "civic:swimming-pool:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          714,
+          56,
+          1084,
+          390
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 66861
+      },
+      {
+        "cell": 3,
+        "id": "civic:sports-field:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          1091,
+          55,
+          1446,
+          394
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 63513
+      },
+      {
+        "cell": 4,
+        "id": "civic:tennis-courts:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          29,
+          465,
+          344,
+          746
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 46836
+      },
+      {
+        "cell": 5,
+        "id": "civic:ballpark:tundra",
+        "footprint": 3,
+        "sourceBounds": [
+          345,
+          403,
+          752,
+          741
+        ],
+        "originalPixelScale": 0.35555555555555557,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 87017
+      },
+      {
+        "cell": 6,
+        "id": "civic:sports-hall:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          748,
+          425,
+          1109,
+          750
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 65235
+      },
+      {
+        "cell": 7,
+        "id": "civic:town-hall:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          1101,
+          399,
+          1446,
+          752
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 66446
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-cafe:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          50,
+          766,
+          353,
+          1059
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 59008
+      },
+      {
+        "cell": 9,
+        "id": "civic:shop-pharmacy:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          403,
+          764,
+          715,
+          1061
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 60677
+      },
+      {
+        "cell": 10,
+        "id": "civic:shop-bookshop:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          737,
+          753,
+          1052,
+          1062
+        ],
+        "originalPixelScale": 0.3862068965517242,
+        "contactAnchor": [
+          128,
+          244
+        ],
+        "preservedSourcePixels": 60709
+      },
+      {
+        "cell": 11,
+        "empty": true
+      }
+    ]
+  }
+}

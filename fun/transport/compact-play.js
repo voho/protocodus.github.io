@@ -53,6 +53,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   if (onNews) addAction('news-button', 'News', icon('news'), onNews, shortcuts.news);
   rule();
   moveAction('.main-nav [data-open-chains]', 'Production chains', 'C');
+  moveAction('.main-nav [data-open-gallery]', 'Building gallery');
   moveAction('#layers-button', 'Map layers', 'L');
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;
@@ -115,8 +116,9 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
     }
     if (!open && sidebar.contains(document.activeElement)) canvas.focus({ preventScroll: true });
   }
+  function hideMinimap(){minimap.hidden=true;overviewButton.setAttribute('aria-pressed','false');}
   function openManagement() {
-    closeMenu(); sidebar.classList.add('drawer-open'); syncManagement();
+    hideMinimap();closeMenu(); sidebar.classList.add('drawer-open'); syncManagement();
   }
   function closeManagement(restoreFocus = false) {
     sidebar.classList.remove('drawer-open'); syncManagement();
@@ -152,5 +154,5 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   });
   for (const selector of ['#layers-panel', '#map-options']) panelObserver.observe($(selector), { attributes: true, attributeFilter: ['hidden'] });
   syncManagement();
-  return { openManagement, closeManagement, toggleManagement, syncManagement, closeMenu, isMinimapVisible: () => !minimap.hidden };
+  return { hideMinimap, openManagement, closeManagement, toggleManagement, syncManagement, closeMenu, isMinimapVisible: () => !minimap.hidden };
 }

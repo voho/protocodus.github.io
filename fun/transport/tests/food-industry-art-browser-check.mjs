@@ -24,7 +24,7 @@ try {
       for (const biome of ['taiga', 'desert', 'tundra']) {
         const sprites = createSprites(biome, { pixelScale: devicePixelRatio });
         for (const kind of industries.FOOD_INDUSTRY_KINDS) {
-          const sprite = sprites(kind, 0, 3), c = document.createElement('canvas'); c.width = 40; c.height = 40;
+          const sprite = sprites(kind), c = document.createElement('canvas'); c.width = 40; c.height = 40;
           checks.push({ biome, kind, drawn: drawProcessingPlant(c.getContext('2d'), kind, rng(1), biome), hash: hash(sprite), width: sprite.width, height: sprite.height });
         }
       }
@@ -33,7 +33,7 @@ try {
     });
     for (const check of native) {
       assert.equal(check.drawn, true, `${check.biome} ${check.kind} has recognizable native recovery artwork`);
-      assert.equal(check.width, 96 * dpr); assert.equal(check.height, 104 * dpr);
+      assert.equal(check.width, 160 * dpr); assert.equal(check.height, 168 * dpr);
     }
     for (const biome of ['taiga', 'desert', 'tundra']) assert.equal(new Set(native.filter(v => v.biome === biome).map(v => v.hash)).size, 7, `${biome} native sites have seven different silhouettes`);
     await page.unroute('**/*.png');
@@ -45,9 +45,9 @@ try {
         for (const zoom of [.5, 1, 2]) {
           const density = zoom * devicePixelRatio, sprites = q.createSprites(biome, { pixelScale: density });
           for (const kind of q.industries.FOOD_INDUSTRY_KINDS) {
-            const sprite = sprites(kind, 0, 3), expected = document.createElement('canvas'); expected.width = sprite.width; expected.height = sprite.height;
+            const sprite = sprites(kind), expected = document.createElement('canvas'); expected.width = sprite.width; expected.height = sprite.height;
             const c = expected.getContext('2d'); c.scale(density, density); c.translate(0, 8);
-            const drawn = q.industries.drawRasterIndustry(c, kind, biome, density, { size: 96 });
+            const drawn = q.industries.drawRasterIndustry(c, kind, biome, density);
             profiles.push({ kind, zoom, density, drawn, same: q.hash(sprite) === q.hash(expected), hash: q.hash(sprite), width: sprite.width, height: sprite.height });
           }
         }
@@ -66,7 +66,7 @@ try {
       }, biome);
       for (const p of checks.profiles) {
         assert.equal(p.drawn, true, `${biome} ${p.kind} decoded`); assert.equal(p.same, true, `${biome} ${p.kind} draws the same generated pixels through createSprites`);
-        assert.equal(p.width, Math.round(96 * p.density)); assert.equal(p.height, Math.round(104 * p.density));
+        assert.equal(p.width, Math.round(160 * p.density)); assert.equal(p.height, Math.round(168 * p.density));
         if (p.zoom === 1) assert.notEqual(p.hash, native.find(n => n.biome === biome && n.kind === p.kind).hash, 'late generated artwork replaces the native cache entry');
       }
       for (const cell of checks.alpha) {
@@ -76,6 +76,7 @@ try {
       }
       const world = await page.evaluate(async biome => {
         const q = foodQA, game = q.model.createGame({ biome, size: 'regional', seed: 1847 });
+        const { initializeIndustry } = await import('./industry-simulation.js');
         for (const tile of game.tiles) {
           Object.assign(tile, { terrain: biome === 'desert' ? 'sand' : 'grass', detail: '', elevation: .25, publicRoad: false, road: false, rail: false, bridge: false, tunnel: false, building: null, zone: null }); delete tile.terrainObject;
         }
@@ -84,9 +85,13 @@ try {
         // Explicit 3×3 footprints represent existing compact saved farms.
         // Large new plots have their own field-renderer browser checks.
         const sites = q.industries.FOOD_INDUSTRY_KINDS.map((kind, index) => {
-          const placed = q.model.build(game, kind, 19 + index % 3 * 8, 17 + Math.floor(index / 3) * 8);
-          if (placed.ok) placed.industry.footprint = 3;
-          return placed;
+          // These are existing compact companies, rather than new five-tile
+          // player builds. Keep their saved parcels while exercising the real
+          // native renderer and route consumers.
+          const industry = { id: `legacy-food-${index}`, kind, name: kind, x: 19 + index % 3 * 8, y: 17 + Math.floor(index / 3) * 8, footprint: 3, inventory: {}, input: {}, capacity: 1, produced: 0, shipped: 0, activity: 0, owner: 'player' };
+          initializeIndustry(game, industry);
+          game.industries.push(industry);
+          return { ok: true, industry };
         });
         for (const y of [22, 30, 38]) for (let x = 16; x <= 45; x++) q.model.build(game, 'road', x, y);
         for (let y = 14; y <= 41; y++) q.model.build(game, 'road', 16, y);

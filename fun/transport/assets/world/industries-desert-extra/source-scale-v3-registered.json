@@ -1,0 +1,40 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 998,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.2565130260521042,
+  "sourceColumnPixels": 887.0,
+  "meaningfulPixelsPreserved": 558758,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:wire-mill:desert",
+      "sourceBounds": [
+        2,
+        178,
+        890,
+        780
+      ],
+      "offset": [
+        55,
+        348
+      ],
+      "pixels": 282587
+    },
+    {
+      "cell": 1,
+      "id": "industry:goods-factory:desert",
+      "sourceBounds": [
+        884,
+        211,
+        1774,
+        780
+      ],
+      "offset": [
+        54,
+        381
+      ],
+      "pixels": 276171
+    }
+  ]
+}

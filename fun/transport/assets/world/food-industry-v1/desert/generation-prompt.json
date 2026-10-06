@@ -1,0 +1,72 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "job": {
+    "entries": [
+      {
+        "id": "industry:dairy-farm:desert",
+        "name": "dairy farm",
+        "footprint": 5,
+        "description": "Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard."
+      },
+      {
+        "id": "industry:vegetable-farm:desert",
+        "name": "vegetable farm",
+        "footprint": 5,
+        "description": "Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard."
+      },
+      {
+        "id": "industry:orchard:desert",
+        "name": "orchard",
+        "footprint": 5,
+        "description": "Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins."
+      },
+      {
+        "id": "industry:livestock-farm:desert",
+        "name": "livestock farm",
+        "footprint": 5,
+        "description": "Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard."
+      },
+      {
+        "id": "industry:dairy-plant:desert",
+        "name": "dairy plant",
+        "footprint": 5,
+        "description": "An eighty metre dairy processing compound: multiple long cream halls with broad blue roofs, silver milk silos and repeated truck loading docks."
+      },
+      {
+        "id": "industry:cannery:desert",
+        "name": "cannery",
+        "footprint": 5,
+        "description": "An eighty metre cannery compound: several brick halls with broad green sawtooth roofs, silver process tanks, one chimney and six truck bays."
+      },
+      {
+        "id": "industry:meat-packer:desert",
+        "name": "meat packer",
+        "footprint": 5,
+        "description": "An eighty metre meat packing compound: several pale refrigeration halls with broad red roofs, four truck bays and simple livestock holding court."
+      },
+      null,
+      null
+    ],
+    "columns": 3,
+    "rows": 3,
+    "biome": "desert",
+    "cellPixels": 256,
+    "direction": "Each sprite is a full fixed-scale parcel seen from the same camera. Keep a large transparent border, no shadows crossing the cell. The ground parcel is a broad 2:1 diamond, centered horizontally; its FRONT point lies at90percent cell height. A5tile compound is80m wide, personnel doors must be tiny4.5px high in a256px cell, loading bays9px high. Make buildings into several long wings rather than a giant single cottage. Prioritize large roof masses and industry silhouette. No textures made of tiny high-contrast marks.",
+    "family": "food-industry-v1/desert"
+  },
+  "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Keep the same pixel-to-metre calibration across all slots. Do not independently fit each building's bounding box.\nWarm dusty sand, pale stone and plaster, terracotta and sparse dry planting; preserve every physical dimension.\nEach sprite is a full fixed-scale parcel seen from the same camera. Keep a large transparent border, no shadows crossing the cell. The ground parcel is a broad 2:1 diamond, centered horizontally; its FRONT point lies at90percent cell height. A5tile compound is80m wide, personnel doors must be tiny4.5px high in a256px cell, loading bays9px high. Make buildings into several long wings rather than a giant single cottage. Prioritize large roof masses and industry silhouette. No textures made of tiny high-contrast marks.\nSlot 1: dairy farm; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard.\nSlot 2: vegetable farm; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard.\nSlot 3: orchard; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins.\nSlot 4: livestock farm; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard.\nSlot 5: dairy plant; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. An eighty metre dairy processing compound: multiple long cream halls with broad blue roofs, silver milk silos and repeated truck loading docks.\nSlot 6: cannery; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. An eighty metre cannery compound: several brick halls with broad green sawtooth roofs, silver process tanks, one chimney and six truck bays.\nSlot 7: meat packer; 5x5 tile parcel (80m square). At a 256px normalized cell, personnel door height is 4.5px, a storey 6.4px and a low fence 2.6px. An eighty metre meat packing compound: several pale refrigeration halls with broad red roofs, four truck bays and simple livestock holding court.\nSlot 8: EMPTY transparent cell.\nSlot 9: EMPTY transparent cell.",
+  "transparent_background": true,
+  "referenceImage": null
+}

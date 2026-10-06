@@ -15,6 +15,11 @@
 .speed-control button svg{width:12px;height:12px}
 .speed-control button.active{background:var(--ink);box-shadow:none;color:var(--on-ink)}
 .speed-control button[data-speed="0"].active{background:var(--signal);color:var(--ink)}
+.play-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.terrain-height-control{display:flex;align-items:center;gap:4px;height:35px;padding:2px 4px 2px 7px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--well);color:var(--ink-2)}
+.terrain-height-control svg{width:15px;height:15px;flex-shrink:0}
+.terrain-height-control select{width:70px;height:29px;min-height:0;padding:2px;border:0;border-radius:var(--r-1);background:transparent;color:var(--ink-2);font:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);cursor:pointer}
+.terrain-height-control select:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 .workspace{height:calc(100dvh - 187px);display:flex;position:relative;min-height:200px}
 .sidebar{width:268px;background:var(--paper);border-right:1px solid var(--rule);flex-shrink:0;display:flex;flex-direction:column;z-index:var(--z-sheet)}
 .sidebar-foot{padding:12px 16px;border-top:1px solid var(--rule);margin-top:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;height:39px}
@@ -214,7 +219,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .offline-routes b{font-weight:inherit}
 @media(max-width:900px){
  .compact-play .topbar .date-block:has(>#offline-routes:not([hidden])){display:grid;grid-template-columns:auto auto;align-items:center;justify-content:center;gap:2px 4px}
- .compact-play .topbar .date-block .speed-control{grid-column:1/-1}
+ .compact-play .topbar .date-block .play-controls{grid-column:1/-1}
  .compact-play .offline-routes{min-height:17px;padding:0 8px 0 4px;gap:4px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
  .compact-play .offline-routes svg{width:12px;height:12px}
  .compact-play .offline-routes span{display:none}
@@ -329,6 +334,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar{gap:12px}
  .compact-play .main-nav .nav-button{padding:8px 8px}
  .compact-play .hud-finances{gap:12px}
+ .compact-play .offline-routes span{display:none}
 }
 @media(max-width:900px){
  .compact-play .main-nav .nav-button svg{display:none}
@@ -337,6 +343,9 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption);margin:0 0 2px}
  .compact-play .topbar .speed-control button{width:23px;height:20px}
  .compact-play .topbar .speed-control{padding:1px}
+ .compact-play .play-controls{gap:4px}
+ .compact-play .terrain-height-control{height:24px;padding:1px 2px 1px 4px;gap:2px}
+ .compact-play .terrain-height-control select{height:20px;width:65px}
  .compact-play .hud-finances{gap:12px}
 }
 @media(prefers-reduced-motion:reduce){
@@ -366,6 +375,17 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  #balance{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
 /* The game menu's groups: company, map, help and the game itself, each row with its key on the right. */
+@media(max-width:720px){
+ .compact-play{--play-header:84px}
+ .compact-play .topbar{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:36px 40px;padding:4px 8px;gap:0 8px}
+ .compact-play .topbar .wordmark{grid-row:1;grid-column:1}
+ .compact-play .topbar .main-nav{grid-row:1;grid-column:2;justify-content:center;gap:0}
+ .compact-play .topbar .main-nav .nav-button{padding:6px}
+ .compact-play .topbar .compact-menu-wrap{grid-row:1;grid-column:3}
+ .compact-play .topbar .hud-finance-wrap{grid-row:2;grid-column:1}
+ .compact-play .topbar .hud-finances{padding:2px 0}
+ .compact-play .topbar .date-block,.compact-play .topbar .date-block:has(>#offline-routes:not([hidden])){grid-row:2;grid-column:2/-1;display:flex;justify-content:flex-end;gap:6px;margin:0}
+}
 .compact-menu-rule{height:1px;margin:var(--s-1) var(--s-2);background:var(--rule)}
 #game-menu .compact-menu-action .kbd{margin-left:auto;padding-left:var(--s-3)}
 /* The drawer names its view in its own heading (no eyebrow): the close button sits at the heading's right end. */
@@ -383,3 +403,10 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .compact-play #close-management{background:var(--paper);outline:4px solid var(--paper);outline-offset:0}
 .compact-play #close-management:hover{background:var(--well)}
 .compact-play #panel-content{scroll-padding-top:52px}
+/* Management surfaces share one map-side anchor so the next action stays in the same place. */
+#app.compact-play .sidebar,#app.compact-play .inspector,#app.compact-play #layers-panel,#app.compact-play #map-options,#app.compact-play .minimap-wrap,#app.compact-play #objective-card,#app.compact-play .route-pick-banner{left:8px;right:auto;top:8px;bottom:auto;max-height:calc(100% - 16px)}
+#app.compact-play .inspector{width:var(--drawer-width);max-width:calc(100% - 16px);overflow:auto}
+#app.compact-play #zoom-menu,#game-menu{position:fixed;left:8px;right:auto;top:calc(var(--play-header) + 8px);bottom:auto;max-height:calc(100dvh - var(--play-header) - 16px)}
+#app.compact-play #zoom-menu{width:190px}
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden]),#layers-panel:not([hidden]),#map-options:not([hidden]),#zoom-menu:not([hidden]),#game-menu:not([hidden]),.route-pick-banner,.minimap-wrap:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
+@media(prefers-reduced-motion:reduce){#app.compact-play .sidebar{transition:none}}

@@ -98,12 +98,14 @@ export function surfaceHeight(game, u, v) {
   const h = heightsForTile(game, x, y);
   return a >= b ? h.nw + (h.ne - h.nw) * a + (h.se - h.ne) * b : h.nw + (h.se - h.sw) * a + (h.sw - h.nw) * b;
 }
-export function projectTerrainPoint(u, v, height = 0) {
-  return { u, v, x: (u - v) * TERRAIN_TILE_SIZE, y: (u + v) * TERRAIN_TILE_SIZE / 2 - height * HEIGHT_STEP, height };
+// A view may choose a height step in 0–28 px. Only projection changes: height
+// continues to hold the original terrain level for engineering and saves.
+export function projectTerrainPoint(u, v, height = 0, heightStep = HEIGHT_STEP) {
+  return { u, v, x: (u - v) * TERRAIN_TILE_SIZE, y: (u + v) * TERRAIN_TILE_SIZE / 2 - height * heightStep, height };
 }
-export function projectGround(game, u, v) { return projectTerrainPoint(u, v, surfaceHeight(game, u, v)); }
-export function tileSurface(game, x, y) {
-  const h = heightsForTile(game, x, y), nw = projectTerrainPoint(x, y, h.nw), ne = projectTerrainPoint(x + 1, y, h.ne), se = projectTerrainPoint(x + 1, y + 1, h.se), sw = projectTerrainPoint(x, y + 1, h.sw), center = projectTerrainPoint(x + .5, y + .5, h.center);
+export function projectGround(game, u, v, heightStep = HEIGHT_STEP) { return projectTerrainPoint(u, v, surfaceHeight(game, u, v), heightStep); }
+export function tileSurface(game, x, y, heightStep = HEIGHT_STEP) {
+  const h = heightsForTile(game, x, y), nw = projectTerrainPoint(x, y, h.nw, heightStep), ne = projectTerrainPoint(x + 1, y, h.ne, heightStep), se = projectTerrainPoint(x + 1, y + 1, h.se, heightStep), sw = projectTerrainPoint(x, y + 1, h.sw, heightStep), center = projectTerrainPoint(x + .5, y + .5, h.center, heightStep);
   return { nw, ne, se, sw, center, corners: [nw, ne, se, sw], triangles: [[nw, ne, se], [nw, se, sw]] };
 }
 // Decorations need a horizontal surface across their entire footprint. Read
@@ -120,13 +122,13 @@ function barycentric(px, py, [a, b, c]) {
   const u = ((b.y - c.y) * (px - c.x) + (c.x - b.x) * (py - c.y)) / determinant, v = ((c.y - a.y) * (px - c.x) + (a.x - c.x) * (py - c.y)) / determinant, w = 1 - u - v;
   return u >= -1e-8 && v >= -1e-8 && w >= -1e-8 ? [u, v, w] : null;
 }
-export function pickGround(game, projectedX, projectedY) {
+export function pickGround(game, projectedX, projectedY, heightStep = HEIGHT_STEP) {
   if (!Number.isFinite(projectedX) || !Number.isFinite(projectedY)) return null;
-  const baseX = projectedY / TERRAIN_TILE_SIZE + projectedX / (2 * TERRAIN_TILE_SIZE), baseY = projectedY / TERRAIN_TILE_SIZE - projectedX / (2 * TERRAIN_TILE_SIZE), shift = MAX_VISUAL_HEIGHT * HEIGHT_STEP / TERRAIN_TILE_SIZE;
+  const baseX = projectedY / TERRAIN_TILE_SIZE + projectedX / (2 * TERRAIN_TILE_SIZE), baseY = projectedY / TERRAIN_TILE_SIZE - projectedX / (2 * TERRAIN_TILE_SIZE), shift = MAX_VISUAL_HEIGHT * heightStep / TERRAIN_TILE_SIZE;
   let best = null, depth = -Infinity;
   for (let y = Math.max(0, Math.floor(baseY) - 1); y <= Math.min(game.height - 1, Math.floor(baseY + shift) + 1); y++) for (let x = Math.max(0, Math.floor(baseX) - 1); x <= Math.min(game.width - 1, Math.floor(baseX + shift) + 1); x++) {
     if (Math.abs(x - y - projectedX / TERRAIN_TILE_SIZE) > 1 + 1e-8) continue;
-    for (const triangle of tileSurface(game, x, y).triangles) {
+    for (const triangle of tileSurface(game, x, y, heightStep).triangles) {
       const weights = barycentric(projectedX, projectedY, triangle); if (!weights) continue;
       const u = triangle.reduce((sum, p, i) => sum + p.u * weights[i], 0), v = triangle.reduce((sum, p, i) => sum + p.v * weights[i], 0);
       if (u + v > depth) { best = { x: clamp(u, 0, game.width), y: clamp(v, 0, game.height) }; depth = u + v; }

@@ -16,6 +16,10 @@ test('diagonal runs honor physical width and pixel budgets at each zoom',()=>{
     assert.ok((group.bounds.right-group.bounds.left)*(group.bounds.bottom-group.bounds.top)*scale*scale<=40000);
   }
 });
+test('stop selection can fade scenery batches without fading adjacent infrastructure',()=>{
+  const objects=[{...item(1,0,0),dimEligible:true},{...item(2,0,40),dimEligible:true},item(3,0,80),{...item(4,0,120),dimEligible:true}];
+  assert.deepEqual(partitionScenery(objects,1).map(group=>group.objects.map(object=>object.id)),[[1,2],[3],[4]]);
+});
 test('cache stops allocating at its cap and releases every bitmap on invalidation',()=>{
   const saved=globalThis.document;globalThis.document={createElement:()=>({width:0,height:0})};
   try {const budget=createSceneryBudget(256),a=budget.allocate(8,8);assert.ok(a);assert.equal(budget.allocate(1,1),null);assert.equal(budget.stats().bytes,256);budget.clear();assert.equal(a.width,0);assert.equal(a.height,0);assert.equal(budget.stats().bytes,0);assert.ok(budget.allocate(4,4));assert.equal(budget.allocate(9000,1),null);}finally{globalThis.document=saved;}

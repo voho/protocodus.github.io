@@ -1,73 +1,49 @@
 # Residential artwork
 
-The nine residential kinds each have **three architectural designs**, with **two physically drawn orientations in three climates**, for **162 transparent house-and-garden sprites**. Each is normalized into a 256 × 256 pixel master and independently downscaled for all game zooms and display densities.
+Nine residential kinds have three architectural designs, two physically drawn orientations and three climates: **162 transparent house-and-garden sprites**. The active masters were regenerated through the built-in imagegen tool on 2026-10-06 to share a human scale and retain clearer silhouettes at Region and Town zoom.
 
-Every house now sits inside a generous fenced garden, with an open gate, an entry path and substantial open foreground yard. The house structure is much smaller relative to the full plot: architecture and roofs occupy roughly 40–50% of plot width instead of filling most of it. Cottages read at a believable scale beside buses and trucks; the full garden and occupied tile footprint remain the same size. Taiga has varied lawns, flowers and vegetable beds, tundra has patchy snow and hardy dormant planting, and desert has sandy xeriscape yards, dry grasses and succulents.
+[The shared sprite art direction](../../sprite-art-direction.js) applies to houses, civic buildings and industry. A tile represents 16m; personnel doors target 2.1m, storeys 3m and low fences 1.2m. A 256px cell targets a 22.4px door on a one-tile parcel and an 11.2px door on a two-tile parcel. The renderer enlarges the latter parcel by two, so doors and storeys remain the same world size. Prestige homes gain larger gardens and modest wings, rather than enlarged doors, windows or fence posts.
 
-The fixed **2:1 dimetric camera** has upright walls and ground edges at ±26.565°. Orientation 0 faces its entrance and garden gate toward the lower-left projected street axis; orientation 1 turns the architecture physically through 90° and faces the lower-right axis. Both are separately painted through the built-in imagegen tool, with correct facades, gardens and lighting. The existing saved tile variant selects orientation with `variant % 2` and architectural design with `floor(variant / 6) % 3`. Choices repeat every eighteen variants, keeping architecture independent of the procedural residential kind and stable when rendering, changing zoom or reloading a company.
+Roofs and facades use broad painted colour planes. Planting uses restrained clusters and open yard space. Individual brick seams, roof-tile grids, woodgrain scratches and dense flower speckle are reduced because they obscure architecture at smaller zooms. Low fences, an open gate and an entry path remain on every plot. Exposed lawn, snow and soil reveal the actual world terrain through the cached garden-plane cutout in house-ground.js; architecture, paths, fences and planted silhouettes retain their artwork. Raised gardens replay the same world grass surface on their levelled foundation.
 
-Design 0 retains the original gardened houses. Design 1 adds weathered timber and stone cottages, workers' brick homes, new family houses, classic brick townhouses, solar timber homes, a compact stone villa, a modern flat-roof glass villa and an ecological green-roof villa. Design 2 adds contemporary timber prefabs, granite and half-timber cottages, modern brick family homes, renovated traditional houses, solar bungalows, restored stone villas, charcoal timber/glass villas and clay-plaster green-roof homes. All retain the same small house scale and generous plots.
+The camera is orthographic 2:1 dimetric, with upright walls, ground edges at ±26.565° and northwest light. Orientation 0 faces its door, gate and path toward the lower-left street axis; orientation 1 is physically rotated through 90° and faces the lower-right axis. The saved variant keeps these choices stable: orientation is variant modulo 2, and design is floor(variant / 6) modulo 3.
 
-[Primary scale and garden prompts](scale-garden-prompts-2026-10-05.json) and [second-orientation prompts](rotation-1-generation-2026-10-05.json) record the complete current generations, references, corrections and accepted sources. Each climate/orientation's `atlas.json` records source hashes, crop bounds and normalization transforms. [The initial 2026-10-05 regeneration](regeneration-prompts-2026-10-05.json), [earlier isometric prompts](../world/isometric-architecture-prompts.json), [original prompts](prompts.json), [biome prompts](biome-prompts.json) and [garden prompts](garden-prompts.json) remain as historical provenance.
+Design 0 retains plaster cottages, timber cabins, brick homes, traditional family homes and classical prestige homes. Design 1 adds weathered timber and rough stone cottages, new family homes, solar timber homes and modern flat-roof and living-roof villas. Design 2 adds prefabs, granite and half-timber cottages, modern brick homes, solar bungalows and charcoal timber/glass and clay-plaster villas. All three climates retain these identities and physical dimensions.
 
-[Architectural variety generation](variety-generation-2026-10-05.json) records the eighteen added designs, complete prompts, climate edits, physical rotations, layout corrections and accepted sources. Each accepted generation contains eighteen plots in a three-row, six-column sheet: design 1 occupies the left three columns and design 2 the right three. Disconnected original RGBA silhouettes were losslessly registered into separate 3 × 3 masters before the ordinary normalization pipeline. Every meaningful source pixel was retained exactly once.
+## Active files
 
-## Files and ordering
+Each climate has its primary design and orientation at the climate directory root. Additional designs use design-1/ and design-2/; second orientations use rotation-1/ below the corresponding design.
 
-Each of `taiga/`, `tundra/` and `desert/` contains the primary orientation below. Its `rotation-1/` subdirectory contains the same atlas, source and packing files for the second orientation:
+- source-readable-scale-2026-10-06.png: accepted unmodified imagegen source with genuine alpha.
+- sources/house-kind.png: nine registered 256 × 256 masters.
+- house-atlas.png: the 3 × 3 master atlas, 768 × 768 pixels.
+- house-atlas-{16,32,64,128}.png: independently filtered LOD atlases.
+- atlas.json: source hashes, component bounds, shared source scale, registration padding, offsets, orientation and generation date.
+- readable-scale-generation-2026-10-06.json: shared prompts, accepted sources and correction provenance for all eighteen sheets.
 
-The additional designs use `design-1/` and `design-2/` inside each climate directory, with their second orientation in `design-1/rotation-1/` and `design-2/rotation-1/`. Every design/orientation uses the same atlas filenames, cell order, master groundline of 240 pixels and tier plot widths of 208/224/240 pixels. Each added design retains `source-variety-2026-10-05-packed.png` and its registration JSON; each climate retains the original paired `source-design-variety[-rotation-1]-2026-10-05.png` generations.
+Cell order is affordable 1–3, family 1–3, then prestige 1–3. IDs are house-cheap-1 through house-cheap-3, house-normal-1 through house-normal-3, and house-expensive-1 through house-expensive-3.
 
-- `sources/<house-kind>.png`: nine transparent 256 × 256 masters.
-- `house-atlas.png`: the masters in a 3 × 3 grid, 768 × 768 pixels.
-- `house-atlas-{16,32,64,128}.png`: prefiltered sprite atlases for the three zoom levels and standard/Retina displays.
-- `atlas.json`: cell order and provenance.
-- `source-scale-gardens-2026-10-05.png`: the unmodified accepted generated image, including its original alpha.
-- `source-scale-gardens-2026-10-05-packed.png` and `.json`: losslessly registered cells, source positions and meaningful pixel coverage.
-- Earlier `source-isometric*`, `source-gardens*`, `source-regenerated*` and `garden-packing.json` files: historical generation and selective garden-edit provenance.
+The 2026-10-05 scale/garden, rotation and variety generation JSON files and older source files are historical provenance. Their tier-based 208/224/240px bounding-box fitting instructions and decorative-detail prompts do not describe the current pipeline. windows.json also documents the previous primary masters.
 
-[windows.json](windows.json) records small glazing rectangles inspected on the final primary orientation masters, registered independently to dark glass in each climate.
+## Generation and packing
 
-| Row | Left | Center | Right |
-| --- | --- | --- | --- |
-| Affordable | Plaster cottage | Timber cabin | Brick terrace |
-| Family | Gabled house | Brick villa | Garden bungalow |
-| Prestige | Country manor | Grand townhouse | Courtyard villa |
+Create or edit every sheet using buildingGenerationPrompt() or tools/generate-building-prompt.mjs, preserving the shared style and each slot's physical dimensions. Never enlarge human features to fill larger plots. Preserve complete parcels and generous transparent gutters.
 
-The IDs are `house-cheap-1` through `house-cheap-3`, then `house-normal-1` through `house-normal-3`, then `house-expensive-1` through `house-expensive-3`.
+The house atlas builder requires Pillow, NumPy and SciPy. It registers alpha silhouettes with **one declared scale for the entire source sheet**. Only translation varies per plot; no sprite is fitted independently to its bounding box. Every source pixel with alpha above 8 is assigned exactly once before resampling. If complete fence tips touch through a narrow alpha bridge, registration partitions at the least occupied source gutter, preserving the original pixels. Broad overlapping plots require regeneration.
 
-## Downscaling and integration
+The common garden groundline is 240px. Source-grid padding is explicit in atlas.json and applied uniformly to all nine cells. Nine sheets use 1.1; the nine gutter-corrected sources use 1.15 to protect the complete source silhouette. Do not use the historical per-tier normalization mode for these calibrated masters.
 
-`tools/build-house-atlases.py` uses Pillow to crop invisible matte noise, align foundations and create each sprite size independently using premultiplied-alpha Lanczos filtering. Mild sharpening is restricted to opaque interiors. Cells are filtered separately to avoid neighboring sprites bleeding into one another.
-
-`tools/prepare-building-atlas.py` registers the disconnected original alpha silhouettes when generated objects extend across nominal cell boundaries. It copies original RGBA pixels into padding without resampling or repainting, and verifies that every pixel with alpha above 8 is preserved exactly once. Rebuild a current climate with:
+Every LOD is filtered separately from its master using premultiplied-alpha Lanczos, without sharpening. This avoids neighbouring-cell bleed, coloured transparent halos and amplified small-detail noise. Example rebuild for the primary taiga source:
 
 ```sh
-python3 fun/transport/tools/prepare-building-atlas.py \
-  fun/transport/assets/houses/taiga/source-scale-gardens-2026-10-05.png \
-  fun/transport/assets/houses/taiga/source-scale-gardens-2026-10-05-packed.png
 python3 fun/transport/tools/build-house-atlases.py \
-  --atlas fun/transport/assets/houses/taiga/source-scale-gardens-2026-10-05-packed.png \
-  --normalize-atlas --biome taiga --qa-dir /tmp/transport-house-review
-```
-
-The complete regeneration includes fenced gardens for all nine identities in both orientations, so the previous selective garden replacement step is unnecessary. The older garden sources and selected-cell metadata are retained only for provenance.
-
-Run the pipeline's self-check from the repository root:
-
-```sh
+  --atlas fun/transport/assets/houses/taiga/source-readable-scale-2026-10-06.png \
+  --generated-atlas --preserve-grid-scale --source-grid-padding 1.1 \
+  --biome taiga --output-dir /tmp/transport-house-rebuild \
+  --qa-dir /tmp/transport-house-review
 python3 fun/transport/tools/build-house-atlases.py --self-test
 ```
 
-To derive atlases from a revised transparent 3 × 3 master, use a separate output directory for review:
+The raster loader chooses the matching climate/design/orientation at the required display density. Missing or delayed sheets use healthy same-climate artwork while preserving the saved variant; arrival invalidates prepared sprite caches without changing the company or camera.
 
-```sh
-python3 fun/transport/tools/build-house-atlases.py \
-  --atlas fun/transport/assets/houses/taiga/house-atlas.png \
-  --biome taiga --output-dir /tmp/transport-house-rebuild \
-  --qa-dir /tmp/transport-house-review
-```
-
-The game has **72 small atlases** across its eighteen climate/design/orientation sets; the eighteen 256px-cell masters remain available for source review and explicit loading. `raster-houses.js` selects the closest available sprite density and draws the matching climate/design/orientation cell. Designs and rotations share the same fenced-plot envelope and each keeps its own cache entry. Each density becomes usable independently. Missing artwork temporarily uses an available house sheet; arrival refreshes the cached draw while retaining the saved variant. Successfully loaded artwork refreshes sprite and terrain caches without changing the company or camera.
-
-`tests/raster-houses-browser-check.mjs` checks house kinds, climates, designs, orientations, zooms and display densities, source transparency, cache limits, delayed loading and fallbacks. Existing saved towns receive the new artwork on reload.
+The raster-house browser check covers identities, orientations, designs, transparency, zoom/DPR rendering, delayed loading and fallback. The house-ground browser check verifies architecture preservation, terrain pixels through gardens, slope surfaces and warm-cache stability. The shared sprite-scale gallery compares actual world-size buildings with door rulers, buses and trucks at all three zooms.

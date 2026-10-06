@@ -52,6 +52,7 @@ try {
   await page.locator('#close-management').waitFor({ state: 'visible' });
   assert.equal((await page.locator('.management-drawer-heading').innerText()).trim(), '', 'no eyebrow over the drawer: its view heading names it');
   assert.equal(await page.locator('.panel-heading h2').first().innerText(), 'Routes', 'the drawer heading uses sentence case');
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="mode"]').selectOption('road');
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
@@ -61,6 +62,7 @@ try {
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), from.id, 'Region view picks the departure from its stop sign');
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), to.id, 'Region view picks the arrival from its stop sign');
 
+  await page.locator('#route-back').click();
   await page.locator('[data-remove-route]').first().click();
   assert.equal(await page.locator('#modal .eyebrow').innerText(), 'Network', 'the retire dialog uses sentence case');
   await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);

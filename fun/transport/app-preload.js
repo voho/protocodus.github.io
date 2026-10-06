@@ -5,6 +5,8 @@
 // document preload does not reach a module worker.
 export const APP_PRELOAD = Object.freeze([
   './ui-icons.js',
+  './sprite-art-direction.js',
+  './terrain-view.js',
   './headlines.js',
   './air-flight.js', './airport-art.js',
   './compact-play.js', './construction-plan.js', './route-tiles.js', './structure-visibility.js', './atlas-runtime.js',
@@ -18,5 +20,6 @@ export const APP_PRELOAD = Object.freeze([
   './payment-rates.js',
   './ui-motion.js', './ui-line.js', './ui-refs.js', './frame-scheduler.js', './vehicle-motion.js', './world-clock.js',
   './achievements-view.js',
+  './catalog-data.js', './gallery-view.js',
   './chains-view.js', './saves-view.js', './visibility-view.js', './ui-notices.js', './app.js'
 ]);

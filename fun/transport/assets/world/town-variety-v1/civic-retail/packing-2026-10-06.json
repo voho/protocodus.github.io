@@ -1,0 +1,488 @@
+{
+  "operation": "Measured human-door scale; uniform complete-cell calibration within footprint tiers, fixed contact anchor, no silhouette fitting, premultiplied-alpha mipmaps without sharpening",
+  "sheets": [
+    {
+      "biome": "taiga",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "5ceaa6a29e3af4c9936119f635a593da7a140d1818d5c58c3fb1d9eaa3cd5c51",
+      "calibratedSha256": "248b005d3ffdbcf2135177bb7c3eaf799084e3424e5d5cd6e43cda0c51360efc",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:park-village:taiga",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:park-formal:taiga",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:park-woodland:taiga",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:mall-neighborhood:taiga",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:mall-shopping:taiga",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:mall-modern:taiga",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-grocery:taiga:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "civic:shop-bakery:taiga:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:shop-butcher:taiga:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "ba34b02e61a7c1533b52f32a9baa89c9b21a0051f5e708e7c346db672ee105cb",
+      "calibratedSha256": "30afcc94e7d9e1cc4844bc5984293d4222604223fcf59dbf4629769b541ded6a",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:park-village:tundra",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:park-formal:tundra",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:park-woodland:tundra",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:mall-neighborhood:tundra",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:mall-shopping:tundra",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:mall-modern:tundra",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-grocery:tundra:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "civic:shop-bakery:tundra:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:shop-butcher:tundra:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "f89b84bc3d7673f8408f5f6a815fb88defe055ce1bf0d43f2b8a8d6506195406",
+      "calibratedSha256": "2a56b5712383aae5fd65ee1baec84ed3db15b59542ab9ebc9bb2d799e64d9891",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "civic:park-village:desert",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "civic:park-formal:desert",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "civic:park-woodland:desert",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "civic:mall-neighborhood:desert",
+          "footprint": 2,
+          "uniformTierFactor": 0.5333333333333334,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.32663476874003194,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "civic:mall-shopping:desert",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "civic:mall-modern:desert",
+          "footprint": 3,
+          "uniformTierFactor": 0.37333333333333335,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.22864433811802232,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "civic:shop-grocery:desert:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "civic:shop-bakery:desert:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:shop-butcher:desert:design-1",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    }
+  ]
+}

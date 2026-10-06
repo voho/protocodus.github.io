@@ -1,4 +1,4 @@
-// Farm barns stay vehicle-sized even when their surrounding plot grows to 7×7.
+// Farm barns retain their 2×2 human scale inside a 5×5 field parcel.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
@@ -44,7 +44,7 @@ try {
             const c = canvas.getContext('2d'); c.scale(density, density); c.translate(0, 8);
             const generated = q.industries.drawRasterFarmCore(c, kind, biome, density);
             const legacy = document.createElement('canvas'); legacy.width = legacy.height = 96;
-            const compact = q.industries.drawRasterIndustry(legacy.getContext('2d'), kind, biome, 1);
+            const compact = q.industries.drawRasterIndustry(legacy.getContext('2d'), kind, biome, 1, { size: 96, footprint: 3 });
             const cell = [16, 32, 64, 128, 256].find(s => s >= 64 * density), image = new Image();
             image.src = new URL(`./assets/world/farm-cores-v1/${biome}/atlas-${cell}.png`, location.href).href; await image.decode();
             const expected = document.createElement('canvas'); expected.width = canvas.width; expected.height = canvas.height;
@@ -75,7 +75,7 @@ try {
         });
         return { profiles, alpha };
       }, biome);
-      for (const p of checks.profiles) { assert.equal(p.generated, true); assert.equal(p.compact, true, 'legacy compact farms retain their full 3×3 artwork'); assert.equal(p.same, true, 'core atlas draws the exact isolated source density'); }
+      for (const p of checks.profiles) { assert.equal(p.generated, true); assert.equal(p.compact, false, 'compact saved farms use calibrated native art instead of shrinking the five-tile parcel'); assert.equal(p.same, true, 'core atlas draws the exact isolated source density'); }
       for (const cell of checks.alpha) { assert.equal(cell.border, 0); if (cell.index < 5) assert.ok(cell.ink > 10000); else assert.equal(cell.ink, 0); }
       assert.equal(new Set(checks.profiles.filter(p => p.zoom === 1).map(p => p.hash)).size, 5);
       await page.locator('#cores').screenshot({ path: `${output}/${biome}-cores-dpr${dpr}.png` });

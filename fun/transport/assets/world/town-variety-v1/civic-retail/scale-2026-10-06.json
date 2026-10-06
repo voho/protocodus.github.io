@@ -1,0 +1,132 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "entries": [
+    {
+      "id": "civic:park-village:{biome}",
+      "name": "Village green",
+      "footprint": 2,
+      "description": "Open village green with a broad crossing gravel path, three broad-canopy mature trees, simple1.2m boundary fence and one small play structure. Grass gaps remain transparent to reveal terrain; no flower dots."
+    },
+    {
+      "id": "civic:park-formal:{biome}",
+      "name": "Formal gardens",
+      "footprint": 2,
+      "description": "Open formal garden with broad cross paths, one readable round fountain, large hedge masses and four mature trees. Fence1.2m, fountain2m tall, ordinary benches; no fine ornamental beds."
+    },
+    {
+      "id": "civic:park-woodland:{biome}",
+      "name": "Woodland park",
+      "footprint": 3,
+      "description": "Open woodland park with six ordinary mature trees7m tall, a curved broad path and a compact blue pond. Trees do not become gigantic because the parcel is3x3. Transparent gaps between tree clusters."
+    },
+    {
+      "id": "civic:mall-neighborhood:{biome}",
+      "name": "Neighbourhood shopping centre",
+      "footprint": 2,
+      "description": "A low neighbourhood retail court made of four distinct small one-storey shops around a broad open plaza, alternating simple warm roofs and broad awnings; every shop has a normal2.1m door."
+    },
+    {
+      "id": "civic:mall-shopping:{biome}",
+      "name": "Shopping mall",
+      "footprint": 3,
+      "description": "A broad two-storey brick shopping arcade with two low wings and a central glass barrel skylight. Small normal2.1m entrance doors, repeated3m floors, one large4.2m loading dock; no tiny sign grids."
+    },
+    {
+      "id": "civic:mall-modern:{biome}",
+      "name": "Modern shopping mall",
+      "footprint": 3,
+      "description": "A broad low contemporary mall: two3m storeys, timber-and-pale-stone facades, broad glazing, one big skylight and two broad green-roof sections with a clean solar-panel mass. Normal2.1m doors."
+    },
+    {
+      "id": "civic:shop-grocery:{biome}:design-1",
+      "name": "Grocer",
+      "footprint": 1,
+      "description": "Traditional two-storey grocer: timber-and-plaster facades, broad slate roof and muted green awning; one display window, no tiny produce crates."
+    },
+    {
+      "id": "civic:shop-bakery:{biome}:design-1",
+      "name": "Bakery",
+      "footprint": 1,
+      "description": "Traditional two-storey timber bakery with a strong terracotta gable and broad ochre awning; no individual roof tiles, planks, lettering or bread loaves."
+    },
+    {
+      "id": "civic:shop-butcher:{biome}:design-1",
+      "name": "Butcher",
+      "footprint": 1,
+      "description": "Traditional one-storey stone butcher with warm terracotta roof and broad red awning, ordinary2.1m door; no tiny hanging meats or fine signs."
+    }
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorMasterPixels": 30,
+      "targetDoorMasterPixels": 22.400000000000002,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "shop-grocery",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        },
+        {
+          "id": "shop-bakery",
+          "beforeCalibrationMasterPixels": 31,
+          "afterCalibrationMasterPixels": 23.14666666666667,
+          "afterCalibrationWorldPixels": 4.34
+        },
+        {
+          "id": "shop-butcher",
+          "beforeCalibrationMasterPixels": 30,
+          "afterCalibrationMasterPixels": 22.400000000000002,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ]
+    },
+    "2": {
+      "referenceDoorMasterPixels": 21,
+      "targetDoorMasterPixels": 11.200000000000001,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "mall-neighborhood",
+          "beforeCalibrationMasterPixels": 21,
+          "afterCalibrationMasterPixels": 11.200000000000001,
+          "afterCalibrationWorldPixels": 4.2
+        }
+      ]
+    },
+    "3": {
+      "referenceDoorMasterPixels": 20,
+      "targetDoorMasterPixels": 7.466666666666667,
+      "method": "Manual personnel doorway edge measurements on the generated taiga source, normalized by the complete source grid cell (approximately ±2px); one median reference per footprint tier.",
+      "measurements": [
+        {
+          "id": "mall-shopping",
+          "beforeCalibrationMasterPixels": 20,
+          "afterCalibrationMasterPixels": 7.466666666666667,
+          "afterCalibrationWorldPixels": 4.199999999999999
+        },
+        {
+          "id": "mall-modern",
+          "beforeCalibrationMasterPixels": 20,
+          "afterCalibrationMasterPixels": 7.466666666666667,
+          "afterCalibrationWorldPixels": 4.199999999999999
+        }
+      ]
+    }
+  },
+  "registration": "Original disconnected RGBA pixels retained. A measured doorway factor is uniform for every complete cutout in a source family/footprint tier; alpha bounds locate ground contact only, never choose scale. Fixed master contact anchor (128,244), full 256px parcel grid retained. No runtime per-kind multiplier.",
+  "rejectedCorrection": "A follow-up imagegen shrink edit did not honor tier scale consistently; original fresh sources retained and registered with explicit tier calibration."
+}

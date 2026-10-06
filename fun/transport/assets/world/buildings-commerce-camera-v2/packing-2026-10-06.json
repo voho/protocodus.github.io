@@ -1,0 +1,488 @@
+{
+  "operation": "Measured human-door scale; uniform complete-cell calibration within footprint tiers, fixed contact anchor, no silhouette fitting, premultiplied-alpha mipmaps without sharpening",
+  "sheets": [
+    {
+      "biome": "taiga",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "d758db1847e0a2deb1972eb6fa39c534921e1e170d98c08e6a0ad71a5f1a9a52",
+      "calibratedSha256": "89029397fa4fe86fd43ab59df1934058864f435bed6e86e4a27c5a412ce649e7",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "shop-butcher",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "shop-hardware",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "shop-florist",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "service-post-office",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "service-bank",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "service-hotel",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "service-garage",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "service-barber",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:factory:taiga",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "7712b8548924c6c44aadbb770b28eea59eff73f6c9e5f6bff44761dc3f2cad93",
+      "calibratedSha256": "fcccceb300422650cafa42362a11997e513b95ed2e31d28859a966909d0255a3",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "shop-butcher",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "shop-hardware",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "shop-florist",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "service-post-office",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "service-bank",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "service-hotel",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "service-garage",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "service-barber",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:factory:tundra",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "source": "source-style-2026-10-06.png",
+      "sourceSha256": "4e9c69c1264e15c9b0665340bebefbf7902fda308781f5aa55008b829f66d0fe",
+      "calibratedSha256": "e3e49e74bb192e1c850c22705be909d7e9180865a8105162c31c7ba65dc80517",
+      "cells": [
+        {
+          "cell": 0,
+          "id": "shop-butcher",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 1,
+          "id": "shop-hardware",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 2,
+          "id": "shop-florist",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 3,
+          "id": "service-post-office",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 4,
+          "id": "service-bank",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 5,
+          "id": "service-hotel",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 6,
+          "id": "service-garage",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 7,
+          "id": "service-barber",
+          "footprint": 1,
+          "uniformTierFactor": 0.7466666666666667,
+          "sourceCell": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "originalPixelScale": 0.45728867623604463,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        },
+        {
+          "cell": 8,
+          "id": "civic:factory:desert",
+          "footprint": 2,
+          "uniformTierFactor": 0.5090909090909091,
+          "sourceCell": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "originalPixelScale": 0.3117877337973032,
+          "contactAnchor": [
+            128,
+            244
+          ]
+        }
+      ]
+    }
+  ]
+}

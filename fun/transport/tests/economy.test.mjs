@@ -8,8 +8,8 @@ import { addRouteVehicle } from '../model.js';
 
 function freightFixture(mode = 'road') {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 8).ok, true);
   assert.equal(buildPath(game, mode, line(10, 30, 13)).ok, true);
   const stop = mode === 'road' ? 'bus-stop' : 'train-stop';
   assert.equal(build(game, stop, 10, 13).ok, true);
@@ -59,7 +59,7 @@ test('industries grow only while their output is carried away', () => {
   const capacityAfterTwoYears = trucks => {
     const game = emptyGame();
     game.cities = [{ id: 'town', name: 'Town', x: 35, y: 41, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
-    assert.equal(build(game, 'quarry', 10, 40).ok, true);
+    assert.equal(build(game, 'quarry', 8, 40).ok, true);
     assert.equal(buildPath(game, 'road', line(13, 33, 41)).ok, true);
     assert.equal(build(game, 'bus-stop', 13, 41).ok, true);
     assert.equal(build(game, 'bus-stop', 33, 41).ok, true);
@@ -165,7 +165,7 @@ test('a full buyer still takes and pays for every load once, storing only what f
 
 test('a factory short of an input still takes every delivery, so a simple route keeps earning', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'coal-mine', 10, 10).ok, true); assert.equal(build(game, 'steel-mill', 30, 9).ok, true);
+  assert.equal(build(game, 'coal-mine', 10, 8).ok, true); assert.equal(build(game, 'steel-mill', 30, 8).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
   assert.equal(build(game, 'bus-stop', 10, 13).ok, true); assert.equal(build(game, 'bus-stop', 30, 13).ok, true);
   const route = addRoute(game, { name: 'Coal run', mode: 'road', stops: game.stations.map(station => station.id), cargo: 'coal' }).route;
@@ -271,8 +271,8 @@ test('starting funds offer three tiers, and a lean company can still launch its 
   assert.equal(odd.startingFunds, undefined);
   assert.equal(validateGame({ ...odd, startingFunds: 300000 }), false);
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 34, 9).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
+  assert.equal(build(game, 'sawmill', 34, 8).ok, true);
   game.money = 100000;
   assert.equal(buildPath(game, 'road', line(10, 34, 13)).ok, true);
   assert.equal(build(game, 'bus-stop', 10, 13).ok, true);

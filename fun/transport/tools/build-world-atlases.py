@@ -34,6 +34,8 @@ def principal_length(image):
     return max(projected)-min(projected)+2
 
 def build(args):
+    if args.preserve_grid_scale and not args.aligned:
+        raise ValueError('--preserve-grid-scale requires --aligned')
     image = Image.open(args.atlas).convert('RGBA')
     ids = args.ids.split(',')
     if len(ids) != args.columns * args.rows or len(set(i for i in ids if i != '-')) != len([i for i in ids if i != '-']):
@@ -69,8 +71,9 @@ def build(args):
         if args.aligned:
             clean = Image.new('RGBA', source.size)
             clean.paste(source.crop(bounds), bounds[:2])
-            inset = 8
-            out.paste(house.resize_alpha(clean, (240,240)), (inset,inset))
+            inset = 0 if args.preserve_grid_scale else 8
+            size = 256 - inset * 2
+            out.paste(house.resize_alpha(clean, (size,size)), (inset,inset))
         else:
             trimmed = source.crop(bounds)
             scale = shared_scale if shared_scale is not None else min(args.width / trimmed.width, args.height / trimmed.height)
@@ -87,7 +90,9 @@ def build(args):
     for size in sizes:
         atlas = Image.new('RGBA',(args.columns*size,args.rows*size))
         for index,cell in enumerate(cells):
-            sprite = cell if size==256 else house.sharpen_interior(house.resize_alpha(cell,(size,size)),size)
+            sprite = cell if size==256 else house.resize_alpha(cell,(size,size))
+            if size != 256 and not args.no_sharpen:
+                sprite = house.sharpen_interior(sprite,size)
             atlas.paste(sprite,(index%args.columns*size,index//args.columns*size))
         house.save_png(atlas,dest / ('atlas.png' if size==256 else f'atlas-{size}.png'))
         if size == 256 and args.max_cell == 256:
@@ -96,6 +101,9 @@ def build(args):
     if shared_scale is not None:
         metadata['sharedScale'] = shared_scale
         metadata['registration'] = 'One uniform family scale, centered per frame; source foreshortening preserved'
+    if args.preserve_grid_scale:
+        metadata['registration'] = 'Full parcel grid preserved; one source-cell scale, no per-silhouette fitting'
+    metadata['mipSharpening'] = not args.no_sharpen
     (dest/'atlas.json').write_text(json.dumps(metadata,indent=2)+'\n')
     if args.qa:
         # Actual scale strips on the game's ground, with a magnified master row.
@@ -115,6 +123,8 @@ if __name__=='__main__':
     p.add_argument('--ids',required=True);p.add_argument('--output-dir',required=True)
     p.add_argument('--anchor',choices=['bottom','center'],default='bottom');p.add_argument('--width',type=int,default=232);p.add_argument('--height',type=int,default=232)
     p.add_argument('--aligned',action='store_true');p.add_argument('--max-cell',type=int,choices=[128,256],default=128)
+    p.add_argument('--preserve-grid-scale',action='store_true',help='With --aligned, preserve the complete physically calibrated parcel cell')
+    p.add_argument('--no-sharpen',action='store_true',help='Prefilter clean low-detail artwork without sharpening tiny mip features')
     p.add_argument('--vehicle',action='store_true',help='Normalize body length along its principal axis across headings')
     p.add_argument('--shared-scale',action='store_true',help='Fit all frames with one common scale, preserving fixed-camera foreshortening')
     p.add_argument('--qa');p.add_argument('--background',default='#91a77a')

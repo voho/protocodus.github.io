@@ -136,7 +136,7 @@ test('a saved mall resumes with identical demands and monthly property income', 
 
 test('a cannery food truck supplies a mall town and earns the food demand bonus', () => {
   const game = emptyGame(), city = cityAt(game, 30, 9, 900);
-  assert.equal(build(game, 'cannery', 10, 8).ok, true);
+  assert.equal(build(game, 'cannery', 10, 7).ok, true);
   assert.equal(build(game, 'mall-neighborhood', 32, 9).ok, true);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);

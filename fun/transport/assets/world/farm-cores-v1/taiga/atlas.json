@@ -18,8 +18,8 @@
     "farm-core:livestock-farm:taiga",
     null
   ],
-  "source": "source-isolated.png",
-  "sourceSha256": "7c7c387e5ec03b86db517c5b0ad39ef5d8bc1db8a6495685960a31c86dfb1b96",
+  "source": "source-scale-v3-registered.png",
+  "sourceSha256": "5fd146c6d6cf8eb2ba4190f1cbcb919f268244fd37d4ff381b21e26d762954f9",
   "sprites": [
     {
       "id": "farm-core:farm:taiga",
@@ -27,34 +27,34 @@
       "sourceBounds": [
         0,
         0,
-        640,
-        640
+        576,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          77,
-          126,
-          562,
-          513
+          32,
+          184,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          77,
-          126,
-          562,
-          513
+          31,
+          183,
+          545,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.709094
+        "transparentFraction": 0.715085
       },
       "bounds": [
-        12,
-        59,
-        244,
+        13,
+        81,
+        243,
         244
       ]
     },
@@ -62,36 +62,36 @@
       "id": "farm-core:dairy-farm:taiga",
       "cell": 1,
       "sourceBounds": [
-        640,
+        576,
         0,
-        1280,
-        640
+        1152,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          84,
-          137,
-          556,
-          503
+          32,
+          221,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          84,
-          137,
-          556,
-          503
+          32,
+          220,
+          545,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.723003
+        "transparentFraction": 0.733317
       },
       "bounds": [
-        12,
-        64,
-        244,
+        13,
+        97,
+        243,
         244
       ]
     },
@@ -99,36 +99,36 @@
       "id": "farm-core:vegetable-farm:taiga",
       "cell": 2,
       "sourceBounds": [
-        1280,
+        1152,
         0,
-        1920,
-        640
+        1728,
+        576
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          79,
-          133,
-          561,
-          506
+          33,
+          223,
+          545,
+          547
         ],
         "rawAlphaBounds": [
-          79,
-          133,
-          561,
-          506
+          33,
+          222,
+          544,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.721055
+        "transparentFraction": 0.738833
       },
       "bounds": [
-        12,
-        64,
-        244,
+        14,
+        98,
+        243,
         244
       ]
     },
@@ -137,35 +137,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        640,
-        640,
-        1280
+        576,
+        576,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          77,
-          124,
-          562,
-          515
+          32,
+          213,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          77,
-          124,
-          562,
-          515
+          31,
+          212,
+          545,
+          548
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.72219
+        "transparentFraction": 0.736485
       },
       "bounds": [
-        12,
-        57,
-        244,
+        13,
+        93,
+        243,
         244
       ]
     },
@@ -173,41 +173,46 @@
       "id": "farm-core:livestock-farm:taiga",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        576,
+        576,
+        1152,
+        1152
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          576,
+          576
         ],
         "sourceBounds": [
-          68,
-          126,
-          572,
-          514
+          32,
+          229,
+          544,
+          547
         ],
         "rawAlphaBounds": [
-          68,
-          126,
-          572,
-          514
+          32,
+          228,
+          545,
+          547
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.708953
+        "transparentFraction": 0.735819
       },
       "bounds": [
-        12,
-        65,
-        244,
+        13,
+        101,
+        243,
         244
       ]
     },
     {
       "id": null
     }
-  ]
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false,
+  "visualFootprint": 2,
+  "scaleContract": "../../../../sprite-art-direction.js",
+  "styleVersion": 3
 }

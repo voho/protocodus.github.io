@@ -1,0 +1,145 @@
+{
+  "source": "source-scale-v3.png",
+  "cell": 576,
+  "operation": "Original RGBA pixels copied into fixed uniform cells. One shared family pixel scale; no independent bounding-box fitting, painting, recoloring or alpha reconstruction.",
+  "calibrationScale": 0.4444444444444444,
+  "sourceColumnPixels": 512.0,
+  "meaningfulPixelsPreserved": 710399,
+  "cells": [
+    {
+      "cell": 0,
+      "id": "industry:logging-camp:taiga",
+      "sourceBounds": [
+        10,
+        65,
+        524,
+        355
+      ],
+      "offset": [
+        31,
+        258
+      ],
+      "pixels": 78040
+    },
+    {
+      "cell": 1,
+      "id": "industry:sawmill:taiga",
+      "sourceBounds": [
+        522,
+        57,
+        1037,
+        359
+      ],
+      "offset": [
+        30,
+        246
+      ],
+      "pixels": 81828
+    },
+    {
+      "cell": 2,
+      "id": "industry:coal-mine:taiga",
+      "sourceBounds": [
+        1040,
+        45,
+        1533,
+        359
+      ],
+      "offset": [
+        41,
+        234
+      ],
+      "pixels": 72514
+    },
+    {
+      "cell": 3,
+      "id": "industry:iron-mine:taiga",
+      "sourceBounds": [
+        10,
+        376,
+        537,
+        686
+      ],
+      "offset": [
+        24,
+        238
+      ],
+      "pixels": 79967
+    },
+    {
+      "cell": 4,
+      "id": "industry:steel-mill:taiga",
+      "sourceBounds": [
+        536,
+        358,
+        1045,
+        686
+      ],
+      "offset": [
+        33,
+        220
+      ],
+      "pixels": 86473
+    },
+    {
+      "cell": 5,
+      "id": "industry:farm:taiga",
+      "sourceBounds": [
+        1039,
+        378,
+        1531,
+        676
+      ],
+      "offset": [
+        42,
+        250
+      ],
+      "pixels": 70646
+    },
+    {
+      "cell": 6,
+      "id": "industry:food-plant:taiga",
+      "sourceBounds": [
+        10,
+        690,
+        538,
+        984
+      ],
+      "offset": [
+        24,
+        254
+      ],
+      "pixels": 86460
+    },
+    {
+      "cell": 7,
+      "id": "industry:furniture-factory:taiga",
+      "sourceBounds": [
+        536,
+        695,
+        1038,
+        982
+      ],
+      "offset": [
+        37,
+        261
+      ],
+      "pixels": 76394
+    },
+    {
+      "cell": 8,
+      "id": "industry:machine-works:taiga",
+      "sourceBounds": [
+        1036,
+        702,
+        1532,
+        983
+      ],
+      "offset": [
+        40,
+        267
+      ],
+      "pixels": 78077
+    }
+  ]
+}

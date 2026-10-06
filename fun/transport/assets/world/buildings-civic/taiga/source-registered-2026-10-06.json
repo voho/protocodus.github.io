@@ -1,0 +1,136 @@
+{
+  "source": "source-style-2026-10-06.png",
+  "cell": 640,
+  "operation": "Original RGBA pixels registered by disconnected alpha components; no resampling",
+  "coreAlphaThreshold": 16,
+  "meaningfulAlphaThreshold": 8,
+  "meaningfulPixelsPreserved": 767022,
+  "cells": [
+    {
+      "cell": 0,
+      "sourceBounds": [
+        8,
+        107,
+        436,
+        403
+      ],
+      "offset": [
+        106,
+        172
+      ],
+      "pixels": 75811
+    },
+    {
+      "cell": 1,
+      "sourceBounds": [
+        434,
+        85,
+        876,
+        405
+      ],
+      "offset": [
+        99,
+        160
+      ],
+      "pixels": 92997
+    },
+    {
+      "cell": 2,
+      "sourceBounds": [
+        881,
+        33,
+        1244,
+        407
+      ],
+      "offset": [
+        138,
+        133
+      ],
+      "pixels": 66917
+    },
+    {
+      "cell": 3,
+      "sourceBounds": [
+        7,
+        472,
+        419,
+        816
+      ],
+      "offset": [
+        114,
+        148
+      ],
+      "pixels": 84408
+    },
+    {
+      "cell": 4,
+      "sourceBounds": [
+        406,
+        446,
+        899,
+        814
+      ],
+      "offset": [
+        73,
+        136
+      ],
+      "pixels": 110529
+    },
+    {
+      "cell": 5,
+      "sourceBounds": [
+        900,
+        367,
+        1244,
+        817
+      ],
+      "offset": [
+        148,
+        95
+      ],
+      "pixels": 76351
+    },
+    {
+      "cell": 6,
+      "sourceBounds": [
+        24,
+        855,
+        405,
+        1209
+      ],
+      "offset": [
+        129,
+        143
+      ],
+      "pixels": 88305
+    },
+    {
+      "cell": 7,
+      "sourceBounds": [
+        458,
+        865,
+        832,
+        1222
+      ],
+      "offset": [
+        133,
+        141
+      ],
+      "pixels": 86966
+    },
+    {
+      "cell": 8,
+      "sourceBounds": [
+        857,
+        865,
+        1235,
+        1221
+      ],
+      "offset": [
+        131,
+        142
+      ],
+      "pixels": 84738
+    }
+  ]
+}

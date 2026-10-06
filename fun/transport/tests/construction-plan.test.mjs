@@ -41,19 +41,39 @@ test('one Stop tool follows the existing network and the selected mode at crossi
   }
 });
 
-test('Stop never creates a free network or port, and reports a useful missing-network error', () => {
-  for (const preferredMode of ['road', 'rail']) {
-    const game = emptyGame(), before = structuredClone(game), expected = preferredMode === 'rail' ? 'train-stop' : 'bus-stop';
-    assert.equal(resolveBuildTool(game, 'stop', 10, 10, { preferredMode }), expected);
-    const result = buildPlan(game, 'stop', [{ x: 10, y: 10 }], { preferredMode });
-    assert.equal(result.ok, false); assert.equal(result.failed, 1); assert.equal(result.cost, 0);
-    assert.match(result.message, preferredMode === 'rail' ? /Build a railway/ : /Build a road/);
-    assert.deepEqual(game, before);
-    Object.assign(tileAt(game, 12, 10), { terrain: 'water', detail: 'river' });
-    assert.equal(resolveBuildTool(game, 'stop', 12, 10, { preferredMode }), expected);
-    assert.equal(buildPlan(game, 'stop', [{ x: 12, y: 10 }], { preferredMode }).ok, false);
-    assert.equal(game.stations.length, 0);
+test('road stops include a paid road while railway stops require their existing network', () => {
+  const game=emptyGame(),before=game.money,point={x:10,y:10};
+  const quote=quoteBuildPlan(game,'stop',[point],{preferredMode:'road'});
+  assert.equal(quote.ok,true);assert.match(quote.message,/Road underneath included/);
+  const expected=constructionCost(game,'bus-stop',10,10),road=constructionCost(game,'road',10,10);
+  const result=buildPlan(game,'stop',[point],{preferredMode:'road'});
+  assert.equal(result.ok,true);assert.equal(result.automaticRoad,true);assert.equal(result.cost,expected);
+  assert.equal(game.money,before-expected);assert.ok(tileAt(game,10,10).road);
+  assert.ok(expected>road);assert.equal(game.stations[0].mode,'road');
+  const rail=emptyGame(),unchanged=structuredClone(rail);
+  assert.match(buildPlan(rail,'stop',[point],{preferredMode:'rail'}).message,/Build a railway/);
+  assert.deepEqual(rail,unchanged);
+  for(const preferredMode of ['road','rail']){
+    const water=emptyGame();Object.assign(tileAt(water,12,10),{terrain:'water',detail:'river'});
+    assert.equal(buildPlan(water,'stop',[{x:12,y:10}],{preferredMode}).ok,false);
+    assert.equal(water.stations.length,0);assert.equal(tileAt(water,12,10).road,false);
   }
+});
+
+test('automatic stop roads fail atomically and preserve roads already built', () => {
+  for(const problem of ['funds','building','slope','mountain']){
+    const game=emptyGame(),point={x:10,y:10};
+    if(problem==='funds')game.money=constructionCost(game,'bus-stop',10,10)-1;
+    if(problem==='building')tileAt(game,10,10).building={kind:'house-normal-1',level:1,footprint:1};
+    if(problem==='slope')tileAt(game,10,10).elevation=7/7;
+    if(problem==='mountain')tileAt(game,10,10).terrain='mountain';
+    const before=structuredClone(game),quote=quoteBuildPlan(game,'stop',[point]),result=buildPlan(game,'stop',[point]);
+    assert.equal(quote.ok,false,problem);assert.equal(result.ok,false,problem);assert.equal(result.cost,0);
+    assert.deepEqual(game,before,problem+' leaves land and money unchanged');
+  }
+  const game=emptyGame();build(game,'road',10,10);const money=game.money,cost=constructionCost(game,'bus-stop',10,10);
+  const result=buildPlan(game,'stop',[{x:10,y:10}]);assert.equal(result.automaticRoad,undefined);
+  assert.equal(result.cost,cost);assert.equal(game.money,money-cost);assert.ok(tileAt(game,10,10).road);
 });
 
 test('explicit construction tools preserve model behavior, including ports and rock tunnels', () => {
@@ -150,7 +170,7 @@ test('zones and demolition stay partial, but the quote and the result say so', (
 test('single stops, ports and towns quote exactly what build() will say', () => {
   const game = emptyGame();
   const grass = quoteBuildPlan(game, 'stop', [{ x: 10, y: 10 }]);
-  assert.equal(grass.ok, false); assert.equal(grass.message, 'Build a road here first.');
+  assert.equal(grass.ok, true); assert.equal(grass.message, 'Road underneath included in the price.');
   build(game, 'road', 10, 10);
   assert.equal(quoteBuildPlan(game, 'stop', [{ x: 10, y: 10 }]).ok, true);
   assert.equal(quoteBuildPlan(game, 'port', [{ x: 12, y: 12 }]).message, 'Place a port on water directly beside land.');
@@ -236,7 +256,7 @@ test('duplicates, invalid coordinates, unknown tools and empty requests cannot c
 });
 
 test('building quotes cover every reserved tile and charge once for the whole site', () => {
-  for (const [kind, span] of [['house-cheap-1', 1], ['hospital', 2], ['stadium', 3], ['steel-mill', 3]]) {
+  for (const [kind, span] of [['house-cheap-1', 1], ['hospital', 2], ['stadium', 3], ['steel-mill', 5], ['farm', 5]]) {
     const game = emptyGame(), points = [{ x: 20, y: 20 }], before = structuredClone(game);
     const quote = quoteBuildPlan(game, kind, points);
     assert.equal(quote.ok, true); assert.equal(quote.span, span);
@@ -340,7 +360,7 @@ test('zonePlanPoints drops what a zone can never claim and keeps other zones for
   build(game, 'house-cheap-1', 14, 10); build(game, 'logging-camp', 15, 10); build(game, 'residential', 20, 10); build(game, 'commercial', 21, 10);
   Object.assign(tileAt(game, 22, 10), { terrain: 'water' }); Object.assign(tileAt(game, 23, 10), { terrain: 'mountain' }); Object.assign(tileAt(game, 24, 10), { terrain: 'forest' });
   const kept = zonePlanPoints(game, 'residential', [...line(10, 25, 10), { x: 25, y: 10 }, { x: -1, y: 10 }]).map(p => p.x);
-  assert.deepEqual(kept, [18, 19, 21, 24, 25], 'roads, a stop, rail, a town center, a house, an industry, the same zone, water and mountains are left out');
+  assert.deepEqual(kept, [21, 24, 25], 'roads, a stop, rail, a town center, a house, the full 5×5 industry, the same zone, water and mountains are left out');
   assert.equal(zonePlanPoints(game, 'commercial', [{ x: 20, y: 10 }, { x: 21, y: 10 }]).length, 1);
   assert.equal(quoteBuildPlan(game, 'residential', [{ x: 11, y: 10 }]).message, 'Choose an empty tile or clear this one first.', 'one clicked tile still gets build()’s own refusal');
 });

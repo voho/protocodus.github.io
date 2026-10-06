@@ -50,8 +50,8 @@ try {
   await page.locator('[data-tool="port"]').click();
   await clickMap(page, sites.a);
   await page.waitForFunction(() => transport.game.stations.filter(s=>s.mode==='water').length===1);
-  await page.locator('#world').focus();
-  await page.keyboard.press('p');
+  await page.locator('[data-construction-next="stop"]').click();
+  assert.equal(await page.locator('#active-tool-name').textContent(),'Port','Add another stop keeps the port construction mode');
   await clickMap(page, sites.b);
   await page.waitForFunction(() => transport.game.stations.filter(s=>s.mode==='water').length===2);
   await page.keyboard.press('Escape');
@@ -71,6 +71,7 @@ try {
   await page.waitForFunction(() => transport.game.routes.some(r=>r.mode==='water'));
   const routeId = await page.evaluate(() => transport.game.routes.find(r=>r.mode==='water').id);
   assert.equal(await page.evaluate(id=>transport.game.vehicles.find(v=>v.routeId===id).capacity, routeId), 140);
+  await page.locator('.route-filter-details').evaluate(el=>el.open=true);
   await page.locator('#route-filter-mode').selectOption('water');
   await page.locator('#route-search').fill('ship');
   assert.equal(await page.locator('#route-list [data-route-id]').count(), 1, 'ship search and water filter find the ferry');
@@ -109,6 +110,7 @@ try {
   assert.ok(isolated,'fixture includes an isolated lake');
   await page.locator('.main-nav [data-view="routes"]').click();
   await page.waitForFunction(() => !document.querySelector('#management-panel').getAnimations().length);
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="mode"]').selectOption('water');
   const fromId=await page.evaluate(p=>transport.game.stations.find(s=>s.x===p.x&&s.y===p.y).id,sites.a);
   await page.locator('#route-form [name="from"]').selectOption(fromId);

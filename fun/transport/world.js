@@ -25,8 +25,8 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 9;
-export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= 9;
+export const WORLD_GENERATION_VERSION = 10;
+export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= WORLD_GENERATION_VERSION;
 
 // Keep complete production chains together: one district contains one of every
 // industry available in the climate. Population and industry density are
@@ -59,7 +59,7 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
   if(generationVersion>=2&&Object.hasOwn(NEW_WORLD_SIZES,size)){
     const config = generationOptions ? { ...WORLD_SIZES[size], towns: generationOptions.townCount, clusters: generationOptions.industryDistricts } : WORLD_SIZES[size];
     if(generationVersion>=8){
-      // Recipe 8 retains compact farms; recipe 9 adds fenced fields on the same drainage terrain.
+      // Recipes 8 and 9 retain their published plots; recipe 10 gives every industry 5 × 5 tiles.
       const world=generateWorldV8(biome,seed,size,config,generationVersion);
       if (generationOptions) world.generationOptions = { ...generationOptions };
       allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;

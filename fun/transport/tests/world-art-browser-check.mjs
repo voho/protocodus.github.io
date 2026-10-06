@@ -117,9 +117,9 @@ try {
           };
           for (const kind of q.buildings.RASTER_BUILDING_KINDS) compare(kind,1,'',c=>q.buildings.drawRasterBuilding(c,kind,biome,density));
           for (const [kind, def] of Object.entries(q.model.INDUSTRIES)) if (def.biomes.includes(biome)) {
-            compare(kind,3,'',c=>q.industries.drawRasterIndustry(c,kind,biome,density,{size:96}));
+            compare(kind,5,'',c=>q.industries.drawRasterIndustry(c,kind,biome,density,{size:160,footprint:5}));
             const detached = sprite(kind);
-            checks.push({ kind, detail: 'default 3×3 sprite', painted: detached.width === Math.round(96*density) && detached.height === Math.round(104*density), equal: q.hash(detached) === q.hash(sprite(kind,0,3)) });
+            checks.push({ kind, detail: 'default 5×5 sprite', painted: detached.width === Math.round(160*density) && detached.height === Math.round(168*density), equal: q.hash(detached) === q.hash(sprite(kind,0,5)) });
           }
           for (const detail of q.BIOME_NATURE[biome].trees) compare('forest',1,detail,c=>q.drawRasterNature(c,'forest',biome,detail,6,density),true);
           for (const detail of q.BIOME_NATURE[biome].mountains) compare('mountain',1,detail,c=>q.drawRasterNature(c,'mountain',biome,detail,6,density));

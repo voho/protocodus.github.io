@@ -38,7 +38,7 @@ test('a seeded simulation has the same future regardless of frame partitioning',
 
 test('vehicles competing for scarce cargo arrive in the same order at every simulation speed', () => {
   const whole = emptyGame();
-  for (const [kind, x, y] of [['logging-camp', 10, 10], ['sawmill', 30, 10], ['sawmill', 50, 10]]) assert.equal(build(whole, kind, x, y).ok, true);
+  for (const [kind, x, y] of [['logging-camp', 10, 8], ['sawmill', 30, 8], ['sawmill', 50, 8]]) assert.equal(build(whole, kind, x, y).ok, true);
   assert.equal(buildPath(whole, 'road', line(10, 50, 13)).ok, true);
   for (const x of [10, 30, 50]) assert.equal(build(whole, 'bus-stop', x, 13).ok, true);
   whole.industries[0].inventory.timber = 60;
