@@ -1,16 +1,21 @@
 // Adjacent entries already have the renderer's exact back-to-front order.
 // A moving object may split a group at draw time; those groups use the original
 // entries instead of flattening a vehicle behind a foreground building.
-export function partitionScenery(objects, scale, { maxObjects = 32, maxWidth = 1280, maxPixels = 1024 * 1024 } = {}) {
+export function partitionScenery(objects, scale, { maxObjects = 32, maxWidth = 1280, maxPixels = 1024 * 1024, stableBuckets = true } = {}) {
   const groups = [];
   let group = null;
+  // On one depth diagonal each tile of x moves 64 projected pixels. Fixed
+  // world-x boundaries leave interior runs unchanged when a pan changes the
+  // first visible tile. The existing width/area caps still handle large art.
+  const bucketWidth = Math.max(1, Math.min(16, Math.floor(maxWidth / (64 * scale))));
+  const bucket = object => stableBuckets && Number.isFinite(object.x) ? Math.floor(object.x / bucketWidth) : null;
   const flush = () => { if (group) groups.push(group); group = null; };
   for (const object of objects) {
     const b = object.bounds;
     if (!b) { flush(); groups.push({ objects: [object], bounds: null }); continue; }
     // A diagonal has a narrow projected height. Crossing its right-to-left
     // wrap creates a mostly empty bitmap and crosses many vehicle depths.
-    if (group && (group.objects[0].depth !== object.depth || Boolean(group.objects[0].dimEligible) !== Boolean(object.dimEligible))) flush();
+    if (group && (group.objects[0].depth !== object.depth || Boolean(group.objects[0].dimEligible) !== Boolean(object.dimEligible) || bucket(group.objects[0]) !== bucket(object))) flush();
     const bounds = group ? {
       left: Math.min(group.bounds.left, b.left), top: Math.min(group.bounds.top, b.top),
       right: Math.max(group.bounds.right, b.right), bottom: Math.max(group.bounds.bottom, b.bottom),
@@ -22,6 +27,47 @@ export function partitionScenery(objects, scale, { maxObjects = 32, maxWidth = 1
   }
   flush();
   return groups;
+}
+
+// A recentered scene can retain the pictures of unchanged ordered runs. The
+// caller must first establish the same world, content revision, layers and
+// raster density: geometry alone cannot distinguish different art at a site.
+// Retained hit records are world coordinates, so they move with the camera.
+// This moves ownership and releases every old picture that no longer matches.
+export function transferSceneryGroups(previous, next, release = () => {}) {
+  const scalar = value => value === undefined ? 'undefined' : JSON.stringify(value);
+  const bounds = b => b ? [b.left, b.top, b.right, b.bottom].map(scalar) : null;
+  const key = group => JSON.stringify([
+    bounds(group.bounds),
+    group.objects.map(object => [object.tile, object.depth, object.x, object.priority, Boolean(object.dimEligible)].map(scalar).concat([bounds(object.bounds)])),
+  ]);
+  const available = new Map();
+  for (const group of previous || []) {
+    if (!group.image || !group.image.width || !group.image.height) continue;
+    const signature = key(group), matches = available.get(signature);
+    if (matches) matches.push(group);
+    else available.set(signature, [group]);
+  }
+  const retained = new Set();
+  let reused = 0;
+  for (const group of next || []) {
+    if (group.image) continue;
+    const matches = available.get(key(group)), source = matches?.pop();
+    if (!source) continue;
+    for (const property of ['image', 'context', 'x', 'y', 'hits']) {
+      group[property] = source[property];
+      delete source[property];
+    }
+    retained.add(group.image);
+    reused++;
+  }
+  const released = new Set();
+  for (const group of previous || []) {
+    if (!group.image) continue;
+    if (!retained.has(group.image) && !released.has(group.image)) { release(group.image); released.add(group.image); }
+    for (const property of ['image', 'context', 'x', 'y', 'hits']) delete group[property];
+  }
+  return reused;
 }
 
 // One current view, including its pan border, has a strict extra-memory cap.

@@ -2093,6 +2093,10 @@ function pickMapTile(clientX,clientY,clamp=false) {
  if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY,{clamp});
  return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY,{clamp});
 }
+function pointerHover(e,clamp=false) {
+ const next=pickMapTile(e.clientX,e.clientY,clamp);if(!hover||hover.x!==next.x||hover.y!==next.y)hover=next;
+ const label=$('#tile-coordinates'),text=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;if(label.textContent!==text)label.textContent=text;
+}
 function cancelGesture() {
  const id=pointer?.id;pointer=null;preview=[];
  if(id!==undefined&&canvas.hasPointerCapture(id))canvas.releasePointerCapture(id);
@@ -2106,6 +2110,8 @@ function refreshStroke() {
  hover=next;if(line)preview=constructionLine(pointer.start,hover,pointer.tool,pointer);
  $('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;updatePlacementTip(at);
 }
+let strokeRefreshQueued=false;
+function queueStrokeRefresh() { strokeRefreshQueued=true;wakeFrame(); }
 // A valid stop names what it will serve; a bulldozer names the services it would cut.
 const coverageTips=new WeakMap();
 function placementNote(effective,plan) {
@@ -2166,18 +2172,24 @@ canvas.addEventListener('pointermove',e=>{
  // Chrome replays a resting mouse as a move without movement when the layout shifts under it; that is not the player
  // taking the map back from the keyboard cursor; a real move drops the cursor first (the capturing listener below).
  if(!pointer&&!e.movementX&&!e.movementY&&keyOwned())return;
- // A move within the hovered tile keeps its object, so a paused map does not repaint.
- const next=pickMapTile(e.clientX,e.clientY,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));if(!hover||hover.x!==next.x||hover.y!==next.y)hover=next;$('#tile-coordinates').textContent=`${hover.x}, ${hover.y} · ${BIOMES[game.biome].name}`;
  if(pointer&&pointer.id===e.pointerId){
   // A chorded right press arrives as a move; it abandons the stroke but keeps the tool.
   if(!pointer.cancelled&&e.pointerType==='mouse'&&pointer.button===0&&!pointer.pan&&(e.buttons&2)){pointer.cancelled=true;preview=[];canvas.classList.remove('dragging');}
   if(pointer.cancelled){pointer.lastX=e.clientX;pointer.lastY=e.clientY;$('#placement-tip').hidden=true;return;}
   const dx=e.clientX-pointer.lastX,dy=e.clientY-pointer.lastY;
   if(Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>5)pointer.moved=true;
-  pointer.shift=e.shiftKey;if(pointer.moved&&!pointer.firstAxis&&(hover.x!==pointer.start.x||hover.y!==pointer.start.y))pointer.firstAxis=Math.abs(hover.x-pointer.start.x)>=Math.abs(hover.y-pointer.start.y)?'x':'y';
+  pointer.shift=e.shiftKey;
   if(pointer.moved&&!lineTools.has(pointer.tool)){pointer.pan=true;preview=[];canvas.classList.add('dragging');}
-  if(pointer.pan){renderer.pan(dx,dy);if(spaceDown)spaceUsedForPan=true;}
-  else if(lineTools.has(pointer.tool))preview=constructionLine(pointer.start,hover,pointer.tool,pointer);
+  // Panning uses only the pointer's displacement. Picking roofs, signs and
+  // terrain from the previous frame adds work to every input event and leaves
+  // a hover ring behind the moving map; restore that hover once on release.
+  if(pointer.pan){renderer.pan(dx,dy);if(spaceDown)spaceUsedForPan=true;pointer.lastX=e.clientX;pointer.lastY=e.clientY;hover=null;updatePlacementTip(e);return;}
+ }
+ // A move within the hovered tile keeps its object, so a paused map does not repaint.
+ pointerHover(e,pointer&&!pointer.pan&&!pointer.cancelled&&lineTools.has(pointer.tool));
+ if(pointer&&pointer.id===e.pointerId){
+  if(pointer.moved&&!pointer.firstAxis&&(hover.x!==pointer.start.x||hover.y!==pointer.start.y))pointer.firstAxis=Math.abs(hover.x-pointer.start.x)>=Math.abs(hover.y-pointer.start.y)?'x':'y';
+  if(lineTools.has(pointer.tool))preview=constructionLine(pointer.start,hover,pointer.tool,pointer);
   pointer.lastX=e.clientX;pointer.lastY=e.clientY;
  }
  updatePlacementTip(e);
@@ -2186,6 +2198,7 @@ canvas.addEventListener('pointerup',e=>{
  if(!pointer||pointer.id!==e.pointerId)return;
  const p=pointer;pointer=null;canvas.classList.remove('dragging');if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
  if(p.cancelled){preview=[];$('#placement-tip').hidden=true;return;}
+ if(p.pan&&p.moved&&p.tool===tool){pointerHover(e);updatePlacementTip(e);}
  if(p.button!==0){preview=[];if(p.button===2&&!p.moved)setTool('inspect');return;}
  if(p.tool!==tool){preview=[];return;}
  if(!p.moved&&!spaceDown&&pickRouteStopAt(p.start.x,p.start.y))return;
@@ -2212,7 +2225,7 @@ $('#scroll-mode').onclick=()=>{setScrollPan(!scrollPan);toast(scrollPan?'Scrolli
 canvas.addEventListener('wheel',e=>{
  e.preventDefault();
  const scale=e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1,dx=e.deltaX*scale,dy=e.deltaY*scale;
- if(!e.ctrlKey&&(scrollPan||Math.abs(dx)>Math.abs(dy))){renderer.pan(-dx,scrollPan?-dy:0);refreshStroke();return;}
+ if(!e.ctrlKey&&(scrollPan||Math.abs(dx)>Math.abs(dy))){renderer.pan(-dx,scrollPan?-dy:0);queueStrokeRefresh();return;}
  if(!dy)return;
  const now=performance.now();
  if(now-wheelAt>180){wheelDelta=0;wheelConsumed=false;}
@@ -2474,6 +2487,7 @@ function frame(now){
  // A glide moves the camera first (stepCamera): Follow's own glide chases its carrier, and any other ends Follow once it lands.
  if(follow?.frame&&follow.cx===undefined){const q=renderer.vehicleWorldPoint(follow.vehicle);follow.frame.cx=q.x;follow.frame.cy=q.y;}const moving=renderer.stepCamera(now);
  if(follow&&!moving){const at=renderer.getCamera(),v=follow.vehicle;if(follow.id!==selectedVehicle||tool!=='inspect'||follow.cx!==undefined&&Math.hypot(at.x-follow.cx,at.y-follow.cy)>2)stopFollow();else{const q=renderer.vehicleWorldPoint(v);if(!(Math.abs(q.x-follow.x)<=.01&&Math.abs(q.y-follow.y)<=.01)){renderer.focus(q.x,q.y);const next=renderer.getCamera();Object.assign(follow,{x:q.x,y:q.y,cx:next.x,cy:next.y});}}}
+ if(strokeRefreshQueued){strokeRefreshQueued=false;refreshStroke();}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
  const outlines=propertyOutlines(),hoverRef=refView.hoverRef||(refShown.until>now?refShown.ref:null);

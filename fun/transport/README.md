@@ -588,6 +588,12 @@ TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/plan
 
 The comprehensive follow-up checks include `cohesion-browser-check.mjs` (projects, searches, finances, paused disconnection and storage failure), `vast-browser-check.mjs` (large-world quota and continuation), and `controls-browser-check.mjs` (mouse, keyboard and trackpad controls).
 
+`scroll-input-browser-check.mjs` checks real drag, click, Space/right-button and wheel-pan input at fractional and Retina display densities. `scrolling-performance-browser-check.mjs` measures forest, city and traffic-heavy Town views during 120 continuous-pan frames across several cache boundaries, with screenshots after timing. It checks bounded memory, retained scenery, traffic fallback and preparation after release. Optional `TRANSPORT_RENDERER_SOURCE` and `TRANSPORT_SCENERY_SOURCE` paths load frozen modules for repeatable before/after comparisons; `TRANSPORT_DPRS`, `TRANSPORT_SCENES`, `TRANSPORT_FRAMES` and `TRANSPORT_OUTPUT` narrow the run. Run performance measurements separately from other browser checks. Paired `scenery-batches-browser-check.mjs` and `scenery-view-browser-check.mjs` verify pixels, picking, reverse/fractional pans, infrastructure, journal edits and oversized display fallback.
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/scrolling-performance-browser-check.mjs
+```
+
 Square-world checks: `square-world-ui-check.mjs` creates all three sizes through the UI and reloads a 2048 world; `square-save-browser-check.mjs` checks developed 2048 saves and named slots; `square-renderer-check.mjs` verifies the bounded minimap and thin networks. `square-world-benchmark.mjs` benchmarks all three 2048 biomes in sequential processes to bound peak test memory.
 
 `uneven-world-check.mjs` compares old and new atlas layouts, habitat variation and settlement clustering across seeds, environments and all square sizes.

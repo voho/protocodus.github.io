@@ -29,7 +29,7 @@ try {
       const stages = [], transitions = [];
       const must = (condition, message) => { if (!condition) throw new Error(message); };
       const stats = () => renderers.map(renderer => renderer.getStats().sceneryBatches);
-      const pair = () => { for (const renderer of renderers) renderer.render(1000, { settle: true }); };
+      const pair = (view={}) => { for (const renderer of renderers) renderer.render(1000, { settle: true, ...view }); };
       const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
       const bounded = () => {
         const [a, b] = stats();
@@ -75,6 +75,7 @@ try {
         }
         const rect = canvases[0].getBoundingClientRect();
         for (let y = 33; y < rect.height; y += 113) for (let x = 29; x < rect.width; x += 137) pickPair(x, y, 'screen-grid', mismatches);
+        for (const [x, y] of [[2,2],[rect.width/2,2],[rect.width-3,2],[2,rect.height/2],[rect.width-3,rect.height/2],[2,rect.height-3],[rect.width/2,rect.height-3],[rect.width-3,rect.height-3]]) pickPair(x, y, 'viewport-border', mismatches);
         for (let dy = -9; dy <= 9; dy += 3) for (let dx = -9; dx <= 9; dx += 3) {
           const p = cached.worldToScreen(point.x + dx, point.y + dy);
           for (const lift of [0, 12, 28]) if (p.x >= 0 && p.x < rect.width && p.y - lift >= 0 && p.y - lift < rect.height) pickPair(p.x, p.y - lift, 'parcel-and-upright', mismatches);
@@ -112,22 +113,47 @@ try {
         must(stats()[0].viewBytes === 0, 'setGame releases the viewport immediately');
       }
       function layers(partial) { for (const renderer of renderers) renderer.setLayers(partial); }
+      async function sweep(stage) {
+        const before=stats(),builds=cached.getStats().sceneBuilds;
+        for(const direction of [-1,1])for(let frame=0;frame<20;frame++){
+          // One sweep travels365worldpixels: enough to replace the scene
+          // several times while retaining unchanged interior strip pictures.
+          const zoom=cached.getCamera().zoom,dx=direction*18.25*zoom,dy=-direction*9.125*zoom;
+          for(const renderer of renderers)renderer.pan(dx,dy);
+          pair();bounded();
+          if(frame%5===0||frame===19)compare(`${stage}-${direction}-${frame}`);
+          await new Promise(requestAnimationFrame);
+        }
+        const after=stats();
+        must(cached.getStats().sceneBuilds>builds+2,`${stage}: sweep crosses several scene borders`);
+        must(after[0].viewPanDraws>before[0].viewPanDraws,`${stage}: moving frames reuse padded static layers`);
+        must(after.every((value,i)=>value.reuses>before[i].reuses),`${stage}: both renderers retain prepared strips at a scene boundary`);
+        transitions.push({panSweep:{stage,before,after}});
+      }
       for (const renderer of renderers) { renderer.setZoom(1); renderer.focus(point.x, point.y); }
-      window.sceneryViewQA = { renderers, canvases, geometry, journal, art, stages, transitions, pair, pause, stats, bounded, settle, compare, warm, setWorld, layers, must, pixels, get game() { return game; }, get point() { return point; } };
+      window.sceneryViewQA = { renderers, canvases, geometry, journal, art, stages, transitions, pair, pause, stats, bounded, settle, compare, warm, setWorld, layers, sweep, must, pixels, get game() { return game; }, get point() { return point; } };
     });
 
     await page.evaluate(async () => {
       const q = sceneryViewQA, [cached] = q.renderers;
       await q.warm('forest-warm');
-      // A camera movement uses direct scenery immediately and only bakes again after settling.
+      // A small camera movement replays the same padded world-space layer.
       let before = q.stats()[0];
       for (const renderer of q.renderers) renderer.pan(-8, 4);
       q.pair();
-      q.must(q.stats()[0].viewBuilds === before.viewBuilds && q.stats()[0].viewDraws === before.viewDraws, 'panning bypasses viewport replay');
+      q.must(q.stats()[0].viewBuilds === before.viewBuilds && q.stats()[0].viewDraws > before.viewDraws && q.stats()[0].viewPanDraws > before.viewPanDraws, 'small pans replay existing world-space scenery');
       q.compare('pan-first'); await q.warm('pan-settled');
-      q.must(q.stats()[0].viewBuilds > before.viewBuilds, 'a changed camera rebuilds its viewport');
+      q.must(q.stats()[0].viewBuilds === before.viewBuilds, 'settling inside the pan border keeps the same scenery surface');
       for (const renderer of q.renderers) renderer.pan(8, -4);
       await q.warm('pan-return');
+      await q.sweep('forest-pan-boundaries'); await q.warm('forest-pan-finished');
+      before=q.stats()[0];
+      const distantFrom=q.game.revision;
+      q.game.tiles[0]={...q.game.tiles[0],terrain:'grass',detail:'',cleared:true};
+      q.game.revision++;q.journal.noteSurfaceChanges(q.game,distantFrom,q.game.revision,[0]);
+      q.pair();q.compare('distant-journal');
+      q.must(q.stats()[0].viewBuilds===before.viewBuilds&&q.stats()[0].viewDraws>before.viewDraws,'distant ecology keeps the unchanged padded scenery layer');
+      await q.sweep('forest-after-distant-journal');await q.warm('forest-after-distant-journal-finished');
       // Centered zoom leaves the projected origin unchanged; scene keys still must invalidate.
       const camera = cached.getCamera(); before = q.stats()[0];
       for (const renderer of q.renderers) renderer.setZoom(2);
@@ -152,6 +178,13 @@ try {
       const index = 128 * q.game.width + 128, from = q.game.revision;
       q.game.tiles[index] = { ...q.game.tiles[index], terrain: 'grass', detail: '', cleared: true };
       q.game.revision++; q.journal.noteSurfaceChanges(q.game, from, q.game.revision, [index]);
+      // A pointer read can observe the local journal before the next frame.
+      // A later distant entry must not discard that existing dirty set.
+      for(const renderer of q.renderers)renderer.screenToInspectTile(100,100);
+      q.must(q.stats()[0].pending>0,'local journal marks the prepared scene dirty');
+      const outsideFrom=q.game.revision;
+      q.game.tiles[1]={...q.game.tiles[1],terrain:'grass',detail:'',cleared:true};
+      q.game.revision++;q.journal.noteSurfaceChanges(q.game,outsideFrom,q.game.revision,[1]);
       q.pair();
       q.must(q.stats()[0].viewDraws === before.viewDraws, 'journaled patch bypasses cached replay');
       q.must(cached.getStats().sceneBuilds === sceneBuilds && cached.getStats().scenePatches > scenePatches, 'journal fixture uses scene patching');
@@ -171,6 +204,7 @@ try {
       q.must(q.stats()[0].viewBuilds > before.viewBuilds, 'viewport caching resumes after traffic leaves');
       const city = busyQA.select('city', 1, 'day');
       q.setWorld(busyQA.game, city.point); await q.warm('new-city-world');
+      await q.sweep('city-pan-boundaries'); await q.warm('city-pan-finished');
       before = q.stats()[0]; q.layers({ names: false }); await q.warm('names-hidden');
       q.must(q.stats()[0].viewBuilds > before.viewBuilds, 'non-baked layer identity invalidates viewport');
       q.layers({ names: true }); await q.warm('names-restored');
@@ -207,6 +241,33 @@ try {
         q.must(hidden[0].x !== 128 || hidden[0].y !== 128, 'hiding the bridge releases its elevated picking record'); sample.hidden = hidden;
       }
       q.layers({ roads: true }); await q.warm('dense-bridge-restored'); q.transitions.push({ bridgeSamples: samples });
+      // Large airport parts and bounds-less stop/portal entries all enter the
+      // padded static layer. Exercise both airport axes and a coastal port
+      // through fractional pans before comparing every viewport border.
+      const infrastructure={...denseBridge,tiles:denseBridge.tiles.map(tile=>({...tile})),stations:[
+        {id:'airport-x',name:'West airport',mode:'air',axis:'x',x:116,y:117},
+        {id:'airport-y',name:'East airport',mode:'air',axis:'y',x:138,y:122},
+        {id:'bus-stop',name:'Bus stop',mode:'road',x:128,y:125},
+        {id:'train-stop',name:'Train stop',mode:'rail',x:125,y:128},
+        {id:'port',name:'Forest port',mode:'water',x:131,y:137},
+      ],revision:denseBridge.revision+1};
+      const tileAt=(x,y)=>infrastructure.tiles[y*infrastructure.width+x];
+      Object.assign(tileAt(128,125),{road:true});Object.assign(tileAt(125,128),{rail:true});
+      Object.assign(tileAt(120,131),{road:true,tunnel:true});Object.assign(tileAt(119,131),{road:true});Object.assign(tileAt(121,131),{road:true});
+      for(let y=134;y<=144;y++)for(let x=132;x<=144;x++)Object.assign(tileAt(x,y),{terrain:'water',detail:'',elevation:0});
+      q.setWorld(infrastructure);await q.warm('infrastructure-cached');
+      const before=q.stats()[0];
+      for(const [dx,dy] of [[-9.25,4.5],[-15.75,-8.25],[25,3.75]]){
+        for(const renderer of q.renderers)renderer.pan(dx,dy);
+        q.pair();q.compare(`infrastructure-fractional-pan-${dx}-${dy}`);
+      }
+      q.must(q.stats()[0].viewBuilds===before.viewBuilds&&q.stats()[0].viewPanDraws>=before.viewPanDraws+3,'airports, stops, portals and bridges reuse the same padded layer during fractional pans');
+      const pickingBefore=q.stats()[0];
+      q.pair({stopPicking:{mode:'road'}});q.compare('infrastructure-stop-picking');
+      q.must(q.stats()[0].viewDraws===pickingBefore.viewDraws,'stop picking bypasses full-opacity static replay');
+      q.pair();q.compare('infrastructure-stop-picking-exit');
+      q.must(q.stats()[0].viewDraws>pickingBefore.viewDraws,'static replay resumes when stop picking ends');
+      await q.sweep('infrastructure-pan-boundaries');await q.warm('infrastructure-pan-finished');
     });
 
     // Hold one real atlas request while the absent stop is captured. Arrival
@@ -242,6 +303,20 @@ try {
       const dense = { ...q.game, stations: [] };
       const tiny = { ...q.game, width: 32, height: 32, tiles: Array.from({ length: 32 * 32 }, () => ({ terrain: 'grass', elevation: 0, detail: '', variant: 0 })), cities: [], industries: [], stations: [], routes: [], vehicles: [], zones: [], revision: q.game.revision + 1, networkRevision: q.game.networkRevision + 1 };
       q.setWorld(tiny, { x: 16, y: 16 }); await q.warm('empty-grass', false);
+      // A fractional CSS extent can round down in the physical backing store.
+      // Here the display fits32MiB but its pan border does not, so the cropped
+      // fallback must replay unchanged without rebuilding every frame.
+      q.setWorld({...dense,revision:tiny.revision+1},{x:128,y:128});
+      for(let i=0;i<q.canvases.length;i++){
+        q.canvases[i].style.width=`${4000.4/devicePixelRatio}px`;q.canvases[i].style.height=`${2000.4/devicePixelRatio}px`;
+        q.renderers[i].resize();q.renderers[i].setZoom(1);
+      }
+      await q.settle();
+      const fractionalBefore=q.stats()[0];
+      q.must(fractionalBefore.viewBytes===q.canvases[0].width*q.canvases[0].height*4,'fractional near-cap fixture uses an exact display-sized fallback');
+      for(let frame=0;frame<4;frame++){q.pair();q.bounded();}
+      q.must(q.stats()[0].viewBuilds===fractionalBefore.viewBuilds&&q.stats()[0].viewDraws>=fractionalBefore.viewDraws+4,'fractional near-cap backing dimensions remain valid on unchanged frames');
+      q.compare('fractional-near-cap');q.transitions.push({fractionalNearCap:{width:q.canvases[0].width,height:q.canvases[0].height,stats:q.stats()}});
       // A dense scene exceeds the draw minimum, so the memory cap is the sole reason to skip replay.
       q.setWorld({ ...dense, revision: tiny.revision + 1 }, { x: 128, y: 128 });
       for (let i = 0; i < q.canvases.length; i++) {
@@ -277,6 +352,7 @@ try {
     const result = await page.evaluate(() => ({ dpr: devicePixelRatio, stages: sceneryViewQA.stages, transitions: sceneryViewQA.transitions }));
     rows.push(result);
     console.log(JSON.stringify({ dpr, stages: result.stages.length, max: Math.max(...result.stages.map(stage => stage.max)), mean: Math.max(...result.stages.map(stage => stage.mean)), timing: result.stages.filter(stage => stage.timing).map(stage => ({ stage: stage.stage, ...stage.timing })) }));
+    await page.locator('#cached').screenshot({path:`${out}/cached-DPR${dpr}.png`});
     await page.close();
   }
   assert.deepEqual(errors, [], 'no browser errors');

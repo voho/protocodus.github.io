@@ -40,7 +40,11 @@ export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedC
     // Prepared antialiasing is final: snap only the stationary upright image,
     // preserving its measured anchor and native physical-pixel dimensions.
     const transform=c.getTransform(),native=Math.abs(transform.a-scale)<1e-7&&Math.abs(transform.d-scale)<1e-7&&Math.abs(transform.b)<1e-7&&Math.abs(transform.c)<1e-7;
-    const left=native?(Math.round((x+bounds.left)*scale+transform.e)-transform.e)/scale:x+bounds.left,top=native?(Math.round((y+bounds.top)*scale+transform.f)-transform.f)/scale:y+bounds.top;
+    // A world camera is registered to physical pixels, but projection can
+    // leave its integer translation a few floating-point bits below a tie.
+    // Preserve real fractional preview phases while stabilizing camera ties.
+    const phaseX=Math.abs(transform.e-Math.round(transform.e))<1e-7?Math.round(transform.e):transform.e,phaseY=Math.abs(transform.f-Math.round(transform.f))<1e-7?Math.round(transform.f):transform.f;
+    const left=native?(Math.round((x+bounds.left)*scale+phaseX)-transform.e)/scale:x+bounds.left,top=native?(Math.round((y+bounds.top)*scale+phaseY)-transform.f)/scale:y+bounds.top;
     c.save();c.imageSmoothingEnabled=!native;if(!native)c.imageSmoothingQuality='high';
     c.drawImage(image,left,top,image.width/scale,image.height/scale);c.restore();return true;
   }

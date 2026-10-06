@@ -252,7 +252,14 @@ async function truthfulQuotes() {
   assert.match(await lastToast(), /\bwarning\b/, 'a partial build is a warning');
   await page.evaluate(() => { transport.game.money = 1_000_000; });
   await keyTool(page, 's', /Stop/);
-  assert.deepEqual(await hover({ x: site.open.x, y: site.open.y + 2 }), { text: 'Build a road here first.', visible: true, invalid: true, partial: false, warning: false }, 'a stop on grass is refused in the tip');
+  const grassStop = { x: site.open.x, y: site.open.y + 2 }, included = await hover(grassStop);
+  assert.deepEqual({ ...included, text: '' }, { text: '', visible: true, invalid: false, partial: false, warning: true }, 'a stop on grass includes its missing road');
+  assert.match(included.text, /^Road stop · \$[\d,]+ · road included · No customers within 5 tiles$/);
+  before = await money();
+  await clickTile(page, grassStop);
+  assert.deepEqual(await page.evaluate(p => ({ road: transport.game.tiles[p.y * transport.game.width + p.x].road, stop: transport.game.stations.find(s => s.x === p.x && s.y === p.y)?.mode }), grassStop), { road: true, stop: 'road' }, 'release places both the road and its stop');
+  assert.equal(before - await money(), Number(included.text.match(/\$([\d,]+)/)[1].replaceAll(',', '')), 'the road and stop cost matches the displayed quote');
+  await keyTool(page, 's', /Stop/);
   const lonely = await hover(site.stop);
   assert.equal(lonely.warning, true); assert.match(lonely.text, /No customers within 5 tiles$/);
   await page.evaluate(async () => { const { build } = await import('./model.js'); build(transport.game, 'road', 216, 254); });
@@ -393,6 +400,7 @@ async function constructionUndo() {
   await undo.waitFor(); await undo.evaluate(el => Promise.all(el.closest('.toast').getAnimations().map(animation => animation.finished)));
   await page.screenshot({ path: `${output}/desktop-undo-toast.png` });
   await page.evaluate(() => transport.setView('routes'));
+  await page.locator('#new-route-button').click();
   assert.equal(await connection(), 'connected');
   await page.locator('#world').focus(); await page.keyboard.press('Control+z');
   assert.equal(await state(), before, 'Ctrl+Z restores the tiles, the balance and the expenses');
@@ -444,6 +452,9 @@ async function keyboardCursor() {
 
   await page.keyboard.press('s'); await page.keyboard.press('Enter');
   assert.equal((await stopAt({ x: x + 3, y }))?.mode, 'road', 'S and Enter place a stop on the road under the cursor');
+  assert.equal(await toolBar(), false, 'finishing a stop returns to Explore');
+  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'false', 'finishing a stop opens Build for the next action');
+  await page.keyboard.press('s');
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('Enter');
   const stops = [String((await stopAt({ x, y })).id), String((await stopAt({ x: x + 3, y })).id)];
@@ -622,11 +633,14 @@ try {
     assert.ok(built.slice(2, 4).every(t => t.bridge && t.terrain === 'water'), `${mode} automatically bridges water without filling it`);
     assert.ok(built.slice(4, 6).every(t => t.tunnel && t.terrain === 'mountain'), `${mode} automatically tunnels through mountains`);
   }
-  await keyTool(page, 's', /Stop/);
   for (const [point, mode] of [[site.road, 'road'], [site.rail, 'rail']]) {
+    await keyTool(page, 's', /Stop/);
     await clickTile(page, point);
     assert.equal(await page.evaluate(p => transport.game.stations.find(s => s.x === p.x && s.y === p.y)?.mode, point), mode, 'Stop detects the network beneath it');
+    assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'a completed stop finishes the tool');
+    assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'false', 'a completed stop opens Build');
   }
+  await keyTool(page, 's', /Stop/);
   await page.locator('#cancel-tool-button').focus(); await page.keyboard.press('Space');
   assert.equal(await page.locator('#active-tool-bar').isVisible(), false, 'Done works with native keyboard activation');
   assert.equal(await page.evaluate(() => transport.speed), 0);

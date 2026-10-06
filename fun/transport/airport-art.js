@@ -404,7 +404,11 @@ export function createAirportSprites({ pixelScale = 1, detailLevel = 'town', bio
       // Static parts already contain their antialiasing at this density. Keep
       // their native pixels, including under a fractional context translation.
       const transform = ctx.getTransform(), native = Math.abs(transform.a - scale) < 1e-7 && Math.abs(transform.d - scale) < 1e-7 && Math.abs(transform.b) < 1e-7 && Math.abs(transform.c) < 1e-7;
-      const left = native ? (Math.round((x + box.left - 2) * scale + transform.e) - transform.e) / scale : x + box.left - 2, top = native ? (Math.round((y + box.top - 2) * scale + transform.f) - transform.f) / scale : y + box.top - 2;
+      // Projection can place an intended integer camera translation just
+      // below a half-pixel rounding tie. Normalize only that numerical drift;
+      // genuinely fractional gallery transforms retain their original phase.
+      const phaseX = Math.abs(transform.e - Math.round(transform.e)) < 1e-7 ? Math.round(transform.e) : transform.e, phaseY = Math.abs(transform.f - Math.round(transform.f)) < 1e-7 ? Math.round(transform.f) : transform.f;
+      const left = native ? (Math.round((x + box.left - 2) * scale + phaseX) - transform.e) / scale : x + box.left - 2, top = native ? (Math.round((y + box.top - 2) * scale + phaseY) - transform.f) / scale : y + box.top - 2;
       ctx.save(); ctx.imageSmoothingEnabled = !native; if (!native) ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(image, left, top, image.width / scale, image.height / scale); ctx.restore();
       return { x: left, y: top, w: image.width / scale, h: image.height / scale, image };

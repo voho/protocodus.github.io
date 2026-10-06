@@ -19,15 +19,15 @@ try {
     const station = infra.createIsometricInfrastructureSprites({ pixelScale: scale, cache }), terminal = airport.createAirportSprites({ pixelScale: scale, detailLevel: 'town', biome: 'taiga', cache });
     const canvas = document.querySelector('canvas'); canvas.width = Math.round(1200 * scale); canvas.height = Math.round(800 * scale);
     const c = canvas.getContext('2d'); c.fillStyle = '#d7dbc8'; c.fillRect(0, 0, canvas.width, canvas.height);
-    const calls = [], original = c.drawImage.bind(c);
-    c.drawImage = (image, x, y, w, h) => { const t = c.getTransform(); calls.push({ x, y, w, h, width: image.width, height: image.height, a: t.a, d: t.d, e: t.e, f: t.f, smoothing: c.imageSmoothingEnabled }); original(image, x, y, w, h); };
+    const calls = [], original = c.drawImage.bind(c); let metadataOnly = false;
+    c.drawImage = (image, x, y, w, h) => { const t = c.getTransform(); calls.push({ x, y, w, h, width: image.width, height: image.height, a: t.a, d: t.d, e: t.e, f: t.f, smoothing: c.imageSmoothingEnabled }); if (!metadataOnly) original(image, x, y, w, h); };
     const specs = [
-      ...['road', 'rail'].map(mode => ({ name: `stop-${mode}`, run: (x, y) => station.stop(c, mode, x, y) })),
+      ...['road', 'rail'].map(mode => ({ name: `stop-${mode}`, bounds: infra.isometricStationBounds(mode), run: (x, y) => station.stop(c, mode, x, y) })),
       ...[[1, 0], [0, 1], [-1, 0], [0, -1]].flatMap(([dx, dy]) => [
-        { name: `port-${dx}-${dy}`, run: (x, y) => station.port(c, dx, dy, x, y) },
-        ...['road', 'rail'].map(mode => ({ name: `portal-${mode}-${dx}-${dy}`, run: (x, y) => station.portal(c, mode, dx, dy, x, y) })),
+        { name: `port-${dx}-${dy}`, bounds: infra.isometricStationBounds('water'), run: (x, y) => station.port(c, dx, dy, x, y) },
+        ...['road', 'rail'].map(mode => ({ name: `portal-${mode}-${dx}-${dy}`, bounds: { left: -22, top: -35 }, run: (x, y) => station.portal(c, mode, dx, dy, x, y) })),
       ]),
-      ...['x', 'y'].flatMap(axis => Object.keys(airport.PART_BOXES[axis]).map(kind => ({ name: `${axis}-${kind}`, airport: true, run: (x, y) => terminal.part(c, kind, axis, x, y) }))),
+      ...['x', 'y'].flatMap(axis => Object.entries(airport.PART_BOXES[axis]).map(([kind, box]) => ({ name: `${axis}-${kind}`, bounds: { left: box.left - 2, top: box.top - 2 }, airport: true, run: (x, y) => terminal.part(c, kind, axis, x, y) }))),
     ];
     const rows = [];
     for (let i = 0; i < specs.length; i++) {
@@ -40,6 +40,17 @@ try {
       // A genuinely resized preview keeps its fractional anchor and filter.
       c.setTransform(scale * 1.7, 0, 0, scale * 1.7, .37, .61);
       spec.run(x, y); rows.at(-1).preview = calls.at(-1);
+      // Chained camera transforms can drift just below an integer. At an
+      // image's half-pixel anchor that must not move the sprite one pixel.
+      const tieX = 400.5 / scale - spec.bounds.left, tieY = 200.5 / scale - spec.bounds.top;
+      metadataOnly = true;
+      rows.at(-1).cameraTies = [0, -1e-9, 1e-9].map(drift => {
+        c.setTransform(scale, 0, 0, scale, drift, -drift);
+        const returned = spec.run(tieX, tieY), draw = calls.at(-1);
+        return { drift, x: draw.x * draw.a + draw.e, y: draw.y * draw.d + draw.f, smoothing: draw.smoothing,
+          hitMatches: !spec.airport || returned.x === draw.x && returned.y === draw.y && returned.w === draw.w && returned.h === draw.h };
+      });
+      metadataOnly = false;
     }
     return { rows, cache: cache.getStats() };
   });
@@ -53,9 +64,14 @@ try {
     assert.equal(row.restored, true, 'local native sampling restores its caller');
     assert.equal(row.reused, true, 'stationary artwork reuses its preparation');
     assert.equal(row.preview.smoothing, true, 'resized menu previews retain high-quality filtering');
+    for (const tie of row.cameraTies) {
+      assert.ok(Math.abs(tie.x - row.cameraTies[0].x) < 1e-6 && Math.abs(tie.y - row.cameraTies[0].y) < 1e-6, `${row.name} keeps half-pixel anchors stable under integer camera drift`);
+      assert.equal(tie.smoothing, false, `${row.name} keeps native sampling at camera ties`);
+      assert.equal(tie.hitMatches, true, `${row.name} keeps camera-tie hit bounds aligned`);
+    }
   }
   assert.ok(result.cache.bytes <= result.cache.limit); assert.deepEqual(errors, []);
   await page.screenshot({ path: `${output}/fractional-static-sprites.png` });
   await writeFile(`${output}/results.json`, JSON.stringify({ ...result, errors }, null, 2));
-  console.log(JSON.stringify({ staticProfiles: result.rows.length, resizedProfiles: result.rows.length, errors }));
+  console.log(JSON.stringify({ staticProfiles: result.rows.length, resizedProfiles: result.rows.length, cameraTieProfiles: result.rows.length * 3, errors }));
 } finally { await browser.close(); }
