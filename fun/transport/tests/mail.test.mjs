@@ -65,7 +65,7 @@ test('towns write letters in proportion to residents, with services, and keep at
 test('a mail truck loads at both ends, pays like passengers by distance and days, and serves the town', () => {
   const { game, route, vehicle, west, east, spent, quote } = mailRoute();
   assert.equal(spent, quote, 'the launch charges the purchase quote');
-  assert.equal(route.name, 'Alderbrook – Pinehaven mail');
+  assert.equal(route.name, 'Alderbrook – Pinehaven — mail');
   assert.equal(vehicle.load, 24); assert.equal(west.mail, 36); assert.equal(west.passengers, 0);
   const bus = towns().game; addRoute(bus, { mode: 'road', cargo: 'passengers', stops: bus.stations.map(stop => stop.id) });
   assert.deepEqual(Object.keys(vehicle).sort(), Object.keys(bus.vehicles[0]).sort(), 'no new vehicle fields');
@@ -112,8 +112,8 @@ test('two town stops still pick passengers first, and mail fits right after', ()
   const draft = { mode: 'road', from: stops[0], to: stops[1] };
   assert.deepEqual(routeCargoOptions(game, draft).filter(option => option.valid).map(option => option.cargo), ['passengers', 'mail']);
   const plan = validateRoutePlan(game, { ...draft, cargo: 'mail' });
-  assert.equal(defaultRouteName(game, plan, 'mail'), 'Alderbrook – Pinehaven mail');
-  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Alderbrook – Pinehaven');
+  assert.equal(defaultRouteName(game, plan, 'mail'), 'Alderbrook – Pinehaven — mail');
+  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Alderbrook – Pinehaven — passengers');
   const { game: served, route, stops: pair } = mailRoute();
   assert.equal(validateRoutePlan(served, { mode: 'road', cargo: 'mail', from: pair[1], to: pair[0] }).existingRouteId, route.id, 'a reversed pair finds the mail route');
   assert.equal(validateRoutePlan(served, { mode: 'road', cargo: 'passengers', from: pair[0], to: pair[1] }).existingRouteId, null, 'passengers are a route of their own');
@@ -236,7 +236,7 @@ test('headlines, search and the start of town service treat mail as town traffic
   assert.equal(arrivalRoute(game, east)?.id, route.id);
   const [entry] = detectHeadlines(game, watch);
   assert.equal(entry.title, 'Citizens celebrate as the first mail truck arrives in Pinehaven');
-  assert.equal(entry.art, 'truck'); assert.match(entry.detail, /linked by Alderbrook – Pinehaven mail\.$/);
+  assert.equal(entry.art, 'truck'); assert.match(entry.detail, /linked by Alderbrook – Pinehaven — mail\.$/);
   assert.deepEqual(filterRoutes(game, { query: 'mail truck' }).map(item => item.id), [route.id]);
   assert.deepEqual(filterRoutes(game, { query: 'bus' }), []);
 });

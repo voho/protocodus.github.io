@@ -43,6 +43,7 @@ import { normalizeTerrainHeight } from './terrain-view.js';
 import { drawTerrainMesh, paintTerrainTile } from './terrain-mesh.js';
 import { partitionScenery, transferSceneryGroups, createSceneryBudget } from './scenery-batches.js';
 import { createRouteRenderIndex } from './route-render-index.js';
+import { routePreviewAlpha } from './route-preview-motion.js';
 import { lineFor, lineColor, validRouteNumber } from './route-lines.js';
 import { COLORS, STATES, MAP, FONT, alpha } from './design-tokens.js';
 import { networkIndex } from './network-index.js';
@@ -87,7 +88,7 @@ const titleCase=s=>String(s||'Industry').replace(/[-_]/g,' ').replace(/\b\w/g,c=
 export function createRenderer(canvas, initialGame, options={}) {
   let game=initialGame,ctx=canvas.getContext('2d'),W=1,H=1,dpr=1;
   let layers=normalizeLayers(options.layers||DEFAULT_LAYERS),heightStep=normalizeTerrainHeight(options.heightStep);
-  let stopPickingMode=null;
+  let stopPickingActive=false,stopPickingMode=null;
   // Terrain projection is local to this renderer. Levels used by construction,
   // bridges, routes and saves keep their original meaning.
   const projectGround=(world,u,v)=>projectGroundAtHeight(world,u,v,heightStep);
@@ -140,6 +141,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   let sceneBuilds=0,scenePatches=0,foundationBuilds=0,projectedOrigin=null,lazyChunkBudget=LAZY_CHUNKS_PER_FRAME,lazyChunksWaiting=0;
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
+  let routePreviewStats={active:false,animated:false,alpha:1,segments:0,endpoints:0,mode:null};
   const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
   function routeBreak(r){const key=`${game.networkRevision||0}:${r.path.length}`;let entry=routeBreakPoints.get(r);if(entry?.key!==key)routeBreakPoints.set(r,entry={key,at:routeBreakPoint(game,r)});return entry.at;}
   // New homes move markers and nameplates without touching the network, so overlays also follow the site journal.
@@ -505,7 +507,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   // Stop signs float above their tile. The topmost sign within two pixels wins;
   // failing that, the sign whose centre is nearest, if its box lies within slop.
   function stationAtMarker(clientX,clientY,{slop=0}={}){
-    if(!layers.stations&&!stopPickingMode)return null;
+    if(!layers.stations&&!stopPickingActive)return null;
     const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,stations=game.stations||[];let best=null,nearest=Infinity;
     for(let i=stations.length-1;i>=0;i--){
       const st=stations[i],q=signTile(st);if(!visible(q.x,q.y))continue;
@@ -544,11 +546,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     const near=slop&&stationAtMarker(clientX,clientY,{slop});if(near)return{x:near.x,y:near.y};
     const picked=screenToTile(clientX,clientY),site=tile(picked.x,picked.y)&&inspectSiteAt(picked.x,picked.y);
-    // A reserved site remains clickable across its full footprint,
-    // including open yards beneath neighboring overhanging tree crowns.
-    if(site)return{x:site.x,y:site.y};
     // Roofs and tree crowns extend behind their ground parcel. Pick the last
     // visible opaque sprite pixel, matching the same back-to-front draw order.
+    // A visible station roof can cross a reserved neighboring parcel; other
+    // sprites retain that parcel's clickable yard beneath overhanging crowns.
     const origin=cameraPoint();
     for(let i=objectHits.length-1;i>=0;i--){const hit=objectHits[i];
       // Cached strips retain the source sprite masks in world coordinates.
@@ -556,9 +557,9 @@ export function createRenderer(canvas, initialGame, options={}) {
       const hx=hit.world?(hit.x-origin.x)*camera.zoom+W/2:hit.x,hy=hit.world?(hit.y-origin.y)*camera.zoom+H/2:hit.y,hw=hit.w*(hit.world?camera.zoom:1),hh=hit.h*(hit.world?camera.zoom:1);
       if(x<hx||y<hy||x>=hx+hw||y>=hy+hh)continue;
       const sx=Math.floor((x-hx)/hw*hit.image.width),sy=Math.floor((y-hy)/hh*hit.image.height);
-      if(opaqueAt(hit.image,sx,sy))return{x:hit.tx,y:hit.ty};
+      if(opaqueAt(hit.image,sx,sy))return site&&!hit.station?{x:site.x,y:site.y}:{x:hit.tx,y:hit.ty};
     }
-    return picked;
+    return site?{x:site.x,y:site.y}:picked;
   }
   function setGame(next){lastSceneCamera=null;lastCameraMotion=-Infinity;game=next;presentationMotion=null;presentationDay=null;presentationSources=new WeakMap();frameVehicles.length=0;airPoses.clear();clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();}
   const natureVariant=(x,y,t)=>placedNatureVariant(game,x,y,t);
@@ -941,7 +942,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const key=`${camera.zoom},${W},${H},${dpr},${sceneCache?.visualRevision||0}`;
     const sourceDraws=sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers?sceneryView.sourceDraws:sceneryBatchDraws+sceneryDirectDraws;
     const sparse=sourceDraws<sceneryViewMinimumDraws(bytes);
-    const allowed=!stopPickingMode&&sceneryBatching&&options.sceneryViewCaching!==false&&!traffic&&!sparse&&bytes<=sceneryViewLimit&&sceneCache?.key===sceneKey&&!sceneCache.dirty;
+    const allowed=!stopPickingActive&&sceneryBatching&&options.sceneryViewCaching!==false&&!traffic&&!sparse&&bytes<=sceneryViewLimit&&sceneCache?.key===sceneKey&&!sceneCache.dirty;
     const viewLeft=Math.round((origin.x-W/(2*camera.zoom))*rasterScale)/rasterScale,viewTop=Math.round((origin.y-H/(2*camera.zoom))*rasterScale)/rasterScale;
     const viewBounds={left:viewLeft,right:viewLeft+canvas.width/rasterScale,top:viewTop,bottom:viewTop+canvas.height/rasterScale};
     const valid=allowed&&sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers&&viewBounds.left>=sceneryView.bounds.left&&viewBounds.right<=sceneryView.bounds.right&&viewBounds.top>=sceneryView.bounds.top&&viewBounds.bottom<=sceneryView.bounds.bottom;
@@ -992,11 +993,13 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Equal keys keep the build's row-major order, which a patch must reproduce.
     const staticCompare=(a,b)=>compare(a,b)||a.tile-b.tile;
     // An airport's tower, terminal, hangar, depot, masts and windsock are prepared images, each sorted by its front corner.
-    const airportHit=(r,ap)=>{if(capturedBillboards){capturedBillboards.push({image:r.image,x:r.x,y:r.y,w:r.w,h:r.h,tx:ap.x,ty:ap.y,world:true});return;}if(sceneCaptureBounds){objectHits.push({image:r.image,x:r.x,y:r.y,w:r.w,h:r.h,tx:ap.x,ty:ap.y,world:true});return;}const o=cameraPoint();objectHits.push({image:r.image,x:(r.x-o.x)*camera.zoom+W/2,y:(r.y-o.y)*camera.zoom+H/2,w:r.w*camera.zoom,h:r.h*camera.zoom,tx:ap.x,ty:ap.y});};
+    // Upright infrastructure keeps its exact prepared image as the picking
+    // mask, including roofs and canopies beyond the station's ground tile.
+    const structureHit=(r,site)=>{if(!r)return;if(capturedBillboards){capturedBillboards.push({image:r.image,x:r.x,y:r.y,w:r.w,h:r.h,tx:site.x,ty:site.y,station:true,world:true});return;}if(sceneCaptureBounds){objectHits.push({image:r.image,x:r.x,y:r.y,w:r.w,h:r.h,tx:site.x,ty:site.y,station:true,world:true});return;}const o=cameraPoint();objectHits.push({image:r.image,x:(r.x-o.x)*camera.zoom+W/2,y:(r.y-o.y)*camera.zoom+H/2,w:r.w*camera.zoom,h:r.h*camera.zoom,tx:site.x,ty:site.y,station:true});};
     const addAirport=ap=>{
       const own=sceneTile;sceneTile=-1;
       const o=projectPoint(ap.x*TILE,ap.y*TILE);o.y-=surfaceHeight(game,ap.x,ap.y)*heightStep;
-      for(const kind of Object.keys(PART_FRONTS)){const [u,v]=PART_FRONTS[kind],w=localToWorld(ap.axis,u,v),dx=ap.x+w.x-.5,dy=ap.y+w.y-.5,box=PART_BOXES[ap.axis][kind];cullPoint=projectTile(dx,dy);add(dx,dy,()=>airportHit(airportSprites.part(ctx,kind,ap.axis,o.x,o.y),ap),0,spriteBounds(o.x+box.left-2,o.y+box.top-2,box.width+4,box.height+4));}
+      for(const kind of Object.keys(PART_FRONTS)){const [u,v]=PART_FRONTS[kind],w=localToWorld(ap.axis,u,v),dx=ap.x+w.x-.5,dy=ap.y+w.y-.5,box=PART_BOXES[ap.axis][kind];cullPoint=projectTile(dx,dy);add(dx,dy,()=>structureHit(airportSprites.part(ctx,kind,ap.axis,o.x,o.y),ap),0,spriteBounds(o.x+box.left-2,o.y+box.top-2,box.width+4,box.height+4));}
       sceneTile=own;
     };
     // One tile's static objects and shadows. A full build walks every tile in view; a patch only the tiles an ecology day changed.
@@ -1045,8 +1048,8 @@ export function createRenderer(canvas, initialGame, options={}) {
         else{const approaches=bridgeApproaches(x,y,t,mode);if(approaches.length)add(x+.05,y+.05,()=>drawBridgeApproach(x,y,t,mode,approaches));}
       }
       if(layers.stations&&st){
-        if(st.mode==='water'){const [dx,dy]=portLandDirection(x,y);add(x,y,()=>infrastructureSprites.port(ctx,dx,dy,p.x,p.y));}
-        else if(st.mode!=='air')add(x+.12,y+.12,()=>infrastructureSprites.stop(ctx,st.mode,p.x+11,p.y+2));
+        if(st.mode==='water'){const [dx,dy]=portLandDirection(x,y);add(x,y,()=>structureHit(infrastructureSprites.portFrame(ctx,dx,dy,p.x,p.y),st));}
+        else if(st.mode!=='air')add(x+.12,y+.12,()=>structureHit(infrastructureSprites.stopFrame(ctx,st.mode,p.x+11,p.y+2),st));
       }
       // The first tile of an airport seen adds all its parts, so a half-visible site still stands.
       if(layers.stations&&ap&&!uprights.has(ap)){uprights.add(ap);addAirport(ap);cullPoint=p;}
@@ -1115,7 +1118,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // any moving object falls back to its entries; complete stationary runs
     // are a single native-pixel blit, with the original sprite picking masks.
     objects.sort(compare);let moving=0;sceneryBatchDraws=0;sceneryDirectDraws=0;
-    const drawStatic=object=>{if(!stopPickingMode||!object.dimEligible){object.draw();return;}ctx.save();ctx.globalAlpha*=.28;object.draw();ctx.restore();};
+    const drawStatic=object=>{if(!stopPickingActive||!object.dimEligible){object.draw();return;}ctx.save();ctx.globalAlpha*=.28;object.draw();ctx.restore();};
     const drawOriginal=object=>{while(moving<objects.length&&compare(objects[moving],object)<0)objects[moving++].draw();if(inView(object)){drawStatic(object);sceneryDirectDraws++;}};
     if(!sceneCache.readyGroups||trafficPan){
       // Until strips are ready, retain the original linear static merge.
@@ -1126,7 +1129,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       while(moving<objects.length&&compare(objects[moving],first)<0)objects[moving++].draw();
       if(group.image&&!visibleRectangle(group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale))continue;
       if(!group.image||(moving<objects.length&&compare(objects[moving],last)<0)||!group.objects.every(object=>inView(object)||!visibleRectangle(object.bounds.left,object.bounds.top,object.bounds.right-object.bounds.left,object.bounds.bottom-object.bounds.top))){for(const object of group.objects)drawOriginal(object);continue;}
-      ctx.save();ctx.imageSmoothingEnabled=false;if(stopPickingMode&&first.dimEligible)ctx.globalAlpha*=.28;
+      ctx.save();ctx.imageSmoothingEnabled=false;if(stopPickingActive&&first.dimEligible)ctx.globalAlpha*=.28;
       ctx.drawImage(group.image,group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale);ctx.restore();
       sceneryBatchDraws++;
       for(const hit of group.hits)if(visibleRectangle(hit.x,hit.y,hit.w,hit.h))objectHits.push(hit);
@@ -1431,7 +1434,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   function render(now,view={}){
     lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[],preferredMode='road'}=view;
-    stopPickingMode=['road','rail','water','air'].includes(view.stopPicking?.mode)?view.stopPicking.mode:null;
+    stopPickingActive=Boolean(view.stopPicking);stopPickingMode=['road','rail','water','air'].includes(view.stopPicking?.mode)?view.stopPicking.mode:null;
     // A hovered reference (DESIGN.md 7.3): a route lights as highlightRoute does and wears its bullet at both ends; a town, industry,
     // stop or vehicle gets the orange locator ring, fading in over 120 ms (at once under reduced motion).
     stepCamera(now);shownBullets.clear();const hoverRef=typeof view.hoverRef==='string'?view.hoverRef:null,refAt=hoverRef?hoverRef.indexOf(':'):-1,refKind=refAt>0?hoverRef.slice(0,refAt):'',refId=refAt>0?hoverRef.slice(refAt+1):'';
@@ -1561,6 +1564,27 @@ export function createRenderer(canvas, initialGame, options={}) {
     function ring(x,y,radius){surfacePath(Array.from({length:80},(_,i)=>[x+.5+Math.cos(i/80*TAU)*radius,y+.5+Math.sin(i/80*TAU)*radius]));}
     // A highlighted route is restroked above the scenery, even with the routes layer off, and rings both of its stops.
     if(focusRoute?.path?.length){const cached=routeDrawing(focusRoute,routeKey);if(cached.count)strokeRoute(focusRoute,cached,1,true);for(const id of focusRoute.stops||[]){const s=(game.stations||[]).find(st=>st.id===id);if(!s)continue;if(s.mode==='air'){outline(s,stationSpan(s),{color:lineFor(focusRoute).fill,width:2.5,casing:alpha(COLORS.paper,.7),casingWidth:5});continue;}ring(s.x,s.y,21/TILE);ctx.strokeStyle=alpha(COLORS.paper,.7);ctx.lineWidth=5/camera.zoom;ctx.stroke();ctx.strokeStyle=lineFor(focusRoute).fill;ctx.lineWidth=2.5/camera.zoom;ctx.stroke();}}
+    // A draft is only a display overlay: reuse the route's bounded projection,
+    // without adding it to game routes, scenery pictures or object hit targets.
+    // Keep its object/path stable between endpoint changes for cached playback.
+    const draft=view.draftRoutePreview,draftStops=draft?.stops?.slice(0,2).map(id=>stationById.get(id)),draftValid=Boolean(draft?.path?.length>=2&&['road','rail','water','air'].includes(draft.mode)&&draftStops?.length===2&&draftStops.every(s=>s&&s.mode===draft.mode)&&draftStops[0]!==draftStops[1]);
+    routePreviewStats={active:draftValid,animated:draftValid&&!reducedMotion,alpha:draftValid?routePreviewAlpha(now,reducedMotion):1,segments:0,endpoints:0,mode:draftValid?draft.mode:null};
+    if(draftValid){
+      const cached=routeDrawing(draft,routeKey),z=camera.zoom,core=(MAP.line.core[detailLevel]||MAP.line.core.town)+MAP.line.emphasis;
+      ctx.save();ctx.globalAlpha=routePreviewStats.alpha;ctx.lineJoin=ctx.lineCap='round';
+      if(cached.count){
+        ctx.setLineDash([9/z,6/z]);ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=(core+3)/z;ctx.stroke(cached.drawing);
+        ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=core/z;ctx.stroke(cached.drawing);ctx.setLineDash([]);
+        routePreviewStats.segments=cached.count;
+      }
+      for(const s of draftStops){
+        const q=signTile(s);if(!visible(q.x,q.y))continue;
+        if(s.mode==='air')outline(s,stationSpan(s),{color:MAP.cursor.color,width:2.5,casing:MAP.cursor.casing,casingWidth:5});
+        else{ring(s.x,s.y,25/TILE);ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=5/z;ctx.stroke();ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=2.5/z;ctx.stroke();}
+        routePreviewStats.endpoints++;
+      }
+      ctx.restore();
+    }
     // A span is a square side or, for an airport, its {w, h}.
     function footprintPath(p,span=1,fresh=true){
       const {w,h}=typeof span==='number'?{w:span,h:span}:span,points=[],inset=.035,across=w-inset*2,down=h-inset*2;
@@ -1672,10 +1696,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     // bullets that miss the town names. A roundel stepped off a label or another stop keeps a thin stem to its stop.
     signStats={drawn:0,active:0,idle:0,broken:0,named:0};signRects.length=0;signEnds.clear();
     if(layers.stations){const calls=stopCalls(),region=detailLevel==='region',radius=ROUNDEL[detailLevel]||ROUNDEL.town;for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x),q=signTile(st);if(!sign||!visible(q.x,q.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,cx=x+sign.size/2,cy=y+sign.size/2,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken';if(sign.stem)line(ctx,[[cx,cy],[sign.stem.x+shift.x,sign.stem.y+shift.y]],alpha(COLORS.ink,.35),1);roundel(cx,cy,radius,state==='idle'?MAP.roundel.unusedRing:state==='broken'?STATES.error.color:MAP.roundel.ring);const end=stopBullets(st,routes,cx+radius+3,cy,region);signRects.push({x,y,w:Math.max(sign.size,end-x),h:sign.size});signEnds.set(st,end);signStats.drawn++;signStats[state]++;}}
-    if(stopPickingMode){
+    if(stopPickingActive){
       const pulse=view.stopPicking.reducedMotion||motionPreference?.matches?1:.78+.16*Math.sin(now/550);
       for(const st of game.stations||[]){
-        const q=signTile(st);if(st.mode!==stopPickingMode||!visible(q.x,q.y))continue;
+        const q=signTile(st);if(stopPickingMode&&st.mode!==stopPickingMode||!visible(q.x,q.y))continue;
         const marker=stationMarker(st),cx=marker.x+marker.size/2,cy=marker.y+marker.size/2,chosen=st.id===view.stopPicking.selectedId||routeStops.includes(st.id),radius=(ROUNDEL[detailLevel]||ROUNDEL.town)+6;
         ctx.save();ctx.globalAlpha=chosen?1:pulse;ctx.beginPath();ctx.arc(cx,cy,radius,0,TAU);ctx.strokeStyle=MAP.selection.casing;ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle=chosen?MAP.selection.color:MAP.roundel.ring;ctx.lineWidth=2;ctx.stroke();ctx.restore();
         if(!layers.stations)roundel(cx,cy,ROUNDEL[detailLevel]||ROUNDEL.town,MAP.roundel.ring);
@@ -1800,5 +1824,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     return [...selected];
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),waterMotion:{builds:waterMotionBuilds,...waterMotionStats},terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,viewPanDraws:sceneryViewPanDraws,reuses:sceneryBatchReuses,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,cameraMoving:sceneryCameraMoving,waitingForCamera:false,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),waterMotion:{builds:waterMotionBuilds,...waterMotionStats},terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,viewPanDraws:sceneryViewPanDraws,reuses:sceneryBatchReuses,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,cameraMoving:sceneryCameraMoving,waitingForCamera:false,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,routePreview:{...routePreviewStats},highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

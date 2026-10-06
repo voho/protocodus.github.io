@@ -45,13 +45,19 @@
   <div id="app" inert aria-busy="true">
     <header class="topbar">
       <a class="wordmark" href="/fun/" aria-label="Transport — back to games"><span class="brand-symbol" aria-hidden="true">t</span><span class="wordmark-text">transport<span class="wordmark-dot">.</span></span></a>
-      <nav class="main-nav" aria-label="Game views">
-        <button class="nav-button active" data-view="build" title="Build (Shift+B)" aria-keyshortcuts="Shift+B"><span data-icon="build"></span> Build</button>
-        <button class="nav-button" data-view="routes" title="Routes (Shift+R)" aria-keyshortcuts="Shift+R"><span data-icon="routes"></span> Routes</button>
-        <button class="nav-button" data-view="industry" title="Industries (Shift+I)" aria-keyshortcuts="Shift+I"><span data-icon="industry"></span> Industries</button>
+      <nav class="main-nav" aria-label="Game views and construction tools">
+        <button class="nav-button active" data-view="build" aria-label="Build" title="Build (Shift+B)" aria-keyshortcuts="Shift+B"><span data-icon="build"></span><span class="nav-label">Build</span></button>
+        <button class="nav-button" data-view="routes" aria-label="Routes" title="Routes (Shift+R)" aria-keyshortcuts="Shift+R"><span data-icon="routes"></span><span class="nav-label">Routes</span></button>
+        <button class="nav-button" data-view="industry" aria-label="Industries" title="Industries (Shift+I)" aria-keyshortcuts="Shift+I"><span data-icon="industry"></span><span class="nav-label">Industries</span></button>
         <button class="nav-button" data-open-chains aria-haspopup="dialog" title="Production chains (C)"><span data-icon="chains"></span> Chains</button>
-        <button class="nav-button" data-view="towns" title="Towns (Shift+T)" aria-keyshortcuts="Shift+T"><span data-icon="town"></span> Towns</button>
-        <button class="nav-button" data-open-gallery aria-haspopup="dialog" title="Building and object gallery"><span data-icon="house"></span> Gallery</button>
+        <button class="nav-button" data-view="towns" aria-label="Towns" title="Towns (Shift+T)" aria-keyshortcuts="Shift+T"><span data-icon="town"></span><span class="nav-label">Towns</span></button>
+        <button class="nav-button" data-open-gallery aria-label="Gallery" aria-haspopup="dialog" title="Building and object gallery"><span data-icon="house"></span><span class="nav-label">Gallery</span></button>
+        <div class="main-nav-build-tools" role="group" aria-label="Construction tools">
+          <button class="nav-button toolbar-tool" type="button" data-toolbar-tool="road" aria-label="Build road" aria-pressed="false" title="Build road (R)" aria-keyshortcuts="R"><span data-icon="road"></span><span class="nav-label">Road</span></button>
+          <button class="nav-button toolbar-tool" type="button" data-toolbar-tool="rail" aria-label="Build railway" aria-pressed="false" title="Build railway (T)" aria-keyshortcuts="T"><span data-icon="rail"></span><span class="nav-label">Railway</span></button>
+          <button class="nav-button toolbar-tool" type="button" data-toolbar-tool="stop" aria-label="Build stop" aria-pressed="false" title="Build stop (S)" aria-keyshortcuts="S"><span data-icon="stop"></span><span class="nav-label" data-toolbar-label>Stop</span></button>
+          <button class="nav-button toolbar-tool" type="button" data-toolbar-tool="bulldoze" aria-label="Bulldozer" aria-pressed="false" title="Bulldozer (X)" aria-keyshortcuts="X"><span data-icon="bulldoze"></span><span class="nav-label">Bulldozer</span></button>
+        </div>
       </nav>
       <div class="hud-finance-wrap">
         <button class="hud-finances" id="company-stats" aria-label="Company finances and statistics" aria-describedby="company-tooltip" aria-expanded="false">

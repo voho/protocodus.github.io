@@ -1,4 +1,4 @@
-import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH } from './model.js';
+import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH, MAX_VEHICLES, validVehicleCount } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
 import { FULL_LOAD_MAX_WAIT } from './model.js';
 import { workshopLevels, workshopOutputs } from './town-market.js';
@@ -30,17 +30,17 @@ export function routeCargoList(game) {
 }
 
 // Match the launch rules without buying a vehicle or changing the world.
-export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
+export function validateRoutePlan(game, draft, { ignoreFunds = false, ignoreFleet = false } = {}) {
   const mode = draft.mode, cargo = draft.cargo;
+  const vehicleCount = draft.vehicleCount === undefined ? 1 : draft.vehicleCount, purchase = getVehiclePurchase(game, mode);
   const stations = [draft.from, draft.to].map(id => game.stations.find(stop => String(stop.id) === String(id)));
-  const result = { valid: false, connected: false, state: 'missing', stations, path: null, reversed: false };
+  const result = { valid: false, connected: false, state: 'missing', stations, path: null, reversed: false, vehicleCount, cost: purchase && validVehicleCount(vehicleCount) ? purchase.cost * vehicleCount : 0 };
   const fail = message => ({ ...result, message });
-  if (!['road', 'rail', 'water', 'air'].includes(mode) || !Object.hasOwn(CARGO, cargo)) return fail('Choose transport and cargo.');
+  if (!['road', 'rail', 'water', 'air'].includes(mode)) return fail('Choose transport.');
   if (!stations[0]) return fail('Select a start stop on the map or from the list.');
   if (!stations[1]) return fail('Select an end stop on the map or from the list.');
   if (stations.some(stop => stop.mode !== mode)) return fail(`Choose two ${mode === 'water' ? 'ports' : mode === 'rail' ? 'rail stations' : mode === 'air' ? 'airports' : 'road stops'}.`);
   if (stations[0].id === stations[1].id) return fail('Choose two different stops.');
-  if (mode === 'air' && !isTownTraffic(cargo)) return fail('Planes carry passengers and mail.');
   const key = [game.networkRevision || 0, mode, ...stations.flatMap(stop => [stop.id, stop.x, stop.y])].join(':');
   let cached = pathCache.get(game);
   if (!cached || cached.key !== key) {
@@ -56,6 +56,8 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   result.state = 'connected';
   if (result.path.length < 3) return fail('Stops are too close. Leave at least two tiles of travel.');
   if (mode === 'air' && result.path.length - 1 < AIRPORT_MIN_TILES) return fail(`Airports must be at least ${AIRPORT_MIN_TILES} tiles apart for a flight.`);
+  if (!Object.hasOwn(CARGO, cargo)) return fail('Choose cargo available at these stops.');
+  if (mode === 'air' && !isTownTraffic(cargo)) return fail('Planes carry passengers and mail.');
   const coverage = stations.map(stop => stationCoverage(game, stop));
   if (isTownTraffic(cargo)) {
     if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : sharedCargoGap(game, stations, coverage) || 'Connected, but each stop needs a different town within 5 tiles.');
@@ -66,15 +68,25 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false } = {}) {
   // The same stops and cargo can take another vehicle instead of a duplicate service.
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;
   result.existingRouteId = game.routes.find(route => route.mode === mode && route.cargo === cargo && (route.stops[0] === first.id && route.stops[1] === second.id || isTownTraffic(cargo) && route.stops[0] === second.id && route.stops[1] === first.id))?.id ?? null;
-  if (!ignoreFunds && game.money < getVehiclePurchase(game,mode).cost) return fail(`Connected. Need ${money(getVehiclePurchase(game,mode).cost)} for the first ${vehicleNoun(mode, cargo)}.`);
+  if (!validVehicleCount(vehicleCount)) return fail(`Choose a whole number of vehicles from 1 to ${MAX_VEHICLES.toLocaleString('en-US')}.`);
+  if (!ignoreFleet && game.vehicles.length + vehicleCount > MAX_VEHICLES) return fail(game.vehicles.length >= MAX_VEHICLES ? 'Your fleet has reached 10,000 vehicles.' : `Only ${MAX_VEHICLES - game.vehicles.length} more vehicles fit in your fleet (10,000 maximum).`);
+  if (!ignoreFunds && game.money < result.cost) return fail(vehicleCount === 1 ? `Connected. Need ${money(result.cost)} for the first ${vehicleNoun(mode, cargo)}.` : `Connected. Need ${money(result.cost)} for ${vehicleCount} ${vehicleNoun(mode, cargo, vehicleCount)}.`);
   return { ...result, valid: true, message: mode === 'air' ? `Flight, ${tiles(result.path.length - 1)}.` : `Connected by ${mode === 'water' ? 'water' : mode}, ${tiles(result.path.length - 1)}.${result.reversed ? ' Loads at the end stop.' : ''}` };
 }
 
-// Every biome cargo with its verdict for these stops, fitting cargo first:
-// loaded at the start, then loaded at the end, then passengers, then mail. Empty until connected.
+// A supplier counts even with an empty stockpile: its next output can load here.
+// Buyers alone do not add cargo choices, and an unconnected pair still shows its supplies.
+export function routeAvailableCargo(game, draft) {
+  const stations = [draft.from, draft.to].map(id => game.stations.find(stop => String(stop.id) === String(id)));
+  if (stations.some(stop => !stop || stop.mode !== draft.mode) || stations[0].id === stations[1].id) return [];
+  const supplied = new Set(stations.flatMap(stop => stationCoverage(game, stop).produces));
+  return Object.keys(CARGO).filter(cargo => supplied.has(cargo) && (draft.mode !== 'air' || isTownTraffic(cargo)));
+}
+
+// Cargo supplied at either stop, fitting choices first: loaded at the start,
+// loaded at the end, passengers, then mail. Purchase limits do not hide cargo.
 export function routeCargoOptions(game, draft) {
-  const plans = routeCargoList(game).map(cargo => [cargo, validateRoutePlan(game, { ...draft, cargo }, { ignoreFunds: true })]);
-  if (!plans[0]?.[1].connected) return [];
+  const plans = routeAvailableCargo(game, draft).map(cargo => [cargo, validateRoutePlan(game, { ...draft, cargo, vehicleCount: 1 }, { ignoreFunds: true, ignoreFleet: true })]);
   const rank = ([cargo, plan]) => !plan.valid ? 3 : cargo === 'mail' ? 2.5 : cargo === 'passengers' ? 2 : plan.reversed ? 1 : 0;
   return plans.sort((a, b) => rank(a) - rank(b)).map(([cargo, plan]) => ({ cargo, valid: plan.valid, reversed: plan.reversed, message: plan.message }));
 }
@@ -82,7 +94,7 @@ export function routeCargoOptions(game, draft) {
 // The timetable of scheduledDays: travelSpeed's base tiles per day, less the typical share weather, grade,
 // traffic and daily variation cost (an eighth on land, more on water), and about .2 days at each stop.
 const roundTrip = (mode, tiles, level) => 2 * scheduledDays(mode, tiles, level);
-const fleetRate = (game, route) => { const fleet = getRouteFleet(game, route.id); return route.active && fleet.count ? fleet.capacity / roundTrip(route.mode, travelTiles(route.mode, route.path), fleet.minLevel) : 0; };
+const fleetRate = (game, route, projectedRoute = null) => { const fleet = getRouteFleet(game, route.id), service = projectedRoute?.id === route.id ? projectedRoute : route; return service.active && fleet.count ? fleet.capacity / roundTrip(route.mode, travelTiles(route.mode, service.path), fleet.minLevel) : 0; };
 const near = (a, b, reach) => Math.abs(a.x - b.x) <= reach && Math.abs(a.y - b.y) <= reach;
 const forecastCache = new WeakMap(), HORIZON = 180, REVIEW_DAYS = 33;
 
@@ -98,14 +110,15 @@ function averageCapacity(game, industry, productivity, shipped) {
 // A site's daily output of one cargo once the loading stop serves it. A raw producer grows while its
 // output is carried away; a factory is held to what it made lately or to the ingredients your routes
 // bring, whichever is more.
-function siteSupply(game, industry, cargo, { stops, covers }, from) {
+function siteSupply(game, industry, cargo, { stops, covers, excludeRouteId, projectedRoute }, from) {
   const definition = INDUSTRIES[industry.kind], inputs = Object.entries(definition.inputs), output = definition.outputs[cargo];
   const productivity = industryConditions(game, industry, from).productivity, potential = output * industry.capacity * productivity;
   if (!inputs.length) return output * averageCapacity(game, industry, productivity, potential) * productivity;
   const inflow = new Map(inputs.map(([input]) => [input, 0]));
   for (const route of game.routes) {
+    if (route.id === excludeRouteId) continue;
     const stop = inflow.has(route.cargo) && stops.get(route.stops[1]);
-    if (stop && near(stop, industry, 8) && covers(stop).industries.includes(industry)) inflow.set(route.cargo, inflow.get(route.cargo) + fleetRate(game, route));
+    if (stop && near(stop, industry, 8) && covers(stop).industries.includes(industry)) inflow.set(route.cargo, inflow.get(route.cargo) + fleetRate(game, route, projectedRoute));
   }
   const fed = Math.min(...inputs.map(([input, amount]) => inflow.get(input) / amount)) * output;
   const recent = (industry.production || 0) * output / Object.values(definition.outputs).reduce((sum, n) => sum + n, 0);
@@ -113,34 +126,36 @@ function siteSupply(game, industry, cargo, { stops, covers }, from) {
 }
 // Daily cargo left for a new vehicle at each loading end: one flow for freight, one per town for
 // passengers or mail, after the routes that already load there take what their fleets carry.
-function loadingFlows(game, from, to, cargo) {
+function loadingFlows(game, from, to, cargo, excludeRouteId = null, projectedRoute = null) {
   const stops = new Map(game.stations.map(stop => [stop.id, stop])), coverage = new Map(), day = Math.floor(game.day);
   const covers = stop => { if (!coverage.has(stop)) coverage.set(stop, stationCoverage(game, stop)); return coverage.get(stop); };
   if (isTownTraffic(cargo)) {
     const towns = passengerEndpoints(game, from, to), taken = new Map(towns.map(town => [town.id, 0]));
-    for (const route of game.routes) if (route.cargo === cargo && route.active) {
+    for (const route of game.routes) if (route.id !== excludeRouteId && route.cargo === cargo && (route.active || route.id === projectedRoute?.id)) {
       const ends = route.stops.map(id => stops.get(id));
-      if (ends.every(Boolean) && ends.some(stop => towns.some(town => near(stop, town, 5)))) for (const town of passengerEndpoints(game, ...ends) || []) if (taken.has(town.id)) taken.set(town.id, taken.get(town.id) + fleetRate(game, route));
+      if (ends.every(Boolean) && ends.some(stop => towns.some(town => stationServes(stop, town)))) for (const town of passengerEndpoints(game, ...ends) || []) if (taken.has(town.id)) taken.set(town.id, taken.get(town.id) + fleetRate(game, route, projectedRoute));
     }
     return towns.map(town => { const made = cargo === 'mail' ? mailRate(town, localEnvironment(game, town.x, town.y)) : passengerArrivals(game, town, day, undefined, undefined, .5); return { made, free: Math.max(0, made - taken.get(town.id)) }; });
   }
   const producers = covers(from).industries.filter(industry => INDUSTRIES[industry.kind].outputs[cargo]);
-  const output = new Map(producers.map(industry => [industry, siteSupply(game, industry, cargo, { stops, covers }, from)]));
+  const output = new Map(producers.map(industry => [industry, siteSupply(game, industry, cargo, { stops, covers, excludeRouteId, projectedRoute }, from)]));
   // A town's workshops send what their levels worked last month, one product for every two materials: nothing until a month has closed.
   const ends = covers(to).cities, towns = covers(from).cities.filter(city => !ends.includes(city) && workshopOutputs(game, city).includes(cargo)).map(city => [city, marketView(game, city).utilization]);
   for (const [city, used] of towns) output.set(city, workshopLevels(game, city) * WORKSHOP.rate * (used || 0) / WORKSHOP.ratio);
   const made = [...output.values()].reduce((sum, n) => sum + n, 0);
   let taken = 0;
   for (const route of game.routes) {
-    const stop = route.cargo === cargo && route.active && stops.get(route.stops[0]);
-    if (stop && near(stop, from, 16)) taken += Math.min(fleetRate(game, route), [...covers(stop).industries, ...covers(stop).cities].reduce((sum, site) => sum + (output.get(site) || 0), 0));
+    if (route.id === excludeRouteId) continue;
+    const stop = route.cargo === cargo && (route.active || route.id === projectedRoute?.id) && stops.get(route.stops[0]);
+    if (stop && near(stop, from, 16)) taken += Math.min(fleetRate(game, route, projectedRoute), [...covers(stop).industries, ...covers(stop).cities].reduce((sum, site) => sum + (output.get(site) || 0), 0));
   }
   return [{ made, free: Math.max(0, made - taken), pending: towns.some(([, used]) => used === undefined) }];
 }
 // Track, structures and stops a new route would share: each item's upkeep is split among its routes, as in maintenance.
-function infrastructureShare(game, mode, path, stations) {
+function infrastructureShare(game, mode, path, stations, excludeRouteId = null) {
   const users = new Map(), use = key => users.set(key, (users.get(key) || 0) + 1);
   for (const route of game.routes) {
+    if (route.id === excludeRouteId) continue;
     if ((mode === 'road' || mode === 'rail') && route.mode === mode) for (const point of route.path) use(point.y * game.width + point.x);
     for (const id of route.stops) use(`station:${id}`);
   }
@@ -153,42 +168,51 @@ function infrastructureShare(game, mode, path, stations) {
   return share;
 }
 function computeForecast(game, draft, plan) {
-  if (!plan.valid) return null;
-  const { mode, cargo } = draft, purchase = getVehiclePurchase(game, mode), tiles = travelTiles(mode, plan.path), paid = payTiles(plan.path), joining = Boolean(plan.existingRouteId);
-  const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations, flows = loadingFlows(game, from, to, cargo);
+  const vehicleCount = draft.vehicleCount === undefined ? 1 : draft.vehicleCount;
+  if (!plan.valid || !validVehicleCount(vehicleCount)) return null;
+  const { mode, cargo } = draft, editing = game.routes.find(route => route.id === draft.editing), retained = editing && getRouteFleet(game, editing.id);
+  if (editing && (!retained.count || retained.count !== vehicleCount)) return null;
+  const purchase = editing ? { level: retained.minLevel, capacity: retained.capacity / retained.count, cost: 0 } : getVehiclePurchase(game, mode);
+  const tiles = travelTiles(mode, plan.path), paid = payTiles(plan.path), joining = !editing && Boolean(plan.existingRouteId);
+  // A validated existing service will resume on this path when the order is
+  // bought, even if a paused repair has not refreshed its cached active flag.
+  const projectedRoute = joining ? { id: plan.existingRouteId, path: plan.path, active: true } : null;
+  const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations, flows = loadingFlows(game, from, to, cargo, editing?.id, projectedRoute);
   const oneWay = purchase.capacity / roundTrip(mode, tiles, purchase.level), perVehicleDay = oneWay * flows.length;
-  const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay, flow.free), 0);
+  const capacityDay = perVehicleDay * vehicleCount, cost = purchase.cost * vehicleCount;
+  const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay * vehicleCount, flow.free), 0);
   // With full load a freight vehicle stands at the start for the share of its round trips the supply cannot fill, at the
   // idle 45% of its upkeep, and what boards during a wait rides along for about half of it. A supply that fills it never waits.
-  const full = draft.fullLoad === true && !isTownTraffic(cargo), moving = full ? Math.min(1, supplyDay / perVehicleDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity / Math.max(.01, supplyDay)) / 2 : 0;
+  const full = draft.fullLoad === true && !isTownTraffic(cargo), moving = full ? Math.min(1, supplyDay / capacityDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity * vehicleCount / Math.max(.01, supplyDay)) / 2 : 0;
   // One trip's days on the way set the share of the fare a delivery keeps.
   const days = Math.round(scheduledDays(mode, tiles, purchase.level) + wait), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
   // An added vehicle joins its route's share of the network; a new route takes its own.
-  const upkeep = VEHICLE_UPKEEP[mode] * (moving + .45 * (1 - moving)) + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to]));
-  let netMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) - priceFor(game, upkeep * 30);
+  const upkeep = vehicleCount * VEHICLE_UPKEEP[mode] * (moving + .45 * (1 - moving)) + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to], editing?.id));
+  const upkeepMonth = priceFor(game, upkeep * 30);
   // The receiving town's shops pay a quarter more for what they still wanted last month.
   const receiver = TOWN_CARGO.includes(cargo) ? stationCoverage(game, to).cities[0] : null, family = receiver && familyOf(game, cargo), market = family && marketView(game, receiver);
   const marketBonus = market ? MARKET.bonus * perUnit * Math.min(movedDay * 30, Math.max(0, Math.round(market.wants[family] * (1 - market.met[family])))) : 0;
-  netMonth += marketBonus;
+  const revenueMonth = fareFor(game, cargo, paid + 1, movedDay * 30, game.day, days) + marketBonus, netMonth = revenueMonth - upkeepMonth;
   // A plane is compared only once air travel has arrived and an airport serves each end's town.
   const flies = mode !== 'air' && isTownTraffic(cargo) && airAvailable(game) && Boolean(passengerEndpoints(game, from, to)?.every(town => game.stations.some(stop => stop.mode === 'air' && stationServes(stop, town))));
   const otherModes = Object.keys(VEHICLE_SPEEDS).filter(other => other !== mode && (other !== 'air' || flies)).map(other => { const vehicle = getVehiclePurchase(game, other), rate = vehicle.capacity / roundTrip(other, tiles, vehicle.level) * flows.length; return { mode: other, perVehicleDay: rate, ratio: rate / perVehicleDay, share: transitPay(cargo, Math.round(scheduledDays(other, tiles, vehicle.level))) }; });
   return {
-    perVehicleDay, supplyDay, movedDay, netMonth, paybackMonths: netMonth > 0 ? purchase.cost / netMonth : Infinity,
+    vehicleCount, perVehicleDay, capacityDay, supplyDay, movedDay, revenueMonth, upkeepMonth, netMonth, paybackMonths: netMonth > 0 ? cost / netMonth : Infinity,
     vehiclesToSaturate: Math.max(0, Math.ceil(Math.max(...flows.map(flow => flow.free)) / oneWay - 1e-9)), otherModes,
-    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullFare: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost: purchase.cost, joining,
+    madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullFare: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost, unitCost: purchase.cost, joining,
     tiles: paid, travel: tiles, days, share, perUnit, wait,
-    marketBonus, workshopsPending: flows.some(flow => flow.pending),
+    marketBonus, workshopsPending: flows.some(flow => flow.pending), editing: Boolean(editing),
   };
 }
 
-// A rough monthly outlook for one more vehicle on these stops: fares for what it can carry of the
-// cargo not yet taken, less its upkeep and share of the network. Cached per draft, day and revision.
+// A rough monthly outlook for the requested vehicles: fares for the unclaimed
+// cargo they can carry, less their upkeep and one network share. Cached per draft, day and revision.
 export function forecastRoute(game, draft, plan = null) {
-  const key = [game.networkRevision || 0, game.revision, Math.floor(game.day), game.routes.length, game.vehicles.length, draft.mode, draft.from, draft.to, draft.cargo, draft.fullLoad === true].join(':');
+  if (!validVehicleCount(draft.vehicleCount === undefined ? 1 : draft.vehicleCount)) return null;
+  const key = [game.networkRevision || 0, game.revision, Math.floor(game.day), game.routes.length, game.vehicles.length, draft.mode, draft.from, draft.to, draft.cargo, draft.fullLoad === true, draft.vehicleCount ?? 1, draft.editing || ''].join(':');
   const cached = forecastCache.get(game);
   if (cached?.key === key) return cached.forecast;
-  const forecast = computeForecast(game, draft, plan?.valid ? plan : validateRoutePlan(game, draft, { ignoreFunds: true }));
+  const forecast = computeForecast(game, draft, plan?.valid ? plan : validateRoutePlan(game, draft, { ignoreFunds: true, ignoreFleet: true }));
   forecastCache.set(game, { key, forecast });
   return forecast;
 }

@@ -31,7 +31,9 @@ export const states = [
     const stop = await page.evaluate(() => String(transport.game.stations.find(station => station.x === 219 && station.y === 251).id));
     await page.locator('#route-form select[name="from"]').selectOption(stop);
     await page.locator('#route-form select[name="to"]').selectOption('station-2');
-    await page.locator('#route-form select[name="from"]').evaluate(el => el.blur());
+    await page.locator('[data-cargo-choice="stone"]').click();
+    await page.locator('#route-form [name="vehicleCount"]').fill('2');
+    await page.locator('#route-form [name="vehicleCount"]').evaluate(el => el.blur());
     await rest(page);
     await settle(page);
   } },

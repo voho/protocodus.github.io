@@ -337,7 +337,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .offline-routes span{display:none}
 }
 @media(max-width:900px){
- .compact-play .main-nav .nav-button svg{display:none}
  .compact-play .main-nav .nav-button[data-view=industry],.compact-play .main-nav .nav-button[data-view=towns]{display:flex}
  .compact-play .topbar .date-block{display:block}
  .compact-play .topbar .date-block>span{font-size:var(--fs-caption);line-height:var(--lh-caption);margin:0 0 2px}
@@ -410,3 +409,35 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 #app.compact-play #zoom-menu{width:190px}
 #app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden]),#layers-panel:not([hidden]),#map-options:not([hidden]),#zoom-menu:not([hidden]),#game-menu:not([hidden]),.route-pick-banner,.minimap-wrap:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
 @media(prefers-reduced-motion:reduce){#app.compact-play .sidebar{transition:none}}
+/* Everyday construction and the gallery stay on the main rail. Let only this rail scroll when a computer window
+   becomes unusually narrow, so finance, speed and the game menu keep their place. */
+.compact-play .topbar .main-nav{flex:1 1 auto;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--edge) transparent;scroll-padding-inline:4px}
+.compact-play .main-nav .nav-button{flex:0 0 auto;white-space:nowrap}
+.compact-play .topbar .main-nav .nav-button svg{display:block;flex-shrink:0}
+.main-nav-build-tools{display:flex;align-items:center;flex:0 0 auto;gap:4px;padding-left:8px;border-left:1px solid var(--rule)}
+.compact-play .main-nav .toolbar-tool[aria-pressed=true]{background:var(--well);color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:6px}
+.compact-play .main-nav .nav-button:focus-visible{outline-offset:-2px}
+@media(max-width:1580px){
+ .compact-play .main-nav .toolbar-tool .nav-label{display:none}
+ .compact-play .main-nav .toolbar-tool{min-width:40px;justify-content:center;padding:8px}
+}
+@media(max-width:1380px){
+ .compact-play .wordmark-text{display:none}
+ .compact-play .topbar .brand-symbol{margin-right:0}
+ .compact-play .topbar{gap:12px}
+ .compact-play .main-nav .nav-button{padding-left:8px;padding-right:8px}
+}
+@media(max-width:1180px){
+ .compact-play .main-nav [data-view] .nav-label{display:none}
+ .compact-play .main-nav [data-view]{min-width:36px;justify-content:center}
+}
+@media(max-width:720px){
+ /* Finance figures on the second row must not change the navigation's width on the first row. */
+ .compact-play .topbar{grid-template-columns:36px minmax(0,1fr) 36px;gap:0 8px}
+ .compact-play .topbar .hud-finance-wrap{grid-column:1/3;justify-self:start;width:max-content;margin-left:0}
+ .compact-play .topbar .date-block{justify-self:end}
+ .compact-play .topbar .main-nav{justify-content:flex-start;gap:0}
+ .compact-play .main-nav-build-tools{gap:0;padding-left:4px}
+ .compact-play .topbar .main-nav .nav-button{min-width:36px;justify-content:center;padding:6px}
+ .compact-play .topbar .main-nav .toolbar-tool[aria-pressed=true]{padding-bottom:4px}
+}

@@ -18,6 +18,10 @@ try {
  await page.locator('#new-route-button').click();
  assert.equal(await page.locator('#route-list').count(),0,'a new draft has its own screen');
  assert.equal(await page.locator('.panel-heading h2').innerText(),'New route');
+ assert.equal(await page.locator('#route-cargo-step').isHidden(),true,'a new draft asks for stops first');
+ assert.equal(await page.locator('#route-vehicles-step').isHidden(),true,'vehicles follow a cargo choice');
+ assert.equal(await page.locator('#route-forecast').isVisible(),true,'purchase and revenue guidance stay visible from the start');
+ assert.equal(await page.locator('[data-estimate-revenue]').textContent(),'Choose stops');
  await page.locator('[data-pick-route="from"]').click();await page.keyboard.press('Escape');
  await page.locator('#route-pick-banner').waitFor({state:'hidden'});
  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','Escape returns to the new route draft');
@@ -39,7 +43,12 @@ try {
  await page.evaluate(()=>transport.setView('towns'));
  assert.equal(await page.locator('#panel-content').evaluate(panel=>panel.scrollTop),0,'opening a different panel starts at its top');
  await page.evaluate(()=>transport.setView('routes',{routeScreen:'new'}));
- const draftScroll=await page.evaluate(()=>{const panel=document.querySelector('#panel-content');panel.scrollTop=160;const before=panel.scrollTop,mode=document.querySelector('#route-form [name="mode"]');mode.value='rail';mode.dispatchEvent(new Event('change',{bubbles:true}));return{before,after:panel.scrollTop};});
+ const townStops=await page.evaluate(()=>transport.game.stations.filter(stop=>stop.mode==='road').slice(0,2).map(stop=>stop.id));
+ await page.locator('#route-form [name="from"]').selectOption(townStops[0]);
+ await page.locator('#route-form [name="to"]').selectOption(townStops[1]);
+ await page.locator('[data-cargo-choice="passengers"]').click();
+ await page.locator('#change-route-stops').click();
+ const draftScroll=await page.evaluate(()=>{const panel=document.querySelector('#panel-content');panel.scrollTop=160;const before=panel.scrollTop,start=document.querySelector('#route-form [name="from"]');start.dispatchEvent(new Event('change',{bubbles:true}));return{before,after:panel.scrollTop};});
  assert.ok(draftScroll.before>0,'the short computer window has a scrollable route draft');
  assert.equal(draftScroll.after,draftScroll.before,'redrawing the same draft preserves its scroll');
  await page.setViewportSize({width:1280,height:900});
@@ -72,6 +81,8 @@ try {
  const mark=await page.evaluate(stop=>{const p=transport.renderer.stationMarker(stop),r=document.querySelector('#world').getBoundingClientRect();return{x:r.left+p.x,y:r.top+p.y};},stops[0]);
  await page.mouse.click(mark.x,mark.y);await page.locator('#route-pick-banner').waitFor({state:'hidden'});
  assert.equal(await page.locator('#route-form [name="to"]').inputValue(),String(stops[0].id));
+ assert.equal(await page.locator('#route-cargo-step').isVisible(),true,'the destination opens the cargo step');
+ assert.equal(await page.locator('[data-cargo-choice][aria-pressed="true"]').count(),0,'the player still chooses cargo');
  await page.locator('#route-back').click();
  await page.screenshot({path:output+'/route-list.png'});
 

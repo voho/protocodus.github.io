@@ -459,6 +459,11 @@ async function keyboardCursor() {
   await page.keyboard.press('Enter');
   const stops = [String((await stopAt({ x, y })).id), String((await stopAt({ x: x + 3, y })).id)];
   await page.screenshot({ path: `${output}/desktop-keyboard-stop.png` });
+  await page.evaluate(({ x, y }) => {
+    // Give this empty countryside fixture a real source so finishing the map pick can focus a cargo choice.
+    transport.game.industries.push({ id:'keyboard-quarry',kind:'quarry',x:x-2,y:y+2,footprint:1,inventory:{stone:100},capacity:1,activity:0 });
+    transport.game.revision++;
+  }, site.open);
 
   await page.evaluate(() => transport.setView('routes'));
   if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
@@ -471,8 +476,12 @@ async function keyboardCursor() {
   await page.keyboard.press('Enter');
   await page.locator('#route-form').waitFor();
   assert.deepEqual([await page.locator('#route-form [name=from]').inputValue(), await page.locator('#route-form [name=to]').inputValue()], stops, 'Enter picks the start and end stops under the cursor');
-  await page.waitForFunction(() => document.activeElement?.closest('#route-form'), undefined, { timeout: 2000 }).catch(() => {});
-  assert.ok(await page.evaluate(() => document.activeElement?.closest('#route-form')), 'the finished pick moves focus to the route form');
+  await page.waitForFunction(() => document.activeElement?.matches('[data-cargo-choice]'), undefined, { timeout: 2000 });
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset.cargoChoice), 'stone', 'the finished pick moves focus to the supplied cargo');
+  assert.equal(await page.locator('[data-cargo-choice][aria-pressed="true"]').count(), 0, 'picking stops leaves cargo for the player to choose');
+  assert.equal(await page.locator('#route-launch').isHidden(), true, 'picking stops does not skip to launching');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('[data-cargo-choice="stone"]').getAttribute('aria-pressed'), 'true', 'Enter explicitly chooses the focused cargo');
 
   await page.locator('#world').focus(); await page.keyboard.press('r');
   assert.deepEqual(await drawn(), cursor(x + 3, y), 'a tool key keeps the cursor');

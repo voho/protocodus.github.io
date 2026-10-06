@@ -53,6 +53,7 @@ Two of three judges chose quiet instrument as the base, and all three wanted par
 
 | Topic | Decision | Why |
 |---|---|---|
+| Construction access | Road, Railway, Stop and Bulldozer shortcuts plus Gallery remain in the main toolbar. | Repeated building and browsing should not require opening a secondary menu. Computer labels compact and the toolbar scrolls if necessary. |
 | Chrome | Light paper rails. Ink only for transient surfaces. | Dark enamel slabs over the art pulled the eye away from the map (two judges). Light rails match the brand and today's DOM, and need the least CSS churn. |
 | Route identity | Number + line colour + bullet shape by mode: road square, rail circle, water pill, air diamond. | Colour alone fails beyond 6 routes and for colour-blind players. Shape shows the mode without letters. Airports need no new chrome. |
 | Line palette | 9 colours that alternate deep (white numerals) and light (ink numerals). No green, teal or orange. | Once land, water and signal hues are excluded, pastels alone run out of distinct hues. Per-line numeral colour is real transit practice. Checked on the live map: deep lines with a paper halo and light lines with an ink casing both read on moss, roads and river. Today's pastel teal vanished on the river. |
@@ -635,7 +636,7 @@ The strip shows a route's state at a glance, left to right from the first stop t
 
 ### 8.3 Variants
 
-- **Proposed** (the New route form, contract offers): a dashed `--ink-2` line between two roundels, with no bullet yet. A forecast line sits below it: "About +$3.0k a month, pays back in about 6 months".
+- **Proposed:** contract offers use a dashed `--ink-2` strip between roundels, with no bullet yet. A connected New route draft appears on the map as a dashed signal line with a paper casing and endpoint rings, gently pulsing even while paused. Cost, approximate revenue and net profit remain visible in the planner footer.
 - **Contract:** a proposed strip, plus the bonus as a tag ("×1.5 bonus") and "12 months left".
 - **Ladder** (goals, first-route checklist, Company goals): the strip turned vertical.
   - Done step: an ink roundel with a paper check.
@@ -709,7 +710,8 @@ Gardens blend with their climate's world terrain, and slope foundations use natu
 | A value the player changed | Well tint behind the figure | 600 ms | None |
 | Meter value change | Width | 300 ms | Instant |
 | New route | Strip line draws from A to B | 400 ms | None |
-| Loading train | Loop (the only loop) | — | Paused |
+| Draft route preview | Alpha pulse, always visible | 1.8 s loop | Steady |
+| Loading train | Loop | — | Paused |
 
 Ambient income never animates in the DOM; the canvas floaters show it. The `.income-pulse` on profit is removed. Weather and floaters keep their existing reduced-motion behaviour.
 
@@ -960,6 +962,10 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **`.field`:** 32 px tall, paper, `--edge` border, `--r-2`, 14 px text, ink-2 placeholder. A leading icon is used for search, and selects get a chevron.
 - **`.switch`:** a native checkbox styled as a 32 × 18 track. On is ink, with a paper knob.
 
+### 12.8.1 Route creation
+
+The planner is a focused top-left surface, separate from existing routes. Reveal decisions in order: start and end stops, supplied cargo, then automatic name and vehicle quantity. The start stop determines transport. Stops collapse to a summary after cargo selection, with an explicit way to change them. Show only cargo produced at either stop, and explain when a destination cannot receive it. Fill names with the towns and cargo; keep manual overrides until cleared. A matching existing service offers one action to add vehicles and keeps its name and orders. Always show total purchase cost, approximate monthly revenue and net profit in a sticky footer; put detailed assumptions and full-load orders behind disclosure. Frame and gently pulse the connected draft on the map. Reduced motion keeps the preview steady. Edits retain the fleet and show zero purchase cost.
+
 ### 12.9 Toasts
 
 - **Surface:** ink, `--e3`, `--r-3`.
@@ -1067,6 +1073,10 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 `.empty`: one sentence in 14 ink that says what will appear here and how to get it, followed by one button. No illustrations.
 
+### 12.18.1 Selected infrastructure
+
+A selected road or railway offers an immediate, priced **Build road stop** or **Build rail station** action on that tile. A crossing offers both choices. Reuse the normal construction validation, Undo and next-step handoff. Existing stops show their station inspector instead of a duplicate build action. Rail stops use a small station house with a platform canopy at the shared one-tile scale; road stops retain their smaller shelter.
+
 ### 12.19 Start menu and loading
 
 - Both use the same tokens. Hero type (`--fs-hero`) appears only here.
@@ -1160,6 +1170,11 @@ Device detection must not reject a computer merely because its window is narrow,
 - `tests/ui-icons.test.mjs`
 - `tests/copy.test.mjs`
 - `tests/route-lines.test.mjs`
+- `tests/route-preview-motion.test.mjs`
+- `tests/route-building-browser-check.mjs`: staged creation, supplied cargo, names, quantity, atomic purchases, edits, preview and laptop layouts.
+- `tests/construction-toolbar-browser-check.mjs`: main construction shortcuts, Gallery focus, selected-road/rail stop quotes, crossings, Undo and route handoff at desktop and narrow computer widths.
+- `tests/rail-station-browser-check.mjs`: station pixel preparation, shared scale, missing-art fallback and portraits across zooms and display densities.
+- `tests/station-sprite-picking-browser-check.mjs`: opaque road/rail/harbor roof selection, transparent margins, reserved neighbors, foreground occlusion and cached scenery.
 - `tests/ui-refs.test.mjs`
 - `tests/ui-system-browser-check.mjs`: contrast, type floor, overflow, focus, targets and budgets over every state at desktop and laptop sizes.
 - `tests/interconnection-browser-check.mjs`

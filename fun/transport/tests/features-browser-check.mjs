@@ -54,11 +54,12 @@ async function verifyConnection(page, state, valid) {
     const status = document.querySelector('#route-connection');
     return status?.dataset.state === state && status.dataset.valid === String(valid);
   }, { state, valid });
-  assert.equal(await page.locator('#route-form button[type="submit"]').isDisabled(), !valid);
+  const launch = page.locator('#route-launch .button-primary').first();
+  assert.equal(await launch.isDisabled(), !valid);
 }
 
 try {
-  // A first freight route from a new quarry stop: the planner infers the cargo from its stops.
+  // A first freight route starts with its stops, then asks for supplied cargo and previews the purchase.
   const quarryPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   watch(quarryPage);
   await quarryPage.goto(url);
@@ -73,39 +74,54 @@ try {
   assert.ok(quarry.alder, 'seed 1847 opens with Alderbrook Central');
   await quarryPage.locator('#station-route').click();
   await quarryPage.locator('#route-connection').waitFor({ state: 'visible' });
-  assert.equal(await quarryPage.locator('#route-planner').evaluate(element => element.open), true, 'a stop starts the planner open');
-  assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('aria-pressed'), 'true', 'the start stop suggests its own freight');
-  assert.match(await quarryPage.locator('#route-connection').textContent(), /Cargo set to Stone/);
-  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'no forecast before both stops are chosen');
+  assert.equal(await quarryPage.locator('#route-planner').isVisible(), true, 'a stop opens the focused planner');
+  assert.equal(await quarryPage.locator('#route-cargo-step').isHidden(), true, 'cargo follows selection of both stops');
+  assert.equal(await quarryPage.locator('#route-forecast').isVisible(), true, 'the estimate stays visible before both stops are chosen');
+  assert.equal(await quarryPage.locator('[data-estimate-cost]').textContent(), '$18,000');
+  assert.equal(await quarryPage.locator('[data-estimate-revenue]').textContent(), 'Choose stops');
   await quarryPage.locator('[data-pick-route="to"]').click();
   await clickStationBadge(quarryPage, quarry.alder);
   await quarryPage.locator('#route-pick-banner').waitFor({ state: 'hidden' });
   assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.alder.id);
-  assert.equal(await quarryPage.locator('[data-cargo-choice="stone"][aria-pressed="true"]').count(), 1, 'stone stays selected for the pair');
+  assert.equal(await quarryPage.locator('#route-cargo-step').isVisible(), true);
+  assert.equal(await quarryPage.locator('[data-cargo-choice][aria-pressed="true"]').count(), 0, 'cargo needs the player’s explicit choice');
+  assert.equal(await quarryPage.locator('[data-estimate-revenue]').textContent(), 'Choose cargo');
+  assert.equal(await quarryPage.locator('[data-cargo-choice="iron"]').count(), 0, 'cargo absent from both stops is not offered');
+  await quarryPage.locator('[data-cargo-choice="stone"]').click();
   await verifyConnection(quarryPage, 'connected', true);
-  assert.match(await quarryPage.locator('#route-connection').textContent(), /Connected by road, \d+ tiles · Cargo set to Stone/);
+  assert.match(await quarryPage.locator('#route-connection').textContent(), /^Connected by road, \d+ tiles\.$/);
   await quarryPage.locator('#route-forecast').waitFor({ state: 'visible' });
   const forecastLine = /^≈ \+\$[\d.,]+k? \/ month · pays back in about \d+\u00a0(months?|years)$/, forecast = await quarryPage.locator('.forecast-summary').textContent();
-  assert.match(forecast, forecastLine, 'choosing the end stop forecasts the route');
+  assert.match(forecast, forecastLine, 'choosing cargo forecasts the route');
+  assert.match(await quarryPage.locator('[data-estimate-revenue]').textContent(), /^≈ \$[\d,]+$/);
   assert.equal(await quarryPage.locator('.forecast-details').evaluate(element => element.open), false, 'forecast details start folded');
   await quarryPage.waitForFunction(() => {
     const drawer = document.querySelector('#panel-content').getBoundingClientRect(), launch = document.querySelector('#route-form [type="submit"]').getBoundingClientRect();
     return launch.top >= drawer.top && launch.bottom <= drawer.bottom + 1;
   }, undefined, { timeout: 3000 });
   await quarryPage.locator('.forecast-details summary').click();
-  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /^Source makes ≈ [\d.]+ \/ day once served\nOne truck carries ≈ [\d.]+ \/ day\n(Room for ≈ \d+ more trucks?|One truck carries all of it)\nA full truck pays ≈ \$[\d,]+/);
+  assert.match(await quarryPage.locator('.forecast-facts').innerText(), /^Source makes ≈ [\d.]+ \/ day once served\nFleet carries ≈ [\d.]+ \/ day\nEstimated upkeep \$[\d,]+ \/ month\n(Room for ≈ \d+ more trucks?|This fleet can carry all available cargo)\nA full truck pays ≈ \$[\d,]+/);
   assert.equal(await quarryPage.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'true');
   assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('data-fits'), 'false', 'other cargo is dimmed but stays clickable');
   assert.match(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('title'), /different town/);
-  assert.equal(await quarryPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Stone quarry to Alderbrook', 'the default name describes the freight flow');
+  assert.equal(await quarryPage.locator('#route-form [name="name"]').inputValue(), 'Stone quarry to Alderbrook — stone', 'the generated name describes the endpoints and cargo');
+  await quarryPage.locator('#route-form [name="name"]').fill('Quarry shuttle');
+  assert.equal(await quarryPage.locator('#reset-route-name').isVisible(), true, 'a manual override offers an automatic-name reset');
+  await quarryPage.locator('#reset-route-name').click();
+  assert.equal(await quarryPage.locator('#route-form [name="name"]').inputValue(), 'Stone quarry to Alderbrook — stone');
+  await quarryPage.locator('#route-form [name="vehicleCount"]').fill('2');
+  assert.equal(await quarryPage.locator('[data-estimate-cost]').textContent(), '$36,000', 'the estimate includes every requested vehicle');
+  await quarryPage.locator('#route-form [name="vehicleCount"]').fill('1');
   await quarryPage.screenshot({ path: `${output}/desktop-quarry-planner.png` });
-  await quarryPage.locator('.route-stop-field').last().locator('[data-cargo-pick="passengers"]').click();
-  assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'coverage badges choose cargo');
+  await quarryPage.locator('[data-cargo-choice="passengers"]').click();
+  assert.equal(await quarryPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'a supplied cargo can be reviewed even when the pair cannot deliver it');
   await verifyConnection(quarryPage, 'connected', false);
-  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'a cargo the stops cannot carry hides the forecast');
-  await quarryPage.locator('.route-stop-field').first().locator('[data-cargo-pick="stone"]').click();
+  assert.equal(await quarryPage.locator('#route-forecast').isVisible(), true, 'an invalid service keeps its cost and estimate guidance visible');
+  assert.equal(await quarryPage.locator('[data-estimate-revenue]').textContent(), 'No suitable service');
+  await quarryPage.locator('[data-cargo-choice="stone"]').click();
   await verifyConnection(quarryPage, 'connected', true);
   assert.equal(await quarryPage.locator('.forecast-summary').textContent(), forecast, 'the forecast returns with the fitting cargo');
+  await quarryPage.locator('#change-route-stops').click();
   await quarryPage.locator('#swap-route-stops').click();
   assert.equal(await quarryPage.locator('#route-form [name="from"]').inputValue(), quarry.alder.id, 'swap exchanges the stops');
   assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), quarry.station.id);
@@ -117,7 +133,7 @@ try {
   await quarryPage.locator('#route-form button[type="submit"]').click();
   const stoneRoute = await quarryPage.evaluate(() => transport.game.routes.at(-1));
   assert.equal(stoneRoute.cargo, 'stone');
-  assert.equal(stoneRoute.name, 'Stone quarry to Alderbrook', 'an empty name uses the default');
+  assert.equal(stoneRoute.name, 'Stone quarry to Alderbrook — stone', 'launch uses the automatic endpoints and cargo name');
   assert.equal(stoneRoute.number, 2, 'the stone route is route 2');
   assert.equal(await quarryPage.locator('#route-form').count(), 0);
   await quarryPage.waitForFunction(id => {
@@ -128,19 +144,24 @@ try {
   await quarryPage.waitForTimeout(250);
   await quarryPage.evaluate(() => transport.setView('routes'));
   await quarryPage.locator('#new-route-button').click();
-  assert.equal(await fits(quarryPage, '.route-swap'), true);
+  await quarryPage.locator('[data-cargo-choice="stone"]').click();
+  assert.equal(await fits(quarryPage, '#route-stops-step'), true);
   assert.match(await quarryPage.locator('#route-connection').textContent(), /Already served by/);
   assert.match(await quarryPage.locator('.forecast-summary').textContent(), /^(≈ \+\$[\d.,]+k? \/ month · pays back in about|Likely to earn less than its upkeep)/, 'the planner forecasts one more truck');
   assert.match(await quarryPage.locator('.forecast-facts').innerText(), /Source makes ≈ [\d.]+ \/ day · (≈ [\d.]+ spare|all taken)/, 'the launched route takes its share of the supply');
   await quarryPage.locator('#route-forecast').scrollIntoViewIfNeeded();
   await quarryPage.screenshot({ path: `${output}/desktop-route-forecast.png` });
+  await quarryPage.locator('#change-route-stops').click();
   await quarryPage.locator('#swap-route-stops').scrollIntoViewIfNeeded();
   await quarryPage.screenshot({ path: `${output}/desktop-quarry-repeat-planner.png` });
-  await quarryPage.locator('#route-form [name="mode"]').selectOption('rail');
-  assert.equal(await quarryPage.locator('#route-forecast').isHidden(), true, 'changing transport clears the stops and the forecast');
+  await quarryPage.locator('#route-form [name="from"]').selectOption('');
+  assert.equal(await quarryPage.locator('#route-cargo-step').isHidden(), true, 'clearing the start hides the cargo step');
+  assert.equal(await quarryPage.locator('#route-form [name="to"]').inputValue(), '', 'clearing the start also clears the end');
+  assert.equal(await quarryPage.locator('#route-forecast').isVisible(), true);
+  assert.equal(await quarryPage.locator('[data-estimate-revenue]').textContent(), 'Choose stops');
   await quarryPage.close();
   assert.deepEqual(errors, [], 'the route planner runs without console or runtime errors');
-  console.log('Route planner checks passed: inferred cargo, fit marks, coverage picks, swap, default name, forecast, folded planner.');
+  console.log('Route planner checks passed: stop-first steps, supplied cargo, explicit choice, swap, automatic/manual names, quantity quote, persistent estimates.');
 
   // Full load: an optional order under More options, for freight only. A quarry too slow to fill the truck makes it wait
   // at the stop; the card reads Loading, the line survives a reload, the truck's card says where it waits, and unticking
@@ -280,14 +301,17 @@ try {
   await fleetPage.locator('#route-form [name="to"]').selectOption('station-2');
   await fleetPage.locator('[data-cargo-choice="passengers"]').click();
   assert.match(await fleetPage.locator('#route-connection').textContent(), /Already served by Alderbrook – Pinehaven/);
-  assert.equal(await fleetPage.locator('#route-form [type="submit"]').textContent(), 'Launch separate service', 'a duplicate service stays possible');
+  assert.equal(await fleetPage.locator('#route-form [type="submit"]').count(), 0, 'an already served connection offers only adding vehicles');
+  assert.equal(await fleetPage.locator('#route-form [name="name"]').count(), 0, 'an existing service keeps its name');
+  assert.equal(await fleetPage.locator('#route-form [name="vehicleCount"]').inputValue(), '1');
+  assert.match(await fleetPage.locator('#add-route-vehicle').textContent(), /Buy 1 bus for this route/);
   await fleetPage.locator('#add-route-vehicle').click();
   assert.deepEqual(await fleetPage.evaluate(() => [transport.game.routes.length, transport.game.vehicles.length]), [1, 3], 'the planner adds to the existing route instead of duplicating it');
   await fleetPage.close();
   assert.deepEqual(errors, [], 'fleet controls run without console or runtime errors');
   console.log('Fleet checks passed: add and sell, price, count, retire refund, autosave reload, planner reuse.');
 
-  // Mail: two town stops keep Passengers and offer Mail second; a mail truck launches, delivers with its envelope floater and survives a reload.
+  // Mail: two town stops offer both town cargoes; the chosen mail truck delivers and survives a reload.
   const mailPage = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   watch(mailPage);
   await mailPage.goto(url);
@@ -304,11 +328,11 @@ try {
   await mailPage.locator('#route-form [name="from"]').selectOption('station-1');
   await mailPage.locator('#route-form [name="to"]').selectOption('station-2');
   assert.deepEqual(await mailPage.locator('[data-cargo-choice]').evaluateAll(buttons => buttons.slice(0, 2).map(button => button.dataset.cargoChoice)), ['passengers', 'mail'], 'mail is the second cargo');
-  assert.equal(await mailPage.locator('[data-cargo-choice="passengers"]').getAttribute('aria-pressed'), 'true', 'two town stops keep Passengers');
+  assert.equal(await mailPage.locator('[data-cargo-choice][aria-pressed="true"]').count(), 0, 'town stops still require an explicit cargo choice');
   assert.equal(await mailPage.locator('[data-cargo-choice="mail"]').getAttribute('data-fits'), 'true', 'Mail fits two towns');
-  assert.equal(await mailPage.locator('.route-stop-field').first().locator('[data-cargo-pick="mail"]').count(), 1, 'a town stop loads mail');
+  assert.equal(await mailPage.locator('[data-cargo-choice="mail"]').isVisible(), true, 'the supplied mail is offered in the focused cargo step');
   await mailPage.locator('[data-cargo-choice="mail"]').click();
-  assert.equal(await mailPage.locator('#route-form [name="name"]').getAttribute('placeholder'), 'Alderbrook – Pinehaven mail');
+  assert.equal(await mailPage.locator('#route-form [name="name"]').inputValue(), 'Alderbrook – Pinehaven — mail');
   assert.equal(await mailPage.locator('[data-vehicle-sprite="purchase"]').getAttribute('data-cargo'), 'mail', 'the purchase portrait is the mail truck');
   assert.match(await mailPage.locator('#route-connection').textContent(), /^Connected by road, \d+ tiles\.$/, 'mail is a route of its own beside the bus');
   assert.match(await mailPage.locator('#route-form .route-forecast-trip').textContent(), /^\d+ tiles, about \d+ days on the way, about \$[\d,]+ each$/, 'the trip keeps the full fare');
@@ -316,7 +340,7 @@ try {
   const mailQuote = await mailPage.evaluate(async () => (await import('./model.js')).getVehiclePurchase(transport.game, 'road').cost), mailMoney = await mailPage.evaluate(() => transport.game.money);
   await mailPage.locator('#route-form button[type="submit"]').click();
   const mail = await mailPage.evaluate(() => { const route = transport.game.routes.find(item => item.cargo === 'mail'); return route && { id: route.id, name: route.name, stop: transport.game.stations.find(stop => stop.id === route.stops[1]) }; });
-  assert.ok(mail, 'the mail route launches'); assert.equal(mail.name, 'Alderbrook – Pinehaven mail');
+  assert.ok(mail, 'the mail route launches'); assert.equal(mail.name, 'Alderbrook – Pinehaven — mail');
   assert.equal(await mailPage.evaluate(() => transport.game.money), mailMoney - mailQuote, 'the launch costs the quoted mail truck');
   await mailPage.evaluate(stop => transport.renderer.focus(stop.x, stop.y - 1), mail.stop);
   await mailPage.locator('[data-speed="3"]').click();
@@ -344,7 +368,7 @@ try {
   await savedMailCard.screenshot({ path: `${output}/desktop-mail-reloaded-card.png` });
   await mailPage.close();
   assert.deepEqual(errors, [], 'mail runs without console or runtime errors');
-  console.log('Mail checks passed: second cargo, Passengers kept, Mail fits, name, truck portrait, quote, delivery floater, card, reload.');
+  console.log('Mail checks passed: supplied choices, explicit cargo, name, truck portrait, quote, delivery floater, card, reload.');
 
   // Edit moves the stone route to Pinehaven by Pick on map and keeps its trucks; a new freight asks before dropping the load.
   const editPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -362,11 +386,15 @@ try {
   });
   const stoneCard = editPage.locator(`.route-card[data-route-id="${stone.id}"]`), editMoney = await editPage.evaluate(() => transport.game.money);
   await stoneCard.locator('[data-edit-route]').click();
-  assert.equal(await editPage.locator('#route-planner summary h3').textContent(), 'Edit route');
-  assert.match(await editPage.locator('.route-edit-note').textContent(), /^Stone quarry to Alderbrook keeps its 2 trucks\./);
-  assert.equal(await editPage.locator('#route-form [name="mode"]').isDisabled(), true, 'the transport is fixed');
+  assert.equal(await editPage.locator('.panel-heading h2').textContent(), 'Edit route');
+  assert.match(await editPage.locator('.route-edit-note').textContent(), /^Stone quarry to Alderbrook — stone keeps its 2 trucks\./);
+  assert.equal(await editPage.locator('#route-form [name="mode"]').inputValue(), 'road', 'the edit retains its transport');
+  assert.equal(await editPage.locator('#route-form select[name="mode"]').count(), 0, 'transport is inferred from stops rather than a separate control');
   assert.deepEqual(await editPage.evaluate(() => ['.purchase-vehicle', '#route-form [name="name"]', '[data-cargo-choice="passengers"]'].map(selector => document.querySelectorAll(selector).length)), [0, 0, 0], 'no purchase, no name field, and trucks never carry passengers');
-  assert.equal(await editPage.locator('#route-forecast').isHidden(), true);
+  assert.equal(await editPage.locator('#route-forecast').isVisible(), true, 'editing shows the retained fleet’s estimate');
+  assert.equal(await editPage.locator('[data-estimate-cost]').textContent(), '$0', 'an edit buys no vehicles');
+  assert.match(await editPage.locator('[data-estimate-revenue]').textContent(), /^≈ \$[\d,]+$/);
+  assert.match(await editPage.locator('.forecast-summary').textContent(), /^Estimated net [−+]?\$[\d.,]+k? \/ month$/);
   assert.equal(await editPage.locator('#route-form [type="submit"]').textContent(), 'Save changes');
   assert.equal(await editPage.locator('#route-form [type="submit"]').isDisabled(), true, 'nothing to save before a change');
   await editPage.locator('[data-pick-route="to"]').click();
@@ -381,7 +409,7 @@ try {
   assert.deepEqual(moved.stops, [stone.start, stone.pine.id], 'the route now ends at Pinehaven');
   assert.equal(moved.money, editMoney, 'an edit costs nothing');
   assert.deepEqual(moved.vehicles, stone.vehicles, 'the same trucks run the new route');
-  assert.equal(moved.name, 'Stone quarry to Pinehaven', 'a default name follows its stops');
+  assert.equal(moved.name, 'Stone quarry to Pinehaven — stone', 'a default name follows its stops and cargo');
   assert.match(await stoneCard.locator('.route-journey').textContent(), /Pinehaven Central$/, 'the card journey shows the new end');
   assert.equal(await editPage.locator('#route-form').count(), 0, 'saving returns to the service list');
   // A refinery by the quarry lets the same trucks carry fuel to Pinehaven instead: the nearest site the stop covers
@@ -417,7 +445,7 @@ try {
   await editPage.locator('#confirm-route-edit').click();
   const fuel = await editPage.evaluate(id => { const route = transport.game.routes.find(route => route.id === id); return { cargo: route.cargo, name: route.name, empty: transport.game.vehicles.filter(vehicle => vehicle.routeId === id).every(vehicle => vehicle.load === 0), money: transport.game.money }; }, stone.id);
   assert.deepEqual([fuel.cargo, fuel.empty, fuel.money], ['fuel', true, fuelMoney], 'the same trucks carry fuel from empty, free of charge');
-  assert.equal(fuel.name, 'Oil refinery to Pinehaven', 'the default name follows the new freight');
+  assert.equal(fuel.name, 'Oil refinery to Pinehaven — fuel', 'the default name follows the new freight');
   await stoneCard.locator('[data-edit-route]').click();
   await editPage.locator('#cancel-route-edit').click();
   assert.equal(await editPage.locator('#route-form').count(), 0, 'Cancel returns to the service list');
@@ -432,7 +460,7 @@ try {
   await createWorldFromMenu(namePage);
   const renamedStop = await namePage.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); return stop.id; });
   await namePage.locator('#inspector .rename-button').click();
-  assert.equal(await namePage.evaluate(() => document.activeElement.matches('#inspector h3 .rename-input') && document.activeElement.selectionEnd - document.activeElement.selectionStart === document.activeElement.value.length), true, 'the pencil opens a selected name field');
+  assert.equal(await namePage.evaluate(() => document.activeElement.matches('#inspector-title .rename-input') && document.activeElement.selectionEnd - document.activeElement.selectionStart === document.activeElement.value.length), true, 'the pencil opens a selected name field');
   await namePage.keyboard.type('Quay side');
   await namePage.locator('#inspector .tiny-button').click();
   assert.equal(await namePage.locator('#inspector').isHidden(), true, 'the click that leaves the field still closes the inspector');
@@ -442,7 +470,7 @@ try {
   await namePage.keyboard.type('Harbour gate');
   await namePage.screenshot({ path: `${output}/desktop-rename-stop.png`, clip: await namePage.locator('#inspector').boundingBox() });
   await namePage.keyboard.press('Enter');
-  assert.equal(await namePage.locator('#inspector h3').textContent(), 'Harbour gate', 'Enter saves the stop name');
+  assert.equal(await namePage.locator('#inspector-title').textContent(), 'Harbour gate', 'Enter saves the stop name');
   assert.equal(await namePage.evaluate(id => transport.game.stations.find(stop => stop.id === id).name, renamedStop), 'Harbour gate');
   assert.equal(await namePage.evaluate(() => document.activeElement.dataset.rename), 'station', 'keyboard focus returns to the pencil');
   await namePage.evaluate(() => transport.setView('routes'));
@@ -513,7 +541,7 @@ try {
     const targets = await vehicleTargets(zoom);
     for (const [part, point] of Object.entries(targets)) {
       await vehiclePage.mouse.click(point.x, point.y);
-      assert.equal(await vehiclePage.locator('#inspector h3 .vehicle-route').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
+      assert.equal(await vehiclePage.locator('#inspector-title .vehicle-route').textContent(), starterRoute.name, `${zoom}x clicking the bus ${part} opens its route`);
       assert.equal(await vehiclePage.locator('#inspector .eyebrow').textContent(), 'Hollin Mk 1 bus');
       assert.equal(await vehiclePage.locator('#inspector .vehicle-age').textContent(), '1950 model, new this year');
       assert.match(await vehiclePage.locator('[data-vehicle-live="load"]').textContent(), /^\d+ \/ 24$/);
@@ -526,7 +554,7 @@ try {
   await vehiclePage.keyboard.press('Escape');
   const hiddenBus = await vehicleTargets(1);
   await vehiclePage.mouse.click(hiddenBus.point.x, hiddenBus.point.y);
-  assert.notEqual(await vehiclePage.locator('#inspector h3').textContent(), starterRoute.name, 'with vehicles hidden the same click inspects the map');
+  assert.notEqual(await vehiclePage.locator('#inspector-title').textContent(), starterRoute.name, 'with vehicles hidden the same click inspects the map');
   assert.doesNotMatch(await vehiclePage.locator('#inspector .eyebrow').textContent(), /^Bus/);
   await vehiclePage.keyboard.press('l');
   await vehiclePage.locator('[data-layer="vehicles"]').setChecked(true);
@@ -539,7 +567,7 @@ try {
     }, { zoom, station });
     if (zoom > .5) assert.notDeepEqual(sign.behind, { x: station.x, y: station.y }, `${zoom}x the sign stands over another tile`);
     await vehiclePage.mouse.click(sign.x, sign.y);
-    assert.equal(await vehiclePage.locator('#inspector h3').textContent(), station.name, `${zoom}x the ${station.name} sign opens its stop in Explore mode`);
+    assert.equal(await vehiclePage.locator('#inspector-title').textContent(), station.name, `${zoom}x the ${station.name} sign opens its stop in Explore mode`);
   }
   // A stop built beside the town centre is unused: a pale sign that steps off its neighbour where they would meet, and still opens its stop.
   // No drawn town name meets a sign, served signs wear their route's ring, and pointing at a sign names its stop.
@@ -565,7 +593,7 @@ try {
     await vehiclePage.waitForFunction(() => transport.renderer.getStats().stopSigns.named === 1);
     if (zoom === 1) await vehiclePage.screenshot({ path: `${output}/desktop-stop-signs.png`, clip: { x: scene.click.x - 200, y: scene.click.y - 120, width: 400, height: 220 } });
     await vehiclePage.mouse.click(scene.click.x, scene.click.y);
-    assert.equal(await vehiclePage.locator('#inspector h3').textContent(), beside.name, `${zoom}x the new stop's sign opens its stop`);
+    assert.equal(await vehiclePage.locator('#inspector-title').textContent(), beside.name, `${zoom}x the new stop's sign opens its stop`);
     await vehiclePage.locator('#inspector .tiny-button').click();
   }
   const offline = await vehiclePage.evaluate(() => { const route = transport.game.routes[0]; route.active = false; transport.renderer.render(performance.now(), {}); const stats = transport.renderer.getStats().stopSigns; route.active = true; return stats; });
@@ -604,7 +632,7 @@ try {
   await vehiclePage.locator('[data-vehicle-action="show"]').click();
   await vehiclePage.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, starterRoute.id);
   assert.equal(await vehiclePage.evaluate(stops => { const rect = document.querySelector('#world').getBoundingClientRect(); return stops.every(station => { const p = transport.renderer.worldToScreen(station.x, station.y); return p.x > 0 && p.y > 0 && p.x < rect.width && p.y < rect.height; }); }, starterRoute.stops), true, 'Show route fits both stops on screen');
-  assert.equal(await vehiclePage.locator('#inspector h3 .vehicle-route').textContent(), starterRoute.name, 'the card stays open while the route is shown');
+  assert.equal(await vehiclePage.locator('#inspector-title .vehicle-route').textContent(), starterRoute.name, 'the card stays open while the route is shown');
   await vehiclePage.locator('[data-vehicle-action="add"]').click();
   assert.equal(await vehiclePage.evaluate(() => transport.game.vehicles.length), 2, '+ Bus buys another bus for the route');
   await vehiclePage.locator('[data-vehicle-action="routes"]').click();
@@ -614,16 +642,47 @@ try {
   await vehiclePage.locator('#inspector').waitFor({ state: 'hidden' });
   const retired = await vehiclePage.evaluate(stop => { transport.renderer.focus(stop.x, stop.y); transport.renderer.render(performance.now(), {}); return transport.renderer.getStats().stopSigns; }, starterRoute.stops[0]);
   assert.ok(retired.drawn >= 1 && retired.idle === retired.drawn, `with its route retired the stop's sign turns pale: ${JSON.stringify(retired)}`);
-  // Air: the route form offers planes once air travel arrives, and a plane's card names its model and its trip.
-  const modes = () => vehiclePage.evaluate(() => { transport.setView('routes',{routeScreen:'new'}); return [...document.querySelectorAll('#route-form [name="mode"] option')].map(option => option.textContent); });
-  assert.ok(!(await modes()).includes('Air'), 'no planes before 1952');
+  // Air: airports join the start-stop list once built, infer air transport, and the plane card names its trip.
+  const airportChoices = () => vehiclePage.evaluate(() => { transport.setView('routes',{routeScreen:'new'}); return document.querySelectorAll('#route-form [name="from"] optgroup[label="Airports"] option').length; });
+  assert.equal(await airportChoices(), 0, 'there are no airport starts before airports can be built');
   const plane = await vehiclePage.evaluate(async () => {
     const model = await import('./model.js'), g = transport.game; g.day = 730.02; g.lastDailyDay = 730; g.lastMonth = 24; g.money = 5e6;
     const a = model.build(g, 'airport-x', 192, 200).station, b = model.build(g, 'airport-y', 230, 270).station, route = model.addRoute(g, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }).route;
     for (let n = 0; n < 60; n++) model.tick(g, .05);
     g.revision++; return g.vehicles.find(vehicle => vehicle.routeId === route.id).id;
   });
-  assert.ok((await modes()).includes('Air'), 'Air joins the route form in 1952');
+  assert.equal(await airportChoices(), 2, 'both airports appear as start stops');
+  const ports=await vehiclePage.evaluate(async()=>{
+    const {build}=await import('./model.js'),{releaseTerrainObjects}=await import('./terrain-objects.js'),g=transport.game;
+    let origin;
+    for(let y=32;y<g.height-32&&!origin;y+=24)for(let x=32;x<g.width-40;x+=28){
+      if(![...g.cities,...g.industries,...g.stations].some(site=>site.x>=x-8&&site.x<=x+14&&site.y>=y-8&&site.y<=y+8)){origin={x,y};break;}
+    }
+    if(!origin)throw Error('No clear port inference fixture');
+    const {x,y}=origin,points=[];
+    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=7;dx++)points.push({x:x+dx,y:y+dy});
+    releaseTerrainObjects(g,points);
+    for(const point of points)Object.assign(g.tiles[point.y*g.width+point.x],{terrain:point.y===y?'water':'grass',detail:'',elevation:.2,road:false,rail:false,bridge:false,tunnel:false,publicRoad:false,building:null,zone:null});
+    g.networkRevision++;g.revision++;
+    const a=build(g,'port',x,y),b=build(g,'port',x+6,y);
+    if(!a.ok||!b.ok)throw Error(`Port inference fixture failed: ${a.message}; ${b.message}`);
+    transport.setView('routes',{routeScreen:'new'});
+    return [a.station.id,b.station.id];
+  });
+  await vehiclePage.locator('#route-form [name="from"]').selectOption(ports[0]);
+  assert.equal(await vehiclePage.locator('#route-form [name="mode"]').inputValue(),'water','a port start infers water transport');
+  assert.match(await vehiclePage.locator('.route-mode-note').innerText(),/Water connection/);
+  await vehiclePage.locator('#route-form [name="to"]').selectOption(ports[1]);
+  assert.equal(await vehiclePage.locator('#route-connection').getAttribute('data-state'),'connected','the port fixture provides a navigable connection');
+  assert.equal(await vehiclePage.locator('#route-cargo-step').isVisible(),true,'a port pair proceeds to cargo choice');
+  const airportStart = await vehiclePage.evaluate(() => transport.game.stations.find(stop => stop.mode === 'air').id);
+  await vehiclePage.locator('#route-form [name="from"]').selectOption(airportStart);
+  assert.equal(await vehiclePage.locator('#route-form [name="mode"]').inputValue(), 'air', 'an airport start infers air transport');
+  assert.match(await vehiclePage.locator('.route-mode-note').innerText(), /Air connection/);
+  const airportEnd=await vehiclePage.evaluate(id=>transport.game.stations.find(stop=>stop.mode==='air'&&stop.id!==id).id,airportStart);
+  await vehiclePage.locator('#route-form [name="to"]').selectOption(airportEnd);
+  assert.equal(await vehiclePage.locator('#route-cargo-step').isVisible(),true,'an airport pair proceeds to cargo choice');
+  assert.deepEqual(await vehiclePage.locator('[data-cargo-choice]').evaluateAll(choices=>choices.map(choice=>choice.dataset.cargoChoice)),['passengers','mail'],'airports offer their supplied passenger and mail cargo');
   await vehiclePage.keyboard.press('Escape');
   const planeAt = await vehiclePage.evaluate(id => {
     const g = transport.game, v = g.vehicles.find(vehicle => vehicle.id === id), w = transport.renderer.vehicleWorldPoint(v), r = document.querySelector('#world').getBoundingClientRect();
@@ -672,7 +731,7 @@ try {
   const chainTown = await page.evaluate(() => transport.game.cities.at(-1));
   assert.equal(await page.locator('[data-chain-site]').count(), await page.evaluate(() => transport.game.cities.length), 'the customer node lists every town');
   await page.locator(`[data-chain-locate="${chainTown.id}"]`).click();
-  assert.equal(await page.locator('#inspector h3').textContent(), chainTown.name, 'the graph locates towns as well as industries');
+  assert.equal(await page.locator('#inspector-title').textContent(), chainTown.name, 'the graph locates towns as well as industries');
   await page.locator('#inspector .tiny-button').click();
   await openChains(page);
   await page.locator('#chain-product').selectOption('all');
@@ -684,7 +743,7 @@ try {
   const steel = steelSites.at(-1);
   await page.locator(`[data-chain-locate="${steel.id}"]`).click();
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Locate returns to the live map');
-  assert.equal(await page.locator('#inspector h3').textContent(), steel.name, 'Locate inspects the selected site');
+  assert.equal(await page.locator('#inspector-title').textContent(), steel.name, 'Locate inspects the selected site');
   // Locate glides or cuts to the site and frames it in the visible band, the map right of the inspector (DESIGN.md 10.2).
   await page.waitForFunction(() => !transport.renderer.getStats().gliding);
   const centred = await page.evaluate(steel => {
@@ -702,7 +761,7 @@ try {
   assert.match(await page.locator('#inspector .industry-use').innerText(), /Machine works/);
   await page.screenshot({ path: `${output}/desktop-industry-destinations.png` });
   await page.locator(`#inspector [data-target-id="${expectedSteelTargets[0]}"]`).click();
-  assert.equal(await page.locator('#inspector h3').textContent(), await page.evaluate(id => transport.game.industries.find(industry => industry.id === id).name, expectedSteelTargets[0]), 'a destination opens its actual industry');
+  assert.equal(await page.locator('#inspector-title').textContent(), await page.evaluate(id => transport.game.industries.find(industry => industry.id === id).name, expectedSteelTargets[0]), 'a destination opens its actual industry');
   await page.locator('#industry-chain').click();
   await page.locator('.chains-explorer').waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
@@ -715,7 +774,7 @@ try {
   assert.deepEqual(await page.locator('#inspector [data-target-id]').evaluateAll(nodes => nodes.map(node => node.dataset.targetId)), townTargets, 'food destinations are the five nearest towns');
   assert.equal(await page.locator('#inspector [data-target-kind="city"]').count(), 5);
   await page.locator(`#inspector [data-target-id="${townTargets[0]}"]`).click();
-  assert.equal(await page.locator('#inspector h3').textContent(), await page.evaluate(id => transport.game.cities.find(city => city.id === id).name, townTargets[0]), 'town destination opens town details rather than its colocated station');
+  assert.equal(await page.locator('#inspector-title').textContent(), await page.evaluate(id => transport.game.cities.find(city => city.id === id).name, townTargets[0]), 'town destination opens town details rather than its colocated station');
   await page.locator('#inspector .tiny-button').click();
 
   // Industries and Towns list the places nearest the middle of the view first, 40 to a page, each with its distance and an industry's nearest town.
@@ -780,7 +839,7 @@ try {
   await page.locator('#entity-search').fill('');
   const first = page.locator('#entity-list [data-industry]').first(), listed = { id: await first.getAttribute('data-industry'), name: await first.locator('h3').textContent(), place: await first.locator('.entity-place').textContent() };
   await first.click();
-  assert.equal(await page.locator('#inspector h3').textContent(), listed.name, 'a card locates and inspects its site');
+  assert.equal(await page.locator('#inspector-title').textContent(), listed.name, 'a card locates and inspects its site');
   await page.waitForFunction(() => !transport.renderer.getStats().gliding);
   const located = await page.evaluate(async () => {
     // The site under the middle of the visible band, the map right of the inspector.
@@ -813,7 +872,7 @@ try {
   const mineBadge = await page.evaluate(id => { const rect = document.querySelector('#world').getBoundingClientRect(), marker = transport.renderer.industryMarker(transport.game.industries.find(industry => industry.id === id)); return { x: rect.left + marker.x, y: rect.top + marker.y }; }, mineArc.mine);
   await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', mineBadge);
   await page.mouse.click(mineBadge.x, mineBadge.y);
-  assert.equal(await page.locator('#inspector h3').textContent(), 'Iron mine', 'the badge opens the iron mine');
+  assert.equal(await page.locator('#inspector-title').textContent(), 'Iron mine', 'the badge opens the iron mine');
   assert.equal(await page.locator('#inspector [data-target-id]').first().getAttribute('data-target-id'), mineArc.mill, 'the nearest steel mill heads the list');
   const targetRows = await page.locator('#inspector [data-target-id]').count();
   await page.waitForFunction(rows => transport.renderer.getStats().contextTargets === rows, targetRows);
@@ -847,19 +906,22 @@ try {
   });
   await chooseView(page, 'routes');
   if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
-  await page.locator('#route-form [name="name"]').fill('Orchard food delivery');
-  await page.locator('[data-cargo-choice="food"]').click();
+  await page.locator('#route-form [name="from"]').selectOption('');
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
-  await clickMap(page, fixture.railFrom);
-  assert.equal(await page.locator('#route-form [name="from"]').inputValue(), '', 'road picking rejects a rail station');
   await clickMap(page, fixture.from);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'map selection fills the departure');
+  assert.equal(await page.locator('#route-form [name="mode"]').inputValue(), 'road', 'the departure infers road transport');
+  await clickMap(page, fixture.railFrom);
+  assert.equal(await page.locator('#route-form [name="to"]').inputValue(), '', 'a road start rejects a rail arrival');
   await clickMap(page, fixture.from);
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), '', 'the departure cannot also be the arrival');
   await clickMap(page, fixture.to);
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id, 'map selection fills the arrival');
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('[data-cargo-choice][aria-pressed="true"]').count(), 0, 'map picking stops before choosing cargo');
+  await page.locator('[data-cargo-choice="food"]').click();
+  await page.locator('#route-form [name="name"]').fill('Orchard food delivery');
   await verifyConnection(page, 'connected', true);
   // The starter route runs through the gap: once broken it pins the gap on the map and names itself in the top bar.
   const aboveGap = () => page.evaluate(point => {
@@ -889,6 +951,7 @@ try {
   // A construction tool closes the drawer; Routes reopens the planner with its stops.
   await chooseView(page, 'routes');
   if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
+  await page.locator('[data-cargo-choice="food"]').click();
   await verifyConnection(page, 'connected', true);
   await page.locator('#offline-routes').waitFor({ state: 'hidden' });
   assert.equal(await page.evaluate(() => transport.renderer.getStats().routeBreaks), 0, 'a repaired route drops its pin');
@@ -903,11 +966,11 @@ try {
   await page.locator('#new-route-button').click();
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id, 'the planner keeps its stops for another vehicle');
 
-  await page.locator('#route-form [name="mode"]').selectOption('rail');
-  await page.locator('#route-form [name="name"]').fill('Valley passenger express');
-  await page.locator('[data-cargo-choice="passengers"]').click();
   await page.locator('#route-form [name="from"]').selectOption(fixture.railFrom.id);
   await page.locator('#route-form [name="to"]').selectOption(fixture.railTo.id);
+  assert.equal(await page.locator('#route-form [name="mode"]').inputValue(), 'rail', 'a rail start infers rail transport');
+  await page.locator('[data-cargo-choice="passengers"]').click();
+  await page.locator('#route-form [name="name"]').fill('Valley passenger express');
   await verifyConnection(page, 'connected', true);
   const beforeRail = await page.evaluate(() => transport.game.money);
   await page.locator('#route-form button[type="submit"]').click();
@@ -952,7 +1015,6 @@ try {
   await page.screenshot({ path: `${output}/desktop-routes.png` });
 
   await page.locator('#new-route-button').click();
-  await page.locator('#route-form [name="mode"]').selectOption('road');
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#cancel-route-pick').click();
   await page.locator('#route-pick-banner').waitFor({ state: 'hidden' });
@@ -1091,8 +1153,8 @@ try {
     await chooseView(page, 'routes');
     if (!await page.locator('#route-form').isVisible()) await page.locator('#new-route-button').click();
     assert.equal(await fits(page, '#panel-content'), true, `${width}px route panel fits`);
-    await page.locator('#route-form [name="mode"]').selectOption('road');
-    await page.locator('[data-cargo-choice="passengers"]').click();
+    if (await page.locator('#change-route-stops').isVisible()) await page.locator('#change-route-stops').click();
+    await page.locator('#route-form [name="to"]').selectOption('');
     await page.locator('[data-pick-route="from"]').click();
     await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
     await clickMap(page, fixture.from);
@@ -1101,6 +1163,7 @@ try {
     assert.equal(await page.locator('#route-form').waitFor({ state: 'visible', timeout: 3000 }).then(() => true, () => false), true, `${width}px picking returns to the route form`);
     assert.equal(await page.locator('#route-form [name="from"]').inputValue(), fixture.from.id);
     assert.equal(await page.locator('#route-form [name="to"]').inputValue(), fixture.to.id);
+    await page.locator('[data-cargo-choice="passengers"]').click();
     await verifyConnection(page, 'connected', true);
     await page.locator('#route-connection').scrollIntoViewIfNeeded();
     assert.equal(await page.evaluate(() => scrollY), 0, `${width}px route selection only scrolls the management panel`);

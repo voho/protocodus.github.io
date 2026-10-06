@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, getVehiclePurchase, payTiles, scheduledDays, tick, transitPay, VEHICLE_COSTS } from '../model.js';
-import { freightFits, stationCoverage } from '../model.js';
+import { addRoute, addRouteVehicle, build, buildPath, drainDeliveryEvents, fareFor, getVehiclePurchase, payTiles, refreshRouteConnections, scheduledDays, tick, transitPay, VEHICLE_COSTS } from '../model.js';
+import { freightFits, stationCoverage, stationServes } from '../model.js';
 import { keepText } from '../payment-rates.js';
-import { defaultRouteName, filterRoutes, forecastRoute, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
+import { defaultRouteName, filterRoutes, forecastRoute, routeAvailableCargo, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { routesNeedingAttention } from '../gameplay-insights.js';
 import { emptyGame, line, tileAt } from './helpers.mjs';
 import { FULL_LOAD_MAX_WAIT } from '../model.js';
@@ -120,7 +120,7 @@ const fitting = options => options.filter(option => option.valid).map(option => 
 test('cargo options follow the chosen stops: a quarry stop and a town stop carry stone only', () => {
   const { game, draft } = quarryFixture();
   const options = routeCargoOptions(game, draft);
-  assert.deepEqual(options.map(option => option.cargo).sort(), routeCargoList(game).slice().sort(), 'every biome cargo gets a verdict');
+  assert.deepEqual(options.map(option => option.cargo).sort(), ['mail', 'passengers', 'stone'], 'only cargo supplied at either selected stop gets a verdict');
   assert.deepEqual(fitting(options), ['stone']);
   assert.deepEqual(options[0], { cargo: 'stone', valid: true, reversed: false, message: 'Connected by road, 20 tiles.' });
   assert.match(options.find(option => option.cargo === 'passengers').message, /each stop needs a different town/);
@@ -142,24 +142,33 @@ test('a town-to-town pair fits passengers and mail, and cargo options ignore fun
   assert.equal(validateRoutePlan(game, passengers, { ignoreFunds: true }).valid, true);
   assert.deepEqual(fitting(routeCargoOptions(game, passengers)), ['passengers', 'mail'], 'short funds never hide a fitting cargo');
   const plan = validateRoutePlan(game, passengers, { ignoreFunds: true });
-  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Alderbrook – Pinehaven');
-  assert.equal(defaultRouteName(game, plan, 'mail'), 'Alderbrook – Pinehaven mail');
+  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Alderbrook – Pinehaven — passengers');
+  assert.equal(defaultRouteName(game, plan, 'mail'), 'Alderbrook – Pinehaven — mail');
 });
 
 test('default route names describe the freight flow after reversal', () => {
   const { game, draft } = quarryFixture();
   const forward = validateRoutePlan(game, { ...draft, cargo: 'stone' });
-  assert.equal(defaultRouteName(game, forward, 'stone'), 'Stone quarry to Alderbrook');
+  assert.equal(defaultRouteName(game, forward, 'stone'), 'Stone quarry to Alderbrook — stone');
   const reversed = validateRoutePlan(game, { ...draft, cargo: 'stone', from: draft.to, to: draft.from });
   assert.equal(reversed.reversed, true);
-  assert.equal(defaultRouteName(game, reversed, 'stone'), 'Stone quarry to Alderbrook');
+  assert.equal(defaultRouteName(game, reversed, 'stone'), 'Stone quarry to Alderbrook — stone');
   const [a, b] = forward.stations;
-  assert.equal(defaultRouteName(game, forward, 'coal'), `${a.name} to Alderbrook`, 'an end without its site falls back to its town, then its stop');
+  assert.equal(defaultRouteName(game, forward, 'coal'), 'Stone quarry S… to Alderbrook — coal', 'an end without its site falls back to its town, then its stop');
   game.cities[0].name = 'Alderbrook-upon-the-Northern-Pines';
   const long = defaultRouteName(game, forward, 'stone');
   assert.ok(long.length <= 36, long);
-  assert.equal(long, 'Stone quarry to Alderbrook-upon-the…');
+  assert.equal(long, 'Stone quarry to Alderbrook-… — stone');
   assert.equal(defaultRouteName(game, validateRoutePlan(game, { ...draft, to: '' }), 'stone'), '');
+});
+
+test('freight auto names use a supplier stop’s town and preserve that town order after reverse loading', () => {
+  const { game, draft } = quarryFixture();
+  game.cities.push({ id: 'town-source', name: 'Alpha', x: 8, y: 12 }); game.revision++;
+  const cargo = 'stone', forward = validateRoutePlan(game, { ...draft, cargo }), reverse = validateRoutePlan(game, { ...draft, cargo, from: draft.to, to: draft.from });
+  assert.equal(forward.valid, true); assert.equal(reverse.reversed, true);
+  assert.equal(defaultRouteName(game, forward, cargo), 'Alpha to Alderbrook — stone');
+  assert.equal(defaultRouteName(game, reverse, cargo), 'Alpha to Alderbrook — stone');
 });
 
 test('connected stops without a shared cargo name what each end handles', () => {
@@ -175,12 +184,57 @@ test('connected stops without a shared cargo name what each end handles', () => 
   assert.match(validateRoutePlan(game, { ...draft, cargo: 'coal' }).message, /coal supplier and a buyer/, 'a single wrong cargo keeps its own advice');
 });
 
-test('disconnected stops give no cargo options', () => {
+test('disconnected stops keep their cargo choices and explain the missing connection', () => {
   const { game, draft } = quarryFixture();
   tileAt(game, 20, 12).road = false; game.networkRevision++;
   assert.equal(validateRoutePlan(game, { ...draft, cargo: 'stone' }).state, 'disconnected');
-  assert.deepEqual(routeCargoOptions(game, draft), []);
+  const options = routeCargoOptions(game, draft);
+  assert.deepEqual(options.map(option => option.cargo).sort(), ['mail', 'passengers', 'stone']);
+  assert.ok(options.every(option => !option.valid && /aren’t joined by road/.test(option.message)));
   assert.deepEqual(routeCargoOptions(game, { ...draft, to: '' }), []);
+});
+
+test('available cargo follows suppliers at either endpoint and excludes buyers and distant suppliers', () => {
+  const { game, draft } = fixture();
+  assert.deepEqual(routeAvailableCargo(game, draft), ['timber', 'lumber'], 'the sawmill supplies lumber even though this pair has no lumber buyer');
+  assert.equal(build(game, 'quarry', 50, 20).ok, true);
+  assert.deepEqual(routeAvailableCargo(game, draft), ['timber', 'lumber'], 'a producer elsewhere cannot add a choice');
+  game.industries[0].inventory.timber = 0;
+  assert.ok(routeAvailableCargo(game, draft).includes('timber'), 'an active supplier can replenish an empty inventory');
+  assert.deepEqual(routeAvailableCargo(game, { ...draft, to: '' }), []);
+  assert.deepEqual(routeAvailableCargo(game, { ...draft, to: draft.from }), []);
+  assert.deepEqual(routeAvailableCargo(game, { ...draft, mode: 'rail' }), []);
+});
+
+test('two empty stops still expose their connected preview before cargo is chosen', () => {
+  const { game, draft } = fixture();
+  game.industries = []; game.revision++;
+  const plan = validateRoutePlan(game, { ...draft, cargo: '' });
+  assert.equal(plan.valid, false); assert.equal(plan.connected, true); assert.equal(plan.path.length, 21);
+  assert.equal(plan.message, 'Choose cargo available at these stops.');
+  assert.deepEqual(routeCargoOptions(game, { ...draft, cargo: '' }), []);
+  assert.match(validateRoutePlan(game, { ...draft, from: '', cargo: '' }).message, /Select a start stop/);
+});
+
+test('the route quote checks the entire vehicle order while cargo choices and forecasts remain visible', () => {
+  const { game, draft } = quarryLine('road', 20), cost = getVehiclePurchase(game, 'road').cost * 3;
+  game.money = cost - 1;
+  const plan = validateRoutePlan(game, { ...draft, vehicleCount: 3 });
+  assert.equal(plan.valid, false); assert.equal(plan.vehicleCount, 3); assert.equal(plan.cost, cost);
+  assert.match(plan.message, /Need \$54,000 for 3 trucks/);
+  assert.ok(forecastRoute(game, { ...draft, vehicleCount: 3 }).revenueMonth >= 0);
+  assert.ok(routeCargoOptions(game, { ...draft, vehicleCount: 3 }).some(option => option.cargo === 'stone' && option.valid));
+  game.money = cost;
+  assert.equal(validateRoutePlan(game, { ...draft, vehicleCount: 3 }).valid, true);
+  for (const vehicleCount of [0, 2.5, '3', NaN]) {
+    assert.equal(validateRoutePlan(game, { ...draft, vehicleCount }).valid, false);
+    assert.equal(forecastRoute(game, { ...draft, vehicleCount }), null);
+  }
+  while (game.vehicles.length < 9998) game.vehicles.push({ id: `vehicle-other-${game.vehicles.length}`, routeId: 'other' });
+  game.revision++;
+  assert.match(validateRoutePlan(game, { ...draft, vehicleCount: 3 }).message, /Only 2 more vehicles/);
+  assert.equal(validateRoutePlan(game, { ...draft, vehicleCount: 3 }, { ignoreFleet: true }).valid, true);
+  assert.ok(forecastRoute(game, { ...draft, vehicleCount: 3 }));
 });
 
 test('route search combines stop, route, resource and vehicle terms with independent filters', () => {
@@ -356,6 +410,79 @@ test('another vehicle on a served route shares what is left of the supply', () =
   assert.equal(full.paybackMonths, Infinity);
 });
 
+test('a paused repaired service claims its retained fleet’s supply on the live path without changing the game', () => {
+  const { game, draft } = quarryLine('road', 20), first = forecastRoute(game, draft);
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to], vehicleCount: first.vehiclesToSaturate }).route;
+  assert.equal(build(game, 'bulldoze', 20, 12).ok, true); tick(game, .25);
+  assert.equal(route.active, false);
+  assert.equal(build(game, 'road', 20, 12).ok, true);
+  const before = structuredClone(game), paused = forecastRoute(game, draft);
+  assert.equal(paused.joining, true); assert.equal(paused.supplyDay, 0); assert.equal(paused.revenueMonth, 0);
+  assert.deepEqual(game, before, 'forecasting never publishes the repair or resets the retained vehicles');
+  const refreshed = structuredClone(game); refreshRouteConnections(refreshed);
+  const after = forecastRoute(refreshed, draft);
+  assert.deepEqual([paused.supplyDay, paused.movedDay, paused.revenueMonth, paused.upkeepMonth], [after.supplyDay, after.movedDay, after.revenueMonth, after.upkeepMonth]);
+  assert.equal(refreshed.routes[0].active, true);
+});
+
+test('a stale service’s incremental revenue estimate uses the repaired detour rather than its cached path', () => {
+  const { game, draft } = quarryLine('road', 20);
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
+  assert.equal(build(game, 'bulldoze', 20, 12).ok, true); tick(game, .25);
+  assert.equal(buildPath(game, 'road', [{ x: 18, y: 12 }, ...line(18, 22, 13), { x: 22, y: 12 }]).ok, true);
+  const before = structuredClone(game), paused = forecastRoute(game, draft);
+  assert.ok(paused.travel > route.path.length - 1, 'the preview uses the new detour');
+  assert.deepEqual(game, before);
+  const refreshed = structuredClone(game); refreshRouteConnections(refreshed);
+  const after = forecastRoute(refreshed, draft);
+  assert.deepEqual([paused.supplyDay, paused.movedDay, paused.revenueMonth, paused.upkeepMonth], [after.supplyDay, after.movedDay, after.revenueMonth, after.upkeepMonth]);
+});
+
+test('a fleet forecast caps revenue at the available supply and charges every requested vehicle', () => {
+  const { game, draft } = quarryLine('road', 10), one = forecastRoute(game, draft), quantity = one.vehiclesToSaturate + 4;
+  const fleet = forecastRoute(game, { ...draft, vehicleCount: quantity });
+  assert.equal(fleet.vehicleCount, quantity); assert.equal(fleet.cost, one.cost * quantity);
+  assert.equal(fleet.capacityDay, one.perVehicleDay * quantity);
+  assert.equal(fleet.movedDay, fleet.supplyDay, 'extra trucks cannot multiply the quarry’s output');
+  assert.ok(fleet.revenueMonth < one.revenueMonth * quantity);
+  assert.ok(fleet.upkeepMonth > one.upkeepMonth);
+  assert.equal(fleet.netMonth, fleet.revenueMonth - fleet.upkeepMonth);
+  assert.equal(fleet.paybackMonths, fleet.netMonth > 0 ? fleet.cost / fleet.netMonth : Infinity);
+  assert.equal(forecastRoute(game, { ...draft, vehicleCount: quantity }), fleet);
+  assert.notEqual(forecastRoute(game, draft), fleet, 'quantity is part of the forecast cache');
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to], vehicleCount: one.vehiclesToSaturate }).route;
+  assert.ok(route);
+  const excess = forecastRoute(game, { ...draft, vehicleCount: 3 });
+  assert.equal(excess.revenueMonth, 0); assert.ok(excess.upkeepMonth > 0 && excess.netMonth < 0);
+});
+
+test('editing a service forecasts its retained fleet and excludes its own claim on supply', () => {
+  const { game, draft } = quarryLine('road', 20), quantity = 3;
+  const fresh = forecastRoute(game, { ...draft, vehicleCount: quantity });
+  const route = addRoute(game, { ...draft, stops: [draft.from, draft.to], vehicleCount: quantity }).route;
+  const editing = forecastRoute(game, { ...draft, editing: route.id, vehicleCount: quantity });
+  assert.equal(editing.editing, true); assert.equal(editing.joining, false);
+  assert.equal(editing.cost, 0); assert.equal(editing.supplyDay, fresh.supplyDay);
+  assert.equal(editing.revenueMonth, fresh.revenueMonth); assert.equal(editing.upkeepMonth, fresh.upkeepMonth);
+  assert.equal(editing.capacityDay, fresh.capacityDay);
+  const another = forecastRoute(game, { ...draft, vehicleCount: quantity });
+  assert.equal(another.joining, true); assert.ok(another.supplyDay < editing.supplyDay);
+  assert.equal(forecastRoute(game, { ...draft, editing: route.id, vehicleCount: 1 }), null, 'an edit uses all retained vehicles');
+});
+
+test('an edited passenger route forecasts both towns again with its actual older-generation fleet', () => {
+  const { game, draft } = quarryLine('road', 20);
+  game.industries = [];
+  game.cities.push({ id: 'town-b', name: 'Pinehaven', x: 10, y: 10, population: 600, passengers: 100, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
+  const service = { ...draft, cargo: 'passengers', vehicleCount: 2 }, fresh = forecastRoute(game, service);
+  const route = addRoute(game, { ...service, stops: [draft.from, draft.to] }).route;
+  game.day = 365; game.revision++;
+  const edited = forecastRoute(game, { ...service, editing: route.id });
+  assert.equal(edited.vehicleCount, 2); assert.equal(edited.cost, 0);
+  assert.equal(edited.perVehicleDay, fresh.perVehicleDay, 'a newer model arriving does not replace the edited route’s retained fleet');
+  assert.ok(edited.supplyDay > 0 && edited.revenueMonth > 0);
+});
+
 test('a bus forecast carries both towns’ passengers both ways', () => {
   const { game, draft } = quarryLine('road', 20);
   game.industries = [];
@@ -377,14 +504,14 @@ function workshopTowns() {
   return game;
 }
 
-test('default route names call a workshop town’s end its workshops', () => {
+test('default route names use connected towns for their workshop freight', () => {
   const game = workshopTowns(), [mill, a, b] = game.stations, plan = (from, to, cargo) => validateRoutePlan(game, { mode: 'road', from: from.id, to: to.id, cargo });
-  assert.equal(defaultRouteName(game, plan(mill, a, 'lumber'), 'lumber'), 'Sawmill to Alderbrook workshops');
-  assert.equal(defaultRouteName(game, plan(a, b, 'furniture'), 'furniture'), 'Alderbrook workshops to Brookby');
+  assert.equal(defaultRouteName(game, plan(mill, a, 'lumber'), 'lumber'), 'Sawmill to Alderbrook — lumber');
+  assert.equal(defaultRouteName(game, plan(a, b, 'furniture'), 'furniture'), 'Alderbrook to Brookby — furniture');
   const back = plan(b, a, 'furniture');
   assert.equal(back.reversed, true);
-  assert.equal(defaultRouteName(game, back, 'furniture'), 'Alderbrook workshops to Brookby');
-  assert.equal(defaultRouteName(game, plan(a, b, 'passengers'), 'passengers'), 'Alderbrook – Brookby');
+  assert.equal(defaultRouteName(game, back, 'furniture'), 'Alderbrook to Brookby — furniture');
+  assert.equal(defaultRouteName(game, plan(a, b, 'passengers'), 'passengers'), 'Alderbrook – Brookby — passengers');
 });
 
 test('the route form’s verdict for every cargo is the launch rule’s, workshops included', () => {
@@ -415,7 +542,7 @@ test('air plans: two airports, passengers and mail, 16 tiles apart, with a strai
   const plan = validateRoutePlan(game, draft);
   assert.equal(plan.valid, true); assert.equal(plan.message, 'Flight, 100 tiles.'); assert.equal(plan.path.length, 101);
   assert.deepEqual(routeCargoOptions(game, draft).filter(option => option.valid).map(option => option.cargo).sort(), ['mail', 'passengers']);
-  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Ash – Birch');
+  assert.equal(defaultRouteName(game, plan, 'passengers'), 'Ash – Birch — passengers');
   const level = getVehiclePurchase(game, 'air').level, forecast = forecastRoute(game, draft, plan), travel = Math.hypot(70, 30);
   assert.equal(forecast.travel, travel); assert.equal(forecast.tiles, 100);
   const roundTrip = 2 * travel / (12 * (1 + .1 * level) * .97) + 3.2;
@@ -423,4 +550,24 @@ test('air plans: two airports, passengers and mail, 16 tiles apart, with a strai
   assert.equal(addRoute(game, { mode: 'air', stops: [a.id, b.id], cargo: 'passengers' }).ok, true);
   assert.deepEqual(filterRoutes(game, { query: 'plane' }).map(route => route.mode), ['air']);
   assert.deepEqual(filterRoutes(game, { query: 'flight' }).map(route => route.mode), ['air']);
+});
+
+for (const cargo of ['passengers', 'mail']) test(`an airport fleet claims ${cargo} supply across the airport footprint, while an edit retains its own supply`, () => {
+  const game = emptyGame(); game.day = game.lastDailyDay = 730; game.lastMonth = 24; game.money = 10_000_000;
+  const town = (id, x) => ({ id, name: id, x, y: 20, population: 1500, activity: 0, growth: 0, passengers: 400, mail: 40, delivered: 0, supplies: 0, lastServiceDay: null });
+  game.cities = [town('Alpha', 21), town('Beta', 91)];
+  const from = build(game, 'airport-x', 10, 20).station, to = build(game, 'airport-x', 80, 20).station;
+  for (const [stop, city] of [[from, game.cities[0]], [to, game.cities[1]]]) {
+    assert.ok(Math.hypot(stop.x - city.x, stop.y - city.y) > 5);
+    assert.equal(stationServes(stop, city), true, 'the airport footprint serves a town its anchor alone would miss');
+  }
+  const draft = { mode: 'air', cargo, from: from.id, to: to.id }, first = forecastRoute(game, draft), vehicleCount = first.vehiclesToSaturate;
+  assert.ok(vehicleCount >= 1);
+  const launched = addRoute(game, { ...draft, stops: [from.id, to.id], vehicleCount });
+  assert.equal(launched.ok, true, launched.message);
+  const extra = forecastRoute(game, draft);
+  assert.equal(extra.joining, true); assert.equal(extra.supplyDay, 0); assert.equal(extra.movedDay, 0); assert.equal(extra.revenueMonth, 0);
+  assert.ok(extra.netMonth < 0, 'an extra plane with no spare supply still costs upkeep');
+  const editing = forecastRoute(game, { ...draft, editing: launched.route.id, vehicleCount });
+  assert.equal(editing.cost, 0); assert.equal(editing.supplyDay, first.supplyDay); assert.ok(editing.revenueMonth > 0);
 });

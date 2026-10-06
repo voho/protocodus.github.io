@@ -88,30 +88,43 @@ test('a legacy save is numbered in creation order, the same way every time, and 
 
 test('default names read as the freight flow or the two towns, with a count for a repeat', () => {
   const { game, stops: [q, a, p] } = quarry(), stop = id => game.stations.find(station => station.id === id);
-  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone'), 'Stone quarry to Alderbrook', 'the supplier, then the town that buys');
-  assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'passengers'), 'Alderbrook – Pinehaven', 'two towns joined by an en dash');
-  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'coal'), `${stop(q).name} to Alderbrook`, 'an end without its site is named after its town, then its stop');
+  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone'), 'Stone quarry to Alderbrook — stone', 'the supplier, then the town that buys');
+  assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'passengers'), 'Alderbrook – Pinehaven — passengers', 'two towns joined by an en dash');
+  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'coal'), 'Stone quarry S… to Alderbrook — coal', 'an end without its site is named after its town, then its stop');
   assert.equal(build(game, 'logging-camp', 26, 13).ok, true);
   assert.equal(build(game, 'sawmill', 48, 13).ok, true);
-  assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'timber'), 'Logging camp to Sawmill', 'industry ends use their display names');
-  assert.equal(addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Stone quarry to Alderbrook', 'a route launched without a name takes the default');
+  assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'timber'), 'Alderbrook to Pinehaven — timber', 'served towns take priority over the industries inside their catchments');
+  assert.equal(addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Stone quarry to Alderbrook — stone', 'a route launched without a name takes the default');
   const second = addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route;
-  assert.equal(second.name, 'Stone quarry to Alderbrook 2', 'a name already in use gets a count');
-  assert.equal(addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Stone quarry to Alderbrook 3');
-  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone', second), 'Stone quarry to Alderbrook 2', 'a route never collides with its own name');
+  assert.equal(second.name, 'Stone quarry to Alderbrook — stone 2', 'a name already in use gets a count');
+  assert.equal(addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Stone quarry to Alderbrook — stone 3');
+  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone', second), 'Stone quarry to Alderbrook — stone 2', 'a route never collides with its own name');
   assert.equal(addRoute(game, { name: 'Morning stone', mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Morning stone', 'a chosen name is kept');
   game.cities[0].name = 'Alderbrook-upon-the-Northern-Pines';
   const long = defaultRouteName(game, [stop(q), stop(a)], 'stone');
-  assert.equal(long, 'Stone quarry to Alderbrook-upon-the…');
+  assert.equal(long, 'Stone quarry to Alderbrook-… — stone');
   assert.ok(long.length <= 36);
   assert.equal(defaultRouteName(game, [stop(q)], 'stone'), '');
+});
+
+test('freight default names prefer the connected towns, while existing and manual names stay intact', () => {
+  const { game, stops: [q, a] } = quarry(), stop = id => game.stations.find(station => station.id === id);
+  const original = addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route;
+  assert.equal(original.name, 'Stone quarry to Alderbrook — stone', 'a supplier outside town keeps its site fallback');
+  game.cities.push({ id: 'town-source', name: 'Alpha', x: 8, y: 12 }); game.revision++;
+  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone'), 'Alpha to Alderbrook — stone');
+  assert.equal(original.name, 'Stone quarry to Alderbrook — stone', 'new naming rules do not rename a saved service');
+  const manual = addRoute(game, { name: 'Morning stone', mode: 'road', stops: [q, a], cargo: 'stone' }).route;
+  assert.equal(manual.name, 'Morning stone');
+  game.cities = []; game.revision++;
+  assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone'), 'Stone quarry to Alderbrook… — stone', 'an endpoint outside any town falls back to its stop name');
 });
 
 test('a new world opens with route 1, Cobalt, named after its two towns', () => {
   const game = createGame({ size: 'regional', seed: 1847 }), [route] = game.routes;
   assert.equal(route.number, 1);
   assert.equal(route.color, fill('Cobalt'));
-  assert.equal(route.name, `${game.cities[0].name} – ${game.cities[1].name}`);
+  assert.equal(route.name, defaultRouteName(game, game.stations, 'passengers', route));
   assert.equal(game.notifications.length, 1, 'naming and numbering add no notices');
 });
 

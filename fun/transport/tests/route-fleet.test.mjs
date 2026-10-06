@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, buildPath, addRoute, removeRoute, addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, getVehiclePurchase, getVehicleUpgrade, vehicleNoun, tick, validateGame, restoreGame, VEHICLE_COSTS } from '../model.js';
+import { build, buildPath, addRoute, removeRoute, addRouteVehicle, addRouteVehicles, sellRouteVehicle, getRouteFleet, getRetirementRefund, getVehiclePurchase, getVehicleUpgrade, vehicleNoun, tick, validateGame, restoreGame, VEHICLE_COSTS, MAX_VEHICLES, validVehicleCount } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { emptyGame, line, advance, equivalent } from './helpers.mjs';
 
@@ -33,8 +33,8 @@ test('adding a vehicle charges exactly the purchase quote and refuses broken, un
   game.money = quote.cost - 1;
   const poor = addRouteVehicle(game, route.id);
   assert.equal(poor.ok, false); assert.match(poor.message, /Need \$18,000 to add a truck\./); assert.equal(game.money, quote.cost - 1);
-  game.money = 1e6; route.active = false;
-  assert.match(addRouteVehicle(game, route.id).message, /This route isn’t connected\. Repair it before adding trucks\./);
+  game.money = 1e6; assert.equal(build(game, 'bulldoze', 20, 12).ok, true); route.active = false;
+  assert.match(addRouteVehicle(game, route.id).message, /These stops aren’t joined by road/);
   assert.equal(addRouteVehicle(game, 'route-missing').ok, false);
   assert.equal(fleet(game, route).length, 2);
 });
@@ -54,6 +54,105 @@ test('each added vehicle takes the middle of the widest gap in the round trip, s
     assert.equal(vehicle.x, a.x + (b.x - a.x) * (vehicle.progress - index)); assert.equal(vehicle.y, a.y + (b.y - a.y) * (vehicle.progress - index));
     assert.equal(vehicle.angle, Math.atan2((b.y - a.y) * vehicle.direction, (b.x - a.x) * vehicle.direction));
   }
+});
+
+test('launching a vehicle order buys the complete fleet, with unit prices and the same spacing as successive purchases', () => {
+  const { game, route } = quarryFixture();
+  removeRoute(game, route.id);
+  const separate = structuredClone(game), quote = getVehiclePurchase(game, 'road'), money = game.money, expenses = game.monthlyExpenses;
+  const order = { mode: 'road', cargo: 'stone', stops: game.stations.map(stop => stop.id) };
+  const launched = addRoute(game, { ...order, vehicleCount: 7 });
+  assert.equal(launched.ok, true, launched.message);
+  assert.equal(launched.vehicleCount, 7); assert.equal(launched.vehicles.length, 7);
+  assert.equal(launched.cost, quote.cost * 7);
+  assert.equal(game.money, money - launched.cost); assert.equal(game.monthlyExpenses, expenses + launched.cost);
+  assert.ok(launched.vehicles.every(vehicle => vehicle.paidPrice === quote.cost && vehicle.capacity === quote.capacity && vehicle.level === quote.level));
+  const first = addRoute(separate, order);
+  for (let n = 1; n < 7; n++) assert.equal(addRouteVehicle(separate, first.route.id).ok, true);
+  assert.deepEqual(game.vehicles, separate.vehicles, 'a batch retains loading, physical positions and exact phase spacing');
+  assert.deepEqual(game.industries, separate.industries, 'the order takes no extra stock');
+  assert.equal(game.money, separate.money);
+  assert.equal(validateGame(game), true);
+  const restored = restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
+  assert.ok(restored); assert.equal(getRouteFleet(restored, launched.route.id).count, 7);
+});
+
+test('orders added to an existing route buy exactly the requested vehicles and preserve the established service', () => {
+  const { game, route } = quarryFixture(), separate = structuredClone(game), quote = getVehiclePurchase(game, 'road'), money = game.money;
+  const bought = addRouteVehicles(game, route.id, 12);
+  assert.equal(bought.ok, true, bought.message); assert.equal(bought.vehicles.length, 12); assert.equal(bought.cost, quote.cost * 12);
+  assert.equal(game.money, money - bought.cost); assert.equal(game.routes.length, 1); assert.equal(getRouteFleet(game, route.id).count, 13);
+  for (let n = 0; n < 12; n++) assert.equal(addRouteVehicle(separate, route.id).ok, true);
+  assert.deepEqual(game.vehicles, separate.vehicles);
+  assert.deepEqual(game.industries, separate.industries);
+});
+
+test('batch spacing matches successive purchases on a moving fleet across the return leg and stop snaps', () => {
+  const { game, route } = quarryFixture();
+  addRouteVehicle(game, route.id); tick(game, 2.75); game.money = 10_000_000;
+  const separate = structuredClone(game), bought = addRouteVehicles(game, route.id, 100);
+  assert.equal(bought.ok, true, bought.message);
+  for (let n = 0; n < 100; n++) assert.equal(addRouteVehicle(separate, route.id).ok, true);
+  assert.deepEqual(game.vehicles, separate.vehicles);
+  assert.deepEqual(game.industries, separate.industries);
+  assert.equal(game.money, separate.money);
+});
+
+test('invalid quantities and unaffordable fleet orders refuse the whole transaction without spending, stock loading or consuming IDs', () => {
+  const { game, route } = quarryFixture(), order = { mode: 'road', cargo: 'stone', stops: game.stations.map(stop => stop.id) };
+  for (const vehicleCount of [0, -1, 1.5, NaN, Infinity, '3', null, MAX_VEHICLES + 1]) {
+    assert.equal(validVehicleCount(vehicleCount), false);
+    const before = structuredClone(game);
+    assert.equal(addRoute(game, { ...order, vehicleCount }).ok, false, String(vehicleCount));
+    assert.equal(addRouteVehicles(game, route.id, vehicleCount).ok, false, String(vehicleCount));
+    assert.deepEqual(game, before);
+  }
+  game.money = 3 * getVehiclePurchase(game, 'road').cost - 1;
+  const before = structuredClone(game);
+  assert.equal(addRoute(game, { ...order, vehicleCount: 3 }).ok, false);
+  assert.equal(addRouteVehicles(game, route.id, 3).ok, false);
+  assert.deepEqual(game, before, 'sufficient money for two vehicles cannot partially buy an order of three');
+});
+
+test('fleet orders cannot exceed the remaining slots, and an order filling the last slots succeeds', () => {
+  const { game, route } = quarryFixture(), template = game.vehicles[0], order = { mode: 'road', cargo: 'stone', stops: route.stops };
+  while (game.vehicles.length < MAX_VEHICLES - 2) game.vehicles.push({ ...template, id: `vehicle-cap-${game.vehicles.length}` });
+  game.revision++;
+  const before = structuredClone(game);
+  assert.match(addRoute(game, { ...order, vehicleCount: 3 }).message, /Only 2 more vehicles/);
+  assert.match(addRouteVehicles(game, route.id, 3).message, /Only 2 more vehicles/);
+  assert.deepEqual(game, before);
+  assert.equal(addRouteVehicles(game, route.id, 2).ok, true);
+  assert.equal(game.vehicles.length, MAX_VEHICLES);
+});
+
+test('a paused repaired route can buy vehicles using its current connection before the next world tick', () => {
+  const { game, route } = quarryFixture();
+  assert.equal(build(game, 'bulldoze', 20, 12).ok, true); tick(game, .25);
+  assert.equal(route.active, false); assert.equal(route.status, 'Disconnected');
+  assert.equal(build(game, 'road', 20, 12).ok, true);
+  assert.equal(route.active, false, 'the repair has not yet reached the simulation’s cached route state');
+  const day = game.day, cost = getVehiclePurchase(game, 'road').cost * 3, money = game.money;
+  const bought = addRouteVehicles(game, route.id, 3);
+  assert.equal(bought.ok, true, bought.message); assert.equal(bought.cost, cost);
+  assert.equal(game.day, day); assert.equal(game.money, money - cost);
+  assert.equal(route.active, true); assert.equal(route.status, 'Running'); assert.equal(route.pathRevision, game.networkRevision);
+  assert.equal(getRouteFleet(game, route.id).count, 4); assert.equal(validateGame(game), true);
+});
+
+test('refused purchases leave a disconnected or stale repaired route and all economy state unchanged', () => {
+  const { game, route } = quarryFixture();
+  assert.equal(build(game, 'bulldoze', 20, 12).ok, true); tick(game, .25);
+  let before = structuredClone(game);
+  assert.equal(addRouteVehicles(game, route.id, 3).ok, false);
+  assert.deepEqual(game, before, 'a genuinely disconnected route is not modified by preflight');
+  assert.equal(build(game, 'road', 20, 12).ok, true);
+  game.money = getVehiclePurchase(game, 'road').cost * 3 - 1;
+  before = structuredClone(game);
+  assert.equal(addRouteVehicles(game, route.id, 3).ok, false);
+  assert.deepEqual(game, before, 'an unaffordable order does not publish the repaired path, reset clocks or buy partially');
+  assert.equal(addRouteVehicles(game, route.id, 1.5).ok, false);
+  assert.deepEqual(game, before, 'a malformed order cannot publish the repaired connection');
 });
 
 test('a vehicle added at the loading stop loads there at once, like a launch', () => {

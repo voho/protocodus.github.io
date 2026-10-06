@@ -1,0 +1,46 @@
+{
+  "method": "Full generated one-tile parcel retained at its original metre scale; lossless translation into a transparent padded 64px frame. No silhouette fitting, resizing or nonuniform scaling.",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "solidBounds": [
+    22,
+    356,
+    1234,
+    1159
+  ],
+  "translation": [
+    209,
+    474
+  ],
+  "groundAnchorFraction": 0.9765625,
+  "measuredDoorHeightSourcePixels": 112,
+  "measuredDoorHeightWorldPixels": 4.287081339712919,
+  "targetDoorHeightWorldPixels": 4.2,
+  "runtimeEnvelopeWorldPixels": 64,
+  "camera": "Orthographic 2:1 dimetric ground axes; painted local edge variation.",
+  "groundEdgesSourcePixels": [
+    [
+      22,
+      676,
+      925,
+      1113
+    ],
+    [
+      925,
+      1113,
+      1233,
+      990
+    ]
+  ],
+  "notes": "The generated prompt places a full one-tile parcel in its original square source. Registration pads that parcel to the next power-of-two frame without resizing its artwork, permitting exact native density copies at Region/Town/Detail. Runtime 64px frame contains a 48px parcel and calibrated station door; the larger buffer adds transparency only. Gameplay still uses one tile.",
+  "groundContactWorldPixels": 2.5,
+  "runtimeTopWorldPixels": -60,
+  "registeredSize": [
+    1672,
+    1672
+  ],
+  "runtimeLeftWorldPixels": -32,
+  "calibratedParcelWorldPixels": 48
+}

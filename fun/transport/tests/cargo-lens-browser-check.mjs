@@ -14,7 +14,18 @@ const lens = page => page.evaluate(() => transport.renderer.getStats().lens);
 const chip = page => page.locator('#cargo-lens-chip');
 const cleared = async (page, why) => { await page.waitForFunction(() => !transport.renderer.getStats().lens && !document.querySelector('#cargo-lens-chip')); assert.equal(await lens(page), null, why); };
 const showing = (page, cargo) => page.waitForFunction(cargo => transport.renderer.getStats().lens?.cargo === cargo, cargo);
-const routes = async page => { if (!await page.locator('#route-form').count() || !await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open'))) { await page.evaluate(()=>transport.setView('routes')); await page.locator('#new-route-button').click(); } };
+let routeStops;
+const routes = async (page, cargo = 'iron') => {
+  if (!await page.locator('#route-form').count() || !await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open'))) {
+    await page.evaluate(()=>transport.setView('routes')); await page.locator('#new-route-button').click();
+  }
+  const camera=await page.evaluate(()=>transport.renderer.getCamera());
+  if (await page.locator('#change-route-stops').isVisible()) await page.locator('#change-route-stops').click();
+  await page.locator('#route-form [name="from"]').selectOption(routeStops[cargo]);
+  await page.locator('#route-form [name="to"]').selectOption(routeStops.town);
+  // The fixture keeps the marker samples at one camera position while exercising the real stop-first UI.
+  await page.evaluate(camera=>transport.renderer.focus(camera.x/32-.5,camera.y/32-.5),camera);
+};
 
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
@@ -28,9 +39,21 @@ try {
     const home = transport.game.cities[0], site = transport.game.industries.filter(i => i.kind === 'iron-mine').sort((a, b) => Math.hypot(a.x - home.x, a.y - home.y) - Math.hypot(b.x - home.x, b.y - home.y))[0];
     transport.renderer.setZoom(.5); transport.renderer.focus(site.x - 6, site.y + 6); return { id: site.id, x: site.x, y: site.y, span: site.footprint || 1 };
   });
+  routeStops = await page.evaluate(() => {
+    const game = transport.game, stops = { town:game.stations.find(stop=>stop.mode==='road').id };
+    for (const [cargo,kind] of [['iron','iron-mine'],['coal','coal-mine']]) {
+      const site=game.industries.find(site=>site.kind===kind),stop={id:`lens-${cargo}`,name:`${cargo} source`,mode:'road',x:site.x-1,y:site.y-1};
+      game.stations.push(stop);stops[cargo]=stop.id;
+    }
+    game.revision++;game.networkRevision++;
+    return stops;
+  });
   await page.locator('.main-nav [data-view="routes"]').click();
   await page.locator('#new-route-button').click();
   await page.locator('#route-planner').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#route-cargo-step').isHidden(), true, 'a new lens draft starts with stops');
+  await routes(page);
+  assert.equal(await page.locator('[data-cargo-choice="iron"]').isVisible(), true, 'iron is offered because the start serves an iron mine');
   // Samples a marker's pale left edge while rendering in one task: plain, without industry icons (the ground beneath) and as the app draws it now.
   await page.evaluate(() => {
     window.lensQA = {
@@ -110,7 +133,7 @@ try {
   await showing(page, 'iron');
   await page.locator('.main-nav [data-view="build"]').click();
   await cleared(page, 'leaving Routes clears the lens');
-  await routes(page);
+  await routes(page, 'coal');
   await page.locator('[data-cargo-choice="coal"]').click();
   await showing(page, 'coal');
   await page.locator('#close-management').click();
@@ -119,6 +142,7 @@ try {
   await routes(page);
   await page.locator('[data-cargo-choice="iron"]').click();
   await showing(page, 'iron');
+  await page.locator('#change-route-stops').click();
   await page.locator('[data-pick-route="from"]').click();
   await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
   assert.equal((await lens(page))?.cargo, 'iron', 'picking on the map keeps the lens');

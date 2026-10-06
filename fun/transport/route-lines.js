@@ -6,6 +6,7 @@ import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 import { industryDistance } from './industry-sites.js';
 import { workshopInputs, workshopOutputs } from './town-market.js';
 import { stationDistance, stationReach, stationServes } from './station-sites.js';
+import { cargoName } from './copy.js';
 
 // index is the DESIGN.md number, 1–9 as in --line-N; light fills take ink numerals and an ink casing on the map.
 const LINES = LINE_COLORS.map((line, i) => Object.freeze({ index: i + 1, name: line.name, fill: line.fill, on: line.on, light: line.on !== '#FFFFFF' }));
@@ -53,9 +54,9 @@ export function ensureRouteNumbers(game) {
 }
 export const routeLabel = route => validRouteNumber(route?.number) ? `Route ${route.number}` : 'Route';
 
-// Default names say what a route does. Freight runs '<supplier> to <buyer>', each end named after the site its stop
-// serves for the cargo, else its town's workshops when they make or take it, else the stop's town, else the stop; passengers
-// and mail join two towns with an en dash, and mail says so at the end.
+// Default names say what a route connects. Freight runs '<town> to <town>',
+// using a served town first, then the cargo's industry/workshop, then the stop; passengers
+// and mail join two towns with an en dash. Every new default name also names its cargo.
 // A name another route already has gets ' 2', ' 3' and so on; `except` (a route or its id) never counts, so a route
 // renamed along its stops does not collide with itself. Names in a save are never rewritten.
 const REACH = 5, NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
@@ -64,6 +65,14 @@ const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const townsNear = (game, stop) => nearbyCities(game, stop.x, stop.y, stationReach(stop) + (stop.mode === 'air' ? 5 : 0)).filter(town => stationServes(stop, town));
 const siteName = site => site.name || INDUSTRIES[site.kind]?.name || '';
 const fit = (text, length) => text.length > length ? text.slice(0, length - 1).trimEnd() + '…' : text;
+// When names are long, keep both endpoints visible before the cargo and repeat count.
+function fitEndpoints(labels, separator, length) {
+  const available = length - separator.length;
+  if (labels[0].length + labels[1].length <= available) return labels.join(separator);
+  let first = Math.min(labels[0].length, Math.floor(available / 2)), second = Math.min(labels[1].length, available - first);
+  first += Math.min(labels[0].length - first, available - first - second);
+  return fit(labels[0], first) + separator + fit(labels[1], second);
+}
 function townPair(game, from, to) {
   let best = null, walk = Infinity;
   for (const a of townsNear(game, from)) for (const b of townsNear(game, to)) if (a.id !== b.id && stationDistance(from, a) + stationDistance(to, b) < walk) { best = [a, b]; walk = stationDistance(from, a) + stationDistance(to, b); }
@@ -72,18 +81,19 @@ function townPair(game, from, to) {
 export function defaultRouteName(game, stations, cargo, except = null) {
   const [from, to] = stations || [];
   if (!from || !to) return '';
-  const place = stop => townsNear(game, stop).reduce((best, town) => !best || stationDistance(stop, town) < stationDistance(stop, best) ? town : best, null)?.name || stop.name;
+  const townName = stop => townsNear(game, stop).reduce((best, town) => !best || stationDistance(stop, town) < stationDistance(stop, best) ? town : best, null)?.name;
+  const place = stop => townName(stop) || stop.name;
   const site = (stop, role, other) => nearbyIndustries(game, stop.x, stop.y, REACH + 2).find(site => site !== other && INDUSTRIES[site.kind]?.[role][cargo] && industryDistance(site, stop) <= REACH);
-  let base;
-  if (TOWN_TO_TOWN.has(cargo)) { const pair = townPair(game, from, to); base = pair ? `${pair[0].name} – ${pair[1].name}` : `${place(from)} – ${place(to)}`; }
+  let labels, separator;
+  if (TOWN_TO_TOWN.has(cargo)) { const pair = townPair(game, from, to); labels = pair ? pair.map((town, i) => town.name || place([from, to][i])) : [place(from), place(to)]; separator = ' – '; }
   else {
     const supplier = site(from, 'outputs'), buyer = site(to, 'inputs', supplier), ends = townsNear(game, to);
     const workshops = (stop, fits) => townsNear(game, stop).filter(fits).reduce((best, town) => !best || apart(town, stop) < apart(best, stop) ? town : best, null);
     const maker = !supplier && workshops(from, town => !ends.includes(town) && workshopOutputs(game, town).includes(cargo)), user = !buyer && workshops(to, town => workshopInputs(game, town).includes(cargo));
-    base = `${supplier ? siteName(supplier) : maker ? `${maker.name} workshops` : place(from)} to ${buyer ? siteName(buyer) : user ? `${user.name} workshops` : place(to)}`;
+    labels = [townName(from) || (supplier ? siteName(supplier) : maker ? `${maker.name} workshops` : place(from)), townName(to) || (buyer ? siteName(buyer) : user ? `${user.name} workshops` : place(to))]; separator = ' to ';
   }
   const skip = typeof except === 'string' ? except : except?.id, taken = new Set();
   for (const route of game.routes || []) if (route.id !== skip) taken.add(route.name);
-  const kind = cargo === 'mail' ? ' mail' : '';
-  for (let n = 1; ; n++) { const count = n > 1 ? ` ${n}` : '', name = fit(base, NAME_LENGTH - kind.length - count.length) + kind + count; if (!taken.has(name)) return name; }
+  const kind = ` — ${cargoName(cargo)}`;
+  for (let n = 1; ; n++) { const count = n > 1 ? ` ${n}` : '', name = fitEndpoints(labels, separator, NAME_LENGTH - kind.length - count.length) + kind + count; if (!taken.has(name)) return name; }
 }

@@ -682,19 +682,21 @@ function planRoute(game,{mode,stops,cargo},retry='launch again') {
   if(mode==='air'&&path.length-1<AIRPORT_MIN_TILES)return result(false,`Airports must be at least ${AIRPORT_MIN_TILES} tiles apart for a flight.`);
   return result(true,'',{stations,path});
 }
-export function addRoute(game,{name,mode='road',stops,cargo='passengers',fullLoad=false}={}) {
+export function addRoute(game,{name,mode='road',stops,cargo='passengers',fullLoad=false,vehicleCount=1}={}) {
   if(typeof fullLoad!=='boolean')return result(false,'Choose on or off.');
   if(fullLoad&&isTownTraffic(cargo))return result(false,'Full load is for freight routes.');
+  if(!validVehicleCount(vehicleCount))return result(false,VEHICLE_COUNT_ERROR);
   const plan=planRoute(game,{mode,stops,cargo});if(!plan.ok)return plan;
   const {stations,path}=plan;
-  if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
-  const purchase=getVehiclePurchase(game,mode),cost=purchase.cost;if(game.money<cost)return result(false,`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`);
+  if(game.vehicles.length+vehicleCount>MAX_VEHICLES)return result(false,vehicleOrderLimit(game));
+  const purchase=getVehiclePurchase(game,mode),cost=purchase.cost*vehicleCount;if(game.money<cost)return result(false,vehicleCount===1?`Need ${moneyText(cost)} to buy this ${vehicleNoun(mode,cargo)}.`:`Need ${moneyText(cost)} to buy ${vehicleCount} ${vehicleNoun(mode,cargo,vehicleCount)}.`);
   const line=nextLineColor(game,stations.map(s=>s.id));
   const route={id:makeId(game,'route'),name:String(name||defaultRouteName(game,stations,cargo)).slice(0,100),number:nextRouteNumber(game),mode,stops:stations.map(s=>s.id),cargo,delivered:0,revenue:0,expenses:0,profitThisYear:0,accountingStartDay:game.day,revenueAtAccountingStart:0,color:line.fill,path,active:true,status:'Running',pathRevision:game.networkRevision||0};if(fullLoad)route.fullLoad=true;
   // The first plane starts at its stand, ready to taxi out.
-  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress:0,direction:1,totalDistance:0,dwellRemaining:mode==='air'?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
-  spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);beginFullLoadWait(route,vehicle,0,loadVehicle(game,route,vehicle,0),game.day);game.revision++;
-  return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost});
+  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:path[0].x,y:path[0].y,angle:0,load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:purchase.cost,progress:0,direction:1,totalDistance:0,dwellRemaining:mode==='air'?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
+  spend(game,cost);game.routes.push(route);game.vehicles.push(vehicle);beginFullLoadWait(route,vehicle,0,loadVehicle(game,route,vehicle,0),game.day);
+  const vehicles=[vehicle,...placeRouteVehicles(game,route,purchase,vehicleCount-1)];game.revision++;
+  return result(true,`Route launched: ${route.name}.${spent(cost)}`,{route,cost,vehicles,vehicleCount});
 }
 // An edit moves a service to new stops or another freight without selling its vehicles. Nothing is
 // bought or sold; the card counts the new service afresh, and a new cargo leaves the old load behind.
@@ -741,7 +743,10 @@ export function renameRoute(game,id,name) { const route=game.routes.find(r=>r.id
 // Every route runs one or more vehicles. The fleet caps at 10,000 so saves stay valid.
 export { vehicleNoun } from './copy.js';
 export const MAX_VEHICLES=10000;
+export const validVehicleCount = value => Number.isInteger(value)&&value>=1&&value<=MAX_VEHICLES;
+const VEHICLE_COUNT_ERROR='Choose a whole number of vehicles from 1 to 10,000.';
 const FLEET_FULL='Your fleet has reached 10,000 vehicles.';
+const vehicleOrderLimit=game=>game.vehicles.length>=MAX_VEHICLES?FLEET_FULL:`Only ${MAX_VEHICLES-game.vehicles.length} more vehicles fit in your fleet (10,000 maximum).`;
 const saleValue=(route,vehicle)=>Math.round((vehicle.paidPrice??VEHICLE_COSTS[route.mode])*.45);
 // Selling loses the least: the oldest generation, then the emptiest, then the latest in line.
 function sellCandidate(vehicles) { let pick=null;for(const v of vehicles)if(!pick||vehicleLevel(v)<vehicleLevel(pick)||vehicleLevel(v)===vehicleLevel(pick)&&v.load<=pick.load)pick=v;return pick; }
@@ -753,27 +758,67 @@ export function getRouteFleet(game,routeId) {
   const index=fleetIndex(game),route=index.routeById.get(routeId),vehicles=route?index.vehiclesByRoute.get(routeId)||[]:[],{levels,minLevel,maxLevel}=fleetLevels(vehicles),pick=sellCandidate(vehicles);
   return {count:vehicles.length,capacity:vehicles.reduce((sum,v)=>sum+v.capacity,0),load:vehicles.reduce((sum,v)=>sum+v.load,0),minLevel,maxLevel,levels,sellRefund:pick?saleValue(route,pick):0};
 }
-// A round trip is a loop of 2L tiles: out along the path, then back. A new vehicle
-// takes the middle of the widest gap in that loop, so a bought fleet never runs as a convoy.
-export function addRouteVehicle(game,routeId) {
-  const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');
-  if(!route.active)return result(false,`This route isn’t connected. Repair it before adding ${vehicleNoun(route.mode,route.cargo,2)}.`);
-  if(game.vehicles.length>=MAX_VEHICLES)return result(false,FLEET_FULL);
-  const noun=vehicleNoun(route.mode,route.cargo),purchase=getVehiclePurchase(game,route.mode),cost=purchase.cost;
-  if(game.money<cost)return result(false,`Need ${moneyText(cost)} to add a ${noun}.`);
+// A heap of round-trip gaps lets a whole order retain the single-vehicle spacing
+// rule without rebuilding and sorting the fleet index after every purchase.
+function routeGapQueue(phases,cycle) {
+  const heap=[],before=(a,b)=>a.end-a.start>b.end-b.start+1e-9||Math.abs((a.end-a.start)-(b.end-b.start))<=1e-9&&a.start<b.start;
+  const push=gap=>{if(gap.start>=cycle)gap={start:gap.start-cycle,end:gap.end-cycle};let at=heap.length;heap.push(gap);while(at){const parent=(at-1)>>1;if(!before(gap,heap[parent]))break;heap[at]=heap[parent];at=parent;}heap[at]=gap;};
+  const pop=()=>{const first=heap[0],last=heap.pop();if(heap.length){let at=0;while(at*2+1<heap.length){let child=at*2+1;if(child+1<heap.length&&before(heap[child+1],heap[child]))child++;if(!before(heap[child],last))break;heap[at]=heap[child];at=child;}heap[at]=last;}return first;};
+  for(let i=0;i<phases.length;i++)push({start:phases[i],end:i+1<phases.length?phases[i+1]:phases[0]+cycle});
+  return {push,pop};
+}
+// A round trip is a loop of 2L tiles. Each bought vehicle takes the middle of
+// its widest gap, so a fleet order is spaced just like successive purchases.
+function placeRouteVehicles(game,route,purchase,vehicleCount) {
+  if(!vehicleCount)return [];
+  const index=fleetIndex(game);
   const L=route.path.length-1,cycle=2*L,phases=(index.vehiclesByRoute.get(route.id)||[]).map(v=>((v.direction===1?v.progress:cycle-v.progress)%cycle+cycle)%cycle).sort((a,b)=>a-b);
-  let start=0,gap=cycle;
-  for(let i=0;i<phases.length;i++){const span=(i+1<phases.length?phases[i+1]:phases[0]+cycle)-phases[i];if(i===0||span>gap+1e-9){start=phases[i];gap=span;}}
-  const middle=phases.length?(start+gap/2)%cycle:0;
-  let progress=middle<=L?middle:cycle-middle,direction=middle<=L?1:-1,stop=-1;
-  // Within half a tile of a stop, start there as if just loaded and departing.
-  if(progress<=.5){progress=0;direction=1;stop=0;}else if(progress>=L-.5){progress=L;direction=-1;stop=1;}
-  const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
-  const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:cost,progress,direction,totalDistance:0,dwellRemaining:route.mode==='air'&&stop>=0?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
-  // A plane flies the straight chord: one started mid-flight appears at its place in the air.
-  placeVehicle(route,vehicle);
-  spend(game,cost);game.vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);noteBookkeeping(game);
-  return result(true,`${capital(noun)} added to ${route.name}.${spent(cost)}`,{vehicle,cost});
+  const known=new Set(phases),vehicles=[];let gaps=routeGapQueue(phases,cycle);
+  for(let n=0;n<vehicleCount;n++) {
+    const gap=phases.length||n?gaps.pop():null,middle=gap?(gap.start+(gap.end-gap.start)/2)%cycle:0;
+    let progress=middle<=L?middle:cycle-middle,direction=middle<=L?1:-1,stop=-1;
+    // Within half a tile of a stop, start there as if just loaded and departing.
+    if(progress<=.5){progress=0;direction=1;stop=0;}else if(progress>=L-.5){progress=L;direction=-1;stop=1;}
+    const at=Math.min(Math.floor(progress),L-1),a=route.path[at],b=route.path[at+1],fraction=progress-at;
+    const vehicle={id:makeId(game,'vehicle'),routeId:route.id,x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction,angle:Math.atan2((b.y-a.y)*direction,(b.x-a.x)*direction),load:0,capacity:purchase.capacity,level:purchase.level,paidPrice:purchase.cost,progress,direction,totalDistance:0,dwellRemaining:route.mode==='air'&&stop>=0?AIR_DEPARTURE_DWELL:0,tripSerial:0,loadedDay:Math.floor(game.day)};
+    // A plane flies the straight chord: one started mid-flight appears at its place in the air.
+    placeVehicle(route,vehicle);
+    game.vehicles.push(vehicle);vehicles.push(vehicle);if(stop>=0)beginFullLoadWait(route,vehicle,stop,loadVehicle(game,route,vehicle,stop),game.day);
+    const phase=((direction===1?progress:cycle-progress)%cycle+cycle)%cycle;
+    if(gap){
+      const split=phase<gap.start?phase+cycle:phase;
+      // Snapping to a nearby stop can place a vehicle outside the chosen gap.
+      // Repeated departures at an already present stop do not split that gap;
+      // a newly used stop rebuilds the queue at most twice in a whole order.
+      if(split<gap.start||split>gap.end){
+        if(known.has(phase))gaps.push(gap);
+        else {phases.push(phase);known.add(phase);phases.sort((a,b)=>a-b);gaps=routeGapQueue(phases,cycle);}
+      } else {gaps.push({start:gap.start,end:split});gaps.push({start:split,end:gap.end});}
+    } else gaps.push({start:phase,end:phase+cycle});
+    if(!known.has(phase)){phases.push(phase);known.add(phase);}
+  }
+  return vehicles;
+}
+// Preflight the entire order before changing money, IDs, stock or vehicles.
+export function addRouteVehicles(game,routeId,vehicleCount=1) {
+  const route=fleetIndex(game).routeById.get(routeId);if(!route)return result(false,'Route not found.');
+  if(!validVehicleCount(vehicleCount))return result(false,VEHICLE_COUNT_ERROR);
+  const plan=planRoute(game,{mode:route.mode,stops:route.stops,cargo:route.cargo});if(!plan.ok)return plan;
+  if(plan.stations[0].id!==route.stops[0])return result(false,'The supplier is now at the other stop. Edit this route before adding vehicles.');
+  if(game.vehicles.length+vehicleCount>MAX_VEHICLES)return result(false,vehicleOrderLimit(game));
+  const noun=vehicleNoun(route.mode,route.cargo,vehicleCount),purchase=getVehiclePurchase(game,route.mode),cost=purchase.cost*vehicleCount;
+  if(game.money<cost)return result(false,vehicleCount===1?`Need ${moneyText(cost)} to add a ${noun}.`:`Need ${moneyText(cost)} to add ${vehicleCount} ${noun}.`);
+  // A paused repair may precede the next connection refresh. Publish this
+  // current path only for a successful purchase, preserving rejected orders.
+  const old=route.path,wasActive=route.active,changed=old.length!==plan.path.length||old.some((point,i)=>point.x!==plan.path[i].x||point.y!==plan.path[i].y);
+  route.path=plan.path;route.pathRevision=game.networkRevision||0;route.active=true;route.status='Running';
+  if(!wasActive)restartCargoClocks(game,route,game.day);
+  if(changed)snapVehiclesToPath(game,route,old);
+  const vehicles=placeRouteVehicles(game,route,purchase,vehicleCount);spend(game,cost);noteBookkeeping(game);
+  return result(true,`${capital(vehicleCount===1?noun:`${vehicleCount} ${noun}`)} added to ${route.name}.${spent(cost)}`,{route,vehicle:vehicles[0],vehicles,vehicleCount,cost});
+}
+export function addRouteVehicle(game,routeId) {
+  return addRouteVehicles(game,routeId,1);
 }
 export function sellRouteVehicle(game,routeId) {
   const index=fleetIndex(game),route=index.routeById.get(routeId);if(!route)return result(false,'Route not found.');

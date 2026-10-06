@@ -53,7 +53,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   if (onNews) addAction('news-button', 'News', icon('news'), onNews, shortcuts.news);
   rule();
   moveAction('.main-nav [data-open-chains]', 'Production chains', 'C');
-  moveAction('.main-nav [data-open-gallery]', 'Building gallery');
+  // Gallery and everyday construction stay in the main toolbar for direct access.
   moveAction('#layers-button', 'Map layers', 'L');
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;

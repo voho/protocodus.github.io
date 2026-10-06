@@ -1,0 +1,15 @@
+{
+  "columns": 1,
+  "rows": 1,
+  "biome": "taiga",
+  "cellPixels": 256,
+  "direction": "One station only, complete and isolated, with genuinely transparent background. Match the Transport world camera and calm roof/wall masses. The full image is one 16 m square parcel, with transparent margins; preserve the complete parcel-to-cell scale. Position the bottom contact of the station platform at 95.3 percent of cell height. Keep a broad 2:1 dimetric ground platform, almost filling the parcel width but inset from its edges. Do not include rails, trains, vehicles, grass, decorative text or unrelated surroundings. Platform is a narrow raised station pavement, not an opaque square backdrop.",
+  "entries": [
+    {
+      "id": "train-stop",
+      "name": "Small railway station",
+      "footprint": 1,
+      "description": "A clearly recognizable small railway station, visually different from an open bus shelter: a compact enclosed single-storey cream-plaster ticket hall about 6 m wide and 4 m deep at the rear side of a long low stone platform; one slate-green broad pitched roof, a personnel door and two large blue-grey window panes; a connected long platform canopy supported by only two stout dark timber posts beside the hall; a simple broad bench, and one compact signal mast with a single red signal arm. Hall walls 3 m high, ordinary door 2.1 m high and 0.95 m wide. Station house, roof and canopy are the large identifying features. Platform length about 13 m and width 4 m; building and canopy together fit within the one-tile 16 m square parcel. Roof ridge follows the platform axis. Few large shapes, broad flat stone and roof tones, extremely restrained painted texture. No brick joints or roof tiles, no tiny lettering, no railings, no people, no clock tower, no grand station, no decorative noise."
+    }
+  ]
+}

@@ -29,8 +29,8 @@ import { integerText, tenthsText, compactText, dayText, monthText, longDayText }
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { ZOOM_LEVELS, ZOOM_VIEWS, zoomIndex } from './zoom.js';
 import { cargoIcon, cargoBadge, cargoRecipe } from './cargo-icons.js';
-import { filterRoutes, validateRoutePlan, routeCargoList, routeCargoOptions, defaultRouteName } from './route-planner.js';
-import { addRouteVehicle, sellRouteVehicle, getRouteFleet, getRetirementRefund, vehicleNoun, MAX_VEHICLES } from './model.js';
+import { filterRoutes, validateRoutePlan, routeCargoOptions, defaultRouteName } from './route-planner.js';
+import { addRouteVehicle, addRouteVehicles, validVehicleCount, sellRouteVehicle, getRouteFleet, getRetirementRefund, vehicleNoun, MAX_VEHICLES } from './model.js';
 import { TOWN_CARGO } from './data.js';
 import { isTownTraffic } from './data.js';
 import { STATION_RADIUS } from './model.js';
@@ -53,7 +53,7 @@ import { dateLong, escapeHTML, listJoin } from './copy.js';
 import { forecastRoute } from './route-planner.js';
 import { setRouteFullLoad, waitingForFullLoad } from './model.js';
 import { fullFareText } from './route-planner.js';
-import { paymentRatesHTML, bindPaymentRates, routeTrip, planTrip, tripText, tripTitle, planText, keepText } from './payment-rates.js';
+import { paymentRatesHTML, bindPaymentRates, routeTrip, planTrip, tripText, tripTitle, planText } from './payment-rates.js';
 import { findIndustryTargets, findIndustrySuppliers, lensCargo } from './chains.js';
 import { mountChains } from './chains-view.js';
 import { mountGallery, mountGalleryEntry } from './gallery-view.js';
@@ -168,7 +168,7 @@ let airportAxis = 'x'; // The runway's way round for the Airport tool, for this 
 let lastFrame = performance.now(), hudAt = 0, saveAt = performance.now(), minimapAt = 0, panelAt = 0;
 let worldSerial=0,savedWorld=-1,savedDay=-1,savedRevision=-1;
 let pendingSave=null, capturingSave=false, menuOpening=false;
-let formDraft = { name:'', mode:'road', from:'', to:'', cargo:'passengers', fullLoad:false, optionsOpen:false };
+let formDraft = { name:'', mode:'road', from:'', to:'', cargo:'passengers', cargoChosen:false, vehicleCount:1, fullLoad:false, optionsOpen:false };
 const ROUTES_PER_PAGE = 50;
 let routePage = 0, routeScreen = 'list', fleetControlsOpen = false;
 const routeDetailsOpen=new Set();
@@ -245,6 +245,7 @@ function toggleMapMenu(menuId,buttonId) {
  if(opening){cancelGesture();compactUI?.hideMinimap();closeManagement();closeInspector();menu.hidden=false;$('#'+buttonId).setAttribute('aria-expanded','true');menu.querySelector('button')?.focus({preventScroll:true});}
 }
 function syncToolControls() {
+ for(const button of $$('[data-toolbar-tool]')){const active=tool===button.dataset.toolbarTool;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));}
  const bar=$('#active-tool-bar');if(!bar)return;
  bar.hidden=tool==='inspect'||isRoutePicking();
  const info=TOOL_INFO[tool]||BUILDINGS[tool]||INDUSTRIES[tool],network=preferredMode==='rail'?'railway':'road';
@@ -340,7 +341,7 @@ function runProjectAction(action,target,extra={}) {
    glideCamera({x0:Math.min(a.x,b.x),y0:Math.min(a.y,b.y),x1:Math.max(a.x,b.x),y1:Math.max(a.y,b.y)},{zoom:Math.hypot(a.x-b.x,a.y-b.y)>20||!fits(1)?.5:1});updateHud();
   }
  }
- else if(action==='launch'){formDraft={name:'',mode:extra.mode,from:String(extra.from??''),to:String(extra.to??''),cargo:extra.cargo,fullLoad:false,optionsOpen:false};setView('routes',{routeScreen:'new'});scrollIntoViewSafe($('#route-form'),{block:'nearest'});}
+ else if(action==='launch'){formDraft={name:'',mode:extra.mode,from:String(extra.from??''),to:String(extra.to??''),cargo:extra.cargo,cargoChosen:true,vehicleCount:1,fullLoad:false,optionsOpen:false};setView('routes',{routeScreen:'new'});frameDraftRoute();scrollIntoViewSafe($('#route-form'),{block:'nearest'});}
  else if(action==='chains')openChains();
  else if(action==='routes')setView('routes');
  else if(action==='towns'){category='towns';setView('build');$('#panel-content').scrollTop=0;}
@@ -449,40 +450,30 @@ function buildPanel() {
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small></span></button>`).join('')}</div>`;
  return `<div class="panel-heading"><h2>Build</h2></div>${constructionNext?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}<div class="stop-mode-picker" data-build-stop-mode role="group" aria-label="Stop type at road and rail crossings"${tool==='stop'?'':' hidden'}><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>${category==='network'?engineeringTools():''}${category!=='network'?`<div class="build-bottom-tools"><button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze" aria-keyshortcuts="X" title="Bulldozer (X)">${icon('bulldoze')} Bulldozer <span>X</span></button></div>`:''}${category==='towns'?buildingPalette():projectCard()}`;
 }
-// The picker's tiles are icons; the legend names the cargo chosen.
-function syncCargoChoice(panel) {
- panel.querySelectorAll('[data-cargo-choice]').forEach(choice=>choice.setAttribute('aria-pressed',String(choice.dataset.cargoChoice===formDraft.cargo)));
- const chosen=panel.querySelector('.cargo-chosen');if(chosen)chosen.textContent=CARGO[formDraft.cargo]?.name||'';
-}
 function cargoChoices(options=[]) {
- const available=routeCargoList(game).filter(editCargo).map(key=>[key,CARGO[key]]),verdicts=new Map(options.map(option=>[option.cargo,option]));
- const fit=(key,c)=>{const option=verdicts.get(key);return (option?` data-fits="${option.valid}"`:'')+` title="${escapeHTML(option&&!option.valid?option.message:c.name)}"`;};
- return `<fieldset class="cargo-field"><legend>Cargo <span class="cargo-chosen">${escapeHTML(CARGO[formDraft.cargo]?.name||'')}</span></legend><select name="cargo" hidden aria-hidden="true" tabindex="-1">${available.map(([key,c])=>`<option value="${key}" ${formDraft.cargo===key?'selected':''}>${c.name}</option>`).join('')}</select><div class="cargo-picker" role="group" aria-label="Choose cargo">${available.map(([key,c])=>`<button type="button" class="cargo-choice" data-cargo-choice="${key}" aria-pressed="${formDraft.cargo===key}"${fit(key,c)}>${cargoIcon(key,{decorative:true})}<span class="sr-only">${c.name}</span>${verdicts.get(key)?.valid?`${icon('check','cargo-fit')}<span class="sr-only"> · fits these stops</span>`:''}</button>`).join('')}</div></fieldset>`;
-}
-function coverageNote(id,key,interactive=false) {
- const station=game.stations.find(s=>String(s.id)===String(id));if(!station)return '';
- const cargo=stationCoverage(game,station)[key];
- const badge=key=>interactive&&Object.hasOwn(CARGO,key)&&editCargo(key)?`<button type="button" class="coverage-pick" data-cargo-pick="${key}" title="Carry ${escapeHTML(CARGO[key].name.toLowerCase())}">${cargoBadge(key)}</button>`:cargoBadge(key);
- return `<div class="coverage-note"><strong>${key==='produces'?'Loads':'Accepts'}</strong><span class="coverage-cargo">${cargo.length?cargo.map(badge).join(''):'No cargo nearby'}</span></div>`;
+ const available=options.filter(option=>editCargo(option.cargo));
+ return `<fieldset class="cargo-field"><legend>2 · Choose cargo <span class="cargo-chosen">${escapeHTML(formDraft.cargoChosen?CARGO[formDraft.cargo]?.name||'':'')}</span></legend><select name="cargo" hidden aria-hidden="true" tabindex="-1">${available.map(({cargo})=>`<option value="${cargo}" ${formDraft.cargo===cargo?'selected':''}>${CARGO[cargo].name}</option>`).join('')}</select><div class="cargo-picker" role="group" aria-label="Choose cargo">${available.map(option=>`<button type="button" class="cargo-choice" data-cargo-choice="${option.cargo}" aria-pressed="${Boolean(formDraft.cargoChosen)&&formDraft.cargo===option.cargo}" data-fits="${option.valid}" title="${escapeHTML(option.valid?`Carry ${CARGO[option.cargo].name.toLowerCase()}`:option.message)}">${cargoIcon(option.cargo,{decorative:true})}<span>${escapeHTML(CARGO[option.cargo].name)}</span></button>`).join('')}</div>${available.length?'':'<p class="form-note">Neither stop supplies cargo yet. Choose stops near a town or a producer.</p>'}</fieldset>`;
 }
 // Air joins the route form and filters once air travel has arrived, or where a company already has an airport.
 const airOffered=()=>airAvailable(game)||game.stations.some(s=>s.mode==='air');
 function routeForm() {
- const editing=editingRoute(),stations=game.stations.filter(s=>s.mode===formDraft.mode),purchase=getVehiclePurchase(game,formDraft.mode);
+ const editing=editingRoute(),purchase=getVehiclePurchase(game,formDraft.mode),ready=routeStopsReady(),chosen=ready&&formDraft.cargoChosen,expanded=Boolean(editing||!chosen||formDraft.editStops);
  // Older saves can hold two stops of one name; their tiles tell them apart.
- const named=new Map();for(const s of stations)named.set(s.name,(named.get(s.name)||0)+1);
- const opts=(current)=>'<option value="">Choose a stop…</option>'+stations.map(s=>`<option value="${s.id}" ${String(s.id)===String(current)?'selected':''}>${escapeHTML(named.get(s.name)>1?`${s.name} · ${s.x}, ${s.y}`:s.name)}</option>`).join('');
- const plan=draftPlan(),options=formDraft.from&&formDraft.to?routeCargoOptions(game,formDraft):[];
- const stopField=(key,label,coverage)=>`<div class="route-stop-field"><div class="route-stop-label"><span>${label}</span><button type="button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map" title="Pick on map">${icon('focus')}</button></div><label class="form-field"><span class="sr-only">${label} stop</span><select name="${key}" required>${opts(formDraft[key])}</select></label>${coverageNote(formDraft[key],coverage,true)}</div>`;
- const swap=`<div class="route-swap"><button type="button" id="swap-route-stops" aria-label="Swap start and end" title="Swap start and end" ${formDraft.from||formDraft.to?'':'disabled'}>${icon('swap')}</button></div>`;
- return `<details id="route-planner" class="route-planner route-planner-focused" open><summary title="${editing?'Change its stops or freight; the same vehicles carry on.':'Pick a start, then an end. The connection is checked and a cargo suggested.'}">${icon(editing?'pencil':'route')}<h3>${editing?'Edit route':'New route'}</h3></summary><form id="route-form" class="panel-form">${editing?editNote(editing):`<label class="form-field form-field--bare"><span class="sr-only">Route name (optional)</span><input name="name" maxlength="36" placeholder="${escapeHTML(defaultRouteName(game,plan,formDraft.cargo)||'Route name')}" value="${escapeHTML(formDraft.name)}" title="Route name. Leave it empty to use the one shown."></label>`}<label class="form-field"><span>Transport</span><select name="mode" ${editing?'disabled':''} title="${escapeHTML(formDraft.mode==='water'?'Ships and ferries. Ports need connected water; ships pass beneath bridges.':formDraft.mode==='air'?`Planes fly straight between two airports at least ${AIRPORT_MIN_TILES} tiles apart. No track needed.`:formDraft.mode==='rail'?'Trains':'Buses and trucks')}"><option value="road" ${formDraft.mode==='road'?'selected':''}>Road</option><option value="rail" ${formDraft.mode==='rail'?'selected':''}>Rail</option><option value="water" ${formDraft.mode==='water'?'selected':''}>Water</option>${airOffered()?`<option value="air" ${formDraft.mode==='air'?'selected':''}>Air</option>`:''}</select></label>${stopField('from','Start','produces')}${swap}${stopField('to','End','accepts')}${cargoChoices(options)}<div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div>${routeForecast(plan)}${editing?'':`<div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec" title="${escapeHTML(purchaseSpec(purchase).title)}">${escapeHTML(purchaseSpec(purchase).text)}</span><strong id="vehicle-purchase-price">${money(purchase.cost)}</strong></div></div>`}${routeOptions()}<div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}">${launchButtons(plan)}</div></form></details>`;
+ const named=new Map();for(const s of game.stations)named.set(s.name,(named.get(s.name)||0)+1);
+ const option=(s,key)=>`<option value="${s.id}" ${String(s.id)===String(formDraft[key])?'selected':''}>${escapeHTML(named.get(s.name)>1?`${s.name} · ${s.x}, ${s.y}`:s.name)}</option>`;
+ const opts=key=>{const stations=game.stations.filter(s=>(key==='from'&&!editing||s.mode===formDraft.mode)&&(key!=='to'||String(s.id)!==String(formDraft.from)));return '<option value="">Choose a stop…</option>'+['road','rail','water','air'].map(mode=>{const group=stations.filter(s=>s.mode===mode);return group.length?`<optgroup label="${escapeHTML(({road:'Road stops',rail:'Rail stations',water:'Ports',air:'Airports'})[mode])}">${group.map(s=>option(s,key)).join('')}</optgroup>`:'';}).join('');};
+ const plan=draftPlan(),options=ready?routeCargoOptions(game,formDraft):[],autoName=defaultRouteName(game,plan,formDraft.cargo),names=routePickStops().map(s=>s.name).join(' → '),existing=!editing&&game.routes.find(r=>r.id===plan.existingRouteId);
+ const stopField=(key,label)=>`<div class="route-stop-field"><label class="form-field"><span>${label}</span><div class="route-stop-controls"><select name="${key}" required ${key==='to'&&!formDraft.from?'disabled':''}>${opts(key)}</select><button type="button" class="small-button" data-pick-route="${key}" aria-pressed="${routePicking===key}" aria-label="Select ${key==='from'?'start':'end'} stop on map" ${key==='to'&&!formDraft.from?'disabled':''}>${icon('focus')} Map</button></div></label></div>`;
+ const nameField=existing?`<p class="form-note route-existing-name">Vehicles join <strong>${escapeHTML(existing.name)}</strong>${existing.fullLoad?' · waits for a full load':''}.</p>`:`<label class="form-field route-name-field"><span>Route name <button class="route-auto-name" type="button" id="reset-route-name" ${formDraft.name.trim()?'':'hidden'}>Use automatic name</button></span><input name="name" maxlength="36" value="${escapeHTML(formDraft.name||autoName)}" placeholder="${escapeHTML(autoName)}" aria-description="Named after the connected towns and cargo. Type to override it."></label>`;
+ const vehicles=editing?editNote(editing):`${nameField}<label class="form-field route-quantity-field"><span>Vehicles</span><div class="route-quantity"><button type="button" data-route-quantity="-1" aria-label="Buy one fewer vehicle" ${Number(formDraft.vehicleCount??1)<=1?'disabled':''}>−</button><input name="vehicleCount" type="number" min="1" max="${MAX_VEHICLES}" step="1" required value="${escapeHTML(formDraft.vehicleCount??1)}" aria-label="Number of vehicles"><button type="button" data-route-quantity="1" aria-label="Buy one more vehicle">+</button></div></label><div class="purchase-vehicle"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${formDraft.mode}" data-cargo="${formDraft.cargo}" data-level="${purchase.level}" aria-hidden="true"></canvas><div class="form-summary"><span id="vehicle-purchase-spec" title="${escapeHTML(purchaseSpec(purchase).title)}">${escapeHTML(purchaseSpec(purchase).text)}</span><span id="vehicle-purchase-price">${money(purchase.cost)} each</span></div></div>`;
+ return `<section id="route-planner" class="route-planner route-planner-focused" aria-label="${editing?'Edit route':'Create route'}"><form id="route-form" class="panel-form" data-cargo-options="${options.filter(o=>editCargo(o.cargo)).map(o=>o.cargo).join(',')}" data-stops-ready="${ready}" data-cargo-chosen="${chosen}" data-existing-route="${escapeHTML(plan.existingRouteId||'')}"><input name="mode" type="hidden" value="${formDraft.mode}"><section class="route-step" id="route-stops-step"><div class="route-step-heading"><h3>1 · Choose stops</h3>${chosen&&!editing?'<button class="small-button" type="button" id="change-route-stops">Change stops</button>':''}</div><div id="route-stop-fields" ${expanded?'':'hidden'}>${stopField('from','Start stop')}${stopField('to','End stop')}${ready?'<button class="route-swap-inline" type="button" id="swap-route-stops">Swap start and end</button>':''}</div>${expanded?'':`<p class="route-selected-stops">${escapeHTML(names)}</p>`}${formDraft.from?`<p class="route-mode-note">${icon(transportIcon(formDraft.mode))} ${escapeHTML(({road:'Road connection',rail:'Rail connection',water:'Water connection',air:'Air connection'})[formDraft.mode])}</p>`:''}</section><section class="route-step" id="route-cargo-step" ${ready?'':'hidden'}>${cargoChoices(options)}</section><div id="route-connection" class="route-connection" role="status" aria-live="polite" data-state="${plan.state}" data-valid="${plan.valid&&Boolean(chosen)}" data-message="${escapeHTML(routePlanText(plan))}">${routePlanMessage(plan)}</div><section class="route-step" id="route-vehicles-step" ${chosen?'':'hidden'}><h3>${editing?'3 · Review changes':'3 · Buy vehicles'}</h3>${vehicles}${existing?'':routeOptions()}</section><div id="route-estimate" class="route-estimate-footer">${routeForecast(plan)}<div id="route-launch" class="route-launch" data-existing="${escapeHTML(plan.existingRouteId||'')}" ${chosen?'':'hidden'}>${launchButtons(plan)}</div></div></form></section>`;
 }
 function openNewRoute() {
  cancelRoutePicking();if(formDraft.editing)leaveRouteEdit(true);
- formDraft.open=true;setView('routes',{routeScreen:'new'});$('#route-form [name=mode]')?.focus({preventScroll:true});
+ formDraft.open=true;formDraft.cargoChosen=false;formDraft.editStops=true;setView('routes',{routeScreen:'new'});$('#route-form [name=from]')?.focus({preventScroll:true});
 }
 function routesPanel() {
- if(routeScreen!=='list')return `<button class="panel-back" type="button" id="route-back">${icon('chevronLeft')} Back to routes</button><div class="panel-heading"><h2>${routeScreen==='edit'?'Edit route':'New route'}</h2></div><p class="panel-description">${routeScreen==='edit'?'Change this service’s stops or cargo. Its vehicles keep running.':'Choose two stops, check their connection, then launch a vehicle.'}</p>${routeForm()}`;
+ if(routeScreen!=='list')return `<button class="panel-back" type="button" id="route-back">${icon('chevronLeft')} Back to routes</button><div class="panel-heading"><h2>${routeScreen==='edit'?'Edit route':'New route'}</h2></div>${routeForm()}`;
  const options=(entries,current)=>entries.map(([key,label])=>`<option value="${key}" ${key===current?'selected':''}>${escapeHTML(label)}</option>`).join('');
  const routes=filterRoutes(game,routeFilters);
  return `<div class="panel-heading"><h2>Routes</h2><button class="small-button" id="new-route-button">+ New route</button></div><div class="route-filters"><label class="route-search-field"><span class="sr-only">Search routes</span><input id="route-search" type="search" placeholder="Search routes, stops or cargo" aria-label="Search routes, stops or cargo" value="${escapeHTML(routeFilters.query)}"></label><details class="route-filter-details" ${['mode','status','cargo'].some(key=>routeFilters[key]!=='all')?'open':''}><summary>Filter routes</summary><div class="route-filter-options"><label><span>Transport</span><select id="route-filter-mode">${options([['all','All transport'],['road','Road'],['rail','Rail'],['water','Water'],...airOffered()?[['air','Air']]:[]],routeFilters.mode)}</select></label><label><span>Status</span><select id="route-filter-status">${options([['all','All statuses'],['running','Connected'],['disconnected','Disconnected'],['attention','Needs attention']],routeFilters.status)}</select></label><label class="route-cargo-filter"><span class="sr-only">Filter routes by cargo</span><select id="route-filter-cargo" aria-label="Filter routes by cargo">${options([['all','All cargo'],...Object.entries(CARGO).map(([key,cargo])=>[key,cargo.name])],routeFilters.cargo)}</select></label></div></details></div><div class="route-list-heading"${filtering()?'':' hidden'}><span id="route-results-count" role="status">${routes.length} of ${game.routes.length} routes</span><button class="small-button" id="clear-route-filters">Clear filters</button></div><div id="route-list">${routePageCards(routes)}</div>${fleetControls()}`;
@@ -660,34 +651,54 @@ function performUpgrade(routeId) {
  toast(result.message,!result.ok);
  if(result.ok){refreshRouteList();updateHud();persist();if(restoreFocus){const target=routeId?$$('[data-focus-route]').find(button=>button.dataset.focusRoute===routeId):$('#new-route-button');target?.focus({preventScroll:true});}}
 }
-// A route on the same stops and cargo takes another vehicle; a separate service stays possible.
+// A matching service takes the requested vehicles in one purchase.
 function launchButtons(plan) {
  if(editingRoute())return `<button class="button button-primary full" type="submit" ${plan.valid&&editChanges(plan)?'':'disabled'}>Save changes</button><button class="route-edit-cancel" type="button" id="cancel-route-edit">Cancel</button>`;
- const existing=plan.existingRouteId?game.routes.find(route=>route.id===plan.existingRouteId):null;
- if(!existing)return `<button class="button button-primary full" type="submit" ${plan.valid?'':'disabled'}>${icon(transportIcon(formDraft.mode))} Launch route</button>`;
- const order=fleetOrder(existing);
- return `<button class="button button-primary full" type="button" id="add-route-vehicle" data-route="${escapeHTML(existing.id)}" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.planner)}</button><button class="button button-outline full route-separate" type="submit" ${plan.valid?'':'disabled'}>Launch separate service</button>`;
+ const existing=plan.existingRouteId?game.routes.find(route=>route.id===plan.existingRouteId):null,count=Number(formDraft.vehicleCount??1),label=validVehicleCount(count)?`${count} ${vehicleNoun(formDraft.mode,formDraft.cargo,count)}`:'vehicles',enabled=plan.valid&&formDraft.cargoChosen;
+ if(!existing)return `<button class="button button-primary full" type="submit" ${enabled?'':'disabled'}>${icon(transportIcon(formDraft.mode))} Buy ${escapeHTML(label)} &amp; launch</button>`;
+ return `<button class="button button-primary full" type="button" id="add-route-vehicle" data-route="${escapeHTML(existing.id)}" title="${escapeHTML(plan.valid?`Add ${label} to ${existing.name}`:plan.message)}" ${enabled?'':'disabled'}>Buy ${escapeHTML(label)} for this route</button>`;
 }
 // Full load is the one optional order: folded under More options, for freight only, and off until ticked.
 const fullLoadState = () => formDraft.fullLoad?'Full load':'';
 function routeOptions() { return `<details class="route-options" ${formDraft.optionsOpen?'open':''} ${isTownTraffic(formDraft.cargo)?'hidden':''}><summary><span>More options</span><span class="route-options-state">${fullLoadState()}</span>${uiIcon('chevronDown',{size:16,cls:'route-options-chevron'})}</summary><label class="route-option"><input type="checkbox" data-route-option="full-load" ${formDraft.fullLoad?'checked':''}> Wait for a full load</label><p class="form-note">Vehicles wait where they load until they are full, for a month at most. Waiting vehicles cost 45% to run. Waiting counts toward delivery time.</p></details>`; }
 function addFromPlanner(routeId) {
- const result=addRouteVehicle(game,routeId);toast(result.message,!result.ok);
- if(result.ok){routeScreen='list';cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.open=false;renderPanel();updateHud();persist();flashRoute(routeId);}
+ const plan=draftPlan();if(!plan.valid||!formDraft.cargoChosen)return toast(plan.message,true);
+ const result=addRouteVehicles(game,routeId,Number(formDraft.vehicleCount??1));toast(result.message,!result.ok);
+ if(result.ok){routeScreen='list';cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.cargoChosen=false;formDraft.editStops=false;formDraft.vehicleCount=1;formDraft.open=false;renderPanel();updateHud();persist();flashRoute(routeId);}
 }
 // Edit reuses the planner for one route: its transport stays, nothing is bought or sold, and buses never turn into trucks.
 const editingRoute = () => formDraft.editing?game.routes.find(route=>route.id===formDraft.editing)||null:null;
 const editCargo = cargo => { const route=editingRoute();return !route||(isTownTraffic(route.cargo)?cargo===route.cargo:!isTownTraffic(cargo)); };
-const draftPlan = () => validateRoutePlan(game,formDraft,{ignoreFunds:Boolean(editingRoute())});
+const draftPlan = () => validateRoutePlan(game,{...formDraft,vehicleCount:Number(formDraft.vehicleCount??1)},{ignoreFunds:Boolean(editingRoute()),ignoreFleet:Boolean(editingRoute())});
+function routeStopsReady() { const [a,b]=[formDraft.from,formDraft.to].map(id=>game.stations.find(s=>String(s.id)===String(id)));return Boolean(a&&b&&a.id!==b.id&&a.mode===formDraft.mode&&b.mode===formDraft.mode); }
+let draftPreviewMemo=null,draftPreviewState=null;
+function draftRoutePreview() {
+ if(view!=='routes'||routeScreen==='list'||tool!=='inspect'||!isRoutePicking()&&$('.sidebar').inert)return null;
+ const prior=draftPreviewState;if(prior?.game===game&&prior.revision===game.revision&&prior.network===game.networkRevision&&prior.from===formDraft.from&&prior.to===formDraft.to&&prior.mode===formDraft.mode&&prior.cargo===formDraft.cargo)return prior.value;
+ let value=null;
+ if(routeStopsReady()){
+  const plan=validateRoutePlan(game,{...formDraft,vehicleCount:1},{ignoreFunds:true,ignoreFleet:true});
+  if(plan.connected&&plan.path?.length){if(draftPreviewMemo?.path!==plan.path||draftPreviewMemo.mode!==formDraft.mode||draftPreviewMemo.cargo!==formDraft.cargo||draftPreviewMemo.stops[0]!==plan.stations[0].id||draftPreviewMemo.stops[1]!==plan.stations[1].id)draftPreviewMemo={path:plan.path,mode:formDraft.mode,cargo:formDraft.cargo,stops:plan.stations.map(s=>s.id)};value=draftPreviewMemo;}
+ }
+ draftPreviewState={game,revision:game.revision,network:game.networkRevision,from:formDraft.from,to:formDraft.to,mode:formDraft.mode,cargo:formDraft.cargo,value};return value;
+}
+function frameDraftRoute() {
+ const draft=draftRoutePreview();if(!draft)return;
+ let extent=routeExtents.get(draft.path);
+ if(!extent){let u0=Infinity,u1=-Infinity,v0=Infinity,v1=-Infinity;for(const p of draft.path){u0=Math.min(u0,p.x-p.y);u1=Math.max(u1,p.x-p.y);v0=Math.min(v0,p.x+p.y);v1=Math.max(v1,p.x+p.y);}extent={u:(u0+u1)/2,v:(v0+v1)/2,width:(u1-u0)*TILE,height:(v1-v0)*TILE/2+48};routeExtents.set(draft.path,extent);}
+ const band=syncBand(),x=(extent.u+extent.v)/2,y=(extent.v-extent.u)/2;
+ glideCamera({x0:x,y0:y,x1:x,y1:y},{zoom:Math.max(ZOOM_LEVELS[0],...ZOOM_LEVELS.filter(zoom=>extent.width*zoom<=band.width*.8&&extent.height*zoom<=band.height*.8)),back:false});
+ wakeFrame();
+}
 function editChanges(plan,order=true) { const route=editingRoute(),[a,b]=plan.reversed?[...plan.stations].reverse():plan.stations;return !route||a?.id!==route.stops[0]||b?.id!==route.stops[1]||formDraft.cargo!==route.cargo||order&&fullLoadEdit(route); }
 const fullLoadEdit = route => !isTownTraffic(formDraft.cargo)&&(route.fullLoad===true)!==(formDraft.fullLoad===true);
 function editNote(route) { const count=getRouteFleet(game,route.id).count;return `<p class="form-note route-edit-note"><strong>${escapeHTML(route.name)}</strong> keeps its ${count===1?fleetNoun(route,1):count+' '+fleetNoun(route,count)}. Change the stops${isTownTraffic(route.cargo)?'':' or the freight'}; nothing is bought or sold.</p>`; }
 function startRouteEdit(id,keyboard) {
  const route=game.routes.find(r=>r.id===id);if(!route)return;
- cancelRoutePicking();formDraft={editing:route.id,name:'',mode:route.mode,from:String(route.stops[0]),to:String(route.stops[1]),cargo:route.cargo,fullLoad:route.fullLoad===true,optionsOpen:route.fullLoad===true,open:true,autoKey:`${route.stops[0]}|${route.stops[1]}|${route.mode}`};
+ cancelRoutePicking();formDraft={editing:route.id,name:'',mode:route.mode,from:String(route.stops[0]),to:String(route.stops[1]),cargo:route.cargo,cargoChosen:true,vehicleCount:1,fullLoad:route.fullLoad===true,optionsOpen:route.fullLoad===true,open:true};
  setView('routes',{routeScreen:'edit'});scrollIntoViewSafe($('#route-planner'),{block:'start'});if(keyboard)$('#route-form [name=from]')?.focus({preventScroll:true});
 }
-function leaveRouteEdit(open=false) { formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',fullLoad:false,optionsOpen:false,open}; }
+function leaveRouteEdit(open=false) { formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',cargoChosen:false,vehicleCount:1,fullLoad:false,optionsOpen:false,open}; }
 function cancelRouteEdit() {
  routeScreen='list';const id=formDraft.editing;cancelRoutePicking();leaveRouteEdit();renderPanel();
  const card=$$('#route-list [data-route-id]').find(el=>el.dataset.routeId===id);if(card)revealInPanel(card,card.querySelector('[data-edit-route]'));
@@ -709,51 +720,58 @@ function commitRouteEdit(route,plan) {
  toast(shown.message,!shown.ok);
  if(shown.ok){routeScreen='list';cancelRoutePicking();leaveRouteEdit();renderPanel();compactUI?.openManagement();updateHud();persist();flashRoute(route.id);}
 }
-function routePlanText(plan) { const existing=plan.existingRouteId&&plan.existingRouteId!==formDraft.editing&&game.routes.find(route=>route.id===plan.existingRouteId),message=existing?`Already served by ${existing.name}`:plan.message;return formDraft.autoNote?`${message.replace(/\.$/,'')} · ${formDraft.autoNote}`:message; }
+function routePlanText(plan) { if(routeStopsReady()&&!formDraft.cargoChosen&&plan.connected)return 'Connection ready. Choose what to carry.';const existing=plan.valid&&plan.existingRouteId&&plan.existingRouteId!==formDraft.editing&&game.routes.find(route=>route.id===plan.existingRouteId);return existing?`Already served by ${existing.name}. Add vehicles to it.`:plan.message; }
 function routePlanMessage(plan) { return icon(plan.valid?'check':plan.state==='missing'?'route':'warning')+`<span>${escapeHTML(routePlanText(plan))}</span>`; }
-// One line of outlook under the status; supply, throughput and hints stay folded in Forecast details.
+// Keep the total quote visible; supply, throughput and trip assumptions stay folded.
 const forecastDetailsOpen = () => { try { return localStorage.getItem('transport-forecast-details')==='open'; } catch { return false; } };
 const perDay = n => (n<9.95?Math.round(n*10)/10:Math.round(n)).toLocaleString('en-US');
 function routeOutlook(plan) {
  // A vehicle added to a served route follows that route's full-load order, not the checkbox.
- const served=plan.existingRouteId&&game.routes.find(route=>route.id===plan.existingRouteId),f=!editingRoute()&&forecastRoute(game,served?{...formDraft,fullLoad:served.fullLoad===true}:formDraft,plan);if(!f)return null;
- const noun=vehicleNoun(formDraft.mode,formDraft.cargo),months=Math.max(1,Math.round(f.paybackMonths)),room=f.vehiclesToSaturate-1,rail=f.otherModes.find(other=>other.mode==='rail');
+ if(!formDraft.cargoChosen||!routeStopsReady())return null;
+ const editing=editingRoute(),served=plan.existingRouteId&&game.routes.find(route=>route.id===plan.existingRouteId),draft={...formDraft,vehicleCount:editing?getRouteFleet(game,editing.id).count:Number(formDraft.vehicleCount??1),...served&&!editing?{fullLoad:served.fullLoad===true}:{}};
+ const f=forecastRoute(game,draft,plan);if(!f)return null;
+ const noun=vehicleNoun(formDraft.mode,formDraft.cargo),months=Math.max(1,Math.round(f.paybackMonths)),room=f.vehiclesToSaturate-f.vehicleCount;
  const summary=f.netMonth>0?`≈ +${compactMoney(f.netMonth)} / month · pays back in about ${months<24?`${months}\u00a0month${months===1?'':'s'}`:`${Math.round(months/12)}\u00a0years`}`:'Likely to earn less than its upkeep';
  const shared=f.madeDay-f.supplyDay>.05,plural=noun==='bus'?'buses':noun+'s';
- const facts=[`${isTownTraffic(formDraft.cargo)?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':isTownTraffic(formDraft.cargo)?'':' once served'}`,`One ${noun} carries ≈ ${perDay(f.perVehicleDay)} / day`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:`One ${noun} carries all of it`,fullFareText(formDraft.mode,formDraft.cargo,f.fullFare)].filter(Boolean);
- if(formDraft.mode==='road'&&room>0&&rail?.ratio>=1.5)facts.push(`A train would carry ≈ ${Math.round(rail.ratio)}× per vehicle${keepText(rail.share,f.share)}`);
- const plane=f.otherModes.find(other=>other.mode==='air');if(room>0&&plane?.ratio>=1.5)facts.push(`A plane would carry ≈ ${Math.round(plane.ratio)}× per vehicle${keepText(plane.share,f.share)}`);
+ const facts=[`${isTownTraffic(formDraft.cargo)?'Towns send':'Source makes'} ≈ ${perDay(f.madeDay)} / day${shared?f.supplyDay>0?` · ≈ ${perDay(f.supplyDay)} spare`:' · all taken':isTownTraffic(formDraft.cargo)?'':' once served'}`,`Fleet carries ≈ ${perDay(f.movedDay)} / day`,`Estimated upkeep ${money(f.upkeepMonth)} / month`,f.supplyDay<=0?'':room>0?`Room for ≈ ${room} more ${room===1?noun:plural}`:'This fleet can carry all available cargo',fullFareText(formDraft.mode,formDraft.cargo,f.fullFare)].filter(Boolean);
  if(f.marketBonus>=1)facts.push(`Includes ≈ ${money(f.marketBonus)} a month of market bonus`);
  if(f.workshopsPending)facts.push('Town workshops’ output counts from the end of this month');
- const trip=planText(planTrip(game,formDraft.mode,formDraft.cargo,plan.path,getVehiclePurchase(game,formDraft.mode).level,f.wait));
- return {outlook:f.netMonth>0?'gain':'loss',summary,trip,facts:facts.map(fact=>`<li>${escapeHTML(fact)}</li>`).join('')};
+ const trip=planText(planTrip(game,formDraft.mode,formDraft.cargo,plan.path,editing?getRouteFleet(game,editing.id).minLevel:getVehiclePurchase(game,formDraft.mode).level,f.wait));
+ return {forecast:f,outlook:f.netMonth>0?'gain':'loss',summary:editing?`Estimated net ${netMoney(f.netMonth)} / month`:summary,trip,facts:facts.map(fact=>`<li>${escapeHTML(fact)}</li>`).join('')};
 }
 function routeForecast(plan) {
- const outlook=routeOutlook(plan);
- return `<div id="route-forecast" class="route-forecast" data-outlook="${outlook?.outlook||''}" data-shown="${escapeHTML(outlook?outlook.summary+outlook.trip+outlook.facts:'')}" ${outlook?'':'hidden'}><p class="forecast-summary">${escapeHTML(outlook?.summary||'')}</p><p class="route-forecast-trip">${escapeHTML(outlook?.trip||'')}</p><details class="forecast-details" ${forecastDetailsOpen()?'open':''}><summary>Forecast details</summary><ul class="forecast-facts">${outlook?.facts||''}</ul></details></div>`;
+ const outlook=routeOutlook(plan),estimate=routeEstimate(plan,outlook);
+ return `<div id="route-forecast" class="route-forecast" data-outlook="${outlook?.outlook||''}"><dl class="route-estimate-values"><div><dt>Purchase cost</dt><dd data-estimate-cost>${escapeHTML(estimate.cost)}</dd></div><div><dt>Revenue / month</dt><dd data-estimate-revenue>${escapeHTML(estimate.revenue)}</dd></div><div><dt>Net / month</dt><dd data-estimate-net>${escapeHTML(estimate.net)}</dd></div></dl><p class="forecast-summary" ${outlook?'':'hidden'}>${escapeHTML(outlook?.summary||'')}</p><details class="forecast-details" ${forecastDetailsOpen()?'open':''} ${outlook?'':'hidden'}><summary>Estimate details</summary><p class="route-forecast-trip">${escapeHTML(outlook?.trip||'')}</p><ul class="forecast-facts">${outlook?.facts||''}</ul></details></div>`;
+}
+function routeEstimate(plan,outlook) {
+ const count=Number(formDraft.vehicleCount??1),cost=editingRoute()?money(0):validVehicleCount(count)?`${formDraft.from?'':'From '}${money(getVehiclePurchase(game,formDraft.mode).cost*count)}`:'Enter a whole quantity';
+ const missing=!routeStopsReady()?'Choose stops':!formDraft.cargoChosen?'Choose cargo':!validVehicleCount(count)?'Enter a quantity':!plan.connected?'Connect the stops':'No suitable service';
+ return {cost,revenue:outlook?`≈ ${money(outlook.forecast.revenueMonth)}`:missing,net:outlook?`≈ ${netMoney(outlook.forecast.netMonth)}`:'—'};
 }
 function refreshRoutePlan() {
  const status=$('#route-connection'),form=$('#route-form');if(!status||!form)return;
- const plan=draftPlan(),text=routePlanText(plan),name=form.querySelector('[name=name]'),placeholder=defaultRouteName(game,plan,formDraft.cargo)||'Route name';
+ autoSelectCargo();const cargoResults=routeStopsReady()?routeCargoOptions(game,formDraft).filter(o=>editCargo(o.cargo)):[],cargoOptions=cargoResults.map(o=>o.cargo).join(','),plan=draftPlan();
+ if(form.dataset.cargoOptions!==cargoOptions||form.dataset.stopsReady!==String(routeStopsReady())||form.dataset.cargoChosen!==String(routeStopsReady()&&Boolean(formDraft.cargoChosen))||form.dataset.existingRoute!==(plan.existingRouteId||'')){const active=document.activeElement,key=active?.name,cargo=active?.dataset.cargoChoice;renderPanel();const target=key?$(`#route-form [name=${key}]`):cargo?$(`[data-cargo-choice="${cargo}"]`):null;target?.focus({preventScroll:true});return;}
+ for(const option of cargoResults){const button=form.querySelector(`[data-cargo-choice="${option.cargo}"]`);if(button){button.dataset.fits=String(option.valid);button.title=option.valid?`Carry ${CARGO[option.cargo].name.toLowerCase()}`:option.message;}}
+ const text=routePlanText(plan),name=form.querySelector('[name=name]'),placeholder=defaultRouteName(game,plan,formDraft.cargo)||'Route name';
  if(status.dataset.message!==text){status.innerHTML=routePlanMessage(plan);status.dataset.message=text;}
  if(name&&name.placeholder!==placeholder)name.placeholder=placeholder;
+ if(name&&!formDraft.name&&document.activeElement!==name)name.value=placeholder;
+ const reset=$('#reset-route-name');if(reset)reset.hidden=!formDraft.name.trim();
  const options=form.querySelector('.route-options'),town=isTownTraffic(formDraft.cargo);if(options&&options.hidden!==town)options.hidden=town;
  const launch=$('#route-launch'),existing=plan.existingRouteId||'';
- if(launch&&launch.dataset.existing!==existing){launch.innerHTML=launchButtons(plan);launch.dataset.existing=existing;}
- status.dataset.state=plan.state;status.dataset.valid=String(plan.valid);form.querySelector('[type=submit]').disabled=!plan.valid||!editChanges(plan);
- const forecast=$('#route-forecast'),outlook=routeOutlook(plan),shown=outlook?outlook.summary+outlook.trip+outlook.facts:'';
- if(forecast&&forecast.dataset.shown!==shown){forecast.hidden=!outlook;forecast.dataset.outlook=outlook?.outlook||'';forecast.dataset.shown=shown;if(outlook){forecast.querySelector('.forecast-summary').textContent=outlook.summary;forecast.querySelector('.route-forecast-trip').textContent=outlook.trip;forecast.querySelector('.forecast-facts').innerHTML=outlook.facts;}}
- const add=$('#add-route-vehicle'),route=add&&game.routes.find(r=>r.id===add.dataset.route);
- if(route){const order=fleetOrder(route).add;add.disabled=order.disabled;add.title=order.title;if(add.textContent!==order.planner)add.textContent=order.planner;}
+ const buttons=launchButtons(plan);if(launch&&launch.dataset.shown!==buttons){const active=document.activeElement,id=active?.id,type=active?.type;launch.innerHTML=buttons;launch.dataset.existing=existing;launch.dataset.shown=buttons;if(active&&!active.isConnected)(id?$(`#${id}`):type==='submit'?launch.querySelector('[type=submit]'):null)?.focus({preventScroll:true});}
+ status.dataset.state=plan.state;status.dataset.valid=String(plan.valid&&Boolean(formDraft.cargoChosen));
+ const forecast=$('#route-forecast'),outlook=routeOutlook(plan),estimate=routeEstimate(plan,outlook);
+ if(forecast){forecast.dataset.outlook=outlook?.outlook||'';for(const key of ['cost','revenue','net']){const node=forecast.querySelector(`[data-estimate-${key}]`);if(node.textContent!==estimate[key])node.textContent=estimate[key];}const summary=forecast.querySelector('.forecast-summary'),details=forecast.querySelector('.forecast-details');summary.hidden=!outlook;details.hidden=!outlook;if(outlook){if(summary.textContent!==outlook.summary)summary.textContent=outlook.summary;forecast.querySelector('.route-forecast-trip').textContent=outlook.trip;if(forecast.dataset.facts!==outlook.facts){forecast.querySelector('.forecast-facts').innerHTML=outlook.facts;forecast.dataset.facts=outlook.facts;}}}
+ const minus=form.querySelector('[data-route-quantity="-1"]');if(minus)minus.disabled=Number(formDraft.vehicleCount??1)<=1;
 }
 // Suggest cargo once per change of stops or transport. A cargo that still fits is never replaced.
 function autoSelectCargo() {
- const key=`${formDraft.from}|${formDraft.to}|${formDraft.mode}`;if(formDraft.autoKey===key)return;formDraft.autoKey=key;
- const stops=[formDraft.from,formDraft.to].map(id=>id?game.stations.find(s=>String(s.id)===String(id)):null);if(!stops[0]){formDraft.autoNote='';return;}
- const options=stops[1]?routeCargoOptions(game,formDraft).filter(option=>editCargo(option.cargo)):[];let next='';
- if(options.length)next=options[0].valid&&!options.some(option=>option.valid&&option.cargo===formDraft.cargo)?options[0].cargo:'';
- else if(!stops.some(stop=>stop&&stationCoverage(game,stop).produces.includes(formDraft.cargo)))next=stationCoverage(game,stops[0]).produces.find(cargo=>!isTownTraffic(cargo)&&routeCargoList(game).includes(cargo))||'';
- if(next&&next!==formDraft.cargo&&editCargo(next)){formDraft.cargo=next;formDraft.autoNote=`Cargo set to ${CARGO[next].name}`;}
+ if(!routeStopsReady()){formDraft.cargoChosen=false;formDraft.autoNote='';return;}
+ const options=routeCargoOptions(game,formDraft).filter(option=>editCargo(option.cargo));
+ if(!options.some(option=>option.cargo===formDraft.cargo)){formDraft.cargoChosen=false;formDraft.cargo=options.find(o=>o.valid)?.cargo||options[0]?.cargo||'';formDraft.fullLoad=false;}
+ if(!formDraft.cargoChosen&&options.some(o=>o.valid)&&!options.some(o=>o.cargo===formDraft.cargo&&o.valid))formDraft.cargo=options.find(o=>o.valid).cargo;
  if(cargoLens?.origin==='routes'&&cargoLens.cargo!==formDraft.cargo)setCargoLens(null);
 }
 function bindRouteCards(root) {
@@ -921,6 +939,7 @@ function initReferences() {
  for(const el of [mapSection,$('.sidebar'),$('#inspector')]){resize.observe(el);if(el!==mapSection)attributes.observe(el,{attributes:true,attributeFilter:['class','hidden']});}
  $('.sidebar').addEventListener('transitionend',queueBand);
  $('#inspector').addEventListener('click',e=>{if(e.target.closest('[data-inspector-back]'))inspectorBack();});
+$('#inspector').addEventListener('click',e=>{const button=e.target.closest('[data-build-selected-stop]');if(!button||button.disabled)return;const x=Number(button.dataset.stopX),y=Number(button.dataset.stopY),mode=button.dataset.buildSelectedStop,kind=mode==='rail'?'train-stop':'bus-stop',quote=quoteBuildPlan(game,kind,[{x,y}],{preferredMode:mode});if(!quote.ok)return toast(quote.message,true);category='network';setView('build');setTool(kind);paintPath([{x,y}]);});
  overlays.addEventListener('mousedown',e=>{if(e.target.closest('button'))e.preventDefault();}); // overlay buttons act without taking focus
  // Map hover lights the hovered place's rows and references in open panels (7.4), once for each tile the pointer handler
  // picks (it keeps one hover object per tile); nothing scrolls.
@@ -941,6 +960,7 @@ function flashRoute(routeId) {
  revealInPanel(card,card.querySelector('[data-focus-route]'));card.classList.add('route-flash');setTimeout(()=>card.classList.remove('route-flash'),1200);
 }
 function isRoutePicking() { return Boolean(routePicking); }
+const routePickingMode=()=>routePicking==='from'&&!editingRoute()?null:formDraft.mode;
 function routePickStops() { return view==='routes'&&routeScreen!=='list'?[formDraft.from,formDraft.to].map(id=>game.stations.find(s=>String(s.id)===String(id))).filter(Boolean):[]; }
 function cancelRoutePicking() {
  cancelConnectionPlan(); // A planned connection is the other pick on the map; the same tool, view and Escape changes end it.
@@ -955,7 +975,7 @@ function returnFromRoutePicking(){
 }
 function showRoutePickHint() {
  let banner=$('#route-pick-banner');if(!banner){banner=document.createElement('div');banner.id='route-pick-banner';banner.className='route-pick-banner';banner.setAttribute('role','status');banner.dataset.band='';$('.map-section').append(banner);}
- const label=routePicking==='from'?'start':'end',mode=stopName(formDraft.mode),count=game.stations.filter(stop=>stop.mode===formDraft.mode).length;
+ const label=routePicking==='from'?'start':'end',pickingMode=routePickingMode(),mode=pickingMode?stopName(pickingMode):'stop',count=game.stations.filter(stop=>!pickingMode||stop.mode===pickingMode).length;
  banner.innerHTML=`<div><strong>Click the ${label} ${mode}</strong><span>${count?`${count} matching ${count===1?'stop':'stops'} highlighted`:'No matching stops yet'} · Drag to explore · Esc to cancel</span></div><button type="button" id="cancel-route-pick">Cancel</button>`;
  $('#cancel-route-pick').onclick=returnFromRoutePicking;
  $('#status-message').textContent=`Click the ${label} ${mode}.`;canvas.classList.add('route-picking');
@@ -966,13 +986,13 @@ function beginRoutePicking(key) {
 function pickRouteStopAt(x,y) {
  if(!routePicking)return false;
  const station=stationAt(game,x,y);
- if(!station){toast(`Choose ${aStop(formDraft.mode)}.`,true);return true;}
- if(station.mode!==formDraft.mode){toast(`This is ${aStop(station.mode)}. Choose ${aStop(formDraft.mode)}.`,true);return true;}
+ if(!station){toast(routePickingMode()?`Choose ${aStop(formDraft.mode)}.`:'Choose a stop.',true);return true;}
+ if(routePickingMode()&&station.mode!==formDraft.mode){toast(`This is ${aStop(station.mode)}. Choose ${aStop(formDraft.mode)}.`,true);return true;}
  if(routePicking==='to'&&String(station.id)===String(formDraft.from)){toast('Choose two different stops.',true);return true;}
- if(routePicking==='from'&&String(station.id)===String(formDraft.to))formDraft.to='';
+ if(routePicking==='from'){if(station.mode!==formDraft.mode||String(station.id)===String(formDraft.to))formDraft.to='';formDraft.mode=station.mode;}
  formDraft[routePicking]=String(station.id);
  if(routePicking==='from'&&!formDraft.to){routePicking='to';renderPanel();showRoutePickHint();}
- else{cancelRoutePicking();setView('routes',{routeScreen:formDraft.editing?'edit':'new'});scrollIntoViewSafe($('#route-form [type=submit]'),{block:'nearest'});const plan=draftPlan();$('#status-message').textContent=plan.message;}
+ else{cancelRoutePicking();setView('routes',{routeScreen:formDraft.editing?'edit':'new'});frameDraftRoute();const next=$('#route-cargo-step [data-cargo-choice]');scrollIntoViewSafe(next||$('#route-connection'),{block:'nearest'});next?.focus({preventScroll:true});$('#status-message').textContent=routePlanText(draftPlan());}
  return true;
 }
 // A cargo lens lights the producers and buyers of one freight cargo on the map, minimap and atlas; it is view state and never saved.
@@ -1102,33 +1122,37 @@ function renderPanel({resetScroll=false}={}) {
  if($('#new-route-button'))$('#new-route-button').onclick=()=>openNewRoute();
  if($('#route-back'))$('#route-back').onclick=()=>{if(formDraft.editing)cancelRouteEdit();else{cancelRoutePicking();routeScreen='list';dropCargoLens('routes');renderPanel();$('#new-route-button')?.focus({preventScroll:true});}};
  panel.querySelectorAll('[data-route-next]').forEach(button=>button.onclick=()=>{if(button.dataset.routeNext==='new')openNewRoute();else{category='network';setView('build');setTool('stop');}});
- const planner=panel.querySelector('#route-planner');if(planner)planner.querySelector('summary').onclick=e=>e.preventDefault();
  panel.querySelector('.forecast-details')?.addEventListener('toggle',e=>{try{localStorage.setItem('transport-forecast-details',e.currentTarget.open?'open':'closed');}catch{}});
  // The checkbox has no name, so the form's own listeners pass it by; the draft keeps it after a launch, like the stops.
  const options=panel.querySelector('.route-options');
  if(options){options.addEventListener('toggle',()=>{if(options.isConnected)formDraft.optionsOpen=options.open;});options.querySelector('[data-route-option="full-load"]').addEventListener('change',e=>{formDraft.fullLoad=e.target.checked;options.querySelector('.route-options-state').textContent=fullLoadState();refreshRoutePlan();});}
- if(planner){planner.addEventListener('toggle',()=>{if(!planner.open)dropCargoLens('routes');});if(!planner.open)dropCargoLens('routes');}
  if($('#swap-route-stops'))$('#swap-route-stops').onclick=()=>{cancelRoutePicking();[formDraft.from,formDraft.to]=[formDraft.to,formDraft.from];renderPanel();$('#swap-route-stops')?.focus({preventScroll:true});};
+ if($('#change-route-stops'))$('#change-route-stops').onclick=()=>{formDraft.editStops=true;renderPanel();$('#route-form [name=from]')?.focus({preventScroll:true});};
+ if($('#reset-route-name'))$('#reset-route-name').onclick=()=>{formDraft.name='';const input=$('#route-form [name=name]');input.value=defaultRouteName(game,draftPlan(),formDraft.cargo);refreshRoutePlan();input.focus({preventScroll:true});input.select();};
+ panel.querySelectorAll('[data-route-quantity]').forEach(button=>button.onclick=()=>{const input=$('#route-form [name=vehicleCount]'),count=Number(formDraft.vehicleCount??1);formDraft.vehicleCount=Math.max(1,Math.min(MAX_VEHICLES,(validVehicleCount(count)?count:1)+Number(button.dataset.routeQuantity)));input.value=formDraft.vehicleCount;refreshRoutePlan();refreshUpgradeControls();});
  panel.querySelectorAll('[data-pick-route]').forEach(el=>el.addEventListener('click',()=>beginRoutePicking(el.dataset.pickRoute)));
  panel.querySelectorAll('[data-cargo-choice],[data-cargo-pick]').forEach(el=>el.addEventListener('click',()=>{
-  formDraft.cargo=el.dataset.cargoChoice||el.dataset.cargoPick;formDraft.autoNote='';$('#route-form select[name=cargo]').value=formDraft.cargo;
+  const cargo=el.dataset.cargoChoice||el.dataset.cargoPick;if(!routeCargoOptions(game,formDraft).some(o=>o.cargo===cargo&&editCargo(cargo)))return;
+  formDraft.cargo=cargo;formDraft.cargoChosen=true;formDraft.editStops=false;formDraft.autoNote='';if(isTownTraffic(cargo))formDraft.fullLoad=false;
   setCargoLens(formDraft.cargo,'routes');
-  syncCargoChoice(panel);refreshRoutePlan();refreshUpgradeControls();
+  renderPanel();frameDraftRoute();$(`[data-cargo-choice="${cargo}"]`)?.focus({preventScroll:true});
  }));
  const form=$('#route-form');
  if(form){
-  form.addEventListener('input',e=>{if(e.target.name)formDraft[e.target.name]=e.target.value;});
+  form.addEventListener('input',e=>{const key=e.target.name;if(!key)return;if(key==='name'){formDraft.name=e.target.value;refreshRoutePlan();}else if(key==='vehicleCount'){formDraft.vehicleCount=e.target.value===''?'':Number(e.target.value);refreshRoutePlan();}});
   form.addEventListener('change',e=>{
    const key=e.target.name;if(!key)return;formDraft[key]=e.target.value;
-   if(key==='cargo'){syncCargoChoice(panel);refreshRoutePlan();refreshUpgradeControls();}
-   else if(key==='mode'){cancelRoutePicking();formDraft.from='';formDraft.to='';renderPanel();$('#route-form [name=mode]')?.focus({preventScroll:true});}
-   else if(key==='from'||key==='to'){cancelRoutePicking();const s=game.stations.find(s=>String(s.id)===e.target.value);if(s)renderer.focus(s.x,s.y);renderPanel();$(`#route-form [name=${key}]`)?.focus({preventScroll:true});}
+   if(key==='name'){formDraft.name=e.target.value.trim();refreshRoutePlan();if(!formDraft.name)e.target.value=defaultRouteName(game,draftPlan(),formDraft.cargo);}
+   else if(key==='vehicleCount'){formDraft.vehicleCount=e.target.value===''?'':Number(e.target.value);refreshRoutePlan();refreshUpgradeControls();}
+   else if(key==='cargo'){formDraft.cargoChosen=true;formDraft.editStops=false;renderPanel();}
+   else if(key==='from'||key==='to'){cancelRoutePicking();const s=game.stations.find(s=>String(s.id)===e.target.value);if(key==='from'&&s){if(formDraft.mode!==s.mode||formDraft.to===String(s.id))formDraft.to='';formDraft.mode=s.mode;}if(!formDraft.from)formDraft.to='';if(s)renderer.focus(s.x,s.y);renderPanel();if(routeStopsReady())frameDraftRoute();$(`#route-form [name=${key}]`)?.focus({preventScroll:true});}
   });
   form.addEventListener('submit',e=>{
-   e.preventDefault();const plan=draftPlan();refreshRoutePlan();if(!plan.valid)return toast(plan.message,true);
+   e.preventDefault();const plan=draftPlan();refreshRoutePlan();if(!plan.valid||!formDraft.cargoChosen)return toast(routePlanText(plan),true);
    if(editingRoute())return saveRouteEdit(plan);
-   const [a,b]=plan.stations,result=addRoute(game,{name:formDraft.name.trim()||defaultRouteName(game,plan,formDraft.cargo),mode:formDraft.mode,stops:[a.id,b.id],cargo:formDraft.cargo,fullLoad:formDraft.fullLoad===true&&!isTownTraffic(formDraft.cargo)});
-   toast(result.message,!result.ok);if(result.ok){routeScreen='list';cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.open=false;renderPanel();updateHud();persist();flashRoute(result.route.id);}
+   if(plan.existingRouteId)return addFromPlanner(plan.existingRouteId);
+   const [a,b]=plan.stations,result=addRoute(game,{name:formDraft.name.trim()||defaultRouteName(game,plan,formDraft.cargo),mode:formDraft.mode,stops:[a.id,b.id],cargo:formDraft.cargo,vehicleCount:Number(formDraft.vehicleCount??1),fullLoad:formDraft.fullLoad===true&&!isTownTraffic(formDraft.cargo)});
+   toast(result.message,!result.ok);if(result.ok){routeScreen='list';cancelRoutePicking();formDraft.name='';formDraft.autoNote='';formDraft.cargoChosen=false;formDraft.editStops=false;formDraft.vehicleCount=1;formDraft.open=false;renderPanel();updateHud();persist();flashRoute(result.route.id);}
   });
   form.addEventListener('click',e=>{const button=e.target.closest('#add-route-vehicle');if(button)addFromPlanner(button.dataset.route);});
   form.addEventListener('click',e=>{if(e.target.closest('#cancel-route-edit'))cancelRouteEdit();});
@@ -1450,8 +1474,8 @@ function selectedServices() {
  return servedRoutes=routes.length?routes.map(route=>route.id):null;
 }
 function planRoute(draft,pick='') {
- formDraft={...formDraft,name:'',autoNote:'',open:true,editing:'',...formDraft.editing&&{fullLoad:false,optionsOpen:false},...draft};setView('routes',{routeScreen:'new'});
- if(pick)beginRoutePicking(pick);else scrollIntoViewSafe($('#route-form'),{block:'nearest'});
+ formDraft={...formDraft,name:'',autoNote:'',open:true,editing:'',cargoChosen:Boolean(draft.cargo),vehicleCount:1,editStops:false,...formDraft.editing&&{fullLoad:false,optionsOpen:false},...draft};setView('routes',{routeScreen:'new'});
+ if(pick)beginRoutePicking(pick);else{frameDraftRoute();scrollIntoViewSafe($('#route-form'),{block:'nearest'});}
 }
 function stationCargoNotes(station) {
  const coverage=stationCoverage(game,station),places=[...coverage.cities.map(city=>`town:${city.id}`),...coverage.industries.map(site=>`industry:${site.id}`)];
@@ -1482,6 +1506,13 @@ function bindServiceLinks(box) {
  box.querySelectorAll('[data-plan-cargo]').forEach(el=>el.onclick=()=>{const plan=el.dataset;planRoute({mode:plan.planMode,from:plan.planFrom,to:plan.planTo,cargo:plan.planCargo},plan.planPick);});
  box.querySelectorAll('[data-place-stop]').forEach(el=>el.onclick=()=>{const [x,y]=el.dataset.placeStop.split(',').map(Number);category='network';setView('build');setTool('stop');renderer.focus(x,y);updateHud();});
 }
+function selectedNetworkStops(tile,x,y) {
+ if(stationAt(game,x,y))return '';
+ return ['road','rail'].filter(mode=>tile[mode]).map(mode=>{
+  const kind=mode==='rail'?'train-stop':'bus-stop',quote=quoteBuildPlan(game,kind,[{x,y}],{preferredMode:mode}),label=mode==='rail'?'Build rail station':'Build road stop';
+  return `<button type="button" class="button button-primary full" data-build-selected-stop="${mode}" data-stop-x="${x}" data-stop-y="${y}" title="${escapeHTML(quote.ok?`${label} on this tile`:quote.message)}" ${quote.ok?'':'disabled'}>${icon(mode==='rail'?'train':'bus')} ${label} · ${money(quote.cost)}</button>${quote.ok?'':`<p class="micro-note">${escapeHTML(quote.message)}</p>`}`;
+ }).join('');
+}
 function networkUse(tile,x,y) {
  const routes=game.routes.filter(route=>route.active&&(route.mode==='road'||route.mode==='rail')&&route.path?.some(p=>p.x===x&&p.y===y));
  return `<p class="network-use">${routes.length?`Used by ${refList(routes.map(route=>`route:${route.id}`),4)}`:'Not used by any route'}</p><p>${tile.road?tile.publicRoad?'Public road · no upkeep':'Company road':'Company railway'}${tile.road&&tile.rail?' · railway':''}</p>`;
@@ -1509,7 +1540,7 @@ function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
  else if(kind!=='city'&&tile.building&&BUILDINGS[buildingKind]){const b=BUILDINGS[buildingKind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.group==='homes'?b.tier+' home':b.tier||BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${buildingKind}" data-building-variant="${tile.variant??x*13+y}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?refFor(game,`town:${nearest.id}`):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${escapeHTML(buildingBenefit(buildingKind))}</p>${propertyHTML(x,y)}${span<buildingFootprint(buildingKind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Workshop';tag=`${span} × ${span} site, level ${tile.building.level||1}`;body=workshopBody(tile.building,townOf(game,x,y))+propertyHTML(x,y);}
  else if(city&&(kind==='city'||!tile.zone)){const outlook=townOutlook(game,city);title=city.name;tag='Town';body=`<div class="inspector-grid town-figures"><div><small>Population</small><strong>${integer(city.population)}</strong></div><div><small>Waiting</small><strong>${integer(city.passengers)}</strong></div></div><p class="site-status">${townService(game,city).label}</p>${townLinks(city)}${townGrowthLine(outlook)}${localConditions(settlementSuitability(game,city))}${townGrowHelp(outlook)}${townEconomySection(city)}${townOpinionSection(city)}`;}
- else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
+ else{title=tile.zone?TOOL_INFO[tile.zone].name+' zone':tile.road?'Road':tile.rail?'Railway':{grass:'Open countryside',forest:'Woodland',water:'Water',mountain:'Mountain ridge',rock:'Rocky ground',sand:'Desert sands',snow:'Snowfield'}[tile.terrain]||'Countryside';if(tile.detail&&!tile.road&&!tile.rail&&!tile.zone)title=tile.detail.replace(/-/g,' ').replace(/^./,c=>c.toUpperCase());tag=`${nature?terrainObjectSize(nature.object)+' × '+terrainObjectSize(nature.object)+' site · ':''}Level ${[...new Set(tileSurface(game,x,y).corners.map(p=>p.height))].sort((a,b)=>a-b).join('–')} · ${x}, ${y}`;body=tile.road||tile.rail?networkUse(tile,x,y)+selectedNetworkStops(tile,x,y):`<p>${nature&&nature.object.kind!=='mountain'?'A natural '+(nature.object.kind==='forest'?'grove':'outcrop')+' on level ground. Bulldoze any part to clear the whole site.':tile.zone?'Develops gradually with local demand.':tile.terrain==='water'?'Build a port on water beside a bank. Ships follow connected water and pass beneath bridges.':tile.terrain==='mountain'?'Use Terrain & crossings to tunnel through higher ground, or reshape clear land.':'Build on flat ground or a straight slope. Use Terrain & crossings to reshape or level clear land.'}</p>`;}
  if(tile.zone){const zone=game.zones.find(zone=>zone.x===x&&zone.y===y),town=townOf(game,x,y),share=`Development ${Math.round((zone?.progress||0)/3*100)}%.`;body+=`<p>${fundedTown(town,game.day)?`${share} Funded until ${dateLong(town.fundedUntil)}. Road access required.`:`${share} Road access and regular town deliveries required.`}${town&&!tile.building?' Your plot: it earns ground rent once built up.':''}</p>`+localConditions(settlementSuitability(game,{x,y},tile.zone));}
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
  const box=$('#inspector'),html=`${inspectorBackLine()}<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}${gallery?'<div data-inspector-gallery></div>':''}`,key=`${worldSerial}|${x},${y},${kind}|${JSON.stringify(gallery)}`;
@@ -1659,7 +1690,7 @@ function activateGame(next) {
  constructionNext=null;routeScreen='list';fleetControlsOpen=false;routeDetailsOpen.clear();disposeInspectorGallery();game=next;simulation.reset(game,performance.now());worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
  hideBack();references?.clear();refShown={ref:null,until:0};inspectorTrail=[];inspectorSource=null; // rings, the back chip and the Back line belong to the old world
  view='build';category='network';buildingGroup='homes';chainSelection={};gallerySelection={};
- formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',fullLoad:false,optionsOpen:false};
+ formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',cargoChosen:false,vehicleCount:1,fullLoad:false,optionsOpen:false};draftPreviewMemo=null;draftPreviewState=null;
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
  goalChoice=null;goalOpen=false;goalSignature='';lastNoticeId=game.day<1?undefined:game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
  resetMoments();
@@ -2087,8 +2118,8 @@ function pickMapTile(clientX,clientY,clamp=false) {
  if(isRoutePicking()) {
   // Station signs stay 16–18 screen pixels wide, including at Region zoom,
   // so the nearest sign within the pointer’s reach picks its stop.
-  const station=renderer.stationAtMarker(clientX,clientY,{slop:8,mode:formDraft.mode});
-  return station?{x:station.x,y:station.y}:renderer.screenToTile(clientX,clientY);
+  const station=renderer.stationAtMarker(clientX,clientY,{slop:8,mode:routePickingMode()});
+  return station?{x:station.x,y:station.y}:renderer.screenToInspectTile(clientX,clientY);
  }
  if(terrainTools.has(tool))return renderer.screenToVertex(clientX,clientY,{clamp});
  return tool==='inspect'?renderer.screenToInspectTile(clientX,clientY):renderer.screenToTile(clientX,clientY,{clamp});
@@ -2241,6 +2272,7 @@ canvas.addEventListener('wheel',()=>{if(follow)stopFollow();},{passive:true});
 $('#minimap').addEventListener('click',e=>{const box=e.currentTarget.getBoundingClientRect();renderer.focus((e.clientX-box.left)/box.width*game.width,(e.clientY-box.top)/box.height*game.height);});
 $('#minimap').addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);}});
 $$('.nav-button[data-view]').forEach(el=>el.addEventListener('click',()=>compactUI?compactUI.toggleManagement(el.dataset.view):setView(el.dataset.view)));
+$$('[data-toolbar-tool]').forEach(button=>button.addEventListener('click',()=>{category='network';setView('build');setTool(button.dataset.toolbarTool);}));
 $$('[data-open-gallery]').forEach(button=>button.addEventListener('click',()=>openGallery()));
 $$('[data-open-chains]').forEach(el=>el.addEventListener('click',()=>openChains()));
 $$('[data-speed]').forEach(el=>el.addEventListener('click',()=>changeSpeed(Number(el.dataset.speed))));
@@ -2305,7 +2337,7 @@ function placeTitle(x,y) {
 // The live region reads '<x>, <y> · <place> · <tool> · <cost or problem>', taking the quote from the placement tip.
 function keyCursorText() {
  const {x,y}=keyCursor,tip=$('#placement-tip'),name=TOOL_INFO[tool]?.name||BUILDINGS[tool]?.name||INDUSTRIES[tool]?.name||'Build',station=stationAt(game,x,y);
- const action=isRoutePicking()?station?.mode===formDraft.mode?`Enter picks it as the ${routePicking==='from'?'start':'end'} stop`:`Choose ${aStop(formDraft.mode)}`:tool==='inspect'||tip.hidden?name:tip.classList.contains('invalid')?`${name} · ${tip.textContent}`:tip.textContent;
+ const action=isRoutePicking()?station&&(!routePickingMode()||station.mode===formDraft.mode)?`Enter picks it as the ${routePicking==='from'?'start':'end'} stop`:routePickingMode()?`Choose ${aStop(formDraft.mode)}`:'Choose a stop':tool==='inspect'||tip.hidden?name:tip.classList.contains('invalid')?`${name} · ${tip.textContent}`:tip.textContent;
  return `${x}, ${y} · ${placeTitle(x,y)} · ${action}`;
 }
 function showKeyCursor(announce=true) {
@@ -2332,7 +2364,7 @@ function keyCursorKey(e) {
  if(hover!==keyCursor){showKeyCursor();return true;}
  const {x,y}=keyCursor;
  // A finished pick hands focus to the route form once the drawer has slid in far enough to take it.
- if(isRoutePicking()){pickRouteStopAt(x,y);if(isRoutePicking()){showKeyCursor();return true;}const next=['#add-route-vehicle','#route-form [type=submit]'].map(s=>$(s+':not(:disabled)')).find(Boolean)||$('#route-form [data-pick-route="to"]');next?.focus({preventScroll:true});if(next&&document.activeElement!==next)$('.sidebar').addEventListener('transitionend',()=>next.focus({preventScroll:true}),{once:true});return true;}
+ if(isRoutePicking()){pickRouteStopAt(x,y);if(isRoutePicking()){showKeyCursor();return true;}const next=$('#route-cargo-step [data-cargo-choice]')||$('#route-form [data-pick-route="to"]');next?.focus({preventScroll:true});if(next&&document.activeElement!==next)$('.sidebar').addEventListener('transitionend',()=>next.focus({preventScroll:true}),{once:true});return true;}
  if(tool==='inspect'){inspect(x,y,'','keyboard');return true;}
  if(lineTools.has(tool)&&!keyStart){keyStart={x,y};showKeyCursor();return true;}
  const points=keyStart?constructionLine(keyStart,keyCursor,tool):[{x,y}];keyStart=null;paintPath(points);showKeyCursor(false);return true;
@@ -2490,11 +2522,11 @@ function frame(now){
  if(strokeRefreshQueued){strokeRefreshQueued=false;refreshStroke();}
  const camera=renderer.getCamera(),w=canvas.width,h=canvas.height;
  if(highlight.card&&!highlight.card.isConnected)highlight={id:null,until:0};const highlightRoute=highlight.until>now?highlight.id:null;
- const outlines=propertyOutlines(),hoverRef=refView.hoverRef||(refShown.until>now?refShown.ref:null);
- const changed=isRoutePicking()&&!reducedMotion()||painted?.picking!==routePicking||moving||painted?.hoverRef!==hoverRef||!painted||painted.game!==game||painted.day!==game.day||painted.presentationDay!==presentationDay||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute||painted.outlines!==outlines;
+ const outlines=propertyOutlines(),hoverRef=refView.hoverRef||(refShown.until>now?refShown.ref:null),draftPreview=draftRoutePreview(),animatedDraft=Boolean(draftPreview)&&!reducedMotion();
+ const changed=animatedDraft||painted?.draftPreview!==draftPreview||isRoutePicking()&&!reducedMotion()||painted?.picking!==routePicking||moving||painted?.hoverRef!==hoverRef||!painted||painted.game!==game||painted.day!==game.day||painted.presentationDay!==presentationDay||painted.revision!==game.revision||painted.money!==game.money||painted.scene!==sceneRevision||painted.x!==camera.x||painted.y!==camera.y||painted.height!==camera.height||painted.zoom!==camera.zoom||painted.w!==w||painted.h!==h||painted.layers!==mapLayers||painted.tool!==tool||painted.hover!==hover||painted.preview!==preview||painted.selected!==selected||painted.mode!==preferredMode||painted.view!==view||painted.from!==formDraft.from||painted.to!==formDraft.to||painted.highlight!==highlightRoute||painted.outlines!==outlines;
  if(changed||floaterPaint){
-  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),stopPicking:isRoutePicking()?{mode:formDraft.mode,selectedId:routePicking==='to'?formDraft.from:formDraft.to,reducedMotion:reducedMotion()}:null,floaters,highlightRoute,servingRoutes:selectedServices(),hoverRef,selectedVehicleId:selectedVehicle,context:contextView(),propertyOutlines:outlines,settle:speed===0,...connectionView()});
-  painted={game,day:game.day,presentationDay,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute,outlines,hoverRef,picking:routePicking};
+  renderer.render(now,{tool,hover,preview,selected,preferredMode,airportAxis,routeStops:routePickStops(),draftRoutePreview:draftPreview,stopPicking:isRoutePicking()?{mode:routePickingMode(),selectedId:routePicking==='to'?formDraft.from:formDraft.to,reducedMotion:reducedMotion()}:null,floaters,highlightRoute,servingRoutes:selectedServices(),hoverRef,selectedVehicleId:selectedVehicle,context:contextView(),propertyOutlines:outlines,settle:speed===0,...connectionView()});
+  painted={game,day:game.day,presentationDay,revision:game.revision,money:game.money,scene:sceneRevision,x:camera.x,y:camera.y,height:camera.height,zoom:camera.zoom,w,h,layers:mapLayers,tool,hover,preview,selected,mode:preferredMode,view,from:formDraft.from,to:formDraft.to,highlight:highlightRoute,outlines,hoverRef,picking:routePicking,draftPreview};
  }
  syncOverlays(hoverRef);
  if(now-hudAt>400&&(!hudState||hudState.game!==game||hudState.day!==game.day||hudState.revision!==game.revision||hudState.money!==game.money||hudState.zoom!==camera.zoom||hudState.w!==w||hudState.view!==view)){
@@ -2525,7 +2557,7 @@ function frame(now){
  // camera glides, Follow and floating income retain the display's full cadence.
  // Idle housekeeping still services autosaves, notices and timed highlights.
  const animated=moving||floaters.length||pointer||follow&&speed>0||now<interactionUntil;
- const delay=animated?0:isRoutePicking()&&!reducedMotion()?1000/20:speed>0?1000/30:headlineCurrent&&!headlineHeld&&headlineVisible?100:250;
+ const delay=animated?0:(isRoutePicking()&&!reducedMotion()||animatedDraft)?1000/20:speed>0?1000/30:headlineCurrent&&!headlineHeld&&headlineVisible?100:250;
  const expires=[highlight.until,refShown.until].filter(time=>Number.isFinite(time)&&time>now);
  frameScheduler.schedule(Math.min(delay,...expires.map(time=>time-now+1)),now);
 }
