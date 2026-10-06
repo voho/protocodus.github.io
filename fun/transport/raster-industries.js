@@ -4,6 +4,8 @@ import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
 // as a square inside the caller's +8px sprite envelope. Five-tile compounds
 // use 160px; blocked legacy sites use the native drawings at their original
 // footprint, so their human-sized features retain the common metre scale.
+// Five-tile plots request 512px cells on dense Town displays, packed directly
+// from the calibrated originals rather than enlarged from the 256px atlases.
 // Farm plots have separate fixed-scale 2×2 building-core atlases below.
 export const FOOD_INDUSTRY_KINDS = Object.freeze(['dairy-farm', 'vegetable-farm', 'orchard', 'livestock-farm', 'dairy-plant', 'cannery', 'meat-packer']);
 const sheets = [
@@ -24,7 +26,7 @@ for (const sheet of sheets) {
     byKind.get(kind).push(id);
     return id;
   });
-  registerAtlas({ id: `industries-${sheet.family}`, path: sheet.path || `./assets/world/industries-${sheet.family}/atlas`, biome:sheet.biome, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 256 });
+  registerAtlas({ id: `industries-${sheet.family}`, path: sheet.path || `./assets/world/industries-${sheet.family}/atlas`, biome:sheet.biome, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 512 });
 }
 export const RASTER_INDUSTRY_IDS = Object.freeze([...ids]);
 // Large farms keep their surrounding ground fields separate from their 2×2

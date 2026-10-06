@@ -877,7 +877,20 @@ export function createRenderer(canvas, initialGame, options={}) {
   function ship(v,route){const p=transportPoint(v.x,v.y,'water');ctx.drawImage(marine.ship({...v,angle:projectAngle(v.angle||0)},route),p.x-MARINE_SIZE/2,p.y-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);}
   function billboard(image,x,y,w,h,tx,ty){
     if(!visibleRectangle(x,y,w,h))return;
-    ctx.drawImage(image,x,y,w,h);
+    // Authored art is filtered once into a bitmap at this view's density.
+    // Keep its native pixels through both direct drawing and scenery batches;
+    // fractional display scales may have rounded the prepared dimensions.
+    const native=Math.abs(image.width-w*rasterScale)<=.51&&Math.abs(image.height-h*rasterScale)<=.51;
+    if(native){
+      const width=image.width/rasterScale,height=image.height/rasterScale;
+      x=Math.round((x+(w-width)/2)*rasterScale)/rasterScale;
+      y=Math.round((y+h-height)*rasterScale)/rasterScale;
+      w=width;h=height;
+    }
+    ctx.save();ctx.imageSmoothingEnabled=!native;if(!native)ctx.imageSmoothingQuality='high';
+    ctx.drawImage(image,x,y,w,h);ctx.restore();
+    // Ambient stones and plants use the same sampling without adding a hit.
+    if(tx===undefined)return;
     if(capturedBillboards){capturedBillboards.push({image,x,y,w,h,tx,ty,world:true});return;}
     const origin=cameraPoint();
     objectHits.push({image,x:(x-origin.x)*camera.zoom+W/2,y:(y-origin.y)*camera.zoom+H/2,w:w*camera.zoom,h:h*camera.zoom,tx,ty});
@@ -964,7 +977,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         const scenery=landscapeScenery(game.biome,game.seed||0,x,y,t);
         // Stones and plants are already authored from the fixed camera. Keep
         // them upright; baking stones into ground would project them twice.
-        if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;ctx.drawImage(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
+        if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;billboard(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
       if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span,kind.startsWith('house-'));billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
@@ -1063,8 +1076,8 @@ export function createRenderer(canvas, initialGame, options={}) {
       while(moving<objects.length&&compare(objects[moving],first)<0)objects[moving++].draw();
       if(group.image&&!visibleRectangle(group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale))continue;
       if(!group.image||(moving<objects.length&&compare(objects[moving],last)<0)||!group.objects.every(object=>inView(object)||!visibleRectangle(object.bounds.left,object.bounds.top,object.bounds.right-object.bounds.left,object.bounds.bottom-object.bounds.top))){for(const object of group.objects)drawOriginal(object);continue;}
-      if(stopPickingMode&&first.dimEligible){ctx.save();ctx.globalAlpha*=.28;ctx.drawImage(group.image,group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale);ctx.restore();}
-      else ctx.drawImage(group.image,group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale);
+      ctx.save();ctx.imageSmoothingEnabled=false;if(stopPickingMode&&first.dimEligible)ctx.globalAlpha*=.28;
+      ctx.drawImage(group.image,group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale);ctx.restore();
       sceneryBatchDraws++;
       for(const hit of group.hits)if(visibleRectangle(hit.x,hit.y,hit.w,hit.h))objectHits.push(hit);
     }

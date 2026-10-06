@@ -401,8 +401,13 @@ export function createAirportSprites({ pixelScale = 1, detailLevel = 'town', bio
     /** One upright part; (x, y) is the anchor's north corner at site height, in projected px. */
     part(ctx, kind, axis, x, y) {
       const box = PART_BOXES[axis][kind], image = prepare(`${kind}:${axis}`, box, c => PARTS[kind](c, { axis, detail: detailLevel, biome }));
-      ctx.drawImage(image, x + box.left - 2, y + box.top - 2, image.width / scale, image.height / scale);
-      return { x: x + box.left - 2, y: y + box.top - 2, w: image.width / scale, h: image.height / scale, image };
+      // Static parts already contain their antialiasing at this density. Keep
+      // their native pixels, including under a fractional context translation.
+      const transform = ctx.getTransform(), native = Math.abs(transform.a - scale) < 1e-7 && Math.abs(transform.d - scale) < 1e-7 && Math.abs(transform.b) < 1e-7 && Math.abs(transform.c) < 1e-7;
+      const left = native ? (Math.round((x + box.left - 2) * scale + transform.e) - transform.e) / scale : x + box.left - 2, top = native ? (Math.round((y + box.top - 2) * scale + transform.f) - transform.f) / scale : y + box.top - 2;
+      ctx.save(); ctx.imageSmoothingEnabled = !native; if (!native) ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(image, left, top, image.width / scale, image.height / scale); ctx.restore();
+      return { x: left, y: top, w: image.width / scale, h: image.height / scale, image };
     },
     /** A plane centred at (x, y) projected px; heading quantised to 48 buckets; the route colour bands the fin. */
     aircraft(ctx, heading, color, x, y) {

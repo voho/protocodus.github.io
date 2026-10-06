@@ -42,6 +42,8 @@ Keep each complete parcel in its original cell, including transparent margins an
 
 For calibrated aligned sheets, [tools/build-world-atlases.py](tools/build-world-atlases.py) supports `--aligned --preserve-grid-scale`. Preserve the registered ground anchor and the full parcel grid through preparation and packing. The `--shared-scale` mode serves fixed-camera turnarounds where all frames need one family scale; it is a separate registration mode. Regenerate the master and display densities after replacing a source, and keep the prompt and registration metadata with them.
 
+Large industries also ship 512-pixel display cells for Town view on high-density displays. [tools/build-industry-high-density.py](tools/build-industry-high-density.py) builds these from the full calibrated registered sources, verifies the existing 256-pixel master, and preserves the lower-density sheets. Export the complete registered cell at every density; do not enlarge a low-resolution thumbnail or independently fit each building.
+
 ## Recognition at game zooms
 
 Use a clean silhouette, broad roof and wall colours, readable facade shading and a few large openings. Keep useful identifiers such as silos, greenhouses, chimneys, loading sheds, shop awnings and sports surfaces. Group planting into clear masses. Omit individual brick joints, roof tiles, woodgrain scratches, tiny lettering, dense crate grids, fine handrails, window mullions and flower speckle.

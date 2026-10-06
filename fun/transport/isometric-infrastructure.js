@@ -37,7 +37,12 @@ export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedC
       if(!drawAtlas(p,id,0,0,bounds.size,bounds.size,{pixelScale:scale}))return false;
       image.infrastructureFrame={id,pixelScale:scale,...bounds};cache.set(key,image);created++;
     }
-    c.drawImage(image,x+bounds.left,y+bounds.top,image.width/scale,image.height/scale);return true;
+    // Prepared antialiasing is final: snap only the stationary upright image,
+    // preserving its measured anchor and native physical-pixel dimensions.
+    const transform=c.getTransform(),native=Math.abs(transform.a-scale)<1e-7&&Math.abs(transform.d-scale)<1e-7&&Math.abs(transform.b)<1e-7&&Math.abs(transform.c)<1e-7;
+    const left=native?(Math.round((x+bounds.left)*scale+transform.e)-transform.e)/scale:x+bounds.left,top=native?(Math.round((y+bounds.top)*scale+transform.f)-transform.f)/scale:y+bounds.top;
+    c.save();c.imageSmoothingEnabled=!native;if(!native)c.imageSmoothingQuality='high';
+    c.drawImage(image,left,top,image.width/scale,image.height/scale);c.restore();return true;
   }
   return {
     stop:(c,mode,x,y)=>draw(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x,y,isometricStationBounds(mode)),
@@ -46,4 +51,3 @@ export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedC
     getStats:()=>({created,hits,pixelScale:scale}),
   };
 }
-

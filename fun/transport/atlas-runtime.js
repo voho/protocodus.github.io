@@ -1,5 +1,5 @@
 // Shared generated artwork registry. Loading never mutates simulation state.
-const atlases=new Map(),entries=new Map(),listeners=new Set(),draws=new Map(),LEVELS=[16,32,64,128,256];
+const atlases=new Map(),entries=new Map(),listeners=new Set(),draws=new Map(),LEVELS=[16,32,64,128,256,512];
 let revision=0,loading=0,unpublished=false,quiet=0,latest=0;
 export function registerAtlas({id,path,columns=3,rows=3,entries:ids,maxCell=128,biome=null}){
   if(atlases.has(id))return;
@@ -11,7 +11,8 @@ export const worldArtRevision=()=>revision;
 export const onWorldArtChange=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};
 export const atlasAvailable=id=>Boolean(entries.get(id)?.atlas.levels.size);
 export function worldArtStats(){return{revision,registered:entries.size,ready:[...atlases.values()].filter(a=>a.status==='ready').length,usable:[...atlases.values()].filter(a=>a.levels.size).length,atlases:atlases.size,errors:[...atlases.values()].filter(a=>a.error).map(a=>({id:a.id,error:a.error})),loading,rasterizedEntries:Object.fromEntries(draws),decodedBytes:[...atlases.values()].reduce((n,a)=>n+[...a.levels.values()].reduce((s,i)=>s+i.naturalWidth*i.naturalHeight*4,0),0)};}
-// The densities a view at this display scale draws at once. Sharper cells, and every 256 cell, load when a draw asks for them.
+// The densities a view at this display scale draws at once. Sharper cells load
+// when a draw asks for them; 512 is reserved for explicitly registered large plots.
 export const startupArtCells=(scale=globalThis.devicePixelRatio||1)=>LEVELS.filter(n=>n<=(scale>=1.5?128:64));
 // Changes publish together: 150 ms after the last one, at most 500 ms after the first, and at once when nothing is loading.
 // Each publication rebuilds the map caches, so it happens once per batch rather than once per image.

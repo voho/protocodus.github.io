@@ -6,7 +6,8 @@
     32,
     64,
     128,
-    256
+    256,
+    512
   ],
   "masterCell": 256,
   "vehicleLengthNormalized": false,
@@ -294,5 +295,16 @@
   "mipSharpening": false,
   "visualFootprint": 5,
   "scaleContract": "../../../../sprite-art-direction.js",
-  "styleVersion": 3
+  "styleVersion": 3,
+  "highDensityCells": {
+    "512": {
+      "source": "source-scale-v3-registered.png",
+      "sourceSha256": "1f0264f78b767a0fdd2654b3efec9954910f4a26f12f81702b42d70f14538f17",
+      "registeredSourceCellPixels": [
+        608
+      ],
+      "operation": "Direct premultiplied-alpha Lanczos from full registered source cells; identical physical grid; no sharpening or upscaling",
+      "tool": "build-industry-high-density.py"
+    }
+  }
 }
