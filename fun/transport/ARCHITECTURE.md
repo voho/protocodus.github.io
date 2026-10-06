@@ -107,6 +107,8 @@ The renderer suppresses small scenery over covered parcels, positions each large
 
 ## Local simulation
 
+`tree-art-catalog.js` is a visual catalog, independent of procedural terrain recipes: each climate has nine established tree sprites plus eighteen added species, tundra has three additional hollow trunks, and desert has nine added cactus plants. `raster-nature.js` registers climate-scoped atlas sheets, selects mature-tree art from existing tree seeds, and preserves original grove records for native fallback. Hollow trunks appear sparsely among bare tundra trees; desert cactus patches select their variants from the existing tile variant. Exact Gallery previews bypass random selection. Added-art shadows use measured species height at the shared root anchor; missing sheets retain native drawing until an artwork revision invalidates the prepared fallback. No species identity is written into company saves.
+
 `environment.js` is DOM-free and exposes:
 
 - `randomAt(game, day, key, salt=0)`: a stateless sample derived from seed, integer day, entity/cell key and decision channel. Camera renders, frame rates and save restoration cannot consume or reorder random samples.
@@ -487,6 +489,8 @@ The visible band (`syncBand`) is the map less the panels over it: the open drawe
 ## Interface artwork
 
 `ui-art.js` renders the generated sprite identities into build menus, industry lists and inspectors, station inspectors, production-chain nodes and route/purchase vehicle portraits. Canvas backing density follows DPR up to 2, with smooth downsampling; a cache key includes biome, vehicle type/generation and both artwork revisions. Dynamic filtering, cargo/mode selection, upgrades and late asset arrivals redraw affected portraits. New-world previews also use DPR-sized canvases. An online event retries missing world/house atlas densities without changing company state. Resource and action icons remain semantic SVG pictograms. `tests/ui-art-browser-check.mjs` exercises these paths on computers, including list replacement and Retina rendering.
+
+`selection-gallery.js` resolves inspected map elements to the shared catalog, preserving the selected climate, design, rotation, vehicle generation and saved footprint. `nature-placement.js` shares the renderer's stable vegetation seeds and canopy density with inspection; grove species links identify the available artwork. `mountGalleryEntry()` reuses the full Gallery detail renderer inside the inspector, beneath live status and actions. The app disposes its artwork subscriptions when selection changes or inspection ends; related entries and Browse Gallery explicitly open the collection. Selection tint, parcel borders, selected-stop coverage and carrier rings draw in the transient ground pass before scenery and vehicles. Transparent scenery caches remain reusable, and redundant selected-property and pointer outlines cannot stroke over the selected sprite.
 
 ## Generated world artwork and industry sites
 

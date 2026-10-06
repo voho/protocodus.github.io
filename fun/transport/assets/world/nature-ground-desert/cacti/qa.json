@@ -1,0 +1,595 @@
+{
+  "allPassed": true,
+  "spriteCount": 9,
+  "mipCellChecks": 45,
+  "rootBaseline": 0.955,
+  "lowMipBottomEdge": "At 16px the prescribed 95.5% root baseline contributes to the final pixel row. The master has zero-alpha edges and all mips exactly match complete independent-cell alpha resampling; no source body is cropped.",
+  "completeDistinctMasterCells": 9,
+  "checks": [
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cellSize": 16,
+      "opaqueBounds": [
+        6,
+        7,
+        10,
+        16
+      ],
+      "maxAlpha": 249,
+      "maximumEdgeAlpha": 96,
+      "sha256": "5672b3ac5935fbf90a0f495fa7224f4fd0950f0104943453d7cd3dd581344ceb"
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cellSize": 16,
+      "opaqueBounds": [
+        6,
+        8,
+        10,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 109,
+      "sha256": "915f2f1c27fa1fb3624bf63c6b8e41504812c347fd2303ce2ee1b91c67878619"
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cellSize": 16,
+      "opaqueBounds": [
+        5,
+        6,
+        11,
+        16
+      ],
+      "maxAlpha": 254,
+      "maximumEdgeAlpha": 97,
+      "sha256": "defd88e2536a56087f87700fe8e4abd115ee9f4766677302f9625db080e405ea"
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cellSize": 16,
+      "opaqueBounds": [
+        7,
+        10,
+        10,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 106,
+      "sha256": "7dd05ba417206384679e9d12adc77e7c264c7edab900caf98c47a41e0ee44211"
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cellSize": 16,
+      "opaqueBounds": [
+        6,
+        8,
+        10,
+        16
+      ],
+      "maxAlpha": 238,
+      "maximumEdgeAlpha": 75,
+      "sha256": "e6f9f35d2081c29c51e34117e4764da04783a5e0553476b85fbe9a39436bd211"
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cellSize": 16,
+      "opaqueBounds": [
+        6,
+        11,
+        10,
+        16
+      ],
+      "maxAlpha": 221,
+      "maximumEdgeAlpha": 36,
+      "sha256": "ea2ffb42be03803a289204734fdaec52d0ec9fe17c63e3a15d5deaff60e90686"
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cellSize": 16,
+      "opaqueBounds": [
+        7,
+        13,
+        9,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 91,
+      "sha256": "1beca8a7a5020131287ad51b95caa412f97cf24ffe365f3905a9351039c0e74d"
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cellSize": 16,
+      "opaqueBounds": [
+        7,
+        12,
+        9,
+        16
+      ],
+      "maxAlpha": 252,
+      "maximumEdgeAlpha": 79,
+      "sha256": "82723bbe05554975d544713ecd9e7165f1e831f1e1913dac8ac05b2c3f227617"
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cellSize": 16,
+      "opaqueBounds": [
+        7,
+        14,
+        9,
+        16
+      ],
+      "maxAlpha": 142,
+      "maximumEdgeAlpha": 66,
+      "sha256": "b0cc2b5ab3d1e32aac1124d8c9f31cc14082cda4115abeeaa098f8aff0b32efc"
+    },
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cellSize": 32,
+      "opaqueBounds": [
+        12,
+        14,
+        20,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 5,
+      "sha256": "8eff164a37b301e08ff36a85cb156b220bb65a66b7b60a4d35c0a30cfcdcd3bb"
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cellSize": 32,
+      "opaqueBounds": [
+        13,
+        17,
+        19,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 10,
+      "sha256": "e4b08b0b4c9fbf018fe798ffd3ad3b8ffad389c8c4440f90f08e3f6f15304c39"
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cellSize": 32,
+      "opaqueBounds": [
+        11,
+        12,
+        21,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "671c92a44bd2cae1bac6c0905f872bd46f965dc590f695b9d33ad740a9dcd43f"
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cellSize": 32,
+      "opaqueBounds": [
+        14,
+        20,
+        19,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "54f421dd13f4256f1494fa081b86b9e5b5511041ae4210dc888adca1a9ae683f"
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cellSize": 32,
+      "opaqueBounds": [
+        12,
+        17,
+        20,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "fa04464fe1e92016c1ec2edd0c4e23ba471c0f0005d522b01f0130fbeb7f968f"
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cellSize": 32,
+      "opaqueBounds": [
+        12,
+        22,
+        20,
+        31
+      ],
+      "maxAlpha": 245,
+      "maximumEdgeAlpha": 0,
+      "sha256": "2e81a4816d28cd9fb3bb7b155b89990a4ad0f638b27d69e3b3101fc05d16fa4e"
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cellSize": 32,
+      "opaqueBounds": [
+        13,
+        26,
+        18,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 1,
+      "sha256": "b80dbc75a3f3d937007c6c15cb8b9d8f071205061f209ca4fbb4ad1ce14031f0"
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cellSize": 32,
+      "opaqueBounds": [
+        13,
+        25,
+        18,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "946de7a8440388d306080a39287002c27cf1aa47b89d79162bdc8014f4650c36"
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cellSize": 32,
+      "opaqueBounds": [
+        14,
+        28,
+        18,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "e24a263832f249e848e67cf50c263aebaed38155db9a87d939eba83b416043b6"
+    },
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cellSize": 64,
+      "opaqueBounds": [
+        24,
+        29,
+        40,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 3,
+      "sha256": "734bd9fc055141311191a09525fe580bf0c242578111f2358bbae3bcf851e1a1"
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cellSize": 64,
+      "opaqueBounds": [
+        26,
+        34,
+        38,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "119bb9a1de46bce7a20c0253cd82f722273b37e194fd8fb10aa649f5a4b4ace7"
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cellSize": 64,
+      "opaqueBounds": [
+        23,
+        23,
+        42,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "6112e6e3ec352a2cc6a3783c7d8a4f795fa25f7678d9c0c43affd2bc5fcf06a5"
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cellSize": 64,
+      "opaqueBounds": [
+        28,
+        39,
+        37,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "8673c2353a1202bb2b67e1e4579ea9cfe1a5bab84901e2bd01fa7b66a20f975b"
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cellSize": 64,
+      "opaqueBounds": [
+        23,
+        34,
+        40,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "42be7b084a545e643e59ed265632852d472c63e29856ed52310ce637771f073b"
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cellSize": 64,
+      "opaqueBounds": [
+        24,
+        45,
+        39,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 3,
+      "sha256": "f361cdd7c1b4a5122b9ea8461904ba83d78db73a57bba3a73eaa64807d6223f8"
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cellSize": 64,
+      "opaqueBounds": [
+        27,
+        53,
+        37,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "af92ec2445dad3beb954fa6ff11dd319fd86aff2563f12c6c9c36ab063f55278"
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cellSize": 64,
+      "opaqueBounds": [
+        27,
+        50,
+        36,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "6792d55430d4f2721d146beaea444fe7d648b23d3696168f56882d4db25f5664"
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cellSize": 64,
+      "opaqueBounds": [
+        28,
+        56,
+        35,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 4,
+      "sha256": "9b79aae5a5aa03225bcd1a396310fd0307859cca1b7aa34da2d62e793933becc"
+    },
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cellSize": 128,
+      "opaqueBounds": [
+        49,
+        58,
+        80,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "bfd60bde3ef3b959c44ab1eb7f07727babca7244282b3ce0d1e67afe828906ff"
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cellSize": 128,
+      "opaqueBounds": [
+        53,
+        68,
+        75,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "6b91b8bb60ca675838166890905ac5f5e938316a5e4d03059abad894d94d15ed"
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cellSize": 128,
+      "opaqueBounds": [
+        46,
+        47,
+        83,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "e3ab7da6e8308d574ee2f49c67630523f5e3c52a2a3262ce18e687d740a88cec"
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cellSize": 128,
+      "opaqueBounds": [
+        56,
+        79,
+        75,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "101bd92c0fe8ac3c48e45e85b2d6d364ba643c933d7218c0752c2598a14b9f87"
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cellSize": 128,
+      "opaqueBounds": [
+        47,
+        68,
+        80,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "81222ee4f5f4a3653a504abf392f1e5458bba44fd530d3e1ff88466652187c30"
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cellSize": 128,
+      "opaqueBounds": [
+        48,
+        90,
+        78,
+        123
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "2ac92b674144bf1832aba92aa669161c49c4df5842d3c2b5f24f67fef5219055"
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cellSize": 128,
+      "opaqueBounds": [
+        55,
+        106,
+        74,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "de17a7f998c8ef4f0de847c64a83dd8c37f00ca24a82656d1c8bff1d9c6a1b13"
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cellSize": 128,
+      "opaqueBounds": [
+        55,
+        100,
+        73,
+        124
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "69363f768441a6c14c8f2e6544b2fa2db92820037c19d77a367098ee900179e2"
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cellSize": 128,
+      "opaqueBounds": [
+        57,
+        111,
+        70,
+        123
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "d0d186fcce2b2573e6e9818fb564c3e48922f255855ed48fbb247c7413ed0689"
+    },
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cellSize": 256,
+      "opaqueBounds": [
+        98,
+        116,
+        161,
+        248
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "260816687ba70647948737312c7b89da59dbe947a22bd5b2150b8cb166117874"
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cellSize": 256,
+      "opaqueBounds": [
+        106,
+        137,
+        150,
+        248
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "cad153f23ee21b632ee20452f4632aab0cc1ff9e1a3689d1d6ece9192719a9c8"
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cellSize": 256,
+      "opaqueBounds": [
+        93,
+        95,
+        165,
+        247
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "0a27149197302155b58e4e7e13e030c519a50441da156e8762cb7cbe9f2e5674"
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cellSize": 256,
+      "opaqueBounds": [
+        113,
+        158,
+        150,
+        247
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "7c9d12ec31d692f1b02b285bcfda2725dcd8018b27dc69577ba374fb85b1c6b5"
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cellSize": 256,
+      "opaqueBounds": [
+        95,
+        137,
+        160,
+        247
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "5e44a2376f131c4816d8ce9f4dc46e82f7399b6a07eb30103409311e97b4185d"
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cellSize": 256,
+      "opaqueBounds": [
+        96,
+        180,
+        156,
+        246
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "99bdbccea8d7f29d81dfd9686df838aa210267d2fc53f9826cb3fd8cbb2d0475"
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cellSize": 256,
+      "opaqueBounds": [
+        110,
+        213,
+        148,
+        247
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "ecf233ef43f620f5c8d3299f521c3aecfc565fcca8d9736a0dd2bdbae6bf391b"
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cellSize": 256,
+      "opaqueBounds": [
+        111,
+        201,
+        146,
+        247
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "322e72b7f1100d723cd20cda7a4f79327d29a6e5995feb6c809b0e78e4da7191"
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cellSize": 256,
+      "opaqueBounds": [
+        115,
+        223,
+        141,
+        246
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "1b5cce081e628c37ad45183eb4c2169a8af544440f8b06edbd8e2c3675f23919"
+    }
+  ]
+}

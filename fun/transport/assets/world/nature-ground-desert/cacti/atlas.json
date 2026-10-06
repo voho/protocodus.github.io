@@ -1,0 +1,363 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "nature-ground-desert:saguaro",
+    "nature-ground-desert:organ-pipe-cactus",
+    "nature-ground-desert:cardon",
+    "nature-ground-desert:senita",
+    "nature-ground-desert:candelabra-cactus",
+    "nature-ground-desert:tree-cholla",
+    "nature-ground-desert:golden-barrel-cactus",
+    "nature-ground-desert:fishhook-barrel-cactus",
+    "nature-ground-desert:hedgehog-cactus"
+  ],
+  "source": "source-registered-2026-10-06.png",
+  "sourceSha256": "0e51a9d9f59a00837491990fcbc6998f85fcf90f94af1195cadf4c6630537594",
+  "sprites": [
+    {
+      "id": "nature-ground-desert:saguaro",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        256,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          95,
+          114,
+          163,
+          250
+        ],
+        "rawAlphaBounds": [
+          97,
+          116,
+          161,
+          249
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.935089
+      },
+      "bounds": [
+        97,
+        116,
+        161,
+        249
+      ]
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cell": 1,
+      "sourceBounds": [
+        256,
+        0,
+        512,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          104,
+          135,
+          153,
+          251
+        ],
+        "rawAlphaBounds": [
+          106,
+          137,
+          152,
+          249
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.944565
+      },
+      "bounds": [
+        106,
+        137,
+        152,
+        249
+      ]
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "cell": 2,
+      "sourceBounds": [
+        512,
+        0,
+        768,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          91,
+          92,
+          167,
+          249
+        ],
+        "rawAlphaBounds": [
+          92,
+          94,
+          166,
+          248
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.890762
+      },
+      "bounds": [
+        92,
+        94,
+        166,
+        248
+      ]
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        256,
+        256,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          111,
+          156,
+          154,
+          250
+        ],
+        "rawAlphaBounds": [
+          113,
+          158,
+          153,
+          248
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.963989
+      },
+      "bounds": [
+        113,
+        158,
+        153,
+        248
+      ]
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cell": 4,
+      "sourceBounds": [
+        256,
+        256,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          93,
+          135,
+          162,
+          249
+        ],
+        "rawAlphaBounds": [
+          94,
+          137,
+          160,
+          248
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.938538
+      },
+      "bounds": [
+        94,
+        137,
+        160,
+        248
+      ]
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "cell": 5,
+      "sourceBounds": [
+        512,
+        256,
+        768,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          94,
+          177,
+          159,
+          248
+        ],
+        "rawAlphaBounds": [
+          96,
+          179,
+          157,
+          246
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.969925
+      },
+      "bounds": [
+        96,
+        179,
+        157,
+        246
+      ]
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        512,
+        256,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          107,
+          210,
+          152,
+          250
+        ],
+        "rawAlphaBounds": [
+          109,
+          212,
+          151,
+          248
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.983353
+      },
+      "bounds": [
+        109,
+        212,
+        151,
+        248
+      ]
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cell": 7,
+      "sourceBounds": [
+        256,
+        512,
+        512,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          108,
+          199,
+          150,
+          249
+        ],
+        "rawAlphaBounds": [
+          110,
+          200,
+          149,
+          248
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.980545
+      },
+      "bounds": [
+        110,
+        200,
+        149,
+        248
+      ]
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cell": 8,
+      "sourceBounds": [
+        512,
+        512,
+        768,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          113,
+          221,
+          144,
+          248
+        ],
+        "rawAlphaBounds": [
+          115,
+          223,
+          142,
+          246
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.993896
+      },
+      "bounds": [
+        115,
+        223,
+        142,
+        246
+      ]
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false
+}

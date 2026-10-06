@@ -1,0 +1,343 @@
+{
+  "sourceSha256": "af4b39c6a8d7385cd58839b69b56aa3f2d64ed1c844583f4b196eb674030a628",
+  "registeredSource": "source-registered-2026-10-06.png",
+  "registeredSourceSha256": "0e51a9d9f59a00837491990fcbc6998f85fcf90f94af1195cadf4c6630537594",
+  "artworkMutation": "No painting, redraw, object removal or independent axis stretching; complete source cutouts calibrated and translated.",
+  "records": [
+    {
+      "id": "nature-ground-desert:saguaro",
+      "sourceBox": [
+        0,
+        0,
+        418,
+        525
+      ],
+      "retainedSourceBounds": [
+        133,
+        72,
+        338,
+        499
+      ],
+      "uniformWholeCutoutScale": 0.31143552311435524,
+      "resampledSize": [
+        64,
+        133
+      ],
+      "registeredOffset": [
+        97,
+        116
+      ],
+      "registeredRootFoot": [
+        127.90731707317073,
+        244.63934426229508
+      ],
+      "opaqueBounds": [
+        98,
+        116,
+        161,
+        248
+      ],
+      "heightMetres": 4.0,
+      "registeredMeasuredHeightMetres": 4.0
+    },
+    {
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "sourceBox": [
+        418,
+        0,
+        836,
+        525
+      ],
+      "retainedSourceBounds": [
+        151,
+        118,
+        308,
+        497
+      ],
+      "uniformWholeCutoutScale": 0.29547553093259465,
+      "resampledSize": [
+        46,
+        112
+      ],
+      "registeredOffset": [
+        106,
+        137
+      ],
+      "registeredRootFoot": [
+        127.68152866242039,
+        244.56728232189974
+      ],
+      "opaqueBounds": [
+        106,
+        137,
+        150,
+        248
+      ],
+      "heightMetres": 3.3333333333333335,
+      "registeredMeasuredHeightMetres": 3.3333333333333335
+    },
+    {
+      "id": "nature-ground-desert:cardon",
+      "sourceBox": [
+        836,
+        0,
+        1254,
+        525
+      ],
+      "retainedSourceBounds": [
+        98,
+        48,
+        315,
+        502
+      ],
+      "uniformWholeCutoutScale": 0.3393939393939394,
+      "resampledSize": [
+        74,
+        154
+      ],
+      "registeredOffset": [
+        92,
+        94
+      ],
+      "registeredRootFoot": [
+        128.14746543778801,
+        244.26872246696036
+      ],
+      "opaqueBounds": [
+        93,
+        95,
+        165,
+        247
+      ],
+      "heightMetres": 4.666666666666667,
+      "registeredMeasuredHeightMetres": 4.666666666666667
+    },
+    {
+      "id": "nature-ground-desert:senita",
+      "sourceBox": [
+        0,
+        525,
+        418,
+        970
+      ],
+      "retainedSourceBounds": [
+        174,
+        55,
+        324,
+        395
+      ],
+      "uniformWholeCutoutScale": 0.2633744855967078,
+      "resampledSize": [
+        40,
+        90
+      ],
+      "registeredOffset": [
+        113,
+        158
+      ],
+      "registeredRootFoot": [
+        128.2,
+        244.8235294117647
+      ],
+      "opaqueBounds": [
+        113,
+        158,
+        150,
+        247
+      ],
+      "heightMetres": 2.6666666666666665,
+      "registeredMeasuredHeightMetres": 2.6666666666666665
+    },
+    {
+      "id": "nature-ground-desert:candelabra-cactus",
+      "sourceBox": [
+        418,
+        525,
+        836,
+        970
+      ],
+      "retainedSourceBounds": [
+        115,
+        25,
+        329,
+        384
+      ],
+      "uniformWholeCutoutScale": 0.3082851637764933,
+      "resampledSize": [
+        66,
+        111
+      ],
+      "registeredOffset": [
+        94,
+        137
+      ],
+      "registeredRootFoot": [
+        127.61682242990653,
+        244.90807799442896
+      ],
+      "opaqueBounds": [
+        95,
+        137,
+        160,
+        247
+      ],
+      "heightMetres": 3.3333333333333335,
+      "registeredMeasuredHeightMetres": 3.3333333333333335
+    },
+    {
+      "id": "nature-ground-desert:tree-cholla",
+      "sourceBox": [
+        836,
+        525,
+        1254,
+        970
+      ],
+      "retainedSourceBounds": [
+        79,
+        93,
+        352,
+        392
+      ],
+      "uniformWholeCutoutScale": 0.22456140350877193,
+      "resampledSize": [
+        61,
+        67
+      ],
+      "registeredOffset": [
+        96,
+        179
+      ],
+      "registeredRootFoot": [
+        127.50549450549451,
+        243.98327759197326
+      ],
+      "opaqueBounds": [
+        96,
+        180,
+        156,
+        246
+      ],
+      "heightMetres": 2.0,
+      "registeredMeasuredHeightMetres": 2.0
+    },
+    {
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "sourceBox": [
+        0,
+        970,
+        418,
+        1254
+      ],
+      "retainedSourceBounds": [
+        162,
+        79,
+        320,
+        217
+      ],
+      "uniformWholeCutoutScale": 0.2644628099173554,
+      "resampledSize": [
+        42,
+        36
+      ],
+      "registeredOffset": [
+        109,
+        212
+      ],
+      "registeredRootFoot": [
+        127.60759493670886,
+        244.34782608695653
+      ],
+      "opaqueBounds": [
+        110,
+        213,
+        148,
+        247
+      ],
+      "heightMetres": 1.0,
+      "registeredMeasuredHeightMetres": 1.0
+    },
+    {
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "sourceBox": [
+        418,
+        970,
+        836,
+        1254
+      ],
+      "retainedSourceBounds": [
+        159,
+        49,
+        296,
+        215
+      ],
+      "uniformWholeCutoutScale": 0.28635346756152125,
+      "resampledSize": [
+        39,
+        48
+      ],
+      "registeredOffset": [
+        110,
+        200
+      ],
+      "registeredRootFoot": [
+        127.64963503649635,
+        244.53012048192772
+      ],
+      "opaqueBounds": [
+        111,
+        201,
+        146,
+        247
+      ],
+      "heightMetres": 1.3333333333333333,
+      "registeredMeasuredHeightMetres": 1.3333333333333333
+    },
+    {
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "sourceBox": [
+        836,
+        970,
+        1254,
+        1254
+      ],
+      "retainedSourceBounds": [
+        126,
+        64,
+        312,
+        222
+      ],
+      "uniformWholeCutoutScale": 0.1471264367816092,
+      "resampledSize": [
+        27,
+        23
+      ],
+      "registeredOffset": [
+        115,
+        223
+      ],
+      "registeredRootFoot": [
+        128.06451612903226,
+        244.54430379746836
+      ],
+      "opaqueBounds": [
+        115,
+        223,
+        140,
+        246
+      ],
+      "heightMetres": 0.6666666666666666,
+      "registeredMeasuredHeightMetres": 0.6666666666666666
+    }
+  ],
+  "pixelsPerMetre": 32.0,
+  "projectionCorrection": {
+    "date": "2026-10-06",
+    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
+    "historicalAssumedWorldEnlargement": 1.5,
+    "actualWorldEnlargement": 1,
+    "historicalHeightToActualWorldMetres": 0.6666666666666666,
+    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
+    "artworkUnchanged": true,
+    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged."
+  }
+}

@@ -1,0 +1,768 @@
+{
+  "accepted": true,
+  "completeIndependentTrees": 9,
+  "profiles": 45,
+  "allMasterEdgesTransparent": true,
+  "allRuntimeTopAndSideEdgesBelowBodyThreshold32": true,
+  "maxEdgeAlphaTopRightBottomLeftPerLOD": {
+    "16": [
+      3,
+      4,
+      156,
+      4
+    ],
+    "32": [
+      0,
+      0,
+      51,
+      0
+    ],
+    "64": [
+      0,
+      0,
+      2,
+      0
+    ],
+    "128": [
+      0,
+      0,
+      1,
+      0
+    ],
+    "256": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "heightVarianceRangePercent": [
+    -12.861407140313375,
+    0.3518044800884912
+  ],
+  "maximumRootAnchorErrorPixels": 0.4693617021276282,
+  "visualReview": "All9species visually inspected at16/32/64/128 pixels on world grass. Quiet foliage, distinct botanical silhouettes, no missing or duplicated species.",
+  "bottomEdgeNote": "The95.5%root anchor leaves0.72px below the root at16px density. Filtered root/contact alpha can therefore occupy the last row at this LOD. Masters contain complete roots and clear bottom edges; no crown or side branch is clipped.",
+  "cells": [
+    {
+      "id": "scots-pine",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        2,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        4,
+        131,
+        0
+      ]
+    },
+    {
+      "id": "lodgepole-pine",
+      "cellSize": 16,
+      "bodyBounds": [
+        6,
+        2,
+        11,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        0,
+        132,
+        0
+      ]
+    },
+    {
+      "id": "blue-spruce",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        2,
+        13,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        2,
+        1,
+        130,
+        2
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        2,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        2,
+        153,
+        0
+      ]
+    },
+    {
+      "id": "western-redcedar",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        2,
+        13,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        1,
+        142,
+        0
+      ]
+    },
+    {
+      "id": "juniper-tree",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        7,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        4,
+        156,
+        0
+      ]
+    },
+    {
+      "id": "hemlock",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        2,
+        13,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        1,
+        129,
+        0
+      ]
+    },
+    {
+      "id": "linden",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        3,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        1,
+        4,
+        138,
+        4
+      ]
+    },
+    {
+      "id": "beech",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        4,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        4,
+        132,
+        2
+      ]
+    },
+    {
+      "id": "scots-pine",
+      "cellSize": 32,
+      "bodyBounds": [
+        7,
+        4,
+        28,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        11,
+        0
+      ]
+    },
+    {
+      "id": "lodgepole-pine",
+      "cellSize": 32,
+      "bodyBounds": [
+        11,
+        4,
+        21,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        14,
+        0
+      ]
+    },
+    {
+      "id": "blue-spruce",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        4,
+        27,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        29,
+        0
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "cellSize": 32,
+      "bodyBounds": [
+        6,
+        4,
+        27,
+        32
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        44,
+        0
+      ]
+    },
+    {
+      "id": "western-redcedar",
+      "cellSize": 32,
+      "bodyBounds": [
+        7,
+        4,
+        26,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        27,
+        0
+      ]
+    },
+    {
+      "id": "juniper-tree",
+      "cellSize": 32,
+      "bodyBounds": [
+        6,
+        14,
+        28,
+        32
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        51,
+        0
+      ]
+    },
+    {
+      "id": "hemlock",
+      "cellSize": 32,
+      "bodyBounds": [
+        6,
+        4,
+        27,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        21,
+        0
+      ]
+    },
+    {
+      "id": "linden",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        6,
+        27,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        24,
+        0
+      ]
+    },
+    {
+      "id": "beech",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        9,
+        28,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        15,
+        0
+      ]
+    },
+    {
+      "id": "scots-pine",
+      "cellSize": 64,
+      "bodyBounds": [
+        14,
+        8,
+        55,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "lodgepole-pine",
+      "cellSize": 64,
+      "bodyBounds": [
+        23,
+        9,
+        42,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "blue-spruce",
+      "cellSize": 64,
+      "bodyBounds": [
+        10,
+        9,
+        54,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "cellSize": 64,
+      "bodyBounds": [
+        12,
+        8,
+        54,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "western-redcedar",
+      "cellSize": 64,
+      "bodyBounds": [
+        14,
+        8,
+        53,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "juniper-tree",
+      "cellSize": 64,
+      "bodyBounds": [
+        13,
+        28,
+        55,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "hemlock",
+      "cellSize": 64,
+      "bodyBounds": [
+        11,
+        8,
+        53,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "linden",
+      "cellSize": 64,
+      "bodyBounds": [
+        9,
+        12,
+        54,
+        63
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "beech",
+      "cellSize": 64,
+      "bodyBounds": [
+        11,
+        18,
+        56,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "scots-pine",
+      "cellSize": 128,
+      "bodyBounds": [
+        28,
+        17,
+        110,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "lodgepole-pine",
+      "cellSize": 128,
+      "bodyBounds": [
+        46,
+        17,
+        84,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "blue-spruce",
+      "cellSize": 128,
+      "bodyBounds": [
+        20,
+        17,
+        108,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "cellSize": 128,
+      "bodyBounds": [
+        24,
+        17,
+        107,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "western-redcedar",
+      "cellSize": 128,
+      "bodyBounds": [
+        28,
+        17,
+        105,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "juniper-tree",
+      "cellSize": 128,
+      "bodyBounds": [
+        27,
+        56,
+        109,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "hemlock",
+      "cellSize": 128,
+      "bodyBounds": [
+        22,
+        17,
+        106,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "linden",
+      "cellSize": 128,
+      "bodyBounds": [
+        19,
+        24,
+        109,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "beech",
+      "cellSize": 128,
+      "bodyBounds": [
+        22,
+        37,
+        112,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "scots-pine",
+      "cellSize": 256,
+      "bodyBounds": [
+        55,
+        33,
+        219,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "lodgepole-pine",
+      "cellSize": 256,
+      "bodyBounds": [
+        92,
+        34,
+        167,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "blue-spruce",
+      "cellSize": 256,
+      "bodyBounds": [
+        40,
+        35,
+        216,
+        250
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "cellSize": 256,
+      "bodyBounds": [
+        47,
+        34,
+        214,
+        250
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "western-redcedar",
+      "cellSize": 256,
+      "bodyBounds": [
+        56,
+        34,
+        210,
+        250
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "juniper-tree",
+      "cellSize": 256,
+      "bodyBounds": [
+        54,
+        112,
+        219,
+        251
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "hemlock",
+      "cellSize": 256,
+      "bodyBounds": [
+        45,
+        34,
+        211,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "linden",
+      "cellSize": 256,
+      "bodyBounds": [
+        37,
+        48,
+        217,
+        250
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "beech",
+      "cellSize": 256,
+      "bodyBounds": [
+        44,
+        73,
+        224,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

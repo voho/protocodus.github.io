@@ -12,12 +12,13 @@ import { onHouseAssetsChange } from './raster-houses.js';
 const numeric = value => new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
 
 /** Catalog navigation reads the world; the app owns closing, chains and construction. */
-export function mountGallery(container, game, { onClose, onBuild, onOpenChains, onChange = () => {} } = {}, options = {}) {
+export function mountGallery(container, game, { onClose, onBuild, onOpenChains, onRelated, onBrowse, onChange = () => {} } = {}, options = {}) {
   const entries = galleryCatalog(), byId = new Map(entries.map(entry => [entry.id, entry]));
   let category = Object.hasOwn(GALLERY_CATEGORIES, options.category) ? options.category : 'all';
   let climate = options.climate === 'all' || BIOMES[options.climate] ? options.climate : game.biome;
   let query = String(options.query || ''), entryId = byId.has(options.entryId) ? options.entryId : null;
-  let variant = 0, disposed = false, redrawFrame = 0, history = [];
+  const singleEntry = options.singleEntry === true, preview = singleEntry ? options.preview || {} : {};
+  let variant = preview.variant || 0, disposed = false, redrawFrame = 0, history = [], detailStamp = '';
   const density = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
   const spriteBanks = new Map();
   const portraitBounds = new WeakMap();
@@ -37,13 +38,18 @@ export function mountGallery(container, game, { onClose, onBuild, onOpenChains, 
   function finish(callback, value) { dispose(); callback?.(value); }
   function artHTML(entry, big = false) {
     const art = entry.art, attributes = art.type === 'building' ? `data-building-sprite="${escape(art.kind)}" data-building-variant="${big ? variant : 0}"` :
-      art.type === 'industry' ? `data-industry-sprite="${escape(art.kind)}" data-industry-footprint="${entry.footprint}"` :
-      art.type === 'infrastructure' ? `data-infrastructure-sprite="${escape(art.kind)}"` :
-      art.type === 'vehicle' ? `data-vehicle-sprite="purchase" data-mode="${art.mode}" data-cargo="${art.cargo}" data-level="0"` : `data-gallery-nature="${escape(entry.id)}"`;
+      art.type === 'industry' ? `data-industry-sprite="${escape(art.kind)}" data-industry-footprint="${big && singleEntry ? preview.footprint || entry.footprint : entry.footprint}" data-industry-variant="${big && singleEntry ? preview.variant || 0 : 0}"` :
+      art.type === 'infrastructure' ? `data-infrastructure-sprite="${escape(art.kind)}"${big && singleEntry && art.kind === 'airport' ? ` data-infrastructure-axis="${preview.axis === 'y' ? 'y' : 'x'}"` : ''}` :
+      art.type === 'vehicle' ? `data-vehicle-sprite="purchase" data-mode="${art.mode}" data-cargo="${big && singleEntry ? preview.cargo || art.cargo : art.cargo}" data-level="${big && singleEntry ? preview.level || 0 : 0}"` : `data-gallery-nature="${escape(entry.id)}"`;
     return art.type === 'cargo' ? `<span class="gallery-cargo-art">${cargoIcon(art.kind, { decorative: true })}</span>` : `<canvas width="112" height="112" ${attributes}${big && art.type === 'building' ? ` data-gallery-featured="${escape(entry.id)}"` : ''} data-gallery-climate="${previewBiome(entry)}" aria-hidden="true"></canvas>`;
   }
 
   function render() {
+    if (singleEntry) {
+      container.innerHTML = `<section class="inspector-gallery" aria-label="Gallery information"><div class="inspector-gallery-heading"><h4>Gallery</h4><button type="button" class="small-button" data-gallery-browse>Browse Gallery${icon('chevronRight', { size: 14 })}</button></div><div class="gallery-detail"></div></section>`;
+      container.querySelector('[data-gallery-browse]').addEventListener('click', () => onBrowse?.(entryId));
+      renderDetail(); drawArtwork(); return;
+    }
     container.innerHTML = `<div class="modal-inner gallery-explorer"><header class="gallery-heading"><div><h2>Gallery</h2><p>Find an object, understand its role, then choose your next step.</p></div><button type="button" class="close-modal" aria-label="Close gallery">${icon('close')}</button></header><div class="gallery-filters"><label class="gallery-search">${icon('search', { size: 18 })}<span class="sr-only">Search gallery</span><input type="search" id="gallery-search" placeholder="Search names or cargo…" value="${escape(query)}" autocomplete="off"></label><label><span class="sr-only">Gallery category</span><select id="gallery-category" aria-label="Gallery category">${Object.entries(GALLERY_CATEGORIES).map(([key, name]) => `<option value="${key}"${key === category ? ' selected' : ''}>${escape(name)}</option>`).join('')}</select></label><label><span class="sr-only">Gallery climate</span><select id="gallery-climate" aria-label="Gallery climate"><option value="all"${climate === 'all' ? ' selected' : ''}>All climates</option>${Object.entries(BIOMES).map(([key, b]) => `<option value="${key}"${key === climate ? ' selected' : ''}>${escape(b.name)}</option>`).join('')}</select></label></div><div class="gallery-layout"><section class="gallery-index" aria-label="Gallery objects"><p class="gallery-count" role="status" aria-live="polite"></p><div class="gallery-list"></div></section><section class="gallery-detail" aria-label="Selected object"></section></div></div>`;
     container.querySelector('.close-modal').addEventListener('click', () => finish(onClose));
     container.querySelector('#gallery-search').addEventListener('input', event => { query = event.target.value; renderList(); });
@@ -91,12 +97,13 @@ export function mountGallery(container, game, { onClose, onBuild, onOpenChains, 
     if (!entry) { region.innerHTML = '<p class="gallery-empty">Choose a different search to explore the gallery.</p>'; return; }
     const biome = previewBiome(entry), detail = galleryDetails(game, entry, biome), build = galleryBuildState(game, entry);
     const priceLabels = new Set(['Build price today', 'Current purchase price', 'Base upkeep for 30 days', 'Base stop upkeep for 30 days', 'Base cargo fare']);
-    const house = entry.type === 'building' && entry.category === 'homes';
+    const house = !singleEntry && entry.type === 'building' && entry.category === 'homes';
+    detailStamp = JSON.stringify([detail, build]);
     const formatStat = (label, value) => typeof value !== 'number' ? escape(value) : priceLabels.has(label) ? money(value) : numeric(value);
-    region.innerHTML = `${history.length ? `<button type="button" class="gallery-back" data-gallery-back>${icon('chevronLeft', { size: 16 })}Back to previous object</button>` : ''}<div class="gallery-object-head"><div class="gallery-portrait">${artHTML(entry, true)}</div><div><p class="gallery-meta">${escape(GALLERY_CATEGORIES[entry.category])}, ${escape(BIOMES[biome].name)}</p><h3 id="gallery-object-heading" tabindex="-1">${escape(entry.name)}</h3><p>${escape(entry.description)}</p>${house ? `<div class="gallery-variants"><button type="button" class="small-button" data-gallery-design>Other design</button><button type="button" class="small-button" data-gallery-turn>Turn</button></div>` : ''}</div></div><div class="gallery-actions">${entry.tool ? `<button type="button" class="button button-primary" data-gallery-build${build.available ? '' : ' disabled'}>${icon('build', { size: 16 })}Build ${escape(entry.name)}</button>` : ''}${detail.chain ? `<button type="button" class="button button-outline" data-gallery-chain>${icon('chains', { size: 16 })}Open production chain</button>` : ''}</div>${build.reason ? `<p class="gallery-note gallery-build-note">${escape(build.reason)}</p>` : ''}${detail.recipes.length ? `<section class="gallery-recipe"><h4>${entry.type === 'workshop' ? 'Recipes' : 'Daily production'}</h4>${detail.recipes.map(recipe => cargoRecipe(recipe.inputs, recipe.outputs, { labels: true })).join('')}</section>` : ''}${detail.stats.length ? `<dl class="gallery-facts">${detail.stats.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${formatStat(label, value)}</dd></div>`).join('')}</dl>` : ''}${detail.consumers.length ? `<section class="gallery-connections"><h4>Where cargo goes</h4>${detail.consumers.map(group => `<div class="gallery-cargo-flow"><div class="gallery-flow-label">${cargoIcon(group.cargo, { decorative: true })}<strong>${escape(CARGO[group.cargo]?.name || group.cargo)}</strong><span>${group.incoming ? 'Comes from' : 'Continues to'}</span></div>${group.entries.length ? group.entries.map(target => `<button type="button" class="gallery-related" data-gallery-related="${escape(target.id)}"><span><strong>${escape(target.name)}</strong><small>${escape(target.role)}</small></span>${icon('chevronRight', { size: 16 })}</button>`).join('') : '<p class="gallery-note">No buyer in this climate.</p>'}</div>`).join('')}</section>` : ''}${detail.notes.map(note => `<p class="gallery-note">${escape(note)}</p>`).join('')}`;
-    region.querySelector('[data-gallery-build]')?.addEventListener('click', () => { if (galleryBuildState(game, entry).available) finish(onBuild, entry.tool); });
-    region.querySelector('[data-gallery-chain]')?.addEventListener('click', () => finish(onOpenChains, detail.chain));
-    region.querySelectorAll('[data-gallery-related]').forEach(button => button.addEventListener('click', () => select(button.dataset.galleryRelated, true)));
+    region.innerHTML = `${history.length ? `<button type="button" class="gallery-back" data-gallery-back>${icon('chevronLeft', { size: 16 })}Back to previous object</button>` : ''}<div class="gallery-object-head"><div class="gallery-portrait">${artHTML(entry, true)}</div><div><p class="gallery-meta">${escape(GALLERY_CATEGORIES[entry.category])}, ${escape(BIOMES[biome].name)}</p><h3 id="${singleEntry ? 'inspector-gallery-object-heading' : 'gallery-object-heading'}" tabindex="-1">${escape(entry.name)}</h3><p>${escape(entry.description)}</p>${house ? `<div class="gallery-variants"><button type="button" class="small-button" data-gallery-design>Other design</button><button type="button" class="small-button" data-gallery-turn>Turn</button></div>` : ''}</div></div><div class="gallery-actions">${entry.tool ? `<button type="button" class="button button-primary" data-gallery-build${build.available ? '' : ' disabled'}>${icon('build', { size: 16 })}Build ${escape(entry.name)}</button>` : ''}${detail.chain ? `<button type="button" class="button button-outline" data-gallery-chain>${icon('chains', { size: 16 })}Open production chain</button>` : ''}</div>${build.reason ? `<p class="gallery-note gallery-build-note">${escape(build.reason)}</p>` : ''}${detail.recipes.length ? `<section class="gallery-recipe"><h4>${entry.type === 'workshop' ? 'Recipes' : 'Daily production'}</h4>${detail.recipes.map(recipe => cargoRecipe(recipe.inputs, recipe.outputs, { labels: true })).join('')}</section>` : ''}${detail.stats.length ? `<dl class="gallery-facts">${detail.stats.map(([label, value]) => `<div><dt>${escape(label)}</dt><dd>${formatStat(label, value)}</dd></div>`).join('')}</dl>` : ''}${detail.consumers.length ? `<section class="gallery-connections"><h4>Where cargo goes</h4>${detail.consumers.map(group => `<div class="gallery-cargo-flow"><div class="gallery-flow-label">${cargoIcon(group.cargo, { decorative: true })}<strong>${escape(CARGO[group.cargo]?.name || group.cargo)}</strong><span>${group.incoming ? 'Comes from' : 'Continues to'}</span></div>${group.entries.length ? group.entries.map(target => `<button type="button" class="gallery-related" data-gallery-related="${escape(target.id)}"><span><strong>${escape(target.name)}</strong><small>${escape(target.role)}</small></span>${icon('chevronRight', { size: 16 })}</button>`).join('') : '<p class="gallery-note">No buyer in this climate.</p>'}</div>`).join('')}</section>` : ''}${detail.notes.map(note => `<p class="gallery-note">${escape(note)}</p>`).join('')}${singleEntry && options.related?.length ? `<section class="gallery-connections"><h4>Trees in this grove</h4>${options.related.map(id => byId.get(id)).filter(Boolean).map(tree => `<button type="button" class="gallery-related" data-gallery-related="${escape(tree.id)}"><span><strong>${escape(tree.name)}</strong><small>View this tree</small></span>${icon('chevronRight', { size: 16 })}</button>`).join('')}</section>` : ''}`;
+    region.querySelector('[data-gallery-build]')?.addEventListener('click', () => { if (galleryBuildState(game, entry).available) finish(onBuild, singleEntry && entry.tool === 'airport-x' && preview.axis === 'y' ? 'airport-y' : entry.tool); });
+    region.querySelector('[data-gallery-chain]')?.addEventListener('click', () => singleEntry ? onOpenChains?.(detail.chain) : finish(onOpenChains, detail.chain));
+    region.querySelectorAll('[data-gallery-related]').forEach(button => button.addEventListener('click', () => singleEntry ? onRelated?.(button.dataset.galleryRelated) : select(button.dataset.galleryRelated, true)));
     region.querySelector('[data-gallery-back]')?.addEventListener('click', () => { const previous = history.pop(); ({ category, climate, query, entryId } = previous); variant = 0; render(); focusDetail(); });
     region.querySelector('[data-gallery-design]')?.addEventListener('click', () => { variant = (Math.floor(variant / 6) + 1) % 3 * 6 + variant % 2; renderDetail(); drawArtwork(); region.querySelector('[data-gallery-design]')?.focus({ preventScroll: true }); });
     region.querySelector('[data-gallery-turn]')?.addEventListener('click', () => { variant = Math.floor(variant / 6) * 6 + (1 - variant % 2); renderDetail(); drawArtwork(); region.querySelector('[data-gallery-turn]')?.focus({ preventScroll: true }); });
@@ -114,7 +121,7 @@ export function mountGallery(container, game, { onClose, onBuild, onOpenChains, 
       const entry = byId.get(canvas.dataset.galleryFeatured), biome = previewBiome(entry);
       let sprite = spriteBanks.get(biome);
       if (!sprite) { sprite = createSprites(biome, { pixelScale: density * 2, detailLevel: 'detail' }); spriteBanks.set(biome, sprite); }
-      const image = sprite(entry.art.kind, variant, 1, '', entry.footprint);
+      const image = sprite(entry.art.kind, Number(canvas.dataset.buildingVariant) || 0, singleEntry ? preview.level || 1 : 1, '', singleEntry ? preview.footprint || entry.footprint : entry.footprint);
       canvas.width = canvas.height = 152 * density;
       let bounds = portraitBounds.get(image);
       if (!bounds) {
@@ -148,14 +155,14 @@ export function mountGallery(container, game, { onClose, onBuild, onOpenChains, 
       } else {
         let sprite = spriteBanks.get(biome);
         if (!sprite) { sprite = createSprites(biome, { pixelScale: density * 2, detailLevel: 'detail' }); spriteBanks.set(biome, sprite); }
-        const image = sprite(entry.art.kind, 0, 1, entry.art.detail || '');
+        const image = sprite(entry.art.kind, singleEntry ? preview.variant || 0 : 0, singleEntry ? preview.level || 1 : 1, singleEntry ? preview.detail ?? entry.art.detail ?? '' : entry.art.detail || '', singleEntry ? preview.footprint || 1 : 1);
         c.drawImage(image, 8, 0, 96, 108);
       }
     }
   }
   function scheduleArtwork() { if (!disposed && !redrawFrame) redrawFrame = requestAnimationFrame(() => { redrawFrame = 0; drawArtwork(); }); }
   function keydown(event) {
-    if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(onClose); }
+    if (!singleEntry && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); finish(onClose); }
     if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) && event.target.closest('[data-gallery-entry]')) {
       const buttons = [...container.querySelectorAll('[data-gallery-entry]')], current = buttons.indexOf(event.target.closest('[data-gallery-entry]'));
       const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : Math.max(0, Math.min(buttons.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1)));
@@ -166,5 +173,14 @@ export function mountGallery(container, game, { onClose, onBuild, onOpenChains, 
   container.addEventListener('keydown', keydown);
   dialog?.addEventListener('close', dialogClosed);
   render();
-  return { dispose, getSelection: selection };
+  return { dispose, getSelection: selection, refresh() {
+    if (disposed || !singleEntry) return;
+    const entry = byId.get(entryId);
+    if (entry && JSON.stringify([galleryDetails(game, entry, previewBiome(entry)), galleryBuildState(game, entry)]) !== detailStamp) { renderDetail(); drawArtwork(); }
+  } };
+}
+
+/** The inspector and full Gallery share one detail renderer, facts and artwork lifecycle. */
+export function mountGalleryEntry(container, game, callbacks = {}, selection = {}) {
+  return mountGallery(container, game, callbacks, { ...selection, singleEntry: true });
 }

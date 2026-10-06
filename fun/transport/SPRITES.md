@@ -50,6 +50,16 @@ Inspect every family at its actual **Region (0.5×)** and **Town (1×)** size, t
 
 Gardens blend into the climate's world ground. Stone foundations support buildings on slopes without an opaque sprite backdrop. Farm ground follows its site, and fences and field objects remain aligned with the world grid. Review loaded artwork and native fallbacks so that delayed assets do not change physical scale.
 
+## Tree variety and registration
+
+[tree-art-catalog.js](tree-art-catalog.js) defines 27 tree sprites per climate: the original nine plus eighteen additional species in two 3 × 3 atlases. Three additional hollow trees bring tundra to 30. Its `treeGenerationPrompt()` uses the shared metre scale and records each species' height. Generate a reproducible job with `node fun/transport/tools/generate-tree-prompt.mjs taiga 1 /tmp/transport-tree-job.json`. The same catalog provides `hollowTreeGenerationPrompt()` and `cactusGenerationPrompt()` for the hollow-tree and nine-cactus sheets.
+
+Trees use the same 2:1 camera, northwest light and restrained painted materials as the buildings. Broad crown masses, visible trunk forks and distinct branch silhouettes replace individual leaves, needle lines, fruit dots and bark scratches. The new sprites contain a tiny contact shadow; the renderer projects the longer ground shadow separately.
+
+At the nominal 22-unit tree size, a 256-pixel master uses about 19.72 pixels per vertical metre. Woodland sprites render 1:1 in world space; the 1.5× enlargement of building uprights does not apply to them. Shorter species remain shorter. Register each trunk at the shared 95.5% cell-height root anchor, using lossless translation and a common metre scale. If generated heights drift, uniformly calibrate a complete plant to its stated metre height while preserving its botanical proportions; record the measured crown-to-root height and calibration factor. Keep transparent gutters and preserve the full registered cell through `--aligned --preserve-grid-scale --no-sharpen` packing. Do not normalize different plants to one maximum bounding-box height or enlarge them to fill their cells.
+
+Artwork selection uses the existing tree seeds. Two thirds of mature trees choose an additional species; original bare and juvenile variants remain available. Hollow trunks occur sparsely in tundra's bare woodland. Nine additional desert cacti vary existing cactus patches, from small barrels to tall branching cardons, at a shared 16-unit envelope and 32 master pixels per metre. Grove positions, saved terrain and world recipes remain stable. Generated-art shadows follow the selected species' physical height; unavailable-art fallbacks retain their original geometry. The Gallery previews each named tree and cactus directly.
+
 ## Saved worlds
 
 Recipe 10 generates 5 × 5 industrial plots. Published recipes 1–9 stay frozen so procedural saves reconstruct their original geography: recipe 8 has 3 × 3 industries and recipe 9 has 3 × 3 factories with 7 × 7 farms. These historical dimensions do not define new construction.

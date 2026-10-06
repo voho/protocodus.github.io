@@ -1,0 +1,768 @@
+{
+  "accepted": true,
+  "completeIndependentTrees": 9,
+  "profiles": 45,
+  "allMasterEdgesTransparent": true,
+  "allRuntimeTopAndSideEdgesBelowBodyThreshold32": true,
+  "maxEdgeAlphaTopRightBottomLeftPerLOD": {
+    "16": [
+      3,
+      4,
+      125,
+      4
+    ],
+    "32": [
+      0,
+      0,
+      20,
+      0
+    ],
+    "64": [
+      0,
+      0,
+      3,
+      0
+    ],
+    "128": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "256": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "heightVarianceRangePercent": [
+    -14.816526178728061,
+    0.08533319152228547
+  ],
+  "maximumRootAnchorErrorPixels": 0.46680851063831597,
+  "visualReview": "All9species visually inspected at16/32/64/128 pixels on world grass. Quiet foliage, distinct botanical silhouettes, no missing or duplicated species.",
+  "bottomEdgeNote": "The95.5%root anchor leaves0.72px below the root at16px density. Filtered root/contact alpha can therefore occupy the last row at this LOD. Masters contain complete roots and clear bottom edges; no crown or side branch is clipped.",
+  "cells": [
+    {
+      "id": "hornbeam",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        4,
+        13,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        90,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        2,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        3,
+        108,
+        2
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        3,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        4,
+        100,
+        3
+      ]
+    },
+    {
+      "id": "red-maple",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        4,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        2,
+        97,
+        3
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        5,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        4,
+        102,
+        4
+      ]
+    },
+    {
+      "id": "rowan",
+      "cellSize": 16,
+      "bodyBounds": [
+        5,
+        7,
+        12,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        73,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "cellSize": 16,
+      "bodyBounds": [
+        3,
+        4,
+        13,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        98,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "cellSize": 16,
+      "bodyBounds": [
+        2,
+        5,
+        14,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        3,
+        125,
+        4
+      ]
+    },
+    {
+      "id": "poplar",
+      "cellSize": 16,
+      "bodyBounds": [
+        5,
+        2,
+        11,
+        16
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        3,
+        0,
+        124,
+        0
+      ]
+    },
+    {
+      "id": "hornbeam",
+      "cellSize": 32,
+      "bodyBounds": [
+        7,
+        7,
+        25,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        4,
+        27,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "cellSize": 32,
+      "bodyBounds": [
+        4,
+        6,
+        28,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "red-maple",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        7,
+        27,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "cellSize": 32,
+      "bodyBounds": [
+        4,
+        11,
+        28,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "rowan",
+      "cellSize": 32,
+      "bodyBounds": [
+        9,
+        14,
+        23,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        7,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "cellSize": 32,
+      "bodyBounds": [
+        7,
+        9,
+        26,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "cellSize": 32,
+      "bodyBounds": [
+        5,
+        10,
+        28,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        11,
+        0
+      ]
+    },
+    {
+      "id": "poplar",
+      "cellSize": 32,
+      "bodyBounds": [
+        11,
+        4,
+        21,
+        31
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        20,
+        0
+      ]
+    },
+    {
+      "id": "hornbeam",
+      "cellSize": 64,
+      "bodyBounds": [
+        14,
+        15,
+        50,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "cellSize": 64,
+      "bodyBounds": [
+        11,
+        8,
+        54,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "cellSize": 64,
+      "bodyBounds": [
+        8,
+        13,
+        56,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "id": "red-maple",
+      "cellSize": 64,
+      "bodyBounds": [
+        10,
+        15,
+        54,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "cellSize": 64,
+      "bodyBounds": [
+        9,
+        22,
+        56,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "rowan",
+      "cellSize": 64,
+      "bodyBounds": [
+        19,
+        28,
+        46,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "cellSize": 64,
+      "bodyBounds": [
+        14,
+        18,
+        52,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        3,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "cellSize": 64,
+      "bodyBounds": [
+        10,
+        19,
+        56,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        2,
+        0
+      ]
+    },
+    {
+      "id": "poplar",
+      "cellSize": 64,
+      "bodyBounds": [
+        22,
+        8,
+        42,
+        62
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "hornbeam",
+      "cellSize": 128,
+      "bodyBounds": [
+        29,
+        31,
+        100,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "cellSize": 128,
+      "bodyBounds": [
+        21,
+        17,
+        108,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "cellSize": 128,
+      "bodyBounds": [
+        16,
+        26,
+        111,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "red-maple",
+      "cellSize": 128,
+      "bodyBounds": [
+        20,
+        30,
+        108,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "cellSize": 128,
+      "bodyBounds": [
+        18,
+        44,
+        112,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "rowan",
+      "cellSize": 128,
+      "bodyBounds": [
+        38,
+        56,
+        91,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "cellSize": 128,
+      "bodyBounds": [
+        28,
+        37,
+        103,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "cellSize": 128,
+      "bodyBounds": [
+        20,
+        39,
+        112,
+        124
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "poplar",
+      "cellSize": 128,
+      "bodyBounds": [
+        45,
+        17,
+        84,
+        125
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "hornbeam",
+      "cellSize": 256,
+      "bodyBounds": [
+        58,
+        61,
+        201,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "cellSize": 256,
+      "bodyBounds": [
+        43,
+        34,
+        217,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "cellSize": 256,
+      "bodyBounds": [
+        32,
+        52,
+        222,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "red-maple",
+      "cellSize": 256,
+      "bodyBounds": [
+        41,
+        61,
+        216,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "cellSize": 256,
+      "bodyBounds": [
+        37,
+        88,
+        224,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "rowan",
+      "cellSize": 256,
+      "bodyBounds": [
+        77,
+        113,
+        183,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "cellSize": 256,
+      "bodyBounds": [
+        57,
+        74,
+        207,
+        248
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "cellSize": 256,
+      "bodyBounds": [
+        41,
+        79,
+        224,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "poplar",
+      "cellSize": 256,
+      "bodyBounds": [
+        89,
+        34,
+        168,
+        249
+      ],
+      "edgeAlphaTopRightBottomLeft": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

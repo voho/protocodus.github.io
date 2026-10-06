@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-06",
+  "generator": "image_gen.imagegen",
+  "imagegenSource": "/workspace/generated_images/exec-5fbbd9ab-ac8a-48dc-be3f-f7ff80f9331b.png",
+  "transparentBackground": true,
+  "styleReference": "assets/houses/tundra/house-atlas.png",
+  "styleReferenceSha256": "5d9ecb8d7b4bf0bf1a21395dc1a57295daa0c2528c348adaa0ef5ed944aa45e5",
+  "source": "source-generated-2026-10-06.png",
+  "sourceSha256": "1104fb0d1b910f381fba9b318d8abafd954ef15490ef2745668f3b15f07d67eb",
+  "prompt": "prompt.txt",
+  "promptSha256": "53eaacfccac9c6ccb63ed44d87136e03830c1a443de3bbd22600dd03248acb06",
+  "canonicalArtCatalog": "../../../../tree-art-catalog.js",
+  "canonicalArtCatalogSha256": "b35c4ebe62c57350b562235b7588df478b933feac7e25de4d9c519acfbf9b197",
+  "sharedStyleContract": "../../../../sprite-art-direction.js",
+  "sharedStyleContractSha256": "5ac8428e5ccedb1e074b7f6304fcfaf913713c47ab41e6719bf98bdf6450802a",
+  "columns": 3,
+  "rows": 1,
+  "normalisedCellPixels": 256,
+  "rootAnchor": 0.955,
+  "pixelsPerMetre": 19.72265023112481,
+  "registration": "One shared 0.25 source-pixel scale for all three hollow trees, preserving generated relative dimensions.",
+  "sourceTrim": "Alpha above 8 with two source pixels of padding. Invisible external matte specks omitted; all retained cutout RGBA is resampled as a whole.",
+  "records": [
+    {
+      "id": "hollow-birch",
+      "heightMetres": 7.333333333333333,
+      "description": "Standing old white birch with a clearly visible broad dark trunk hollow, broken upper limbs, sparse muted sage foliage and a little snow. Keep the opening a large simple dark shape.",
+      "logicalId": "nature-trees-tundra:hollow-birch",
+      "sourceBox": [
+        0,
+        0,
+        724,
+        724
+      ],
+      "rootFoot": [
+        430,
+        681
+      ],
+      "crownTop": 70,
+      "measuredCrownToRootPixels": 611,
+      "uniformWholeCutoutScale": 0.25,
+      "registeredPlantHeightPixels": 152.75,
+      "registeredMeasuredHeightMetres": 7.744902343749999
+    },
+    {
+      "id": "hollow-larch",
+      "heightMetres": 8.0,
+      "description": "Weathered standing grey-brown larch with a broad open dark cavity in the lower trunk, broken high fork, sparse large olive needle cushions and restrained snow.",
+      "logicalId": "nature-trees-tundra:hollow-larch",
+      "sourceBox": [
+        724,
+        0,
+        1448,
+        724
+      ],
+      "rootFoot": [
+        1150,
+        683
+      ],
+      "crownTop": 41,
+      "measuredCrownToRootPixels": 642,
+      "uniformWholeCutoutScale": 0.25,
+      "registeredPlantHeightPixels": 160.5,
+      "registeredMeasuredHeightMetres": 8.1378515625
+    },
+    {
+      "id": "hollow-spruce",
+      "heightMetres": 8.666666666666666,
+      "description": "Old standing dark spruce with a broad visible split hollow trunk, a broken leader, sparse blue-green boughs and snow on large branch ledges.",
+      "logicalId": "nature-trees-tundra:hollow-spruce",
+      "sourceBox": [
+        1448,
+        0,
+        2172,
+        724
+      ],
+      "rootFoot": [
+        1858,
+        685
+      ],
+      "crownTop": 29,
+      "measuredCrownToRootPixels": 656,
+      "uniformWholeCutoutScale": 0.25,
+      "registeredPlantHeightPixels": 164.0,
+      "registeredMeasuredHeightMetres": 8.3153125
+    }
+  ],
+  "buildCommand": "python fun/transport/tools/build-world-atlases.py --atlas fun/transport/assets/world/nature-trees-tundra/hollow/source-registered-2026-10-06.png --columns 3 --rows 1 --ids nature-trees-tundra:hollow-birch,nature-trees-tundra:hollow-larch,nature-trees-tundra:hollow-spruce --output-dir fun/transport/assets/world/nature-trees-tundra/hollow --aligned --preserve-grid-scale --max-cell 256 --no-sharpen",
+  "projectionCorrection": {
+    "date": "2026-10-06",
+    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
+    "historicalAssumedWorldEnlargement": 1.5,
+    "actualWorldEnlargement": 1,
+    "historicalHeightToActualWorldMetres": 0.6666666666666666,
+    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
+    "artworkUnchanged": true,
+    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
+    "historicalPixelsPerMetre": 13.14843348741654,
+    "historicalNominalHeightsMetres": {
+      "hollow-birch": 11,
+      "hollow-larch": 12,
+      "hollow-spruce": 13
+    }
+  }
+}

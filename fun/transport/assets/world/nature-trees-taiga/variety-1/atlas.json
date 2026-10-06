@@ -1,0 +1,363 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "nature-trees-taiga:scots-pine",
+    "nature-trees-taiga:lodgepole-pine",
+    "nature-trees-taiga:blue-spruce",
+    "nature-trees-taiga:silver-fir",
+    "nature-trees-taiga:western-redcedar",
+    "nature-trees-taiga:juniper-tree",
+    "nature-trees-taiga:hemlock",
+    "nature-trees-taiga:linden",
+    "nature-trees-taiga:beech"
+  ],
+  "source": "registered-source-generation-2026-10-06.png",
+  "sourceSha256": "10f3c33a8464ede673ec0d373f1c395139356e4571e6f4af49d2fedcef91649a",
+  "sprites": [
+    {
+      "id": "nature-trees-taiga:scots-pine",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        256,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          53,
+          31,
+          221,
+          251
+        ],
+        "rawAlphaBounds": [
+          54,
+          32,
+          220,
+          251
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.727402
+      },
+      "bounds": [
+        54,
+        32,
+        220,
+        251
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:lodgepole-pine",
+      "cell": 1,
+      "sourceBounds": [
+        256,
+        0,
+        512,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          90,
+          32,
+          169,
+          252
+        ],
+        "rawAlphaBounds": [
+          91,
+          33,
+          168,
+          251
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.835907
+      },
+      "bounds": [
+        91,
+        33,
+        168,
+        251
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:blue-spruce",
+      "cell": 2,
+      "sourceBounds": [
+        512,
+        0,
+        768,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          37,
+          32,
+          218,
+          253
+        ],
+        "rawAlphaBounds": [
+          38,
+          33,
+          217,
+          252
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.658234
+      },
+      "bounds": [
+        38,
+        33,
+        217,
+        252
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:silver-fir",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        256,
+        256,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          45,
+          32,
+          217,
+          253
+        ],
+        "rawAlphaBounds": [
+          46,
+          33,
+          216,
+          252
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.675415
+      },
+      "bounds": [
+        46,
+        33,
+        216,
+        252
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:western-redcedar",
+      "cell": 4,
+      "sourceBounds": [
+        256,
+        256,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          54,
+          32,
+          212,
+          253
+        ],
+        "rawAlphaBounds": [
+          55,
+          33,
+          211,
+          252
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.687241
+      },
+      "bounds": [
+        55,
+        33,
+        211,
+        252
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:juniper-tree",
+      "cell": 5,
+      "sourceBounds": [
+        512,
+        256,
+        768,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          51,
+          110,
+          221,
+          254
+        ],
+        "rawAlphaBounds": [
+          52,
+          111,
+          220,
+          253
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.783768
+      },
+      "bounds": [
+        52,
+        111,
+        220,
+        253
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:hemlock",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        512,
+        256,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          43,
+          32,
+          214,
+          252
+        ],
+        "rawAlphaBounds": [
+          44,
+          33,
+          213,
+          252
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.68161
+      },
+      "bounds": [
+        44,
+        33,
+        213,
+        252
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:linden",
+      "cell": 7,
+      "sourceBounds": [
+        256,
+        512,
+        512,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          35,
+          45,
+          219,
+          253
+        ],
+        "rawAlphaBounds": [
+          36,
+          46,
+          218,
+          252
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.647369
+      },
+      "bounds": [
+        36,
+        46,
+        218,
+        252
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:beech",
+      "cell": 8,
+      "sourceBounds": [
+        512,
+        512,
+        768,
+        768
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          42,
+          71,
+          226,
+          252
+        ],
+        "rawAlphaBounds": [
+          43,
+          72,
+          225,
+          251
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.682266
+      },
+      "bounds": [
+        43,
+        72,
+        225,
+        251
+      ]
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false
+}

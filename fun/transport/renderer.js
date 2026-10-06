@@ -34,7 +34,7 @@ import { terrainObjectAt, terrainObjectSize } from './terrain-objects.js';
 import { surfaceChangesSince, viewChangesSince } from './change-journal.js';
 import { natureObjectLayout, drawRasterTreeShadows, treeShadowCacheStats } from './raster-nature.js';
 import { terrainLevel, terrainElevation, terrainReliefRaster, terrainOverviewColor } from './terrain-elevation.js';
-import { noise, hashNoise } from './world-noise.js';
+import { natureVariant as placedNatureVariant, natureDensity as placedNatureDensity } from './nature-placement.js';
 import { populationText } from './formatters.js';
 import { shorelineContours, appendShoreline } from './shoreline.js';
 import { projectPoint, unprojectPoint, projectAngle } from './isometric.js';
@@ -278,6 +278,32 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   const inspectSiteAt=(x,y)=>siteAt(x,y)||terrainSiteAt(x,y);
   const siteSize=site=>site?.mode==='air'?stationSpan(site):site?.object?terrainObjectSize(site.object):site?.building?buildingSize(site.building):industrySize(site);
+  function selectionUnderlay(selected,tileOnly=false){
+    if(!selected||!Number.isInteger(selected.x)||!Number.isInteger(selected.y)||!tile(selected.x,selected.y))return;
+    // A logical terrain parcel still owns its whole area on a slope, where
+    // its artwork may use smaller scenery. Resolve the actual parcel rather
+    // than the flat-only billboard lookup used by pointer previews.
+    const site=tileOnly?selected:siteAt(selected.x,selected.y)||terrainObjectAt(game,selected.x,selected.y)||selected,span=siteSize(site);
+    const {w,h}=typeof span==='number'?{w:span,h:span}:span,mark=MAP.selection,z=camera.zoom;
+    const point=(u,v,first=false)=>{const p=projectGround(game,u,v);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);};
+    ctx.save();ctx.beginPath();
+    // Project each tile so an uneven parcel follows the same ground faces as
+    // the terrain. This is a transient overlay, never part of a cached chunk.
+    for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){
+      const x=site.x+dx,y=site.y+dy;
+      point(x,y,true);point(x+1,y);point(x+1,y+1);point(x,y+1);ctx.closePath();
+    }
+    ctx.fillStyle=alpha(mark.color,.18);ctx.fill();
+    ctx.beginPath();point(site.x,site.y,true);
+    for(let dx=1;dx<=w;dx++)point(site.x+dx,site.y);
+    for(let dy=1;dy<=h;dy++)point(site.x+w,site.y+dy);
+    for(let dx=w-1;dx>=0;dx--)point(site.x+dx,site.y+h);
+    for(let dy=h-1;dy>0;dy--)point(site.x,site.y+dy);
+    ctx.closePath();ctx.lineJoin='round';
+    ctx.strokeStyle=mark.casing;ctx.lineWidth=mark.casingWidth/z;ctx.stroke();
+    ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width/z;ctx.stroke();ctx.restore();
+    return {x:site.x,y:site.y,w,h};
+  }
   function portLandDirection(x,y){return[[-1,0],[0,-1],[1,0],[0,1]].find(([dx,dy])=>tile(x+dx,y+dy)&&tile(x+dx,y+dy).terrain!=='water')||[-1,0];}
   // Simulation and saves keep their square grid. Only the view uses a 2:1
   // diamond projection; upright objects are composed in projected space.
@@ -531,32 +557,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     return picked;
   }
   function setGame(next){lastSceneCamera=null;lastCameraMotion=-Infinity;game=next;presentationMotion=null;presentationDay=null;presentationSources=new WeakMap();frameVehicles.length=0;airPoses.clear();clearChunks();palette=PALETTES[game.biome]||PALETTES.taiga;updateRaster(true);cachedBiome=game.biome;cachedSeed=game.seed;cachedRevision=-1;minimapRevision=-1;const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();}
-  function natureVariant(x,y,t) {
-    let h=(game.seed||0)^Math.imul(x+1,374761393)^Math.imul(y+1,668265263)^Math.imul((t.variant||0)+1,1274126177);
-    h=Math.imul(h^(h>>>13),1274126177);return (h^(h>>>16))>>>26;
-  }
-  function natureDensity(x,y,t) {
-    const seed=game.seed||0;
-    if(t.terrain==='forest'){
-      let neighbors=0;
-      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if((dx||dy)&&tile(x+dx,y+dy)?.terrain==='forest')neighbors++;
-      const patch=noise(x,y,seed+2179,7.3)*.7+noise(x,y,seed+2203,19)*.3;
-      // Woodland interiors form canopy, softer edges and broad open glades.
-      if(neighbors<=3||patch<.3)return 1;
-      return neighbors>=6&&patch>.42?3:2;
-    }
-    let rocky=0,min=terrainElevation(t),max=min;
-    for(const [dx,dy]of[[-1,0],[1,0],[0,-1],[0,1]]){
-      const n=tile(x+dx,y+dy);if(!n)continue;
-      if(n.terrain==='mountain'||n.terrain==='rock')rocky++;
-      const height=terrainElevation(n);min=Math.min(min,height);max=Math.max(max,height);
-    }
-    const patch=noise(x,y,seed+2221,6.3),mountain=t.terrain==='mountain';
-    let chance=(mountain?.045:.08)+patch*patch*(mountain?.32:.48)+Math.min(.1,(max-min)*.05);
-    chance*=.55+rocky*.1125;
-    if(patch<.36)chance*=.18;else if(patch>.7)chance*=1.5;
-    return hashNoise(x,y,seed+2267)<chance*.18?1:0;
-  }
+  const natureVariant=(x,y,t)=>placedNatureVariant(game,x,y,t);
+  const natureDensity=(x,y,t)=>placedNatureDensity(game,x,y,t);
   function chunkBounds(cx,cy){return{x0:Math.max(0,cx*CHUNK_TILES-2),y0:Math.max(0,cy*CHUNK_TILES-2),x1:Math.min(game.width,(cx+1)*CHUNK_TILES+2),y1:Math.min(game.height,(cy+1)*CHUNK_TILES+2)};}
   function fingerprint(b){
     let hash=2166136261;
@@ -1451,6 +1453,23 @@ export function createRenderer(canvas, initialGame, options={}) {
     // DESIGN.md 7.4: the routes serving a selected stop, industry or town stand out; a hovered or highlighted route still wins.
     const serving=!focusRoute&&view.servingRoutes?.length?new Set(view.servingRoutes):null;
     if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute?r!==focusRoute?MAP.line.dim:1:serving&&!serving.has(r.id)?MAP.line.dim:1,Boolean(serving?.has(r.id)));}
+    // Selection belongs to the ground. Full-opacity foundations, fences,
+    // trees, buildings and vehicles paint over both its tint and its border,
+    // including when the transparent scenery layer is replayed from cache.
+    const selectedStation=selected&&(airportIndex.get(selected.y*game.width+selected.x)||(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y));
+    const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
+    ctx.save();
+    if(serviceCenter?.mode==='air')airportReach(serviceCenter);
+    else if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();reachRing(serviceCenter.x,serviceCenter.y);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,COLORS.paper,false,industrySize(node));}
+    ctx.restore();
+    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v)));
+    const carrierTile=chosenVehicle&&!selected?vehicleWorldPoint(chosenVehicle):null;
+    const selectionArea=selectionUnderlay(selected||(carrierTile&&{x:Math.floor(carrierTile.x+.5),y:Math.floor(carrierTile.y+.5)}),Boolean(carrierTile));
+    if(chosenVehicle){
+      const route=routesById.get(chosenVehicle.routeId),p=route?carrierPoint(chosenVehicle,route):vehicleToScreen(chosenVehicle.x,chosenVehicle.y),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);
+      ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);
+      ctx.strokeStyle=MAP.selection.casing;ctx.lineWidth=MAP.selection.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.selection.color;ctx.lineWidth=MAP.selection.width;ctx.stroke();ctx.restore();
+    }
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.
     if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}
@@ -1502,21 +1521,17 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     const previewSite=p=>{const site=inspectSiteAt(p.x,p.y);return (tool==='inspect'||tool==='bulldoze'&&site?.object?.kind!=='mountain')&&site?site:p;};
     const previewSpan=p=>INDUSTRIES[tool]?industryFootprint(tool):BUILDINGS[tool]?buildingFootprint(tool):tool==='workshop'?2:siteSize(previewSite(p));
-    const selectedStation=selected&&(airportIndex.get(selected.y*game.width+selected.x)||(game.stations||[]).find(s=>s.x===selected.x&&s.y===selected.y));
-    const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
     // Placing an airport centres its 6 × 2 site on the pointer, in the model's colours, with its 7-tile reach.
     const airportSite=tool==='airport'&&hover&&tile(hover.x,hover.y)?{...airportPlacement(hover,view.airportAxis),mode:'air',axis:view.airportAxis==='y'?'y':'x'}:null;
     // Placing a stop draws its reach as a solid ring over the faint rings of existing stops of the same kind (64 at most).
     // Sites it would reach tick their markers rather than each drawing an outline; a town it reaches keeps its tile outline.
     if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&st.mode!=='air'&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,STATION_RADIUS*TILE*camera.zoom)){ring(st.x,st.y,STATION_RADIUS);ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle=alpha(COLORS.paper,.13);ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();reachRing(placing.x,placing.y);for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,COLORS.paper,false);}
     if(airportSite){highlight(airportSite,validPreview(airportSite.tool,airportSite)?'#f4d090':'#d7725f',true,stationSpan(airportSite));airportReach(airportSite);}
-    if(serviceCenter?.mode==='air')airportReach(serviceCenter);
-    else if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();reachRing(serviceCenter.x,serviceCenter.y);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,COLORS.paper,false,industrySize(node));}
     // Your property, when app.js asks (building in towns, or inspecting a town or property), from the Town view in: buildings you
     // own solid, plots developers built on your zones dashed, each style one cased stroke. Vacant zones keep their own tint and square.
     propertyOutlines=0;
     if(view.propertyOutlines&&camera.zoom>=1&&sceneCache?.property){
-      const z=camera.zoom,mark=MAP.property,shown=sceneCache.property.filter(site=>visible(site.x+site.span/2,site.y+site.span/2,48*site.span*z));
+      const z=camera.zoom,mark=MAP.property,shown=sceneCache.property.filter(site=>visible(site.x+site.span/2,site.y+site.span/2,48*site.span*z)&&!(selectionArea&&site.x===selectionArea.x&&site.y===selectionArea.y&&site.span===selectionArea.w&&site.span===selectionArea.h));
       ctx.save();ctx.lineJoin='round';
       for(const owned of [true,false]){
         ctx.beginPath();let count=0;for(const site of shown)if(site.owned===owned){footprintPath(site,site.span,false);count++;}
@@ -1525,7 +1540,6 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
       ctx.restore();
     }
-    if(selected&&typeof selected.x==='number'){const site=inspectSiteAt(selected.x,selected.y);outline(site||selected,siteSize(site),MAP.selection);}
     // The locator ring (DESIGN.md 9): signal over a 5 px paper casing round a town's centre, an industry's footprint or a stop, and
     // along an airport's whole site.
     function locator(place,kind,fade){
@@ -1546,7 +1560,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':roadless?.has(key)?'#c29a5b':valid;};
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
     for(const p of preview||[])if(planned(p))highlightPreview(p,previewColor(p,'#f2d88d'));
-    if(hover&&!airportSite&&planned(hover)&&!preview?.area?.capped){if(tool==='inspect')outline(previewSite(hover),previewSpan(hover),MAP.hover);else highlightPreview(hover,previewColor(hover,'#f4d090'));}
+    if(hover&&!airportSite&&planned(hover)&&!preview?.area?.capped){if(tool==='inspect'){if(!selectionArea||hover.x<selectionArea.x||hover.y<selectionArea.y||hover.x>=selectionArea.x+selectionArea.w||hover.y>=selectionArea.y+selectionArea.h)outline(previewSite(hover),previewSpan(hover),MAP.hover);}else highlightPreview(hover,previewColor(hover,'#f4d090'));}
     // The keyboard cursor frames its own tile, or grid point for earthworks, in dashed signal orange over paper;
     // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
     if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.setLineDash(MAP.cursor.dash.map(n=>n/camera.zoom));ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=2.25/camera.zoom;ctx.stroke();ctx.setLineDash([]);}
@@ -1594,8 +1608,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     const airReach=airportSite||(serviceCenter?.mode==='air'?serviceCenter:null);
     if(airReach){const top=gridPointToScreen(airReach.x+.5-AIRPORT_REACH*Math.SQRT1_2,airReach.y+.5-AIRPORT_REACH*Math.SQRT1_2);pill(top.x,top.y-15,`${AIRPORT_REACH}-tile reach`,{h:25,color:COLORS.ink2});}
     else if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{h:25,color:COLORS.ink2});}
-    // A chosen carrier is ringed in display pixels beneath its load badge, instead of a tile outline, and stays marked in a tunnel.
-    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v)));if(chosenVehicle){const route=routesById.get(chosenVehicle.routeId),p=route?carrierPoint(chosenVehicle,route):vehicleToScreen(chosenVehicle.x,chosenVehicle.y),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle=MAP.selection.casing;ctx.lineWidth=MAP.selection.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.selection.color;ctx.lineWidth=MAP.selection.width;ctx.stroke();}
+    // A referenced carrier keeps its locator ring above the map; the chosen
+    // carrier's ground area and ring were already drawn beneath its body.
     const refVehicle=refKind==='vehicle'?frameVehicles.find(v=>v.id===refId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v))):null;if(refVehicle){const route=routesById.get(refVehicle.routeId),p=route?carrierPoint(refVehicle,route):vehicleToScreen(refVehicle.x,refVehicle.y),r=(route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom))+4;ctx.save();ctx.globalAlpha=locatorFade;ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle=MAP.locator.casing;ctx.lineWidth=MAP.locator.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.locator.color;ctx.lineWidth=MAP.locator.width;ctx.stroke();ctx.restore();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
     // A pointed-at or chosen stop names itself beside its roundel and bullets, above the load badges of vehicles waiting there.

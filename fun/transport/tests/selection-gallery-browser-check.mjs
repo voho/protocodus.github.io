@@ -1,0 +1,183 @@
+// Real map selection and the shared complete Gallery entry, on computers.
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createWorldFromMenu } from './browser-start.mjs';
+const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
+const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
+const output = process.env.TRANSPORT_OUTPUT || '/tmp/transport-selection-gallery';
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
+const errors = [], results = []; let activePage = null;
+
+async function prepare(page, biome) {
+  await page.goto(base);
+  await createWorldFromMenu(page, { biome, generationVersion: 10 });
+  return page.evaluate(async () => {
+    const [{ preloadWorldArt }, { preloadHouses }, { initializeIndustry }, { landscapeScenery }, { natureVariant }, { rasterCactusIdentity, rasterForestComposition, rasterTreeIdentity }] = await Promise.all([
+      import('./atlas-runtime.js'), import('./raster-houses.js'), import('./industry-simulation.js'), import('./landscape-scenery.js'), import('./nature-placement.js'), import('./raster-nature.js'),
+    ]);
+    const game = transport.game, biome = game.biome, tile = (x, y) => game.tiles[y * game.width + x];
+    // A small deterministic test neighborhood in a real menu-created company.
+    // Keep the rest of the model intact, including economy, calendar and save state.
+    for (let y = 8; y <= 110; y++) for (let x = 8; x <= 110; x++) game.tiles[y * game.width + x] = { terrain: biome === 'desert' ? 'sand' : 'grass', elevation: .25, variant: 0, detail: '', building: null, zone: null, road: false, rail: false, publicRoad: false, bridge: false, tunnel: false };
+    const outside = item => item.x < 8 || item.y < 8 || item.x > 110 || item.y > 110;
+    game.industries = game.industries.filter(outside); game.stations = game.stations.filter(outside); game.zones = game.zones.filter(outside);
+    const town = game.cities[0]; town.x = 20; town.y = 20;
+    const house = { x: 25, y: 25, w: 2, entry: 'building:house-expensive-3' };
+    tile(house.x, house.y).building = { kind: 'house-expensive-3', footprint: 2, level: 2, owner: 'player' }; tile(house.x, house.y).variant = 7;
+    const legacy = { x: 34, y: 25, w: 1 }; tile(legacy.x, legacy.y).building = { kind: 'house', level: 1 }; tile(legacy.x, legacy.y).variant = 13;
+    const farm = { id: 'selection-farm', name: 'Selection dairy farm', kind: 'dairy-farm', x: 45, y: 45, footprint: 5, capacity: 1, inventory: { milk: 123 }, activity: 0 };
+    const plant = { id: 'selection-plant', name: 'Selection dairy plant', kind: 'dairy-plant', x: 60, y: 45, footprint: 5, capacity: 1, inventory: { milk: 23, food: 17 }, activity: 0 };
+    for (const item of [farm, plant]) { initializeIndustry(game, item); game.industries.push(item); }
+    const airport = { id: 'selection-airport', name: 'North–south airport', mode: 'air', axis: 'y', x: 80, y: 45 }; game.stations.push(airport);
+    const stop = { id: 'selection-stop', name: 'Selection road stop', mode: 'road', x: 45, y: 60 }; game.stations.push(stop); tile(stop.x, stop.y).road = true;
+    const to = { id: 'selection-stop-to', name: 'Selection destination', mode: 'road', x: 58, y: 60 }; game.stations.push(to);
+    for (let x = 45; x <= 58; x++) tile(x, 60).road = true;
+    const original = game.routes.find(route => route.mode === 'road') || game.routes[0];
+    const route = { ...original, id: 'selection-route', name: 'Selection truck line', mode: 'road', cargo: 'grain', active: true, paused: false, stops: [stop.id, to.id], path: Array.from({ length: 14 }, (_, n) => ({ x: 45 + n, y: 60 })) };
+    game.routes.push(route);
+    const vehicle = { ...(game.vehicles[0] || {}), id: 'selection-truck', routeId: route.id, x: 51, y: 60, progress: 6, angle: 0, direction: 1, level: 1, load: 6, capacity: 20 }; game.vehicles.push(vehicle);
+    const grove = { x: 25, y: 80, w: 3 };
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) tile(grove.x + dx, grove.y + dy).terrain = 'forest';
+    tile(grove.x, grove.y).terrainObject = { kind: 'forest', detail: biome === 'desert' ? 'acacia' : 'conifer', footprint: 3, variant: 0 };
+    grove.related = [...new Set(rasterForestComposition(biome, tile(grove.x, grove.y).terrainObject.detail, 0, { footprint: 3 }).map(tree => rasterTreeIdentity(tree, biome)))].map(id => `nature:trees:${id.split(':')[1]}`);
+    let cactus = null;
+    if (biome === 'desert') for (let y = 80; y <= 100 && !cactus; y++) for (let x = 60; x <= 90 && !cactus; x++) {
+      const test = { ...tile(x, y), detail: 'cactus' }, scenery = landscapeScenery(biome, game.seed, x, y, test);
+      if (!scenery || scenery.detail !== 'cactus') continue;
+      const variant = natureVariant(game, x, y, test), identity = rasterCactusIdentity(scenery.detail, variant);
+      if (!identity || /:(cactus|prickly-pear)$/.test(identity)) continue;
+      tile(x, y).detail = 'cactus'; cactus = { x, y, w: 1, entry: `nature:plants:${identity.split(':')[1]}` };
+    }
+    game.revision++; game.networkRevision++; transport.renderer.setGame(game); transport.renderer.setPresentation(null, game.day); transport.setTool('inspect');
+    await Promise.all([preloadWorldArt({ biome, waitMs: 12000 }), preloadHouses({ biome, waitMs: 12000 })]);
+    window.selectionGalleryQA = { house, legacy, farm, plant, airport, stop, vehicle, grove, cactus, before: JSON.stringify(game) };
+    return { house, farm, plant, airport, stop, grove, cactus };
+  });
+}
+
+async function clickMap(page, site, { vehicle = false } = {}) {
+  if (await page.locator('#inspector').isVisible()) await page.locator('#inspector > .inspector-top .tiny-button').click();
+  await page.evaluate(site => { transport.setTool('inspect'); transport.renderer.setZoom(1); transport.renderer.focus(site.x + (site.w || 1) / 2 - .5, site.y + (site.w || 1) / 2 - .5); }, site);
+  await page.waitForTimeout(300);
+  const p = await page.evaluate(({ site, vehicle }) => {
+    const renderer = transport.renderer, box = document.querySelector('#world').getBoundingClientRect();
+    const point = renderer.worldToScreen(site.x + (site.w || 1) / 2 - .5, site.y + (site.w || 1) / 2 - .5);
+    if (vehicle) {
+      for (let dy = -9; dy <= 9; dy += 3) for (let dx = -14; dx <= 14; dx += 3) if (renderer.vehicleAt(box.left + point.x + dx, box.top + point.y + dy)?.id === site.id) return { x: box.left + point.x + dx, y: box.top + point.y + dy };
+      throw new Error('The actual rendered truck must be pickable');
+    }
+    return { x: box.left + point.x, y: box.top + point.y };
+  }, { site, vehicle });
+  await page.mouse.click(p.x, p.y);
+  await page.locator('#inspector [data-inspector-gallery] .gallery-object-head h3').waitFor();
+  assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'a map click preserves the map and opens only the inspector');
+}
+
+async function fullInfo(page, entryId) {
+  const row = await page.evaluate(async id => {
+    const { galleryCatalog, galleryDetails } = await import('./catalog-data.js'), { money } = await import('./copy.js');
+    const entry = galleryCatalog().find(entry => entry.id === id), root = document.querySelector('#inspector .inspector-gallery .gallery-detail'), detail = galleryDetails(transport.game, entry, entry.biomes.includes(transport.game.biome) ? transport.game.biome : entry.biomes[0]);
+    const priceLabels = new Set(['Build price today', 'Current purchase price', 'Base upkeep for 30 days', 'Base stop upkeep for 30 days', 'Base cargo fare']);
+    const format = (label, value) => typeof value !== 'number' ? String(value) : priceLabels.has(label) ? money(value) : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+    const facts = [...root.querySelectorAll('.gallery-facts > div')].map(row => [row.querySelector('dt').textContent, row.querySelector('dd').textContent]);
+    return { id, name: entry.name, actualName: root.querySelector('h3').textContent, facts, expectedFacts: detail.stats.map(([label, value]) => [label, format(label, value)]), recipes: root.querySelectorAll('.gallery-recipe > .cargo-recipe').length, expectedRecipes: detail.recipes.length, text: root.textContent, description: entry.description, notes: detail.notes, targets: [...root.querySelectorAll('[data-gallery-related]')].map(button => button.dataset.galleryRelated), expectedTargets: detail.consumers.flatMap(group => group.entries.map(entry => entry.id)) };
+  }, entryId);
+  assert.equal(row.actualName, row.name, `selected ${entryId} has its own Gallery identity`);
+  assert.deepEqual(row.facts, row.expectedFacts, `${entryId} includes every canonical Gallery fact`);
+  assert.equal(row.recipes, row.expectedRecipes, `${entryId} includes every recipe`);
+  for (const text of [row.description, ...row.notes]) assert.ok(row.text.includes(text), `${entryId} includes description and all notes`);
+  for (const target of row.expectedTargets) assert.ok(row.targets.includes(target), `${entryId} includes all continuation links`);
+  console.log(`Complete selected entry passed: ${entryId}`);
+  return row;
+}
+
+try {
+  for (const profile of [{ width: 1280, height: 900, dpr: 1, biome: 'taiga' }, { width: 720, height: 800, dpr: 2, biome: 'taiga' }, { width: 720, height: 800, dpr: 2, biome: 'desert' }]) {
+    const page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr });
+    activePage = page; page.setDefaultTimeout(15000);
+    console.log(`Selection Gallery profile: ${profile.biome}, ${profile.width}px, DPR ${profile.dpr}`);
+    page.on('pageerror', error => errors.push(error.message));
+    const sites = await prepare(page, profile.biome);
+    await clickMap(page, sites.house); await fullInfo(page, sites.house.entry);
+    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-building-variant'), '7', 'the portrait uses the placed house design and rotation');
+    assert.ok(await page.locator('#inspector #sell-property').count(), 'live owned-house actions stay available');
+    assert.notEqual(await page.evaluate(() => document.activeElement.id), 'inspector-title', 'a pointer click does not move keyboard focus');
+    await page.evaluate(() => { const box = document.querySelector('#inspector'); box.scrollTop = 200; window.selectionNode = box.querySelector('.inspector-gallery'); transport.inspect(25, 25); });
+    assert.equal(await page.evaluate(() => selectionNode === document.querySelector('#inspector .inspector-gallery')), true, 'unchanged inspection reuses its Gallery nodes');
+    assert.ok(await page.locator('#inspector').evaluate(box => box.scrollTop > 0), 'unchanged inspection keeps the scroll position');
+    await page.locator('#inspector [data-gallery-browse]').focus(); await page.keyboard.press('Enter');
+    await page.locator('#modal .gallery-explorer').waitFor();
+    assert.equal(await page.locator('#modal #gallery-object-heading').innerText(), 'Courtyard villa');
+    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    assert.equal(await page.locator('#inspector').isVisible(), true, 'closing the full Gallery returns to the selected object');
+    assert.equal(await page.evaluate(() => document.activeElement.hasAttribute('data-gallery-browse')), true, 'Gallery close restores the launching control');
+    await page.keyboard.press('Escape'); assert.equal(await page.locator('#inspector').isVisible(), false, 'Escape then closes map inspection');
+
+    await clickMap(page, { ...sites.farm, w: 5 }); await fullInfo(page, 'industry:dairy-farm');
+    assert.ok(await page.locator('#inspector [data-place-stop],#inspector [data-plan-cargo]').count(), 'live industry transport actions remain alongside the guide');
+    await page.locator('#inspector .industry-target[data-target-id="selection-plant"]').focus(); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#inspector-title')?.textContent === 'Selection dairy plant');
+    await fullInfo(page, 'industry:dairy-plant');
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'inspector-title', 'a target link lands on the inspector title');
+    await page.locator('#inspector [data-inspector-back]').focus(); await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#inspector-title')?.textContent === 'Selection dairy farm');
+    await fullInfo(page, 'industry:dairy-farm');
+    await page.locator('#inspector [data-gallery-chain]').click(); await page.locator('#modal .chains-explorer').waitFor();
+    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+
+    await clickMap(page, sites.stop); await fullInfo(page, 'transport:bus-stop'); assert.ok(await page.locator('#inspector #station-route').count());
+    await clickMap(page, { ...sites.airport, w: 2 }); await fullInfo(page, 'transport:airport-x');
+    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-infrastructure-axis'), 'y', 'the Gallery portrait preserves runway orientation');
+    assert.ok((await page.locator('#inspector').innerText()).includes('North–south'));
+
+    await clickMap(page, sites.grove); await fullInfo(page, 'nature:forest');
+    const actualSpecies = await page.locator('#inspector .gallery-connections [data-gallery-related]').evaluateAll(buttons => buttons.map(button => button.dataset.galleryRelated));
+    assert.deepEqual([...actualSpecies].sort(), [...sites.grove.related].sort(), 'the selected grove lists its actual deterministic species');
+    assert.ok(actualSpecies.length > 1, 'the generated grove provides varied species');
+    await page.locator('#inspector .gallery-connections [data-gallery-related]').first().click(); await page.locator('#modal .gallery-explorer').waitFor();
+    assert.equal(await page.locator('#modal [data-gallery-entry][aria-pressed="true"]').getAttribute('data-gallery-entry'), actualSpecies[0]);
+    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    if (sites.cactus) { await clickMap(page, sites.cactus); await fullInfo(page, sites.cactus.entry); assert.equal(await page.locator('#inspector .gallery-recipe').count(), 0, 'cacti have no freight recipe'); }
+
+    const vehicle = await page.evaluate(() => selectionGalleryQA.vehicle); await clickMap(page, vehicle, { vehicle: true }); await fullInfo(page, 'vehicle:truck');
+    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-level'), '1', 'the guide uses the actual carrier model');
+    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-cargo'), 'grain');
+    assert.ok(await page.locator('#inspector [data-vehicle-action="follow"]').count(), 'the live carrier keeps Follow and route actions');
+    assert.equal(await page.locator('#inspector [data-vehicle-live="load"]').innerText(), '6 / 20');
+    await page.locator('#inspector [data-vehicle-action="follow"]').click(); assert.equal(await page.locator('#inspector [data-vehicle-action="follow"]').getAttribute('aria-pressed'), 'true');
+    await page.locator('#inspector > .inspector-top .tiny-button').click(); assert.equal(await page.locator('#inspector').isVisible(), false);
+
+    await page.evaluate(() => transport.inspect(25, 25)); await page.locator('#inspector [data-gallery-build]').click();
+    assert.equal(await page.locator('#active-tool-name').innerText(), 'Courtyard villa'); assert.equal(await page.locator('#inspector').isVisible(), false, 'Build continues directly to placement');
+    await page.evaluate(() => transport.setTool('inspect'));
+    assert.equal(await page.evaluate(() => JSON.stringify(transport.game) === selectionGalleryQA.before), true, 'all selection, Gallery navigation and build choice are read-only');
+
+    await page.evaluate(() => transport.inspect(60, 45, 'industry', 'keyboard'));
+    const layout = await page.locator('#inspector').evaluate(box => { const r = box.getBoundingClientRect(), canvas = box.querySelector('.gallery-portrait canvas'); return { left: r.left, right: r.right, top: r.top, width: r.width, overflow: box.scrollWidth - box.clientWidth, canvasWidth: canvas.width }; });
+    assert.ok(layout.left >= 0 && layout.right <= profile.width + 1, 'the inspector fits a laptop window'); assert.ok(layout.top < 150, 'the inspector stays at the upper left'); assert.ok(layout.overflow <= 1, 'complete details have no horizontal overflow');
+    await page.locator('#inspector .inspector-gallery').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/complete-guide-${profile.biome}-${profile.width}-dpr${profile.dpr}.png` });
+    // The real one-second world cadence refreshes the existing live controls
+    // without dropping the complete guide or swallowing a held press.
+    await page.evaluate(() => { document.activeElement?.blur?.(); selectionGalleryQA.plant.inventory.food = 98765; transport.setSpeed(1); });
+    await page.waitForFunction(() => document.querySelector('#inspector .ledger')?.textContent.includes('98,765'), undefined, { timeout: 5000 });
+    await fullInfo(page, 'industry:dairy-plant');
+    await page.evaluate(() => transport.setSpeed(8));
+    const press = await page.locator('#inspector [data-gallery-chain]').evaluate(button => { button.scrollIntoView({ block: 'nearest' }); const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.mouse.move(press.x, press.y); await page.mouse.down(); await page.waitForTimeout(1150); await page.mouse.up();
+    await page.locator('#modal .chains-explorer').waitFor();
+    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    await page.evaluate(() => transport.setSpeed(0));
+    assert.equal(await page.locator('#inspector').isVisible(), true, 'return from a held live chain press keeps map inspection');
+    results.push({ ...profile, species: actualSpecies, cactus: sites.cactus?.entry, layout });
+    await page.close(); activePage = null;
+  }
+  assert.deepEqual(errors, []); await writeFile(`${output}/results.json`, JSON.stringify({ results, errors }, null, 2));
+  console.log('Selection Gallery: real object clicks, complete facts/recipes/connections, actual artwork, live actions, keyboard/back/close/Build and narrow Retina layouts passed.');
+} catch (error) {
+  if (activePage && !activePage.isClosed()) {
+    await activePage.screenshot({ path: `${output}/failure.png` }).catch(() => {});
+    await writeFile(`${output}/failure.json`, JSON.stringify({ message: error.message, errors, inspector: await activePage.locator('#inspector').textContent().catch(() => '') }, null, 2));
+  }
+  throw error;
+} finally { await browser.close(); }

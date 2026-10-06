@@ -1,0 +1,205 @@
+{
+  "allPassed": true,
+  "spriteCount": 3,
+  "mipCellChecks": 15,
+  "rootBaseline": 0.955,
+  "lowMipBottomEdge": "At 16px the prescribed 95.5% root baseline contributes to the final pixel row. The master has zero-alpha edges and all mips exactly match complete independent-cell alpha resampling; no source body is cropped.",
+  "completeDistinctMasterCells": 3,
+  "checks": [
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cellSize": 16,
+      "opaqueBounds": [
+        3,
+        6,
+        12,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 70,
+      "sha256": "76d3e7e9d883591ca51e73fb4db06541faf06f2bc211d17edffd31a87c0b7f18"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cellSize": 16,
+      "opaqueBounds": [
+        2,
+        5,
+        12,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 63,
+      "sha256": "88cacfafc638ccd6dae23c5e317bab6910c17c1dbcbedef785c263d9166644c5"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cellSize": 16,
+      "opaqueBounds": [
+        3,
+        5,
+        12,
+        16
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 59,
+      "sha256": "d46bff07a6582ac67addf6493121afcf65b07ccf8e8badcd09558b263e66b2f7"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cellSize": 32,
+      "opaqueBounds": [
+        6,
+        11,
+        24,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "425327f4ddb5b6acecbfdc533929dedcb9c5d6566a8625dc750bddf533873f7f"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cellSize": 32,
+      "opaqueBounds": [
+        5,
+        11,
+        23,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "ce4f46ef5728d29aefdc6d9bb223a70b8a4eabc840b78b8d499dbda35b973877"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cellSize": 32,
+      "opaqueBounds": [
+        6,
+        10,
+        23,
+        31
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "de1fe6f403d22c14f64a1b67096114bf66dde143a70d99a7b316556033a33058"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cellSize": 64,
+      "opaqueBounds": [
+        12,
+        23,
+        48,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 3,
+      "sha256": "7c450eab922b08291acbf9886a5a7d0ba6300e4968070d0b13a9f9d90d91b53e"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cellSize": 64,
+      "opaqueBounds": [
+        10,
+        21,
+        46,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 2,
+      "sha256": "93683ca53f6ab1acce6f294abe4e6b777b339b4b6c3a7d6407c7b5d776b624df"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cellSize": 64,
+      "opaqueBounds": [
+        13,
+        20,
+        47,
+        62
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 2,
+      "sha256": "2b318fc7ebe4142bfd79759f049cda665a6c3d3231e555e9a162db72fb1405cb"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cellSize": 128,
+      "opaqueBounds": [
+        25,
+        46,
+        96,
+        123
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "deda6e62a693d71641ac2cce690fd5c3551580cd3f00ade959d8a23430a1a06e"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cellSize": 128,
+      "opaqueBounds": [
+        19,
+        42,
+        93,
+        123
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "24c470cb5fa58d526c99979ab6febf6ca75860202c30abb53400d53cc3bf571e"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cellSize": 128,
+      "opaqueBounds": [
+        26,
+        40,
+        93,
+        123
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "bb56c29a4074263a0b1ce7a9981e7a95c1ca969a64f7b0b0184130bc32f9754a"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cellSize": 256,
+      "opaqueBounds": [
+        50,
+        92,
+        192,
+        246
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "a5056efb2293fd18744f4c91ad34702e6ca3ef8d4aa26e24860f2a370b4b779c"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cellSize": 256,
+      "opaqueBounds": [
+        38,
+        85,
+        185,
+        246
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "3dcb67e84aec63815e66b8bdc9e7b8981d9e9c441a83fb5b736550247fc66e1e"
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cellSize": 256,
+      "opaqueBounds": [
+        51,
+        80,
+        187,
+        245
+      ],
+      "maxAlpha": 255,
+      "maximumEdgeAlpha": 0,
+      "sha256": "1421a409024c5c6f0d3eba0e7346a17c99ed37d98d102cb72a7224612ac3519e"
+    }
+  ]
+}

@@ -41,7 +41,7 @@ export function drawUIArtwork(root, game) {
     const buildingVariant = Number(canvas.dataset.buildingVariant) || 0;
     const industrySize = Number(canvas.dataset.industryFootprint) || industryFootprint(canvas.dataset.industrySprite);
     const industryVariant = Number(canvas.dataset.industryVariant) || 0;
-    const identity = canvas.dataset.buildingSprite ? `${canvas.dataset.buildingSprite}:${buildingVariant}` : canvas.dataset.industrySprite ? `${canvas.dataset.industrySprite}:${industrySize}:${industryVariant}` : canvas.dataset.infrastructureSprite || `${route?.mode}:${route?.cargo}:${vehicle?.level}${route?.mode === 'air' ? `:${lineFor(route).fill}` : ''}`;
+    const identity = canvas.dataset.buildingSprite ? `${canvas.dataset.buildingSprite}:${buildingVariant}` : canvas.dataset.industrySprite ? `${canvas.dataset.industrySprite}:${industrySize}:${industryVariant}` : canvas.dataset.infrastructureSprite ? `${canvas.dataset.infrastructureSprite}:${canvas.dataset.infrastructureAxis || 'x'}` : `${route?.mode}:${route?.cargo}:${vehicle?.level}${route?.mode === 'air' ? `:${lineFor(route).fill}` : ''}`;
     const key = `${profile}:${identity}:${houseAssetsRevision()}:${worldArtRevision()}`;
     if (canvas.dataset.artDrawn === key) continue;
     canvas.width = Math.round(width * density); canvas.height = Math.round(height * density);
@@ -60,7 +60,7 @@ export function drawUIArtwork(root, game) {
       const size = Math.min(width, height);
       const kind=canvas.dataset.infrastructureSprite;
       // The airport and the plane are drawn natively: tower, terminal and a parked airliner on its apron.
-      if(kind==='airport')drawAirportPortrait(context,width,height,{biome:game.biome});
+      if(kind==='airport')drawAirportPortrait(context,width,height,{biome:game.biome,axis:canvas.dataset.infrastructureAxis || 'x'});
       else if(!drawIsometricInfrastructure(context,kind,(width-size)/2,0,size,size,density)){
         context.save();context.translate(width/2,height/2);context.transform(.7,.35,-.7,.35,0,0);
         drawRasterInfrastructure(context,kind,-size/2,-size/2,size,size,density);context.restore();

@@ -6,6 +6,8 @@
 export const APP_PRELOAD = Object.freeze([
   './ui-icons.js',
   './sprite-art-direction.js',
+  './nature-placement.js',
+  './tree-art-catalog.js',
   './terrain-view.js',
   './headlines.js',
   './air-flight.js', './airport-art.js',
@@ -20,6 +22,6 @@ export const APP_PRELOAD = Object.freeze([
   './payment-rates.js',
   './ui-motion.js', './ui-line.js', './ui-refs.js', './frame-scheduler.js', './vehicle-motion.js', './world-clock.js',
   './achievements-view.js',
-  './catalog-data.js', './gallery-view.js',
+  './catalog-data.js', './gallery-view.js', './selection-gallery.js',
   './chains-view.js', './saves-view.js', './visibility-view.js', './ui-notices.js', './app.js'
 ]);

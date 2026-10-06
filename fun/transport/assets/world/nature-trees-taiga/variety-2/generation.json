@@ -1,0 +1,583 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "biome": "taiga",
+  "sheet": 2,
+  "generator": "image_gen.imagegen",
+  "canonicalPromptModule": "../../../../tree-art-catalog.js",
+  "acceptedSource": "source-generation-2026-10-06.png",
+  "registeredSource": "registered-source-generation-2026-10-06.png",
+  "requestHistory": [
+    {
+      "accepted": false,
+      "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nTemperate and northern woodland: subdued olive, sage and deep green, warm grey and brown bark. No snow.\nSlot 1: hornbeam, 14m tall, 184.1px vertical tree height in the normalized256px cell. Upright oval rich green crown, muscular grey forked trunk.\nSlot 2: elm, 16m tall, 210.4px vertical tree height in the normalized256px cell. Distinctive tall vase-shaped crown spreading from two visible grey limbs.\nSlot 3: sycamore-maple, 15m tall, 197.2px vertical tree height in the normalized256px cell. Broad irregular green canopy with separated large rounded foliage masses.\nSlot 4: red-maple, 14m tall, 184.1px vertical tree height in the normalized256px cell. Rounded muted copper-red autumn crown, restrained large leaf masses.\nSlot 5: horse-chestnut, 14m tall, 184.1px vertical tree height in the normalized256px cell. Heavy wide dark green dome on a stout divided brown trunk.\nSlot 6: rowan, 10m tall, 131.5px vertical tree height in the normalized256px cell. Slender pale trunk, loose upright green crown with a few broad muted rust fruit patches.\nSlot 7: alder, 13m tall, 170.9px vertical tree height in the normalized256px cell. Open oval deep green crown and multiple dark warm trunks.\nSlot 8: willow, 14m tall, 184.1px vertical tree height in the normalized256px cell. Wide softly drooping sage canopy with clearly hanging large foliage curtains.\nSlot 9: poplar, 16m tall, 210.4px vertical tree height in the normalized256px cell. Very narrow upright silvery green column above a straight pale trunk.\n\nART DIRECTOR REQUIREMENTS: Style references do not prescribe tree species. Draw entirely new slot species, no copied house garden shrubs. Quiet, broad painted crown clumps without individual leaf flecks, fine bark strokes or needle scratches. No grass, flowers, stones or coloured ground discs; only exposed roots and a tiny faint soft contact shadow. Equal 3 by 3 cells with each trunk root at 95.5% cell height. Every crown fits within 70% cell width and the entire tree stays inside its cell.16m trees occupy82% cell height; shorter species occupy their listed proportion. Hornbeam upright OVAL, elm tall VASE fork, sycamore broad IRREGULAR canopy, red maple muted COPPER RED, chestnut heavy DARK GREEN dome, rowan10m/clearly shorter with just three broad muted rust patches, alder multiple DARK stems, willow clearly long DROOPING sage curtains, poplar16m VERY NARROW SILVERY column. These should remain nine visibly different silhouettes at small game zoom. No labels or grid lines.",
+      "parameters": {
+        "transparent_background": true,
+        "referenced_image_paths": [
+          "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png",
+          "/workspace/generated_images/exec-e358a8d6-7bbf-482e-97ca-48bd6384e5de.png"
+        ]
+      },
+      "references": [
+        {
+          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png",
+          "sha256": "67a205baa93441195b682c1fa92c23f0fca7f4dd99b94f735161b2ab5c25d6c2"
+        },
+        {
+          "path": "/workspace/generated_images/exec-e358a8d6-7bbf-482e-97ca-48bd6384e5de.png",
+          "sha256": "cb7ccede840c2953ec4032f72f320319cea4979cd7022a1fa3df1d5f4eddd574"
+        }
+      ],
+      "rawSourcePath": "/workspace/generated_images/exec-e8ba2364-c81d-48d5-b8f2-75475afed358.png",
+      "sourceSha256": "404c88698e6f2f3541bb6a5a19b1718f7b28722d1403a39cdffdf34b5d623816",
+      "preservedSource": "rejected-source-generation-2026-10-06.png",
+      "rejectionReason": "Rowan and alder exceeded requested physical heights; repeated equal-height framing."
+    },
+    {
+      "accepted": true,
+      "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. The supplied game building artwork is STYLE ONLY: match palette, camera, shading and painterly material treatment, but do not copy any reference subjects or ground patches.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery exposed trunk ROOT FOOT meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. The baseline is the actual trunk foot, never the bottom of scenery. NO GRASS, SOIL, SNOW DISC, ROCKS, GROUND MOUND OR BASE PLATFORM; only the tree and a tiny contact shadow below its root. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nTemperate and northern woodland: subdued olive, sage and deep green, warm grey and brown bark. No snow.\nSlot 1: hornbeam, 14m tall, 184.1px vertical tree height in the normalized256px cell. Upright oval rich green crown, muscular grey forked trunk.\nSlot 2: elm, 16m tall, 210.4px vertical tree height in the normalized256px cell. Distinctive tall vase-shaped crown spreading from two visible grey limbs.\nSlot 3: sycamore-maple, 15m tall, 197.2px vertical tree height in the normalized256px cell. Broad irregular green canopy with separated large rounded foliage masses.\nSlot 4: red-maple, 14m tall, 184.1px vertical tree height in the normalized256px cell. Rounded muted copper-red autumn crown, restrained large leaf masses.\nSlot 5: horse-chestnut, 14m tall, 184.1px vertical tree height in the normalized256px cell. Heavy wide dark green dome on a stout divided brown trunk.\nSlot 6: rowan, 10m tall, 131.5px vertical tree height in the normalized256px cell. Slender pale trunk, loose upright green crown with a few broad muted rust fruit patches.\nSlot 7: alder, 13m tall, 170.9px vertical tree height in the normalized256px cell. Open oval deep green crown and multiple dark warm trunks.\nSlot 8: willow, 14m tall, 184.1px vertical tree height in the normalized256px cell. Wide softly drooping sage canopy with clearly hanging large foliage curtains.\nSlot 9: poplar, 16m tall, 210.4px vertical tree height in the normalized256px cell. Very narrow upright silvery green column above a straight pale trunk.\n\nCRITICAL PHYSICAL-SCALE CORRECTION: This is a NEW sheet, do not copy any reference trees or equalize all tree heights. Fixed full-cell physical scale 13.15 normalized master pixels per metre. Relative crown TOP positions (trunk foot at95.5%cell, not shadow bottom): slot1 hornbeam14m top23.6%, slot2 elm16m top13.3%, slot3 sycamore15m top18.4%, slot4 copper red maple14m top23.6%, slot5 dark horse chestnut14m top23.6%, slot6 ROWAN ONLY10m, top44.1%cell, much shorter than maples, slot7 multiple-stem alder13m top28.7%, slot8 drooping willow14m top23.6%, slot9 very narrow silvery poplar16m top13.3%. ALL roots on same95.5% baseline in each of nine equal square cells. No tree can spill into its neighbours. Make every crown <=70% cellwidth, with clear transparent margins. Crown masses painted quietly, no individual leaf flecks, twig noise or scratches. Bare roots and very faint tiny contact shadow ONLY, no opaque oval base, grass, stones or soil. Each botanical crown silhouette must be distinct; slot6 rowan has a slender pale stem and just a few broad muted rust fruit patches. Keep that rowan genuinely short at10m in the shared metre scale, and the alder at13m. No labels or text.",
+      "parameters": {
+        "transparent_background": true,
+        "referenced_image_paths": [
+          "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png"
+        ]
+      },
+      "references": [
+        {
+          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png",
+          "sha256": "67a205baa93441195b682c1fa92c23f0fca7f4dd99b94f735161b2ab5c25d6c2"
+        }
+      ],
+      "rawSourcePath": "/workspace/generated_images/exec-018bed38-972b-4d6d-ab39-52dd997b969f.png",
+      "sourceSha256": "47c419ddedf85229aab104d4ca7928456ea07c4a05890d0dd807c41de6ebcd21",
+      "preservedSource": "source-generation-2026-10-06.png",
+      "rejectionReason": null
+    }
+  ],
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "normalizedMasterPixelsPerVerticalMetre": 19.722650231124806,
+    "masterCellPixels": 256,
+    "rootAnchor": 0.955,
+    "minimumSideGutterPixels": 31,
+    "physicalCalibration": "Uniform resampling of each complete tree to its declared metreheight; a broad crown keeps up to15% natural height variance to preserve side gutters. No silhouette is enlarged merely to fill a cell."
+  },
+  "measurements": [
+    {
+      "id": "hornbeam",
+      "heightMetres": 9.333333333333334,
+      "description": "Upright oval rich green crown, muscular grey forked trunk.",
+      "sourceCell": [
+        0,
+        0,
+        418,
+        438
+      ],
+      "sourceRootFoot": [
+        218,
+        420
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 56,
+      "sourceCrownToRootPixels": 364,
+      "sourceTrimBounds": [
+        77,
+        54,
+        364,
+        430
+      ],
+      "requestedPhysicalFactor": 0.5057089802852515,
+      "wholeTreeUniformFactor": 0.5057089802852515,
+      "actualResampleFactors": [
+        0.5052264808362369,
+        0.5053191489361702
+      ],
+      "registeredOffset": [
+        57,
+        60
+      ],
+      "calibratedRootFoot": [
+        128.2369337979094,
+        244.9468085106383
+      ],
+      "calibratedCrownToRootPixels": 183.93617021276597,
+      "calibratedHeightMetres": 9.32613863031915,
+      "heightVariancePercent": -0.07708610372338942,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        57,
+        60,
+        202,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "elm",
+      "heightMetres": 10.666666666666666,
+      "description": "Distinctive tall vase-shaped crown spreading from two visible grey limbs.",
+      "sourceCell": [
+        418,
+        0,
+        836,
+        438
+      ],
+      "sourceRootFoot": [
+        615,
+        420
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 28,
+      "sourceCrownToRootPixels": 392,
+      "sourceTrimBounds": [
+        35,
+        26,
+        365,
+        430
+      ],
+      "requestedPhysicalFactor": 0.5366707545884302,
+      "wholeTreeUniformFactor": 0.5366707545884302,
+      "actualResampleFactors": [
+        0.5363636363636364,
+        0.5371287128712872
+      ],
+      "registeredOffset": [
+        41,
+        33
+      ],
+      "calibratedRootFoot": [
+        127.89090909090909,
+        244.62871287128715
+      ],
+      "calibratedCrownToRootPixels": 210.55445544554456,
+      "calibratedHeightMetres": 10.675768873762378,
+      "heightVariancePercent": 0.08533319152228547,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        41,
+        33,
+        218,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "sycamore-maple",
+      "heightMetres": 10.0,
+      "description": "Broad irregular green canopy with separated large rounded foliage masses.",
+      "sourceCell": [
+        836,
+        0,
+        1254,
+        438
+      ],
+      "sourceRootFoot": [
+        1038,
+        420
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 47,
+      "sourceCrownToRootPixels": 373,
+      "sourceTrimBounds": [
+        14,
+        45,
+        386,
+        431
+      ],
+      "requestedPhysicalFactor": 0.5287573788505311,
+      "wholeTreeUniformFactor": 0.5159574468085106,
+      "actualResampleFactors": [
+        0.5161290322580645,
+        0.5155440414507773
+      ],
+      "registeredOffset": [
+        31,
+        51
+      ],
+      "calibratedRootFoot": [
+        128.03225806451613,
+        244.32901554404148
+      ],
+      "calibratedCrownToRootPixels": 192.29792746113992,
+      "calibratedHeightMetres": 9.75010585330311,
+      "heightVariancePercent": -2.498941466968896,
+      "sideGutterCalibration": true,
+      "registeredAlphaBounds": [
+        31,
+        51,
+        223,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "red-maple",
+      "heightMetres": 9.333333333333334,
+      "description": "Rounded muted copper-red autumn crown, restrained large leaf masses.",
+      "sourceCell": [
+        0,
+        438,
+        418,
+        824
+      ],
+      "sourceRootFoot": [
+        222,
+        809
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 471,
+      "sourceCrownToRootPixels": 338,
+      "sourceTrimBounds": [
+        60,
+        31,
+        385,
+        382
+      ],
+      "requestedPhysicalFactor": 0.5446096710764247,
+      "wholeTreeUniformFactor": 0.5446096710764247,
+      "actualResampleFactors": [
+        0.5446153846153846,
+        0.5441595441595442
+      ],
+      "registeredOffset": [
+        40,
+        59
+      ],
+      "calibratedRootFoot": [
+        128.2276923076923,
+        244.014245014245
+      ],
+      "calibratedCrownToRootPixels": 183.92592592592592,
+      "calibratedHeightMetres": 9.325619212962962,
+      "heightVariancePercent": -0.08265128968254487,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        40,
+        59,
+        217,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "horse-chestnut",
+      "heightMetres": 9.333333333333334,
+      "description": "Heavy wide dark green dome on a stout divided brown trunk.",
+      "sourceCell": [
+        418,
+        438,
+        836,
+        824
+      ],
+      "sourceRootFoot": [
+        625,
+        810
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 481,
+      "sourceCrownToRootPixels": 329,
+      "sourceTrimBounds": [
+        13,
+        41,
+        411,
+        383
+      ],
+      "requestedPhysicalFactor": 0.5595078079751719,
+      "wholeTreeUniformFactor": 0.47549019607843135,
+      "actualResampleFactors": [
+        0.4748743718592965,
+        0.4766081871345029
+      ],
+      "registeredOffset": [
+        36,
+        87
+      ],
+      "calibratedRootFoot": [
+        128.1256281407035,
+        244.75730994152048
+      ],
+      "calibratedCrownToRootPixels": 156.80409356725147,
+      "calibratedHeightMetres": 7.950457556652047,
+      "heightVariancePercent": -14.816526178728061,
+      "sideGutterCalibration": true,
+      "registeredAlphaBounds": [
+        36,
+        87,
+        225,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "rowan",
+      "heightMetres": 6.666666666666667,
+      "description": "Slender pale trunk, loose upright green crown with a few broad muted rust fruit patches.",
+      "sourceCell": [
+        836,
+        438,
+        1254,
+        824
+      ],
+      "sourceRootFoot": [
+        1039,
+        808
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 530,
+      "sourceCrownToRootPixels": 278,
+      "sourceTrimBounds": [
+        92,
+        90,
+        321,
+        384
+      ],
+      "requestedPhysicalFactor": 0.4729652333603071,
+      "wholeTreeUniformFactor": 0.4729652333603071,
+      "actualResampleFactors": [
+        0.47161572052401746,
+        0.47278911564625853
+      ],
+      "registeredOffset": [
+        76,
+        112
+      ],
+      "calibratedRootFoot": [
+        128.34934497816593,
+        244.38095238095238
+      ],
+      "calibratedCrownToRootPixels": 131.43537414965988,
+      "calibratedHeightMetres": 6.664184204931974,
+      "heightVariancePercent": -0.03723692602038975,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        76,
+        112,
+        184,
+        251
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "alder",
+      "heightMetres": 8.666666666666666,
+      "description": "Open oval deep green crown and multiple dark warm trunks.",
+      "sourceCell": [
+        0,
+        824,
+        418,
+        1254
+      ],
+      "sourceRootFoot": [
+        220,
+        1201
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 857,
+      "sourceCrownToRootPixels": 344,
+      "sourceTrimBounds": [
+        76,
+        31,
+        381,
+        389
+      ],
+      "requestedPhysicalFactor": 0.4968884748151599,
+      "wholeTreeUniformFactor": 0.4968884748151599,
+      "actualResampleFactors": [
+        0.49836065573770494,
+        0.4972067039106145
+      ],
+      "registeredOffset": [
+        56,
+        72
+      ],
+      "calibratedRootFoot": [
+        127.76393442622951,
+        244.0335195530726
+      ],
+      "calibratedCrownToRootPixels": 171.0391061452514,
+      "calibratedHeightMetres": 8.67221717877095,
+      "heightVariancePercent": 0.06404437043403544,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        56,
+        72,
+        208,
+        250
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "willow",
+      "heightMetres": 9.333333333333334,
+      "description": "Wide softly drooping sage canopy with clearly hanging large foliage curtains.",
+      "sourceCell": [
+        418,
+        824,
+        836,
+        1254
+      ],
+      "sourceRootFoot": [
+        622,
+        1201
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 873,
+      "sourceCrownToRootPixels": 328,
+      "sourceTrimBounds": [
+        28,
+        47,
+        395,
+        389
+      ],
+      "requestedPhysicalFactor": 0.561213624462901,
+      "wholeTreeUniformFactor": 0.5078534031413613,
+      "actualResampleFactors": [
+        0.5068119891008175,
+        0.5087719298245614
+      ],
+      "registeredOffset": [
+        39,
+        77
+      ],
+      "calibratedRootFoot": [
+        128.19891008174386,
+        244.89473684210526
+      ],
+      "calibratedCrownToRootPixels": 166.87719298245614,
+      "calibratedHeightMetres": 8.461195175438597,
+      "heightVariancePercent": -9.344337406015036,
+      "sideGutterCalibration": true,
+      "registeredAlphaBounds": [
+        39,
+        77,
+        225,
+        251
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "poplar",
+      "heightMetres": 10.666666666666666,
+      "description": "Very narrow upright silvery green column above a straight pale trunk.",
+      "sourceCell": [
+        836,
+        824,
+        1254,
+        1254
+      ],
+      "sourceRootFoot": [
+        1040,
+        1200
+      ],
+      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
+      "sourceCrownTop": 827,
+      "sourceCrownToRootPixels": 373,
+      "sourceTrimBounds": [
+        132,
+        1,
+        277,
+        389
+      ],
+      "requestedPhysicalFactor": 0.5640078707738998,
+      "wholeTreeUniformFactor": 0.5640078707738998,
+      "actualResampleFactors": [
+        0.5655172413793104,
+        0.5644329896907216
+      ],
+      "registeredOffset": [
+        87,
+        33
+      ],
+      "calibratedRootFoot": [
+        127.71724137931034,
+        244.66237113402062
+      ],
+      "calibratedCrownToRootPixels": 210.5335051546392,
+      "calibratedHeightMetres": 10.674706628543815,
+      "heightVariancePercent": 0.07537464259825821,
+      "sideGutterCalibration": false,
+      "registeredAlphaBounds": [
+        87,
+        33,
+        169,
+        252
+      ],
+      "edgeAlpha": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "packing": {
+    "command": "python tools/build-world-atlases.py --atlas assets/world/nature-trees-taiga/variety-2/registered-source-generation-2026-10-06.png --columns 3 --rows 3 --ids nature-trees-taiga:hornbeam,nature-trees-taiga:elm,nature-trees-taiga:sycamore-maple,nature-trees-taiga:red-maple,nature-trees-taiga:horse-chestnut,nature-trees-taiga:rowan,nature-trees-taiga:alder,nature-trees-taiga:willow,nature-trees-taiga:poplar --output-dir assets/world/nature-trees-taiga/variety-2 --aligned --preserve-grid-scale --max-cell 256 --no-sharpen",
+    "registrationScript": "../variety-1/register-source.py",
+    "mipSharpening": false
+  },
+  "registeredSourceSha256": "42e516b31377d1aa3cba2a0f96173407f44848dde368a3b5b82da763926a0114",
+  "registration": "Every complete source tree uniformly physically calibrated, then translated to the measured exposed-root anchor. Source silhouettes and RGBA materials are preserved; no paint edits or colour substitutions.",
+  "projectionCorrection": {
+    "date": "2026-10-06",
+    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
+    "historicalAssumedWorldEnlargement": 1.5,
+    "actualWorldEnlargement": 1,
+    "historicalHeightToActualWorldMetres": 0.6666666666666666,
+    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
+    "artworkUnchanged": true,
+    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
+    "historicalNormalizedMasterPixelsPerVerticalMetre": 13.148433487416538,
+    "historicalNominalHeightsMetres": {
+      "hornbeam": 14,
+      "elm": 16,
+      "sycamore-maple": 15,
+      "red-maple": 14,
+      "horse-chestnut": 14,
+      "rowan": 10,
+      "alder": 13,
+      "willow": 14,
+      "poplar": 16
+    }
+  }
+}

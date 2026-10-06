@@ -1,0 +1,80 @@
+{
+  "created": "2026-10-06",
+  "generator": "image_gen.imagegen",
+  "job": {
+    "biome": "tundra",
+    "sheet": 1,
+    "species": [
+      {
+        "id": "black-spruce",
+        "heightMetres": 13,
+        "description": "Narrow irregular dark blue-green spire with separated snowy branch ledges."
+      },
+      {
+        "id": "white-spruce",
+        "heightMetres": 15,
+        "description": "Full cool sage-green conical crown with restrained ivory snow on upper boughs."
+      },
+      {
+        "id": "mountain-hemlock",
+        "heightMetres": 13,
+        "description": "Asymmetric drooping blue-green evergreen, crooked leader and light snow."
+      },
+      {
+        "id": "subalpine-fir",
+        "heightMetres": 15,
+        "description": "Slim dense pointed dark green crown with broad pale snow bands."
+      },
+      {
+        "id": "siberian-larch",
+        "heightMetres": 14,
+        "description": "Open golden olive conical crown, clear horizontal branches and cool bark."
+      },
+      {
+        "id": "tamarack",
+        "heightMetres": 13,
+        "description": "Airy narrow muted bronze-green needle crown on a tall exposed brown trunk."
+      },
+      {
+        "id": "northern-lodgepole-pine",
+        "heightMetres": 14,
+        "description": "Thin upright rugged pine with a small narrow crown and snowy branch forks."
+      },
+      {
+        "id": "limber-pine",
+        "heightMetres": 12,
+        "description": "Crooked open grey trunk, spreading dark needle cushions and a bent leader."
+      },
+      {
+        "id": "bristlecone-pine",
+        "heightMetres": 10,
+        "description": "Sculptural twisted pale ancient trunk, sparse separated dark foliage cushions."
+      }
+    ],
+    "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nCold northern woodland: cool sage and blue-green, pale bark, restrained ivory snow on upper branches and at roots. Keep tree anatomy visible.\nSlot 1: black-spruce, 13m tall, 170.9px vertical tree height in the normalized256px cell. Narrow irregular dark blue-green spire with separated snowy branch ledges.\nSlot 2: white-spruce, 15m tall, 197.2px vertical tree height in the normalized256px cell. Full cool sage-green conical crown with restrained ivory snow on upper boughs.\nSlot 3: mountain-hemlock, 13m tall, 170.9px vertical tree height in the normalized256px cell. Asymmetric drooping blue-green evergreen, crooked leader and light snow.\nSlot 4: subalpine-fir, 15m tall, 197.2px vertical tree height in the normalized256px cell. Slim dense pointed dark green crown with broad pale snow bands.\nSlot 5: siberian-larch, 14m tall, 184.1px vertical tree height in the normalized256px cell. Open golden olive conical crown, clear horizontal branches and cool bark.\nSlot 6: tamarack, 13m tall, 170.9px vertical tree height in the normalized256px cell. Airy narrow muted bronze-green needle crown on a tall exposed brown trunk.\nSlot 7: northern-lodgepole-pine, 14m tall, 184.1px vertical tree height in the normalized256px cell. Thin upright rugged pine with a small narrow crown and snowy branch forks.\nSlot 8: limber-pine, 12m tall, 157.8px vertical tree height in the normalized256px cell. Crooked open grey trunk, spreading dark needle cushions and a bent leader.\nSlot 9: bristlecone-pine, 10m tall, 131.5px vertical tree height in the normalized256px cell. Sculptural twisted pale ancient trunk, sparse separated dark foliage cushions.",
+    "scale": {
+      "nominalSpriteSize": 22,
+      "cellSizeMultiplier": 1.18,
+      "masterCellPixels": 256,
+      "rootAnchor": 0.955,
+      "nominalReferenceHeightMetres": 17.6
+    },
+    "metrePixels": 13.14843348741654,
+    "references": [
+      "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-tundra/atlas.png",
+      "/workspace/protocodus.github.io/fun/transport/assets/houses/tundra/house-atlas.png"
+    ]
+  },
+  "parameters": {
+    "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nCold northern woodland: cool sage and blue-green, pale bark, restrained ivory snow on upper branches and at roots. Keep tree anatomy visible.\nSlot 1: black-spruce, 13m tall, 170.9px vertical tree height in the normalized256px cell. Narrow irregular dark blue-green spire with separated snowy branch ledges.\nSlot 2: white-spruce, 15m tall, 197.2px vertical tree height in the normalized256px cell. Full cool sage-green conical crown with restrained ivory snow on upper boughs.\nSlot 3: mountain-hemlock, 13m tall, 170.9px vertical tree height in the normalized256px cell. Asymmetric drooping blue-green evergreen, crooked leader and light snow.\nSlot 4: subalpine-fir, 15m tall, 197.2px vertical tree height in the normalized256px cell. Slim dense pointed dark green crown with broad pale snow bands.\nSlot 5: siberian-larch, 14m tall, 184.1px vertical tree height in the normalized256px cell. Open golden olive conical crown, clear horizontal branches and cool bark.\nSlot 6: tamarack, 13m tall, 170.9px vertical tree height in the normalized256px cell. Airy narrow muted bronze-green needle crown on a tall exposed brown trunk.\nSlot 7: northern-lodgepole-pine, 14m tall, 184.1px vertical tree height in the normalized256px cell. Thin upright rugged pine with a small narrow crown and snowy branch forks.\nSlot 8: limber-pine, 12m tall, 157.8px vertical tree height in the normalized256px cell. Crooked open grey trunk, spreading dark needle cushions and a bent leader.\nSlot 9: bristlecone-pine, 10m tall, 131.5px vertical tree height in the normalized256px cell. Sculptural twisted pale ancient trunk, sparse separated dark foliage cushions.",
+    "referenced_image_paths": [
+      "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-tundra/atlas.png",
+      "/workspace/protocodus.github.io/fun/transport/assets/houses/tundra/house-atlas.png"
+    ],
+    "transparent_background": true
+  },
+  "rawSourcePath": "/workspace/generated_images/exec-0ecf96c5-dd5e-48be-8cd3-85e249c6e5dc.png",
+  "rawSourceFile": "source-rejected-mounds-2026-10-06.png",
+  "rawSourceSha256": "d4c80410f82ee86e70d875c47fdf64333fa3c2ee0442f345b3eaac8e55961ef1",
+  "status": "Rejected: grass/stone ground mounds conflicted with actual trunk-root anchor and projected game shadow."
+}

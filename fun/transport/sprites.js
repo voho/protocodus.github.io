@@ -3,7 +3,7 @@ import { INDUSTRIES } from './data.js';
 import { worldArtRevision, preloadWorldArt, startupArtCells } from './atlas-runtime.js';
 import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding, hasRasterBuilding, buildingArtworkDesign } from './raster-buildings.js';
-import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
+import { drawRasterNature, drawRasterNatureObject, natureObjectLayout, nativeNatureDetail, drawNativeHollowTree } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
 import { drawTownFeature } from './town-feature-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
@@ -161,9 +161,9 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
       if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span,footprint:span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile,span);ctx.restore();}
     }
     else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
-    else if(kind==='terrain-detail') drawTerrainDetail(ctx,detail,r,biome,profile);
+    else if(kind==='terrain-detail') drawTerrainDetail(ctx,nativeNatureDetail(detail),r,biome,profile);
     else if(kind==='forest') drawForest(ctx,biome,detail,variant,profile);
-    else if(kind==='tree')conifer(ctx,16,25,14,r,biome,profile);
+    else if(kind==='tree'){if(!drawNativeHollowTree(ctx,detail,biome,variant,profile))conifer(ctx,16,25,14,r,biome,profile);}
     else if(kind==='rock') {
       const count=1+variant%5,stones=Array.from({length:count},(_,i)=>{
         const size=i===0?10+r()*6:2+r()*7,margin=size*.9+1;

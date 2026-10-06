@@ -4,12 +4,16 @@ import { MARKET, OUTLET, familyCargo } from './town-market.js';
 import { housingCapacity } from './settlements.js';
 import { BIOME_NATURE } from './terrain-sprites.js';
 import { NATURE_ART_CATALOG } from './raster-nature.js';
+import { EXTRA_TREE_ART, HOLLOW_TREE_ART, CACTUS_ART } from './tree-art-catalog.js';
 import { priceFor, airAvailable, AIR_DEBUT_YEAR } from './economy-pricing.js';
 import { getVehiclePurchase } from './model.js';
 import { AIRPORT_REACH, STATION_RADIUS } from './station-sites.js';
 import { defaultChainProduct } from './chains.js';
 
 const climates = Object.keys(BIOMES);
+const extraNatureHeights = Object.fromEntries([...Object.values(EXTRA_TREE_ART).flat(),...HOLLOW_TREE_ART,...CACTUS_ART].map(art=>[art.id,art.heightMetres]));
+const hollowTreeKinds = new Set(HOLLOW_TREE_ART.map(tree=>tree.id));
+const cactusKinds = new Set(CACTUS_ART.map(plant=>plant.id));
 const title = name => name.replace(/-/g, ' ').replace(/^./, c => c.toUpperCase());
 export const GALLERY_CATEGORIES = Object.freeze({ all: 'Everything', homes: 'Homes', community: 'Community & parks', shops: 'Shops & malls', services: 'Amenities', industry: 'Industries & farms', transport: 'Transport', nature: 'Landscape', cargo: 'Cargo' });
 
@@ -72,6 +76,9 @@ export function galleryCatalog() {
     const id = `nature:${group}:${detail}`;
     if (!flora.has(id)) flora.set(id, { id, kind: detail, type: 'nature', category: 'nature', name: title(detail), biomes: [], description: group === 'trees' ? 'A tree species or growth stage in this climate. Trees and their shadows follow the same world scale.' : ['mountains', 'rocks'].includes(group) ? 'A geological landscape feature. Related exposures vary across the terrain.' : 'Natural ground vegetation that adds local cover. It can be cleared before construction.', art: { type: 'nature', kind: group === 'trees' ? 'tree' : group === 'mountains' ? 'mountain' : group === 'rocks' ? 'rock' : 'terrain-detail', detail, atlas: {} } });
     const item = flora.get(id);
+    if (extraNatureHeights[detail]) item.heightMetres = extraNatureHeights[detail];
+    if (group==='trees'&&hollowTreeKinds.has(detail)) item.description='An older tundra tree with a hollow trunk and sparse branches. It is part of the natural woodland.';
+    if (group==='plants'&&cactusKinds.has(detail)) item.description='A desert cactus with a distinctive natural shape. It can be cleared before construction.';
     if (!item.biomes.includes(biome)) item.biomes.push(biome);
     if (atlas) item.art.atlas[biome] = atlas;
   }
@@ -170,6 +177,8 @@ export function galleryDetails(game, entry, biome = game.biome) {
     if ((WORKSHOP_RECIPES[biome] || []).some(recipe => recipe.output === entry.kind)) sources.push({ id: 'building:factory', name: 'Town workshops', role: 'Produced in the town’s shared inventory' });
     if (isTownTraffic(entry.kind)) sources.push({ id: 'transport:city', name: 'Towns', role: 'Residents and amenities supply the town pool' });
     if (sources.length) consumers.unshift({ cargo: entry.kind, incoming: true, entries: sources });
+  } else if (entry.type === 'nature' && entry.heightMetres) {
+    stats.push(['Typical mature height', `${Math.round(entry.heightMetres * 10) / 10} m`]);
   }
   return { stats, notes, recipes, consumers, chain: entry.type === 'industry' && entry.biomes.includes(game.biome) ? { cargo: defaultChainProduct(game.biome, entry.kind), industryKind: entry.kind } : null };
 }

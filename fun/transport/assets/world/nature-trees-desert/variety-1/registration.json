@@ -1,0 +1,382 @@
+{
+  "method": "Complete-tree botanical metre calibration and root registration. Each uniform scale is calculated from measured crown/root height and declared physical metres, never per-silhouette cell fitting. Premultiplied-alpha resampling; no painted pixels redrawn. Invisible matte outside alpha>8+two-pixel bounds is ignored by the standard atlas packer. All meaningful source pixels are assigned once to nearest opaque botanical body.",
+  "nominalSpriteSize": 22,
+  "cellSizeMultiplier": 1.18,
+  "normalizedMasterPixelsPerMetre": 19.72265023112481,
+  "rootBaseline": 0.955,
+  "rootMeasurementToleranceSourcePixels": 3,
+  "sourceSha256": "a278a117058d444b0755c5265f7c228fe5ed0946b66678ea86c1f661b0091987",
+  "sprites": [
+    {
+      "id": "nature-trees-desert:date-palm",
+      "requestedHeightMetres": 15,
+      "calibratedHeightMetres": 10.0,
+      "sourceRoot": [
+        230,
+        455
+      ],
+      "sourceCrownTop": 33,
+      "sourceTreeHeightPixels": 422,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 13.1042,
+      "sourceBounds": [
+        43,
+        30,
+        418,
+        462
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9347227597689484,
+      "resampledSize": [
+        351,
+        404
+      ],
+      "translation": [
+        81,
+        92
+      ],
+      "registeredRoot": [
+        255.79315607679334,
+        489.2571729018031
+      ],
+      "registeredMeaningfulBounds": [
+        84,
+        95,
+        430,
+        494
+      ],
+      "alphaGreaterThan8SourcePixels": 87180,
+      "targetHeightMetres": 10.0
+    },
+    {
+      "id": "nature-trees-desert:fan-palm",
+      "requestedHeightMetres": 13,
+      "calibratedHeightMetres": 8.666666666666666,
+      "sourceRoot": [
+        637,
+        455
+      ],
+      "sourceCrownTop": 98,
+      "sourceTreeHeightPixels": 357,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 11.085799999999999,
+      "sourceBounds": [
+        477,
+        96,
+        792,
+        462
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9575889934813165,
+      "resampledSize": [
+        302,
+        350
+      ],
+      "translation": [
+        103,
+        145
+      ],
+      "registeredRoot": [
+        256.21423895701065,
+        488.77444865979265
+      ],
+      "registeredMeaningfulBounds": [
+        105,
+        147,
+        403,
+        492
+      ],
+      "alphaGreaterThan8SourcePixels": 70544,
+      "targetHeightMetres": 8.666666666666666
+    },
+    {
+      "id": "nature-trees-desert:doum-palm",
+      "requestedHeightMetres": 12,
+      "calibratedHeightMetres": 8.0,
+      "sourceRoot": [
+        1068,
+        455
+      ],
+      "sourceCrownTop": 118,
+      "sourceTreeHeightPixels": 337,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 10.464733333333333,
+      "sourceBounds": [
+        876,
+        116,
+        1236,
+        462
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9363869545934628,
+      "resampledSize": [
+        337,
+        324
+      ],
+      "translation": [
+        76,
+        172
+      ],
+      "registeredRoot": [
+        255.78629528194486,
+        489.4351776071839
+      ],
+      "registeredMeaningfulBounds": [
+        79,
+        174,
+        411,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 66796,
+      "targetHeightMetres": 8.0
+    },
+    {
+      "id": "nature-trees-desert:dragon-tree",
+      "requestedHeightMetres": 11,
+      "calibratedHeightMetres": 7.333333333333333,
+      "sourceRoot": [
+        226,
+        855
+      ],
+      "sourceCrownTop": 540,
+      "sourceTreeHeightPixels": 315,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 9.7816,
+      "sourceBounds": [
+        25,
+        537,
+        418,
+        861
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9183032911846473,
+      "resampledSize": [
+        361,
+        298
+      ],
+      "translation": [
+        71,
+        197
+      ],
+      "registeredRoot": [
+        255.5789615281141,
+        489.0204465967178
+      ],
+      "registeredMeaningfulBounds": [
+        74,
+        200,
+        430,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 66647,
+      "targetHeightMetres": 7.333333333333333
+    },
+    {
+      "id": "nature-trees-desert:baobab",
+      "requestedHeightMetres": 14,
+      "calibratedHeightMetres": 9.200000000000001,
+      "sourceRoot": [
+        649,
+        855
+      ],
+      "sourceCrownTop": 491,
+      "sourceTreeHeightPixels": 364,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 11.303133333333333,
+      "sourceBounds": [
+        454,
+        488,
+        844,
+        861
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9969691325623531,
+      "resampledSize": [
+        389,
+        372
+      ],
+      "translation": [
+        62,
+        123
+      ],
+      "registeredRoot": [
+        256.40898084965886,
+        488.8876716503836
+      ],
+      "registeredMeaningfulBounds": [
+        66,
+        126,
+        449,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 85206,
+      "targetHeightMetres": 9.333333333333334
+    },
+    {
+      "id": "nature-trees-desert:quiver-tree",
+      "requestedHeightMetres": 9,
+      "calibratedHeightMetres": 6.0,
+      "sourceRoot": [
+        1082,
+        855
+      ],
+      "sourceCrownTop": 558,
+      "sourceTreeHeightPixels": 297,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 9.2226,
+      "sourceBounds": [
+        883,
+        556,
+        1241,
+        862
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.7968747568131236,
+      "resampledSize": [
+        285,
+        244
+      ],
+      "translation": [
+        97,
+        251
+      ],
+      "registeredRoot": [
+        255.5780766058116,
+        489.2655522871239
+      ],
+      "registeredMeaningfulBounds": [
+        99,
+        253,
+        380,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 58062,
+      "targetHeightMetres": 6.0
+    },
+    {
+      "id": "nature-trees-desert:umbrella-thorn",
+      "requestedHeightMetres": 13,
+      "calibratedHeightMetres": 8.333333333333334,
+      "sourceRoot": [
+        233,
+        1213
+      ],
+      "sourceCrownTop": 875,
+      "sourceTreeHeightPixels": 338,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 10.495800000000001,
+      "sourceBounds": [
+        32,
+        871,
+        433,
+        1220
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.9725172697793298,
+      "resampledSize": [
+        390,
+        339
+      ],
+      "translation": [
+        61,
+        156
+      ],
+      "registeredRoot": [
+        256.4759712256453,
+        488.6009062645308
+      ],
+      "registeredMeaningfulBounds": [
+        63,
+        160,
+        448,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 44095,
+      "targetHeightMetres": 8.666666666666666
+    },
+    {
+      "id": "nature-trees-desert:mesquite",
+      "requestedHeightMetres": 10,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceRoot": [
+        650,
+        1213
+      ],
+      "sourceCrownTop": 920,
+      "sourceTreeHeightPixels": 293,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 9.0984,
+      "sourceBounds": [
+        454,
+        917,
+        860,
+        1221
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.8975039923151221,
+      "resampledSize": [
+        364,
+        273
+      ],
+      "translation": [
+        80,
+        223
+      ],
+      "registeredRoot": [
+        255.91078249376395,
+        488.66118172527615
+      ],
+      "registeredMeaningfulBounds": [
+        83,
+        226,
+        442,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 62948,
+      "targetHeightMetres": 6.666666666666667
+    },
+    {
+      "id": "nature-trees-desert:palo-verde",
+      "requestedHeightMetres": 10,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceRoot": [
+        1070,
+        1213
+      ],
+      "sourceCrownTop": 899,
+      "sourceTreeHeightPixels": 314,
+      "sourcePhysicalHeightAtSharedSheetScaleMetres": 9.750533333333333,
+      "sourceBounds": [
+        891,
+        897,
+        1243,
+        1220
+      ],
+      "registrationCellPixels": 512,
+      "uniformTreeScale": 0.8374798399628369,
+      "resampledSize": [
+        295,
+        271
+      ],
+      "translation": [
+        106,
+        224
+      ],
+      "registeredRoot": [
+        255.9088913533478,
+        488.6436294282565
+      ],
+      "registeredMeaningfulBounds": [
+        108,
+        226,
+        399,
+        493
+      ],
+      "alphaGreaterThan8SourcePixels": 54405,
+      "targetHeightMetres": 6.666666666666667
+    }
+  ],
+  "projectionCorrection": {
+    "date": "2026-10-06",
+    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
+    "historicalAssumedWorldEnlargement": 1.5,
+    "actualWorldEnlargement": 1,
+    "historicalHeightToActualWorldMetres": 0.6666666666666666,
+    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
+    "artworkUnchanged": true,
+    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
+    "historicalNormalizedMasterPixelsPerMetre": 13.14843348741654
+  }
+}

@@ -14,28 +14,48 @@ async function harness(context) {
   await page.evaluate(async () => {
     const sprites = await import('./sprites.js'), world = await import('./atlas-runtime.js'), houses = await import('./raster-houses.js');
     const buildings = await import('./buildings.js'), nature = await import('./terrain-sprites.js');
+    const natureArt = await import('./raster-nature.js'), treeArt = await import('./tree-art-catalog.js');
+    const treeSheets = new Map();
+    for (const biome of Object.keys(natureArt.NATURE_ART_CATALOG.trees)) {
+      for (const suffix of ['', '/variety-1', '/variety-2', ...(biome === 'tundra' ? ['/hollow'] : [])]) {
+        const directory = `./assets/world/nature-trees-${biome}${suffix}`;
+        const response = await fetch(`${directory}/atlas.json`);
+        if (!response.ok) throw Error(`Missing tree atlas metadata ${directory}`);
+        treeSheets.set(new URL(`${directory}/`, location.href).pathname, await response.json());
+      }
+    }
     const civic = await import('./raster-buildings.js'), industries = await import('./raster-industries.js');
     const calls = [], drawImage = CanvasRenderingContext2D.prototype.drawImage;
     CanvasRenderingContext2D.prototype.drawImage = function (image, ...args) {
       if (image instanceof HTMLImageElement) calls.push({ src: image.src, args });
       return drawImage.call(this, image, ...args);
     };
-    window.artQA = { ...sprites, world, houses, buildings, nature, civic, industries, calls };
+    window.artQA = { ...sprites, world, houses, buildings, nature, natureArt, treeArt, treeSheets, civic, industries, calls };
   });
   return page;
 }
 
 try {
   const healthyContext = await browser.newContext(), page = await harness(healthyContext);
+  const startupTrees = [];
+  page.on('request', request => { if (/\/nature-trees-[^/]+\/.*\.png$/.test(request.url())) startupTrees.push(new URL(request.url()).pathname); });
   // A detached sprite consumer must start nature and industry loading itself;
   // each climate's sprites load only that climate's atlases.
-  await page.evaluate(() => { artQA.sprite = artQA.createSprites('taiga'); for (const biome of ['tundra', 'desert']) artQA.createSprites(biome); });
+  await page.evaluate(async () => {
+    artQA.sprite = artQA.createSprites('taiga');
+    await artQA.world.preloadWorldArt({ biome: 'taiga', cells: artQA.world.startupArtCells(1), waitMs: 12000 });
+  });
+  assert.ok(startupTrees.length > 0 && startupTrees.every(path => path.includes('/nature-trees-taiga/')), 'startup tree artwork loads only the active climate');
+  assert.ok(startupTrees.every(path => /atlas-(16|32|64)\.png$/.test(path)), 'startup retains the established three small densities');
+  for (const suffix of ['', '/variety-1', '/variety-2']) assert.ok(startupTrees.some(path => path.includes(`/nature-trees-taiga${suffix}/atlas-`)), 'each active-climate tree sheet starts without fetching sharper densities');
+  const startupTreeRequestCount = startupTrees.length;
+  await page.evaluate(() => { for (const biome of ['tundra', 'desert']) artQA.createSprites(biome); });
   await page.waitForFunction(() => {
     const stats = artQA.world.worldArtStats();
     return stats.ready === stats.atlases && artQA.houses.getHouseAssetStats().status === 'ready';
   });
   const coverage = await page.evaluate(() => {
-    const q = artQA, aliases = [], woodland = {};
+    const q = artQA, aliases = [], woodland = {}, expectedWoodland = {};
     for (const biome of ['taiga', 'tundra', 'desert']) {
       for (const pixelScale of [.5, 1, 2, 4]) {
         const sprite = q.createSprites(biome, { pixelScale });
@@ -48,21 +68,37 @@ try {
       }
       const sprite = q.createSprites(biome, { pixelScale: 1 }); q.calls.length = 0;
       for (const detail of q.nature.BIOME_NATURE[biome].trees) for (let variant = 0; variant < 64; variant++) sprite('forest', variant, 1, detail);
-      woodland[biome] = [...new Set(q.calls.filter(call => call.src.includes(`/nature-trees-${biome}/`)).map(call => {
-        const [, sx, sy, cell] = [call.src, ...call.args]; return sy / cell * 3 + sx / cell;
-      }))].sort((a, b) => a - b);
-      for (const detail of [...q.nature.BIOME_NATURE[biome].plants, 'glacial', 'ice', 'snow', 'dunes', 'saltflat', 'canyon']) {
+      woodland[biome] = [...new Set(q.calls.flatMap(call => {
+        const path = new URL(call.src).pathname;
+        if (!path.includes(`/nature-trees-${biome}/`)) return [];
+        const meta = q.treeSheets.get(path.slice(0, path.lastIndexOf('/') + 1));
+        if (!meta) throw Error(`Unregistered tree atlas ${call.src}`);
+        const [sx, sy, cell] = call.args, index = sy / cell * meta.columns + sx / cell;
+        if (!meta.order[index]) throw Error(`Unregistered tree cell ${call.src}: ${index}`);
+        return [meta.order[index]];
+      }))].sort();
+      expectedWoodland[biome] = q.natureArt.NATURE_ART_CATALOG.trees[biome].map(kind => `nature-trees-${biome}:${kind}`).sort();
+      for (const detail of [...q.natureArt.NATURE_ART_CATALOG.ground[biome], 'glacial', 'ice', 'snow', 'dunes', 'saltflat', 'canyon']) {
         for (const variant of [0, 1, 4]) sprite('terrain-detail', variant, 1, detail);
       }
       for (const detail of q.nature.BIOME_NATURE[biome].mountains) sprite('mountain', 0, 1, detail);
       for (const variant of [0, 1, 4]) sprite('rock', variant, 1, 'glacial');
     }
-    return { aliases, woodland, stats: q.world.worldArtStats() };
+    const catalog = q.natureArt.NATURE_ART_CATALOG;
+    // The Gallery also exposes exact ground identities. Some original desert
+    // patches now select a mixture of authored cactus varieties on the map.
+    const portrait = document.createElement('canvas'); portrait.width = portrait.height = 128;
+    const c = portrait.getContext('2d');
+    for (const [biome, kinds] of Object.entries(catalog.ground)) for (const kind of kinds) {
+      if (!q.world.drawAtlas(c, `nature-ground-${biome}:${kind}`, 0, 0, 96, 96)) throw Error(`Missing exact ground portrait: ${biome}/${kind}`);
+    }
+    const expectedNatureCount = [...Object.values(catalog.trees), ...Object.values(catalog.ground), catalog.mountains, catalog.rocks].reduce((sum, kinds) => sum + kinds.length, 0);
+    return { aliases, woodland, expectedWoodland, expectedNatureCount, stats: q.world.worldArtStats() };
   });
   assert.ok(coverage.aliases.every(Boolean), 'every legacy building identity shares the generated sprite at all four device densities');
-  for (const biome of ['taiga', 'tundra', 'desert']) assert.deepEqual(coverage.woodland[biome], [0,1,2,3,4,5,6,7,8], `all nine ${biome} tree images appear in ordinary woodland`);
+  for (const biome of ['taiga', 'tundra', 'desert']) assert.deepEqual(coverage.woodland[biome], coverage.expectedWoodland[biome], `every registered ${biome} tree image appears in ordinary woodland`);
   assert.deepEqual(coverage.stats.errors, []);
-  assert.equal(Object.keys(coverage.stats.rasterizedEntries).filter(id => id.startsWith('nature-')).length, 72, 'all 72 generated nature objects are reachable');
+  assert.equal(Object.keys(coverage.stats.rasterizedEntries).filter(id => id.startsWith('nature-')).length, coverage.expectedNatureCount, 'all registered generated nature objects are reachable');
   await healthyContext.close();
 
   const partialContext = await browser.newContext(); let missingDensity = true;
@@ -116,5 +152,5 @@ try {
   assert.equal(fallback.house, 'tundra');
   await fallbackContext.close();
   assert.deepEqual(errors, [], 'no browser exceptions from missing densities or climate fallbacks');
-  console.log(JSON.stringify({ aliases: coverage.aliases.length, woodland: coverage.woodland, partialDensity: 'healthy imagery retained; retry upgrades cached sprite', fallback: 'same generated identity from a healthy climate' }, null, 2));
+  console.log(JSON.stringify({ aliases: coverage.aliases.length, startupTrees: startupTreeRequestCount, woodland: coverage.woodland, natureObjects: coverage.expectedNatureCount, partialDensity: 'healthy imagery retained; retry upgrades cached sprite', fallback: 'same generated identity from a healthy climate' }, null, 2));
 } finally { await browser.close(); }

@@ -1,16 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BUILDINGS } from '../buildings.js';
-import { BIOMES, INDUSTRIES, WORKSHOP, WORKSHOP_RECIPES, TOWN_CARGO } from '../data.js';
+import { BIOMES, CARGO, INDUSTRIES, WORKSHOP, WORKSHOP_RECIPES, TOWN_CARGO } from '../data.js';
 import { MARKET, OUTLET, familyCargo } from '../town-market.js';
 import { housingCapacity } from '../settlements.js';
 import { NATURE_ART_CATALOG } from '../raster-nature.js';
+import { BIOME_NATURE } from '../terrain-sprites.js';
+import { EXTRA_TREE_ART, HOLLOW_TREE_ART, CACTUS_ART } from '../tree-art-catalog.js';
 import { galleryCatalog, filterGallery, cargoConsumers, galleryBuildState, galleryDetails } from '../catalog-data.js';
 const entries = galleryCatalog(), entry = id => entries.find(item => item.id === id);
 const game = biome => ({ biome, day: 0, seed: 1847, money: 400000, routes: [], vehicles: [] });
+const authoredNatureCount = Object.values(NATURE_ART_CATALOG.trees).reduce((n,kinds)=>n+kinds.length,0) + Object.values(NATURE_ART_CATALOG.ground).reduce((n,kinds)=>n+kinds.length,0) + NATURE_ART_CATALOG.mountains.length + NATURE_ART_CATALOG.rocks.length;
+const expectedNatureIds = new Set(['forest','rock','mountain','grass','sand','snow','water'].map(kind=>`nature:${kind}`));
+for (const nature of Object.values(BIOME_NATURE)) for (const [group,names] of Object.entries(nature)) for (const detail of names) expectedNatureIds.add(`nature:${group}:${detail}`);
+for (const kinds of Object.values(NATURE_ART_CATALOG.trees)) for (const detail of kinds) expectedNatureIds.add(`nature:trees:${detail}`);
+for (const kinds of Object.values(NATURE_ART_CATALOG.ground)) for (const detail of kinds) expectedNatureIds.add(`nature:plants:${detail}`);
+for (const detail of NATURE_ART_CATALOG.mountains) expectedNatureIds.add(`nature:mountains:${detail}`);
+for (const detail of NATURE_ART_CATALOG.rocks) expectedNatureIds.add(`nature:rocks:${detail}`);
 
 test('gallery covers every building and industry, keeping the model identity and footprint', () => {
-  assert.equal(entries.length, 185);
+  const otherEntries = entries.filter(e=>!['building','industry','cargo','nature'].includes(e.type)).length;
+  assert.equal(entries.length, Object.keys(BUILDINGS).length + Object.keys(INDUSTRIES).length + Object.keys(CARGO).length + expectedNatureIds.size + otherEntries);
+  assert.deepEqual(new Set(entries.filter(e=>e.type==='nature').map(e=>e.id)),expectedNatureIds);
   assert.equal(new Set(entries.map(e => e.id)).size, entries.length);
   for (const [kind, d] of Object.entries(BUILDINGS)) {
     const found = entry(`building:${kind}`);
@@ -29,8 +40,33 @@ test('landscape collection covers every active nature atlas identity', () => {
   for (const [biome, kinds] of Object.entries(NATURE_ART_CATALOG.ground)) for (const kind of kinds) assert.ok(identities.has(`nature-ground-${biome}:${kind}`));
   for (const kind of NATURE_ART_CATALOG.mountains) assert.ok(identities.has(`nature-mountains:${kind}`));
   for (const kind of NATURE_ART_CATALOG.rocks) assert.ok(identities.has(`nature-rocks:${kind}`));
-  assert.equal(identities.size, 72);
+  assert.equal(identities.size, authoredNatureCount);
   assert.ok(Object.isFrozen(NATURE_ART_CATALOG.trees.taiga));
+});
+
+test('added trees have exact climate artwork and cataloged mature heights', () => {
+  for (const [biome,trees] of Object.entries(EXTRA_TREE_ART)) for (const tree of [...trees,...biome==='tundra'?HOLLOW_TREE_ART:[]]) {
+    const found = entry(`nature:trees:${tree.id}`);
+    assert.ok(found,`${biome} ${tree.id} is searchable`);
+    assert.equal(found.art.atlas[biome],`nature-trees-${biome}:${tree.id}`);
+    assert.equal(new Map(galleryDetails(game(biome),found).stats).get('Typical mature height'),`${Number(tree.heightMetres.toFixed(1))} m`);
+    assert.equal(galleryBuildState(game(biome),found).available,false);
+  }
+});
+
+test('hollow woodland and cacti are described as natural landscape features', () => {
+  for (const tree of HOLLOW_TREE_ART) {
+    const found=entry(`nature:trees:${tree.id}`);
+    assert.deepEqual(found.biomes,['tundra']);assert.match(found.description,/hollow trunk/);
+    assert.equal(new Map(galleryDetails(game('tundra'),found).stats).get('Typical mature height'),`${Number(tree.heightMetres.toFixed(1))} m`);
+  }
+  for (const plant of CACTUS_ART) {
+    const found=entry(`nature:plants:${plant.id}`);
+    assert.deepEqual(found.biomes,['desert']);assert.match(found.description,/desert cactus/);
+    assert.equal(found.art.atlas.desert,`nature-ground-desert:${plant.id}`);
+    assert.equal(new Map(galleryDetails(game('desert'),found).stats).get('Typical mature height'),`${Number(plant.heightMetres.toFixed(1))} m`);
+    assert.equal(galleryBuildState(game('desert'),found).available,false);
+  }
 });
 
 test('search combines cargo names with category and climate without losing inaccessible entries from all-climates view', () => {

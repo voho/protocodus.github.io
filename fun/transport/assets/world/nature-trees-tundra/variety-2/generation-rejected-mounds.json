@@ -1,0 +1,80 @@
+{
+  "created": "2026-10-06",
+  "generator": "image_gen.imagegen",
+  "job": {
+    "biome": "tundra",
+    "sheet": 2,
+    "species": [
+      {
+        "id": "arctic-birch",
+        "heightMetres": 7,
+        "description": "Low many-stemmed silver trunk with a spreading rounded sage crown."
+      },
+      {
+        "id": "mountain-birch",
+        "heightMetres": 10,
+        "description": "Bent pale trunks and a broad windswept yellow-green crown with light snow."
+      },
+      {
+        "id": "silver-birch",
+        "heightMetres": 14,
+        "description": "Tall white trunk with a loose light silvery green crown and open lower branches."
+      },
+      {
+        "id": "grey-alder",
+        "heightMetres": 11,
+        "description": "Compact cool green oval crown above several silver-grey trunks."
+      },
+      {
+        "id": "green-alder",
+        "heightMetres": 8,
+        "description": "Low wide dark green lobed crown on visibly branching warm grey stems."
+      },
+      {
+        "id": "balsam-poplar",
+        "heightMetres": 14,
+        "description": "Upright broad oval blue-green crown on a straight dark trunk."
+      },
+      {
+        "id": "quaking-aspen",
+        "heightMetres": 13,
+        "description": "Slender pale trunk and a rounded muted golden crown with large leaf masses."
+      },
+      {
+        "id": "feltleaf-willow",
+        "heightMetres": 8,
+        "description": "Low spreading silvery sage crown above an open forked cool brown trunk."
+      },
+      {
+        "id": "goat-willow",
+        "heightMetres": 10,
+        "description": "Broad rounded grey-green crown on a stout branching pale trunk, sparse snow."
+      }
+    ],
+    "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nCold northern woodland: cool sage and blue-green, pale bark, restrained ivory snow on upper branches and at roots. Keep tree anatomy visible.\nSlot 1: arctic-birch, 7m tall, 92.0px vertical tree height in the normalized256px cell. Low many-stemmed silver trunk with a spreading rounded sage crown.\nSlot 2: mountain-birch, 10m tall, 131.5px vertical tree height in the normalized256px cell. Bent pale trunks and a broad windswept yellow-green crown with light snow.\nSlot 3: silver-birch, 14m tall, 184.1px vertical tree height in the normalized256px cell. Tall white trunk with a loose light silvery green crown and open lower branches.\nSlot 4: grey-alder, 11m tall, 144.6px vertical tree height in the normalized256px cell. Compact cool green oval crown above several silver-grey trunks.\nSlot 5: green-alder, 8m tall, 105.2px vertical tree height in the normalized256px cell. Low wide dark green lobed crown on visibly branching warm grey stems.\nSlot 6: balsam-poplar, 14m tall, 184.1px vertical tree height in the normalized256px cell. Upright broad oval blue-green crown on a straight dark trunk.\nSlot 7: quaking-aspen, 13m tall, 170.9px vertical tree height in the normalized256px cell. Slender pale trunk and a rounded muted golden crown with large leaf masses.\nSlot 8: feltleaf-willow, 8m tall, 105.2px vertical tree height in the normalized256px cell. Low spreading silvery sage crown above an open forked cool brown trunk.\nSlot 9: goat-willow, 10m tall, 131.5px vertical tree height in the normalized256px cell. Broad rounded grey-green crown on a stout branching pale trunk, sparse snow.",
+    "scale": {
+      "nominalSpriteSize": 22,
+      "cellSizeMultiplier": 1.18,
+      "masterCellPixels": 256,
+      "rootAnchor": 0.955,
+      "nominalReferenceHeightMetres": 17.6
+    },
+    "metrePixels": 13.14843348741654,
+    "references": [
+      "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-tundra/atlas.png",
+      "/workspace/protocodus.github.io/fun/transport/assets/houses/tundra/house-atlas.png"
+    ]
+  },
+  "parameters": {
+    "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nCold northern woodland: cool sage and blue-green, pale bark, restrained ivory snow on upper branches and at roots. Keep tree anatomy visible.\nSlot 1: arctic-birch, 7m tall, 92.0px vertical tree height in the normalized256px cell. Low many-stemmed silver trunk with a spreading rounded sage crown.\nSlot 2: mountain-birch, 10m tall, 131.5px vertical tree height in the normalized256px cell. Bent pale trunks and a broad windswept yellow-green crown with light snow.\nSlot 3: silver-birch, 14m tall, 184.1px vertical tree height in the normalized256px cell. Tall white trunk with a loose light silvery green crown and open lower branches.\nSlot 4: grey-alder, 11m tall, 144.6px vertical tree height in the normalized256px cell. Compact cool green oval crown above several silver-grey trunks.\nSlot 5: green-alder, 8m tall, 105.2px vertical tree height in the normalized256px cell. Low wide dark green lobed crown on visibly branching warm grey stems.\nSlot 6: balsam-poplar, 14m tall, 184.1px vertical tree height in the normalized256px cell. Upright broad oval blue-green crown on a straight dark trunk.\nSlot 7: quaking-aspen, 13m tall, 170.9px vertical tree height in the normalized256px cell. Slender pale trunk and a rounded muted golden crown with large leaf masses.\nSlot 8: feltleaf-willow, 8m tall, 105.2px vertical tree height in the normalized256px cell. Low spreading silvery sage crown above an open forked cool brown trunk.\nSlot 9: goat-willow, 10m tall, 131.5px vertical tree height in the normalized256px cell. Broad rounded grey-green crown on a stout branching pale trunk, sparse snow.",
+    "referenced_image_paths": [
+      "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-tundra/atlas.png",
+      "/workspace/protocodus.github.io/fun/transport/assets/houses/tundra/house-atlas.png"
+    ],
+    "transparent_background": true
+  },
+  "rawSourcePath": "/workspace/generated_images/exec-2db80357-42c8-4aa0-9740-88f6ee2428ff.png",
+  "rawSourceFile": "source-rejected-mounds-2026-10-06.png",
+  "rawSourceSha256": "0f6a49490c6f0fd9c3c6f282bbc1e30d21329edb8b01fe8e326cac1e8640557f",
+  "status": "Rejected: grass/stone ground mounds conflicted with actual trunk-root anchor and projected game shadow."
+}

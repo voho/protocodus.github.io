@@ -181,6 +181,8 @@ When December 2049 closes, on 1 January 2050, your company's first hundred years
 
 Open **Game menu → Building gallery** to browse all buildings, industries, farms, transport objects, landscape species and cargo. Search by name or cargo, choose a collection, and switch between your climate and **All climates**. Select an object for its current build price, footprint and role; homes also offer their three designs and two orientations.
 
+Click an object on the map to see its live information and complete Gallery entry in the inspector. Its plot gets a translucent ground tint and an outlined border beneath the sprite, following the terrain and the full footprint. The reference information includes production recipes, cargo destinations, resident capacity and demand where applicable. **Browse Gallery** opens the full collection when you want to explore related objects.
+
 Industry cards show base daily input and output recipes and the actual next consumers. Follow a consumer to inspect it, use **Back to previous object** to return, or open **Open production chain**. Food delivery links include the grocers, bakeries, butchers and malls that contribute to their town's market. Town workshops show the recipes for the preview climate and their shared processing allowance.
 
 Homes show resident capacity at levels 1–3 and their potential monthly contribution to food, household and fuel demand. Orders, passengers and mail belong to the town; the gallery labels these contributions rather than showing separate house inventories. Actual orders depend on population and retail outlet reach.
@@ -243,7 +245,7 @@ The map plays from the keyboard too. Tab to the map and press **Enter**: a tile 
 | Ctrl+S or Cmd+S | Open Saved games |
 | Ctrl+Z or Cmd+Z | Undo the last construction |
 
-Woodland uses 64 arrangements per habitat, from a single mature tree to five-tree clusters. Pine, spruce, fir, broadleaf and mixed stands have varied heights, saplings, leafy crowns and bare branches; desert and tundra keep their own species. Crowns overlap tile edges to break up regular rows. Mountains, boulders, shrubs and ground plants also vary in shape, size and placement. This artwork updates existing saves when you reload.
+Woodland uses 64 arrangements per habitat, from a single mature tree to five-tree clusters. Each climate has 27 tree sprites, with three extra hollow trunks in tundra: 84 in total. Added species include open pines, cedars, maples, willows, northern birches and spruces, branching palms, baobabs and dryland trees. Crown shape, trunk forks and natural heights distinguish them at the same world scale. Tundra's hollow trees appear sparsely among older bare trunks. Nine additional desert cacti range from small barrels and hedgehog clumps to tall saguaro, organ pipe and cardon; existing cactus patches choose them stably. Pine, spruce, fir, broadleaf and mixed stands retain varied heights, saplings, leafy crowns and bare branches. Crowns overlap tile edges to break up regular rows. Mountains, boulders, shrubs and ground plants also vary in shape, size and placement. This artwork updates existing saves when you reload, and all named trees and cacti appear in **Game menu → Building gallery**.
 
 Larger groves, boulder outcrops and mountain formations occupy **2×2 or 3×3 tiles**. Trees, rocks, flowers and shrubs appear only on flat tiles. Larger objects require the same height at every grid point across their full footprint; slopes stay free of decorations. Inspect any occupied tile to see the whole footprint. Bulldozing any part of a grove or rock outcrop clears its complete site for one charge. Construction and earthworks break up intersected formations, leaving smaller objects on the remaining natural tiles. Mountains retain their elevation and use the terrain and tunnel tools.
 
@@ -538,6 +540,8 @@ The inspector check emulates Safari's click focus and presses **Full chain** 20 
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/inspector-browser-check.mjs
 ```
 
+`selection-underlay-browser-check.mjs` checks full plots, slopes and moving carriers at every zoom and display density, ensuring opaque sprite pixels stay above selection and warm scenery caches remain reusable. `selection-gallery-browser-check.mjs` exercises real object clicks, complete shared facts and recipes, actual designs and airport orientation, live actions, related entries and returning from Gallery with selection and focus intact.
+
 The notices check covers the welcome toast, bursts of notices, grouped disconnections with their Show action and attention count, a demolished quarry's warning and its route under Needs attention, News, the January toast and its upgrade review, the Towns search across January, a mail route that delivers without a toast or News entry, first deliveries, town milestones, quiet save loading and computer layouts. Screenshots go to `/tmp/transport-notices-qa`:
 
 ```sh
@@ -557,6 +561,8 @@ The nature check renders woodland contact sheets and wilderness views in each bi
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/nature-browser-check.mjs
 ```
+
+`tree-variety-browser-check.mjs` verifies all added species and atlas densities, physical scale, roots, shadows, seeded woodland, missing-art recovery, Gallery entries and unchanged legacy-save terrain across climates, zooms and display densities. `generated-art-coverage-browser-check.mjs` checks every registered nature identity and climate-scoped startup loading.
 
 The controls check covers automatic crossings and stops, exact quotes (refused strokes that spend nothing, partial zone drags, stop coverage and route warnings in the tip, and pixel checks that only the offending tile turns red), drag cancellation, area zoning (a diagonal drag zones both sides of a street in one toast and leaves the road alone; Shift keeps a line; the 16 × 16 cap; a Shift-held Bulldozer rectangle counts sites), keyboard activation, the keyboard tile cursor (Tab to the map, then R, Enter, three Right arrows and Enter build four road tiles for their quote; S and Enter place a stop; Enter picks both route stops; Escape steps back; Enter on a town lands on the labelled inspector heading), long strokes (a road held at the right edge scrolls the map and grows, ArrowUp mid-drag moves its end), compact menus and desktop controls:
 

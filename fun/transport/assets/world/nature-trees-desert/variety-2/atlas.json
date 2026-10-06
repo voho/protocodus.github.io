@@ -1,0 +1,363 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "nature-trees-desert:desert-willow",
+    "nature-trees-desert:olive-tree",
+    "nature-trees-desert:carob",
+    "nature-trees-desert:argan",
+    "nature-trees-desert:mopane",
+    "nature-trees-desert:marula",
+    "nature-trees-desert:bottle-tree",
+    "nature-trees-desert:euphorbia-tree",
+    "nature-trees-desert:desert-cypress"
+  ],
+  "source": "registered-generation-2026-10-06.png",
+  "sourceSha256": "30120656a764283952e0b94e9e4487157634eeb85ef6e5f82bf06f3c32490aaa",
+  "sprites": [
+    {
+      "id": "nature-trees-desert:desert-willow",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          125,
+          250,
+          391,
+          497
+        ],
+        "rawAlphaBounds": [
+          125,
+          250,
+          390,
+          497
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.858292
+      },
+      "bounds": [
+        61,
+        124,
+        197,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-desert:olive-tree",
+      "cell": 1,
+      "sourceBounds": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          91,
+          223,
+          389,
+          495
+        ],
+        "rawAlphaBounds": [
+          92,
+          223,
+          390,
+          494
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.805569
+      },
+      "bounds": [
+        45,
+        110,
+        196,
+        247
+      ]
+    },
+    {
+      "id": "nature-trees-desert:carob",
+      "cell": 2,
+      "sourceBounds": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          73,
+          197,
+          417,
+          497
+        ],
+        "rawAlphaBounds": [
+          73,
+          197,
+          417,
+          496
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.762405
+      },
+      "bounds": [
+        35,
+        97,
+        210,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:argan",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          72,
+          263,
+          442,
+          496
+        ],
+        "rawAlphaBounds": [
+          72,
+          263,
+          442,
+          495
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.808392
+      },
+      "bounds": [
+        35,
+        130,
+        222,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:mopane",
+      "cell": 4,
+      "sourceBounds": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          80,
+          171,
+          415,
+          496
+        ],
+        "rawAlphaBounds": [
+          80,
+          171,
+          415,
+          496
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.757797
+      },
+      "bounds": [
+        39,
+        84,
+        209,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:marula",
+      "cell": 5,
+      "sourceBounds": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          62,
+          185,
+          419,
+          495
+        ],
+        "rawAlphaBounds": [
+          62,
+          184,
+          419,
+          495
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.734787
+      },
+      "bounds": [
+        30,
+        91,
+        211,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:bottle-tree",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        1024,
+        512,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          107,
+          169,
+          399,
+          495
+        ],
+        "rawAlphaBounds": [
+          107,
+          170,
+          399,
+          495
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.812691
+      },
+      "bounds": [
+        53,
+        84,
+        200,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:euphorbia-tree",
+      "cell": 7,
+      "sourceBounds": [
+        512,
+        1024,
+        1024,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          143,
+          249,
+          360,
+          494
+        ],
+        "rawAlphaBounds": [
+          143,
+          250,
+          360,
+          494
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.887104
+      },
+      "bounds": [
+        70,
+        123,
+        181,
+        247
+      ]
+    },
+    {
+      "id": "nature-trees-desert:desert-cypress",
+      "cell": 8,
+      "sourceBounds": [
+        1024,
+        1024,
+        1536,
+        1536
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          512
+        ],
+        "sourceBounds": [
+          158,
+          118,
+          339,
+          495
+        ],
+        "rawAlphaBounds": [
+          158,
+          118,
+          340,
+          495
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.833401
+      },
+      "bounds": [
+        78,
+        58,
+        171,
+        248
+      ]
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false
+}

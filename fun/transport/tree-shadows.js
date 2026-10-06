@@ -3,11 +3,12 @@
 // so they read as firm shapes and overlaps never darken into forest carpets.
 const TAU=Math.PI*2,ANGLE=Math.atan2(.48,1);
 const COLORS={taiga:'30,44,34',tundra:'52,62,62',desert:'78,60,38'};
+const BROAD_CROWN=/oak|birch|aspen|acacia|tamarisk|willow|linden|beech|hornbeam|elm|maple|chestnut|rowan|alder|balsam-poplar|baobab|mesquite|palo-verde|olive|carob|argan|mopane|marula|bottle-tree/;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 export function treeShadowGeometry(tree,biome='taiga',{opacity=1,contact=true}={}){
-  const size=clamp(Number(tree.size)||12,4,100),bare=tree.bare||/bare|deadwood/.test(tree.species||'');
-  const broad=/oak|birch|aspen|acacia|tamarisk|willow/.test(tree.species||''),palm=/palm/.test(tree.species||'');
+  const size=clamp(Number(tree.size)||12,4,100),bare=tree.bare||/bare|deadwood|hollow/.test(tree.species||'');
+  const broad=BROAD_CROWN.test(tree.species||''),palm=/palm/.test(tree.species||'');
   // Long enough to reach past the crown, so the shadow shows beside the tree and not only under it.
   const length=size*(bare?.5:palm?.7:.68),width=size*(bare?.05:broad?.2:palm?.16:.13);
   const alpha=(biome==='tundra'?.28:biome==='desert'?.32:.36)*opacity*(bare?.58:1),seed=(tree.seed>>>0)%997;

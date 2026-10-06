@@ -360,13 +360,13 @@ export function drawAircraftShadow(c, { heading = 0, scale = 1, blur = 0 } = {})
 }
 
 // UI portraits (tool cards 72×56, inspector, route cards 80×64).
-export function drawAirportPortrait(c, w, h, { biome = 'taiga' } = {}) {
+export function drawAirportPortrait(c, w, h, { biome = 'taiga', axis = 'x' } = {}) {
   // Content spans about x −50…120 and y −62…58 projected px: the tower top to the runway's near edge.
   const s = Math.min(w / 160, h / 124);
-  c.save(); c.translate(w * .5 - 34 * s, h * .5 + 4 * s); c.scale(s, s);
-  c.save(); c.beginPath(); c.rect(-70, -70, 190, 170); c.clip(); c.transform(1, .5, -1, .5, 0, 0); paintAirportGround(c, { axis: 'x', biome, detail: 'detail', seed: 5 }); c.restore();
-  drawTower(c, { axis: 'x', detail: 'detail', biome }); drawTerminal(c, { axis: 'x', detail: 'detail', biome });
-  const p = localToProjected('x', LAYOUT.stands[0].u, LAYOUT.stands[0].v); c.save(); c.translate(p.x, p.y); drawAircraft(c, { heading: 0, detail: 'detail', color: '#69c6bc' }); c.restore();
+  c.save(); c.translate(w * .5 + (axis === 'y' ? 34 : -34) * s, h * .5 + 4 * s); c.scale(s, s);
+  c.save(); c.beginPath(); c.rect(axis === 'y' ? -120 : -70, -70, 190, 170); c.clip(); c.transform(1, .5, -1, .5, 0, 0); paintAirportGround(c, { axis, biome, detail: 'detail', seed: 5 }); c.restore();
+  drawTower(c, { axis, detail: 'detail', biome }); drawTerminal(c, { axis, detail: 'detail', biome });
+  const p = localToProjected(axis, LAYOUT.stands[0].u, LAYOUT.stands[0].v); c.save(); c.translate(p.x, p.y); drawAircraft(c, { heading: axis === 'y' ? Math.PI / 2 : 0, detail: 'detail', color: '#69c6bc' }); c.restore();
   c.restore();
 }
 export function drawAircraftPortrait(c, w, h, { color = '#69c6bc' } = {}) {

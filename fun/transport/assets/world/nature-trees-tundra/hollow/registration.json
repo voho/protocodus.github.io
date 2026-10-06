@@ -1,0 +1,127 @@
+{
+  "sourceSha256": "1104fb0d1b910f381fba9b318d8abafd954ef15490ef2745668f3b15f07d67eb",
+  "registeredSource": "source-registered-2026-10-06.png",
+  "registeredSourceSha256": "d69360da2e72576c0906b330606193463567fde527472fac8031960c4001d492",
+  "artworkMutation": "No painting, redraw, object removal or independent axis stretching; complete source cutouts calibrated and translated.",
+  "records": [
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "sourceBox": [
+        0,
+        0,
+        724,
+        724
+      ],
+      "retainedSourceBounds": [
+        117,
+        66,
+        686,
+        686
+      ],
+      "uniformWholeCutoutScale": 0.25,
+      "resampledSize": [
+        142,
+        155
+      ],
+      "registeredOffset": [
+        50,
+        91
+      ],
+      "registeredRootFoot": [
+        128.11247803163445,
+        244.75
+      ],
+      "opaqueBounds": [
+        50,
+        92,
+        192,
+        246
+      ],
+      "heightMetres": 7.333333333333333,
+      "registeredMeasuredHeightMetres": 7.744902343749999
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "sourceBox": [
+        724,
+        0,
+        1448,
+        724
+      ],
+      "retainedSourceBounds": [
+        68,
+        38,
+        660,
+        688
+      ],
+      "uniformWholeCutoutScale": 0.25,
+      "resampledSize": [
+        148,
+        162
+      ],
+      "registeredOffset": [
+        38,
+        84
+      ],
+      "registeredRootFoot": [
+        127.5,
+        244.75384615384615
+      ],
+      "opaqueBounds": [
+        38,
+        85,
+        185,
+        246
+      ],
+      "heightMetres": 8.0,
+      "registeredMeasuredHeightMetres": 8.1378515625
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "sourceBox": [
+        1448,
+        0,
+        2172,
+        724
+      ],
+      "retainedSourceBounds": [
+        102,
+        26,
+        647,
+        691
+      ],
+      "uniformWholeCutoutScale": 0.25,
+      "resampledSize": [
+        136,
+        166
+      ],
+      "registeredOffset": [
+        51,
+        80
+      ],
+      "registeredRootFoot": [
+        127.85871559633027,
+        244.50225563909774
+      ],
+      "opaqueBounds": [
+        51,
+        80,
+        187,
+        245
+      ],
+      "heightMetres": 8.666666666666666,
+      "registeredMeasuredHeightMetres": 8.3153125
+    }
+  ],
+  "pixelsPerMetre": 19.72265023112481,
+  "projectionCorrection": {
+    "date": "2026-10-06",
+    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
+    "historicalAssumedWorldEnlargement": 1.5,
+    "actualWorldEnlargement": 1,
+    "historicalHeightToActualWorldMetres": 0.6666666666666666,
+    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
+    "artworkUnchanged": true,
+    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged."
+  }
+}

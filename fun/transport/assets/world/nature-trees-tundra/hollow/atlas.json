@@ -1,0 +1,135 @@
+{
+  "columns": 3,
+  "rows": 1,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "nature-trees-tundra:hollow-birch",
+    "nature-trees-tundra:hollow-larch",
+    "nature-trees-tundra:hollow-spruce"
+  ],
+  "source": "source-registered-2026-10-06.png",
+  "sourceSha256": "d69360da2e72576c0906b330606193463567fde527472fac8031960c4001d492",
+  "sprites": [
+    {
+      "id": "nature-trees-tundra:hollow-birch",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        256,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          48,
+          90,
+          194,
+          248
+        ],
+        "rawAlphaBounds": [
+          50,
+          91,
+          192,
+          246
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.813812
+      },
+      "bounds": [
+        50,
+        91,
+        192,
+        246
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:hollow-larch",
+      "cell": 1,
+      "sourceBounds": [
+        256,
+        0,
+        512,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          36,
+          82,
+          188,
+          248
+        ],
+        "rawAlphaBounds": [
+          38,
+          84,
+          186,
+          246
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.826294
+      },
+      "bounds": [
+        38,
+        84,
+        186,
+        246
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cell": 2,
+      "sourceBounds": [
+        512,
+        0,
+        768,
+        256
+      ],
+      "normalization": {
+        "originalSize": [
+          256,
+          256
+        ],
+        "sourceBounds": [
+          49,
+          78,
+          189,
+          248
+        ],
+        "rawAlphaBounds": [
+          51,
+          80,
+          187,
+          246
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.805313
+      },
+      "bounds": [
+        51,
+        80,
+        187,
+        246
+      ]
+    }
+  ],
+  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
+  "mipSharpening": false
+}
