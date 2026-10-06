@@ -17,7 +17,7 @@ import { landscapeScenery } from './landscape-scenery.js';
 import { DEFAULT_LAYERS, normalizeLayers } from './visibility.js';
 import { createMarineSprites, drawShipWake, MARINE_SIZE } from './marine-sprites.js';
 import { createWeatherEffects } from './weather-effects.js';
-import { paintWaterRelief, paintCoast, drawWaterMotion } from './water-art.js';
+import { paintWaterRelief, paintCoast, prepareWaterMotion, drawPreparedWaterMotion } from './water-art.js';
 import { paintGrassGround } from './grass-art.js';
 import { paintFoundationStones } from './foundation-stone.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
@@ -111,6 +111,8 @@ export function createRenderer(canvas, initialGame, options={}) {
   // 6×6 chunks receive artwork at the current physical-pixel density. Small
   // chunks keep Detail's retina surfaces bounded; atlas terrain is capped at 512².
   const chunks=new Map(), minimapLayer=document.createElement('canvas'), codes=new Map(), cargoImages=new Map(),loadBadges=new Map();
+  const waterMotionChunks=[];
+  let waterMotionBuilds=0,waterMotionStats={chunks:0,waveGroups:0,shoreSegments:0,strokes:0,reducedMotion:false};
   const motionPreference=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const drawWeather=createWeatherEffects({reducedMotion:()=>Boolean(motionPreference?.matches)});
   if(options.onInvalidate)motionPreference?.addEventListener('change',options.onInvalidate);
@@ -173,7 +175,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
   function code(value){if(!value)return 0;const key=String(value);if(codes.has(key))return codes.get(key);let h=0;for(let i=0;i<key.length;i++)h=(Math.imul(h,31)+key.charCodeAt(i))|0;codes.set(key,h);return h;}
-  function clearChunks(){sceneryBudget.clear();if(sceneryView){sceneryView.image.width=sceneryView.image.height=0;sceneryView=null;}objectHits=[];bridgeHits=[];sceneCache=null;gridCache=null;foundations.clear();gardenSurfaces.clear();for(const entry of chunks.values())entry.mesh.width=entry.mesh.height=0;chunks.clear();cacheBytes=0;}
+  function clearChunks(){waterMotionChunks.length=0;sceneryBudget.clear();if(sceneryView){sceneryView.image.width=sceneryView.image.height=0;sceneryView=null;}objectHits=[];bridgeHits=[];sceneCache=null;gridCache=null;foundations.clear();gardenSurfaces.clear();for(const entry of chunks.values())entry.mesh.width=entry.mesh.height=0;chunks.clear();cacheBytes=0;}
   function setTerrainHeight(value){
     const next=normalizeTerrainHeight(value);if(next===heightStep)return heightStep;
     const origin=cameraPoint(),center=pickGround(game,origin.x,origin.y);
@@ -596,11 +598,12 @@ export function createRenderer(canvas, initialGame, options={}) {
     paintWaterRelief(c,b,tile,game.biome,game.seed||0,detailLevel,layers,{treeIsVisible:(x,y)=>groundIsFlat(game,x,y)});
     c.restore();
     paintCoast(c,coasts,tile,game.biome,game.seed||0,detailLevel,waterPath);
-    if(!layers.trees)return;
+    if(!layers.trees)return {waterPath,coasts};
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y);if(detailLevel==='region'||t.terrain==='water'||t.building||t.road||t.rail||airportIndex.get(y*game.width+x)||!groundIsFlat(game,x,y))continue;
       const r=rng(x*3461+y*3727);for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]])if(tile(x+dx,y+dy)?.terrain==='water'&&r()>(t.terrain==='forest'||['marsh','reeds','oasis'].includes(t.detail)?.6:.94)){for(let j=0;j<3;j++){const px=(x+.5)*TILE+dx*14+(dy?r()*12-6:0),py=(y+.5)*TILE+dy*14+(dx?r()*12-6:0);line(c,[[px,py],[px-1,py-3-r()*2]],'#71886b',1);}}
     }
+    return {waterPath,coasts};
   }
   const buried=t=>Boolean(t&&(isEngineeredTunnel(t)||t.tunnel||(t.terrain==='mountain'&&!t.bridge)));
   function portalArms(x,y,t,mode){
@@ -731,7 +734,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     // by all chunks, avoiding a second large bitmap per visible Retina tile.
     if(terrainSourceCanvas.width!==entry.sourceWidth||terrainSourceCanvas.height!==entry.sourceHeight){terrainSourceCanvas.width=entry.sourceWidth;terrainSourceCanvas.height=entry.sourceHeight;}
     const c=terrainSourceCanvas.getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,entry.sourceWidth,entry.sourceHeight);c.scale(scale,scale);c.translate(-entry.x,-entry.y);c.imageSmoothingEnabled=false;
-    drawGround(c,b);
+    const {waterPath,coasts}=drawGround(c,b);
+    entry.waterMotion=prepareWaterMotion({x0:cx*CHUNK_TILES,y0:cy*CHUNK_TILES,x1:Math.min(game.width,(cx+1)*CHUNK_TILES),y1:Math.min(game.height,(cy+1)*CHUNK_TILES)},coasts,tile,game.seed||0,detailLevel,waterPath,{pixelScale:rasterScale});
+    waterMotionBuilds++;
     if(layers.buildings)paintFarmFields(c,b,(x,y)=>industryIndex.get(y*game.width+x),game.biome,game.seed||0);
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y),occupied=(layers.buildings&&siteAt(x,y))||terrainSiteAt(x,y);
@@ -752,6 +757,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     composedChunks++;return entry;
   }
   function drawWorld(x0,y0,x1,y1){
+    waterMotionChunks.length=0;
     // Keep a whole visible frame resident instead of reducing raster quality.
     // Budget grows with the viewport, bounded even on a huge map. At 4K/DPR2
     // Detail this includes its border chunks without repeatedly evicting them.
@@ -760,7 +766,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     cacheLimit=Math.min(CACHE_MAX,Math.max(CACHE_BASE,Math.ceil(frameBytes*1.1)));
     while(cacheBytes>cacheLimit&&chunks.size){const oldest=chunks.keys().next().value,item=chunks.get(oldest);cacheBytes-=item.bytes;item.mesh.width=item.mesh.height=0;chunks.delete(oldest);}
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
-    for(let cy=Math.floor(y0/CHUNK_TILES);cy<Math.ceil(y1/CHUNK_TILES);cy++)for(let cx=Math.floor(x0/CHUNK_TILES);cx<Math.ceil(x1/CHUNK_TILES);cx++){if(!visible(cx*CHUNK_TILES+CHUNK_TILES/2-.5,cy*CHUNK_TILES+CHUNK_TILES/2-.5,CHUNK_PIXELS*camera.zoom+80))continue;const entry=drawChunk(cx,cy,rasterScale);ctx.drawImage(entry.mesh,entry.meshX,entry.meshY,entry.mesh.width/rasterScale,entry.mesh.height/rasterScale);}
+    for(let cy=Math.floor(y0/CHUNK_TILES);cy<Math.ceil(y1/CHUNK_TILES);cy++)for(let cx=Math.floor(x0/CHUNK_TILES);cx<Math.ceil(x1/CHUNK_TILES);cx++){if(!visible(cx*CHUNK_TILES+CHUNK_TILES/2-.5,cy*CHUNK_TILES+CHUNK_TILES/2-.5,CHUNK_PIXELS*camera.zoom+80))continue;const entry=drawChunk(cx,cy,rasterScale);ctx.drawImage(entry.mesh,entry.meshX,entry.meshY,entry.mesh.width/rasterScale,entry.mesh.height/rasterScale);if(entry.waterMotion?.waves.length||entry.waterMotion?.shores.length)waterMotionChunks.push(entry.waterMotion);}
   }
   function bridgeApproaches(x,y,t,mode){
     if(!t[mode]||t.bridge||t.terrain==='water'||buried(t))return [];
@@ -1374,8 +1380,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(lazyChunksWaiting&&options.onInvalidate)queueMicrotask(options.onInvalidate);
     // Water keeps one horizontal plane while land rises above it.
     ctx.save();groundTransform(ctx);
-    const wet=(x,y)=>tile(x,y)?.terrain==='water'?1:0;
-    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const t=tile(x,y);if(t?.terrain!=='water'||t.road||t.rail)continue;const river=t.detail==='river';const vertical=river&&wet(x,y-1)+wet(x,y+1)>wet(x-1,y)+wet(x+1,y);drawWaterMotion(ctx,x,y,river,vertical,presentationTime(),game.biome,{profile:detailLevel,seed:game.seed||0,tile});}
+    const reducedMotion=Boolean(motionPreference?.matches);
+    waterMotionStats={chunks:waterMotionChunks.length,waveGroups:0,shoreSegments:0,strokes:0,reducedMotion};
+    for(const motion of waterMotionChunks){const counts=drawPreparedWaterMotion(ctx,motion,presentationTime(),game.biome,{reducedMotion});waterMotionStats.waveGroups+=counts.waves;waterMotionStats.shoreSegments+=counts.shores;waterMotionStats.strokes+=counts.strokes;}
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))drawShipWake(ctx,v,presentationTime()*1000,detailLevel);}
     ctx.restore();
     if(showGrid){
@@ -1719,5 +1726,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     return [...selected];
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),waterMotion:{builds:waterMotionBuilds,...waterMotionStats},terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,waitingForCamera:sceneryWaitingForCamera,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
 }
