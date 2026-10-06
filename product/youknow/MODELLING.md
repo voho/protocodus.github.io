@@ -14,10 +14,11 @@ amplifier saturation, and the width and texture of the clocked BBD chorus.
 The page's circuit disclosures connect the control, capacitor, transistor,
 noise and output models to their effects on playing and sound.
 
-The plug-in constructs its engine with
-`Source/DSP/YouKnowActiveProductFidelity.h` and its
-`ActiveProductFidelityProfile` alias for `ProductHardwareRealismProfile` to its parameter snapshots in
-`Source/PluginProcessor.cpp`. These selections matter: an optional comparison
+The plug-in selects `ActiveProductFidelityProfile` through
+`Source/DSP/YouKnowActiveProductFidelity.h`. That alias resolves to
+`ProductHardwareRealismProfile`; `Source/PluginProcessor.cpp` configures the
+engine before preparation and applies the profile to parameter snapshots.
+These selections matter: an optional comparison
 API or a raw-engine reference default does not establish product availability.
 New instances use Original timing and six voices; saved Direct sessions keep
 Direct and can use up to sixteen voices. Defaults include Character 100%, Aging 50%,
@@ -45,7 +46,7 @@ and source symbols are used rather than historical line numbers.
 | Firmware-derived envelopes, LFO, PWM and portamento | `README.md`, “Digital control system” and “Oscillator and envelope circuit completion”; `YouKnowEngine.cpp` and firmware control classes. | Digital laws are resolved for identified firmware images; physical timing against arbitrary hardware units remains unmeasured. Portamento also uses a derived loaded-pot law. |
 | Original performance timing and selectable Direct | `README.md`, “Oscillator and envelope circuit completion”; `Source/DSP/YouKnowOriginalPerformance.*`, `YouKnowFirmwareAssignerAudioBridge.*`, `Source/PluginProcessor.cpp` Performance Timing parameter; `Tests/YouKnowOriginalPerformancePluginTests.cpp`. | User-selectable A-5 assigner, module UART and B-2 execution, at nominal clocks with host timestamps declared as DIN frame starts. It uses six voices and hardware tone/velocity resolution; Original is the new-instance default; saved Direct sessions retain Direct. Switching clears notes/tails and costs more CPU. Installed clock/RX phases and whole-hardware latency are not established. |
 | Diode sub-level response and transistor noise-level onset | `README.md`, “Mixer and noise”; `Source/DSP/YouKnowSubLevel.h`, `YouKnowNoiseC41.h`, and `YouKnowNoiseCalibration.h`; product enables `enableNoiseLevelSoftJunction`. | SUB has held-out recording checks from one identified unit. Tr22 uses a named typical-part junction and nominal trimmer coordinate; the active product selects the coupled WAVE/Tr19/D6/C56 mixer using its named evidence calibration. |
-| Coupling-capacitor transients and interacting WAVE/SUB levels | `ProductHardwareRealismProfile::tryConfigureBeforePrepare` supplies `CoupledSubMixer::evidenceCalibration()`; `YouKnowEngine.cpp` and `YouKnowCoupledSubMixer.h` solve the coupled WAVE/Tr19/D6/C56 path. | The coupled path is now selected in the product. Named component/source coordinates and comparison evidence do not identify every installed impedance or switching transient. |
+| Coupling-capacitor transients and interacting WAVE/SUB levels | `ProductHardwareRealismProfile::tryConfigureBeforePrepare` supplies `CoupledSubMixer::evidenceCalibration()`; `YouKnowEngine.cpp` and `YouKnowCoupledMixer.h` solve the coupled WAVE/Tr19/D6/C56 path. | The coupled path is now selected in the product. Named component/source coordinates and comparison evidence do not identify every installed impedance or switching transient. |
 | Four nonlinear filter stages and circuit-derived resonance | `README.md`, “Filter and voice amplifier”; `YouKnowEngine.cpp`; product enables `enableResonanceSoftJunction`. | Stages, feedback, fixed service trims and current-dependent response are modeled. The Tr18 low-control junction uses nominal conditional priors; full RES retains the service endpoint. No perfect whole-unit match is claimed. |
 | Original voice-module filter tuning | `ProductHardwareRealismProfile::applyTo` selects `useOriginalCardVcfCalibration` and `useBa662AResonanceOffsetEstimate`. | Nominal original-module and BA662A offset coordinates are explicit schematic/component estimates. The serviced #439522 replacement-card fit remains a diagnostic/reference profile, rather than the active product selection. |
 | BA662 saturation, Tr20 current control, service gain and temperature response | `YouKnowVcaControl.h`, `YouKnowEngine.cpp`, `YouKnowVoiceVcaAntialias.h`; the active profile enables evidence VCA calibration and junction temperature. | Named Tr20 estimates alter envelope tails and C58 loading. The transistor temperature coefficient and installed transfer limits are conditional estimates; local antialiasing is numerical processing. |

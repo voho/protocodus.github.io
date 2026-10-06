@@ -37,8 +37,8 @@
       },
       "distribution_version": "1.2.0-build.20261006",
       "archive": "YouKnow-1.2.0-73a8e620-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "b51a9a085bdee8d0639a61ded739f18131e39236ec7ae36ded0e139b38146c85",
-      "archive_bytes": 13733764,
+      "archive_sha256": "0a74462bad3d1ef920ce5e14e681ce7a7e29a3936c609bb5accfdf21a17bcedf",
+      "archive_bytes": 13733840,
       "checks": {
         "build": "passed",
         "dynamic_vst3_midi_state": "passed",
@@ -80,8 +80,8 @@
         "VST3/Acustra.vst3/Contents/x86_64-linux/Acustra.so": "e8da97263da1a127ee0ee11747ca11ca14e9e678069fb383406c7ea3349daff8"
       },
       "archive": "Acustra-1.0.0-c321d7d7-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "b005875039e537bb74efb8b4c12229d4c10a284385cd127eb978da8ca7e6755c",
-      "archive_bytes": 9976528,
+      "archive_sha256": "aa881973d4f10bd4c94b40a4ff851314c9335ac0df5bcc5d3af7dabf5cb94fdb",
+      "archive_bytes": 9976598,
       "checks": {
         "build": "passed",
         "dynamic_vst3_midi_state": "passed",
@@ -124,8 +124,8 @@
         "VST3/Electry.vst3/Contents/x86_64-linux/Electry.so": "cb303e9b8d99d48d7ef83249f78a31759834ff418bf8dffc59aafb8a83e1001b"
       },
       "archive": "Electry-1.2.0-6dacb95e-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "efa3418d5e84c9c305fc4bba88b4f7752ed908ab5d44c3d85965d86b6df825fc",
-      "archive_bytes": 7402315,
+      "archive_sha256": "81a15af8fee9b765d532d2ff7cf2471434c6e6e9591a792d31eaf4520b5724e0",
+      "archive_bytes": 7402378,
       "checks": {
         "build": "passed",
         "dynamic_vst3_midi_state": "passed",
@@ -167,8 +167,8 @@
         "VST3/Septum.vst3/Contents/x86_64-linux/Septum.so": "e77ea7c67752e7d119db4df49bcf97a514360a9a3865c83f504e40a0bca0c5f3"
       },
       "archive": "Septum-0.9.0-39b24e5a-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "9b0225b433b6488cbffe876c8d18b98ae1907508203832504fd0c8f918678d1d",
-      "archive_bytes": 5418921,
+      "archive_sha256": "c172add6b515e467961e88aa8baee267654b55311cd7983e67224f70d2a37fa1",
+      "archive_bytes": 5419010,
       "checks": {
         "build": "passed",
         "dynamic_vst3_midi_state": "passed",
@@ -211,8 +211,8 @@
         "VST3/Taikor.vst3/Contents/x86_64-linux/Taikor.so": "3e58a956c92a73b4093f87119b471e039e6e856d10bf9d8cb2cb83c06185981f"
       },
       "archive": "Taikor-1.0.0-d25128ef-20261006-Linux-x64.tar.gz",
-      "archive_sha256": "80d39ce425c2c489b1754e9bd6e50043fc615f90f2b878539628f9be74457e83",
-      "archive_bytes": 26118021,
+      "archive_sha256": "d596609da28879dc0d44a162eb2ba6c0c211bc61438ba84d7b63fd979858b3c4",
+      "archive_bytes": 26118002,
       "checks": {
         "build": "passed",
         "dynamic_vst3_midi_state": "passed",
