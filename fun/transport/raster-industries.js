@@ -1,8 +1,9 @@
 import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
 
 // Each biome has its own complete set of eligible industries. A site is drawn
-// as a square inside the caller's +8px sprite envelope; the world renderer can
-// use 96px for new 3×3 sites and explicit sizes for compact saved industries.
+// as a square inside the caller's +8px sprite envelope. Processors and compact
+// saved industries use 96px for 3×3 sites, or 64px/32px for older smaller sites;
+// large farms use the separate 2×2 building-core atlases below.
 export const FOOD_INDUSTRY_KINDS = Object.freeze(['dairy-farm', 'vegetable-farm', 'orchard', 'livestock-farm', 'dairy-plant', 'cannery', 'meat-packer']);
 const sheets = [
   { family: 'taiga', biome: 'taiga', columns: 3, rows: 3, kinds: ['logging-camp', 'sawmill', 'coal-mine', 'iron-mine', 'steel-mill', 'farm', 'food-plant', 'furniture-factory', 'machine-works'] },

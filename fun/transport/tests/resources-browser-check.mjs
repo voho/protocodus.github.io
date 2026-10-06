@@ -247,12 +247,14 @@ try {
   }
   await page.evaluate(() => transport.renderer.setZoom(1));
   await inspectAt(quarry.stop);
-  assert.equal(await page.locator('#inspector [data-service-route]').count(), 1, 'the stop inspector lists its service');
-  const service = await page.locator('#inspector [data-service-route]').innerText();
-  assert.ok(service.startsWith(stone.name) && service.includes('1 truck · '), service);
+  // Each service is a row reference to its route.
+  const service = page.locator('#inspector .station-services [data-ref^="route:"]');
+  assert.equal(await service.count(), 1, 'the stop inspector lists its service');
+  assert.equal(await service.locator('.ref-label').textContent(), stone.name);
+  assert.match(await service.locator('.service-detail').textContent(), /^1 truck · /);
   assert.match(await page.locator('#inspector .coverage-names').textContent(), /^Covers .*Stone quarry/);
   await page.locator('#inspector').screenshot({ path: `${output}/desktop-stop-services.png` });
-  await page.locator('#inspector [data-service-route]').click();
+  await service.click();
   await page.waitForFunction(id => transport.renderer.getStats().highlightRoute === id, stone.id);
   await inspectAt(quarry.site, 'industry');
   assert.equal(await page.locator('#inspector .service-summary').textContent(), `Served by ${quarry.stop.name} · 1 route`);
@@ -271,7 +273,7 @@ try {
   await page.locator('#inspector').screenshot({ path: `${output}/desktop-road-use.png` });
   await closeDrawer();
   const far = await page.evaluate(() => { const g = transport.game, site = g.industries.find(industry => !g.stations.some(stop => Math.hypot(stop.x - industry.x, stop.y - industry.y) < 12)); transport.renderer.focus(site.x, site.y); transport.inspect(site.x, site.y, 'industry'); return site.name; });
-  assert.equal(await page.locator('#inspector .service-summary').textContent(), 'No stop within 5 tiles yet.', `${far} has no stop in reach`);
+  assert.equal(await page.locator('#inspector [data-place-stop]').getAttribute('title'), 'No stop within 5 tiles yet', `${far} has no stop in reach`);
   await page.locator('#inspector button', { hasText: 'Place a stop nearby' }).click();
   assert.equal(await page.locator('.tool-card[data-tool="stop"]').getAttribute('aria-pressed'), 'true', 'Place a stop nearby picks the Stop tool');
   await page.keyboard.press('Escape');

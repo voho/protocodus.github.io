@@ -61,10 +61,10 @@ test('one bulldozed tile shared by three routes yields three topical notices and
 
 test('a demolished buyer shared by two routes yields one grouped supply warning', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
-  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
-  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
+  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   for (const name of ['Timber one', 'Timber two']) assert.equal(addRoute(game, { name, mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'timber' }).ok, true);
   const last = game.notifications[0]?.id;
   assert.equal(build(game, 'bulldoze', 30, 10).ok, true);

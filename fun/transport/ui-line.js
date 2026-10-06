@@ -5,12 +5,11 @@ import { lineFor, validRouteNumber, routeLabel } from './route-lines.js';
 import { isTownTraffic } from './data.js';
 import { icon } from './ui-icons.js';
 import { cargoIcon } from './cargo-icons.js';
-import { cargoAmount, number, vehicleNoun } from './copy.js';
+import { cargoAmount, escapeHTML as escape, number, vehicleNoun } from './copy.js';
 import { reducedMotion } from './ui-motion.js';
 
 export const STRIP_CAPSULES = 8;
 const MODES = new Set(['road', 'rail', 'water', 'air']), CUT = .06;
-const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const modeOf = route => MODES.has(route?.mode) ? route.mode : 'road';
 const colours = route => { const n = lineFor(route).index; return `--c:var(--line-${n});--on:var(--line-${n}-on)`; };
 const pct = share => +(Math.max(0, Math.min(1, share)) * 100).toFixed(2), rest = share => +(100 - pct(share)).toFixed(2);

@@ -5,6 +5,7 @@ import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding, hasRasterBuilding, buildingArtworkDesign } from './raster-buildings.js';
 import { drawRasterNature, drawRasterNatureObject, natureObjectLayout } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
+import { drawTownFeature } from './town-feature-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
 import { drawTerrainDetail } from './terrain-sprites.js';
 import { drawForest, drawTree } from './tree-sprites.js';
@@ -151,7 +152,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
         ctx.restore();
       }
     }
-    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign}))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
+    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign})&&!drawTownFeature(ctx,kind,biome,profile))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
     else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       let cityArt=false;

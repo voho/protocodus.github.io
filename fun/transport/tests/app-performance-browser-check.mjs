@@ -80,7 +80,7 @@ try{
  assert.equal(await page.locator('#route-list [data-route-id]').count(),50);
  assert.equal(await page.locator('#route-list [data-route-id]').first().getAttribute('data-route-id'),'perf-0');
  // Pure tool selections retain Build drawer cards and artwork on a vast world.
- await createWorldFromMenu(page,{size:'square2048'});
+ await createWorldFromMenu(page,{size:'square2048',generationVersion:9});
  result.vastTools=await page.evaluate(()=>{
   transport.setView('build');const times=[];
   for(let n=0;n<9;n++)for(const tool of ['road','stop','inspect']){const start=performance.now();transport.setTool(tool);times.push(performance.now()-start);}

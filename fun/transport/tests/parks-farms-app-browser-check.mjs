@@ -141,10 +141,16 @@ async function place(page, site, mobile, preview = false) {
   return { before, after, coverage };
 }
 async function catalog(page, profile) {
+  const expected = await page.evaluate(async () => {
+    const { BUILDINGS } = await import('./buildings.js');
+    const groups = {};
+    for (const definition of Object.values(BUILDINGS)) groups[definition.group] = (groups[definition.group] || 0) + 1;
+    return { total: Object.keys(BUILDINGS).length, groups };
+  });
   const counts = {};
   for (const group of ['homes', 'community', 'shops', 'services']) {
     await drawer(page); await page.locator('[data-category="towns"]').click(); await page.locator('#building-group').selectOption(group);
-    assert.match(await page.locator('.panel-heading').filter({ has: page.locator('h2', { hasText: /^Buildings$/ }) }).innerText(), /32 types/);
+    assert.match(await page.locator('.panel-heading').filter({ has: page.locator('h2', { hasText: /^Buildings$/ }) }).innerText(), new RegExp(`${expected.total} types`));
     counts[group] = await page.locator('.building-card').count();
     const kinds = group === 'community' ? parks : group === 'shops' ? malls : [];
     for (const kind of kinds) {
@@ -157,7 +163,7 @@ async function catalog(page, profile) {
     }
     if (kinds.length) await page.screenshot({ path: `${output}/${profile}-${group}-catalog.png` });
   }
-  assert.deepEqual(counts, { homes: 9, community: 10, shops: 8, services: 5 });
+  assert.deepEqual(counts, expected.groups, 'the catalog exposes every building in its group');
   await drawer(page); await page.locator('[data-category="industry"]').click();
   for (const kind of farms) assert.match(await page.locator(`.industry-tool[data-tool="${kind}"] .tool-cost`).innerText(), /7 × 7/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'catalog stays within the viewport');
@@ -165,7 +171,32 @@ async function catalog(page, profile) {
 }
 async function inspectSite(page, site, mobile) {
   await page.locator('#cancel-tool-button').click();
-  await clickWorld(page, { x: site.x + site.span - 1, y: site.y + site.span - 1 }, mobile);
+  const corner = { x: site.x + site.span - 1, y: site.y + site.span - 1 };
+  const p = await screen(page, corner, { zoom: mobile ? .5 : 1 });
+  // A paused app redraws changed cameras on its next poll. Inspect the drawn
+  // site's pick targets, including touch slop, before sending the real gesture.
+  await page.waitForTimeout(300);
+  const target = await page.evaluate(({ site, mobile, p, field }) => {
+    const r = transport.renderer, rect = document.querySelector('#world').getBoundingClientRect();
+    const hit = point => {
+      if (document.elementFromPoint(point.x, point.y)?.id !== 'world' || r.vehicleAt(point.x, point.y, { slop: mobile ? 12 : 0 })) return false;
+      const tile = r.screenToInspectTile(point.x, point.y, { slop: mobile ? 12 : 0 });
+      return tile.x === site.x && tile.y === site.y;
+    };
+    if (hit(p)) return p;
+    if (field) return null; // Every farm still has to inspect from its far field corner.
+    // Small raised plots can overlap a street vehicle in projection. Tap a
+    // visible part of their artwork rather than the vehicle's valid hit target.
+    const center = r.worldToScreen(site.x + (site.span - 1) / 2, site.y + (site.span - 1) / 2), z = r.getCamera().zoom;
+    for (let y = center.y - (36 * site.span + 12) * z; y <= center.y + 12 * site.span * z; y += 3)
+      for (let x = center.x - 24 * site.span * z; x <= center.x + 24 * site.span * z; x += 3) {
+        const point = { x: x + rect.left, y: y + rect.top };
+        if (hit(point)) return point;
+      }
+    return null;
+  }, { site, mobile, p, field: farms.includes(site.kind) });
+  assert.ok(target, `${site.name} has an unobscured map inspection target`);
+  if (mobile) await page.touchscreen.tap(target.x, target.y); else await page.mouse.click(target.x, target.y);
   await page.locator('#inspector h3').waitFor();
   assert.match(await page.locator('#inspector .eyebrow').innerText(), new RegExp(`${site.span} × ${site.span}`));
   if (parks.includes(site.kind)) {
@@ -221,7 +252,7 @@ try {
     const mobile = profile.name === 'mobile', page = await browser.newPage({ viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: profile.dpr, hasTouch: mobile, isMobile: mobile });
     page.on('pageerror', error => errors.push(error.message));
     try {
-      await page.goto(url); await createWorldFromMenu(page, { seed: 1847 });
+      await page.goto(url); await createWorldFromMenu(page, { seed: 1847, generationVersion: 9 });
       assert.equal(await page.evaluate(() => transport.game.generationVersion), 9);
       const counts = await catalog(page, profile.name), sites = [];
       for (const kind of mobile ? [parks[0], malls[0]] : [...parks, ...malls]) {

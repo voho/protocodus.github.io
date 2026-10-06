@@ -14,10 +14,10 @@ const content = game => { const { tiles, maintenanceRevision, ...state } = game;
 // A logging camp 20 road tiles from a sawmill with an empty timber store, and a stop beside each.
 function timberFixture({ fullLoad, trucks = 1 } = {}) {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
-  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
-  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
+  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   const camp = game.industries[0]; camp.inventory.timber = 0;
   const launched = addRoute(game, { mode: 'road', cargo: 'timber', stops: game.stations.map(stop => stop.id), ...fullLoad === undefined ? {} : { fullLoad } });
   assert.equal(launched.ok, true, launched.message);
@@ -68,8 +68,8 @@ test('a truck waits a month at most, and a sawmill short of timber still reads N
   const game = emptyGame();
   assert.equal(build(game, 'sawmill', 10, 9).ok, true);
   assert.equal(build(game, 'furniture-factory', 30, 8).ok, true);
-  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
-  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
+  for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   const sawmill = game.industries[0]; sawmill.inventory.lumber = 5; sawmill.inventory.timber = 0;
   const launched = addRoute(game, { mode: 'road', cargo: 'lumber', stops: game.stations.map(stop => stop.id), fullLoad: true }), route = launched.route, truck = game.vehicles[0];
   assert.equal(launched.ok, true, launched.message); assert.equal(game.day, 0);

@@ -12,11 +12,11 @@ function water(game, points) {
 
 function freightFixture() {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
-  water(game, line(10, 30, 12));
-  assert.equal(build(game, 'port', 10, 12).ok, true);
-  assert.equal(build(game, 'port', 30, 12).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  water(game, line(10, 30, 13));
+  assert.equal(build(game, 'port', 10, 13).ok, true);
+  assert.equal(build(game, 'port', 30, 13).ok, true);
   game.industries[0].inventory.timber = 300;
   const draft = { name: 'River timber', mode: 'water', cargo: 'timber', from: game.stations[0].id, to: game.stations[1].id };
   return { game, draft, stops: [draft.from, draft.to] };
@@ -64,14 +64,14 @@ test('ports occupy coastal water, reject deep water and infrastructure, and char
 
 test('ships follow connected cardinal water, pass bridges, and cannot cross land or diagonal gaps', () => {
   const { game, draft } = freightFixture();
-  assert.equal(build(game, 'bridge', 20, 12).ok, true);
-  assert.equal(build(game, 'railbridge', 21, 12).ok, true);
+  assert.equal(build(game, 'bridge', 20, 13).ok, true);
+  assert.equal(build(game, 'railbridge', 21, 13).ok, true);
   const path = findPath(game, game.stations[0], game.stations[1], 'water');
   assert.equal(path.length, 21);
   assert.ok(path.every(point => tileAt(game, point.x, point.y).terrain === 'water'));
   assert.ok(path.some(point => point.x === 20) && path.some(point => point.x === 21));
   assert.equal(validateRoutePlan(game, draft).valid, true);
-  tileAt(game, 23, 12).terrain = 'grass'; game.revision++; game.networkRevision++;
+  tileAt(game, 23, 13).terrain = 'grass'; game.revision++; game.networkRevision++;
   assert.equal(findPath(game, game.stations[0], game.stations[1], 'water'), null);
   const disconnected = validateRoutePlan(game, draft);
   assert.equal(disconnected.valid, false); assert.match(disconnected.message, /same river, lake or sea/);
@@ -90,7 +90,7 @@ test('freight ships load 140 units, deliver to factories, pay upkeep, and sell f
   assert.equal(game.vehicles[0].capacity, 140); assert.equal(game.vehicles[0].load, 140);
   assert.equal(game.industries[0].inventory.timber, 160);
   assert.deepEqual(stationCoverage(game, game.stations[0]).produces, ['timber']);
-  assert.equal(build(game, 'bulldoze', 10, 12).ok, false, 'retire a service before removing its port');
+  assert.equal(build(game, 'bulldoze', 10, 13).ok, false, 'retire a service before removing its port');
   const expenses = game.totalExpenses;
   tick(game, 60);
   assert.ok(game.totalExpenses > expenses + 3000, 'ships and ports have ongoing operating costs');
@@ -99,9 +99,9 @@ test('freight ships load 140 units, deliver to factories, pay upkeep, and sell f
   assert.equal(validateGame(game), true);
   const retired = removeRoute(game, launched.route.id);
   assert.equal(retired.ok, true); assert.equal(retired.refund, 28800); assert.equal(game.vehicles.length, 0);
-  assert.equal(build(game, 'bulldoze', 10, 12).ok, true);
-  assert.equal(tileAt(game, 10, 12).terrain, 'water', 'removing a port does not remove the river');
-  assert.equal(tileAt(game, 10, 12).detail, 'river', 'river identity survives demolition');
+  assert.equal(build(game, 'bulldoze', 10, 13).ok, true);
+  assert.equal(tileAt(game, 10, 13).terrain, 'water', 'removing a port does not remove the river');
+  assert.equal(tileAt(game, 10, 13).detail, 'river', 'river identity survives demolition');
 });
 
 test('ships can carry passengers between towns and reject mismatched station types and insufficient funds', () => {
@@ -129,12 +129,12 @@ test('ship routes stop at a severed waterway and resume when the connection retu
   const { game, draft, stops } = freightFixture();
   const { route } = addRoute(game, { ...draft, stops });
   tick(game, 1);
-  tileAt(game, 20, 12).terrain = 'grass'; game.revision++; game.networkRevision++;
+  tileAt(game, 20, 13).terrain = 'grass'; game.revision++; game.networkRevision++;
   const progress = game.vehicles[0].progress;
   tick(game, 2);
   assert.equal(route.active, false); assert.equal(route.status, 'Disconnected');
   assert.equal(game.vehicles[0].progress, progress);
-  water(game, [{ x: 20, y: 12 }]); tick(game, .5);
+  water(game, [{ x: 20, y: 13 }]); tick(game, .5);
   assert.equal(route.active, true); assert.ok(game.vehicles[0].progress > progress);
 });
 
@@ -142,7 +142,7 @@ test('channel width and port traffic influence shipping speed deterministically'
   const { game, draft, stops } = freightFixture();
   assert.equal(addRoute(game, { ...draft, stops }).ok, true);
   const wide = structuredClone(game), crowded = structuredClone(game);
-  water(wide, [...line(10, 30, 11), ...line(10, 30, 13)]);
+  water(wide, [...line(10, 30, 14), ...line(10, 30, 15)]);
   assert.equal(addRoute(crowded, { ...draft, name: 'Second freighter', stops }).ok, true);
   tick(game, 1); tick(wide, 1); tick(crowded, 1);
   assert.ok(wide.vehicles[0].progress > game.vehicles[0].progress, 'open water is faster than narrow river channels');

@@ -1,4 +1,5 @@
 import { CARGO } from './data.js';
+import { escapeHTML as escape } from './copy.js';
 
 // A shared, outlined pictogram vocabulary. Shapes stay distinct without colour
 // and the roomy 32px grid keeps the same marks readable in small recipe rows.
@@ -31,7 +32,6 @@ const ART = {
   property: `<path d="M3.5 15 15 5l11.5 10Z" fill="#c9795a"/><path d="M6 15h18v12H6Z" fill="#ecd8a8"/><path d="M10.5 27v-6h5v6" fill="#9d7650"/><circle cx="23.5" cy="23" r="6" fill="#e3b957"/><circle cx="23.5" cy="23" r="3.2" fill="none" stroke="#a88230"/>`,
 };
 
-const escape = value => String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 const cargoName = kind => Object.hasOwn(CARGO, kind) ? CARGO[kind].name : kind === 'property' ? 'Rent' : 'Cargo';
 const countText = value => typeof value === 'number' && Number.isFinite(value) ? new Intl.NumberFormat('en', { maximumFractionDigits: 1 }).format(value) : String(value);
 

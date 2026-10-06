@@ -305,7 +305,7 @@ Toasts sit below menus and dialogs. (Today `.toast-region` sits above the game m
   - **Network** glyphs (routes, stops, vehicles, UI) use 0°, 45° and 90° strokes, with circles for stops, like a route map.
   - **Land** glyphs (road, rail, layers, raise, lower, level, zones, build) use the map's 2:1 isometric diagonal.
 - **Sizes.** 16 (inline, buttons, rows), 20 (nav, rails, tools) and 24 (phone tab bar).
-- **Labels.** An icon sits next to a visible label. Rails and icon buttons are the exception: they have an `aria-label` and a tooltip instead.
+- **Labels.** Text only where an icon alone would not be clear. An icon that says it all stands alone, with its name in an `aria-label` and a tooltip: rails, icon buttons, the cargo picker's tiles, cargo badges in panels, route-card and vehicle-card actions, local conditions. Names, figures, prices, primary and destructive actions keep visible words.
 - **One glyph, one meaning.** Never reuse a glyph for two ideas. Guide topics each get their own glyph, or none.
 
 ### 5.2 Vocabulary

@@ -43,6 +43,8 @@ for (const biome of ['taiga', 'tundra', 'desert']) {
       if (t.building.footprint > 1) larger++;
       reserve(buildingTiles({ x: index % current.width, y: Math.floor(index / current.width), building: t.building }), t.building.kind);
     }
+    // Recipe 5 predates 3 × 3 industries: producers and the lighter works took 2 × 2.
+    const large = ['steel-mill', 'food-plant', 'furniture-factory', 'machine-works', 'refinery', 'cement-works', 'goods-factory', 'equipment-factory'];
     for (const site of current.industries) {
       assert.equal(site.footprint, legacyIndustryFootprint(site.kind));
       reserve(industryTiles(site), site.kind);

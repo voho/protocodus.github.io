@@ -8,12 +8,12 @@ import { addRouteVehicle } from '../model.js';
 
 function freightFixture(mode = 'road') {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
-  assert.equal(build(game, 'sawmill', 30, 9).ok, true);
-  assert.equal(buildPath(game, mode, line(10, 30, 12)).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);
+  assert.equal(build(game, 'sawmill', 30, 10).ok, true);
+  assert.equal(buildPath(game, mode, line(10, 30, 13)).ok, true);
   const stop = mode === 'road' ? 'bus-stop' : 'train-stop';
-  assert.equal(build(game, stop, 10, 12).ok, true);
-  assert.equal(build(game, stop, 30, 12).ok, true);
+  assert.equal(build(game, stop, 10, 13).ok, true);
+  assert.equal(build(game, stop, 30, 13).ok, true);
   const source = game.industries.find(industry => industry.kind === 'logging-camp');
   const destination = game.industries.find(industry => industry.kind === 'sawmill');
   source.inventory.timber = 200;
@@ -59,10 +59,10 @@ test('industries grow only while their output is carried away', () => {
   const capacityAfterTwoYears = trucks => {
     const game = emptyGame();
     game.cities = [{ id: 'town', name: 'Town', x: 35, y: 41, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
-    assert.equal(build(game, 'quarry', 9, 40).ok, true);
-    assert.equal(buildPath(game, 'road', line(12, 32, 41)).ok, true);
-    assert.equal(build(game, 'bus-stop', 12, 41).ok, true);
-    assert.equal(build(game, 'bus-stop', 32, 41).ok, true);
+    assert.equal(build(game, 'quarry', 10, 40).ok, true);
+    assert.equal(buildPath(game, 'road', line(13, 33, 41)).ok, true);
+    assert.equal(build(game, 'bus-stop', 13, 41).ok, true);
+    assert.equal(build(game, 'bus-stop', 33, 41).ok, true);
     const stops = game.stations.map(station => station.id);
     for (let n = 0; n < trucks; n++) assert.equal(addRoute(game, { name: `Stone ${n + 1}`, mode: 'road', stops, cargo: 'stone' }).ok, true);
     advance(game, 730, tick);
@@ -90,7 +90,7 @@ test('route validation blocks bad cargo, missing stops, mode mismatches and disc
     assert.equal(game.routes.length, 0);
     assert.equal(game.vehicles.length, 0);
   }
-  assert.equal(build(game, 'bulldoze', 20, 12).ok, true);
+  assert.equal(build(game, 'bulldoze', 20, 13).ok, true);
   const afterDemolition = game.money;
   assert.equal(addRoute(game, { name: 'Broken line', mode: 'road', stops, cargo: 'timber' }).ok, false);
   assert.equal(game.money, afterDemolition);
@@ -100,14 +100,14 @@ test('an in-service line stops at a network break and resumes after repair', () 
   const { game, stops } = freightFixture();
   assert.equal(addRoute(game, { name: 'Timber service', mode: 'road', stops, cargo: 'timber' }).ok, true);
   tick(game, 1);
-  assert.equal(build(game, 'bulldoze', 20, 12).ok, true);
+  assert.equal(build(game, 'bulldoze', 20, 13).ok, true);
   const position = { x: game.vehicles[0].x, y: game.vehicles[0].y };
   const revenue = game.totalRevenue;
   advance(game, 30, tick);
   assert.equal(game.routes[0].active, false);
   assert.equal(game.totalRevenue, revenue, 'a disconnected line cannot manufacture income');
   assert.deepEqual({ x: game.vehicles[0].x, y: game.vehicles[0].y }, position);
-  assert.equal(build(game, 'road', 20, 12).ok, true);
+  assert.equal(build(game, 'road', 20, 13).ok, true);
   advance(game, 30, tick);
   assert.equal(game.routes[0].active, true);
   assert.ok(game.totalRevenue > revenue, 'repair restores actual cargo delivery');
@@ -131,7 +131,9 @@ test('bulldozing an unrelated or duplicated industry leaves route warnings quiet
   const { game, stops } = freightFixture();
   assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true);
   assert.equal(build(game, 'quarry', 50, 40).ok, true);
-  assert.equal(build(game, 'logging-camp', 6, 13).ok, true);
+  // Only worlds from before the industry spacing can cover one stop with two camps.
+  assert.equal(build(game, 'logging-camp', 6, 40).ok, true);
+  Object.assign(game.industries.at(-1), { y: 13 }); game.revision++;
   const notices = game.notifications.slice();
   assert.equal(build(game, 'bulldoze', 50, 40).ok, true);
   assert.deepEqual(game.notifications, notices, 'a site no route uses is cleared silently');
@@ -163,9 +165,9 @@ test('a full buyer still takes and pays for every load once, storing only what f
 
 test('a factory short of an input still takes every delivery, so a simple route keeps earning', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'coal-mine', 10, 9).ok, true); assert.equal(build(game, 'steel-mill', 30, 9).ok, true);
-  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
-  assert.equal(build(game, 'bus-stop', 10, 12).ok, true); assert.equal(build(game, 'bus-stop', 30, 12).ok, true);
+  assert.equal(build(game, 'coal-mine', 10, 10).ok, true); assert.equal(build(game, 'steel-mill', 30, 9).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
+  assert.equal(build(game, 'bus-stop', 10, 13).ok, true); assert.equal(build(game, 'bus-stop', 30, 13).ok, true);
   const route = addRoute(game, { name: 'Coal run', mode: 'road', stops: game.stations.map(station => station.id), cargo: 'coal' }).route;
   for (let n = 1; n < 3; n++) assert.equal(addRouteVehicle(game, route.id).ok, true);
   const mill = game.industries.find(industry => industry.kind === 'steel-mill');
@@ -272,9 +274,9 @@ test('starting funds offer three tiers, and a lean company can still launch its 
   assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
   assert.equal(build(game, 'sawmill', 34, 9).ok, true);
   game.money = 100000;
-  assert.equal(buildPath(game, 'road', line(10, 34, 12)).ok, true);
-  assert.equal(build(game, 'bus-stop', 10, 12).ok, true);
-  assert.equal(build(game, 'bus-stop', 34, 12).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 34, 13)).ok, true);
+  assert.equal(build(game, 'bus-stop', 10, 13).ok, true);
+  assert.equal(build(game, 'bus-stop', 34, 13).ok, true);
   const launched = addRoute(game, { name: 'First timber', mode: 'road', stops: game.stations.map(station => station.id), cargo: 'timber' });
   assert.equal(launched.ok, true, launched.message);
   assert.ok(game.money > 50000, 'a 25-tile first route leaves more than half of a lean start');

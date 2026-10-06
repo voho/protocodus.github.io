@@ -2,11 +2,10 @@ import { ACHIEVEMENT_GROUPS, ACHIEVEMENT_FAMILIES, ACHIEVEMENTS, TIER_NAMES, CAR
 import { calendarYear, inflationInfo } from './economy-pricing.js';
 import { icon } from './ui-icons.js';
 import { cargoIcon } from './cargo-icons.js';
-import { money, number, count, dateLong, dateShort, cargoName, capital } from './copy.js';
+import { money, number, count, dateLong, dateShort, cargoName, capital, escapeHTML as escape } from './copy.js';
 
 // The Achievements dialog as HTML strings (DOM-free): a medal strip, the next record, its measure and the last one
 // earned, per family. It only reads: nothing here stamps a record. Tier colours live in dialogs.css and notices.css.
-const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const compact = n => money(n, { compact: true });
 const share = (value, target) => target > 0 ? Math.max(0, Math.min(100, Math.floor(100 * value / target))) : 0;

@@ -17,6 +17,19 @@ export function industryTiles(industry){
 }
 export const industryDistance = (industry,point) => Math.hypot(Math.max(industry.x-point.x,0,point.x-industry.x-industrySize(industry)+1),Math.max(industry.y-point.y,0,point.y-industry.y-industrySize(industry)+1));
 
+// Two industries of one kind, or a supplier and its customer, stand at least this far apart, centre to centre:
+// rivals never share a deposit, and no chain is handed over at the fence without a route.
+export const INDUSTRY_SPACING = 16;
+const feeds = (from,to) => Object.keys(INDUSTRIES[from].outputs).some(cargo => INDUSTRIES[to].inputs[cargo]);
+export const relatedIndustries = (a,b) => a===b||feeds(a,b)||feeds(b,a);
+/** Why a related industry is too close to this site, or null. `others` lets a plan count the sites it places first. */
+export function industrySpacingProblem(game,kind,x,y,size=industryFootprint(kind),others=game.industries){
+  const cx=x+(size-1)/2,cy=y+(size-1)/2;
+  const near=others.find(other=>relatedIndustries(kind,other.kind)&&Math.hypot(other.x+(industrySize(other)-1)/2-cx,other.y+(industrySize(other)-1)/2-cy)<INDUSTRY_SPACING);
+  if(!near)return null;
+  return near.kind===kind?`Another ${INDUSTRIES[kind].name.toLowerCase()} stands within ${INDUSTRY_SPACING} tiles.`:`Too close to the ${near.name}: a supplier and its customer stand ${INDUSTRY_SPACING} tiles apart.`;
+}
+
 export function industrySiteProblem(game,kind,x,y,size=industryFootprint(kind),exclude=null){
   const def=INDUSTRIES[kind];if(!def)return 'Unknown industry.';
   if(!def.biomes.includes(game.biome))return 'This industry is unavailable in this environment.';

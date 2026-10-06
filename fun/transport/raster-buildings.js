@@ -11,12 +11,19 @@ const families = Object.freeze({
     'shop-butcher', 'shop-hardware', 'shop-florist', 'service-post-office',
     'service-bank', 'service-hotel', 'service-garage', 'service-barber', 'factory',
   ]),
+  // Simple placeholder images in a 4 × 3 sheet, rendered by tools/render-town-features.mjs until painted art replaces them.
+  'buildings-town-features': Object.freeze([
+    'park', 'playground', 'swimming-pool', 'sports-field', 'tennis-courts', 'ballpark',
+    'sports-hall', 'town-hall', 'shop-cafe', 'shop-pharmacy', 'shop-bookshop', null,
+  ]),
 });
+const FOLDERS = { 'buildings-commerce': 'buildings-commerce-camera-v2' };
+export const RASTER_BUILDING_FAMILIES = families;
 export const SHOP_ART_KINDS = Object.freeze(['shop-grocery', 'shop-bakery', 'shop-butcher', 'shop-hardware', 'shop-florist']);
 export const PARK_MALL_ART_KINDS = Object.freeze(['park-village', 'park-formal', 'park-woodland', 'mall-neighborhood', 'mall-shopping', 'mall-modern']);
 export const RASTER_BUILDING_KINDS = Object.freeze([...Object.values(families).flat().filter(Boolean), ...PARK_MALL_ART_KINDS]);
 export const BUILDING_ART_DESIGNS = Object.freeze([0, 1, 2]);
-const knownKinds = new Set([...RASTER_BUILDING_KINDS, ...PARK_MALL_ART_KINDS]);
+const knownKinds = new Set(RASTER_BUILDING_KINDS);
 const biomes = Object.freeze(['taiga', 'tundra', 'desert']);
 const entryId = (kind, biome, design = 0) => `civic:${kind}:${biome}${design ? `:design-${design}` : ''}`;
 const varietyFamilies = Object.freeze({
@@ -34,8 +41,8 @@ for (const biome of biomes) {
     registerAtlas({
       id: `${family}:${biome}`,
       biome,
-      path: `./assets/world/${family === 'buildings-commerce' ? 'buildings-commerce-camera-v2' : family}/${biome}/atlas`,
-      columns: 3, rows: 3, maxCell: 256,
+      path: `./assets/world/${FOLDERS[family] || family}/${biome}/atlas`,
+      columns: kinds.length / 3, rows: 3, maxCell: 256,
       entries: kinds.map(kind => kind ? entryId(kind, biome) : null),
     });
   }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { addRoute, build, buildPath, tick, validateGame, createGame, restoreGame, openIndustry, STATION_RADIUS } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { planIndustryOpening, openingCeiling, openedCount, hasCarriedFreight, OPENINGS } from '../industry-openings.js';
-import { industrySiteProblem, industryDistance, industrySize } from '../industry-sites.js';
+import { industrySiteProblem, industrySpacingProblem, industryDistance, industrySize } from '../industry-sites.js';
 import { buildingAt } from '../building-sites.js';
 import { groupNotices } from '../ui-notices.js';
 import { calendarMonth } from '../economy-pricing.js';
@@ -33,7 +33,7 @@ function freightRegion(size = 'regional') {
 }
 const gapTo = (site, x0, y0, x1 = x0, y1 = y0) => { const size = industrySize(site); return Math.max(x0 - (site.x + size - 1), site.x - x1, y0 - (site.y + size - 1), site.y - y1); };
 function assertRules(game, site) {
-  const size = industrySize(site), center = { x: site.x + (size - 1) / 2, y: site.y + (size - 1) / 2 };
+  const size = industrySize(site);
   assert.equal(industrySiteProblem(game, site.kind, site.x, site.y, size, site), null);
   for (const stop of game.stations) assert.ok(industryDistance(site, stop) > STATION_RADIUS, 'outside every existing catchment');
   for (const city of game.cities) assert.ok(gapTo(site, city.x, city.y) >= OPENINGS.nearTown, `clear of ${city.name}`);
@@ -47,7 +47,7 @@ function assertRules(game, site) {
   }
   let low = Infinity, high = -Infinity; for (let v = site.y; v <= site.y + size; v++) for (let u = site.x; u <= site.x + size; u++) { const h = surfaceHeight(game, u, v); low = Math.min(low, h); high = Math.max(high, h); }
   assert.ok(high - low <= 1, 'gentle ground');
-  assert.ok(!game.industries.some(other => other !== site && other.kind === site.kind && industryDistance(other, center) <= OPENINGS.sameKind), 'no twin nearby');
+  assert.equal(industrySpacingProblem(game, site.kind, site.x, site.y, size, game.industries.filter(other => other !== site)), null, 'no twin or trading partner too close');
 }
 
 test('no opening before January 1952 or before any freight delivery', () => {

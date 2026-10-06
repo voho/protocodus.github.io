@@ -1,7 +1,7 @@
 import { build, buildProblem, networkAlreadyBuilt, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt, stationAt } from './model.js';
 import { SPAN_TOOLS, networkTerrainPlanIssues } from './terrain-engineering.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-sites.js';
-import { industryFootprint, industrySiteProblem } from './industry-sites.js';
+import { industryFootprint, industrySiteProblem, industrySpacingProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
 import { hasRoadAccess } from './environment.js';
 import { money as moneyText, tiles as tileCount } from './copy.js';
@@ -70,11 +70,12 @@ export function quoteBuildPlan(game, tool, points, options) {
   const cost=placements.reduce((sum, placement) => sum + placement.cost, 0);
   if(!placements.length)return {placements,cost};
   if (Object.hasOwn(BUILDINGS, tool) || Object.hasOwn(INDUSTRIES, tool)) {
-    const industry = Object.hasOwn(INDUSTRIES, tool), span = industry ? industryFootprint(tool) : buildingFootprint(tool), claimed = new Set();
+    const industry = Object.hasOwn(INDUSTRIES, tool), span = industry ? industryFootprint(tool) : buildingFootprint(tool), claimed = new Set(), planned = industry ? [...game.industries] : null;
     let problem = null;
     for (const { x, y } of unique) {
-      problem = industry ? industrySiteProblem(game, tool, x, y, span) : buildingSiteProblem(game, tool, x, y, span);
+      problem = industry ? industrySiteProblem(game, tool, x, y, span) || industrySpacingProblem(game, tool, x, y, span, planned) : buildingSiteProblem(game, tool, x, y, span);
       if (problem) break;
+      if (industry) planned.push({ kind: tool, name: INDUSTRIES[tool].name, x, y, footprint: span });
       for (let dy = 0; dy < span && !problem; dy++) for (let dx = 0; dx < span; dx++) {
         const index = (y + dy) * game.width + x + dx;
         if (claimed.has(index)) { problem = 'Building sites must not overlap.'; break; }

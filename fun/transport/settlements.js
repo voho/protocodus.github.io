@@ -4,9 +4,11 @@ import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingSize, buildingTiles, placeBuildingSite } from './building-sites.js';
 import { nearbyStations } from './simulation-spatial.js';
 import { stationTiles } from './station-sites.js';
-import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
+import { releaseTerrainObjects, terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
 import { noteSiteChanges } from './change-journal.js';
-import { networkTerrainProblem } from './terrain-engineering.js';
+import { networkTerrainProblem, plotLevelPlan } from './terrain-engineering.js';
+import { groundIsFlat } from './terrain-geometry.js';
+import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { BIOMES, CARGO, INDUSTRIES } from './data.js';
 import { townStopCounts, townOpinion, actionActive, fundedTown, TOWN_ACTIONS, TOWN_RADIUS } from './town-authority.js';
 import { townOf, marketView, MARKET, ZONE_SECTOR } from './town-market.js';
@@ -247,7 +249,9 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (randomAt(game, day, city.id, 104) >= infillChance(quality, demand, weather.growth, growthFactor, funded, city.market?.demand?.[0] ?? 0)) continue;
 
     const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
-    let best = null;
+    // Towns build on level ground while any is left in reach, then on a slope they can level, and only then on any slope.
+    let best = null, bestLevel = null;
+    const sloped = [];
     for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
       const x = city.x + dx, y = city.y + dy, tile = tileAt(game, x, y), key = `${x},${y}`;
       if (!openLot(game, x, y, occupied, tile)) continue;
@@ -257,9 +261,12 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
       const rank = score * (.5 + randomAt(game, day, key, 106) * .5);
       const kind = residentialKind(tile.variant, 1);
       if (buildingSiteProblem(game, kind, x, y)) continue;
-      if (!best || rank > best.rank) best = { x, y, tile, city, rank, building: { kind, level: 1 } };
+      const lot = { x, y, tile, city, rank, building: { kind, level: 1 } };
+      if (!best || rank > best.rank) best = lot;
+      if (!groundIsFlat(game, x, y)) sloped.push(lot);
+      else if (!bestLevel || rank > bestLevel.rank) bestLevel = lot;
     }
-    if (best) proposals.push(best);
+    if (best) proposals.push(bestLevel || sloped.sort((a, b) => b.rank - a.rank).slice(0, 6).find(lot => plotLevelPlan(game, lot.x, lot.y, 1)) || best);
     else if (extendStreets && streets.length < 4 && pull >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * pull * weather.growth * growthFactor && !townLots(game, city, 6 + bonus, occupied, 1)) {
       blocked ??= new Set(reserved.map(point => `${point.x},${point.y}`));
       const street = townStreet(game, city, day, 6 + bonus, occupied, blocked);
@@ -296,7 +303,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     proposals.push({ x: site.x, y: site.y, tile: tileAt(game, site.x, site.y), city, zone: site === zone ? zone : game.zones.find(other => other.x === site.x && other.y === site.y && other.kind === 'industrial'), building: { kind, level } });
   }
 
-  let changed = false;
+  let changed = false, reshaped = false;
   const claimed = new Set(), cells = [];
   for (const proposal of proposals) {
     const { x, y, tile, city, building, zone } = proposal;
@@ -318,6 +325,14 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const touched = [...points, ...(existing ? buildingTiles(existing) : [])];
     for (const p of points) { const grove = terrainObjectAt(game, p.x, p.y); if (grove) touched.push(...terrainObjectTiles(grove)); }
     if (!placeBuildingSite(game, building.kind, x, y, { size, building, exclude: existing, allowZone: Boolean(zone) })) continue;
+    // The town levels the plot where it can, so the building stands on flat ground rather than a plinth.
+    const levelled = plotLevelPlan(game, x, y, size);
+    if (levelled) {
+      // A grove needs level ground under it and its one-tile collar, so any grove that close lets go first.
+      releaseTerrainObjects(game, levelled.flatMap(p => [-1, 0, 1].flatMap(dy => [-1, 0, 1].map(dx => ({ x: p.x + dx, y: p.y + dy })))).filter(p => tileAt(game, p.x, p.y)));
+      for (const p of levelled) tileAt(game, p.x, p.y).elevation = p.level / LAND_HEIGHT_LEVELS;
+      reshaped = true;
+    }
     for (const p of touched) cells.push(p.y * game.width + p.x);
     for (const p of points) claimed.add(`${p.x},${p.y}`);
     const populationCity = game.cities.find(town => town.id === populationCityId);
@@ -326,7 +341,8 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     if (zone?.kind === 'industrial') city.activity += (building.level - previousLevel) * 10;
     changed = true;
   }
-  if (changed) { const from = game.revision || 0; game.revision = from + 1; noteSiteChanges(game, from, game.revision, cells); }
+  // Heights changed under a levelled plot, which a site journal entry promises never happens: views rebuild instead.
+  if (changed) { const from = game.revision || 0; game.revision = from + 1; if (!reshaped) noteSiteChanges(game, from, game.revision, cells); }
   return connectedCities;
 }
 

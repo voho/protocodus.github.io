@@ -4,7 +4,8 @@ import { build, createGame, industryAt, stationCoverage, restoreGame, tick } fro
 import { localEnvironment } from '../environment.js';
 import { industryConditions } from '../industry-simulation.js';
 import { encodeGame } from '../save-codec.js';
-import { industryTiles, industrySiteProblem, industryFootprint } from '../industry-sites.js';
+import { industryTiles, industrySiteProblem, industryFootprint, INDUSTRY_SPACING } from '../industry-sites.js';
+import { quoteBuildPlan } from '../construction-plan.js';
 import { INDUSTRIES } from '../data.js';
 import { WORLD_GENERATION_VERSION } from '../world.js';
 import { emptyGame, tileAt } from './helpers.mjs';
@@ -145,7 +146,7 @@ test('version-1 saves expand compact industries safely and preserve operations',
   for(const blocked of [false,true]){
     const game=emptyGame();build(game,'oil-well',20,20);game.siteFootprintVersion=1;
     const industry=game.industries[0];industry.footprint=2;industry.capacity=1.7;industry.inventory.oil=57;industry.shipped=33;
-    if(blocked)tileAt(game,22,22).road=true;
+    if(blocked)for(const [x,y] of [[22,22],[19,19],[19,22],[22,19]])tileAt(game,x,y).road=true;
     const before=structuredClone(industry),tiles=structuredClone(game.tiles),money=game.money;
     const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(loaded.siteFootprintVersion,2);
     assert.deepEqual(loaded.industries[0],{...before,footprint:blocked?2:3});
@@ -153,4 +154,24 @@ test('version-1 saves expand compact industries safely and preserve operations',
     assert.equal(industryAt(loaded,22,22),blocked?null:loaded.industries[0]);
     const again=restoreGame(encodeGame(loaded));assert.equal(again.revision,loaded.revision);
   }
+});
+test('one kind, or a supplier and its customer, keep the industry spacing apart',()=>{
+  const game=emptyGame(),far=20+INDUSTRY_SPACING;
+  assert.equal(build(game,'logging-camp',20,20).ok,true);
+  // The sawmill buys timber; spacing runs centre to centre.
+  assert.match(build(game,'sawmill',far-1,20).message,/^Too close to the Logging camp: a supplier and its customer stand \d+ tiles apart\.$/);
+  assert.equal(build(game,'sawmill',far,20).ok,true);
+  assert.equal(build(game,'logging-camp',20,far-1).message,`Another logging camp stands within ${INDUSTRY_SPACING} tiles.`);
+  assert.equal(build(game,'logging-camp',20,far).ok,true);
+  assert.equal(build(game,'oil-well',24,20).ok,true,'an unrelated industry may stand next door');
+  // A drag counts the sites it places first.
+  const quote=quoteBuildPlan(game,'farm',[{x:20,y:60},{x:30,y:60}]);
+  assert.equal(quote.ok,false);assert.equal(quote.message,`Another grain farm stands within ${INDUSTRY_SPACING} tiles.`);
+});
+test('a saved 2×2 nonfarm industry grows to 3×3 once, around the ground it had',()=>{
+  const game=emptyGame();game.siteFootprintVersion=1;
+  assert.equal(build(game,'oil-well',20,20).ok,true);game.industries[0].footprint=2;tileAt(game,22,22).road=true;
+  const loaded=restoreGame(encodeGame(game)),farm=loaded.industries[0];
+  assert.deepEqual([farm.x,farm.y,farm.footprint,loaded.siteFootprintVersion],[19,20,3,2],'the road holds one corner, so the site grows west');
+  const again=restoreGame(encodeGame(loaded));assert.deepEqual(again.industries,loaded.industries);assert.equal(again.revision,loaded.revision);
 });

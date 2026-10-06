@@ -97,6 +97,7 @@ test('save validation rejects inconsistent extents and occupied footprint cells'
     g=>{g.industries[0].x=g.width-2;},
     g=>{g.industries[0].footprint=null;},
     g=>{g.industries[0].footprint='3';},
+    g=>{g.industries[0].footprint=4;},
     g=>{tileAt(g,32,22).rail=true;},
     g=>{g.stations.push({id:'invalid-stop',name:'Invalid',mode:'road',x:32,y:22});},
   ];
@@ -124,8 +125,9 @@ test('legacy compact sites keep every neighbor when desired expansion is blocked
     const snapshot=structuredClone(game.tiles),loaded=restoreGame(encodeGame(game));assert.ok(loaded,obstruction);
     assert.equal(buildingSize(tileAt(loaded,x,20).building),1,obstruction);assert.deepEqual(loaded.tiles,snapshot,obstruction);
   }
-  const game=emptyGame();delete game.siteFootprintVersion;build(game,'steel-mill',20,20);game.industries[0].footprint=2;tileAt(game,22,22).road=true;
-  const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(loaded.industries[0].footprint,2);assert.equal(tileAt(loaded,22,22).road,true);
+  // An industry may grow in any direction that keeps its ground, so roads at all four corners hold it.
+  const game=emptyGame(),corners=[[22,22],[19,19],[19,22],[22,19]];delete game.siteFootprintVersion;build(game,'steel-mill',20,20);game.industries[0].footprint=2;for(const [x,y] of corners)tileAt(game,x,y).road=true;
+  const loaded=restoreGame(encodeGame(game));assert.ok(loaded);assert.equal(loaded.industries[0].footprint,2);assert.deepEqual(loaded.industries[0],game.industries[0]);for(const [x,y] of corners)assert.equal(tileAt(loaded,x,y).road,true);
 });
 
 test('demolishing a prestige home from a child tile removes its residents exactly once',()=>{

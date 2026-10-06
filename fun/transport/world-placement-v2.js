@@ -1,5 +1,5 @@
 import { INDUSTRIES } from './data.js';
-import { BUILDINGS, residentialKind, commercialKind, COMMUNITY_KINDS } from './buildings.js';
+import { residentialKind, commercialKind, LEGACY_BUILDING_KINDS, LEGACY_COMMUNITY_KINDS as COMMUNITY_KINDS } from './buildings.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 
 // Settlement regions represent fertile valleys and trade corridors. Their sizes,
@@ -72,7 +72,7 @@ export function populateWorldV2(game, biome, seed, config, { starterX, starterY,
   const names = biome === 'taiga' ? ['Alderbrook', 'Pinehaven', 'Cedar Falls', 'Northmere'] : biome === 'tundra' ? ['Frostholm', 'Whitehaven', 'Snowbridge', 'Northwatch'] : ['Sunspire', 'Copper Mesa', 'Oasis Springs', 'Redstone'];
   const prefixes = biome === 'taiga' ? ['Birch', 'Willow', 'Cedar', 'Elm', 'Fern', 'Oak', 'Moss', 'Ash'] : biome === 'tundra' ? ['Ice', 'Frost', 'Winter', 'Snow', 'White', 'North', 'Glacier', 'Silver'] : ['Amber', 'Copper', 'Dune', 'Palm', 'Sun', 'Golden', 'Red', 'Saffron'];
   const suffixes = ['ford', 'haven', 'field', 'mere', 'ridge', 'bridge', 'brook', 'vale'];
-  const allKinds = Object.keys(BUILDINGS).filter(kind => !BUILDINGS[kind].buildOnly), nameCounts = new Map();
+  const allKinds = LEGACY_BUILDING_KINDS, nameCounts = new Map();
   const publicRoad = (x, y, starter = false) => {
     const t = tile(x, y); if (!t || (!starter && (t.building || (!habitable(t) && !(t.road && t.bridge))))) return false;
     if (t.terrain === 'water') t.bridge = true;

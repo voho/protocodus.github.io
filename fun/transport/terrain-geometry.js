@@ -168,18 +168,35 @@ export function bridgeSurface(game, x, y, mode = 'road') {
   return result;
 }
 export function bridgeDeckHeight(game, x, y, mode = 'road') { return bridgeSurface(game, x, y, mode)?.height ?? null; }
+// Per-call scratch for transportHeight: the four neighbouring tile centres.
+const nodeWeights = new Float64Array(4), nodeDecks = new Float64Array(4);
 export function transportHeight(game, x, y, mode = 'road') {
   if (mode === 'water') return 0;
-  const x0 = Math.floor(x), y0 = Math.floor(y), a = x - x0, b = y - y0, nodes = [[x0, y0, (1 - a) * (1 - b)], [x0 + 1, y0, a * (1 - b)], [x0, y0 + 1, (1 - a) * b], [x0 + 1, y0 + 1, a * b]].filter(p => p[2] > 1e-12);
-  const samples = nodes.map(([px, py, weight]) => ({ weight, deck: bridgeDeckHeight(game, px, py, mode), ground: surfaceHeight(game, px + .5, py + .5) }));
+  const x0 = Math.floor(x), y0 = Math.floor(y), a = x - x0, b = y - y0;
+  let nodes = 0, decks = 0;
+  for (let k = 0; k < 4; k++) {
+    const weight = (k & 1 ? a : 1 - a) * (k & 2 ? b : 1 - b);
+    nodeWeights[k] = weight > 1e-12 ? weight : 0;
+    if (!nodeWeights[k]) continue;
+    nodes++;
+    const deck = bridgeDeckHeight(game, x0 + (k & 1), y0 + (k >> 1), mode);
+    nodeDecks[k] = deck ?? NaN;
+    if (deck !== null) decks++;
+  }
+  // Away from bridges the ground surface alone decides; it is also the common case.
+  if (!decks) return surfaceHeight(game, x + .5, y + .5);
+  const ground = k => surfaceHeight(game, x0 + (k & 1) + .5, y0 + (k >> 1) + .5);
   // A bridge tile is flat all the way to its shared bank edge. Only the bank's
   // facing half tile ramps from its ground center to the deck, matching the
   // renderer's raised approach edge instead of lifting the vehicle too late.
-  if (samples.length === 2) {
-    const deck = samples.find(p => p.deck !== null), bank = samples.find(p => p.deck === null);
-    if (deck && bank) return bank.ground + (deck.deck - bank.ground) * Math.min(1, deck.weight * 2);
+  if (nodes === 2) {
+    let deck = -1, bank = -1;
+    for (let k = 0; k < 4; k++) if (nodeWeights[k]) { if (!Number.isNaN(nodeDecks[k])) { if (deck < 0) deck = k; } else if (bank < 0) bank = k; }
+    if (deck >= 0 && bank >= 0) { const level = ground(bank); return level + (nodeDecks[deck] - level) * Math.min(1, nodeWeights[deck] * 2); }
   }
-  return samples.some(p => p.deck !== null) ? samples.reduce((sum, p) => sum + (p.deck ?? p.ground) * p.weight, 0) : surfaceHeight(game, x + .5, y + .5);
+  let sum = 0;
+  for (let k = 0; k < 4; k++) if (nodeWeights[k]) sum += (Number.isNaN(nodeDecks[k]) ? ground(k) : nodeDecks[k]) * nodeWeights[k];
+  return sum;
 }
 export function terrainGeometryStats(game) {
   const cache = cacheFor(game);

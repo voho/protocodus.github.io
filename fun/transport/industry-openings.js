@@ -1,6 +1,6 @@
 import { INDUSTRIES, TOWN_CARGO } from './data.js';
 import { randomAt } from './environment.js';
-import { industryFootprint, industrySiteProblem, industryDistance, industrySize } from './industry-sites.js';
+import { industryFootprint, industrySiteProblem, industrySpacingProblem, industryDistance, industrySize } from './industry-sites.js';
 import { buildingAt } from './building-sites.js';
 import { nearbyCities, nearbyIndustries, nearbyStations } from './simulation-spatial.js';
 import { surfaceHeight } from './terrain-geometry.js';
@@ -9,9 +9,10 @@ import { stationReach, stationServes } from './station-sites.js';
 
 // New industries open, never close. From 1952, once the company has delivered freight, a month's
 // roll may open one 10 to 24 tiles from a town a stop reaches: on free, gentle ground with a trading
-// partner in reach, outside every stop's catchment and every home's, zone's and industry's survey,
-// so nothing already running changes. DOM-free and pure: the model places the plan it returns.
-export const OPENINGS = Object.freeze({ firstMonth: 24, catchment: 5, baseChance: .03, perTown: .005, maxChance: .1, nearTown: 10, farTown: 24, attempts: 48, homeMargin: 4, siteGap: 5, localRadius: 16, localCap: 5, sameKind: 12, partner: 40, share: .5, minCeiling: 4 });
+// partner in reach, clear of related industries, outside every stop's catchment and every home's,
+// zone's and industry's survey, so nothing already running changes. DOM-free and pure: the model
+// places the plan it returns.
+export const OPENINGS = Object.freeze({ firstMonth: 24, catchment: 5, baseChance: .03, perTown: .005, maxChance: .1, nearTown: 10, farTown: 24, attempts: 48, homeMargin: 4, siteGap: 5, localRadius: 16, localCap: 5, partner: 40, share: .5, minCeiling: 4 });
 const KEY = 'industry-opening';
 // The anchor tile's habitat, as world placement chooses it; fisheries already need a shore.
 const RESOURCE = kind => kind === 'logging-camp' ? ['forest'] : /mine|quarry/.test(kind) ? ['rock', 'mountain'] : kind === 'sand-pit' ? ['sand'] : kind === 'farm' ? ['grass'] : null;
@@ -64,7 +65,7 @@ export function openingSiteProblem(game, kind, x, y) {
   if (nearbyCities(game, cx, cy, O.nearTown + 3).some(city => Math.max(x - city.x, city.x - (x + size - 1), y - city.y, city.y - (y + size - 1)) < O.nearTown)) return 'town';
   if (nearbyStations(game, cx, cy, O.catchment + 3).some(stop => industryDistance(site, stop) <= O.catchment)) return 'stop';
   const neighbours = nearbyIndustries(game, cx, cy, O.localRadius + 4), center = { x: cx, y: cy };
-  if (neighbours.some(other => other.kind === kind && industryDistance(other, center) <= O.sameKind)) return 'same-kind';
+  if (industrySpacingProblem(game, kind, x, y, size, neighbours)) return 'spacing';
   if (neighbours.filter(other => industryDistance(other, center) <= O.localRadius).length >= O.localCap) return 'crowded';
   // Industry surveys reach four tiles and settlement surveys three: no new pollution reaches anyone.
   if (neighbours.some(other => Math.max(other.x - (x + size - 1), x - (other.x + industrySize(other) - 1), other.y - (y + size - 1), y - (other.y + industrySize(other) - 1)) <= O.siteGap)) return 'margin';

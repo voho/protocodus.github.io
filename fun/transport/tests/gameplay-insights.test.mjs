@@ -207,9 +207,9 @@ test('a route without full load never reads the line and reads as before', () =>
 
 test('routes need attention only while they cannot run, and the count follows every cause', () => {
   const game=emptyGame();
-  assert.equal(build(game,'logging-camp',10,9).ok,true);assert.equal(build(game,'sawmill',30,9).ok,true);
-  assert.equal(buildPath(game,'road',line(10,30,12)).ok,true);
-  assert.equal(build(game,'bus-stop',10,12).ok,true);assert.equal(build(game,'bus-stop',30,12).ok,true);
+  assert.equal(build(game,'logging-camp',10,10).ok,true);assert.equal(build(game,'sawmill',30,10).ok,true);
+  assert.equal(buildPath(game,'road',line(10,30,13)).ok,true);
+  assert.equal(build(game,'bus-stop',10,13).ok,true);assert.equal(build(game,'bus-stop',30,13).ok,true);
   const stops=game.stations.map(stop=>stop.id);
   for(const name of ['Timber one','Timber two'])assert.equal(addRoute(game,{name,mode:'road',stops,cargo:'timber'}).ok,true);
   const [one,two]=game.routes;
@@ -299,7 +299,7 @@ test('stop access forecasts reject land inside another farm’s distant fields',
 });
 
 test('the first route card offers a planned line until the two ends are joined', () => {
-  const game=createGame({biome:'taiga',seed:1847});
+  const game=createGame({biome:'taiga',seed:1847,generationVersion:7});
   assert.equal(nextProject(game).plan,'road','the quarry and Alderbrook are not joined yet');
   assert.equal(buildPlan(game,'road',Array.from({length:7},(_,n)=>({x:219,y:251-n}))).ok,true);assert.equal(build(game,'bus-stop',219,251).ok,true);
   const project=nextProject(game);
@@ -308,19 +308,19 @@ test('the first route card offers a planned line until the two ends are joined',
 
 test('first route steps tick exactly when each stop, connection, route and delivery exists', () => {
   const game=emptyGame();game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
-  assert.equal(build(game,'quarry',9,40).ok,true);
+  assert.equal(build(game,'quarry',10,40).ok,true);
   const quarry=game.industries[0],choice={source:quarry,buyer:{id:'town',kind:'city',name:'Town',x:40,y:41},cargo:'stone'};
   const done=()=>firstRouteSteps(game,choice).map(step=>step.done);
   assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);
   assert.deepEqual(done(),[false,false,false,false,false]);
   assert.equal(firstRouteSteps(game,choice)[0].tool,'road','no road yet: build one first');
-  assert.equal(buildPath(game,'road',line(17,30,41)).ok,true);assert.equal(build(game,'road',37,41).ok,true);
+  assert.equal(buildPath(game,'road',line(18,30,41)).ok,true);assert.equal(build(game,'road',37,41).ok,true);
   assert.equal(firstRouteSteps(game,choice)[0].tool,'road','the road stops six tiles from the footprint');
-  assert.equal(build(game,'bus-stop',17,41).ok,true);
+  assert.equal(build(game,'bus-stop',18,41).ok,true);
   assert.deepEqual(done(),[false,false,false,false,false],'six tiles from the footprint is outside the catchment');
-  assert.equal(build(game,'bulldoze',17,41).ok,true);assert.equal(buildPath(game,'road',line(16,17,41)).ok,true);
+  assert.equal(build(game,'bulldoze',18,41).ok,true);assert.equal(buildPath(game,'road',line(17,18,41)).ok,true);
   assert.equal(firstRouteSteps(game,choice)[0].tool,'bus-stop');assert.equal(firstRouteSteps(game,choice)[0].button,'Place stop');
-  assert.equal(build(game,'bus-stop',16,41).ok,true);
+  assert.equal(build(game,'bus-stop',17,41).ok,true);
   assert.deepEqual(done(),[true,false,false,false,false],'five tiles from the footprint edge counts although the anchor is farther');
   assert.equal(build(game,'bus-stop',37,41).ok,true);
   assert.deepEqual(done(),[true,true,false,false,false],'two stops on separate roads are not connected');

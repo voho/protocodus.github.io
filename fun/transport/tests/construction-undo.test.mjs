@@ -143,7 +143,7 @@ test('a demolition dents its town by a recorded amount, and undo takes back just
 test('a later tick keeps cargo, vehicles and growth instead of rewinding them', () => {
   const game = emptyGame(), city = town(game, 50, 20);
   for (let x = 20; x <= 34; x++) build(game, 'road', x, 30);
-  build(game, 'logging-camp', 18, 27); build(game, 'sawmill', 35, 27);
+  build(game, 'logging-camp', 17, 28); build(game, 'sawmill', 35, 28);
   build(game, 'bus-stop', 20, 30); build(game, 'bus-stop', 34, 30);
   const [camp, mill] = game.industries;
   camp.inventory.timber = 400;

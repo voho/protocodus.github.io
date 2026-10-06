@@ -38,14 +38,29 @@ export const BUILDINGS = {
   'mall-neighborhood': { footprint: 2, name: 'Neighbourhood shopping centre', group: 'shops', tier: 'Shopping centres', cost: 12000, shopUnits: 4, outlets: { food: 2, household: 2 }, buildOnly: true },
   'mall-shopping': { footprint: 3, name: 'Shopping mall', group: 'shops', tier: 'Shopping centres', cost: 40000, shopUnits: 8, outlets: { food: 4, household: 4 }, buildOnly: true },
   'mall-modern': { footprint: 3, name: 'Modern shopping mall', group: 'shops', tier: 'Shopping centres', cost: 60000, shopUnits: 12, outlets: { food: 6, household: 6 }, buildOnly: true },
+  // Town features from recipe 8 on (`since`), kept out of the lists older recipes regenerate saved towns from.
+  park: { footprint: 2, name: 'Park', group: 'community', cost: 7000, since: 8 },
+  playground: { footprint: 1, name: 'Playground', group: 'community', cost: 3500, since: 8 },
+  'swimming-pool': { footprint: 2, name: 'Swimming pool', group: 'community', cost: 16000, since: 8 },
+  'sports-field': { footprint: 2, name: 'Sports field', group: 'community', cost: 9000, since: 8 },
+  'tennis-courts': { footprint: 1, name: 'Tennis courts', group: 'community', cost: 5000, since: 8 },
+  ballpark: { footprint: 3, name: 'Ballpark', group: 'community', cost: 42000, since: 8 },
+  'sports-hall': { footprint: 2, name: 'Sports hall', group: 'community', cost: 20000, since: 8 },
+  'town-hall': { footprint: 2, name: 'Town hall', group: 'community', cost: 26000, since: 8 },
+  'shop-cafe': { footprint: 1, name: 'Café', group: 'shops', cost: 5600, since: 8 },
+  'shop-pharmacy': { footprint: 1, name: 'Pharmacy', group: 'shops', cost: 6200, since: 8 },
+  'shop-bookshop': { footprint: 1, name: 'Bookshop', group: 'shops', cost: 5400, since: 8 },
 };
-// New player projects must not alter the original town generator or save recipes.
-export const PROCEDURAL_BUILDING_KINDS = Object.keys(BUILDINGS).filter(k => !BUILDINGS[k].buildOnly);
+// Player projects stay out of procedural coverage and saved-world recipes.
+export const PROCEDURAL_BUILDING_KINDS = Object.freeze(Object.keys(BUILDINGS).filter(k => !BUILDINGS[k].buildOnly));
 export const RESIDENTIAL_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'homes');
 export const SHOP_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'shops');
 export const SERVICE_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'services');
 export const COMMUNITY_KINDS = PROCEDURAL_BUILDING_KINDS.filter(k => BUILDINGS[k].group === 'community');
 export const PARK_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].naturalCover);
 export const MALL_KINDS = Object.keys(BUILDINGS).filter(k => BUILDINGS[k].outlets);
+// Recipes 1–7 regenerate saved towns from exactly these lists.
+export const LEGACY_BUILDING_KINDS = Object.freeze(PROCEDURAL_BUILDING_KINDS.filter(k => !BUILDINGS[k].since));
+export const LEGACY_COMMUNITY_KINDS = Object.freeze(COMMUNITY_KINDS.filter(k => !BUILDINGS[k].since));
 export function residentialKind(variant = 0, level = 1) { return RESIDENTIAL_KINDS[(Math.max(1,Math.min(3,Math.floor(level))) - 1) * 3 + Math.abs(Math.floor(variant)) % 3]; }
 export function commercialKind(variant = 0, level = 1) { return (level > 1 ? SERVICE_KINDS : SHOP_KINDS)[Math.abs(Math.floor(variant)) % 5]; }

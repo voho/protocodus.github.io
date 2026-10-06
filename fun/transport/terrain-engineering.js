@@ -58,6 +58,36 @@ function occupiedHeightProblem(game,placements,verifyTargets=false){
   return null;
 }
 
+/** Natural growth levels a plot for free once a town builds on it: the plot's corners move to the height that needs the
+ * fewest steps, as long as no corner shared with a street, another building, a site or water moves and nothing
+ * built nearby settles with them. The moved corners as {x, y, level}, or null when the plot is level already or cannot
+ * be levelled; the building then keeps its plinth. */
+export function plotLevelPlan(game,x,y,size){
+  const own=(cx,cy)=>cx>=x&&cy>=y&&cx<x+size&&cy<y+size;
+  // A zoned plot nobody has built on yet has no ground to disturb.
+  const kept=(cx,cy)=>{const cell=tileAt(game,cx,cy);return !cell||cell.terrain==='water'||!own(cx,cy)&&Boolean(cell.building||cell.road||cell.rail||cell.bridge||cell.tunnel||occupied(game,cx,cy)||stationSiteAt(game,cx,cy));};
+  const fixed=(u,v)=>kept(u-1,v-1)||kept(u,v-1)||kept(u-1,v)||kept(u,v);
+  const corners=[];
+  for(let v=y;v<=y+size;v++)for(let u=x;u<=x+size;u++)corners.push({x:u,y:v,height:surfaceHeight(game,u,v),fixed:fixed(u,v)});
+  if(corners.every(c=>c.height===corners[0].height))return null;
+  const steps=level=>corners.reduce((sum,c)=>sum+Math.abs(c.height-level),0);
+  const reach=LAND_HEIGHT_LEVELS+1;
+  for(const level of [...new Set(corners.map(c=>c.height))].filter(h=>h>=1).sort((a,b)=>steps(a)-steps(b)||a-b)){
+    if(corners.some(c=>c.fixed&&c.height!==level))continue;
+    const placements=corners.filter(c=>c.height!==level).map(({x,y})=>({x,y,level}));
+    const updates=new Map(placements.map(p=>[String(p.y*game.width+p.x),{...tileAt(game,p.x,p.y),elevation:p.level/LAND_HEIGHT_LEVELS}]));
+    const changed={...game,tiles:new Proxy(game.tiles,{get:(tiles,key)=>updates.get(key)??Reflect.get(tiles,key)})};
+    if(corners.some(c=>surfaceHeight(changed,c.x,c.y)!==level))continue;
+    let settles=false;
+    for(let v=y-reach;v<=y+size+reach&&!settles;v++)for(let u=x-reach;u<=x+size+reach;u++){
+      if(u>=x&&v>=y&&u<=x+size&&v<=y+size||!fixed(u,v))continue;
+      if(surfaceHeight(game,u,v)!==surfaceHeight(changed,u,v)){settles=true;break;}
+    }
+    if(!settles)return placements;
+  }
+  return null;
+}
+
 export function planTerraformStroke(game,tool,points){
   const fail=message=>({ok:false,message,placements:[],cost:0});
   if(!['raise','lower'].includes(tool)||!Array.isArray(points)||!points.length)return fail('Choose terrain points to shape.');

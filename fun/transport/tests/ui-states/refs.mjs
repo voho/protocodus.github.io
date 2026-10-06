@@ -1,5 +1,5 @@
 // References and map overlays (refs.css): the edge pointer toward a far town, the back chip after a long jump and the
-// inspector's Back line. No surface renders references yet, so each state puts a few in a small paper note over the map.
+// inspector's Back line. A far town is in no panel, so those states put references in a small paper note over the map.
 import { freshWorld, settle } from './setup.mjs';
 
 // A paper note with references built by ui-refs.js from the live game, and the farthest town from the view.
@@ -32,12 +32,10 @@ export const states = [
   } },
   { name: 'refs-inspector-back', async setup(page) {
     await freshWorld(page);
-    await note(page);
-    await page.evaluate(async () => { const { refFor } = await import('./ui-refs.js'); document.querySelector('#ref-note').insertAdjacentHTML('beforeend', `<p style="margin:0">Stop: ${refFor(transport.game, `stop:${transport.game.stations[0].id}`)}</p>`); });
-    await page.locator('#ref-note [data-ref^="stop:"]').click();
+    await page.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); });
     await page.locator('#inspector').waitFor({ state: 'visible' });
-    await page.evaluate(async () => { const { refFor } = await import('./ui-refs.js'); document.querySelector('#inspector h3').insertAdjacentHTML('afterend', `<p>Serves ${refFor(transport.game, `town:${transport.game.cities[0].id}`)}</p>`); });
-    await page.locator('#inspector .ref').click();
+    // The stop's coverage line names its town.
+    await page.locator('#inspector [data-ref^="town:"]').first().click();
     await page.locator('#inspector [data-inspector-back]').waitFor();
     await settle(page);
   } },

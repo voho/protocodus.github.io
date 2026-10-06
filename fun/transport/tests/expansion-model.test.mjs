@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { LEGACY_BUILDING_KINDS } from '../buildings.js';
 import { BUILDINGS, INDUSTRIES, WORLD_SIZES, createGame, build, tileAt, tick, validateGame, saveGame, loadGame, SAVE_KEY } from '../model.js';
 import { emptyGame } from './helpers.mjs';
 import { encodeGame, decodeGame } from '../save-codec.js';
@@ -27,7 +28,7 @@ test('legacy and starter square sizes provide dispersed towns, complete industri
     assert.ok(Math.max(...game.cities.map(c=>c.y))-Math.min(...game.cities.map(c=>c.y))>game.height*.5);
     const industries=new Set(game.industries.map(i=>i.kind));
     for(const [kind,definition] of Object.entries(INDUSTRIES))if(!definition.buildOnly&&definition.biomes.includes(game.biome))assert.ok(industries.has(kind));
-    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set(Object.keys(BUILDINGS).filter(kind=>!BUILDINGS[kind].buildOnly)));
+    assert.deepEqual(new Set(game.tiles.flatMap(tile=>tile.building?[tile.building.kind]:[])),new Set((game.generationVersion>=8?Object.keys(BUILDINGS):LEGACY_BUILDING_KINDS).filter(kind=>!BUILDINGS[kind].buildOnly)),'older recipes keep their original procedural collection');
   }
 });
 

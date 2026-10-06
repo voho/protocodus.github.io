@@ -18,9 +18,9 @@ function cityAt(game, x = 30, y = 30, population = 1800) {
 test('parks and malls are player projects without changing procedural town catalogs', () => {
   assert.deepEqual(PARK_KINDS, ['park-village', 'park-formal', 'park-woodland']);
   assert.deepEqual(MALL_KINDS, ['mall-neighborhood', 'mall-shopping', 'mall-modern']);
-  assert.equal(PROCEDURAL_BUILDING_KINDS.length, 26);
-  assert.equal(SHOP_KINDS.length, 5); assert.equal(COMMUNITY_KINDS.length, 7);
-  assert.deepEqual(Array.from({ length: 10 }, (_, n) => commercialKind(n, 1)), [...SHOP_KINDS, ...SHOP_KINDS]);
+  assert.equal(PROCEDURAL_BUILDING_KINDS.length, 37);
+  assert.equal(SHOP_KINDS.length, 8); assert.equal(COMMUNITY_KINDS.length, 15);
+  assert.deepEqual(Array.from({ length: 10 }, (_, n) => commercialKind(n, 1)), [...SHOP_KINDS.slice(0,5), ...SHOP_KINDS.slice(0,5)]);
   for (const kind of [...PARK_KINDS, ...MALL_KINDS]) assert.equal(BUILDINGS[kind].buildOnly, true);
 });
 

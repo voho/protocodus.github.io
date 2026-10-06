@@ -85,9 +85,9 @@ test('every model notice that names something carries a template and a target', 
 const sentence = (text, label) => { assert.match(text, /^[A-Z0-9$−].*\.$/s, `${label}: ${text}`); for (const [word, pattern] of Object.entries(BANNED)) assert.doesNotMatch(text, pattern, `${label} says ${word}: ${text}`); };
 test('model results and notices are full sentences in the glossary', () => {
   const game = emptyGame(), said = (result, label) => { sentence(result.message, label); return result; };
-  said(build(game, 'logging-camp', 10, 9), 'industry');said(build(game, 'sawmill', 30, 9), 'second industry');
-  said(buildPath(game, 'road', line(10, 30, 12)), 'road');said(build(game, 'bus-stop', 10, 12), 'stop');said(build(game, 'bus-stop', 30, 12), 'stop');
-  said(build(game, 'bus-stop', 10, 12), 'a second stop on a stop');said(build(game, 'city', 20, 30), 'town');said(build(game, 'city', 22, 30), 'town too close');
+  said(build(game, 'logging-camp', 10, 10), 'industry');said(build(game, 'sawmill', 30, 10), 'second industry');
+  said(buildPath(game, 'road', line(10, 30, 13)), 'road');said(build(game, 'bus-stop', 10, 13), 'stop');said(build(game, 'bus-stop', 30, 13), 'stop');
+  said(build(game, 'bus-stop', 10, 13), 'a second stop on a stop');said(build(game, 'city', 20, 30), 'town');said(build(game, 'city', 22, 30), 'town too close');
   const stops = game.stations.map(stop => stop.id);
   said(addRoute(game, { mode: 'road', stops, cargo: 'passengers' }), 'passengers without towns');
   const launched = said(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }), 'launch');
@@ -95,14 +95,14 @@ test('model results and notices are full sentences in the glossary', () => {
   const route = launched.route;
   said(addRouteVehicle(game, route.id), 'add');said(sellRouteVehicle(game, route.id), 'sell');said(sellRouteVehicle(game, route.id), 'sell the last');
   said(renameRoute(game, route.id, 'Timber run'), 'rename');said(borrow(game), 'borrow');said(repay(game), 'repay');
-  said(build(game, 'bulldoze', 10, 12), 'a stop a route uses');
-  assert.equal(build(game, 'bulldoze', 10, 12).message, 'Timber run uses this stop. Retire the route first, then remove the stop.');
+  said(build(game, 'bulldoze', 10, 13), 'a stop a route uses');
+  assert.equal(build(game, 'bulldoze', 10, 13).message, 'Timber run uses this stop. Retire the route first, then remove the stop.');
   said(build(game, 'bulldoze', 20, 30), 'a town centre');assert.equal(build(game, 'bulldoze', 20, 30).message, 'Town centres can’t be removed.');
-  said(build(game, 'bulldoze', 20, 12), 'road');refreshRouteConnections(game);
+  said(build(game, 'bulldoze', 20, 13), 'road');refreshRouteConnections(game);
   said(addRouteVehicle(game, route.id), 'add to a broken route');
   said(addRoute(game, { mode: 'road', stops, cargo: 'timber' }), 'a broken launch');
   assert.equal(addRoute(game, { mode: 'road', stops, cargo: 'timber' }).message, 'These stops aren’t joined by road. Build the missing road, including any bridge or tunnel, then launch again.');
-  said(build(game, 'road', 20, 12), 'repair');refreshRouteConnections(game);
+  said(build(game, 'road', 20, 13), 'repair');refreshRouteConnections(game);
   said(build(game, 'bulldoze', 30, 10), 'the buyer');advance(game, 40, tick);
   for (const notice of game.notifications) {
     sentence(notice.message, `notice ${notice.topic}`);
@@ -114,8 +114,8 @@ test('model results and notices are full sentences in the glossary', () => {
 
 test('statuses share one shape: state, tone, word, reason, and the old label and detail', () => {
   const game = emptyGame();
-  assert.equal(build(game, 'logging-camp', 10, 9).ok, true);assert.equal(build(game, 'sawmill', 30, 9).ok, true);assert.equal(build(game, 'city', 40, 30).ok, true);
-  assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);assert.equal(build(game, 'bus-stop', 10, 12).ok, true);assert.equal(build(game, 'bus-stop', 30, 12).ok, true);
+  assert.equal(build(game, 'logging-camp', 10, 10).ok, true);assert.equal(build(game, 'sawmill', 30, 10).ok, true);assert.equal(build(game, 'city', 40, 30).ok, true);
+  assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);assert.equal(build(game, 'bus-stop', 10, 13).ok, true);assert.equal(build(game, 'bus-stop', 30, 13).ok, true);
   const route = addRoute(game, { name: 'Forest supply', mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'timber' }).route;
   const TONES = ['ok', 'warn', 'error', 'paused', 'info'];
   const check = (status, words, label) => {

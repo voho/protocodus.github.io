@@ -6,7 +6,7 @@ import { CARGO, INDUSTRIES } from './data.js';
 import { icon, modeGlyph } from './ui-icons.js';
 import { cargoIcon } from './cargo-icons.js';
 import { bullet, roundel } from './ui-line.js';
-import { capital, cargoName, dateLong, money, vehicleNoun } from './copy.js';
+import { capital, cargoName, dateLong, escapeHTML as escape, money, vehicleNoun } from './copy.js';
 import { validRouteNumber } from './route-lines.js';
 import { industrySize } from './industry-sites.js';
 import { stationSpan } from './station-sites.js';
@@ -17,7 +17,6 @@ const LISTS = { route: 'routes', stop: 'stations', town: 'cities', industry: 'in
 const GONE = { route: 'a retired route', stop: 'a removed stop', town: 'a former town', industry: 'a closed industry', vehicle: 'a sold vehicle' };
 const VARIANTS = { prose: 'ref ref--prose', row: 'ref ref--row', compact: 'ref ref--compact', onInk: 'ref ref--prose ref--on-ink' };
 const TOKEN = /\{(route|stop|town|industry|vehicle|cargo|money|date):([^{}]+)\}/g, INTENT_MS = 150, LONG_PRESS_MS = 450, SHOW_MS = 4000;
-const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const cargoTile = cargo => `<span class="cargo-tile">${cargoIcon(cargo, { decorative: true })}</span>`;
 
 /** 'town:city-3' or {kind, id} as {kind, id}; null for anything that is not a reference. */

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { build, createGame, industryAt, stationCoverage, validateGame, restoreGame, STATION_RADIUS } from '../model.js';
 import { INDUSTRIES } from '../data.js';
-import { industrySize, industryTiles, industryDistance, industrySiteProblem, isFarmIndustry } from '../industry-sites.js';
+import { industrySize, industryTiles, industryDistance, industrySiteProblem, isFarmIndustry, INDUSTRY_SPACING } from '../industry-sites.js';
 import { buildingSiteProblem } from '../building-sites.js';
 import { localEnvironment } from '../environment.js';
 import { quoteBuildPlan, buildPlan } from '../construction-plan.js';
@@ -55,7 +55,7 @@ test('far-field obstructions, boundaries and overlapping quotes reject complete 
     assert.equal(JSON.stringify(game),before,`${obstruction}: no charge or partial field clearing`);
   }
   const game=emptyGame(),before=JSON.stringify(game),quote=quoteBuildPlan(game,'farm',[{x:20,y:20},{x:26,y:26}]);
-  assert.equal(quote.span,7);assert.equal(quote.ok,false);assert.match(quote.message,/overlap/);
+  assert.equal(quote.span,7);assert.equal(quote.ok,false);assert.equal(quote.message,`Another grain farm stands within ${INDUSTRY_SPACING} tiles.`);
   assert.equal(JSON.stringify(game),before);
   assert.match(buildingSiteProblem(game,'stadium',20,20,7),/Invalid building footprint/);
 });
@@ -63,7 +63,7 @@ test('far-field obstructions, boundaries and overlapping quotes reject complete 
 test('indexed station catchment and transport access reach all four full farm edges',()=>{
   const base=emptyGame(),farm=build(base,'farm',20,20).industry;
   // More than16 sites forces the spatial index instead of its full-list shortcut.
-  for(let n=0;n<17;n++)ok(build(base,'oil-well',70+n%6*5,50+Math.floor(n/6)*5));
+  for(let n=0;n<17;n++)ok(build(base,'oil-well',30+n%6*16,50+Math.floor(n/6)*16));
   for(const [side,point] of Object.entries(sides)){
     assert.ok(stationCoverage(base,point(STATION_RADIUS)).industries.includes(farm),side);
     assert.equal(stationCoverage(base,point(STATION_RADIUS+1)).industries.includes(farm),false,side);
