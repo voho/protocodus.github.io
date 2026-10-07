@@ -5,7 +5,9 @@
     16,
     32,
     64,
-    128
+    128,
+    256,
+    512
   ],
   "masterCell": 256,
   "vehicleLengthNormalized": false,
@@ -356,5 +358,1039 @@
         243
       ]
     }
-  ]
+  ],
+  "highDensityCells": {
+    "256": {
+      "source": "source-packed.png",
+      "sourceSha256": "a103ee211d682ae2487cef88caa997710420f3e5de5822f000cd5b6153f5bc18",
+      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
+      "tool": "build-object-high-density.py",
+      "sprites": [
+        {
+          "id": "ground:road",
+          "cell": 0,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            262,
+            114,
+            460,
+            540
+          ],
+          "sourceCropPixels": [
+            198,
+            426
+          ],
+          "masterDrawPixels": [
+            108,
+            232
+          ],
+          "masterOffsetPixels": [
+            74,
+            12
+          ],
+          "nativeEquivalentCellPixels": 469.3333333333333,
+          "drawPixels": [
+            108,
+            232
+          ],
+          "offsetPixels": [
+            74,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.5454545454545454,
+            0,
+            0,
+            0.5446009389671361,
+            -68.9090909090909,
+            -50.08450704225352
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.5454545454545454,
+            0.5446009389671361
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "ground:rail",
+          "cell": 1,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            234,
+            114,
+            407,
+            541
+          ],
+          "sourceCropPixels": [
+            173,
+            427
+          ],
+          "masterDrawPixels": [
+            94,
+            232
+          ],
+          "masterOffsetPixels": [
+            81,
+            12
+          ],
+          "nativeEquivalentCellPixels": 471.1489361702128,
+          "drawPixels": [
+            94,
+            232
+          ],
+          "offsetPixels": [
+            81,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.5433526011560693,
+            0,
+            0,
+            0.5433255269320844,
+            -46.144508670520224,
+            -49.93911007025762
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.5433526011560693,
+            0.5433255269320844
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "ground:road-bridge",
+          "cell": 2,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            179,
+            114,
+            374,
+            541
+          ],
+          "sourceCropPixels": [
+            195,
+            427
+          ],
+          "masterDrawPixels": [
+            106,
+            232
+          ],
+          "masterOffsetPixels": [
+            75,
+            12
+          ],
+          "nativeEquivalentCellPixels": 470.9433962264151,
+          "drawPixels": [
+            106,
+            232
+          ],
+          "offsetPixels": [
+            75,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.5435897435897435,
+            0,
+            0,
+            0.5433255269320844,
+            -22.30256410256409,
+            -49.93911007025762
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.5435897435897435,
+            0.5433255269320844
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "ground:rail-bridge",
+          "cell": 3,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            265,
+            156,
+            461,
+            488
+          ],
+          "sourceCropPixels": [
+            196,
+            332
+          ],
+          "masterDrawPixels": [
+            137,
+            232
+          ],
+          "masterOffsetPixels": [
+            59,
+            12
+          ],
+          "nativeEquivalentCellPixels": 366.24817518248176,
+          "drawPixels": [
+            137,
+            232
+          ],
+          "offsetPixels": [
+            59,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.6989795918367347,
+            0,
+            0,
+            0.6987951807228916,
+            -126.2295918367347,
+            -97.01204819277109
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.6989795918367347,
+            0.6987951807228916
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "ground:road-junction",
+          "cell": 4,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            169,
+            162,
+            495,
+            483
+          ],
+          "sourceCropPixels": [
+            326,
+            321
+          ],
+          "masterDrawPixels": [
+            232,
+            228
+          ],
+          "masterOffsetPixels": [
+            12,
+            14
+          ],
+          "nativeEquivalentCellPixels": 359.7241379310345,
+          "drawPixels": [
+            232,
+            228
+          ],
+          "offsetPixels": [
+            12,
+            14
+          ],
+          "sourceToCellAffine": [
+            0.7116564417177914,
+            0,
+            0,
+            0.7102803738317757,
+            -108.26993865030674,
+            -101.06542056074765
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7116564417177914,
+            0.7102803738317757
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "ground:rail-junction",
+          "cell": 5,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            132,
+            161,
+            459,
+            483
+          ],
+          "sourceCropPixels": [
+            327,
+            322
+          ],
+          "masterDrawPixels": [
+            232,
+            228
+          ],
+          "masterOffsetPixels": [
+            12,
+            14
+          ],
+          "nativeEquivalentCellPixels": 360.82758620689657,
+          "drawPixels": [
+            232,
+            228
+          ],
+          "offsetPixels": [
+            12,
+            14
+          ],
+          "sourceToCellAffine": [
+            0.709480122324159,
+            0,
+            0,
+            0.7080745341614907,
+            -81.65137614678899,
+            -100.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.709480122324159,
+            0.7080745341614907
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "zone:residential",
+          "cell": 6,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            179,
+            134,
+            507,
+            459
+          ],
+          "sourceCropPixels": [
+            328,
+            325
+          ],
+          "masterDrawPixels": [
+            232,
+            230
+          ],
+          "masterOffsetPixels": [
+            12,
+            13
+          ],
+          "nativeEquivalentCellPixels": 361.7391304347826,
+          "drawPixels": [
+            232,
+            230
+          ],
+          "offsetPixels": [
+            12,
+            13
+          ],
+          "sourceToCellAffine": [
+            0.7073170731707317,
+            0,
+            0,
+            0.7076923076923077,
+            -114.60975609756098,
+            -81.83076923076923
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7073170731707317,
+            0.7076923076923077
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "zone:commercial",
+          "cell": 7,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            158,
+            135,
+            483,
+            458
+          ],
+          "sourceCropPixels": [
+            325,
+            323
+          ],
+          "masterDrawPixels": [
+            232,
+            231
+          ],
+          "masterOffsetPixels": [
+            12,
+            12
+          ],
+          "nativeEquivalentCellPixels": 357.95670995671,
+          "drawPixels": [
+            232,
+            231
+          ],
+          "offsetPixels": [
+            12,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.7138461538461538,
+            0,
+            0,
+            0.7151702786377709,
+            -100.7876923076923,
+            -84.54798761609908
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7138461538461538,
+            0.7151702786377709
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "zone:industrial",
+          "cell": 8,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            133,
+            134,
+            460,
+            459
+          ],
+          "sourceCropPixels": [
+            327,
+            325
+          ],
+          "masterDrawPixels": [
+            232,
+            231
+          ],
+          "masterOffsetPixels": [
+            12,
+            12
+          ],
+          "nativeEquivalentCellPixels": 360.17316017316017,
+          "drawPixels": [
+            232,
+            231
+          ],
+          "offsetPixels": [
+            12,
+            12
+          ],
+          "sourceToCellAffine": [
+            0.709480122324159,
+            0,
+            0,
+            0.7107692307692308,
+            -82.36085626911316,
+            -83.24307692307693
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.709480122324159,
+            0.7107692307692308
+          ],
+          "enlargesOriginalPixels": false
+        }
+      ],
+      "atlasSha256": "918075d47f29ef90fc0ac694328ee4ca03f07f4c38de12ad7366e2442fc58817"
+    },
+    "512": {
+      "source": "source-packed.png",
+      "sourceSha256": "a103ee211d682ae2487cef88caa997710420f3e5de5822f000cd5b6153f5bc18",
+      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
+      "tool": "build-object-high-density.py",
+      "sprites": [
+        {
+          "id": "ground:road",
+          "cell": 0,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            262,
+            114,
+            460,
+            540
+          ],
+          "sourceCropPixels": [
+            198,
+            426
+          ],
+          "masterDrawPixels": [
+            108,
+            232
+          ],
+          "masterOffsetPixels": [
+            74,
+            12
+          ],
+          "nativeEquivalentCellPixels": 469.3333333333333,
+          "drawPixels": [
+            216,
+            464
+          ],
+          "offsetPixels": [
+            148,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.0909090909090908,
+            0,
+            0,
+            1.0892018779342723,
+            -137.8181818181818,
+            -100.16901408450704
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0909090909090908,
+            1.0892018779342723
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "ground:rail",
+          "cell": 1,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            234,
+            114,
+            407,
+            541
+          ],
+          "sourceCropPixels": [
+            173,
+            427
+          ],
+          "masterDrawPixels": [
+            94,
+            232
+          ],
+          "masterOffsetPixels": [
+            81,
+            12
+          ],
+          "nativeEquivalentCellPixels": 471.1489361702128,
+          "drawPixels": [
+            188,
+            464
+          ],
+          "offsetPixels": [
+            162,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.0867052023121386,
+            0,
+            0,
+            1.0866510538641687,
+            -92.28901734104045,
+            -99.87822014051524
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0867052023121386,
+            1.0866510538641687
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "ground:road-bridge",
+          "cell": 2,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            179,
+            114,
+            374,
+            541
+          ],
+          "sourceCropPixels": [
+            195,
+            427
+          ],
+          "masterDrawPixels": [
+            106,
+            232
+          ],
+          "masterOffsetPixels": [
+            75,
+            12
+          ],
+          "nativeEquivalentCellPixels": 470.9433962264151,
+          "drawPixels": [
+            212,
+            464
+          ],
+          "offsetPixels": [
+            150,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.087179487179487,
+            0,
+            0,
+            1.0866510538641687,
+            -44.60512820512818,
+            -99.87822014051524
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.087179487179487,
+            1.0866510538641687
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "ground:rail-bridge",
+          "cell": 3,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            265,
+            156,
+            461,
+            488
+          ],
+          "sourceCropPixels": [
+            196,
+            332
+          ],
+          "masterDrawPixels": [
+            137,
+            232
+          ],
+          "masterOffsetPixels": [
+            59,
+            12
+          ],
+          "nativeEquivalentCellPixels": 366.24817518248176,
+          "drawPixels": [
+            274,
+            464
+          ],
+          "offsetPixels": [
+            118,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.3979591836734695,
+            0,
+            0,
+            1.3975903614457832,
+            -252.4591836734694,
+            -194.02409638554218
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.3979591836734695,
+            1.3975903614457832
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "ground:road-junction",
+          "cell": 4,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            640,
+            1280,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            169,
+            162,
+            495,
+            483
+          ],
+          "sourceCropPixels": [
+            326,
+            321
+          ],
+          "masterDrawPixels": [
+            232,
+            228
+          ],
+          "masterOffsetPixels": [
+            12,
+            14
+          ],
+          "nativeEquivalentCellPixels": 359.7241379310345,
+          "drawPixels": [
+            464,
+            456
+          ],
+          "offsetPixels": [
+            24,
+            28
+          ],
+          "sourceToCellAffine": [
+            1.4233128834355828,
+            0,
+            0,
+            1.4205607476635513,
+            -216.53987730061348,
+            -202.1308411214953
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.4233128834355828,
+            1.4205607476635513
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "ground:rail-junction",
+          "cell": 5,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            132,
+            161,
+            459,
+            483
+          ],
+          "sourceCropPixels": [
+            327,
+            322
+          ],
+          "masterDrawPixels": [
+            232,
+            228
+          ],
+          "masterOffsetPixels": [
+            12,
+            14
+          ],
+          "nativeEquivalentCellPixels": 360.82758620689657,
+          "drawPixels": [
+            464,
+            456
+          ],
+          "offsetPixels": [
+            24,
+            28
+          ],
+          "sourceToCellAffine": [
+            1.418960244648318,
+            0,
+            0,
+            1.4161490683229814,
+            -163.30275229357798,
+            -200.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.418960244648318,
+            1.4161490683229814
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "zone:residential",
+          "cell": 6,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            179,
+            134,
+            507,
+            459
+          ],
+          "sourceCropPixels": [
+            328,
+            325
+          ],
+          "masterDrawPixels": [
+            232,
+            230
+          ],
+          "masterOffsetPixels": [
+            12,
+            13
+          ],
+          "nativeEquivalentCellPixels": 361.7391304347826,
+          "drawPixels": [
+            464,
+            460
+          ],
+          "offsetPixels": [
+            24,
+            26
+          ],
+          "sourceToCellAffine": [
+            1.4146341463414633,
+            0,
+            0,
+            1.4153846153846155,
+            -229.21951219512195,
+            -163.66153846153847
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.4146341463414633,
+            1.4153846153846155
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "zone:commercial",
+          "cell": 7,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            158,
+            135,
+            483,
+            458
+          ],
+          "sourceCropPixels": [
+            325,
+            323
+          ],
+          "masterDrawPixels": [
+            232,
+            231
+          ],
+          "masterOffsetPixels": [
+            12,
+            12
+          ],
+          "nativeEquivalentCellPixels": 357.95670995671,
+          "drawPixels": [
+            464,
+            462
+          ],
+          "offsetPixels": [
+            24,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.4276923076923076,
+            0,
+            0,
+            1.4303405572755419,
+            -201.5753846153846,
+            -169.09597523219816
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.4276923076923076,
+            1.4303405572755419
+          ],
+          "enlargesOriginalPixels": true
+        },
+        {
+          "id": "zone:industrial",
+          "cell": 8,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            133,
+            134,
+            460,
+            459
+          ],
+          "sourceCropPixels": [
+            327,
+            325
+          ],
+          "masterDrawPixels": [
+            232,
+            231
+          ],
+          "masterOffsetPixels": [
+            12,
+            12
+          ],
+          "nativeEquivalentCellPixels": 360.17316017316017,
+          "drawPixels": [
+            464,
+            462
+          ],
+          "offsetPixels": [
+            24,
+            24
+          ],
+          "sourceToCellAffine": [
+            1.418960244648318,
+            0,
+            0,
+            1.4215384615384616,
+            -164.7217125382263,
+            -166.48615384615385
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.418960244648318,
+            1.4215384615384616
+          ],
+          "enlargesOriginalPixels": true
+        }
+      ],
+      "atlasSha256": "8c23bc2b5f017a6b3ba06e3d77c3fb82777a738a094a1a488dc0c4b426bdbc44"
+    }
+  },
+  "sourceDetailLimits": {
+    "originalSource": "source-packed.png",
+    "originalSourceSha256": "a103ee211d682ae2487cef88caa997710420f3e5de5822f000cd5b6153f5bc18",
+    "originalSheetPixels": [
+      1920,
+      1920
+    ],
+    "registeredSourceCellPixels": [
+      [
+        640,
+        640
+      ]
+    ],
+    "registrationVerification": "Exact RGBA pixel reconstruction of every published 256px master cell",
+    "historicalAtlasSha256": {
+      "atlas.png": "918075d47f29ef90fc0ac694328ee4ca03f07f4c38de12ad7366e2442fc58817",
+      "atlas-16.png": "b545aa1b18131d88331dc673b6f6a695a2119c75389aee93a82f382c4bdb9c13",
+      "atlas-32.png": "1bfe324c2f1f3510a89275a8c28ed39f3bde32495be6275b7fcc515da0b3c79a",
+      "atlas-64.png": "696342de977edc64e2fbe3e37583ad38f358f4445499b9d31ed90c151276f411",
+      "atlas-128.png": "1f3109a213c16969cf1e2f9b4df5eabaed18a5e27d350591cbdb0cae48296441"
+    },
+    "noAdditionalPaintedDetail": true,
+    "resolutionNote": "Display cell sizes include transparent framing. Enlarging original pixels retains existing detail and does not create additional painted detail."
+  }
 }

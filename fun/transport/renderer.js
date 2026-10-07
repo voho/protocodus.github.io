@@ -315,7 +315,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     // A logical terrain parcel still owns its whole area on a slope, where
     // its artwork may use smaller scenery. Resolve the actual parcel rather
     // than the flat-only billboard lookup used by pointer previews.
-    const site=tileOnly?selected:siteAt(selected.x,selected.y)||terrainObjectAt(game,selected.x,selected.y)||selected,span=siteSize(site);
+    const terrain=tileOnly?null:terrainObjectAt(game,selected.x,selected.y);
+    // Legacy mountain anchors describe terrain, which is inspected and
+    // engineered one tile at a time rather than drawn as a parcel billboard.
+    const site=tileOnly?selected:siteAt(selected.x,selected.y)||(terrain?.object.kind==='mountain'?null:terrain)||selected,span=siteSize(site);
     const {w,h}=typeof span==='number'?{w:span,h:span}:span,mark=MAP.selection,z=camera.zoom;
     const flat=foundationSite(site),project=flat?foundationProjection(site.x,site.y,w):(u,v)=>projectGround(game,u,v);
     const point=(u,v,first=false)=>{const p=project(u,v);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);};

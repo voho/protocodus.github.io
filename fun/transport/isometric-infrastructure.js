@@ -4,7 +4,7 @@ import { drawRailStationFallback } from './rail-station-art.js';
 
 // Upright structures use authored dimetric views. Road/rail surface textures
 // remain in the ground plane and receive the shared projection exactly once.
-registerAtlas({id:'isometric-infrastructure',path:'./assets/world/isometric-infrastructure-v2/atlas',columns:3,rows:2,maxCell:256,
+registerAtlas({id:'isometric-infrastructure',path:'./assets/world/isometric-infrastructure-v2/atlas',columns:3,rows:2,maxCell:512,
   entries:['bus-stop',null,'port-w','port-e','port-n','port-s'].map(id=>id&&'isometric:'+id)});
 registerAtlas({id:'isometric-rail-station',path:'./assets/world/isometric-rail-station/atlas',columns:1,rows:1,maxCell:256,
   entries:['isometric:train-stop']});

@@ -10,6 +10,7 @@ export const VEHICLE_ATLAS_PATHS = Object.freeze(Object.fromEntries(
 const compass = ['NW', 'N', 'NE', 'W', null, 'E', 'SW', 'S', 'SE'];
 for (const kind of VEHICLE_KINDS) {
   registerAtlas({ id: `vehicle-${kind}`, path: VEHICLE_ATLAS_PATHS[kind],
+    maxCell: 256,
     entries: compass.map(heading => heading && `vehicle:${kind}:${heading}`) });
 }
 export function vehicleHeadingIndex(angle = 0) {

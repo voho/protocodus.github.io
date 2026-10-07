@@ -4,9 +4,9 @@ import { projectedGroundBasis } from './isometric.js';
 import { createSpriteCache } from './sprite-cache.js';
 import { drawRailSurface, drawRailPortrait } from './rail-surface-art.js';
 
-registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
+registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',maxCell:256,entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
 registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
-registerAtlas({id:'city-ground-v3',path:'./assets/world/city-ground-v3/atlas',entries:['ground:road','ground:rail','ground:road-bridge','ground:rail-bridge','ground:road-junction','ground:rail-junction','zone:residential','zone:commercial','zone:industrial']});
+registerAtlas({id:'city-ground-v3',path:'./assets/world/city-ground-v3/atlas',maxCell:512,entries:['ground:road','ground:rail','ground:road-bridge','ground:rail-bridge','ground:road-junction','ground:rail-junction','zone:residential','zone:commercial','zone:industrial']});
 registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
 export const hasRasterTransport=kind=>atlasAvailable(kind);
 export const hasRasterNetwork=kind=>kind==='rail'||kind==='rail-bridge'||atlasAvailable('ground:'+kind)||atlasAvailable('infra:'+kind);

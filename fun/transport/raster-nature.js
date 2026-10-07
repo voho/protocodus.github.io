@@ -54,8 +54,8 @@ for (const [biome, kinds] of Object.entries(ORIGINAL_GROUND_KINDS)) {
   registerAtlas({ id, path: `./assets/world/${id}/atlas`, biome, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
 }
 registerAtlas({id:'nature-ground-desert-cacti',path:'./assets/world/nature-ground-desert/cacti/atlas',biome:'desert',columns:3,rows:3,maxCell:256,entries:CACTUS_IDS});
-registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, maxCell: 256, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
-registerAtlas({ id: 'nature-rocks', path: './assets/world/nature-rocks/atlas', columns: 3, rows: 3, maxCell: 256, entries: ROCKS.map(kind => `nature-rocks:${kind}`) });
+registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, maxCell: 1024, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
+registerAtlas({ id: 'nature-rocks', path: './assets/world/nature-rocks/atlas', columns: 3, rows: 3, maxCell: 1024, entries: ROCKS.map(kind => `nature-rocks:${kind}`) });
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const wrap = value => ((Math.floor(value) || 0) % 64 + 64) % 64;

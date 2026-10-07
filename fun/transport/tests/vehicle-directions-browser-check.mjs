@@ -59,7 +59,7 @@ try {
     const context=await browser.newContext({viewport:{width:1510,height:1000},deviceScaleFactor:dpr});
     const page=await harness(context);
     const checks=await page.evaluate(async()=>{
-      const q=vehicleQA,frames=[],selection=[],profiles=[],trailers=[],marine=[];
+      const q=vehicleQA,frames=[],selection=[],profiles=[],trailers=[],marine=[],gallery=[];
       const tau=Math.PI*2,step=Math.PI/4,epsilon=1e-8;
       for(let i=0;i<8;i++)for(const wrap of [-3,-1,0,1,3]){
         const angle=i*step+wrap*tau;
@@ -69,7 +69,7 @@ try {
       }
       for(const angle of [NaN,Infinity,-Infinity,undefined])selection.push({actual:q.directions.vehicleHeading(angle),expected:'E'});
       for(const kind of q.activeKinds){
-        for(const cell of [16,32,64,128]){
+        for(const cell of q.metadata[kind].cellSizes){
           const image=await q.load(`${q.directions.VEHICLE_ATLAS_PATHS[kind]}-${cell}.png`),hashes=[],ink=[];
           const center=q.makeCanvas(cell,cell);center.getContext('2d').drawImage(image,cell,cell,cell,cell,0,0,cell,cell);
           for(let index=0;index<9;index++)if(q.metadata[kind].order[index]){
@@ -83,7 +83,7 @@ try {
           const draw=empty.draws[0],atlas=q.metadata[kind],cell=draw?.args[2],index=draw?draw.args[1]/cell*3+draw.args[0]/cell:-1;
           const cargo=loaded.draws.find(draw=>draw.src?.includes('/cargo/atlas-')),cargoScale=scale*(kind==='cargo-ship'?1.7:1);
           const cargoMatrix=cargo&&Object.fromEntries(['a','b','c','d'].map(key=>[key,cargo.matrix[key]/cargoScale]));
-          profiles.push({kind,zoom,heading:q.directions.VEHICLE_HEADINGS[i],drawn:empty.drawn,src:draw?.src,id:atlas.order[index],matrix:draw?.matrix,cargoMatrix,expectedCargoMatrix:q.isometric.projectedGroundBasis(q.directions.vehicleFrameAngle(heading)),hash:empty.hash,matchesDirect:empty.hash===q.hash(q.direct(kind,heading,scale)),difference:q.difference(empty.canvas,q.direct(kind,heading,scale)),loadChanges:loaded.hash!==empty.hash,partialChanges:partial.hash!==empty.hash,fullVsPartial:partial.hash!==loaded.hash,negativeClamped:negative.hash===empty.hash,overfullClamped:overfull.hash===loaded.hash,overfullDifference:q.difference(overfull.canvas,loaded.canvas)});
+          profiles.push({kind,zoom,heading:q.directions.VEHICLE_HEADINGS[i],drawn:empty.drawn,src:draw?.src,id:atlas.order[index],sourceCell:cell,sourceHeight:draw?.args[3],requiredSource:q.spec(kind).size*scale,matrix:draw?.matrix,cargoMatrix,expectedCargoMatrix:q.isometric.projectedGroundBasis(q.directions.vehicleFrameAngle(heading)),hash:empty.hash,matchesDirect:empty.hash===q.hash(q.direct(kind,heading,scale)),difference:q.difference(empty.canvas,q.direct(kind,heading,scale)),loadChanges:loaded.hash!==empty.hash,partialChanges:partial.hash!==empty.hash,fullVsPartial:partial.hash!==loaded.hash,negativeClamped:negative.hash===empty.hash,overfullClamped:overfull.hash===loaded.hash,overfullDifference:q.difference(overfull.canvas,loaded.canvas)});
         }
       }
       for(const kind of ['coach','wagon'].filter(k=>q.activeKinds.includes(k)))for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
@@ -95,7 +95,17 @@ try {
         for(let i=0;i<8;i++)hashes.push(q.hash(raster.ship({...s.vehicle,angle:i*step},s.route)));
         marine.push({kind,zoom,hashes,cache:raster.getStats()});
       }
-      return{frames,selection,profiles,trailers,marine,stats:q.assets.worldArtStats()};
+      // Large Gallery road/rail portraits use six times the same 20-unit
+      // physical frame. Record the original atlas sampling, before any final
+      // canvas copy could hide an already enlarged 128px source.
+      for(const kind of ['bus','express-bus','truck','locomotive','coach','wagon'].filter(k=>q.activeKinds.includes(k)))for(let index=0;index<8;index++){
+        const scale=6*devicePixelRatio,canvas=q.makeCanvas(256,256),c=canvas.getContext('2d'),draws=[];
+        const original=c.drawImage.bind(c);c.drawImage=(image,...args)=>{const matrix=c.getTransform();draws.push({src:image.src,args,matrix:{a:matrix.a,b:matrix.b,c:matrix.c,d:matrix.d}});original(image,...args);};
+        c.translate(128,128);c.scale(scale,scale);
+        const drawn=q.directions.drawDirectionalVehicle(c,kind,index*step,20,scale),draw=draws[0],cell=draw?.args[2],slot=draw?draw.args[1]/cell*3+draw.args[0]/cell:-1;
+        gallery.push({kind,heading:q.directions.VEHICLE_HEADINGS[index],drawn,src:draw?.src,sourceCell:cell,requiredSource:20*scale,id:q.metadata[kind].order[slot],destination:draw?.args.slice(4),matrix:draw?.matrix,scale,hash:q.hash(canvas)});
+      }
+      return{frames,selection,profiles,trailers,marine,gallery,stats:q.assets.worldArtStats()};
     });
     assert.deepEqual(checks.stats.errors.filter(e=>!missing.some(kind=>e.id===`vehicle-${kind}`)),[]);
     for(const check of checks.selection)assert.equal(check.actual,check.expected,'angle sectors and wrapping select the expected heading');
@@ -103,6 +113,8 @@ try {
     for(const p of checks.profiles){
       const label=`${p.kind} ${p.heading} zoom${p.zoom} DPR${dpr}`;
       assert.equal(p.drawn,true,label);assert.ok(p.src.includes(VEHICLE_ATLAS_PATHS[p.kind].slice(1)),`${label} uses active directional art`);assert.equal(p.id,`vehicle:${p.kind}:${p.heading}`,label);
+      assert.equal(p.sourceHeight,p.sourceCell,`${label} samples a whole square source cell`);
+      assert.ok(p.sourceCell>=p.requiredSource,`${label} source ${p.sourceCell}px covers ${p.requiredSource}px during atlas-to-prepared sampling`);
       assert.ok(Math.abs(p.matrix.b)<1e-9&&Math.abs(p.matrix.c)<1e-9&&Math.abs(p.matrix.a-p.matrix.d)<1e-9,`${label} keeps camera upright`);
       // In Chromium, cancelling rotations can move a handful of filtered
       // channel values by one or two units at DPR2; camera geometry must still be exact.
@@ -114,6 +126,15 @@ try {
     }
     for(const p of checks.trailers)assert.equal(p.independent,true,`${p.kind} follows its own path heading, independent of engine angle`);
     for(const p of checks.marine)assert.equal(new Set(p.hashes).size,8,`${p.kind} marine cache preserves all headings at zoom${p.zoom}`);
+    for(const p of checks.gallery){
+      const label=`Gallery ${p.kind} ${p.heading} DPR${dpr}`;
+      assert.equal(p.drawn,true,label);assert.equal(p.id,`vehicle:${p.kind}:${p.heading}`,label);
+      assert.ok(p.src.includes(VEHICLE_ATLAS_PATHS[p.kind].slice(1)),`${label} uses the active directional art`);
+      assert.ok(p.sourceCell>=p.requiredSource,`${label} source ${p.sourceCell}px covers ${p.requiredSource}px`);
+      assert.deepEqual(p.destination,[-10,-10,20,20],`${label} retains the physical vehicle scale`);
+      assert.deepEqual(p.matrix,{a:p.scale,b:0,c:0,d:p.scale},`${label} retains the authored camera`);
+    }
+    for(const kind of ['bus','express-bus','truck','locomotive','coach','wagon'].filter(k=>!missing.includes(k)))assert.equal(new Set(checks.gallery.filter(p=>p.kind===kind).map(p=>p.hash)).size,8,`${kind} Gallery portraits preserve every unique heading`);
 
     // Labeled physical-size samples show all headings at each supported zoom.
     await page.evaluate(()=>{
@@ -180,13 +201,13 @@ try {
   const fallbackPage=await harness(fallbackContext);
   const fallback=await fallbackPage.evaluate(()=>{
     const q=vehicleQA,checks=[];
-    for(const kind of q.activeKinds)for(let index=0;index<8;index++){
-      const result=q.sprite(kind,index*Math.PI/4,1,0),body=result.draws[0];
-      checks.push({kind,index,drawn:result.drawn,src:body?.src,matrix:body?.matrix});
+    for(const kind of q.activeKinds)for(let index=0;index<8;index++)for(const scale of [.5,1,2,4]){
+      const result=q.sprite(kind,index*Math.PI/4,scale,0),body=result.draws[0];
+      checks.push({kind,index,scale,drawn:result.drawn,src:body?.src,sourceCell:body?.args[2],requiredSource:q.spec(kind).size*scale,matrix:body?.matrix});
     }
     return checks;
   });
-  for(const check of fallback){assert.equal(check.drawn,true);assert.ok(check.src.includes('/vehicles-dimetric-v2/'),`${check.kind} recovery art uses the corrected camera`);assert.ok(Math.abs(check.matrix.b)<1e-9&&Math.abs(check.matrix.c)<1e-9,`${check.kind} recovery body stays upright`);}
+  for(const check of fallback){assert.equal(check.drawn,true);assert.ok(check.src.includes('/vehicles-dimetric-v2/'),`${check.kind} recovery art uses the corrected camera`);assert.ok(check.sourceCell>=check.requiredSource,`${check.kind} recovery source ${check.sourceCell}px covers ${check.requiredSource}px at scale${check.scale}`);assert.ok(Math.abs(check.matrix.b)<1e-9&&Math.abs(check.matrix.c)<1e-9,`${check.kind} recovery body stays upright`);}
   await fallbackContext.close();
   assert.deepEqual(errors,[],'no browser errors');
   console.log(JSON.stringify({results,fallbackChecks:fallback.length,missing,screenshots:output},null,2));

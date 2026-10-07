@@ -1,6 +1,9 @@
-// Code-drawn airport and aircraft art (painterly revision: warm-dark outlines, deeper shade and AO, darker glass,
-// brick base courses, planting, outlined aircraft). Generated raster art may later replace the uprights and the
-// airliner through atlas-runtime; this module then stays the native fallback, as for every other upright.
+import { drawAirportBuilding } from './airport-building-art.js';
+import { worldArtRevision } from './atlas-runtime.js';
+import { featureWorldPixels, SPRITE_SCALE } from './sprite-art-direction.js';
+
+// Painted airport components retain separate anchors for depth sorting.
+// Runways, aircraft and unavailable-art fallbacks remain native canvas geometry.
 // Units: "projected px" are the renderer's zoom-1 world units (a tile diamond
 // is 64 × 32; one height level is 24). Flat ground is painted in square world px (32 per tile) and receives the
 // terrain mesh projection exactly once, like roads and rails. Upright drawing is synchronous; BIOME is set per call.
@@ -40,14 +43,11 @@ export function paintAirportGround(c, { axis = 'x', biome = 'taiga', detail = 't
   c.save();
   if (axis === 'y') c.transform(0, 1, 1, 0, 0, 0); // swap u/v into world x/y
   c.scale(TILE, TILE);
-  const rect = (u0, v0, u1, v1, color) => { c.fillStyle = color; c.fillRect(u0, v0, u1 - u0, v1 - v0); };
   const rrect = (u0, v0, u1, v1, r, color) => { c.fillStyle = color; c.beginPath(); c.roundRect(u0, v0, u1 - u0, v1 - v0, r); c.fill(); };
   const R = rng(seed);
-  c.globalAlpha = .3; rrect(.04, .04, 5.96, 1.96, .18, P.field); c.globalAlpha = 1;
-  if (!region) for (let n = 0; n < 12; n++) { c.globalAlpha = n % 2 ? .08 : .045; rect(.1, .1 + n * .15, 5.9, .1 + n * .15 + .075, P.mown); }
-  c.globalAlpha = 1;
+  // Bare airfield meadow is supplied by the world's textured terrain.
+  // Only constructed surfaces belong to this ground layer.
   const { runway: r, apron: a } = LAYOUT;
-  c.globalAlpha = .45; rrect(r.u0 - .06, r.v0 - .07, r.u1 + .06, r.v1 + .07, .06, P.verge); c.globalAlpha = 1;
   for (const t of LAYOUT.taxiways) { rrect(t.u - .13, a.v1 - .06, t.u + .13, r.v0 + .04, .04, P.asphaltLight); }
   rrect(a.u0, a.v0, a.u1, a.v1, .05, P.apron);
   c.globalAlpha = .6; c.strokeStyle = P.joint; c.lineWidth = region ? .02 : .012;
@@ -177,6 +177,8 @@ function railing(c, from, to, detail, color = '#3b463f') {
   c.stroke(); c.restore();
 }
 export function drawTower(c, { axis = 'x', detail = 'town', biome = 'taiga' } = {}) {
+  const transform = c.getTransform();
+  if (drawAirportBuilding(c, 'tower', { axis, pixelScale: Math.max(Math.hypot(transform.a, transform.b), Math.hypot(transform.c, transform.d)) })) return;
   BIOME = biome;
   const t = LAYOUT.tower, region = detail === 'region';
   const plinth = block(axis, t.u - .17, t.v - .17, t.u + .17, t.v + .17, 0, 6);
@@ -206,6 +208,8 @@ export function drawTower(c, { axis = 'x', detail = 'town', biome = 'taiga' } = 
   c.fillStyle = '#c85b44'; c.beginPath(); c.arc(top.x, top.y - 9.5, region ? 1.4 : 1.1, 0, TAU); c.fill();
 }
 export function drawTerminal(c, { axis = 'x', detail = 'town', biome = 'taiga' } = {}) {
+  const t = c.getTransform();
+  if (drawAirportBuilding(c, 'terminal', { axis, pixelScale: Math.max(Math.hypot(t.a, t.b), Math.hypot(t.c, t.d)) })) return;
   BIOME = biome;
   const T = LAYOUT.terminal, region = detail === 'region', fine = detail === 'detail';
   const wing = block(axis, T.u0, T.v0, T.u1, T.v1, 0, 14);
@@ -227,10 +231,12 @@ export function drawTerminal(c, { axis = 'x', detail = 'town', biome = 'taiga' }
   const k0 = hall.air(.18, 7.6), k1 = hall.air(.82, 7.6), out = axis === 'y' ? iso(.1, 0) : iso(0, .1); // orange canopy
   polygon(c, [k0, k1, { x: k1.x + out.x, y: k1.y + out.y }, { x: k0.x + out.x, y: k0.y + out.y }], '#d8743f');
   polygon(c, [{ x: k0.x + out.x, y: k0.y + out.y }, { x: k1.x + out.x, y: k1.y + out.y }, { x: k1.x + out.x, y: k1.y + out.y + 1 }, { x: k0.x + out.x, y: k0.y + out.y + 1 }], '#9c4f2b');
-  strip(c, hall, 'air', .4, .6, 0, 7, '#2c4348');
+  strip(c, hall, 'air', .4, .6, 0, featureWorldPixels(SPRITE_SCALE.doorHeightMetres), '#2c4348');
   if (!region) { const q = localToProjected(axis, T.u0 - .1, T.v1 + .1, 0); c.strokeStyle = '#d9d8cc'; c.lineWidth = .5; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(q.x, q.y - 21); c.stroke(); polygon(c, [{ x: q.x, y: q.y - 21 }, { x: q.x + 4.5, y: q.y - 20 }, { x: q.x + 4, y: q.y - 17.6 }, { x: q.x, y: q.y - 18.3 }], '#2f5b44'); }
 }
 export function drawHangar(c, { axis = 'x', detail = 'town', biome = 'taiga' } = {}) {
+  const t = c.getTransform();
+  if (drawAirportBuilding(c, 'hangar', { axis, pixelScale: Math.max(Math.hypot(t.a, t.b), Math.hypot(t.c, t.d)) })) return;
   BIOME = biome;
   const H = LAYOUT.hangar, region = detail === 'region';
   const walls = block(axis, H.u0, H.v0, H.u1, H.v1, 0, 12);
@@ -256,6 +262,8 @@ export function drawHangar(c, { axis = 'x', detail = 'town', biome = 'taiga' } =
   outline(c, hull([...walls.left, ...walls.right, ...Array.from({ length: steps + 1 }, (_, k) => ridge(H.u0, k)), ...Array.from({ length: steps + 1 }, (_, k) => ridge(H.u1, k))]), detail);
 }
 export function drawDepot(c, { axis = 'x', detail = 'town', biome = 'taiga' } = {}) {
+  const t = c.getTransform();
+  if (drawAirportBuilding(c, 'depot', { axis, pixelScale: Math.max(Math.hypot(t.a, t.b), Math.hypot(t.c, t.d)) })) return;
   BIOME = biome;
   const d = LAYOUT.depot, region = detail === 'region';
   const bund = block(axis, d.u - .3, d.v - .26, d.u + .3, d.v + .26, 0, 1.6);
@@ -361,14 +369,24 @@ export function drawAircraftShadow(c, { heading = 0, scale = 1, blur = 0 } = {})
 
 // UI portraits (tool cards 72×56, inspector, route cards 80×64).
 export function drawAirportPortrait(c, w, h, { biome = 'taiga', axis = 'x' } = {}) {
-  // Content spans about x −50…120 and y −62…58 projected px: the tower top to the runway's near edge.
-  const s = Math.min(w / 160, h / 124);
-  c.save(); c.translate(w * .5 + (axis === 'y' ? 34 : -34) * s, h * .5 + 4 * s); c.scale(s, s);
-  c.save(); c.beginPath(); c.rect(axis === 'y' ? -120 : -70, -70, 190, 170); c.clip(); c.transform(1, .5, -1, .5, 0, 0); paintAirportGround(c, { axis, biome, detail: 'detail', seed: 5 }); c.restore();
-  drawTower(c, { axis, detail: 'detail', biome }); drawTerminal(c, { axis, detail: 'detail', biome });
-  const p = localToProjected(axis, LAYOUT.stands[0].u, LAYOUT.stands[0].v); c.save(); c.translate(p.x, p.y); drawAircraft(c, { heading: axis === 'y' ? Math.PI / 2 : 0, detail: 'detail', color: '#69c6bc' }); c.restore();
+  // Fit the complete 6x2 airport, including the hangar and fuel depot. The
+  // previous fixed crop cut the runway in half and omitted half the buildings.
+  const boxes = Object.values(PART_BOXES[axis]);
+  const ground = [[0,0],[6,0],[6,2],[0,2]].map(([u,v]) => localToProjected(axis,u,v));
+  const left = Math.min(...ground.map(p=>p.x), ...boxes.map(b=>b.left-2));
+  const top = Math.min(...ground.map(p=>p.y), ...boxes.map(b=>b.top-2));
+  const right = Math.max(...ground.map(p=>p.x), ...boxes.map(b=>b.left+b.width+2));
+  const bottom = Math.max(...ground.map(p=>p.y), ...boxes.map(b=>b.top+b.height+2));
+  const inset = Math.min(6, Math.min(w,h)*.06), s = Math.min((w-inset*2)/(right-left),(h-inset*2)/(bottom-top));
+  c.save(); c.translate((w-(right-left)*s)/2-left*s,(h-(bottom-top)*s)/2-top*s); c.scale(s,s);
+  c.save(); c.transform(1,.5,-1,.5,0,0); paintAirportGround(c,{axis,biome,detail:'detail',seed:5}); c.restore();
+  // The same part placement and back-to-front order as the world renderer.
+  for (const kind of Object.keys(PART_FRONTS).sort((a,b)=>PART_FRONTS[a][0]+PART_FRONTS[a][1]-PART_FRONTS[b][0]-PART_FRONTS[b][1])) PARTS[kind](c,{axis,detail:'detail',biome});
+  const p=localToProjected(axis,LAYOUT.stands[0].u,LAYOUT.stands[0].v);
+  c.save(); c.translate(p.x,p.y); drawAircraft(c,{heading:axis==='y'?Math.PI/2:0,detail:'detail',color:'#69c6bc'}); c.restore();
   c.restore();
 }
+
 export function drawAircraftPortrait(c, w, h, { color = '#69c6bc' } = {}) {
   const s = Math.min(w / 58, h / 44);
   c.save(); c.translate(w / 2, h / 2 + 6 * s); c.scale(s, s);
@@ -379,15 +397,26 @@ export function drawAircraftPortrait(c, w, h, { color = '#69c6bc' } = {}) {
 // Prepared images for the renderer bundle; they live in the shared 32 MiB transport LRU (preparedTransport).
 /** Measured projected-px bounds of each upright part from the anchor corner, per runway axis (includes cast shadows). */
 export const PART_BOXES = {
-  x: { tower: { left: -18, top: -60, width: 52, height: 92 }, terminal: { left: -15, top: -6, width: 70, height: 49 }, hangar: { left: 117, top: 57, width: 50, height: 40 }, depot: { left: 144, top: 80, width: 41, height: 26 }, windsock: { left: 149, top: 92, width: 7, height: 17 }, mast0: { left: 52, top: 10, width: 5, height: 21 }, mast1: { left: 130, top: 49, width: 5, height: 21 } },
-  y: { tower: { left: -8, top: -60, width: 52, height: 92 }, terminal: { left: -48, top: -6, width: 67, height: 49 }, hangar: { left: -159, top: 57, width: 50, height: 40 }, depot: { left: -181, top: 80, width: 41, height: 26 }, windsock: { left: -150, top: 92, width: 6, height: 17 }, mast0: { left: -57, top: 10, width: 5, height: 21 }, mast1: { left: -135, top: 49, width: 5, height: 21 } },
+  x: { tower: { left: -18, top: -60, width: 52, height: 92 }, terminal: { left: -15, top: -6, width: 70, height: 49 }, hangar: { left: 117, top: 57, width: 50, height: 40 }, depot: { left: 144, top: 80, width: 41, height: 26 }, windsock: { left: 143, top: 88, width: 20, height: 27 }, mast0: { left: 52, top: 10, width: 5, height: 21 }, mast1: { left: 130, top: 49, width: 5, height: 21 } },
+  y: { tower: { left: -8, top: -60, width: 52, height: 92 }, terminal: { left: -48, top: -6, width: 67, height: 49 }, hangar: { left: -159, top: 57, width: 50, height: 40 }, depot: { left: -181, top: 80, width: 41, height: 26 }, windsock: { left: -157, top: 88, width: 20, height: 27 }, mast0: { left: -57, top: 10, width: 5, height: 21 }, mast1: { left: -135, top: 49, width: 5, height: 21 } },
 };
+// Union the native fallback bounds with the measured painted cutouts.
+// Four world pixels retain low-density filter fringes before the preparation gutter.
+const paintedPartBounds = {
+  x: { tower: [-17.441429, -49.770357, 6.844286, 17.729643], terminal: [-8.143571, -2.885179, 48.642143, 39.43625], hangar: [115.42, 58.731607, 160.777143, 94.445893], depot: [144.256429, 78.970357, 180.863571, 103.791786] },
+  y: { tower: [-7.38, -50.918393, 17.441429, 18.18875], terminal: [-47.481429, -2.529107, 7.34, 39.078036], hangar: [-159.884286, 58.168214, -115.777143, 94.061071], depot: [-180.327857, 79.185357, -144.792143, 104.006786] },
+};
+for (const axis of ['x','y']) for (const [kind, measured] of Object.entries(paintedPartBounds[axis])) {
+  const native=PART_BOXES[axis][kind], left=Math.min(native.left,Math.floor(measured[0]-4)), top=Math.min(native.top,Math.floor(measured[1]-4));
+  const right=Math.max(native.left+native.width,Math.ceil(measured[2]+4)), bottom=Math.max(native.top+native.height,Math.ceil(measured[3]+4));
+  PART_BOXES[axis][kind]={left,top,width:right-left,height:bottom-top};
+}
 /** Each part's front corner in local (u, v): its depth in the scene's back-to-front order. */
 export const PART_FRONTS = { tower: [.5, .66], terminal: [1.62, .8], hangar: [5.04, .76], depot: [5.8, .68], mast0: [1.8, .1], mast1: [4.24, .1], windsock: [5.74, 1.06] };
 const PARTS = { tower: drawTower, terminal: drawTerminal, hangar: drawHangar, depot: drawDepot, windsock: drawWindsock, mast0: (c, o) => drawMast(c, { ...o, index: 0 }), mast1: (c, o) => drawMast(c, { ...o, index: 1 }) };
 const headingBucket = heading => ((Math.round(heading / (TAU / HEADING_BUCKETS)) % HEADING_BUCKETS) + HEADING_BUCKETS) % HEADING_BUCKETS;
 export function createAirportSprites({ pixelScale = 1, detailLevel = 'town', biome = 'taiga', cache } = {}) {
-  const scale = Math.max(.25, Number(pixelScale) || 1), prefix = `airport:${scale}:${detailLevel}:${biome}:`, boost = detailLevel === 'region' ? 1.3 : 1;
+  const scale = Math.max(.25, Number(pixelScale) || 1), prefix = `airport:${worldArtRevision()}:${scale}:${detailLevel}:${biome}:`, boost = detailLevel === 'region' ? 1.3 : 1;
   let created = 0, hits = 0;
   function prepare(key, box, draw) {
     let image = cache.get(prefix + key);

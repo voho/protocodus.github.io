@@ -47,7 +47,7 @@ async function harness(context) {
 }
 
 try {
-  for (const dpr of [1, 2]) {
+  for (const dpr of process.env.TRANSPORT_HOUSE_FALLBACK_ONLY ? [] : [1, 2]) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: dpr });
     const page = await harness(context);
     const loaded = await page.evaluate(() => houseQA.assets.preloadHouses());
@@ -71,7 +71,7 @@ try {
         masters.push({ biome, design, rotation, width: master.width, height: master.height, silhouettes });
         for (const [zoom, detailLevel] of [[.5, 'region'], [1, 'town'], [2, 'detail']]) {
           const pixelScale = zoom * devicePixelRatio, cell = 32 * pixelScale;
-          const atlas = await q.load(new URL(`./assets/houses/${biome}/${design ? `design-${design}/` : ''}${rotation ? 'rotation-1/' : ''}house-atlas-${cell}.png`, location.href).href);
+          const atlas = await q.load(new URL(assets.HOUSE_DESIGN_ATLAS_URLS[biome][design][rotation].replace(/atlas-\d+\.png$/, `atlas-${cell}.png`), location.href).href);
           const sprite = q.createSprites(biome, { pixelScale, detailLevel }), houses = [];
           for (let index = 0; index < 9; index++) {
             const kind = assets.HOUSE_KINDS[index], actual = sprite(kind, design * 6 + rotation, 1);
@@ -84,15 +84,27 @@ try {
         }
       }
       const {drawUIArtwork}=await import('./ui-art.js'),{BUILDINGS}=await import('./buildings.js'),ui=[];
+      const visible=image=>{
+        const pixels=image.getContext('2d').getImageData(0,0,image.width,image.height).data;
+        let left=image.width,top=image.height,right=-1,bottom=-1;
+        for(let y=0;y<image.height;y++)for(let x=0;x<image.width;x++)if(pixels[(y*image.width+x)*4+3]){left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y);}
+        return{left,top,sw:right-left+1,sh:bottom-top+1};
+      };
       for(const biome of assets.HOUSE_BIOMES){
         const root=document.createElement('div'),portrait=canvas(96,100),density=Math.min(2,Math.max(1,devicePixelRatio));
-        root.append(portrait);const sprite=q.createSprites(biome,{pixelScale:density*2,detailLevel:'detail'});
+        root.append(portrait);const sprites=new Map();
         for(const kind of assets.HOUSE_KINDS)for(const design of assets.HOUSE_DESIGNS)for(const rotation of assets.HOUSE_ROTATIONS){
           const variant=design*6+rotation;portrait.dataset.buildingSprite=kind;portrait.dataset.buildingVariant=String(variant);
           drawUIArtwork(root,{biome,routes:[],vehicles:[]});
-          const expected=canvas(96*density,100*density),c=expected.getContext('2d');c.scale(density,density);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(sprite(kind,variant,1,'',BUILDINGS[kind].footprint),16,8,64,80);
+          const span=BUILDINGS[kind].footprint;let pixelScale=2**Math.ceil(Math.log2(Math.max(1,100*density/(32*span))));
+          if(!sprites.has(pixelScale))sprites.set(pixelScale,q.createSprites(biome,{pixelScale,detailLevel:'detail'}));
+          let source=sprites.get(pixelScale)(kind,variant,1,'',span),bounds=visible(source);
+          const enlargement=Math.min(84/bounds.sw,88/bounds.sh)*density;
+          if(enlargement>1+1e-7){pixelScale=2**Math.ceil(Math.log2(pixelScale*enlargement));if(!sprites.has(pixelScale))sprites.set(pixelScale,q.createSprites(biome,{pixelScale,detailLevel:'detail'}));source=sprites.get(pixelScale)(kind,variant,1,'',span);bounds=visible(source);}
+          const{left,top,sw,sh}=bounds,fit=Math.min(84/sw,88/sh),w=sw*fit,h=sh*fit;
+          const expected=canvas(96*density,100*density),c=expected.getContext('2d');c.scale(density,density);c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(source,left,top,sw,sh,(96-w)/2,(100-h)/2,w,h);
           const key=portrait.dataset.artDrawn,first=hash(portrait);drawUIArtwork(root,{biome,routes:[],vehicles:[]});
-          ui.push({biome,kind,variant,matches:first===hash(expected),stable:portrait.dataset.artDrawn===key&&hash(portrait)===first});
+          ui.push({biome,kind,variant,matches:first===hash(expected),sharp:sw>=w*density&&sh>=h*density,stable:portrait.dataset.artDrawn===key&&hash(portrait)===first});
         }
       }
       return { masters, profiles, ui, stats: assets.getHouseAssetStats() };
@@ -100,7 +112,7 @@ try {
     assert.deepEqual(checks.stats.availableBiomes.slice().sort(), ['desert', 'taiga', 'tundra']);
     assert.equal(checks.masters.length, 18);
     assert.deepEqual(checks.stats.availableDesigns, [0,1,2]);
-    assert.ok(checks.stats.decodedBytes <= 54 * 1024 * 1024, 'all climate/design/orientation densities retain a fixed decoded-art budget');
+    assert.ok(checks.stats.decodedBytes <= 72 * 1024 * 1024, 'six shared neutral design/orientation sheets through512px retain a fixed decoded-art budget');
     for (const design of [0,1,2]) for (const rotation of [0,1]) assert.deepEqual(checks.stats.designStats[design].rotations[rotation].availableBiomes.slice().sort(), ['desert','taiga','tundra']);
     for (const rotation of [0,1]) assert.deepEqual(checks.stats.rotationStats[rotation].availableBiomes.slice().sort(), ['desert','taiga','tundra']);
     for (const master of checks.masters) {
@@ -132,7 +144,7 @@ try {
       const identities=checks.profiles.filter(profile=>profile.biome===biome&&profile.zoom===zoom).map(profile=>profile.houses[index].hash);
       assert.equal(new Set(identities).size,6,`${biome} ${checks.profiles[0].houses[index].kind} zoom${zoom} has six distinct design/orientation images`);
     }
-    for(const portrait of checks.ui){assert.equal(portrait.matches,true,`${portrait.biome} ${portrait.kind} variant${portrait.variant} UI portrait matches map artwork`);assert.equal(portrait.stable,true,'repainting unchanged portraits reuses their bitmap');}
+    for(const portrait of checks.ui){assert.equal(portrait.matches,true,`${portrait.biome} ${portrait.kind} variant${portrait.variant} UI portrait fits its exact map identity without distortion`);assert.equal(portrait.sharp,true,'UI source pixels cover the physical portrait size');assert.equal(portrait.stable,true,'repainting unchanged portraits reuses their bitmap');}
     // Full originals on a checkerboard make halos or accidental backgrounds
     // visible; the gallery below also shows the real 16/32/64 logical sizes.
     if (dpr === 1) for (const biome of ['taiga', 'tundra', 'desert']) {
@@ -189,7 +201,7 @@ try {
   const alternate = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   let releaseAlternate;
   const alternateGate = new Promise(resolve => { releaseAlternate = resolve; });
-  await alternate.route('**/assets/houses/**/rotation-1/**', async route => { await alternateGate; await route.continue(); });
+  await alternate.route('**/assets/world/plot-buildings-v2/houses-*-rotation-1/**', async route => { await alternateGate; await route.continue(); });
   const alternatePage = await harness(alternate);
   const waitingAlternate = await alternatePage.evaluate(async () => {
     const q=houseQA;
@@ -215,7 +227,7 @@ try {
   const designContext = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   let releaseDesign;
   const designGate = new Promise(resolve => { releaseDesign = resolve; });
-  await designContext.route('**/assets/houses/**/design-1/**', async route => { await designGate; await route.continue(); });
+  await designContext.route('**/assets/world/plot-buildings-v2/houses-design-1-*/**', async route => { await designGate; await route.continue(); });
   const designPage = await harness(designContext);
   const waitingDesign = await designPage.evaluate(async () => {
     const q = houseQA;
@@ -238,7 +250,7 @@ try {
   await designContext.close();
 
   const missingDesigns = await browser.newContext({ viewport: { width: 1200, height: 900 } });
-  await missingDesigns.route(/\/assets\/houses\/[^/]+\/design-[12]\//, route => route.abort());
+  await missingDesigns.route(/\/assets\/world\/plot-buildings-v2\/houses-design-[12]-rotation-[01]\//, route => route.abort());
   const missingDesignPage = await harness(missingDesigns);
   const healthyBase = await missingDesignPage.evaluate(async () => {
     const q=houseQA;await q.assets.preloadHouses({biome:'taiga'});
@@ -253,7 +265,7 @@ try {
   const delayed = await browser.newContext({ viewport: { width: 1200, height: 900 } });
   let releaseImages;
   const gate = new Promise(resolve => { releaseImages = resolve; });
-  await delayed.route('**/assets/houses/**', async route => { await gate; await route.continue(); });
+  await delayed.route('**/assets/world/plot-buildings-v2/houses-*/**', async route => { await gate; await route.continue(); });
   const slowPage = await harness(delayed);
   const before = await slowPage.evaluate(async () => {
     const q = houseQA; q.world = q.setupWorld('taiga'); q.sprite = q.createSprites('taiga', { pixelScale: 1 });
@@ -276,9 +288,9 @@ try {
   assert.equal(after.stableChunks, true); assert.equal(after.sameGame, true); assert.equal(after.sameCamera, true);
   await delayed.close();
 
-  for (const missing of ['tundra', 'all']) {
+  for (const missing of ['all']) {
     const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
-    await context.route(missing === 'all' ? '**/assets/houses/**' : '**/assets/houses/tundra/**', route => route.abort());
+    await context.route('**/assets/world/plot-buildings-v2/houses-*/**', route => route.abort());
     const page = await harness(context);
     const fallback = await page.evaluate(async missing => {
       const q = houseQA, loaded = await q.assets.preloadHouses();
@@ -300,5 +312,5 @@ try {
     await context.close();
   }
   assert.deepEqual(errors, [], 'house decoding and fallback do not throw browser errors');
-  console.log(JSON.stringify({ results, delayed: 'sprite and chunk caches refresh without game or camera mutation', fallback: 'missing biome → taiga; all missing → native', screenshots: output }, null, 2));
+  console.log(JSON.stringify({ results, delayed: 'sprite and chunk caches refresh without game or camera mutation', fallback: 'missing designs → healthy design at the same rotation; all missing → native', screenshots: output }, null, 2));
 } finally { await browser.close(); }

@@ -5,7 +5,8 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
   "order": [
@@ -131,5 +132,609 @@
         198
       ]
     }
-  ]
+  ],
+  "highDensityCells": {
+    "256": {
+      "source": "source-isometric.png",
+      "sourceSha256": "9a7bc72df12fc39e5469cca904e95c831f01d260bc17e71348239847e7d9dbe9",
+      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
+      "tool": "build-object-high-density.py",
+      "sprites": [
+        {
+          "id": "vehicle:bus",
+          "cell": 0,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:truck",
+          "cell": 1,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            256,
+            0,
+            512,
+            256
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:locomotive",
+          "cell": 2,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            512,
+            0,
+            768,
+            256
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:coach",
+          "cell": 3,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            256,
+            256,
+            512
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:wagon",
+          "cell": 4,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            256,
+            256,
+            512,
+            512
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:express-bus",
+          "cell": 5,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            512,
+            256,
+            768,
+            512
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:ferry",
+          "cell": 6,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            512,
+            256,
+            768
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:cargo-ship",
+          "cell": 7,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            256,
+            512,
+            512,
+            768
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:tanker",
+          "cell": 8,
+          "originalCellPixels": [
+            256,
+            256
+          ],
+          "sourceCellBoundsSheet": [
+            512,
+            512,
+            768,
+            768
+          ],
+          "sourceCropBoundsCell": [
+            0,
+            0,
+            256,
+            256
+          ],
+          "sourceCropPixels": [
+            256,
+            256
+          ],
+          "masterDrawPixels": [
+            256,
+            256
+          ],
+          "masterOffsetPixels": [
+            0,
+            0
+          ],
+          "nativeEquivalentCellPixels": 256.0,
+          "drawPixels": [
+            256,
+            256
+          ],
+          "offsetPixels": [
+            0,
+            0
+          ],
+          "sourceToCellAffine": [
+            1.0,
+            0,
+            0,
+            1.0,
+            0.0,
+            0.0
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            1.0,
+            1.0
+          ],
+          "enlargesOriginalPixels": false
+        }
+      ],
+      "atlasSha256": "9a7bc72df12fc39e5469cca904e95c831f01d260bc17e71348239847e7d9dbe9"
+    }
+  },
+  "sourceDetailLimits": {
+    "originalSource": "source-isometric.png",
+    "originalSourceSha256": "9a7bc72df12fc39e5469cca904e95c831f01d260bc17e71348239847e7d9dbe9",
+    "originalSheetPixels": [
+      768,
+      768
+    ],
+    "registeredSourceCellPixels": [
+      [
+        256,
+        256
+      ]
+    ],
+    "registrationVerification": "Exact RGBA pixel reconstruction of every published 256px master cell",
+    "historicalAtlasSha256": {
+      "atlas.png": "9a7bc72df12fc39e5469cca904e95c831f01d260bc17e71348239847e7d9dbe9",
+      "atlas-16.png": "5db5c03a965c51a427abfa9e8d8632c24c7ff84d17380435cc4e3dabd084caea",
+      "atlas-32.png": "a046989d849092fa1a89daee42d851279ba9aa5be807b7e5f0d4b995ed9bd5ba",
+      "atlas-64.png": "75dcec600ebfaed0cebb881bad8ab9ad22ec32874dca79fcf2adda912a30c9d6",
+      "atlas-128.png": "30d384de3aba9c56b4645c64a1f8960fd892868cb115a76f5735455748df3328"
+    },
+    "noAdditionalPaintedDetail": true,
+    "resolutionNote": "Display cell sizes include transparent framing. Enlarging original pixels retains existing detail and does not create additional painted detail.",
+    "fallbackDirectionalSources": [
+      {
+        "id": "vehicle:bus",
+        "sourceFamily": "../vehicle-bus-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "052844bfd986156af6ccd10ab6e87d42e0db0109551225b55af1101804b1bbe7",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "258040ede9bf7faec3bb48ed84e80040de93c414fb4f28b4e4acd30e64a99d54"
+      },
+      {
+        "id": "vehicle:truck",
+        "sourceFamily": "../vehicle-truck-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "24abb0d78416cde0edfe2ccd5505a16e954460a7d4edb4ddf5a802c4f95dd525",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "700b4bd4939d5853294744e6cc05b3f243e5ce5c4c8f8d55b7be8151aba0537a"
+      },
+      {
+        "id": "vehicle:locomotive",
+        "sourceFamily": "../vehicle-locomotive-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "44565bf60fc94dcefd71340884894fe640c936e5b9c3592e798a7e4b3b9b30af",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "92eaa814a9635c7f777e29d3c5f9184667de0747e3f1dac851aeb66a6b3b7dc0"
+      },
+      {
+        "id": "vehicle:coach",
+        "sourceFamily": "../vehicle-coach-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "0747585cd03b317aa5f5c79424b6559d7302ee49bf8a810f53b5865db5f34b13",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "a8c95e83642d483041bec1e677546a3a01a022a1f5054c696523eb2ca38cd505"
+      },
+      {
+        "id": "vehicle:wagon",
+        "sourceFamily": "../vehicle-wagon-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "48a950cc6a4bd3513a90fcca0255ab6bf47805dfeeba5fbd0e57f13efe229f96",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "60ecac8da113efa09e17abc5b33c119a8f0fd12604d105b2eb06a8d33cb07818"
+      },
+      {
+        "id": "vehicle:express-bus",
+        "sourceFamily": "../vehicle-express-bus-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "7c807a3eaf432a2fcc7ff8cc746f519ae4da615b89b3e26813424b37d17d6227",
+        "directionalOriginalSource": "source-isometric-packed.png",
+        "directionalOriginalSourceSha256": "74be44fcd1b254ec74b810bd184564b266f9a404589bebdeb7fc5d3d74027165"
+      },
+      {
+        "id": "vehicle:ferry",
+        "sourceFamily": "../vehicle-ferry-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "c24d2915fbf50b35a23ead53c8b3f627bd185697e9400a3dfb6841b7c74d0e29",
+        "directionalOriginalSource": "source-generated.png",
+        "directionalOriginalSourceSha256": "1830eb7b7b562d4cfa6c55a14885fef66cbbe7c15ed40c91066cc5e5e606deab"
+      },
+      {
+        "id": "vehicle:cargo-ship",
+        "sourceFamily": "../vehicle-cargo-ship-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "c3a22c596f083d093a7b0a071152975078b70b75c99a6497445764e8f450a6c8",
+        "directionalOriginalSource": "source-generated.png",
+        "directionalOriginalSourceSha256": "baa92c5c791556f29cea140854d75eefb08f927822dd48fc019ad61d43a3cb9f"
+      },
+      {
+        "id": "vehicle:tanker",
+        "sourceFamily": "../vehicle-tanker-dimetric-v2",
+        "sourceHeading": "SE",
+        "directionalMasterSha256": "710b94218720135b5d333e34b2d94849609e57c8a10fcad7404e605dfd61addb",
+        "directionalOriginalSource": "source-generated.png",
+        "directionalOriginalSourceSha256": "be557f0a3f888c5104fb3a7f73862dd49380f378ba68ebc3110eeab6c0f6cb68"
+      }
+    ]
+  }
 }

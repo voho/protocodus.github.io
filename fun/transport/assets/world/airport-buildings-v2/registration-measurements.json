@@ -1,0 +1,865 @@
+{
+  "source": "/workspace/generated_images/exec-ed0a72cd-70ad-455b-a6a4-4aec38228c62.png",
+  "sourceDimensions": [
+    1774,
+    887
+  ],
+  "sourcePixelsPerWorldPixel": 5.6,
+  "densityCalibration": {
+    "method": "Pooled least-squares fit of observed total planar base spans; one common source scale for all eight components.",
+    "fittedSourcePixelsPerWorldPixel": 5.599287349968414,
+    "observations": [
+      {
+        "id": "tower",
+        "rotation": 0,
+        "sourceEdgeEndpointsSheet": [
+          [
+            165,
+            366.30933973589435
+          ],
+          [
+            281,
+            365.31155015197567
+          ]
+        ],
+        "physicalSpanWorldPixels": 21.76,
+        "sourceProjectedBaseWidth": 116,
+        "sourcePixelsPerWorldPixel": 5.330882352941176,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "terminal",
+        "rotation": 0,
+        "sourceEdgeEndpointsSheet": [
+          [
+            525,
+            346.0748066330716
+          ],
+          [
+            834,
+            367.99928982876986
+          ]
+        ],
+        "physicalSpanWorldPixels": 55.68,
+        "sourceProjectedBaseWidth": 309,
+        "sourcePixelsPerWorldPixel": 5.549568965517241,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "hangar",
+        "rotation": 0,
+        "sourceEdgeEndpointsSheet": [
+          [
+            1015,
+            369.1992943814088
+          ],
+          [
+            1263,
+            369.4698571932131
+          ]
+        ],
+        "physicalSpanWorldPixels": 40.32,
+        "sourceProjectedBaseWidth": 248,
+        "sourcePixelsPerWorldPixel": 6.150793650793651,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "depot",
+        "rotation": 0,
+        "sourceEdgeEndpointsSheet": [
+          [
+            1473,
+            364.7778058736408
+          ],
+          [
+            1670,
+            373.6178050035372
+          ]
+        ],
+        "physicalSpanWorldPixels": 35.84,
+        "sourceProjectedBaseWidth": 197,
+        "sourcePixelsPerWorldPixel": 5.496651785714286,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "tower",
+        "rotation": 1,
+        "sourceEdgeEndpointsSheet": [
+          [
+            165,
+            806.2665066026411
+          ],
+          [
+            281,
+            806.2111919235779
+          ]
+        ],
+        "physicalSpanWorldPixels": 21.76,
+        "sourceProjectedBaseWidth": 116,
+        "sourcePixelsPerWorldPixel": 5.330882352941176,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "terminal",
+        "rotation": 1,
+        "sourceEdgeEndpointsSheet": [
+          [
+            520,
+            793.0996190519127
+          ],
+          [
+            820,
+            766.9862460120526
+          ]
+        ],
+        "physicalSpanWorldPixels": 55.68,
+        "sourceProjectedBaseWidth": 300,
+        "sourcePixelsPerWorldPixel": 5.387931034482759,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "hangar",
+        "rotation": 1,
+        "sourceEdgeEndpointsSheet": [
+          [
+            1013,
+            802.9234359160721
+          ],
+          [
+            1253,
+            794.0570563577083
+          ]
+        ],
+        "physicalSpanWorldPixels": 40.32,
+        "sourceProjectedBaseWidth": 240,
+        "sourcePixelsPerWorldPixel": 5.9523809523809526,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      },
+      {
+        "id": "depot",
+        "rotation": 1,
+        "sourceEdgeEndpointsSheet": [
+          [
+            1457,
+            802.0596075527583
+          ],
+          [
+            1650,
+            795.9291925465836
+          ]
+        ],
+        "physicalSpanWorldPixels": 35.84,
+        "sourceProjectedBaseWidth": 193,
+        "sourcePixelsPerWorldPixel": 5.385044642857142,
+        "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+      }
+    ]
+  },
+  "measurementMethod": "Lower physical contact edges sampled in alpha>=200 core over visible straight segments; least-squares lines determine front contact corner. Left/right horizontal contact boundaries have about 2 source pixel uncertainty from painted outlines. Their midpoint is the physical ground centre. Rear point inferred by planar symmetry, never from shadows or alpha silhouette.",
+  "entries": [
+    {
+      "id": "tower",
+      "rotation": 0,
+      "groundCenterSheet": [
+        223.0,
+        365.81
+      ],
+      "groundVerticesSheet": [
+        [
+          223.334,
+          336.477
+        ],
+        [
+          281,
+          365.312
+        ],
+        [
+          222.666,
+          395.144
+        ],
+        [
+          165,
+          366.309
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            168,
+            368
+          ],
+          [
+            217,
+            392
+          ]
+        ],
+        [
+          [
+            230,
+            391
+          ],
+          [
+            277,
+            367
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.5000240096038414,
+          "intercept": 283.8053781512605,
+          "rSquared": 0.997912851788319,
+          "observedSegmentSheet": [
+            [
+              168,
+              368
+            ],
+            [
+              217,
+              392
+            ]
+          ]
+        },
+        {
+          "slope": -0.5113981762917933,
+          "intercept": 509.0144376899696,
+          "rSquared": 0.998320442768316,
+          "observedSegmentSheet": [
+            [
+              230,
+              391
+            ],
+            [
+              277,
+              367
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    },
+    {
+      "id": "terminal",
+      "rotation": 0,
+      "groundCenterSheet": [
+        679.5,
+        357.037
+      ],
+      "groundVerticesSheet": [
+        [
+          657.055,
+          279.435
+        ],
+        [
+          834,
+          367.999
+        ],
+        [
+          701.945,
+          434.639
+        ],
+        [
+          525,
+          346.075
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            530,
+            348
+          ],
+          [
+            689,
+            428
+          ]
+        ],
+        [
+          [
+            715,
+            428
+          ],
+          [
+            829,
+            370
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.5005200398453064,
+          "intercept": 83.30178571428576,
+          "rSquared": 0.9997936113110767,
+          "observedSegmentSheet": [
+            [
+              530,
+              348
+            ],
+            [
+              689,
+              428
+            ]
+          ]
+        },
+        {
+          "slope": -0.5046397853704727,
+          "intercept": 788.8688708277441,
+          "rSquared": 0.999680882454737,
+          "observedSegmentSheet": [
+            [
+              715,
+              428
+            ],
+            [
+              829,
+              370
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+    },
+    {
+      "id": "hangar",
+      "rotation": 0,
+      "groundCenterSheet": [
+        1139.0,
+        369.335
+      ],
+      "groundVerticesSheet": [
+        [
+          1137.486,
+          307.619
+        ],
+        [
+          1263,
+          369.47
+        ],
+        [
+          1140.514,
+          431.05
+        ],
+        [
+          1015,
+          369.199
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1025,
+            374
+          ],
+          [
+            1132,
+            427
+          ]
+        ],
+        [
+          [
+            1148,
+            427
+          ],
+          [
+            1255,
+            373
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.49277868282412557,
+          "intercept": -130.97106868507865,
+          "rSquared": 0.9995385676407215,
+          "observedSegmentSheet": [
+            [
+              1025,
+              374
+            ],
+            [
+              1132,
+              427
+            ]
+          ]
+        },
+        {
+          "slope": -0.5027484828565169,
+          "intercept": 1004.4411910409939,
+          "rSquared": 0.9995997339015672,
+          "observedSegmentSheet": [
+            [
+              1148,
+              427
+            ],
+            [
+              1255,
+              373
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    },
+    {
+      "id": "depot",
+      "rotation": 0,
+      "groundCenterSheet": [
+        1571.5,
+        369.198
+      ],
+      "groundVerticesSheet": [
+        [
+          1562.277,
+          320.482
+        ],
+        [
+          1670,
+          373.618
+        ],
+        [
+          1580.723,
+          417.913
+        ],
+        [
+          1473,
+          364.778
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1478,
+            367
+          ],
+          [
+            1571,
+            413
+          ]
+        ],
+        [
+          [
+            1593,
+            412
+          ],
+          [
+            1664,
+            376
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.4932630134017268,
+          "intercept": -361.79861286710275,
+          "rSquared": 0.9994563477921317,
+          "observedSegmentSheet": [
+            [
+              1478,
+              367
+            ],
+            [
+              1571,
+              413
+            ]
+          ]
+        },
+        {
+          "slope": -0.4961573091517139,
+          "intercept": 1202.2005112868994,
+          "rSquared": 0.9989018873032729,
+          "observedSegmentSheet": [
+            [
+              1593,
+              412
+            ],
+            [
+              1664,
+              376
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    },
+    {
+      "id": "tower",
+      "rotation": 1,
+      "groundCenterSheet": [
+        223.0,
+        806.239
+      ],
+      "groundVerticesSheet": [
+        [
+          222.939,
+          777.215
+        ],
+        [
+          281,
+          806.211
+        ],
+        [
+          223.061,
+          835.262
+        ],
+        [
+          165,
+          806.267
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            168,
+            808
+          ],
+          [
+            217,
+            832
+          ]
+        ],
+        [
+          [
+            230,
+            832
+          ],
+          [
+            277,
+            808
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.49939975990396157,
+          "intercept": 723.8655462184875,
+          "rSquared": 0.9987995198079233,
+          "observedSegmentSheet": [
+            [
+              168,
+              808
+            ],
+            [
+              217,
+              832
+            ]
+          ]
+        },
+        {
+          "slope": -0.5014112027789839,
+          "intercept": 947.1077399044724,
+          "rSquared": 0.9982837696707443,
+          "observedSegmentSheet": [
+            [
+              230,
+              832
+            ],
+            [
+              277,
+              808
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    },
+    {
+      "id": "terminal",
+      "rotation": 1,
+      "groundCenterSheet": [
+        670.0,
+        780.043
+      ],
+      "groundVerticesSheet": [
+        [
+          697.008,
+          704.127
+        ],
+        [
+          820,
+          766.986
+        ],
+        [
+          642.992,
+          855.959
+        ],
+        [
+          520,
+          793.1
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            525,
+            796
+          ],
+          [
+            634,
+            852
+          ]
+        ],
+        [
+          [
+            655,
+            850
+          ],
+          [
+            809,
+            772
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.511083560624845,
+          "intercept": 527.3361675269932,
+          "rSquared": 0.9995258872633405,
+          "observedSegmentSheet": [
+            [
+              525,
+              796
+            ],
+            [
+              634,
+              852
+            ]
+          ]
+        },
+        {
+          "slope": -0.5026489639392865,
+          "intercept": 1179.1583964422675,
+          "rSquared": 0.9998104419455524,
+          "observedSegmentSheet": [
+            [
+              655,
+              850
+            ],
+            [
+              809,
+              772
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+    },
+    {
+      "id": "hangar",
+      "rotation": 1,
+      "groundCenterSheet": [
+        1133.0,
+        798.49
+      ],
+      "groundVerticesSheet": [
+        [
+          1141.288,
+          739.392
+        ],
+        [
+          1253,
+          794.057
+        ],
+        [
+          1124.712,
+          857.588
+        ],
+        [
+          1013,
+          802.923
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1020,
+            806
+          ],
+          [
+            1117,
+            854
+          ]
+        ],
+        [
+          [
+            1135,
+            853
+          ],
+          [
+            1247,
+            797
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.4893368781439475,
+          "intercept": 307.2251783562533,
+          "rSquared": 0.9995446454919213,
+          "observedSegmentSheet": [
+            [
+              1020,
+              806
+            ],
+            [
+              1117,
+              854
+            ]
+          ]
+        },
+        {
+          "slope": -0.49522589659990696,
+          "intercept": 1414.5751047973918,
+          "rSquared": 0.9995996976886631,
+          "observedSegmentSheet": [
+            [
+              1135,
+              853
+            ],
+            [
+              1247,
+              797
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    },
+    {
+      "id": "depot",
+      "rotation": 1,
+      "groundCenterSheet": [
+        1553.5,
+        798.994
+      ],
+      "groundVerticesSheet": [
+        [
+          1561.19,
+          751.672
+        ],
+        [
+          1650,
+          795.929
+        ],
+        [
+          1545.81,
+          846.317
+        ],
+        [
+          1457,
+          802.06
+        ]
+      ],
+      "groundVertexVisibility": [
+        "inferred-back",
+        "measured-right-contact",
+        "intersection-of-measured-front-edges",
+        "measured-left-contact"
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1465,
+            806
+          ],
+          [
+            1537,
+            842
+          ]
+        ],
+        [
+          [
+            1554,
+            842
+          ],
+          [
+            1644,
+            799
+          ]
+        ]
+      ],
+      "groundEdgeLineFits": [
+        {
+          "slope": 0.4983339503887446,
+          "intercept": 75.98704183635732,
+          "rSquared": 0.9987720124689652,
+          "observedSegmentSheet": [
+            [
+              1465,
+              806
+            ],
+            [
+              1537,
+              842
+            ]
+          ]
+        },
+        {
+          "slope": -0.48361204013377956,
+          "intercept": 1593.88905876732,
+          "rSquared": 0.9992792008072136,
+          "observedSegmentSheet": [
+            [
+              1554,
+              842
+            ],
+            [
+              1644,
+              799
+            ]
+          ]
+        }
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+    }
+  ]
+}

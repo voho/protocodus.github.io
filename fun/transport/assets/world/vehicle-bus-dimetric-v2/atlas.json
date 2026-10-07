@@ -5,7 +5,8 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
   "vehicleLengthNormalized": false,
@@ -324,5 +325,480 @@
     }
   ],
   "sharedScale": 0.755700325732899,
-  "registration": "One uniform family scale, centered per frame; source foreshortening preserved"
+  "registration": "One uniform family scale, centered per frame; source foreshortening preserved",
+  "highDensityCells": {
+    "256": {
+      "source": "source-isometric-packed.png",
+      "sourceSha256": "258040ede9bf7faec3bb48ed84e80040de93c414fb4f28b4e4acd30e64a99d54",
+      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
+      "tool": "build-object-high-density.py",
+      "sprites": [
+        {
+          "id": "vehicle:bus:NW",
+          "cell": 0,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            0,
+            640,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            180,
+            212,
+            460,
+            428
+          ],
+          "sourceCropPixels": [
+            280,
+            216
+          ],
+          "masterDrawPixels": [
+            212,
+            163
+          ],
+          "masterOffsetPixels": [
+            22,
+            46
+          ],
+          "nativeEquivalentCellPixels": 338.1132075471698,
+          "drawPixels": [
+            212,
+            163
+          ],
+          "offsetPixels": [
+            22,
+            46
+          ],
+          "sourceToCellAffine": [
+            0.7571428571428571,
+            0,
+            0,
+            0.7546296296296297,
+            -114.28571428571428,
+            -113.9814814814815
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7571428571428571,
+            0.7546296296296297
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:N",
+          "cell": 1,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            0,
+            1280,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            271,
+            216,
+            369,
+            423
+          ],
+          "sourceCropPixels": [
+            98,
+            207
+          ],
+          "masterDrawPixels": [
+            74,
+            156
+          ],
+          "masterOffsetPixels": [
+            91,
+            50
+          ],
+          "nativeEquivalentCellPixels": 339.02702702702703,
+          "drawPixels": [
+            74,
+            156
+          ],
+          "offsetPixels": [
+            91,
+            50
+          ],
+          "sourceToCellAffine": [
+            0.7551020408163265,
+            0,
+            0,
+            0.7536231884057971,
+            -113.63265306122449,
+            -112.78260869565219
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7551020408163265,
+            0.7536231884057971
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:NE",
+          "cell": 2,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            0,
+            1920,
+            640
+          ],
+          "sourceCropBoundsCell": [
+            182,
+            215,
+            457,
+            424
+          ],
+          "sourceCropPixels": [
+            275,
+            209
+          ],
+          "masterDrawPixels": [
+            208,
+            158
+          ],
+          "masterOffsetPixels": [
+            24,
+            49
+          ],
+          "nativeEquivalentCellPixels": 338.46153846153845,
+          "drawPixels": [
+            208,
+            158
+          ],
+          "offsetPixels": [
+            24,
+            49
+          ],
+          "sourceToCellAffine": [
+            0.7563636363636363,
+            0,
+            0,
+            0.7559808612440191,
+            -113.65818181818182,
+            -113.5358851674641
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7563636363636363,
+            0.7559808612440191
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:W",
+          "cell": 3,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            640,
+            640,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            166,
+            255,
+            473,
+            384
+          ],
+          "sourceCropPixels": [
+            307,
+            129
+          ],
+          "masterDrawPixels": [
+            232,
+            97
+          ],
+          "masterOffsetPixels": [
+            12,
+            79
+          ],
+          "nativeEquivalentCellPixels": 338.7586206896552,
+          "drawPixels": [
+            232,
+            97
+          ],
+          "offsetPixels": [
+            12,
+            79
+          ],
+          "sourceToCellAffine": [
+            0.755700325732899,
+            0,
+            0,
+            0.751937984496124,
+            -113.44625407166124,
+            -112.74418604651163
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.755700325732899,
+            0.751937984496124
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:E",
+          "cell": 5,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            640,
+            1920,
+            1280
+          ],
+          "sourceCropBoundsCell": [
+            167,
+            255,
+            473,
+            384
+          ],
+          "sourceCropPixels": [
+            306,
+            129
+          ],
+          "masterDrawPixels": [
+            231,
+            97
+          ],
+          "masterOffsetPixels": [
+            12,
+            79
+          ],
+          "nativeEquivalentCellPixels": 339.1168831168831,
+          "drawPixels": [
+            231,
+            97
+          ],
+          "offsetPixels": [
+            12,
+            79
+          ],
+          "sourceToCellAffine": [
+            0.7549019607843137,
+            0,
+            0,
+            0.751937984496124,
+            -114.06862745098039,
+            -112.74418604651163
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7549019607843137,
+            0.751937984496124
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:SW",
+          "cell": 6,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            0,
+            1280,
+            640,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            183,
+            214,
+            457,
+            425
+          ],
+          "sourceCropPixels": [
+            274,
+            211
+          ],
+          "masterDrawPixels": [
+            207,
+            159
+          ],
+          "masterOffsetPixels": [
+            24,
+            48
+          ],
+          "nativeEquivalentCellPixels": 338.85990338164254,
+          "drawPixels": [
+            207,
+            159
+          ],
+          "offsetPixels": [
+            24,
+            48
+          ],
+          "sourceToCellAffine": [
+            0.7554744525547445,
+            0,
+            0,
+            0.7535545023696683,
+            -114.25182481751824,
+            -113.260663507109
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7554744525547445,
+            0.7535545023696683
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:S",
+          "cell": 7,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            640,
+            1280,
+            1280,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            263,
+            215,
+            376,
+            424
+          ],
+          "sourceCropPixels": [
+            113,
+            209
+          ],
+          "masterDrawPixels": [
+            85,
+            158
+          ],
+          "masterOffsetPixels": [
+            85,
+            49
+          ],
+          "nativeEquivalentCellPixels": 338.63291139240505,
+          "drawPixels": [
+            85,
+            158
+          ],
+          "offsetPixels": [
+            85,
+            49
+          ],
+          "sourceToCellAffine": [
+            0.7522123893805309,
+            0,
+            0,
+            0.7559808612440191,
+            -112.83185840707964,
+            -113.5358851674641
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7522123893805309,
+            0.7559808612440191
+          ],
+          "enlargesOriginalPixels": false
+        },
+        {
+          "id": "vehicle:bus:SE",
+          "cell": 8,
+          "originalCellPixels": [
+            640,
+            640
+          ],
+          "sourceCellBoundsSheet": [
+            1280,
+            1280,
+            1920,
+            1920
+          ],
+          "sourceCropBoundsCell": [
+            184,
+            213,
+            455,
+            427
+          ],
+          "sourceCropPixels": [
+            271,
+            214
+          ],
+          "masterDrawPixels": [
+            205,
+            162
+          ],
+          "masterOffsetPixels": [
+            25,
+            47
+          ],
+          "nativeEquivalentCellPixels": 338.17283950617286,
+          "drawPixels": [
+            205,
+            162
+          ],
+          "offsetPixels": [
+            25,
+            47
+          ],
+          "sourceToCellAffine": [
+            0.7564575645756457,
+            0,
+            0,
+            0.7570093457943925,
+            -114.18819188191881,
+            -114.24299065420561
+          ],
+          "sourceCoordinateSpace": "original cell pixels",
+          "sourcePixelScale": [
+            0.7564575645756457,
+            0.7570093457943925
+          ],
+          "enlargesOriginalPixels": false
+        }
+      ],
+      "atlasSha256": "052844bfd986156af6ccd10ab6e87d42e0db0109551225b55af1101804b1bbe7"
+    }
+  },
+  "sourceDetailLimits": {
+    "originalSource": "source-isometric-packed.png",
+    "originalSourceSha256": "258040ede9bf7faec3bb48ed84e80040de93c414fb4f28b4e4acd30e64a99d54",
+    "originalSheetPixels": [
+      1920,
+      1920
+    ],
+    "registeredSourceCellPixels": [
+      [
+        640,
+        640
+      ]
+    ],
+    "registrationVerification": "Exact RGBA pixel reconstruction of every published 256px master cell",
+    "historicalAtlasSha256": {
+      "atlas.png": "052844bfd986156af6ccd10ab6e87d42e0db0109551225b55af1101804b1bbe7",
+      "atlas-16.png": "b3947db9a118a437de09266ce76c82139e656dcb15cad4bd8eb65a331b31016a",
+      "atlas-32.png": "fcbb3328b35d9429ed807a0ec363984058c1133ce119015873a8991617bdc05c",
+      "atlas-64.png": "f8d0fb37817d4405328decc6554c3090a5391765ba9ff3fc2637dac9e7a30eca",
+      "atlas-128.png": "d682636cb5a3b14089eddde6d086d1559a15ada885b007eeb1f06b725c570f61"
+    },
+    "noAdditionalPaintedDetail": true,
+    "resolutionNote": "Display cell sizes include transparent framing. Enlarging original pixels retains existing detail and does not create additional painted detail."
+  }
 }

@@ -1,0 +1,2084 @@
+{
+  "id": "airport-buildings-v2",
+  "columns": 4,
+  "rows": 2,
+  "masterCellPixels": 256,
+  "levels": [
+    16,
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "sourceDimensions": [
+    1774,
+    887
+  ],
+  "sourceCellPixels": 443.5,
+  "sourcePixelsPerWorldPixel": 5.6,
+  "worldFramePixels": 96.0,
+  "groundCenterWorld": [
+    48.0,
+    76.0
+  ],
+  "source": {
+    "path": "generated-source.png",
+    "originalPath": "/workspace/generated_images/exec-ed0a72cd-70ad-455b-a6a4-4aec38228c62.png",
+    "sha256": "f5a3b0134081d102335c8a52bec2e4682ee3ba84a2f91602a2f7548ff6ebbdf0"
+  },
+  "generationJobSha256": "aec6d09cfa51bd6bfa760aafb3cc4a4b450b39be574d2e04a92b11414b2f00b3",
+  "measurementsSha256": "7baaea077383e048e99666fd15388c8cd1f312ddcef8ef1b5fe7012af68a7e63",
+  "sourceCalibration": {
+    "status": "observed-whole-sheet-density",
+    "sourcePixelsPerWorldPixel": 5.6,
+    "fittedSourcePixelsPerWorldPixel": 5.599287349968414,
+    "relativeDifferenceFromPooledFit": 0.0001272751311093112,
+    "pooledFitToleranceRelative": 0.02,
+    "observations": [
+      {
+        "observation": {
+          "id": "tower",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              165,
+              366.30933973589435
+            ],
+            [
+              281,
+              365.31155015197567
+            ]
+          ],
+          "physicalSpanWorldPixels": 21.76,
+          "sourceProjectedBaseWidth": 116,
+          "sourcePixelsPerWorldPixel": 5.330882352941176,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.330882352941176,
+        "relativeDifferenceFromSharedDensity": -0.0480567226890757
+      },
+      {
+        "observation": {
+          "id": "terminal",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              525,
+              346.0748066330716
+            ],
+            [
+              834,
+              367.99928982876986
+            ]
+          ],
+          "physicalSpanWorldPixels": 55.68,
+          "sourceProjectedBaseWidth": 309,
+          "sourcePixelsPerWorldPixel": 5.549568965517241,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.549568965517241,
+        "relativeDifferenceFromSharedDensity": -0.009005541871921168
+      },
+      {
+        "observation": {
+          "id": "hangar",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1015,
+              369.1992943814088
+            ],
+            [
+              1263,
+              369.4698571932131
+            ]
+          ],
+          "physicalSpanWorldPixels": 40.32,
+          "sourceProjectedBaseWidth": 248,
+          "sourcePixelsPerWorldPixel": 6.150793650793651,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 6.150793650793651,
+        "relativeDifferenceFromSharedDensity": 0.09835600907029492
+      },
+      {
+        "observation": {
+          "id": "depot",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1473,
+              364.7778058736408
+            ],
+            [
+              1670,
+              373.6178050035372
+            ]
+          ],
+          "physicalSpanWorldPixels": 35.84,
+          "sourceProjectedBaseWidth": 197,
+          "sourcePixelsPerWorldPixel": 5.496651785714286,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.496651785714286,
+        "relativeDifferenceFromSharedDensity": -0.018455038265306083
+      },
+      {
+        "observation": {
+          "id": "tower",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              165,
+              806.2665066026411
+            ],
+            [
+              281,
+              806.2111919235779
+            ]
+          ],
+          "physicalSpanWorldPixels": 21.76,
+          "sourceProjectedBaseWidth": 116,
+          "sourcePixelsPerWorldPixel": 5.330882352941176,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.330882352941176,
+        "relativeDifferenceFromSharedDensity": -0.0480567226890757
+      },
+      {
+        "observation": {
+          "id": "terminal",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              520,
+              793.0996190519127
+            ],
+            [
+              820,
+              766.9862460120526
+            ]
+          ],
+          "physicalSpanWorldPixels": 55.68,
+          "sourceProjectedBaseWidth": 300,
+          "sourcePixelsPerWorldPixel": 5.387931034482759,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.387931034482759,
+        "relativeDifferenceFromSharedDensity": -0.03786945812807871
+      },
+      {
+        "observation": {
+          "id": "hangar",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1013,
+              802.9234359160721
+            ],
+            [
+              1253,
+              794.0570563577083
+            ]
+          ],
+          "physicalSpanWorldPixels": 40.32,
+          "sourceProjectedBaseWidth": 240,
+          "sourcePixelsPerWorldPixel": 5.9523809523809526,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.9523809523809526,
+        "relativeDifferenceFromSharedDensity": 0.06292517006802731
+      },
+      {
+        "observation": {
+          "id": "depot",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1457,
+              802.0596075527583
+            ],
+            [
+              1650,
+              795.9291925465836
+            ]
+          ],
+          "physicalSpanWorldPixels": 35.84,
+          "sourceProjectedBaseWidth": 193,
+          "sourcePixelsPerWorldPixel": 5.385044642857142,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        "observedSourcePixelsPerWorldPixel": 5.385044642857142,
+        "relativeDifferenceFromSharedDensity": -0.03838488520408166
+      }
+    ],
+    "originalEvidence": {
+      "method": "Pooled least-squares fit of observed total planar base spans; one common source scale for all eight components.",
+      "fittedSourcePixelsPerWorldPixel": 5.599287349968414,
+      "observations": [
+        {
+          "id": "tower",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              165,
+              366.30933973589435
+            ],
+            [
+              281,
+              365.31155015197567
+            ]
+          ],
+          "physicalSpanWorldPixels": 21.76,
+          "sourceProjectedBaseWidth": 116,
+          "sourcePixelsPerWorldPixel": 5.330882352941176,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "terminal",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              525,
+              346.0748066330716
+            ],
+            [
+              834,
+              367.99928982876986
+            ]
+          ],
+          "physicalSpanWorldPixels": 55.68,
+          "sourceProjectedBaseWidth": 309,
+          "sourcePixelsPerWorldPixel": 5.549568965517241,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "hangar",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1015,
+              369.1992943814088
+            ],
+            [
+              1263,
+              369.4698571932131
+            ]
+          ],
+          "physicalSpanWorldPixels": 40.32,
+          "sourceProjectedBaseWidth": 248,
+          "sourcePixelsPerWorldPixel": 6.150793650793651,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "depot",
+          "rotation": 0,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1473,
+              364.7778058736408
+            ],
+            [
+              1670,
+              373.6178050035372
+            ]
+          ],
+          "physicalSpanWorldPixels": 35.84,
+          "sourceProjectedBaseWidth": 197,
+          "sourcePixelsPerWorldPixel": 5.496651785714286,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "tower",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              165,
+              806.2665066026411
+            ],
+            [
+              281,
+              806.2111919235779
+            ]
+          ],
+          "physicalSpanWorldPixels": 21.76,
+          "sourceProjectedBaseWidth": 116,
+          "sourcePixelsPerWorldPixel": 5.330882352941176,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "terminal",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              520,
+              793.0996190519127
+            ],
+            [
+              820,
+              766.9862460120526
+            ]
+          ],
+          "physicalSpanWorldPixels": 55.68,
+          "sourceProjectedBaseWidth": 300,
+          "sourcePixelsPerWorldPixel": 5.387931034482759,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "hangar",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1013,
+              802.9234359160721
+            ],
+            [
+              1253,
+              794.0570563577083
+            ]
+          ],
+          "physicalSpanWorldPixels": 40.32,
+          "sourceProjectedBaseWidth": 240,
+          "sourcePixelsPerWorldPixel": 5.9523809523809526,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        },
+        {
+          "id": "depot",
+          "rotation": 1,
+          "sourceEdgeEndpointsSheet": [
+            [
+              1457,
+              802.0596075527583
+            ],
+            [
+              1650,
+              795.9291925465836
+            ]
+          ],
+          "physicalSpanWorldPixels": 35.84,
+          "sourceProjectedBaseWidth": 193,
+          "sourcePixelsPerWorldPixel": 5.385044642857142,
+          "note": "Measured opposite left/right base contact corners. Physical span assumes the canonical native construction guide dimensions; projected x span equals 2 * (eastMetres + northMetres). Base sides, not sprite alpha bounding box."
+        }
+      ]
+    },
+    "policy": "One explicitly chosen common density; measured component-size deviations remain documented, never individually fitted"
+  },
+  "generationRequestedSourcePixelsPerWorldPixel": 4,
+  "processing": {
+    "sampling": "premultiplied-alpha Lanczos, every level independently from original registered pixels",
+    "meaningfulAlphaThresholdExclusive": 2,
+    "silhouetteFitting": false,
+    "perEntryScale": false,
+    "sharpening": false,
+    "colourKey": false,
+    "recolouring": false,
+    "sourceCropPolicy": "Outward whole-pixel fractional-grid crops, or explicit measured ownership bounds",
+    "registrationPolicy": "Measured physical ground-centre translation at one shared source/world density"
+  },
+  "entries": [
+    {
+      "id": "airport-building:tower:axis-x",
+      "kind": "tower",
+      "axis": "x",
+      "slot": 0,
+      "nominalSourceCellBoundsSheet": [
+        0.0,
+        0.0,
+        443.5,
+        443.5
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        444,
+        444
+      ],
+      "groundCenterSheet": [
+        223.0,
+        365.81
+      ],
+      "physicalFrameBoundsSheet": [
+        -45.799999999999955,
+        -59.789999999999964,
+        491.79999999999995,
+        477.80999999999995
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        8.178571428571423,
+        10.676785714285714
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        154,
+        19,
+        290,
+        397
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        35.67857142857143,
+        14.069642857142853,
+        59.964285714285715,
+        81.56964285714285
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -12.321428571428573,
+        -61.93035714285715,
+        11.964285714285715,
+        5.569642857142857
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        -5.120000000000001,
+        12.16
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -17.441428571428574,
+        -49.77035714285715,
+        6.844285714285714,
+        17.729642857142856
+      ],
+      "minimumSourceFilteringGutterPixels": 78.78999999999996,
+      "minimum512FilteringGutterPixels": 75,
+      "meaningfulSourcePixels": 31451,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 5.44,
+        "depthMetres": 5.44,
+        "roofHeightMetres": 30.3,
+        "antennaHeightMetres": 4.75
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          223.0,
+          365.81
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              38.17857142857143,
+              76.39107142857142
+            ],
+            [
+              46.92857142857143,
+              80.67678571428571
+            ]
+          ],
+          [
+            [
+              49.25,
+              80.49821428571428
+            ],
+            [
+              57.642857142857146,
+              76.2125
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4897959183673469,
+          -0.5106382978723404
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.010638297872340385,
+        "originalMeasurement": {
+          "id": "tower",
+          "rotation": 0,
+          "groundCenterSheet": [
+            223.0,
+            365.81
+          ],
+          "groundVerticesSheet": [
+            [
+              223.334,
+              336.477
+            ],
+            [
+              281,
+              365.312
+            ],
+            [
+              222.666,
+              395.144
+            ],
+            [
+              165,
+              366.309
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                168,
+                368
+              ],
+              [
+                217,
+                392
+              ]
+            ],
+            [
+              [
+                230,
+                391
+              ],
+              [
+                277,
+                367
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.5000240096038414,
+              "intercept": 283.8053781512605,
+              "rSquared": 0.997912851788319,
+              "observedSegmentSheet": [
+                [
+                  168,
+                  368
+                ],
+                [
+                  217,
+                  392
+                ]
+              ]
+            },
+            {
+              "slope": -0.5113981762917933,
+              "intercept": 509.0144376899696,
+              "rSquared": 0.998320442768316,
+              "observedSegmentSheet": [
+                [
+                  230,
+                  391
+                ],
+                [
+                  277,
+                  367
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    },
+    {
+      "id": "airport-building:terminal:axis-x",
+      "kind": "terminal",
+      "axis": "x",
+      "slot": 1,
+      "nominalSourceCellBoundsSheet": [
+        443.5,
+        0.0,
+        887.0,
+        443.5
+      ],
+      "sourceBoundsSheet": [
+        443,
+        0,
+        887,
+        444
+      ],
+      "groundCenterSheet": [
+        679.5,
+        357.037
+      ],
+      "physicalFrameBoundsSheet": [
+        410.70000000000005,
+        -68.56299999999999,
+        948.3,
+        469.0369999999999
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -73.33928571428572,
+        12.243392857142858
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        521,
+        202,
+        839,
+        439
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        19.69642857142857,
+        48.314821428571435,
+        76.48214285714286,
+        90.63625
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -28.30357142857143,
+        -27.68517857142857,
+        28.482142857142858,
+        14.636250000000006
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        20.160000000000004,
+        24.8
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -8.143571428571427,
+        -2.8851785714285683,
+        48.64214285714286,
+        39.43625000000001
+      ],
+      "minimumSourceFilteringGutterPixels": 30.03699999999992,
+      "minimum512FilteringGutterPixels": 29,
+      "meaningfulSourcePixels": 48380,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 16.96,
+        "depthMetres": 10.88,
+        "wingHeightMetres": 7,
+        "hallHeightMetres": 11
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          679.5,
+          357.037
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              21.303571428571427,
+              74.38625
+            ],
+            [
+              49.69642857142857,
+              88.6719642857143
+            ]
+          ],
+          [
+            [
+              54.339285714285715,
+              88.6719642857143
+            ],
+            [
+              74.69642857142857,
+              78.31482142857143
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5031446540880503,
+          -0.5087719298245614
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.00877192982456143,
+        "originalMeasurement": {
+          "id": "terminal",
+          "rotation": 0,
+          "groundCenterSheet": [
+            679.5,
+            357.037
+          ],
+          "groundVerticesSheet": [
+            [
+              657.055,
+              279.435
+            ],
+            [
+              834,
+              367.999
+            ],
+            [
+              701.945,
+              434.639
+            ],
+            [
+              525,
+              346.075
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                530,
+                348
+              ],
+              [
+                689,
+                428
+              ]
+            ],
+            [
+              [
+                715,
+                428
+              ],
+              [
+                829,
+                370
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.5005200398453064,
+              "intercept": 83.30178571428576,
+              "rSquared": 0.9997936113110767,
+              "observedSegmentSheet": [
+                [
+                  530,
+                  348
+                ],
+                [
+                  689,
+                  428
+                ]
+              ]
+            },
+            {
+              "slope": -0.5046397853704727,
+              "intercept": 788.8688708277441,
+              "rSquared": 0.999680882454737,
+              "observedSegmentSheet": [
+                [
+                  715,
+                  428
+                ],
+                [
+                  829,
+                  370
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+      }
+    },
+    {
+      "id": "airport-building:hangar:axis-x",
+      "kind": "hangar",
+      "axis": "x",
+      "slot": 2,
+      "nominalSourceCellBoundsSheet": [
+        887.0,
+        0.0,
+        1330.5,
+        443.5
+      ],
+      "sourceBoundsSheet": [
+        887,
+        0,
+        1331,
+        444
+      ],
+      "groundCenterSheet": [
+        1139.0,
+        369.335
+      ],
+      "physicalFrameBoundsSheet": [
+        870.2,
+        -56.264999999999986,
+        1407.8,
+        481.3349999999999
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -155.39285714285717,
+        10.047321428571422
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        1013,
+        235,
+        1267,
+        435
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        25.5,
+        52.011607142857144,
+        70.85714285714286,
+        87.72589285714287
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -22.5,
+        -23.988392857142856,
+        22.857142857142858,
+        11.725892857142862
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        137.92000000000002,
+        82.72
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        115.42000000000002,
+        58.73160714285714,
+        160.77714285714288,
+        94.44589285714287
+      ],
+      "minimumSourceFilteringGutterPixels": 46.33499999999992,
+      "minimum512FilteringGutterPixels": 44,
+      "meaningfulSourcePixels": 34946,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 9.6,
+        "depthMetres": 10.56,
+        "wallHeightMetres": 6,
+        "roofHeightMetres": 10
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          1139.0,
+          369.335
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              27.642857142857142,
+              76.83303571428571
+            ],
+            [
+              46.75,
+              86.29732142857144
+            ]
+          ],
+          [
+            [
+              49.607142857142854,
+              86.29732142857144
+            ],
+            [
+              68.71428571428572,
+              76.65446428571428
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4953271028037383,
+          -0.5046728971962616
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.004672897196261683,
+        "originalMeasurement": {
+          "id": "hangar",
+          "rotation": 0,
+          "groundCenterSheet": [
+            1139.0,
+            369.335
+          ],
+          "groundVerticesSheet": [
+            [
+              1137.486,
+              307.619
+            ],
+            [
+              1263,
+              369.47
+            ],
+            [
+              1140.514,
+              431.05
+            ],
+            [
+              1015,
+              369.199
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                1025,
+                374
+              ],
+              [
+                1132,
+                427
+              ]
+            ],
+            [
+              [
+                1148,
+                427
+              ],
+              [
+                1255,
+                373
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.49277868282412557,
+              "intercept": -130.97106868507865,
+              "rSquared": 0.9995385676407215,
+              "observedSegmentSheet": [
+                [
+                  1025,
+                  374
+                ],
+                [
+                  1132,
+                  427
+                ]
+              ]
+            },
+            {
+              "slope": -0.5027484828565169,
+              "intercept": 1004.4411910409939,
+              "rSquared": 0.9995997339015672,
+              "observedSegmentSheet": [
+                [
+                  1148,
+                  427
+                ],
+                [
+                  1255,
+                  373
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    },
+    {
+      "id": "airport-building:depot:axis-x",
+      "kind": "depot",
+      "axis": "x",
+      "slot": 3,
+      "nominalSourceCellBoundsSheet": [
+        1330.5,
+        0.0,
+        1774.0,
+        443.5
+      ],
+      "sourceBoundsSheet": [
+        1330,
+        0,
+        1774,
+        444
+      ],
+      "groundCenterSheet": [
+        1571.5,
+        369.198
+      ],
+      "physicalFrameBoundsSheet": [
+        1302.7,
+        -56.40199999999999,
+        1840.3,
+        481.1979999999999
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -232.625,
+        10.07178571428571
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        1469,
+        281,
+        1674,
+        420
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        29.69642857142857,
+        60.25035714285715,
+        66.30357142857143,
+        85.07178571428572
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -18.30357142857143,
+        -15.749642857142854,
+        18.30357142857143,
+        9.071785714285719
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        162.56,
+        94.72
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        144.25642857142856,
+        78.97035714285714,
+        180.86357142857145,
+        103.79178571428572
+      ],
+      "minimumSourceFilteringGutterPixels": 61.19799999999992,
+      "minimum512FilteringGutterPixels": 56,
+      "meaningfulSourcePixels": 15098,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 9.6,
+        "depthMetres": 8.32,
+        "bundHeightMetres": 0.8,
+        "tankHeightMetres": 3.5
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          1571.5,
+          369.198
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              31.303571428571427,
+              75.6075
+            ],
+            [
+              47.910714285714285,
+              83.82178571428572
+            ]
+          ],
+          [
+            [
+              51.839285714285715,
+              83.6432142857143
+            ],
+            [
+              64.51785714285714,
+              77.21464285714286
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4946236559139785,
+          -0.5070422535211268
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.007042253521126751,
+        "originalMeasurement": {
+          "id": "depot",
+          "rotation": 0,
+          "groundCenterSheet": [
+            1571.5,
+            369.198
+          ],
+          "groundVerticesSheet": [
+            [
+              1562.277,
+              320.482
+            ],
+            [
+              1670,
+              373.618
+            ],
+            [
+              1580.723,
+              417.913
+            ],
+            [
+              1473,
+              364.778
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                1478,
+                367
+              ],
+              [
+                1571,
+                413
+              ]
+            ],
+            [
+              [
+                1593,
+                412
+              ],
+              [
+                1664,
+                376
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.4932630134017268,
+              "intercept": -361.79861286710275,
+              "rSquared": 0.9994563477921317,
+              "observedSegmentSheet": [
+                [
+                  1478,
+                  367
+                ],
+                [
+                  1571,
+                  413
+                ]
+              ]
+            },
+            {
+              "slope": -0.4961573091517139,
+              "intercept": 1202.2005112868994,
+              "rSquared": 0.9989018873032729,
+              "observedSegmentSheet": [
+                [
+                  1593,
+                  412
+                ],
+                [
+                  1664,
+                  376
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    },
+    {
+      "id": "airport-building:tower:axis-y",
+      "kind": "tower",
+      "axis": "y",
+      "slot": 4,
+      "nominalSourceCellBoundsSheet": [
+        0.0,
+        443.5,
+        443.5,
+        887.0
+      ],
+      "sourceBoundsSheet": [
+        0,
+        443,
+        444,
+        887
+      ],
+      "groundCenterSheet": [
+        223.0,
+        806.239
+      ],
+      "physicalFrameBoundsSheet": [
+        -45.799999999999955,
+        380.63900000000007,
+        491.79999999999995,
+        918.239
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        8.178571428571423,
+        -67.97125000000003
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        153,
+        453,
+        292,
+        840
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        35.5,
+        12.921607142857134,
+        60.32142857142857,
+        82.02874999999999
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -12.5,
+        -63.078392857142866,
+        12.321428571428573,
+        6.028749999999994
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        5.120000000000001,
+        12.16
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -7.379999999999999,
+        -50.91839285714286,
+        17.441428571428574,
+        18.188749999999995
+      ],
+      "minimumSourceFilteringGutterPixels": 72.36099999999993,
+      "minimum512FilteringGutterPixels": 69,
+      "meaningfulSourcePixels": 32366,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 5.44,
+        "depthMetres": 5.44,
+        "roofHeightMetres": 30.3,
+        "antennaHeightMetres": 4.75
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          223.0,
+          806.239
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              38.17857142857143,
+              76.31446428571428
+            ],
+            [
+              46.92857142857143,
+              80.60017857142857
+            ]
+          ],
+          [
+            [
+              49.25,
+              80.60017857142857
+            ],
+            [
+              57.642857142857146,
+              76.31446428571428
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4897959183673469,
+          -0.5106382978723404
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.010638297872340385,
+        "originalMeasurement": {
+          "id": "tower",
+          "rotation": 1,
+          "groundCenterSheet": [
+            223.0,
+            806.239
+          ],
+          "groundVerticesSheet": [
+            [
+              222.939,
+              777.215
+            ],
+            [
+              281,
+              806.211
+            ],
+            [
+              223.061,
+              835.262
+            ],
+            [
+              165,
+              806.267
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                168,
+                808
+              ],
+              [
+                217,
+                832
+              ]
+            ],
+            [
+              [
+                230,
+                832
+              ],
+              [
+                277,
+                808
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.49939975990396157,
+              "intercept": 723.8655462184875,
+              "rSquared": 0.9987995198079233,
+              "observedSegmentSheet": [
+                [
+                  168,
+                  808
+                ],
+                [
+                  217,
+                  832
+                ]
+              ]
+            },
+            {
+              "slope": -0.5014112027789839,
+              "intercept": 947.1077399044724,
+              "rSquared": 0.9982837696707443,
+              "observedSegmentSheet": [
+                [
+                  230,
+                  832
+                ],
+                [
+                  277,
+                  808
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    },
+    {
+      "id": "airport-building:terminal:axis-y",
+      "kind": "terminal",
+      "axis": "y",
+      "slot": 5,
+      "nominalSourceCellBoundsSheet": [
+        443.5,
+        443.5,
+        887.0,
+        887.0
+      ],
+      "sourceBoundsSheet": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "groundCenterSheet": [
+        670.0,
+        780.043
+      ],
+      "physicalFrameBoundsSheet": [
+        401.20000000000005,
+        354.44300000000004,
+        938.8,
+        892.0429999999999
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -71.64285714285715,
+        -63.29339285714286
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        517,
+        627,
+        824,
+        860
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        20.678571428571427,
+        48.67089285714285,
+        75.5,
+        90.27803571428572
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -27.321428571428573,
+        -27.329107142857147,
+        27.5,
+        14.278035714285714
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        -20.160000000000004,
+        24.8
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -47.48142857142858,
+        -2.5291071428571463,
+        7.339999999999996,
+        39.07803571428572
+      ],
+      "minimumSourceFilteringGutterPixels": 32.04299999999995,
+      "minimum512FilteringGutterPixels": 30,
+      "meaningfulSourcePixels": 46577,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 16.96,
+        "depthMetres": 10.88,
+        "wingHeightMetres": 7,
+        "hallHeightMetres": 11
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          670.0,
+          780.043
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              22.107142857142854,
+              78.84946428571429
+            ],
+            [
+              41.57142857142857,
+              88.84946428571429
+            ]
+          ],
+          [
+            [
+              45.32142857142857,
+              88.49232142857143
+            ],
+            [
+              72.82142857142857,
+              74.56375
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5137614678899083,
+          -0.5064935064935064
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.013761467889908285,
+        "originalMeasurement": {
+          "id": "terminal",
+          "rotation": 1,
+          "groundCenterSheet": [
+            670.0,
+            780.043
+          ],
+          "groundVerticesSheet": [
+            [
+              697.008,
+              704.127
+            ],
+            [
+              820,
+              766.986
+            ],
+            [
+              642.992,
+              855.959
+            ],
+            [
+              520,
+              793.1
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                525,
+                796
+              ],
+              [
+                634,
+                852
+              ]
+            ],
+            [
+              [
+                655,
+                850
+              ],
+              [
+                809,
+                772
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.511083560624845,
+              "intercept": 527.3361675269932,
+              "rSquared": 0.9995258872633405,
+              "observedSegmentSheet": [
+                [
+                  525,
+                  796
+                ],
+                [
+                  634,
+                  852
+                ]
+              ]
+            },
+            {
+              "slope": -0.5026489639392865,
+              "intercept": 1179.1583964422675,
+              "rSquared": 0.9998104419455524,
+              "observedSegmentSheet": [
+                [
+                  655,
+                  850
+                ],
+                [
+                  809,
+                  772
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "Personnel opening head is concealed by the entrance canopy; visible door span cannot establish complete head-to-sill height."
+      }
+    },
+    {
+      "id": "airport-building:hangar:axis-y",
+      "kind": "hangar",
+      "axis": "y",
+      "slot": 6,
+      "nominalSourceCellBoundsSheet": [
+        887.0,
+        443.5,
+        1330.5,
+        887.0
+      ],
+      "sourceBoundsSheet": [
+        887,
+        443,
+        1331,
+        887
+      ],
+      "groundCenterSheet": [
+        1133.0,
+        798.49
+      ],
+      "physicalFrameBoundsSheet": [
+        864.2,
+        372.89000000000004,
+        1401.8,
+        910.49
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -154.32142857142858,
+        -66.5875
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        1010,
+        661,
+        1257,
+        862
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        26.035714285714285,
+        51.448214285714286,
+        70.14285714285714,
+        87.34107142857142
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -21.964285714285715,
+        -24.551785714285717,
+        22.142857142857146,
+        11.341071428571428
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        -137.92000000000002,
+        82.72
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -159.88428571428574,
+        58.168214285714285,
+        -115.77714285714288,
+        94.06107142857142
+      ],
+      "minimumSourceFilteringGutterPixels": 48.48999999999995,
+      "minimum512FilteringGutterPixels": 46,
+      "meaningfulSourcePixels": 33833,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 9.6,
+        "depthMetres": 10.56,
+        "wallHeightMetres": 6,
+        "roofHeightMetres": 10
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          1133.0,
+          798.49
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              27.82142857142857,
+              77.34107142857142
+            ],
+            [
+              45.142857142857146,
+              85.9125
+            ]
+          ],
+          [
+            [
+              48.357142857142854,
+              85.73392857142858
+            ],
+            [
+              68.35714285714286,
+              75.73392857142856
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4948453608247423,
+          -0.5
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.005154639175257714,
+        "originalMeasurement": {
+          "id": "hangar",
+          "rotation": 1,
+          "groundCenterSheet": [
+            1133.0,
+            798.49
+          ],
+          "groundVerticesSheet": [
+            [
+              1141.288,
+              739.392
+            ],
+            [
+              1253,
+              794.057
+            ],
+            [
+              1124.712,
+              857.588
+            ],
+            [
+              1013,
+              802.923
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                1020,
+                806
+              ],
+              [
+                1117,
+                854
+              ]
+            ],
+            [
+              [
+                1135,
+                853
+              ],
+              [
+                1247,
+                797
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.4893368781439475,
+              "intercept": 307.2251783562533,
+              "rSquared": 0.9995446454919213,
+              "observedSegmentSheet": [
+                [
+                  1020,
+                  806
+                ],
+                [
+                  1117,
+                  854
+                ]
+              ]
+            },
+            {
+              "slope": -0.49522589659990696,
+              "intercept": 1414.5751047973918,
+              "rSquared": 0.9995996976886631,
+              "observedSegmentSheet": [
+                [
+                  1135,
+                  853
+                ],
+                [
+                  1247,
+                  797
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    },
+    {
+      "id": "airport-building:depot:axis-y",
+      "kind": "depot",
+      "axis": "y",
+      "slot": 7,
+      "nominalSourceCellBoundsSheet": [
+        1330.5,
+        443.5,
+        1774.0,
+        887.0
+      ],
+      "sourceBoundsSheet": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "groundCenterSheet": [
+        1553.5,
+        798.994
+      ],
+      "physicalFrameBoundsSheet": [
+        1284.7,
+        373.39400000000006,
+        1822.3,
+        910.9939999999999
+      ],
+      "sourceToWorldScale": 0.17857142857142858,
+      "sourceToMasterScale": 0.4761904761904763,
+      "translationWorldFromSheet": [
+        -229.41071428571428,
+        -66.67750000000001
+      ],
+      "meaningfulAlphaBoundsSheet": [
+        1454,
+        712,
+        1653,
+        851
+      ],
+      "meaningfulAlphaBoundsWorldFrame": [
+        30.232142857142858,
+        60.46535714285714,
+        65.76785714285714,
+        85.28678571428571
+      ],
+      "meaningfulAlphaBoundsWorldRelativeToGroundCentre": [
+        -17.767857142857142,
+        -15.534642857142863,
+        17.767857142857142,
+        9.28678571428571
+      ],
+      "projectedCentreRelativeToAirportAnchor": [
+        -162.56,
+        94.72
+      ],
+      "airportAnchorAlphaBoundsWorld": [
+        -180.32785714285714,
+        79.18535714285713,
+        -144.79214285714286,
+        104.00678571428571
+      ],
+      "minimumSourceFilteringGutterPixels": 59.99399999999997,
+      "minimum512FilteringGutterPixels": 57,
+      "meaningfulSourcePixels": 14593,
+      "clippedMeaningfulSourcePixels": 0,
+      "clippedEncodingNoisePixels": 0,
+      "clippedEncodingNoiseAlphaEnergy": 0,
+      "physicalDimensions": {
+        "widthMetres": 9.6,
+        "depthMetres": 8.32,
+        "bundHeightMetres": 0.8,
+        "tankHeightMetres": 3.5
+      },
+      "geometry": {
+        "status": "measured",
+        "groundCenterSheet": [
+          1553.5,
+          798.994
+        ],
+        "groundCenterWorldMeasured": [
+          48.0,
+          76.0
+        ],
+        "groundCenterErrorWorldPixels": 0,
+        "groundEdgeSegmentsWorldMeasured": [
+          [
+            [
+              32.19642857142857,
+              77.25107142857142
+            ],
+            [
+              45.05357142857143,
+              83.67964285714285
+            ]
+          ],
+          [
+            [
+              48.089285714285715,
+              83.67964285714285
+            ],
+            [
+              64.16071428571429,
+              76.00107142857142
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5,
+          -0.4777777777777778
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.0222222222222222,
+        "originalMeasurement": {
+          "id": "depot",
+          "rotation": 1,
+          "groundCenterSheet": [
+            1553.5,
+            798.994
+          ],
+          "groundVerticesSheet": [
+            [
+              1561.19,
+              751.672
+            ],
+            [
+              1650,
+              795.929
+            ],
+            [
+              1545.81,
+              846.317
+            ],
+            [
+              1457,
+              802.06
+            ]
+          ],
+          "groundVertexVisibility": [
+            "inferred-back",
+            "measured-right-contact",
+            "intersection-of-measured-front-edges",
+            "measured-left-contact"
+          ],
+          "groundEdgeSegmentsSheet": [
+            [
+              [
+                1465,
+                806
+              ],
+              [
+                1537,
+                842
+              ]
+            ],
+            [
+              [
+                1554,
+                842
+              ],
+              [
+                1644,
+                799
+              ]
+            ]
+          ],
+          "groundEdgeLineFits": [
+            {
+              "slope": 0.4983339503887446,
+              "intercept": 75.98704183635732,
+              "rSquared": 0.9987720124689652,
+              "observedSegmentSheet": [
+                [
+                  1465,
+                  806
+                ],
+                [
+                  1537,
+                  842
+                ]
+              ]
+            },
+            {
+              "slope": -0.48361204013377956,
+              "intercept": 1593.88905876732,
+              "rSquared": 0.9992792008072136,
+              "observedSegmentSheet": [
+                [
+                  1554,
+                  842
+                ],
+                [
+                  1644,
+                  799
+                ]
+              ]
+            }
+          ],
+          "personnelDoorObservable": false,
+          "personnelDoorNotes": "No unambiguous personnel opening is visible in this painted orientation."
+        },
+        "personnelDoorObservable": false,
+        "personnelDoorHeightWorldPixelsMeasured": null,
+        "personnelDoorHeightMetresMeasured": null,
+        "personnelDoorReview": "No unambiguous personnel opening is visible in this painted orientation."
+      }
+    }
+  ],
+  "outputs": [
+    {
+      "path": "airport-buildings-16.png",
+      "cellPixels": 16,
+      "dimensions": [
+        64,
+        32
+      ],
+      "sha256": "505348f0ed81d778ec6f3262f948386cd1398d0ed60f488cf1d5eb48fa0174be",
+      "samplingSource": "original-generated-source"
+    },
+    {
+      "path": "airport-buildings-32.png",
+      "cellPixels": 32,
+      "dimensions": [
+        128,
+        64
+      ],
+      "sha256": "44b30f4f58a2d85444293ee7683e225093d735bd7b750f1e80fc93442b958840",
+      "samplingSource": "original-generated-source"
+    },
+    {
+      "path": "airport-buildings-64.png",
+      "cellPixels": 64,
+      "dimensions": [
+        256,
+        128
+      ],
+      "sha256": "a604f22ba7cdd3482acbe102b71b0cf0ace4c92af2b0d6f599bf5ed2f724c4d6",
+      "samplingSource": "original-generated-source"
+    },
+    {
+      "path": "airport-buildings-128.png",
+      "cellPixels": 128,
+      "dimensions": [
+        512,
+        256
+      ],
+      "sha256": "bcb63b28584cfa5a783e77a047094a5439c9f20f3f1b37690e508463db9c46c8",
+      "samplingSource": "original-generated-source"
+    },
+    {
+      "path": "airport-buildings-256.png",
+      "cellPixels": 256,
+      "dimensions": [
+        1024,
+        512
+      ],
+      "sha256": "3318e919cb2e58875587deefa8fbbfbd5e4e0309c9614030abdac9f34df852e2",
+      "samplingSource": "original-generated-source"
+    },
+    {
+      "path": "airport-buildings-512.png",
+      "cellPixels": 512,
+      "dimensions": [
+        2048,
+        1024
+      ],
+      "sha256": "9defa3b0591804414c41cc10fa1aaa1881a0a314eb3618264c6de8462bb7d197",
+      "samplingSource": "original-generated-source"
+    }
+  ]
+}

@@ -78,3 +78,15 @@ test('generation jobs carry explicit geometry, material swatches and parcel-spec
 test('registration rejects invalid coordinates and parcel dimensions', () => {
   for (const args of [[NaN, 0], [0, Infinity], [0, 0, 0, 0], [0, 0, 0, 1.5], [0, 0, 0, 1, 0]]) assert.throws(() => projectBuildingMasterPoint(...args));
 });
+
+test('airport components retain canonical materials and metre scale in a larger transparent frame', () => {
+  const job = { columns: 1, rows: 1, cellPixels: 384, entries: [{ id: 'terminal', description: 'A 16.96m by10.88m terminal.' }], componentFrame: { worldPixels: 96, groundCenterCell: [192,304] } };
+  const prompt=buildingGenerationPrompt(job);
+  assert.match(prompt,/Personnel doors are 16\.8px high and 7\.6px wide/);
+  assert.match(prompt,/Physical ground centre is \(192,304\)/);
+  assert.match(prompt,/ONE shared 96 world-pixel frame: 8px per physical metre/);
+  assert.match(prompt,/separately depth-sorted airport COMPONENTS/);
+  assert.match(prompt,/Genuine RGBA transparency/);
+  assert.match(prompt,/No in-plot yaw/);
+  for(const componentFrame of [{worldPixels:0,groundCenterCell:[192,304]},{worldPixels:96,groundCenterCell:[0,304]},{worldPixels:96,groundCenterCell:[192,NaN]}])assert.throws(()=>buildingGenerationPrompt({...job,componentFrame}));
+});

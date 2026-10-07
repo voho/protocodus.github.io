@@ -82,7 +82,7 @@ try {
           assert.ok(near(row.bulldoze?.bounds,row.bulldozeExpected),'mountains retain single-tile engineering rules');
           if(row.kind==='mountain')assert.equal(row.bulldoze.color,'#d7725f');
           assert.equal(row.stale,false,'releasing a terrain parcel equals a fresh render');assert.ok((mountain?!row.changed:row.changed)&&row.restored&&row.warm&&row.unchanged);
-          if(row.kind!=='forest'&&!mountain&&56*row.span*zoom*dpr>128)assert.ok(row.calls.some(c=>c.cell===256),'large geology uses256px master');
+          if(row.kind!=='forest'&&!mountain&&56*row.span*zoom*dpr>128)assert.ok(row.calls.some(c=>c.cell>=56*row.span*zoom*dpr),'large geology retains enough source pixels for this view');
           if(row.kind==='forest'){assert.ok(row.calls.length>=6);assert.ok(row.calls.every(c=>c.w<50&&c.h<50),'mature trees stay under50worldpixels tall at every footprint');}
         }
         results.push(...rows);

@@ -152,32 +152,51 @@ try {
   assert.ok(pills.includes('7-tile reach') && !pills.includes('5-tile reach'), 'a selected airport shows its 7-tile reach');
   await page.locator('#inspector .tiny-button').click();
 
-  // 7. Routes: Air joins the form, both airports picked by their signs, a straight flight.
+  // 7. Routes: picking the start airport chooses Air, the end stays an airport, then cargo and one plane.
   await chooseView(page, 'routes');
   await page.locator('#new-route-button').click();
-  await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
-  assert.ok((await page.locator('#route-form [name="mode"] option').allTextContents()).includes('Air'));
-  await page.locator('#route-form [name="mode"]').selectOption('air');
-  await page.waitForFunction(() => /Planes fly straight between two airports/.test(document.querySelector('#route-form [name="mode"]').title));
+  await page.locator('#route-form [name="from"]').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#route-form [name="mode"]').getAttribute('type'), 'hidden', 'the start stop determines transport');
+  assert.equal(await page.locator('#route-cargo-step').isVisible(), false, 'choose stops before cargo');
+  assert.equal(await page.locator('#route-vehicles-step').isVisible(), false, 'choose cargo before buying a plane');
+  const startOptions = await page.locator('#route-form [name="from"] option').evaluateAll(options => options.map(option => option.value));
+  assert.ok(startOptions.includes(fern.id) && startOptions.includes(elm.id), 'both airports are offered as start stops');
   await page.locator('[data-pick-route="from"]').click();
-  const road = await page.evaluate(() => { const g = transport.game; for (let y = 190; y < 230; y++) for (let x = 180; x < 230; x++) if (g.tiles[y * g.width + x].road) return { x, y }; return null; });
-  const roadAt = await hoverTile(page, road); await page.mouse.click(roadAt.x, roadAt.y);
-  assert.match(await toastText(page), /Choose an airport\./);
   const apron = { x: fern.x + 3, y: fern.y };
   const apronAt = await hoverTile(page, apron); await page.mouse.click(apronAt.x, apronAt.y);
   await page.waitForFunction(id => document.querySelector('#route-form [name="from"]')?.value === id, fern.id);
+  assert.equal(await page.locator('#route-form [name="mode"]').inputValue(), 'air', 'an airport start selects Air automatically');
+  assert.match(await page.locator('.route-mode-note').textContent(), /Air connection/);
+  const endOptions = await page.locator('#route-form [name="to"] option').evaluateAll(options => options.map(option => option.value).filter(Boolean));
+  assert.deepEqual(endOptions, [elm.id], 'end choices contain the other airport');
   // Picking the start moves straight on to the end.
-  if (await page.evaluate(() => document.querySelector('[data-pick-route="to"]')?.getAttribute('aria-pressed')) !== 'true') { await chooseView(page, 'routes'); await page.locator('[data-pick-route="to"]').click(); }
+  await page.waitForFunction(() => document.querySelector('[data-pick-route="to"]')?.getAttribute('aria-pressed') === 'true');
+  const road = await page.evaluate(() => { const g = transport.game; for (let y = 190; y < 230; y++) for (let x = 180; x < 230; x++) if (g.tiles[y * g.width + x].road) return { x, y }; return null; });
+  assert.ok(road, 'a road tile is available to check the airport-only end picker');
+  const roadAt = await hoverTile(page, road); await page.mouse.click(roadAt.x, roadAt.y);
+  assert.match(await toastText(page), /Choose an airport\./);
+  assert.equal(await page.locator('#route-form [name="to"]').inputValue(), '', 'a road tile does not become a flight endpoint');
   await page.evaluate(id => { const st = transport.game.stations.find(s => s.id === id); transport.renderer.focus(st.x + 1, st.y + 2); }, elm.id);
   await page.waitForTimeout(200);
   const elmSign = await page.evaluate(id => { const st = transport.game.stations.find(s => s.id === id), m = transport.renderer.stationMarker(st), r = document.querySelector('#world').getBoundingClientRect(); return { x: r.left + m.x + m.size / 2, y: r.top + m.y + m.size / 2 }; }, elm.id);
   await page.mouse.click(elmSign.x, elmSign.y);
   await page.waitForFunction(id => document.querySelector('#route-form [name="to"]')?.value === id, elm.id);
   if (!(await page.locator('#route-connection').isVisible())) await chooseView(page, 'routes');
+  await page.locator('#route-cargo-step').waitFor({ state: 'visible' });
+  assert.equal(await page.locator('#route-connection').getAttribute('data-awaiting-cargo'), 'true');
+  assert.equal(await page.locator('#route-connection').getAttribute('data-valid'), 'false', 'a connected flight still asks what to carry');
+  assert.equal(await page.locator('[data-cargo-choice][aria-pressed="true"]').count(), 0, 'cargo is an explicit choice');
+  const cargoChoices = await page.locator('#route-cargo-step [data-cargo-choice]').evaluateAll(buttons => buttons.map(button => button.dataset.cargoChoice).sort());
+  assert.deepEqual(cargoChoices, ['mail', 'passengers'], 'Air offers only the passengers and mail supplied by these towns');
+  assert.equal(await page.locator('[data-cargo-choice="stone"]').count(), 0, 'unavailable freight does not clutter the plane cargo choices');
+  await page.locator('[data-cargo-choice="passengers"]').click();
   await page.waitForFunction(() => document.querySelector('#route-connection')?.dataset.valid === 'true');
   assert.equal(await page.locator('#route-connection').getAttribute('data-message'), 'Flight, 108 tiles.');
-  assert.equal(await page.locator('[data-cargo-choice="stone"]').getAttribute('data-fits'), 'false');
-  assert.equal(await page.locator('[data-cargo-choice="stone"]').getAttribute('title'), 'Planes carry passengers and mail.');
+  const automaticName = await page.locator('#route-form [name="name"]').inputValue();
+  for (const word of ['Fernford', 'Elmhaven', 'Passengers']) assert.ok(automaticName.toLowerCase().includes(word.toLowerCase()), `the automatic flight name includes ${word}`);
+  assert.equal(await page.locator('#route-form [name="vehicleCount"]').inputValue(), '1');
+  assert.equal(await page.locator('[data-estimate-cost]').isVisible(), true);
+  assert.equal(await page.locator('[data-estimate-revenue]').isVisible(), true);
   const portrait = await page.locator('.purchase-vehicle canvas').evaluate(c => { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++; return n; });
   assert.ok(portrait > 200, 'the plane portrait is drawn');
   await page.waitForTimeout(500); await page.screenshot({ path: `${output}/route-form.png` });
@@ -185,8 +204,10 @@ try {
   before = await money(page);
   await page.locator('#route-form button[type="submit"]').click();
   await page.waitForFunction(() => transport.game.routes.some(route => route.mode === 'air'));
-  const flight = await page.evaluate(async () => { const { groundPhase } = await import('./air-flight.js'), g = transport.game, route = g.routes.find(r => r.mode === 'air'), v = g.vehicles.find(v => v.routeId === route.id); return { id: route.id, path: route.path.length - 1, capacity: v.capacity, dwell: v.dwellRemaining, phase: groundPhase(v.dwellRemaining), progress: v.progress, vehicle: v.id }; });
+  const flight = await page.evaluate(async () => { const { groundPhase } = await import('./air-flight.js'), g = transport.game, route = g.routes.find(r => r.mode === 'air'), v = g.vehicles.find(v => v.routeId === route.id); return { id: route.id, name: route.name, cargo: route.cargo, stops: route.stops, vehicles: g.vehicles.filter(v => v.routeId === route.id).length, path: route.path.length - 1, capacity: v.capacity, dwell: v.dwellRemaining, phase: groundPhase(v.dwellRemaining), progress: v.progress, vehicle: v.id }; });
   assert.equal(before - await money(page), price, 'the plane costs its quote');
+  assert.equal(flight.name, automaticName); assert.equal(flight.cargo, 'passengers');
+  assert.deepEqual(flight.stops, [fern.id, elm.id]); assert.equal(flight.vehicles, 1, 'launch buys exactly the requested plane');
   assert.equal(flight.path, 108); assert.equal(flight.capacity, 56); assert.equal(flight.progress, 0);
   assert.equal(flight.phase, 'taxiOut', 'the first plane starts at its stand, ready to taxi out');
 
@@ -211,11 +232,12 @@ try {
   assert.ok(Math.abs(floater.p.x - (floater.sign.x + floater.sign.size / 2)) < 40, 'the figure stands over the sign');
   await page.screenshot({ path: `${output}/floater.png` });
   await chooseView(page, 'routes');
-  const routeCard = page.locator(`[data-route-id="${flight.id}"]`).first();
-  if (await routeCard.count()) {
-    assert.match(await routeCard.textContent(), /Running/);
-    assert.equal(await routeCard.locator('canvas[data-vehicle-sprite]').count() > 0, true, 'the route card shows the plane');
-  }
+  const routeCard = page.locator(`#route-list [data-route-id="${flight.id}"]`);
+  await routeCard.waitFor({ state: 'visible' });
+  assert.match(await routeCard.locator(`[data-route-status="${flight.id}"]`).textContent(), /Running/);
+  const routeDetails = routeCard.locator('.route-card-details');
+  if (!await routeDetails.evaluate(details => details.open)) await routeDetails.locator(':scope > summary').click();
+  await routeCard.locator('canvas[data-vehicle-sprite]').waitFor({ state: 'visible' });
   await page.keyboard.press('Escape');
   // The plane's badge opens its card.
   const badge = await page.evaluate(id => {
@@ -267,6 +289,10 @@ try {
 
   // 9. The art's weight beside the houses (Detail zoom, DPR 2, on #6e8a57).
   const art = await page.evaluate(async () => {
+    // The map previously needed only its smaller density. Wait for the real
+    // Detail/Retina source before measuring this larger standalone portrait.
+    const { preloadWorldArt } = await import('./atlas-runtime.js');
+    await preloadWorldArt({ cells: [512], waitMs: 12000 });
     const A = await import('./airport-art.js'), scale = 4, grass = [0x6e, 0x8a, 0x57];
     const measure = draw => {
       const c = document.createElement('canvas'); c.width = 900; c.height = 700; const x = c.getContext('2d');
