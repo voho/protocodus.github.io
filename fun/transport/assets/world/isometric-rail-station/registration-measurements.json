@@ -1,0 +1,74 @@
+{
+  "columns": 1,
+  "rows": 1,
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "densityGroups": {
+    "rail": {
+      "sourceEdgeEndpointsSheet": [
+        [
+          107,
+          709
+        ],
+        [
+          930,
+          1175
+        ]
+      ],
+      "physicalSpanMetres": 13,
+      "note": "Observed complete long thirteen metre platform base edge."
+    }
+  },
+  "entries": [
+    {
+      "id": "train-stop",
+      "densityGroup": "rail",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "groundCenterSheet": [
+        636,
+        877.5
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            107,
+            709
+          ],
+          [
+            930,
+            1175
+          ]
+        ],
+        [
+          [
+            930,
+            1175
+          ],
+          [
+            1165,
+            1046
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          335,
+          601
+        ],
+        [
+          335,
+          706
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Midpoint of observed opposite platform-base corners."
+    }
+  ]
+}

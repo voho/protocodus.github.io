@@ -26,6 +26,11 @@ class SourceDensityTests(unittest.TestCase):
                 result = density.build(density.ROOT / family, family, verify=True)
                 self.assertTrue(result['verified'])
                 metadata = json.loads((density.ROOT / family / 'atlas.json').read_text())
+                if density.renewal_packer(family, metadata):
+                    self.assertTrue(result['noAdditionalPaintedDetail'])
+                    self.assertIn('Exact original-source regeneration', result['registrationVerification'])
+                    self.assertEqual(density.digest(density.ROOT / family / metadata['source']), metadata['sourceSha256'])
+                    continue
                 limits = metadata['sourceDetailLimits']
                 self.assertTrue(limits['noAdditionalPaintedDetail'])
                 for filename, checksum in limits['historicalAtlasSha256'].items():
@@ -34,8 +39,6 @@ class SourceDensityTests(unittest.TestCase):
 
     def test_manifest_discloses_true_original_resolution_and_enlargement(self):
         expected_cells = {
-            'nature-mountains': 640, 'nature-rocks': 640,
-            'isometric-infrastructure-v2': 512,
             **{f'vehicle-{kind}-dimetric-v2': 640 for kind in ['bus', 'express-bus', 'truck', 'locomotive', 'coach', 'wagon']},
             'vehicle-ferry-dimetric-v2': 418, 'vehicle-cargo-ship-dimetric-v2': 418,
             'vehicle-tanker-dimetric-v2': 418, 'vehicles-dimetric-v2': 256,
@@ -55,11 +58,83 @@ class SourceDensityTests(unittest.TestCase):
                             min(256 * crop_w / entry['masterDrawPixels'][0], 256 * crop_h / entry['masterDrawPixels'][1]))
                         self.assertEqual(entry['drawPixels'], [value * size / 256 for value in entry['masterDrawPixels']])
                         self.assertEqual(entry['offsetPixels'], [value * size / 256 for value in entry['masterOffsetPixels']])
-                if family.startswith('nature-'):
-                    self.assertTrue(all(entry['enlargesOriginalPixels'] for entry in metadata['highDensityCells']['1024']['sprites']),
-                                    'a 1024 display cell must disclose that the original painting is smaller')
                 if family.startswith('vehicle-'):
                     self.assertTrue(all(not entry['enlargesOriginalPixels'] for entry in metadata['highDensityCells']['256']['sprites']))
+
+    def test_renewed_sources_disclose_observed_crops_and_real_enlargement(self):
+        for family in ('nature-mountains', 'nature-rocks', 'isometric-infrastructure-v2'):
+            with self.subTest(family=family):
+                folder = density.ROOT / family
+                metadata = json.loads((folder / 'atlas.json').read_text())
+                with Image.open(folder / metadata['source']) as source:
+                    width, height = source.size
+                for size in density.FAMILIES[family]['levels']:
+                    for record, entry in zip(metadata['sprites'], density.renewed_cell_details(metadata, size)):
+                        left, top, right, bottom = record['sourceBounds']
+                        self.assertTrue(0 <= left < right <= width and 0 <= top < bottom <= height)
+                        self.assertEqual(entry['sourceCropPixels'], [right-left, bottom-top])
+                        self.assertEqual(entry['enlargesOriginalPixels'], any(value > 1 for value in entry['sourcePixelScale']))
+                        if family.startswith('nature-'):
+                            self.assertEqual(record['normalization']['originalSize'], [width, height])
+                            self.assertEqual(record['sourceCropPixels'], entry['sourceCropPixels'])
+                            factor = record['sourceScaleToMaster'] * size / 256
+                            self.assertEqual(entry['drawPixels'], [round(value*factor) for value in entry['sourceCropPixels']])
+                            self.assertEqual(entry['sourcePixelScale'], [entry['drawPixels'][i]/entry['sourceCropPixels'][i] for i in range(2)])
+                            self.assertEqual(entry['offsetPixels'], [round(value*size/256) for value in record['masterOffsetPixels']])
+                            self.assertAlmostEqual(entry['nativeEquivalentCellPixels'], 256/record['sourceScaleToMaster'])
+                            if size == 1024:
+                                self.assertTrue(entry['enlargesOriginalPixels'], 'large display frames must disclose enlargement of these original crops')
+                        else:
+                            extent = metadata['worldFramePixels']*record['sourcePixelsPerWorldPixel']
+                            self.assertEqual(entry['originalSamplingWindowPixels'], [extent, extent])
+                            self.assertEqual(entry['sourcePixelScale'], [size/extent, size/extent])
+                            self.assertEqual(entry['nativeEquivalentCellPixels'], extent)
+
+    def test_renewed_registration_and_source_changes_are_rejected_without_writing(self):
+        for family in ('nature-mountains', 'isometric-infrastructure-v2'):
+            with self.subTest(family=family), tempfile.TemporaryDirectory() as directory:
+                original = density.ROOT / family
+                folder = Path(directory) / family
+                shutil.copytree(original, folder)
+                metadata_path = folder / 'atlas.json'
+                metadata = json.loads(metadata_path.read_text())
+                source = folder / metadata['source']
+                source.write_bytes(source.read_bytes() + b'changed source')
+                with self.assertRaisesRegex(ValueError, 'original source hash'):
+                    density.build(folder, verify=True)
+                shutil.copyfile(original / metadata['source'], source)
+                if family.startswith('nature-'):
+                    metadata['sprites'][0]['sourceScaleToMaster'] *= 1.01
+                else:
+                    metadata['sprites'][0]['groundCenterMaster'][1] += 1
+                metadata_path.write_text(json.dumps(metadata))
+                before = {path.relative_to(folder): density.digest(path) for path in folder.rglob('*') if path.is_file()}
+                with self.assertRaisesRegex(ValueError, 'renewed source registration'):
+                    density.build(folder, verify=True)
+                self.assertEqual(before, {path.relative_to(folder): density.digest(path) for path in folder.rglob('*') if path.is_file()})
+
+    def test_renewed_low_mips_cells_and_high_density_are_exact_regenerations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            family = 'nature-rocks'
+            original = density.ROOT / family
+            folder = Path(directory) / family
+            shutil.copytree(original, folder)
+            metadata = json.loads((folder / 'atlas.json').read_text())
+            paths = ['atlas-32.png', 'atlas-1024.png', f'sources/{metadata["order"][0].replace(":", "_")}.png']
+            for name in paths:
+                with self.subTest(file=name):
+                    target = folder / name
+                    target.write_bytes(target.read_bytes() + b'changed regenerated file')
+                    with self.assertRaisesRegex(ValueError, 'PNG differs from the renewed original-source export'):
+                        density.build(folder, verify=True)
+                    shutil.copyfile(original / name, target)
+            target = folder / 'atlas-1024.png'
+            target.write_bytes(target.read_bytes() + b'changed export')
+            metadata_before = (folder / 'atlas.json').read_bytes()
+            result = density.build(folder)
+            self.assertFalse(result['verified'])
+            self.assertEqual(density.digest(target), density.digest(original / target.name))
+            self.assertEqual((folder / 'atlas.json').read_bytes(), metadata_before)
 
     def test_original_high_frequency_detail_survives_without_changing_scale(self):
         source = Image.new('RGBA', (640, 640))

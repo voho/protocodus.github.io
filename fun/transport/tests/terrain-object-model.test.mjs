@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, buildPath, buildStructureSpan, constructionCost, restoreGame, validateGame } from '../model.js';
 import { buildingAt, placeBuildingSite } from '../building-sites.js';
-import { terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectSiteProblem, terrainObjectGroundIsFlat, releaseTerrainObjects } from '../terrain-objects.js';
+import { terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectSiteProblem, terrainObjectGroundIsFlat, releaseTerrainObjects, releaseTerrainObjectsCells } from '../terrain-objects.js';
 import { encodeGame } from '../save-codec.js';
 import { emptyGame, tileAt } from './helpers.mjs';
 
@@ -20,6 +20,30 @@ test('explicit terrain objects resolve every occupied cell to one stable anchor'
   for(const p of terrainObjectTiles(site)){assert.deepEqual(terrainObjectAt(game,p.x,p.y),site);if(p.x!==20||p.y!==20)assert.equal(tileAt(game,p.x,p.y).terrainObject,undefined);}
   assert.equal(terrainObjectAt(game,23,22),null);assert.equal(terrainObjectAt(game,-1,20),null);
   assert.equal(validateGame(game),true);
+});
+
+test('three through six tile geology resolves every child, survives saves and releases the full cached extent',()=>{
+  for(const kind of ['rock','mountain'])for(const span of [3,4,5,6]){
+    const game=flatGame(),site=parcel(game,kind,20,20,span),points=terrainObjectTiles(site);
+    assert.equal(points.length,span*span);assert.equal(validateGame(game),true);
+    for(const p of points)assert.deepEqual(terrainObjectAt(game,p.x,p.y),site);
+    const restored=restoreGame(encodeGame(game));assert.ok(restored);assert.deepEqual(restored.tiles,game.tiles);
+    const base=game.tiles.map(({terrainObject,...tile})=>tile),released=releaseTerrainObjectsCells(game,[points.at(-1)]);
+    assert.deepEqual(new Set(released),new Set(points.map(p=>p.y*game.width+p.x)),'editing the far corner invalidates every occupied cell');
+    assert.deepEqual(game.tiles,base);assert.equal(terrainObjectAt(game,20,20),null);
+  }
+  const game=flatGame();
+  assert.match(terrainObjectSiteProblem(game,'forest',20,20,4),/Invalid/,'trees keep their fixed small groves');
+  assert.match(terrainObjectSiteProblem(game,'mountain',20,20,7),/Invalid/);
+});
+
+test('a far corner and the far collar of six tile geology participate in engineering',()=>{
+  for(const tool of ['raise','tunnel']){
+    const game=flatGame();parcel(game,'mountain',20,20,6);
+    assert.equal(build(game,tool,25,25).ok,true);assert.equal(terrainObjectAt(game,20,20),null);assert.equal(validateGame(game),true);
+  }
+  const game=flatGame();parcel(game,'rock',20,20,6);
+  assert.equal(build(game,'raise',26,25).ok,true);assert.equal(terrainObjectAt(game,20,20),null,'changing the outer collar releases the whole outcrop');
 });
 
 test('large objects require equal levels, tight continuous grades, and a flat dry collar',()=>{

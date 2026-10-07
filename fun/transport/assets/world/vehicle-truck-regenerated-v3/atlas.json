@@ -1,0 +1,330 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "vehicle:truck:NW",
+    "vehicle:truck:N",
+    "vehicle:truck:NE",
+    "vehicle:truck:W",
+    null,
+    "vehicle:truck:E",
+    "vehicle:truck:SW",
+    "vehicle:truck:S",
+    "vehicle:truck:SE"
+  ],
+  "source": "source-registered.png",
+  "sourceSha256": "4aa7245b76a9d9ea3615c25ece88739f12be65c8f07f427d108583e7244ea273",
+  "sprites": [
+    {
+      "id": "vehicle:truck:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        482,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          82,
+          108,
+          395,
+          363
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          446,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.804093
+      },
+      "bounds": [
+        29,
+        47,
+        226,
+        208
+      ]
+    },
+    {
+      "id": "vehicle:truck:N",
+      "cell": 1,
+      "sourceBounds": [
+        482,
+        0,
+        964,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          173,
+          111,
+          338,
+          353
+        ],
+        "rawAlphaBounds": [
+          33,
+          0,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.856106
+      },
+      "bounds": [
+        76,
+        51,
+        180,
+        204
+      ]
+    },
+    {
+      "id": "vehicle:truck:NE",
+      "cell": 2,
+      "sourceBounds": [
+        964,
+        0,
+        1446,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          108,
+          107,
+          428,
+          370
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.786746
+      },
+      "bounds": [
+        27,
+        45,
+        229,
+        211
+      ]
+    },
+    {
+      "id": "vehicle:truck:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        482,
+        482,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          81,
+          167,
+          444,
+          322
+        ],
+        "rawAlphaBounds": [
+          63,
+          32,
+          482,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.819356
+      },
+      "bounds": [
+        13,
+        79,
+        242,
+        177
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:truck:E",
+      "cell": 5,
+      "sourceBounds": [
+        964,
+        482,
+        1446,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          64,
+          167,
+          432,
+          324
+        ],
+        "rawAlphaBounds": [
+          1,
+          32,
+          434,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.819287
+      },
+      "bounds": [
+        12,
+        78,
+        244,
+        177
+      ]
+    },
+    {
+      "id": "vehicle:truck:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        964,
+        482,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          82,
+          132,
+          392,
+          374
+        ],
+        "rawAlphaBounds": [
+          33,
+          51,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.805552
+      },
+      "bounds": [
+        30,
+        51,
+        225,
+        204
+      ]
+    },
+    {
+      "id": "vehicle:truck:S",
+      "cell": 7,
+      "sourceBounds": [
+        482,
+        964,
+        964,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          171,
+          136,
+          335,
+          374
+        ],
+        "rawAlphaBounds": [
+          32,
+          41,
+          450,
+          482
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.861895
+      },
+      "bounds": [
+        76,
+        53,
+        179,
+        203
+      ]
+    },
+    {
+      "id": "vehicle:truck:SE",
+      "cell": 8,
+      "sourceBounds": [
+        964,
+        964,
+        1446,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          113,
+          132,
+          420,
+          384
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.810321
+      },
+      "bounds": [
+        31,
+        48,
+        225,
+        207
+      ]
+    }
+  ],
+  "sharedScale": 0.6304347826086957,
+  "registration": "One uniform family scale, centered per frame; source foreshortening preserved",
+  "mipSharpening": false
+}

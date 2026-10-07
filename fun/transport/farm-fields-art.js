@@ -22,55 +22,27 @@ export function farmFieldCell(site, x, y) {
   return isLargeFarm(site) && u>=0 && v>=0 && u<industrySize(site) && v<industrySize(site) && !(u<3&&v<3);
 }
 
+// Authored as open rows rather than an opaque patch of replacement terrain.
+// Broad beds, short harvest bands and wide headlands survive the Region view.
 function texture(crop, biome) {
-  const key=`${biome}:${crop}`;
-  if(textures.has(key))return textures.get(key);
+  const key=`${biome}:${crop}`;if(textures.has(key))return textures.get(key);
   const image=typeof OffscreenCanvas==='function'?new OffscreenCanvas(TEXTURE_SIZE,TEXTURE_SIZE):document.createElement('canvas');
   image.width=image.height=TEXTURE_SIZE;
-  const c=image.getContext('2d'),p=PALETTES[biome]||PALETTES.taiga,r=randomSource(1937+crop.length*787+biome.length*83);
-  c.scale(2,2);
-  // Semi-transparent ground marks let each world's existing terrain colour
-  // and grain show through, including dry grass and hillside lighting.
-  if(crop==='pasture'||crop==='orchard'){
-    for(let n=0;n<200;n++){
-      const x=r()*64,y=r()*64;c.globalAlpha=.12+r()*.25;
-      c.fillStyle=n%3?p.leaf:p.highlight;c.fillRect(x,y,.35+r()*.65,.25+r()*.4);
-    }
-    if(crop==='orchard'){
-      c.globalAlpha=.18;c.strokeStyle=p.soil;c.lineWidth=2.5;
-      for(let x=8;x<64;x+=16){c.beginPath();c.moveTo(x,0);c.lineTo(x,64);c.stroke();}
-    }
+  const c=image.getContext('2d'),p=PALETTES[biome]||PALETTES.taiga;c.scale(2,2);
+  if(crop==='pasture'){
+    for(const [x,y]of [[10,12],[43,19],[24,42],[55,53]]){c.fillStyle=p.leaf;c.globalAlpha=.24;c.beginPath();c.ellipse(x,y,4.2,2.1,-.4,0,Math.PI*2);c.fill();}
+  }else if(crop==='orchard'){
+    c.fillStyle=p.soil;c.globalAlpha=.25;for(const x of [12,44])c.fillRect(x,0,3,64);
   }else{
-    c.fillStyle=p.soil;c.globalAlpha=crop==='vegetables'?.3:.19;c.fillRect(0,0,64,64);
-    if(crop==='wheat'){c.fillStyle=p.grain;c.globalAlpha=.15;c.fillRect(0,0,64,64);}
-    const spacing=crop==='corn'?6.4:crop==='vegetables'?8:4.4;
-    c.lineCap='round';
-    for(let x=spacing/2;x<64;x+=spacing){
-      c.globalAlpha=crop==='vegetables'?.42:.27;c.strokeStyle=p.soil;c.lineWidth=crop==='wheat'?1.3:3.1;
-      c.beginPath();c.moveTo(x,0);c.lineTo(x,64);c.stroke();
-      for(let y=2;y<64;y+=crop==='wheat'?2.6:crop==='corn'?3.8:5){
-        const xx=x+(r()-.5)*.6,yy=y+(r()-.5)*1.6;
-        c.globalAlpha=.9;
-        if(crop==='wheat'){
-          c.strokeStyle=p.straw;c.lineWidth=.45;c.beginPath();c.moveTo(xx,yy+1.9);c.lineTo(xx+.6,yy-1.4);c.stroke();
-          c.fillStyle=r()>.45?p.grain:p.light;c.beginPath();c.ellipse(xx+.5,yy-.75,.75,1.4,.3,0,Math.PI*2);c.fill();
-          c.globalAlpha=.45;c.fillStyle=p.grain;c.fillRect(xx-1.2,yy+.7,1.1,.45);
-        }else if(crop==='corn'){
-          c.strokeStyle=p.shade;c.lineWidth=.65;c.beginPath();c.moveTo(xx,yy+2);c.lineTo(xx,yy-1.7);c.stroke();
-          for(const side of [-1,1]){
-            c.fillStyle=side<0?p.leaf:p.highlight;c.beginPath();c.moveTo(xx,yy+1.2);c.quadraticCurveTo(xx+side*3.5,yy+.7,xx+side*2.5,yy-1.3);c.quadraticCurveTo(xx+side*.5,yy-1.1,xx,yy+1.2);c.fill();
-          }
-          c.fillStyle=p.grain;c.fillRect(xx-.35,yy-2.3,.65,1.5);
-        }else{
-          const cropRow=Math.floor(x/spacing)%3;
-          c.fillStyle=cropRow===2?'#776384':p.shade;c.beginPath();c.ellipse(xx+.35,yy+.35,2.1,1.65,0,0,Math.PI*2);c.fill();
-          c.fillStyle=cropRow===2?'#ae89a0':p.leaf;c.beginPath();c.ellipse(xx-.25,yy-.25,1.8,1.35,0,0,Math.PI*2);c.fill();
-          c.fillStyle=cropRow===1?'#d59152':p.highlight;c.fillRect(xx-.4,yy-.7,.85,.65);
-        }
-      }
+    const spacing=crop==='wheat'?8:12,bed=crop==='vegetables'?7:crop==='corn'?6:5;
+    for(let x=2;x<64;x+=spacing){
+      c.fillStyle=p.soil;c.globalAlpha=.38;c.fillRect(x,0,bed,64);
+      c.fillStyle=crop==='wheat'?p.grain:p.leaf;c.globalAlpha=.85;c.fillRect(x+1,0,bed-2,64);
+      c.fillStyle=crop==='wheat'?p.light:p.highlight;c.globalAlpha=.55;c.fillRect(x+1,0,1,64);
+      // Harvest gaps expose the furrow and prevent a wallpaper stripe effect.
+      for(let y=(Math.floor(x/spacing)%3)*6;y<64;y+=18){c.clearRect(x,y,bed,2);}
+      if(crop==='vegetables'&&Math.floor(x/spacing)%2){c.fillStyle='#997a72';c.globalAlpha=.85;c.fillRect(x+2,0,bed-4,64);}
     }
-    c.globalAlpha=.16;c.fillStyle=p.light;
-    for(let n=0;n<160;n++)c.fillRect(r()*64,r()*64,.3+r()*.45,.25+r()*.4);
   }
   c.globalAlpha=1;textures.set(key,image);return image;
 }
@@ -81,9 +53,9 @@ export function paintFarmFields(c, bounds, industryAt, biome, seed = 0, { transp
   const p=PALETTES[biome]||PALETTES.taiga,plots=new Map();
   for(let y=bounds.y0;y<bounds.y1;y++)for(let x=bounds.x0;x<bounds.x1;x++){
     const site=industryAt(x,y);if(!isLargeFarm(site))continue;
-    let plot=plots.get(site);if(!plot){plot={field:new Path2D(),yard:new Path2D(),lane:new Path2D()};plots.set(site,plot);}
+    let plot=plots.get(site);if(!plot){plot={field:new Path2D(),lane:new Path2D()};plots.set(site,plot);}
     const u=x-site.x,v=y-site.y,left=x*TILE,top=y*TILE;
-    if(u<3&&v<3){if(u>=1&&v>=1)plot.yard.rect(left,top,TILE,TILE);continue;}
+    if(u<3&&v<3)continue;
     const margin=2.4,px=left+(u===0?5:margin),py=top+(v===0?5:margin),w=TILE-(u===0||u===industrySize(site)-1?5:margin)-margin,h=TILE-(v===0||v===industrySize(site)-1?5:margin)-margin;
     // Headland lanes separate planted beds, and the loading lane remains
     // clear all the way from the front gate to the barn's working apron.
@@ -102,7 +74,7 @@ export function paintFarmFields(c, bounds, industryAt, biome, seed = 0, { transp
       const pattern=c.createPattern(texture(crop,biome),'repeat');pattern.setTransform({a:.5,d:.5});
       c.fillStyle=pattern;c.fill(plot.field);
     }
-    c.fillStyle=p.soil;if(!transparentGround){c.globalAlpha=.19;c.fill(plot.yard);}c.globalAlpha=.48;c.fill(plot.lane);
+    c.fillStyle=p.light;c.globalAlpha=.5;c.fill(plot.lane);
     c.globalAlpha=1;
   }
   c.restore();
@@ -128,13 +100,15 @@ export function farmFenceSections(site, x, y) {
 
 export function paintFarmFence(c, section, project, biome) {
   const p=PALETTES[biome]||PALETTES.taiga,a=project(...section.a),b=project(...section.b),height=featureWorldPixels(SPRITE_SCALE.fenceHeightMetres);
-  c.save();c.lineCap='round';c.lineJoin='round';
-  c.strokeStyle=p.post;c.lineWidth=1.3;
-  for(const t of [0,.5,1]){const x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;c.beginPath();c.moveTo(x,y);c.lineTo(x,y-height);c.stroke();}
-  for(const lift of [height*.35,height*.8]){
-    c.strokeStyle=p.post;c.lineWidth=1.1;c.beginPath();c.moveTo(a.x,a.y-lift+.5);c.lineTo(b.x,b.y-lift+.5);c.stroke();
-    c.strokeStyle=p.fence;c.lineWidth=.7;c.beginPath();c.moveTo(a.x,a.y-lift);c.lineTo(b.x,b.y-lift);c.stroke();
+  c.save();c.lineCap='square';c.lineJoin='round';
+  // Three slim posts and a broad pale top rail; the diagonal brace makes the
+  // new agricultural fence legible without introducing a dense wire mesh.
+  for(const t of [0,.5,1]){
+    const x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
+    c.fillStyle=p.post;c.fillRect(x-.3,y-height,.6,height);c.fillStyle=p.fence;c.fillRect(x-.3,y-height,.25,height);
   }
+  c.strokeStyle=p.fence;c.lineWidth=.48;c.beginPath();c.moveTo(a.x,a.y-height*.83);c.lineTo(b.x,b.y-height*.83);c.stroke();
+  c.strokeStyle=p.post;c.lineWidth=.3;c.beginPath();c.moveTo(a.x,a.y-height*.2);c.lineTo(b.x,b.y-height*.65);c.stroke();
   c.restore();
 }
 
@@ -148,18 +122,28 @@ export function farmFieldObjects(site, x, y, seed = 0) {
 }
 
 export function paintFarmFieldObject(c, object, point, biome) {
-  const p=PALETTES[biome]||PALETTES.taiga;
-  c.save();c.translate(point.x,point.y);
-  c.fillStyle='#233a282c';c.beginPath();c.ellipse(1,1,object.kind==='cow'?4:6,1.8,0,0,Math.PI*2);c.fill();
+  const p=PALETTES[biome]||PALETTES.taiga,at=(u,v,z=0)=>[point.x+(u-v)*2,point.y+(u+v)-z*2];
+  const poly=(points,color)=>{c.fillStyle=color;c.beginPath();points.forEach(([u,v,z=0],i)=>{const q=at(u,v,z);i?c.lineTo(...q):c.moveTo(...q);});c.closePath();c.fill();};
+  c.save();
   if(object.kind==='fruit-tree'){
-    c.strokeStyle=p.post;c.lineWidth=1.3;c.beginPath();c.moveTo(0,0);c.lineTo(-.5,-8);c.moveTo(-.5,-5);c.lineTo(-3,-9);c.moveTo(-.5,-6);c.lineTo(3,-10);c.stroke();
-    for(const [x,y,r,color]of [[-3,-8,3.7,p.shade],[2.6,-8.7,4,p.leaf],[0,-11.5,3.7,p.leaf],[-1.7,-11.1,2.8,p.highlight]]){c.fillStyle=color;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();}
-    c.fillStyle=object.variant&1?'#c99043':'#c16e4c';for(const [x,y]of [[-3,-10],[2,-12],[3,-7],[-1,-8]]){c.beginPath();c.arc(x,y,.75,0,Math.PI*2);c.fill();}
-    c.fillStyle=p.highlight;c.globalAlpha=.5;c.fillRect(-3.5,-12.5,1.6,.65);c.fillRect(1.3,-10.8,1.6,.6);
+    poly([[-1.8,-.7],[1.5,-.6],[2.5,1.3],[-.5,1.4]],'#26382b28');
+    poly([[-.17,-.13], [.17,-.13,0],[.17,-.13,3.2],[-.17,-.13,3.2]],p.post);
+    // Top canopy plus two side volumes: the orchard shares the elevated
+    // dimetric camera and never becomes a frontal circular tree silhouette.
+    poly([[-1.5,0,3],[0,-1.5,3.6],[1.5,0,3.1],[0,1.5,2.7]],p.leaf);
+    poly([[-1.5,0,3],[0,1.5,2.7],[0,1.25,1.7],[-1.25,0,2]],p.highlight);
+    poly([[0,1.5,2.7],[1.5,0,3.1],[1.25,0,2.1],[0,1.25,1.7]],p.shade);
+    poly([[-.8,-.1,3.35],[-.1,-.8,3.65],[.3,-.25,3.55],[-.35,.35,3.2]],p.highlight);
+    if(object.variant&1)poly([[-.7,.6,2.9],[-.3,.8,2.9],[-.3,.8,2.55],[-.7,.6,2.55]],'#b38858');
   }else{
-    c.fillStyle='#564b3b';for(const x of [-2.4,1.8])c.fillRect(x,-1.7,.65,2.6);
-    c.fillStyle=object.variant?'#c5b59b':'#e4dfcc';c.beginPath();c.ellipse(0,-2.7,3.8,2,0,0,Math.PI*2);c.fill();c.fillRect(2.3,-4,2,2.6);
-    c.fillStyle=object.variant?'#8f7657':'#574f42';c.fillRect(-2,-4,1.6,2);c.fillRect(.5,-2.8,1.3,1.5);c.fillRect(3.4,-2,1.2,.8);
+    const coat=object.variant?'#b6a68d':'#ded8c4';
+    poly([[-1.3,-.5],[1.3,-.5],[1.7,.8],[-.8,.8]],'#26382b25');
+    for(const [u,v]of[[-.8,-.25],[.8,-.25],[-.8,.35],[.8,.35]])poly([[u-.07,v],[u+.07,v],[u+.07,v,.8],[u-.07,v,.8]],p.post);
+    poly([[-1.1,-.4,.7],[1.1,-.4,.7],[1.1,-.4,1.5],[-1.1,-.4,1.5]],coat);
+    poly([[-1.1,-.4,1.5],[1.1,-.4,1.5],[1.1,.4,1.5],[-1.1,.4,1.5]],'#eee5cf');
+    poly([[-1.1,.4,.7],[1.1,.4,.7],[1.1,.4,1.5],[-1.1,.4,1.5]],coat);
+    poly([[1.1,-.3,1],[1.65,-.3,.8],[1.65,.3,.8],[1.1,.3,1.4]],p.post);
+    poly([[-.7,.4,1],[-.25,.4,1],[-.25,.4,1.5],[-.7,.4,1.5]],p.shade);
   }
   c.restore();
 }
@@ -171,8 +155,8 @@ export const farmFieldsArtStats = () => ({ textures:textures.size, textureBytes:
 export function drawFarmPortrait(c, kind, biome = 'taiga', { x=0, y=0, width=96, height=108, pixelScale=1, variant=0, footprint=industryFootprint(kind) } = {}) {
   if(!isFarmIndustry(kind))return false;
   const span=footprint===7?7:5,site={kind,x:0,y:0,footprint:span,variant},image=document.createElement('canvas');image.width=image.height=span*TILE;
-  const ground=image.getContext('2d');ground.fillStyle=biome==='desert'?'#b7ac77':biome==='tundra'?'#9aa58a':'#8caa65';ground.fillRect(0,0,image.width,image.height);
-  paintFarmFields(ground,{x0:0,y0:0,x1:span,y1:span},()=>site,biome);
+  const ground=image.getContext('2d');
+  paintFarmFields(ground,{x0:0,y0:0,x1:span,y1:span},()=>site,biome,0,{transparentGround:true});
   const scale=Math.min((width-8)/(2*span*TILE),(height-8)/((span+1)*TILE)),ox=x+width/2,oy=y+(height-span*TILE*scale)/2;
   const project=(u,v)=>({x:ox+(u-v)*TILE*scale,y:oy+(u+v)*TILE/2*scale});
   c.save();c.transform(scale,scale/2,-scale,scale/2,ox,oy);c.drawImage(image,0,0);c.restore();

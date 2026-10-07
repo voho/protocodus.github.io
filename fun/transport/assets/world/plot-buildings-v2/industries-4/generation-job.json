@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/industries-4",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "industry:meat-packer:taiga",
@@ -22,7 +22,7 @@
         "industry:meat-packer:taiga",
         "industry:meat-packer:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "An eighty metre meat packing compound: several pale refrigeration halls with broad red roofs, four truck bays and simple livestock holding court. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     }
   ],

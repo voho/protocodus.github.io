@@ -170,9 +170,9 @@ for(const [biome,expected] of Object.entries(recipe9Baselines))test(`${biome} re
 });
 
 test('recipe10 allocates 5×5 sites and its sparse procedural save remains loadable',()=>{
-  assert.equal(WORLD_GENERATION_VERSION,10);
+  assert.ok(WORLD_GENERATION_VERSION>=10);
   for(const biome of ['taiga','desert']){
-    const game=createGame({biome,seed:1847,size:'square512',townCount:4,industryDistricts:1});
+    const game=createGame({biome,seed:1847,size:'square512',generationVersion:10,townCount:4,industryDistricts:1});
     assert.equal(game.generationVersion,10);assert.ok(validateGame(game));
     const farm=game.industries.find(site=>site.kind==='farm');assert.equal(farm.footprint,5);
     assert.ok(game.industries.every(site=>site.footprint===5));

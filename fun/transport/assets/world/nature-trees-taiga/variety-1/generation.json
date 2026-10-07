@@ -1,583 +1,507 @@
 {
-  "schemaVersion": 1,
-  "date": "2026-10-06",
-  "biome": "taiga",
-  "sheet": 1,
-  "generator": "image_gen.imagegen",
-  "canonicalPromptModule": "../../../../tree-art-catalog.js",
-  "acceptedSource": "source-generation-2026-10-06.png",
-  "registeredSource": "registered-source-generation-2026-10-06.png",
-  "requestHistory": [
-    {
-      "accepted": false,
-      "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nTemperate and northern woodland: subdued olive, sage and deep green, warm grey and brown bark. No snow.\nSlot 1: scots-pine, 16m tall, 210.4px vertical tree height in the normalized256px cell. Open orange upper trunk and an irregular umbrella of dark needle cushions.\nSlot 2: lodgepole-pine, 16m tall, 210.4px vertical tree height in the normalized256px cell. Slender straight trunk with a narrow uneven column of dark needles.\nSlot 3: blue-spruce, 16m tall, 210.4px vertical tree height in the normalized256px cell. Broad blue-grey conical crown with softly drooping large branches.\nSlot 4: silver-fir, 16m tall, 210.4px vertical tree height in the normalized256px cell. Deep green full conical crown with broad level boughs and a pale trunk.\nSlot 5: western-redcedar, 16m tall, 210.4px vertical tree height in the normalized256px cell. Warm brown trunk and a loose broad pyramid of hanging flat green fans.\nSlot 6: juniper-tree, 10m tall, 131.5px vertical tree height in the normalized256px cell. Twisted warm grey trunk with compact blue-green irregular cloud crowns.\nSlot 7: hemlock, 16m tall, 210.4px vertical tree height in the normalized256px cell. Airy dark evergreen with long descending boughs and a gently bent leader.\nSlot 8: linden, 15m tall, 197.2px vertical tree height in the normalized256px cell. Rounded heart-shaped soft olive crown, clear low fork and warm pale trunk.\nSlot 9: beech, 15m tall, 197.2px vertical tree height in the normalized256px cell. Wide domed darker green crown with smooth silver-grey trunk and strong low limbs.",
-      "parameters": {
-        "transparent_background": true,
-        "referenced_image_paths": [
-          "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-taiga/atlas.png",
-          "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png"
-        ]
-      },
-      "references": [
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-taiga/atlas.png",
-          "sha256": "33c62fbe5f3c029bfe735998a7df63d6a0d4dbc6f82f39cd09898a3c0d5cd54e"
-        },
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png",
-          "sha256": "67a205baa93441195b682c1fa92c23f0fca7f4dd99b94f735161b2ab5c25d6c2"
-        }
-      ],
-      "rawSourcePath": "/workspace/generated_images/exec-7490c19c-a638-4d80-89ce-18cf04f74ba6.png",
-      "sourceSha256": "adc8f4c6b6f3df9892946192f1b5167af0b97dcba9156b7ba040b2c5392776ee",
-      "preservedSource": "rejected-source-generation-2026-10-06.png",
-      "rejectionReason": "Copied existing species, grassy/stone bases, excessive needle/leaf detail, narrow gutters."
-    },
-    {
-      "accepted": true,
-      "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nTemperate and northern woodland: subdued olive, sage and deep green, warm grey and brown bark. No snow.\nSlot 1: scots-pine, 16m tall, 210.4px vertical tree height in the normalized256px cell. Open orange upper trunk and an irregular umbrella of dark needle cushions.\nSlot 2: lodgepole-pine, 16m tall, 210.4px vertical tree height in the normalized256px cell. Slender straight trunk with a narrow uneven column of dark needles.\nSlot 3: blue-spruce, 16m tall, 210.4px vertical tree height in the normalized256px cell. Broad blue-grey conical crown with softly drooping large branches.\nSlot 4: silver-fir, 16m tall, 210.4px vertical tree height in the normalized256px cell. Deep green full conical crown with broad level boughs and a pale trunk.\nSlot 5: western-redcedar, 16m tall, 210.4px vertical tree height in the normalized256px cell. Warm brown trunk and a loose broad pyramid of hanging flat green fans.\nSlot 6: juniper-tree, 10m tall, 131.5px vertical tree height in the normalized256px cell. Twisted warm grey trunk with compact blue-green irregular cloud crowns.\nSlot 7: hemlock, 16m tall, 210.4px vertical tree height in the normalized256px cell. Airy dark evergreen with long descending boughs and a gently bent leader.\nSlot 8: linden, 15m tall, 197.2px vertical tree height in the normalized256px cell. Rounded heart-shaped soft olive crown, clear low fork and warm pale trunk.\nSlot 9: beech, 15m tall, 197.2px vertical tree height in the normalized256px cell. Wide domed darker green crown with smooth silver-grey trunk and strong low limbs.\n\nART DIRECTOR CORRECTION: The provided images are STYLE REFERENCES ONLY. Draw nine entirely NEW botanical trees exactly described in the slots; do not reproduce the original pine, spruce, fir, birch, oak or aspen from a reference atlas. The prior output failed because its trees copied the old species, had dense individual leaf/needle texture and grassy circular bases, and filled their cells. This replacement must have QUIET, SMOOTH, BROAD PAINTED foliage clumps, no leaf flecks, no needle strokes, no grass/flower/stone patches under trees. Bare visible trunk roots with just a tiny soft contact shadow. In an equal 3 by 3 grid, every trunk root is at 95.5% of its cell. Maximum crown width is 70% of the cell (15% side gutters), leaving a fully transparent frame. Maximum 16m tree height is 82% of the cell (top begins at 13.3%); smaller species are visibly proportionally shorter. Scots pine has an elevated irregular umbrella and a long exposed ORANGE upper trunk, lodgepole is a THIN COLUMN on a long straight exposed trunk, blue spruce is a BLUE GREY cone, redcedar has hanging flattened fan masses, juniper is only 10m and has a TWISTED stem with small blue-green clouds, hemlock has a visibly bent tip, linden is a HEART SHAPED canopy, beech is a broad DARK dome on SMOOTH SILVER bark. Distinct silhouettes, same physical scale. Do not draw labels or cell lines.",
-      "parameters": {
-        "transparent_background": true,
-        "referenced_image_paths": [
-          "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png"
-        ]
-      },
-      "references": [
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/house-atlas.png",
-          "sha256": "67a205baa93441195b682c1fa92c23f0fca7f4dd99b94f735161b2ab5c25d6c2"
-        }
-      ],
-      "rawSourcePath": "/workspace/generated_images/exec-e358a8d6-7bbf-482e-97ca-48bd6384e5de.png",
-      "sourceSha256": "cb7ccede840c2953ec4032f72f320319cea4979cd7022a1fa3df1d5f4eddd574",
-      "preservedSource": "source-generation-2026-10-06.png",
-      "rejectionReason": null
-    }
-  ],
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects ONLY from this list, keep botanical identity but canopy view overrides any frontal trunk/fork description. Muted temperate olive and sage.\nSlot 1: scots-pine, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Open orange upper trunk and an irregular umbrella of dark needle cushions.\nSlot 2: lodgepole-pine, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Slender straight trunk with a narrow uneven column of dark needles.\nSlot 3: blue-spruce, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Broad blue-grey conical crown with softly drooping large branches.\nSlot 4: silver-fir, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Deep green full conical crown with broad level boughs and a pale trunk.\nSlot 5: western-redcedar, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Warm brown trunk and a loose broad pyramid of hanging flat green fans.\nSlot 6: juniper-tree, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Twisted warm grey trunk with compact blue-green irregular cloud crowns.\nSlot 7: hemlock, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Airy dark evergreen with long descending boughs and a gently bent leader.\nSlot 8: linden, 10m tall, 197.2px vertical tree height in the normalized256px cell. Rounded heart-shaped soft olive crown, clear low fork and warm pale trunk.\nSlot 9: beech, 10m tall, 197.2px vertical tree height in the normalized256px cell. Wide domed darker green crown with smooth silver-grey trunk and strong low limbs.\nRelative size comes from metre heights; do not fit all plants to equal heights. Complete crown and root foot, no ground discs. 12% empty gutter. Natural irregular foliage, visible radial crown TOPS conceal80% of trunks.",
+  "sourceSha256": "c18470bef0b4ad842c70e7e90a8ae337828b5db14f409874c8dcb4669dcbbd96",
   "scale": {
-    "tileMetres": 16,
-    "worldPixelsPerMetre": 2,
-    "normalizedMasterPixelsPerVerticalMetre": 19.722650231124806,
-    "masterCellPixels": 256,
-    "rootAnchor": 0.955,
-    "minimumSideGutterPixels": 31,
-    "physicalCalibration": "Uniform resampling of each complete tree to its declared metreheight; a broad crown keeps up to15% natural height variance to preserve side gutters. No silhouette is enlarged merely to fill a cell."
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
   },
   "measurements": [
     {
-      "id": "scots-pine",
-      "heightMetres": 10.666666666666666,
-      "description": "Open orange upper trunk and an irregular umbrella of dark needle cushions.",
-      "sourceCell": [
-        0,
-        0,
-        418,
-        428
-      ],
-      "sourceRootFoot": [
-        246,
-        405
-      ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 43,
-      "sourceCrownToRootPixels": 362,
-      "sourceTrimBounds": [
-        119,
+      "id": "nature-trees-taiga:scots-pine",
+      "cell": 0,
+      "sourceBounds": [
         41,
-        404,
-        417
+        13,
+        395,
+        398
       ],
-      "requestedPhysicalFactor": 0.5811462314880238,
-      "wholeTreeUniformFactor": 0.5811462314880238,
-      "actualResampleFactors": [
-        0.5824561403508772,
-        0.5824468085106383
+      "observedRootSource": [
+        218.0,
+        384.0
       ],
-      "registeredOffset": [
-        54,
-        32
+      "observedCrownTopSource": 16.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 368.0,
+      "registeredPlantHeightPixels": 210.37493579866464,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5716710211920235,
+      "masterOffsetPixels": [
+        26.814229249011845,
+        32.39005113775926
       ],
-      "calibratedRootFoot": [
-        127.97192982456141,
-        244.01063829787236
+      "sourceCropPixels": [
+        354,
+        385
       ],
-      "calibratedCrownToRootPixels": 210.84574468085108,
-      "calibratedHeightMetres": 10.690538148271278,
-      "heightVariancePercent": 0.22379514004322587,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        54,
-        32,
-        220,
-        251
+      "masterDrawPixels": [
+        202,
+        220
       ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          41,
+          13,
+          395,
+          398
+        ],
+        "transparentFraction": 0.4044757502384621
+      },
+      "bounds": [
+        29,
+        34,
+        227,
+        249
       ]
     },
     {
-      "id": "lodgepole-pine",
-      "heightMetres": 10.666666666666666,
-      "description": "Slender straight trunk with a narrow uneven column of dark needles.",
-      "sourceCell": [
-        418,
-        0,
-        836,
-        428
+      "id": "nature-trees-taiga:lodgepole-pine",
+      "cell": 1,
+      "sourceBounds": [
+        527,
+        6,
+        732,
+        408
       ],
-      "sourceRootFoot": [
-        622,
-        405
+      "observedRootSource": [
+        628.0,
+        396.0
       ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 38,
-      "sourceCrownToRootPixels": 367,
-      "sourceTrimBounds": [
-        140,
-        36,
-        275,
-        417
+      "observedCrownTopSource": 9.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 387.0,
+      "registeredPlantHeightPixels": 210.37493579866464,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5436044852678673,
+      "masterOffsetPixels": [
+        73.09594698794541,
+        32.47425074553175
       ],
-      "requestedPhysicalFactor": 0.5732287078982687,
-      "wholeTreeUniformFactor": 0.5732287078982687,
-      "actualResampleFactors": [
-        0.5703703703703704,
-        0.5721784776902887
+      "sourceCropPixels": [
+        205,
+        402
       ],
-      "registeredOffset": [
-        91,
-        33
+      "masterDrawPixels": [
+        111,
+        219
       ],
-      "calibratedRootFoot": [
-        127.5037037037037,
-        244.13385826771653
-      ],
-      "calibratedCrownToRootPixels": 209.98950131233596,
-      "calibratedHeightMetres": 10.647123933727034,
-      "heightVariancePercent": -0.18321312130905598,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        91,
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          527,
+          6,
+          732,
+          408
+        ],
+        "transparentFraction": 0.40279092343162237
+      },
+      "bounds": [
+        74,
         33,
-        168,
-        251
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+        183,
+        250
       ]
     },
     {
-      "id": "blue-spruce",
-      "heightMetres": 10.666666666666666,
-      "description": "Broad blue-grey conical crown with softly drooping large branches.",
-      "sourceCell": [
-        836,
-        0,
-        1254,
-        428
+      "id": "nature-trees-taiga:blue-spruce",
+      "cell": 2,
+      "sourceBounds": [
+        882,
+        6,
+        1209,
+        410
       ],
-      "sourceRootFoot": [
-        1017,
-        406
+      "observedRootSource": [
+        1043.0,
+        398.0
       ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 69,
-      "sourceCrownToRootPixels": 337,
-      "sourceTrimBounds": [
-        38,
-        67,
-        324,
-        418
+      "observedCrownTopSource": 9.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 389.0,
+      "registeredPlantHeightPixels": 210.3749357986646,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5408096035955389,
+      "masterOffsetPixels": [
+        40.92965382111824,
+        32.48263539054875
       ],
-      "requestedPhysicalFactor": 0.6242579697289751,
-      "wholeTreeUniformFactor": 0.6242579697289751,
-      "actualResampleFactors": [
-        0.6258741258741258,
-        0.6239316239316239
+      "sourceCropPixels": [
+        327,
+        404
       ],
-      "registeredOffset": [
-        38,
-        33
+      "masterDrawPixels": [
+        177,
+        218
       ],
-      "calibratedRootFoot": [
-        127.5,
-        244.51282051282053
-      ],
-      "calibratedCrownToRootPixels": 210.26495726495727,
-      "calibratedHeightMetres": 10.661090411324787,
-      "heightVariancePercent": -0.05227739383012464,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        38,
-        33,
-        217,
-        252
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    {
-      "id": "silver-fir",
-      "heightMetres": 10.666666666666666,
-      "description": "Deep green full conical crown with broad level boughs and a pale trunk.",
-      "sourceCell": [
-        0,
-        428,
-        418,
-        828
-      ],
-      "sourceRootFoot": [
-        244,
-        808
-      ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 450,
-      "sourceCrownToRootPixels": 358,
-      "sourceTrimBounds": [
-        104,
-        20,
-        393,
-        392
-      ],
-      "requestedPhysicalFactor": 0.5876394854711302,
-      "wholeTreeUniformFactor": 0.5876394854711302,
-      "actualResampleFactors": [
-        0.5882352941176471,
-        0.5887096774193549
-      ],
-      "registeredOffset": [
-        46,
-        33
-      ],
-      "calibratedRootFoot": [
-        128.3529411764706,
-        244.93548387096774
-      ],
-      "calibratedCrownToRootPixels": 210.75806451612905,
-      "calibratedHeightMetres": 10.686092489919355,
-      "heightVariancePercent": 0.18211709299396084,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        46,
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          882,
+          6,
+          1209,
+          410
+        ],
+        "transparentFraction": 0.4191873315771944
+      },
+      "bounds": [
+        42,
         33,
         216,
-        252
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+        249
       ]
     },
     {
-      "id": "western-redcedar",
-      "heightMetres": 10.666666666666666,
-      "description": "Warm brown trunk and a loose broad pyramid of hanging flat green fans.",
-      "sourceCell": [
-        418,
-        428,
-        836,
-        828
+      "id": "nature-trees-taiga:silver-fir",
+      "cell": 3,
+      "sourceBounds": [
+        47,
+        422,
+        390,
+        810
       ],
-      "sourceRootFoot": [
-        620,
-        805
+      "observedRootSource": [
+        213.0,
+        798.0
       ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 440,
-      "sourceCrownToRootPixels": 365,
-      "sourceTrimBounds": [
-        76,
-        10,
-        346,
+      "observedCrownTopSource": 426.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 372.0,
+      "registeredPlantHeightPixels": 210.37493579866464,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5655240209641522,
+      "masterOffsetPixels": [
+        34.123012519950734,
+        31.84296811747876
+      ],
+      "sourceCropPixels": [
+        343,
+        388
+      ],
+      "masterDrawPixels": [
+        194,
+        219
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          47,
+          422,
+          390,
+          810
+        ],
+        "transparentFraction": 0.38245018184004087
+      },
+      "bounds": [
+        36,
+        34,
+        226,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:western-redcedar",
+      "cell": 4,
+      "sourceBounds": [
+        465,
+        425,
+        790,
+        815
+      ],
+      "observedRootSource": [
+        633.5,
+        803.0
+      ],
+      "observedCrownTopSource": 428.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 375.0,
+      "registeredPlantHeightPixels": 210.37493579866464,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5609998287964391,
+      "masterOffsetPixels": [
+        33.471528847800016,
+        32.42206471494603
+      ],
+      "sourceCropPixels": [
+        325,
         390
       ],
-      "requestedPhysicalFactor": 0.5763696871196291,
-      "wholeTreeUniformFactor": 0.5763696871196291,
-      "actualResampleFactors": [
-        0.5777777777777777,
-        0.5763157894736842
+      "masterDrawPixels": [
+        182,
+        219
       ],
-      "registeredOffset": [
-        55,
-        33
-      ],
-      "calibratedRootFoot": [
-        127.8,
-        244.5078947368421
-      ],
-      "calibratedCrownToRootPixels": 210.35526315789474,
-      "calibratedHeightMetres": 10.665669202302633,
-      "heightVariancePercent": -0.009351228412823875,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        55,
-        33,
-        211,
-        252
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    {
-      "id": "juniper-tree",
-      "heightMetres": 6.666666666666667,
-      "description": "Twisted warm grey trunk with compact blue-green irregular cloud crowns.",
-      "sourceCell": [
-        836,
-        428,
-        1254,
-        828
-      ],
-      "sourceRootFoot": [
-        1007,
-        805
-      ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 595,
-      "sourceCrownToRootPixels": 210,
-      "sourceTrimBounds": [
-        49,
-        165,
-        318,
-        391
-      ],
-      "requestedPhysicalFactor": 0.6261158803531685,
-      "wholeTreeUniformFactor": 0.6261158803531685,
-      "actualResampleFactors": [
-        0.6245353159851301,
-        0.6283185840707964
-      ],
-      "registeredOffset": [
-        52,
-        111
-      ],
-      "calibratedRootFoot": [
-        128.19330855018586,
-        244.20353982300884
-      ],
-      "calibratedCrownToRootPixels": 131.94690265486724,
-      "calibratedHeightMetres": 6.690120298672565,
-      "heightVariancePercent": 0.3518044800884912,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        52,
-        111,
-        220,
-        253
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
-      ]
-    },
-    {
-      "id": "hemlock",
-      "heightMetres": 10.666666666666666,
-      "description": "Airy dark evergreen with long descending boughs and a gently bent leader.",
-      "sourceCell": [
-        0,
-        828,
-        418,
-        1254
-      ],
-      "sourceRootFoot": [
-        238,
-        1201
-      ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 838,
-      "sourceCrownToRootPixels": 363,
-      "sourceTrimBounds": [
-        93,
-        8,
-        384,
-        386
-      ],
-      "requestedPhysicalFactor": 0.5795452776822716,
-      "wholeTreeUniformFactor": 0.5795452776822716,
-      "actualResampleFactors": [
-        0.5807560137457045,
-        0.5793650793650794
-      ],
-      "registeredOffset": [
-        44,
-        33
-      ],
-      "calibratedRootFoot": [
-        128.20962199312714,
-        244.46825396825398
-      ],
-      "calibratedCrownToRootPixels": 210.30952380952382,
-      "calibratedHeightMetres": 10.663350074404763,
-      "heightVariancePercent": -0.031093052455344328,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        44,
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          465,
+          425,
+          790,
+          815
+        ],
+        "transparentFraction": 0.4042209072978304
+      },
+      "bounds": [
+        35,
         33,
         213,
-        252
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+        250
       ]
     },
     {
-      "id": "linden",
-      "heightMetres": 10.0,
-      "description": "Rounded heart-shaped soft olive crown, clear low fork and warm pale trunk.",
-      "sourceCell": [
-        418,
-        828,
-        836,
-        1254
+      "id": "nature-trees-taiga:juniper-tree",
+      "cell": 5,
+      "sourceBounds": [
+        869,
+        497,
+        1211,
+        808
       ],
-      "sourceRootFoot": [
-        625,
-        1200
+      "observedRootSource": [
+        1053.0,
+        798.0
       ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 860,
-      "sourceCrownToRootPixels": 340,
-      "sourceTrimBounds": [
+      "observedCrownTopSource": 500.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 298.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.44122260024887716,
+      "masterOffsetPixels": [
+        46.8150415542066,
+        111.67199732508797
+      ],
+      "sourceCropPixels": [
+        342,
+        311
+      ],
+      "masterDrawPixels": [
+        151,
+        137
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          869,
+          497,
+          1211,
+          808
+        ],
+        "transparentFraction": 0.4042139109832459
+      },
+      "bounds": [
         49,
-        30,
-        362,
-        385
-      ],
-      "requestedPhysicalFactor": 0.580077947974259,
-      "wholeTreeUniformFactor": 0.580077947974259,
-      "actualResampleFactors": [
-        0.5814696485623003,
-        0.5802816901408451
-      ],
-      "registeredOffset": [
-        36,
-        46
-      ],
-      "calibratedRootFoot": [
-        127.87220447284345,
-        244.45633802816903
-      ],
-      "calibratedCrownToRootPixels": 197.29577464788733,
-      "calibratedHeightMetres": 10.003512323943662,
-      "heightVariancePercent": 0.03512323943661855,
-      "sideGutterCalibration": false,
-      "registeredAlphaBounds": [
-        36,
-        46,
-        218,
-        252
-      ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+        113,
+        197,
+        248
       ]
     },
     {
-      "id": "beech",
-      "heightMetres": 10.0,
-      "description": "Wide domed darker green crown with smooth silver-grey trunk and strong low limbs.",
-      "sourceCell": [
-        836,
-        828,
-        1254,
-        1254
+      "id": "nature-trees-taiga:hemlock",
+      "cell": 6,
+      "sourceBounds": [
+        43,
+        824,
+        392,
+        1232
       ],
-      "sourceRootFoot": [
-        1014,
-        1201
+      "observedRootSource": [
+        226.5,
+        1220.0
       ],
-      "measurementMethod": "Actual exposed trunk foot manually measured from full-resolution root crops; crown top from alpha>=8.",
-      "sourceCrownTop": 864,
-      "sourceCrownToRootPixels": 337,
-      "sourceTrimBounds": [
-        12,
+      "observedCrownTopSource": 828.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 392.0,
+      "registeredPlantHeightPixels": 210.37493579866464,
+      "calibratedHeightMetres": 10.666666666666666,
+      "sourceScaleToMaster": 0.5366707545884302,
+      "masterOffsetPixels": [
+        29.52091653302307,
+        31.95838118298164
+      ],
+      "sourceCropPixels": [
+        349,
+        408
+      ],
+      "masterDrawPixels": [
+        187,
+        219
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          43,
+          824,
+          392,
+          1232
+        ],
+        "transparentFraction": 0.4085412101803472
+      },
+      "bounds": [
+        32,
         34,
+        216,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:linden",
+      "cell": 7,
+      "sourceBounds": [
+        444,
+        843,
+        812,
+        1222
+      ],
+      "observedRootSource": [
+        629.0,
+        1210.0
+      ],
+      "observedCrownTopSource": 846.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 364.0,
+      "registeredPlantHeightPixels": 197.22650231124814,
+      "calibratedHeightMetres": 10.000000000000002,
+      "sourceScaleToMaster": 0.5418310503056267,
+      "masterOffsetPixels": [
+        27.76125569345905,
+        45.62800453783498
+      ],
+      "sourceCropPixels": [
         368,
-        385
+        379
       ],
-      "requestedPhysicalFactor": 0.5852418466209142,
-      "wholeTreeUniformFactor": 0.5105263157894737,
-      "actualResampleFactors": [
-        0.5112359550561798,
-        0.50997150997151
+      "masterDrawPixels": [
+        199,
+        205
       ],
-      "registeredOffset": [
-        43,
-        72
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          444,
+          843,
+          812,
+          1222
+        ],
+        "transparentFraction": 0.3642881725364231
+      },
+      "bounds": [
+        30,
+        47,
+        226,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:beech",
+      "cell": 8,
+      "sourceBounds": [
+        851,
+        848,
+        1240,
+        1213
       ],
-      "calibratedRootFoot": [
-        127.86516853932585,
-        244.8803418803419
+      "observedRootSource": [
+        1045.0,
+        1202.0
       ],
-      "calibratedCrownToRootPixels": 171.86039886039887,
-      "calibratedHeightMetres": 8.713859285968661,
-      "heightVariancePercent": -12.861407140313375,
-      "sideGutterCalibration": true,
-      "registeredAlphaBounds": [
-        43,
-        72,
-        225,
-        251
+      "observedCrownTopSource": 852.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 350.0,
+      "registeredPlantHeightPixels": 197.2265023112481,
+      "calibratedHeightMetres": 10.0,
+      "sourceScaleToMaster": 0.5635042923178517,
+      "masterOffsetPixels": [
+        18.68016729033677,
+        44.9994805194805
       ],
-      "edgeAlpha": [
-        0,
-        0,
-        0,
-        0
+      "sourceCropPixels": [
+        389,
+        365
+      ],
+      "masterDrawPixels": [
+        219,
+        206
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          851,
+          848,
+          1240,
+          1213
+        ],
+        "transparentFraction": 0.3265837940627531
+      },
+      "bounds": [
+        21,
+        47,
+        236,
+        250
       ]
     }
   ],
-  "packing": {
-    "command": "python tools/build-world-atlases.py --atlas assets/world/nature-trees-taiga/variety-1/registered-source-generation-2026-10-06.png --columns 3 --rows 3 --ids nature-trees-taiga:scots-pine,nature-trees-taiga:lodgepole-pine,nature-trees-taiga:blue-spruce,nature-trees-taiga:silver-fir,nature-trees-taiga:western-redcedar,nature-trees-taiga:juniper-tree,nature-trees-taiga:hemlock,nature-trees-taiga:linden,nature-trees-taiga:beech --output-dir assets/world/nature-trees-taiga/variety-1 --aligned --preserve-grid-scale --max-cell 256 --no-sharpen",
-    "registrationScript": "../variety-1/register-source.py",
-    "mipSharpening": false
-  },
-  "registeredSourceSha256": "10f3c33a8464ede673ec0d373f1c395139356e4571e6f4af49d2fedcef91649a",
-  "registration": "Every complete source tree uniformly physically calibrated, then translated to the measured exposed-root anchor. Source silhouettes and RGBA materials are preserved; no paint edits or colour substitutions.",
-  "projectionCorrection": {
-    "date": "2026-10-06",
-    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
-    "historicalAssumedWorldEnlargement": 1.5,
-    "actualWorldEnlargement": 1,
-    "historicalHeightToActualWorldMetres": 0.6666666666666666,
-    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
-    "artworkUnchanged": true,
-    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
-    "historicalNormalizedMasterPixelsPerVerticalMetre": 13.148433487416538,
-    "historicalNominalHeightsMetres": {
-      "scots-pine": 16,
-      "lodgepole-pine": 16,
-      "blue-spruce": 16,
-      "silver-fir": 16,
-      "western-redcedar": 16,
-      "juniper-tree": 10,
-      "hemlock": 16,
-      "linden": 15,
-      "beech": 15
-    }
+  "job": {
+    "path": "nature-trees-taiga/variety-1",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects ONLY from this list, keep botanical identity but canopy view overrides any frontal trunk/fork description. Muted temperate olive and sage.\nSlot 1: scots-pine, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Open orange upper trunk and an irregular umbrella of dark needle cushions.\nSlot 2: lodgepole-pine, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Slender straight trunk with a narrow uneven column of dark needles.\nSlot 3: blue-spruce, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Broad blue-grey conical crown with softly drooping large branches.\nSlot 4: silver-fir, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Deep green full conical crown with broad level boughs and a pale trunk.\nSlot 5: western-redcedar, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Warm brown trunk and a loose broad pyramid of hanging flat green fans.\nSlot 6: juniper-tree, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Twisted warm grey trunk with compact blue-green irregular cloud crowns.\nSlot 7: hemlock, 10.67m tall, 210.4px vertical tree height in the normalized256px cell. Airy dark evergreen with long descending boughs and a gently bent leader.\nSlot 8: linden, 10m tall, 197.2px vertical tree height in the normalized256px cell. Rounded heart-shaped soft olive crown, clear low fork and warm pale trunk.\nSlot 9: beech, 10m tall, 197.2px vertical tree height in the normalized256px cell. Wide domed darker green crown with smooth silver-grey trunk and strong low limbs.\nRelative size comes from metre heights; do not fit all plants to equal heights. Complete crown and root foot, no ground discs. 12% empty gutter. Natural irregular foliage, visible radial crown TOPS conceal80% of trunks.",
+    "kind": "tree",
+    "heights": [
+      10.666666666666666,
+      10.666666666666666,
+      10.666666666666666,
+      10.666666666666666,
+      10.666666666666666,
+      6.666666666666667,
+      10.666666666666666,
+      10,
+      10
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-trees-taiga:scots-pine",
+      "nature-trees-taiga:lodgepole-pine",
+      "nature-trees-taiga:blue-spruce",
+      "nature-trees-taiga:silver-fir",
+      "nature-trees-taiga:western-redcedar",
+      "nature-trees-taiga:juniper-tree",
+      "nature-trees-taiga:hemlock",
+      "nature-trees-taiga:linden",
+      "nature-trees-taiga:beech"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ]
   }
 }

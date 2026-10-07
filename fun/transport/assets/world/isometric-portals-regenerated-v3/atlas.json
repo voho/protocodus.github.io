@@ -1,0 +1,330 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "portal:road-e",
+    "portal:road-s",
+    "portal:road-w",
+    "portal:road-n",
+    "portal:rail-e",
+    "portal:rail-s",
+    "portal:rail-w",
+    "portal:rail-n",
+    null
+  ],
+  "source": "source-generated.png",
+  "sourceSha256": "1f75116a17501f6b22d2458c93e841ee2163e6167d497a54fafeb6e89a6f9ebf",
+  "sprites": [
+    {
+      "id": "portal:road-e",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        512,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          149,
+          62,
+          466,
+          318
+        ],
+        "rawAlphaBounds": [
+          39,
+          19,
+          500,
+          341
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.715193
+      },
+      "bounds": [
+        41,
+        58,
+        213,
+        198
+      ]
+    },
+    {
+      "id": "portal:road-s",
+      "cell": 1,
+      "sourceBounds": [
+        512,
+        0,
+        1024,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          80,
+          64,
+          419,
+          320
+        ],
+        "rawAlphaBounds": [
+          7,
+          17,
+          512,
+          341
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.71273
+      },
+      "bounds": [
+        35,
+        58,
+        220,
+        198
+      ]
+    },
+    {
+      "id": "portal:road-w",
+      "cell": 2,
+      "sourceBounds": [
+        1024,
+        0,
+        1536,
+        341
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          34,
+          71,
+          458,
+          304
+        ],
+        "rawAlphaBounds": [
+          1,
+          25,
+          464,
+          341
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.703824
+      },
+      "bounds": [
+        12,
+        64,
+        244,
+        191
+      ]
+    },
+    {
+      "id": "portal:road-n",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        341,
+        512,
+        683
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          342
+        ],
+        "sourceBounds": [
+          106,
+          72,
+          491,
+          299
+        ],
+        "rawAlphaBounds": [
+          55,
+          0,
+          500,
+          342
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.721423
+      },
+      "bounds": [
+        22,
+        66,
+        233,
+        190
+      ]
+    },
+    {
+      "id": "portal:rail-e",
+      "cell": 4,
+      "sourceBounds": [
+        512,
+        341,
+        1024,
+        683
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          342
+        ],
+        "sourceBounds": [
+          131,
+          43,
+          439,
+          323
+        ],
+        "rawAlphaBounds": [
+          21,
+          0,
+          512,
+          339
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.712445
+      },
+      "bounds": [
+        43,
+        51,
+        212,
+        204
+      ]
+    },
+    {
+      "id": "portal:rail-s",
+      "cell": 5,
+      "sourceBounds": [
+        1024,
+        341,
+        1536,
+        683
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          342
+        ],
+        "sourceBounds": [
+          47,
+          43,
+          387,
+          319
+        ],
+        "rawAlphaBounds": [
+          9,
+          0,
+          498,
+          321
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.707374
+      },
+      "bounds": [
+        35,
+        52,
+        221,
+        203
+      ]
+    },
+    {
+      "id": "portal:rail-w",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        683,
+        512,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          78,
+          19,
+          474,
+          276
+        ],
+        "rawAlphaBounds": [
+          63,
+          0,
+          492,
+          301
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.69663
+      },
+      "bounds": [
+        19,
+        57,
+        236,
+        198
+      ]
+    },
+    {
+      "id": "portal:rail-n",
+      "cell": 7,
+      "sourceBounds": [
+        512,
+        683,
+        1024,
+        1024
+      ],
+      "normalization": {
+        "originalSize": [
+          512,
+          341
+        ],
+        "sourceBounds": [
+          81,
+          20,
+          461,
+          276
+        ],
+        "rawAlphaBounds": [
+          7,
+          4,
+          462,
+          279
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.697856
+      },
+      "bounds": [
+        24,
+        58,
+        232,
+        198
+      ]
+    },
+    {
+      "id": null
+    }
+  ],
+  "sharedScale": 0.5471698113207547,
+  "registration": "One uniform family scale, centered per frame; source foreshortening preserved",
+  "mipSharpening": false
+}

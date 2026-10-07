@@ -6,15 +6,20 @@
     32,
     64,
     128,
-    256
+    256,
+    512
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "train-stop"
   ],
-  "source": "source-registered.png",
-  "sourceSha256": "2f92a5a4b0fdd596d770e2d34710a30af83f45a4f1976e2ee66a64522fe33534",
+  "source": "generated-source.png",
+  "sourceSha256": "64f07db56bc05a36bae351392d9915414fe7976be1815d16cd8ba92dc80338a8",
+  "worldFramePixels": 72,
+  "groundCenterMaster": [
+    128,
+    192
+  ],
   "sprites": [
     {
       "id": "train-stop",
@@ -22,38 +27,151 @@
       "sourceBounds": [
         0,
         0,
-        1672,
-        1672
+        1254,
+        1254
       ],
-      "normalization": {
-        "originalSize": [
-          1672,
-          1672
-        ],
-        "sourceBounds": [
-          228,
-          827,
-          1446,
-          1636
-        ],
-        "rawAlphaBounds": [
-          209,
-          495,
-          1446,
-          1658
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.829059
-      },
+      "sourcePixelsPerWorldPixel": 31.653846153846153,
+      "sourceToMasterScale": 0.11232617793978669,
+      "groundCenterSheet": [
+        636,
+        877.5
+      ],
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "clippedMeaningfulSourcePixels": 0,
+      "minimumSourceFilteringGutterPixels": 268.2692307692305,
       "bounds": [
-        33,
-        125,
-        224,
-        253
-      ]
+        66,
+        130,
+        192,
+        228
+      ],
+      "levelAlphaBounds": {
+        "16": [
+          2,
+          6,
+          13,
+          16
+        ],
+        "32": [
+          6,
+          14,
+          26,
+          30
+        ],
+        "64": [
+          17,
+          31,
+          48,
+          59
+        ],
+        "128": [
+          32,
+          64,
+          98,
+          115
+        ],
+        "256": [
+          66,
+          130,
+          192,
+          228
+        ],
+        "512": [
+          136,
+          263,
+          385,
+          453
+        ]
+      },
+      "geometry": {
+        "groundEdgeSlopesMeasured": [
+          0.5662211421628189,
+          -0.548936170212766
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.06622114216281894,
+        "personnelDoorHeightMetresMeasured": 1.6585662211421628,
+        "personnelDoorObservable": true,
+        "status": "measured"
+      },
+      "measurement": {
+        "id": "train-stop",
+        "densityGroup": "rail",
+        "sourceBoundsSheet": [
+          0,
+          0,
+          1254,
+          1254
+        ],
+        "groundCenterSheet": [
+          636,
+          877.5
+        ],
+        "groundEdgeSegmentsSheet": [
+          [
+            [
+              107,
+              709
+            ],
+            [
+              930,
+              1175
+            ]
+          ],
+          [
+            [
+              930,
+              1175
+            ],
+            [
+              1165,
+              1046
+            ]
+          ]
+        ],
+        "personnelDoorEndpointsSheet": [
+          [
+            335,
+            601
+          ],
+          [
+            335,
+            706
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "groundCenterNote": "Midpoint of observed opposite platform-base corners."
+      }
     }
   ],
-  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
-  "mipSharpening": false
+  "densityGroups": {
+    "rail": {
+      "sourcePixelsPerWorldPixel": 31.653846153846153,
+      "observation": {
+        "sourceEdgeEndpointsSheet": [
+          [
+            107,
+            709
+          ],
+          [
+            930,
+            1175
+          ]
+        ],
+        "physicalSpanMetres": 13,
+        "note": "Observed complete long thirteen metre platform base edge."
+      }
+    }
+  },
+  "processing": {
+    "sampling": "Every level from original RGBA via premultiplied-alpha Lanczos",
+    "colourKey": false,
+    "recolouring": false,
+    "silhouetteFitting": false,
+    "scalePolicy": "Observed physical platform/deck edges calibrate distinct generated bus, rail and dock paintings to shared world metres. Four dock orientations share one density."
+  },
+  "generator": "built-in image_gen",
+  "regenerationDate": "2026-10-07"
 }

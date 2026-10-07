@@ -1,0 +1,101 @@
+[
+  {
+    "id": "house-cheap-1",
+    "personnelDoorEndpointsSource": [
+      [
+        242.0,
+        282.0
+      ],
+      [
+        242.0,
+        310.0
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-cheap-2",
+    "personnelDoorObservable": false,
+    "personnelDoorObservationMethod": "Porch column and roof obscure complete head/sill of personnel leaf; no vertical post substituted for a door."
+  },
+  {
+    "id": "house-cheap-3",
+    "personnelDoorEndpointsSource": [
+      [
+        213.0,
+        287.0
+      ],
+      [
+        213.0,
+        315.0
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-normal-1",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Ground-floor doorway is obscured by planting and the projecting porch; no complete ordinary leaf is observable."
+  },
+  {
+    "id": "house-normal-2",
+    "personnelDoorEndpointsSource": [
+      [
+        248.0,
+        266.0
+      ],
+      [
+        248.0,
+        294.0
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-normal-3",
+    "personnelDoorEndpointsSource": [
+      [
+        230.0,
+        273.0
+      ],
+      [
+        230.0,
+        296.0
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-expensive-1",
+    "personnelDoorEndpointsSource": [
+      [
+        215,
+        219
+      ],
+      [
+        215,
+        234
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-expensive-2",
+    "personnelDoorEndpointsSource": [
+      [
+        220,
+        217
+      ],
+      [
+        220,
+        232
+      ]
+    ],
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+  },
+  {
+    "id": "house-expensive-3",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Courtyard arcades are open passages; no complete ordinary personnel-door leaf is visible."
+  }
+]

@@ -96,7 +96,7 @@ try {
             for (let by = 0; by < h; by += 4) for (let bx = 0; bx < w; bx += 4) { c.fillStyle = ((bx + by) / 4) % 2 ? '#546154' : '#465646'; c.fillRect(left + bx, top + by, Math.min(4, w - bx), Math.min(4, h - by)); }
             c.drawImage(art, left, top, w, h); c.fillStyle = '#dadbc5'; c.fillText(`${variant} · ${detail} · ${geometry.length}`, x + 8, y + 116);
           }
-          const stableBuilding = sprite('house-cheap-1', 0); if (stableBuilding !== sprite('house-cheap-1', 12)) throw new Error('Building cache must retain its 12-variant bound.');
+          const stableBuilding = sprite('house-cheap-1', 0); if (stableBuilding !== sprite('house-cheap-1', 18)) throw new Error('House cache must retain its published 18-variant bound.');
           if (stableBuilding.width !== Math.round(32 * scale) || stableBuilding.height !== Math.round(40 * scale)) throw new Error('Nonforest sprite envelopes must retain their original dimensions.');
           return { minimumTransparency, worstSpill, maxSpillPixels, worstCase, checkedSprites: details.length * 64, uniqueRasters: hashes.size, uniqueCompositions: compositions.size, counts: [...counts], species: [...species], bare: [...bare] };
         }, { biome, zoom, dpr });

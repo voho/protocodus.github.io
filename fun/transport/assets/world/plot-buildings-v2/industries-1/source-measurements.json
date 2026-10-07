@@ -1,0 +1,341 @@
+{
+  "entries": [
+    {
+      "id": "industry:logging-camp:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            67.97767563320132,
+            375.3662181324543
+          ],
+          [
+            272.26139021550694,
+            483.63658686107624
+          ]
+        ],
+        [
+          [
+            271.24505332703774,
+            483.83985423877004
+          ],
+          [
+            444.02232436679867,
+            392.63378186754574
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          204.16681868807171,
+          418.0726941859293
+        ],
+        [
+          204.16681868807171,
+          425.1870524052136
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:sawmill:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            53.24079075039816,
+            374.4057797728509
+          ],
+          [
+            243.29578889413523,
+            481.1618065376538
+          ]
+        ],
+        [
+          [
+            339.84779329870753,
+            457.4913204052065
+          ],
+          [
+            458.75920924960184,
+            393.59422022714904
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          260.5735159981113,
+          434.4509631436102
+        ],
+        [
+          260.5735159981113,
+          439.53264758595606
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:coal-mine:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            63.40415963509,
+            388.71580316249697
+          ],
+          [
+            222.9690511247516,
+            479.5864843605266
+          ]
+        ],
+        [
+          [
+            350.01116218339934,
+            433.5769134195267
+          ],
+          [
+            448.59584036491003,
+            379.284196837503
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          293.0962964291251,
+          364.0086534038112
+        ],
+        [
+          293.0962964291251,
+          370.10667473462627
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:iron-mine:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            62.89599119085541,
+            372.33245252037386
+          ],
+          [
+            218.39553512664028,
+            462.54251474089847
+          ]
+        ],
+        [
+          [
+            369.82973150854843,
+            439.05496924837564
+          ],
+          [
+            449.1040088091446,
+            395.66754747962625
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "No exposed ordinary personnel entrance",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:steel-mill:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            57.81430674850949,
+            372.8609477023778
+          ],
+          [
+            246.85296800377736,
+            480.4503707157254
+          ]
+        ],
+        [
+          [
+            371.8624052854868,
+            441.9312026427434
+          ],
+          [
+            454.18569325149053,
+            395.13905229762224
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          190.95443913797234,
+          361.57960824036985
+        ],
+        [
+          190.95443913797234,
+          368.6939664596541
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:farm:taiga",
+      "groundVerticesSource": [
+        [
+          256,
+          275.6835555555556
+        ],
+        [
+          472.6328888888889,
+          384
+        ],
+        [
+          256,
+          492.3164444444444
+        ],
+        [
+          39.36711111111112,
+          384
+        ]
+      ],
+      "groundCenterSource": [
+        256,
+        384
+      ],
+      "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+      "personnelDoorEndpointsSource": [
+        [
+          252.1635908914916,
+          362.77900808784784
+        ],
+        [
+          252.1635908914916,
+          368.1499808397596
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+    },
+    {
+      "id": "industry:food-plant:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            78.64921296212773,
+            388.95464233128723
+          ],
+          [
+            184.34824936292267,
+            450.3820438703646
+          ]
+        ],
+        [
+          [
+            326.6354137486082,
+            438.12502099542627
+          ],
+          [
+            433.3507870378723,
+            379.0453576687127
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "No exposed ordinary personnel entrance",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:furniture-factory:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            60.35514896968243,
+            360.2482069164752
+          ],
+          [
+            265.65520044045724,
+            481.6598116130037
+          ]
+        ],
+        [
+          [
+            342.89680396411507,
+            466.7603128280455
+          ],
+          [
+            451.64485103031757,
+            407.75179308352483
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "No exposed ordinary personnel entrance",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:machine-works:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            58.83064363697865,
+            372.1850836715457
+          ],
+          [
+            241.77128356143143,
+            480.7400267289391
+          ]
+        ],
+        [
+          [
+            302.75149686958235,
+            481.07541790213395
+          ],
+          [
+            453.16935636302134,
+            395.8149163284543
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "No exposed ordinary personnel entrance",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    }
+  ],
+  "observationPolicy": "Game-renderer geometry for farm plots; measured generator observations for unchanged registered processors",
+  "source": "generated-source.png",
+  "sourceDimensions": [
+    1536,
+    1536
+  ],
+  "paintedSourceObservations": "painted-source-manual-measurements.json"
+}

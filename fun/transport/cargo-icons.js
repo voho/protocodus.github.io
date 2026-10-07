@@ -1,35 +1,37 @@
 import { CARGO } from './data.js';
 import { escapeHTML as escape } from './copy.js';
 
-// A shared, outlined pictogram vocabulary. Shapes stay distinct without colour
-// and the roomy 32px grid keeps the same marks readable in small recipe rows.
+// Fresh material pictograms use broad forms, a fixed upper-left light and the
+// same warm neutral material palette as the map. Empty space stays transparent.
+const shape=(d,fill)=>`<path d="${d}" fill="${fill}"/>`;
+const line=d=>`<path d="${d}" fill="none"/>`;
+const disk=(x,y,r,fill)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}"/>`;
+const block=(top='#d5bd8e',left='#b0956a',right='#8d7c61')=>shape('M4 11 16 5l12 6-12 6Z',top)+shape('M4 11v13l12 6V17Z',left)+shape('M16 17v13l12-6V11Z',right);
+const ore=(light,mid,dark)=>shape('M3 22 7 13l9-7 11 9 2 10-13 5Z',mid)+shape('M7 13 16 6l3 13-16 3Z',light)+shape('M19 19 27 15l2 10-13 5Z',dark);
+const sack=(paper,band)=>shape('M9 4h14l-2 6 6 14-3 6H8l-3-6 6-14Z',paper)+shape('M8 17h16v7H8Z',band)+line('M10 9h12');
+const barrel=(body,top)=>shape('M6 8h20v18c-6 4-14 4-20 0Z',body)+`<ellipse cx="16" cy="8" rx="10" ry="4" fill="${top}"/>`+line('M6 15c6 4 14 4 20 0M6 23c6 4 14 4 20 0');
 const ART = {
-  passengers: `<circle cx="11" cy="9" r="4" fill="#e1b874"/><path d="M3.5 27v-6a7.5 7.5 0 0 1 15 0v6Z" fill="#799590"/><circle cx="23" cy="11" r="3.5" fill="#e1b874"/><path d="M21 19a6 6 0 0 1 8 5v3h-8" fill="#d5a875"/>`,
-  mail: `<path d="M8 5h20v14H8Z" fill="#d9c49c"/><path d="M21 7h4.5v4H21Z" fill="#d98b5f"/><path d="M3 11h23v16H3Z" fill="#f3e8cc"/><path d="m3 11 11.5 9L26 11M3 27l8.5-7.5M26 27l-8.5-7.5" fill="none"/>`,
-  timber: `<path d="m6 22 12-12q6-3 9 3L15 26Z" fill="#99764d"/><path d="m5 13 9-9q6-3 9 3l-9 9Z" fill="#a68151"/><ellipse cx="9" cy="15" rx="5" ry="4.5" transform="rotate(35 9 15)" fill="#dbc090"/><ellipse cx="11" cy="24" rx="5" ry="4.5" transform="rotate(35 11 24)" fill="#ddc397"/><path d="m18 17 7-7M17 10l3-3" stroke="#705638"/><path d="m7 15 3 1m-1 7 3 2" stroke="#9c774a"/>`,
-  lumber: `<path d="m3 22 20-9 6 5-20 10Z" fill="#c39156"/><path d="m3 16 20-9 6 5-20 10Z" fill="#d6ad70"/><path d="m3 10 20-7 6 5-20 8Z" fill="#ead09d"/><path d="m9 16 20-8v4M9 22l20-10v6M9 28v-6M3 10v6m0 0v6" fill="none"/><path d="m11 10 9-3m-8 13 8-4" stroke="#ac824a"/>`,
-  coal: `<path d="m3 23 2-9 7-3 7 8-1 8H7Z" fill="#53616a"/><path d="m14 13 3-8 8 2 4 8-8 7Z" fill="#667078"/><path d="m15 24 4-9 8 3 2 8-7 3Z" fill="#3e4d54"/><path d="m7 16 5 1 3 6m4-14 3 3m0 9 4 2" fill="none" stroke="#97a2a5"/>`,
-  iron: `<path d="m3 23 4-13 9-6 9 5 4 14-8 5H10Z" fill="#a87964"/><path d="m7 10 8 5 10-6m-10 6 6 13m-6-13L3 23" fill="none" stroke="#795d50"/><path d="m10 9 5-3 3 2-5 4Zm7 11 6-5 2 3-6 6Z" fill="#cbd0c5"/><path d="m7 20 4-2 2 3-4 2Z" fill="#e2b194"/>`,
-  steel: `<path d="m3 18 18-9 8 4-18 9Z" fill="#b7c7cf"/><path d="m11 22 18-9v4l-7 3v3l7-3v4l-18 8V28l6-3v-3l-6 3Z" fill="#879ca8" transform="translate(0 -3)"/><path d="m3 15 8 4v4l-3-1v3l3 1v3l-8-4v-3l3 1v-3l-3-1Z" fill="#b9cbd0"/><path d="m8 20 14-7" stroke="#dce7e6"/>`,
-  grain: `<path d="M16 29V7M16 23 7 14m9 5 9-10" fill="none" stroke="#927237" stroke-width="2"/><path d="M16 11c-7-1-8-5-6-8 4 0 7 3 6 8ZM16 16c-8 1-11-3-10-7 5-1 9 2 10 7ZM16 22c-8 1-11-2-11-6 5-2 10 1 11 6ZM17 14c0-7 4-10 8-9 1 5-3 9-8 9ZM17 21c0-7 4-10 9-9 0 5-3 9-9 9Z" fill="#ddc16a"/>`,
-  food: `<path d="M7 16c-4-7 3-12 7-7 4-5 11-1 8 6" fill="#cf8c66"/><path d="M19 14c-1-8 7-9 9-4 1 3-1 5-2 7" fill="#96ae70"/><path d="m13 9 2-5m-1 3 5-1" fill="none" stroke="#607b4a"/><path d="M3 15h26l-2 13H5Z" fill="#c69d64"/><path d="M5 20h22M6 24h20M10 16v11m12-11v11" fill="none" stroke="#866744"/>`,
-  furniture: `<path d="M9 20V5q7-3 14 0v15" fill="#b68158"/><path d="M11 7h10v10H11Z" fill="#d8af77"/><path d="M5 20h22v5H5Z" fill="#c69663"/><path d="M8 25v4m16-4v4M7 19v-5m18 5v-5" fill="none" stroke-width="2.5"/>`,
-  machinery: `<path d="m13 3 6 0 1 5 4-2 4 5-3 4 4 3-2 6-5-1-1 6h-7l-1-5-5 2-4-5 3-4-4-3 2-6 6 1Z" fill="#8da6b0"/><circle cx="16" cy="16" r="6" fill="#d9e3dc"/><circle cx="16" cy="16" r="2" fill="#536b73" stroke="none"/>`,
-  fish: `<path d="M10 16 3 8v16l7-8ZM9 16C16 4 25 7 29 16c-4 9-13 12-20 0Z" fill="#8dc1ca"/><path d="m15 10 3-6 5 5m-7 14 4 5 3-6" fill="#b5d8d5"/><path d="M23 11c-3 3-3 7 0 10" fill="none"/><circle cx="25" cy="15" r="1.4" fill="#324c51" stroke="none"/>`,
-  oil: `<path d="M7 6q9-5 18 0v21q-9 5-18 0Z" fill="#74767c"/><ellipse cx="16" cy="6" rx="9" ry="3" fill="#9fa3a5"/><path d="M7 12q9 4 18 0M7 23q9 4 18 0" fill="none" stroke="#c3c4ba"/><path d="M16 12c-1 3-4 5-4 8a4 4 0 0 0 8 0c0-3-3-5-4-8Z" fill="#34484c" stroke="#d7d5c5"/>`,
-  fuel: `<path d="M8 9V4h11l4 5h2v19H7V9Z" fill="#c8ad68"/><path d="M11 9V7h6l2 2M23 9l4-3 2 3-4 3" fill="#e6d396"/><path d="m10 14 12 10m0-10L10 24" fill="none" stroke="#8f793f"/><path d="M12 4h6" fill="none" stroke-width="2.5"/>`,
-  stone: `<path d="m3 21 5-8 10 1 3 10-7 4-10-2Z" fill="#a6a89b"/><path d="m14 15 4-9 8 1 4 10-6 7-7-3Z" fill="#c1c1b1"/><path d="m18 6 5 9 7 2M8 13l3 9 10 2" fill="none" stroke="#868f83"/><path d="m6 24 6 1m9-15 4 2" fill="none" stroke="#dfe0cb"/>`,
-  sand: `<path d="m3 26 6-8 7-11 6 12 7 7q-12 5-26 0Z" fill="#dec38b"/><path d="m16 7-2 12-5 7m5-7 8 5" fill="none" stroke="#b49a61"/><path d="m18 14 2 6 5 6" fill="none" stroke="#f1dbae"/><path d="M3 29h2m20 0h3M6 21h1" fill="none"/>`,
-  glass: `<path d="M4 4h18v22H4Z" fill="#a5cbc9"/><path d="M10 9h18v21H10Z" fill="#c0dfd8" fill-opacity=".85"/><path d="m14 19 10-6m-10 12 10-6M7 12l10-6" fill="none" stroke="#f8f7e8" stroke-width="2.5"/>`,
-  copper: `<path d="m4 24 1-9 7-9 5 4 6-6 5 10-1 12-12 3Z" fill="#bd895e"/><path d="m5 15 7-9 2 14-10 4Zm9 5 9-16 2 12-10 13Z" fill="#d2a36f"/><path d="m23 4-1 13 5 9m-13-6 11-4M5 15l9 5" fill="none" stroke="#795d49"/><path d="m8 19 4-3m7 7 3-4" fill="none" stroke="#f0c598"/>`,
-  wire: `<path d="M8 7h16v19H8Z" fill="#b57e57"/><path d="M9 10h14M9 14h14M9 18h14M9 22h14" fill="none" stroke="#ecc29a" stroke-width="2"/><ellipse cx="8" cy="16" rx="5" ry="12" fill="#d5b176"/><ellipse cx="24" cy="16" rx="5" ry="12" fill="#d5b176"/><ellipse cx="24" cy="16" rx="2" ry="5" fill="#867052"/><path d="M24 27q-1 4-8 2" fill="none" stroke="#b97c51" stroke-width="2"/>`,
-  cement: `<path d="M9 4h14l-1 6 5 14q1 5-5 5H10q-6 0-5-5l5-14Z" fill="#d3cdb5"/><path d="M9 8h14M8 23h16" fill="none" stroke="#9c9b87"/><path d="M11 13h10v7H11Z" fill="#8c9d93"/><path d="M13 16h6m-6 2h4" fill="none" stroke="#eae5d3"/>`,
-  goods: `<path d="m3 9 13-6 13 6v16l-13 5-13-5Z" fill="#b694b2"/><path d="m3 9 13 6 13-6M16 15v15" fill="none"/><path d="m10 6 13 6v7l-5 2v-7L5 8Z" fill="#e4cca0"/><path d="M6 18v4l5 2v-4Z" fill="#f0e8ce" stroke="none"/>`,
-  milk: `<path d="M7 5h7v5l2 4v14H5V14l2-4Z" fill="#f1eee0"/><path d="M7 5h7v3H7Z" fill="#779da6"/><path d="M19 8h7v5l2 4v11H17V17l2-4Z" fill="#dde6e1"/><path d="M19 8h7v3h-7Z" fill="#8bafbb"/><path d="M5 18h11m1 3h11" fill="none" stroke="#a5bbb7"/>`,
-  produce: `<path d="M4 18h24v10H4Z" fill="#c09c68"/><path d="M4 22h24m-18-4v10m12-10v10" fill="none" stroke="#8e754e"/><path d="M5 18c-3-7 1-11 5-8 4-4 9 0 6 8Z" fill="#ce8262"/><path d="m10 10 1-5m0 2 4-1" fill="none" stroke="#62844e"/><path d="m18 17 3-10 5 3-6 9Z" fill="#d3a362"/><path d="m21 8-2-4m3 5 3-5m-2 6 5-2" fill="none" stroke="#6d915a"/>`,
-  livestock: `<path d="M6 13h16l5 5v7h-5v-4H11v7H6Z" fill="#d7c8a5"/><path d="M20 7h7l3 5-2 7h-8l-2-7Z" fill="#e5d7b8"/><path d="m20 8-3-3m10 3 3-3M6 14l-3-3v7" fill="none"/><path d="M9 13h5v5H9Zm8 3h3v4h-3Z" fill="#8f8170"/><circle cx="23" cy="11" r=".7" fill="#475a52"/><circle cx="27" cy="11" r=".7" fill="#475a52"/><path d="M22 16h6" stroke="#b49683"/>`,
-  // Not a cargo: the month-end rent float, a house with a coin.
-  property: `<path d="M3.5 15 15 5l11.5 10Z" fill="#c9795a"/><path d="M6 15h18v12H6Z" fill="#ecd8a8"/><path d="M10.5 27v-6h5v6" fill="#9d7650"/><circle cx="23.5" cy="23" r="6" fill="#e3b957"/><circle cx="23.5" cy="23" r="3.2" fill="none" stroke="#a88230"/>`,
+  passengers:disk(12,8,4,'#c2a269')+shape('M4 28v-9c0-6 16-6 16 0v9Z','#758f89')+disk(24,11,3,'#d9c39b')+shape('M23 18c6 0 7 4 6 10h-6Z','#996b63'),
+  mail:shape('M4 9 23 4l6 7-18 6Z','#c7bca5')+shape('M3 12h24v16H3Z','#f0e9d6')+line('M3 12l12 9 12-9M3 28l8-9M27 28l-8-9')+shape('M22 14h3v4h-3Z','#996b63'),
+  timber:shape('M4 16 21 7l7 4v10l-17 9-7-4Z','#997a5b')+shape('M4 16l7 4 17-9-7-4Z','#c7b18b')+line('M11 20v10M7 15l7 4M10 13l7 4M14 11l7 4')+disk(8,23,2,'#dfcea9'),
+  lumber:shape('M3 10 23 3l6 4-20 8Z','#e3d7b7')+shape('M3 10v5l6 4 20-8V7l-20 8Z','#c2a269')+shape('M3 19 23 12l6 4v5L9 29l-6-5Z','#997a5b')+line('M3 19l6 5 20-8M9 24v5'),
+  coal:ore('#7b8583','#536762','#344942'),iron:ore('#c7a084','#ac826d','#7c6157'),stone:ore('#d9d4bd','#b3b5a5','#87998a'),copper:ore('#d8b184','#b1846c','#91775f'),
+  steel:block('#c3d1c8','#899e98','#697780')+line('M4 15l12 6 12-6M4 21l12 6 12-6'),
+  grain:shape('M16 29V6M16 24 7 16M16 18l9-8','#c2a269')+line('M16 29V6M16 24 7 16M16 18l9-8')+shape('M15 13C8 13 7 8 9 5c5 0 7 4 6 8ZM15 22C7 22 4 17 5 14c6-1 10 4 10 8ZM17 16c-1-7 3-11 8-10 0 6-3 9-8 10ZM17 24c-1-7 3-11 9-10 0 6-4 10-9 10Z','#d7ba79'),
+  food:sack('#e3d7b7','#899265')+disk(16,20,3,'#c2a269'),
+  furniture:shape('M8 5l13-3 4 3v15l-4 3-13-4Z','#997a5b')+shape('M4 18l18-4 7 5-18 5Z','#c2a269')+shape('M4 18v7l7 5v-6l18-5v6l-3 2v-5l-15 5v3l-4-2v-6Z','#b1846c')+line('M12 7v9M17 6v9'),
+  machinery:shape('M9 8 20 4l8 4v14l-12 7-13-7V12Z','#899e98')+shape('M9 8l7 4 12-4-8-4Z','#c4cfc1')+disk(11,19,5,'#6c7878')+disk(11,19,2,'#e3d7b7')+line('M19 16l6-3M19 21l6-3'),
+  fish:shape('M9 17 3 10v14l6-7C15 7 25 8 29 17c-5 9-14 10-20 0Z','#88a5a4')+shape('M14 11l5-6 4 5M15 24l6 5 2-7','#c1cbbb')+disk(25,16,1,'#4b5954')+line('M22 12c-3 3-3 7 0 10'),
+  oil:barrel('#697780','#aab9b2')+shape('M16 13c-1 3-4 5-4 8a4 4 0 0 0 8 0c0-3-3-5-4-8Z','#344942'),
+  fuel:shape('M8 4h11l5 6h3v19H5V10h3ZM11 7v3h8l-3-3Z','#c2a269')+line('M9 15l14 10M23 15 9 25')+shape('M23 8l4-4 3 3-4 4Z','#997a5b'),
+  sand:shape('M2 25 9 18l7-13 8 15 6 5-14 5Z','#d8c49b')+shape('M16 5 13 23l-5 4 8 3 14-5-6-5Z','#c2a269'),
+  glass:shape('M4 8l16-5 1 22-17 5Z','#759c9a')+shape('M11 10l16-5 2 23-17 3Z','#b1c8bb')+line('M15 17l9-7M15 25l10-7'),
+  wire:barrel('#b1846c','#c2a269')+line('M7 12c6 4 12 4 18 0M7 18c6 4 12 4 18 0')+disk(16,8,2,'#6c7878')+line('M25 26l4 2-4 2'),
+  cement:sack('#c7bca5','#697780'),goods:block('#d4bfaf','#ac8e86','#996b63')+shape('M10 8l12 6v7l-5 2v-7L5 10Z','#e3d7b7'),
+  milk:shape('M7 4h8v5l3 7v13H4V16l3-7Z','#f0e9d6')+shape('M7 4h8v4H7ZM4 19h14v6H4Z','#88a5a4')+shape('M23 8h5v6l2 5v10H20V19l3-5Z','#c7d4c7'),
+  produce:shape('M3 17h26v12H3Z','#c2a269')+line('M3 23h26M9 17v12M23 17v12')+disk(10,13,5,'#a76f51')+disk(21,13,5,'#899265')+line('M10 8V4M21 8l3-5'),
+  livestock:shape('M5 12h16l6 7v9h-5v-7H10v7H5Z','#e3d7b7')+shape('M19 7h8l3 5-3 8h-9l-2-8Z','#c7bca5')+shape('M9 12h5v6H9Z','#997a5b')+disk(24,12,1,'#4b5954')+line('M19 8l-3-5M27 8l3-4'),
+  property:shape('M3 14 15 4l10 8-12 5Z','#a76f51')+shape('M5 15v11l8 4V17ZM13 17v13l10-5V14Z','#e3d7b7')+disk(24,23,6,'#c2a269')+disk(24,23,3,'#e3d7b7'),
 };
 
 const cargoName = kind => Object.hasOwn(CARGO, kind) ? CARGO[kind].name : kind === 'property' ? 'Rent' : 'Cargo';

@@ -2,15 +2,17 @@ import { terrainElevation, terrainLevel } from './terrain-elevation.js';
 import { stationSiteAt } from './station-sites.js';
 
 export const TERRAIN_OBJECT_KINDS = new Set(['forest','rock','mountain']);
-export const terrainObjectSize = object => [2,3].includes(object?.footprint)?object.footprint:1;
+export const MAX_TERRAIN_OBJECT_SIZE = 6;
+export const validTerrainObjectSize = (kind,size) => TERRAIN_OBJECT_KINDS.has(kind)&&Number.isInteger(size)&&size>=2&&size<=(kind==='forest'?3:MAX_TERRAIN_OBJECT_SIZE);
+export const terrainObjectSize = object => validTerrainObjectSize(object?.kind,object?.footprint)?object.footprint:1;
 const inside=(game,x,y)=>Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<game.width&&y<game.height;
-const sizeOf=object=>[1,2,3].includes(object?.footprint)?object.footprint:1;
+const sizeOf=object=>Number.isInteger(object?.footprint)&&object.footprint>=1&&object.footprint<=7?object.footprint:1;
 
 // Explicit parcels own only one anchor. No inferred parcel is claimed around
 // old terrain: it remains the ordinary single-tile art until safely allocated.
 export function terrainObjectAt(game,x,y){
   if(!inside(game,x,y))return null;
-  for(let ay=y;ay>=Math.max(0,y-2);ay--)for(let ax=x;ax>=Math.max(0,x-2);ax--){
+  for(let ay=y;ay>=Math.max(0,y-MAX_TERRAIN_OBJECT_SIZE+1);ay--)for(let ax=x;ax>=Math.max(0,x-MAX_TERRAIN_OBJECT_SIZE+1);ax--){
     const object=game.tiles[ay*game.width+ax]?.terrainObject;
     if(object&&x<ax+terrainObjectSize(object)&&y<ay+terrainObjectSize(object))return{x:ax,y:ay,object};
   }
@@ -39,7 +41,7 @@ export function releaseTerrainObjectsCells(game,points){
 // when all rounded engineering levels happen to agree. A full collar also
 // excludes shoreline rims and cliffs just beyond the site's ground diamond.
 export function terrainObjectGroundIsFlat(game,x,y,size){
-  if(![2,3].includes(size)||!inside(game,x-1,y-1)||!inside(game,x+size,y+size))return false;
+  if(!Number.isInteger(size)||size<2||size>MAX_TERRAIN_OBJECT_SIZE||!inside(game,x-1,y-1)||!inside(game,x+size,y+size))return false;
   const level=terrainLevel(game.tiles[y*game.width+x]);let minimum=Infinity,maximum=-Infinity,collarMin=Infinity,collarMax=-Infinity;
   for(let dy=-1;dy<=size;dy++)for(let dx=-1;dx<=size;dx++){
     const tile=game.tiles[(y+dy)*game.width+x+dx],height=terrainElevation(tile);
@@ -64,7 +66,7 @@ function hasBuilding(game,x,y){
   return false;
 }
 export function terrainObjectSiteProblem(game,kind,x,y,size,{exclude=null}={}){
-  if(!TERRAIN_OBJECT_KINDS.has(kind)||![2,3].includes(size)||!inside(game,x,y)||!inside(game,x+size-1,y+size-1))return 'Invalid terrain-object footprint.';
+  if(!TERRAIN_OBJECT_KINDS.has(kind)||!validTerrainObjectSize(kind,size)||!inside(game,x,y)||!inside(game,x+size-1,y+size-1))return 'Invalid terrain-object footprint.';
   if(!terrainObjectGroundIsFlat(game,x,y,size))return 'Large terrain objects need a level site with gently graded surroundings.';
   for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++){
     const px=x+dx,py=y+dy,tile=game.tiles[py*game.width+px],existing=terrainObjectAt(game,px,py);

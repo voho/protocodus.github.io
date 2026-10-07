@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "2e9116c2f58ae2235797d2ff1c6cfe61dda05a989d407d50855e45d233854f29",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "industries-3",
+    "output": "fun/transport/assets/world/plot-buildings-v2/industries-3",
+    "sourceCellPixels": 512,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "2e9116c2f58ae2235797d2ff1c6cfe61dda05a989d407d50855e45d233854f29",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Composed farm plots and unchanged processors all pass actual camera, ground-centre and observable personnel-scale checks.",
+  "heightCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "height-correction-prompt.txt",
+    "iterations": 2,
+    "operation": "Repaint oversized human-scale walls, doors and vehicles without independent silhouette fitting; retain full plot ground coverage."
+  },
+  "cameraCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "camera-correction-prompt.txt",
+    "operation": "Repaint the ground plane to 2:1 while preserving upright human scale; measure actual resulting ground edges and centres."
+  },
+  "personnelDoorCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "personnel-door-correction-prompt.txt",
+    "operation": "Correct residual oversized ordinary doors and upright walls on goods factory and dairy plant only; remeasure actual source door endpoints and all nine ground axes before packing."
+  },
+  "paintedSourceProvenance": "painted-source-provenance.json",
+  "farmComposition": "atlas.json#farmComposition"
+}

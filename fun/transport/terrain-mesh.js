@@ -4,7 +4,7 @@ const TILE = 32;
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 // Lighting follows the surface normal in world space. A horizontal face keeps
-// its authored color; northwest slopes brighten gently and opposite slopes dim.
+// its authored color; broad northwest slopes brighten and opposite slopes dim.
 export function facetLight(triangle, heightStep = HEIGHT_STEP) {
   const [a, b, c] = triangle;
   const ax = (b.u - a.u) * TILE, ay = (b.v - a.v) * TILE, az = (b.height - a.height) * heightStep;
@@ -13,7 +13,9 @@ export function facetLight(triangle, heightStep = HEIGHT_STEP) {
   if (nz < 0) { nx = -nx; ny = -ny; nz = -nz; }
   const length = Math.hypot(nx, ny, nz);
   if (!length) return 1;
-  return clamp(1 + ((-.55 * nx - .75 * ny + nz) / length - 1) * .24, .84, 1.1);
+  // The stronger negative world-X component projects the sun to screen upper
+  // left, matching the buildings, vehicles and their lower-right shadows.
+  return clamp(1 + ((-.75 * nx - .55 * ny + nz) / length - 1) * .52, .72, 1.16);
 }
 
 function path(c, points) {

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "civic:park:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open park contains paths, planting and fountain, with no enclosed building or personnel doorway."
+  },
+  {
+    "id": "civic:playground:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open playground has play equipment and a raised child-sized play tower, no ordinary personnel door."
+  },
+  {
+    "id": "civic:swimming-pool:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        201.251516,
+        208.427218
+      ],
+      [
+        201.251516,
+        221.087468
+      ]
+    ],
+    "personnelDoorNotes": "Manually reviewed the 1254\u00d71254 isolated generated source. Lower hinged leaf endpoints exclude fixed transoms and surrounds, and are transformed to nominal sheet-cell coordinates through the retained uniform physical registration affine.",
+    "personnelDoorObservationMethod": "Visible lower hinged leaf head and sill on retained isolated source; fixed transom and stone lintel excluded. Endpoints transformed by recorded physical registration affine."
+  },
+  {
+    "id": "civic:sports-field:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open football ground and open-sided spectator shelter have no enclosed personnel entrance."
+  },
+  {
+    "id": "civic:tennis-courts:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open tennis court has perimeter fencing and gates, not a personnel door."
+  },
+  {
+    "id": "civic:ballpark:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Small far-right annex shows dark windows/possible doorway partly behind low foreground vegetation and field fence; a complete ordinary door head and sill cannot be distinguished reliably."
+  },
+  {
+    "id": "civic:sports-hall:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        108,
+        242
+      ],
+      [
+        108,
+        256
+      ]
+    ],
+    "personnelDoorNotes": "Left personnel leaf in front annex double entrance, head and sill visible. Manually reviewed original1448\u00d71086 source at nominal362px cell coordinates."
+  },
+  {
+    "id": "civic:town-hall:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        160.229459,
+        214.514806
+      ],
+      [
+        160.229459,
+        227.845154
+      ]
+    ],
+    "personnelDoorNotes": "Manually reviewed the 1254\u00d71254 isolated generated source. Lower hinged leaf endpoints exclude fixed transoms and surrounds, and are transformed to nominal sheet-cell coordinates through the retained uniform physical registration affine.",
+    "personnelDoorObservationMethod": "Visible lower hinged leaf head and sill on retained isolated source; fixed transom and stone lintel excluded. Endpoints transformed by recorded physical registration affine."
+  },
+  {
+    "id": "civic:shop-cafe:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        160,
+        192
+      ],
+      [
+        160,
+        213
+      ]
+    ],
+    "personnelDoorNotes": "Green caf\u00e9 entrance right of table umbrella; vertical section at right half remains visible from head to sill. Manually reviewed original1448\u00d71086 source at nominal362px cell coordinates."
+  },
+  {
+    "id": "civic:shop-pharmacy:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        172.866592,
+        211.962357
+      ],
+      [
+        172.866592,
+        234.630979
+      ]
+    ],
+    "personnelDoorNotes": "Manually reviewed the 1254\u00d71254 isolated generated source. Lower hinged leaf endpoints exclude fixed transoms and surrounds, and are transformed to nominal sheet-cell coordinates through the retained uniform physical registration affine.",
+    "personnelDoorObservationMethod": "Visible lower hinged leaf head and sill on retained isolated source; fixed transom and stone lintel excluded. Endpoints transformed by recorded physical registration affine."
+  },
+  {
+    "id": "civic:shop-bookshop:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        103,
+        176
+      ],
+      [
+        103,
+        205
+      ]
+    ],
+    "personnelDoorNotes": "Brown bookshop entrance at left of broad display window, head below awning and sill on path. Manually reviewed original1448\u00d71086 source at nominal362px cell coordinates."
+  }
+]

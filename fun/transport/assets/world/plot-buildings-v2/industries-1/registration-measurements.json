@@ -9,27 +9,36 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            92.88685948999232,
-            389.5860664558222
+            67.97767563320132,
+            375.3662181324543
           ],
           [
-            260.46885316465773,
-            482.3147696224704
+            272.26139021550694,
+            483.63658686107624
           ]
         ],
         [
           [
-            260.46885316465773,
-            482.3147696224704
+            271.24505332703774,
+            483.83985423877004
           ],
           [
-            444.8090462067897,
-            384.0
+            444.02232436679867,
+            392.63378186754574
           ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "personnelDoorEndpointsSource": [
+        [
+          204.16681868807171,
+          418.0726941859293
+        ],
+        [
+          204.16681868807171,
+          425.1870524052136
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -41,27 +50,36 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            83.94915316067683,
-            386.23442658232887
+            53.24079075039816,
+            374.4057797728509
           ],
           [
-            256.0,
-            480.0803430401415
+            243.29578889413523,
+            481.1618065376538
           ]
         ],
         [
           [
-            256.0,
-            480.0803430401415
+            339.84779329870753,
+            457.4913204052065
           ],
           [
-            449.27789937144746,
-            379.5311468353422
+            458.75920924960184,
+            393.59422022714904
           ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "personnelDoorEndpointsSource": [
+        [
+          260.5735159981113,
+          434.4509631436102
+        ],
+        [
+          260.5735159981113,
+          439.53264758595606
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -73,27 +91,36 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            69.42538037553916,
-            366.124587341369
+            63.40415963509,
+            388.71580316249697
           ],
           [
-            212.428681644587,
-            434.27459810239964
+            222.9690511247516,
+            479.5864843605266
           ]
         ],
         [
           [
-            212.428681644587,
-            434.27459810239964
+            350.01116218339934,
+            433.5769134195267
           ],
           [
-            329.7360772168528,
-            376.179506961849
+            448.59584036491003,
+            379.284196837503
           ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "personnelDoorEndpointsSource": [
+        [
+          293.0962964291251,
+          364.0086534038112
+        ],
+        [
+          293.0962964291251,
+          370.10667473462627
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -105,27 +132,27 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            61.60488733738812,
-            369.4762272148624
+            62.89599119085541,
+            372.33245252037386
           ],
           [
-            212.428681644587,
-            447.6811575963729
+            218.39553512664028,
+            462.54251474089847
           ]
         ],
         [
           [
-            212.428681644587,
-            447.6811575963729
+            369.82973150854843,
+            439.05496924837564
           ],
           [
-            353.1975563313059,
-            377.2967202530134
+            449.1040088091446,
+            395.66754747962625
           ]
         ]
       ],
       "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "entranceReview": "No exposed ordinary personnel entrance",
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -137,27 +164,36 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            62.722100628552546,
-            368.3590139236979
+            57.81430674850949,
+            372.8609477023778
           ],
           [
-            177.79506961848946,
-            428.6885316465774
+            246.85296800377736,
+            480.4503707157254
           ]
         ],
         [
           [
-            177.79506961848946,
-            428.6885316465774
+            371.8624052854868,
+            441.9312026427434
           ],
           [
-            233.65573417671126,
-            400.75819936746655
+            454.18569325149053,
+            395.13905229762224
           ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "personnelDoorEndpointsSource": [
+        [
+          190.95443913797234,
+          361.57960824036985
+        ],
+        [
+          190.95443913797234,
+          368.6939664596541
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -187,12 +223,12 @@
       "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
       "personnelDoorEndpointsSource": [
         [
-          186.4,
-          343.64444444444445
+          252.1635908914916,
+          362.77900808784784
         ],
         [
-          186.4,
-          350.0444444444445
+          252.1635908914916,
+          368.1499808397596
         ]
       ],
       "personnelDoorObservable": true,
@@ -207,27 +243,27 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            67.1909537932103,
-            377.29672025301335
+            78.64921296212773,
+            388.95464233128723
           ],
           [
-            194.55326898595604,
-            446.5639443052084
+            184.34824936292267,
+            450.3820438703646
           ]
         ],
         [
           [
-            194.55326898595604,
-            446.5639443052084
+            326.6354137486082,
+            438.12502099542627
           ],
           [
-            252.6483601265067,
-            416.3991854437686
+            433.3507870378723,
+            379.0453576687127
           ]
         ]
       ],
       "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "entranceReview": "No exposed ordinary personnel entrance",
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -239,27 +275,27 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            70.5425936667036,
-            375.06229367068454
+            60.35514896968243,
+            360.2482069164752
           ],
           [
-            197.9049088594493,
-            442.09509114055066
+            265.65520044045724,
+            481.6598116130037
           ]
         ],
         [
           [
-            197.9049088594493,
-            442.09509114055066
+            342.89680396411507,
+            466.7603128280455
           ],
           [
-            252.64836012650667,
-            413.04754557027536
+            451.64485103031757,
+            407.75179308352483
           ]
         ]
       ],
       "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "entranceReview": "No exposed ordinary personnel entrance",
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -271,27 +307,27 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            75.01144683136134,
-            369.4762272148623
+            58.83064363697865,
+            372.1850836715457
           ],
           [
-            188.96720253013382,
-            426.4541050642486
+            241.77128356143143,
+            480.7400267289391
           ]
         ],
         [
           [
-            188.96720253013382,
-            426.4541050642486
+            302.75149686958235,
+            481.07541790213395
           ],
           [
-            257.11721329116443,
-            394.05491962047995
+            453.16935636302134,
+            395.8149163284543
           ]
         ]
       ],
       "personnelDoorObservable": false,
-      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "entranceReview": "No exposed ordinary personnel entrance",
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     }
   ],

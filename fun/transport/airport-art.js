@@ -17,7 +17,6 @@ const PALETTES = {
   tundra: { field: '#b4bcaa', mown: '#c8cebd', verge: '#a2ab98', apron: '#aeb0aa', joint: '#94978f', asphalt: '#5d6262', asphaltLight: '#6b706f' },
   desert: { field: '#cdb383', mown: '#dcc596', verge: '#bba272', apron: '#bcb096', joint: '#a69a80', asphalt: '#66625a', asphaltLight: '#75706a' },
 };
-const LIVERY = { body: '#f3efe3', bodyShade: '#cfc9b8', belly: '#8f8a78', line: '#24473a', fin: '#d8743f', wing: '#e2ded1', wingShade: '#a9a494', engine: '#d3d4cb', engineDark: '#6d716b', intake: '#232a28', glass: '#1b2e36' };
 function rng(seed) { let s = seed >>> 0 || 1; return () => { s = Math.imul(s ^ (s >>> 15), 2246822519) ^ Math.imul(s ^ (s >>> 13), 3266489917); s ^= s >>> 16; return (s >>> 0) / 4294967296; }; }
 // Airport layout: local u along the runway 0–6, v across 0–2; v 1–2 is the runway row (nearer the camera).
 export const LAYOUT = {
@@ -38,42 +37,27 @@ export const localToWorld = (axis, u, v) => axis === 'y' ? { x: v, y: u } : { x:
 export const localToProjected = (axis, u, v, h = 0) => { const w = localToWorld(axis, u, v), p = iso(w.x, w.y); return { x: p.x, y: p.y - h }; };
 
 // Ground (flat world px; caller translates to the anchor tile's north-west corner).
-export function paintAirportGround(c, { axis = 'x', biome = 'taiga', detail = 'town', seed = 1 } = {}) {
-  const P = PALETTES[biome] || PALETTES.taiga, region = detail === 'region';
-  c.save();
-  if (axis === 'y') c.transform(0, 1, 1, 0, 0, 0); // swap u/v into world x/y
-  c.scale(TILE, TILE);
-  const rrect = (u0, v0, u1, v1, r, color) => { c.fillStyle = color; c.beginPath(); c.roundRect(u0, v0, u1 - u0, v1 - v0, r); c.fill(); };
-  const R = rng(seed);
-  // Bare airfield meadow is supplied by the world's textured terrain.
-  // Only constructed surfaces belong to this ground layer.
-  const { runway: r, apron: a } = LAYOUT;
-  for (const t of LAYOUT.taxiways) { rrect(t.u - .13, a.v1 - .06, t.u + .13, r.v0 + .04, .04, P.asphaltLight); }
-  rrect(a.u0, a.v0, a.u1, a.v1, .05, P.apron);
-  c.globalAlpha = .6; c.strokeStyle = P.joint; c.lineWidth = region ? .02 : .012;
-  if (!region) { c.beginPath(); for (let u = a.u0 + .38; u < a.u1 - .1; u += .38) { c.moveTo(u, a.v0 + .02); c.lineTo(u, a.v1 - .02); } for (let v = a.v0 + .27; v < a.v1 - .1; v += .27) { c.moveTo(a.u0 + .02, v); c.lineTo(a.u1 - .02, v); } c.stroke(); }
-  c.globalAlpha = 1;
-  for (let n = 0; n < (region ? 6 : 22); n++) { c.globalAlpha = .05 + R() * .07; c.fillStyle = R() < .5 ? '#6f6d62' : '#d9d5c4'; c.beginPath(); c.ellipse(a.u0 + .1 + R() * (a.u1 - a.u0 - .2), a.v0 + .08 + R() * (a.v1 - a.v0 - .16), .05 + R() * .12, .03 + R() * .06, 0, 0, TAU); c.fill(); }
-  c.globalAlpha = 1;
-  rrect(.5, .05, 1.72, .14, .03, P.apron); // terminal forecourt
-  c.strokeStyle = '#d7b44c'; c.lineWidth = region ? .035 : .022; c.lineCap = 'round';
-  for (const t of LAYOUT.taxiways) { c.beginPath(); c.moveTo(t.u, a.v1 - .1); c.lineTo(t.u, r.v0 + .12); c.stroke(); }
-  c.beginPath(); c.moveTo(a.u0 + .12, .52); c.lineTo(a.u1 - .1, .52); c.stroke();
-  if (!region) for (const s of LAYOUT.stands) { c.beginPath(); c.moveTo(s.u - .42, .38); c.lineTo(s.u - .42, .66); c.stroke(); c.globalAlpha = .7; c.beginPath(); c.arc(s.u, .52, .3, Math.PI * .75, Math.PI * 1.25); c.stroke(); c.globalAlpha = 1; }
-  rrect(r.u0, r.v0, r.u1, r.v1, .03, P.asphalt);
-  if (!region) for (let n = 0; n < 60; n++) { c.globalAlpha = .06 + R() * .08; c.fillStyle = R() < .6 ? '#4b4e49' : '#8a8b83'; c.fillRect(r.u0 + R() * (r.u1 - r.u0), r.v0 + R() * (r.v1 - r.v0), .03 + R() * .08, .008 + R() * .012); }
-  c.globalAlpha = region ? .12 : .22; c.fillStyle = '#3d3f3b';
-  for (const u0 of [.72, 4.28]) for (let n = 0; n < 5; n++) c.fillRect(u0 + n * .16, 1.39 + (n % 2) * .06, .5, .025), c.fillRect(u0 + n * .16 + .05, 1.55 - (n % 2) * .05, .44, .02);
-  c.globalAlpha = 1;
-  const white = '#f0ecdb';
-  c.fillStyle = white;
-  c.fillRect(r.u0 + .03, r.v0 + .025, r.u1 - r.u0 - .06, region ? .03 : .018); c.fillRect(r.u0 + .03, r.v1 - .025 - (region ? .03 : .018), r.u1 - r.u0 - .06, region ? .03 : .018);
-  for (const u0 of [r.u0 + .07, r.u1 - .31]) for (let n = 0; n < 6; n++) c.fillRect(u0, r.v0 + .07 + n * .068, .24, .04);
-  if (!region) for (const u0 of [1.1, 4.58]) { c.fillRect(u0, 1.33, .32, .07); c.fillRect(u0, 1.6, .32, .07); }
-  const dash = region ? [.3, .2] : [.2, .13];
-  for (let u = .68; u < 5.32; u += dash[0] + dash[1]) c.fillRect(u, 1.49, Math.min(dash[0], 5.32 - u), region ? .03 : .02);
-  if (!region) { c.strokeStyle = white; c.lineWidth = .015; c.beginPath(); c.arc(LAYOUT.windsock.u, LAYOUT.windsock.v, .09, 0, TAU); c.stroke(); }
-  c.restore();
+export function paintAirportGround(c, { axis = 'x', biome = 'taiga', detail = 'town' } = {}) {
+  const P=PALETTES[biome]||PALETTES.taiga,region=detail==='region',r=LAYOUT.runway,a=LAYOUT.apron;
+  c.save();if(axis==='y')c.transform(0,1,1,0,0,0);c.scale(TILE,TILE);
+  const slab=(x0,y0,x1,y1,color)=>{c.fillStyle=color;c.fillRect(x0,y0,x1-x0,y1-y0);};
+  const stripe=(points,color,width)=>{c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();};
+  // Broad constructed slabs and perimeter strips; no painted meadow or noise.
+  slab(a.u0-.03,a.v0-.03,a.u1+.03,a.v1+.03,P.joint);slab(a.u0,a.v0,a.u1,a.v1,P.apron);
+  for(const t of LAYOUT.taxiways){slab(t.u-.15,a.v1,t.u+.15,r.v0+.08,P.asphaltLight);stripe([[t.u,a.v1-.15],[t.u,r.v0+.14]],'#c2a269',.022);}
+  slab(r.u0-.025,r.v0-.035,r.u1+.025,r.v1+.035,P.joint);slab(r.u0,r.v0,r.u1,r.v1,P.asphalt);
+  stripe([[r.u0+.05,r.v0+.04],[r.u1-.05,r.v0+.04]],'#e3d7b7',.022);
+  stripe([[r.u0+.05,r.v1-.04],[r.u1-.05,r.v1-.04]],'#e3d7b7',.022);
+  for(const end of [r.u0+.12,r.u1-.35])for(let i=0;i<4;i++)slab(end,r.v0+.1+i*.085,end+.23,r.v0+.14+i*.085,'#f0e9d6');
+  for(let u=r.u0+.65;u<r.u1-.5;u+=.48)slab(u,1.485,u+.22,1.515,'#f0e9d6');
+  stripe([[a.u0+.12,.52],[a.u1-.12,.52]],'#c2a269',region?.03:.018);
+  if(!region){
+    for(let u=a.u0+.65;u<a.u1;u+=.65)stripe([[u,a.v0],[u,a.v1]],P.joint,.014);
+    stripe([[a.u0,.4],[a.u1,.4]],P.joint,.014);
+    for(const s of LAYOUT.stands)stripe([[s.u-.28,.34],[s.u-.28,.71],[s.u+.2,.71]],'#e3d7b7',.025);
+    for(const end of [r.u0+.52,r.u1-.68]){slab(end,1.32,end+.17,1.38,'#e3d7b7');slab(end,1.62,end+.17,1.68,'#e3d7b7');}
+  }
+  slab(.5,.05,1.72,.14,P.apron);c.restore();
 }
 
 // Upright art (projected px; origin = anchor tile's north corner at site height). Painterly treatment: faces carry a
@@ -292,70 +276,45 @@ export function drawWindsock(c, { axis = 'x', detail = 'town', wind = Math.PI * 
   }
 }
 
-// Aircraft. Local frame: +x nose, +y right wing, lengths in tiles; heights in projected px (zoom 1).
-const FUSELAGE = { r: .064, lift: 1.8, belly: 3.4 };
-const WING = [[.14, 0], [.05, .43], [-.05, .43], [-.13, 0]];
-const TAILPLANE = [[-.4, 0], [-.46, .19], [-.52, .19], [-.52, 0]];
-const NACELLES = [-.2, .2];
+// New regional turboprop; physical dimensions remain 18m by 17m in the shared 16m tile.
+const FUSELAGE = { r: .065, lift: 2.2, belly: 2.6 };
+const WING = [[.16, 0], [-.01, .52], [-.13, .52], [-.2, 0]];
+const TAILPLANE = [[-.36, 0], [-.48, .23], [-.56, .23], [-.51, 0]];
+const NACELLES = [-.25, .25];
 function project(heading, lx, ly) { const c = Math.cos(heading), s = Math.sin(heading); return iso(lx * c - ly * s, lx * s + ly * c); }
 function shapePath(c, heading, points, mirror = true, lift = 0) {
   const all = mirror ? [...points, ...points.slice().reverse().map(([x, y]) => [x, -y])] : points;
   c.beginPath(); all.forEach(([x, y], i) => { const p = project(heading, x, y); i ? c.lineTo(p.x, p.y - lift) : c.moveTo(p.x, p.y - lift); }); c.closePath();
 }
-function fuselagePoints(n = 16) {
-  const pts = [];
-  for (let k = 0; k <= n; k++) { const a = k / n * Math.PI / 2; pts.push([.38 + .15 * Math.cos(a), FUSELAGE.r * Math.sin(a)]); }
-  pts.push([-.26, FUSELAGE.r], [-.46, FUSELAGE.r * .42], [-.54, FUSELAGE.r * .12], [-.55, 0]);
-  return pts;
-}
-const FUSE = fuselagePoints();
-/** Projected bounds of one aircraft drawing at zoom 1 and scale 1, including the fin (canvas sizing). */
-export const AIRCRAFT_BOX = { left: -27, top: -27, width: 54, height: 43 };
-export function drawAircraft(c, { heading = 0, detail = 'town', color = '#69c6bc', scale = 1 } = {}) {
-  const region = detail === 'region', fine = detail === 'detail', L = FUSELAGE.lift;
-  c.save(); c.scale(scale, scale); c.lineJoin = 'round';
-  const n = project(heading, 0, 1), side = n.y >= 0 ? 1 : -1; // camera-facing flank
-  for (const sy of NACELLES) { shapePath(c, heading, [[.21, sy - .036], [.21, sy + .036], [-.07, sy + .036], [-.07, sy - .036]], false, -1.4); c.fillStyle = LIVERY.engineDark; c.fill(); }
-  shapePath(c, heading, FUSE, true, L - FUSELAGE.belly); c.fillStyle = LIVERY.belly; c.fill();
-  shapePath(c, heading, WING, true, .2); c.fillStyle = LIVERY.wingShade; c.fill();
-  shapePath(c, heading, WING, true, 1); c.fillStyle = LIVERY.wing; c.fill(); if (!region) { c.save(); c.globalAlpha = .55; c.strokeStyle = '#2e2a20'; c.lineWidth = fine ? .45 : .6; c.stroke(); c.restore(); }
-  if (!region) {
-    c.strokeStyle = '#fbf8f0'; c.lineWidth = fine ? .6 : .8; c.beginPath();
-    for (const sgn of [1, -1]) { const a = project(heading, .14, 0), b = project(heading, .05, .43 * sgn); c.moveTo(a.x, a.y - 1); c.lineTo(b.x, b.y - 1); }
-    c.stroke();
-    c.strokeStyle = '#a9a495'; c.lineWidth = .5; c.beginPath();
-    for (const sgn of [1, -1]) { const a = project(heading, -.13, 0), b = project(heading, -.05, .43 * sgn); c.moveTo(a.x, a.y - 1); c.lineTo(b.x, b.y - 1); }
-    c.stroke();
+const FUSE = [[.57,0],[.55,.027],[.47,.06],[.32,.068],[-.28,.065],[-.49,.033],[-.56,0]];
+export const AIRCRAFT_BOX = { left: -29, top: -29, width: 58, height: 48 };
+export function drawAircraft(c, { heading = 0, detail = 'town', color = '#758f89', scale = 1 } = {}) {
+  const region=detail==='region', L=FUSELAGE.lift;
+  c.save();c.scale(scale,scale);c.lineJoin='round';
+  const paint=(points,fill,lift=0,mirror=true)=>{shapePath(c,heading,points,mirror,lift);c.fillStyle=fill;c.fill();};
+  paint(WING,'#929e99',-.1);paint(WING,'#d8ddcf',.9);
+  // The leading edge catches the fixed northwest sky light in every heading.
+  c.strokeStyle='#f0edda';c.lineWidth=.6;c.stroke();
+  paint(TAILPLANE,'#d8ddcf',L+.4);
+  for(const y of NACELLES){
+    paint([[.25,y-.033],[.25,y+.033],[-.12,y+.036],[-.18,y]],'#9eafa7',1.6,false);
+    const a=project(heading,.28,y-.12),b=project(heading,.28,y+.12);
+    c.strokeStyle='#596e68';c.lineWidth=region?1.1:.75;c.beginPath();c.moveTo(a.x,a.y-2.1);c.lineTo(b.x,b.y-2.1);c.stroke();
   }
-  for (const sy of NACELLES) {
-    shapePath(c, heading, [[.22, sy - .032], [.22, sy + .032], [-.06, sy + .032], [-.06, sy - .032]], false, 1.6); c.fillStyle = LIVERY.engine; c.fill();
-    if (!region) { shapePath(c, heading, [[.22, sy - .03], [.22, sy + .03], [.19, sy + .03], [.19, sy - .03]], false, 1.6); c.fillStyle = LIVERY.intake; c.fill(); }
-    if (fine) { const p = project(heading, .235, sy), q = project(heading, 0, .07); c.globalAlpha = .16; c.strokeStyle = '#eef0e8'; c.lineWidth = .5; c.beginPath(); c.ellipse(p.x, p.y - 1.2, Math.max(.8, Math.abs(q.x)), Math.max(.8, Math.abs(q.y) + 2), 0, 0, TAU); c.stroke(); c.globalAlpha = 1; }
+  paint(FUSE,'#8b9b92',L-FUSELAGE.belly);
+  const normal=project(heading,0,1),n=Math.hypot(normal.x,normal.y),nx=normal.x/n,ny=normal.y/n;
+  const gradient=c.createLinearGradient(-nx*3,-ny*3-L,nx*3,ny*3-L),light=(-nx-ny*1.5)>0;
+  gradient.addColorStop(0,light?'#f1ead7':'#a0ada2');gradient.addColorStop(.48,'#e3d7b7');gradient.addColorStop(1,light?'#a0ada2':'#f1ead7');
+  paint(FUSE,gradient,L);c.strokeStyle='#65766b';c.lineWidth=.45;c.stroke();
+  const side=normal.y>=0?1:-1;
+  paint([[.5,0],[.43,.048],[.35,.05],[.36,0]],'#587178',L+.6);
+  if(!region){
+    for(let i=0;i<6;i++){const p=project(heading,.23-i*.072,side*.059);c.fillStyle='#587178';c.fillRect(p.x-.65,p.y-L-.55,1.3,1.05);}
   }
-  shapePath(c, heading, TAILPLANE, true, L + .6); c.fillStyle = LIVERY.wing; c.fill(); if (!region) { c.save(); c.globalAlpha = .55; c.strokeStyle = '#2e2a20'; c.lineWidth = fine ? .45 : .6; c.stroke(); c.restore(); }
-  const alen = Math.hypot(n.x, n.y) || 1, nx = n.x / alen, ny = n.y / alen, rr = FUSELAGE.r * alen;
-  const g = c.createLinearGradient(-nx * rr, -ny * rr - L, nx * rr, ny * rr - L), litLeft = (-nx - ny * 1.6) > 0;
-  const hi = '#fffef8', lo = LIVERY.bodyShade;
-  g.addColorStop(0, litLeft ? hi : lo); g.addColorStop(.5, LIVERY.body); g.addColorStop(1, litLeft ? lo : hi);
-  shapePath(c, heading, FUSE, true, L); c.fillStyle = g; c.fill();
-  c.save(); c.globalAlpha = region ? .45 : .7; c.strokeStyle = '#2e2a20'; c.lineWidth = fine ? .5 : region ? .9 : .65; c.stroke(); c.restore();
-  const line = (x0, y0, x1, y1, lift, color, width) => { const a = project(heading, x0, y0), b = project(heading, x1, y1); c.strokeStyle = color; c.lineWidth = width; c.beginPath(); c.moveTo(a.x, a.y - lift); c.lineTo(b.x, b.y - lift); c.stroke(); };
-  line(.4, 0, -.4, 0, L + .9, '#ffffffb0', region ? 1.2 : .8);
-  line(.42, side * FUSELAGE.r * .72, -.36, side * FUSELAGE.r * .62, L - .2, LIVERY.line, region ? 1.6 : fine ? .9 : 1.2);
-  if (!region) { c.fillStyle = '#1d3036'; const count = fine ? 11 : 7; for (let k = 0; k < count; k++) { const p = project(heading, .3 - k * (.6 / count), side * FUSELAGE.r * .58); c.fillRect(p.x - .45, p.y - L - 1.1, .9, .9); } }
-  shapePath(c, heading, [[.5, 0], [.47, .038], [.41, .046], [.41, 0]], true, L + .6); c.fillStyle = LIVERY.glass; c.fill();
-  // Fin: a vertical swept plate in the company orange with the route-colour band.
-  const base0 = project(heading, -.3, 0), base1 = project(heading, -.53, 0), top1 = project(heading, -.56, 0), top0 = project(heading, -.45, 0), H = 10.5;
-  const P = (p, z) => ({ x: p.x, y: p.y - L - z });
-  const quad = (a, b, d, e, fill) => { c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.lineTo(d.x, d.y); c.lineTo(e.x, e.y); c.closePath(); c.fillStyle = fill; c.fill(); };
-  const lerp = (a, b, f) => ({ x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f });
-  const f0 = P(base0, 0), f1 = P(base1, 0), f2 = P(top1, H), f3 = P(top0, H * .96);
-  const across2 = project(heading, 0, .012); f0.x -= across2.x; f1.x -= across2.x; f2.x += across2.x; f3.x += across2.x;
-  if (Math.abs(f0.x - f1.x) < 1.4) { f0.x -= .7; f3.x -= .7; f1.x += .7; f2.x += .7; } // edge-on: keep a sliver
-  quad(f0, f1, f2, f3, LIVERY.fin);
-  if (!litLeft) { c.globalAlpha = .22; quad(f0, f1, f2, f3, '#5b2d18'); c.globalAlpha = 1; }
-  quad(lerp(f0, f3, .52), lerp(f1, f2, .52), lerp(f1, f2, .74), lerp(f0, f3, .74), color);
-  c.strokeStyle = '#fff5e2aa'; c.lineWidth = .5; c.beginPath(); c.moveTo(f0.x, f0.y); c.lineTo(f3.x, f3.y); c.stroke();
+  const tail=[[-.31,0,0],[-.55,0,0],[-.55,0,8],[-.46,0,8]].map(([x,y,z])=>{const p=project(heading,x,y);return {x:p.x,y:p.y-L-z};});
+  polygon(c,tail,'#899b88');c.strokeStyle='#e3d7b7';c.lineWidth=.55;c.stroke();
+  const mixPoint=(a,b,f)=>({x:a.x+(b.x-a.x)*f,y:a.y+(b.y-a.y)*f});
+  polygon(c,[mixPoint(tail[0],tail[3],.45),mixPoint(tail[1],tail[2],.45),mixPoint(tail[1],tail[2],.69),mixPoint(tail[0],tail[3],.69)],color);
   c.restore();
 }
 /** Ground shadow: the plan-view silhouette, softened with altitude (blur in device px). */
@@ -363,7 +322,7 @@ export function drawAircraftShadow(c, { heading = 0, scale = 1, blur = 0 } = {})
   c.save(); c.scale(scale, scale); c.fillStyle = '#1d2b22';
   if (blur > .2 && 'filter' in c) c.filter = `blur(${blur.toFixed(1)}px)`;
   shapePath(c, heading, FUSE); c.fill(); shapePath(c, heading, WING); c.fill(); shapePath(c, heading, TAILPLANE); c.fill();
-  for (const sy of NACELLES) { shapePath(c, heading, [[.22, sy - .034], [.22, sy + .034], [-.06, sy + .034], [-.06, sy - .034]], false); c.fill(); }
+  for (const sy of NACELLES) { shapePath(c, heading, [[.25, sy - .033], [.25, sy + .033], [-.12, sy + .036], [-.18, sy]], false); c.fill(); }
   c.restore();
 }
 
@@ -403,8 +362,8 @@ export const PART_BOXES = {
 // Union the native fallback bounds with the measured painted cutouts.
 // Four world pixels retain low-density filter fringes before the preparation gutter.
 const paintedPartBounds = {
-  x: { tower: [-17.441429, -49.770357, 6.844286, 17.729643], terminal: [-8.143571, -2.885179, 48.642143, 39.43625], hangar: [115.42, 58.731607, 160.777143, 94.445893], depot: [144.256429, 78.970357, 180.863571, 103.791786] },
-  y: { tower: [-7.38, -50.918393, 17.441429, 18.18875], terminal: [-47.481429, -2.529107, 7.34, 39.078036], hangar: [-159.884286, 58.168214, -115.777143, 94.061071], depot: [-180.327857, 79.185357, -144.792143, 104.006786] },
+  x: { tower: [-18.59481172, -54.84987448, 7.99062762, 18.53322176], terminal: [-7.42694561, 1.49221757, 43.19464435, 38.63899582], hangar: [120.34811715, 61.50627615, 155.49188285, 91.73355649], depot: [145.71648536, 79.69740586, 179.58560669, 104.46192469] },
+  y: { tower: [-8.62794979, -53.57523013, 18.32167364, 18.53322176], terminal: [-42.19313808, 1.5832636, 7.70008368, 39.45841004], hangar: [-155.12769874, 61.23313808, -120.53020921, 92.55297071], depot: [-179.76769874, 79.24217573, -145.35230126, 104.91715481] },
 };
 for (const axis of ['x','y']) for (const [kind, measured] of Object.entries(paintedPartBounds[axis])) {
   const native=PART_BOXES[axis][kind], left=Math.min(native.left,Math.floor(measured[0]-4)), top=Math.min(native.top,Math.floor(measured[1]-4));

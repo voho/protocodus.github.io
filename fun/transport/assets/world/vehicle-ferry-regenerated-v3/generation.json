@@ -1,0 +1,45 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Fix the turnaround of this exact same ferry: keep the boat identity and fixed camera, all retained frames' scale, framing and light. The BOTTOM-LEFT boat must point southwest, its POINTED BOW in the lower-left and its FLAT STERN in upper-right. The BOTTOM-RIGHT boat must point southeast, POINTED BOW lower-right and FLAT STERN upper-left. Those are currently reversed. The TOP-MIDDLE boat must point NORTH with its pointed bow at top, and flat stern below nearest viewer. The BOTTOM-MIDDLE boat must point SOUTH with pointed bow bottom, flat stern top. Keep top-left NW and top-right NE, middle-left W, middle-right E. Exactly 3x3 slots with center blank. No labels or guides. Every long axis of diagonal boats has slope +/-0.5. TRUE RGBA TRANSPARENCY everywhere outside boats and their compact down-right contact shadows, zero background.",
+  "source": "source-generated.png",
+  "sha256": "55631b8161268c1120e38f46c32bbdc4b06254b843ca0e77d36ffd6392fc5139",
+  "observedSourceOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "registeredOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "additionalSources": [
+    {
+      "tool": "built-in image_gen",
+      "prompt": "Draw exactly ONE standalone sprite of the SAME ferry design in the reference: muted teal hull, ivory two decks, slate roof, ochre lifeboat at squared flat STERN, mast and bridge toward POINTED BOW. The camera is fixed orthographic 2:1 dimetric. Rotate the entire ship so its pointed BOW is closest to viewer at lower-left, with squared STERN at upper-right. This is the missing FRONT three-quarter view, with the sloping forward windows of the bridge toward viewer and pointed bow clearly prominent; see the middle-column front-on view of the reference for bow identity. Show this one ship only centered with large transparent gutters; long ground axis exactly +/-26.565 degrees, vertical structure, no perspective. Same hand-painted broad muted styling and northwest light. Genuine RGBA alpha with short compact down-right contact shadow, no water or background. Exactly ONE boat, no sheet, no text.",
+      "source": "source-SW.png",
+      "sha256": "b597ad0cc0aa77c0f439a50b0747134874999a449ee7d3487c845a49dba3f72e"
+    },
+    {
+      "tool": "built-in image_gen",
+      "prompt": "Draw exactly ONE standalone sprite of the SAME ferry design in the reference: muted teal hull, ivory two decks, slate roof, ochre lifeboat at squared flat STERN, mast and bridge toward POINTED BOW. The camera is fixed orthographic 2:1 dimetric. Rotate the entire ship so its pointed BOW is closest to viewer at lower-right, with squared STERN at upper-left. This is the missing FRONT three-quarter view, with the sloping forward windows of the bridge toward viewer and pointed bow clearly prominent; see the middle-column front-on view of the reference for bow identity. Show this one ship only centered with large transparent gutters; long ground axis exactly +/-26.565 degrees, vertical structure, no perspective. Same hand-painted broad muted styling and northwest light. Genuine RGBA alpha with short compact down-right contact shadow, no water or background. Exactly ONE boat, no sheet, no text.",
+      "source": "source-SE.png",
+      "sha256": "53ad11d980e0f7a611e58fe827f89d6a6a46722d269b1d1069d4119c63dac1d1"
+    }
+  ],
+  "camera": "fixed 2:1 dimetric; NW sunlight; compact down-right shadow",
+  "normalization": "One family scale, no per-heading silhouette stretching; premultiplied alpha mipmaps",
+  "review": "front/rear identity and transparent composition visually inspected"
+}

@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "481ac17e713fc3707ce5cc752192d2c44244ff5b107b9031ee82ba2e03260ce3",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "industries-1",
+    "output": "fun/transport/assets/world/plot-buildings-v2/industries-1",
+    "sourceCellPixels": 512,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "481ac17e713fc3707ce5cc752192d2c44244ff5b107b9031ee82ba2e03260ce3",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Composed farm plots and unchanged processors all pass actual camera, ground-centre and observable personnel-scale checks.",
+  "heightCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "height-correction-prompt.txt",
+    "iterations": 2,
+    "operation": "Repaint oversized human-scale architecture and vehicles while preserving industrial identity and ground coverage; remeasure corrected original pixels and repack at one observed whole-sheet density."
+  },
+  "paintedSourceProvenance": "painted-source-provenance.json",
+  "farmComposition": "atlas.json#farmComposition"
+}

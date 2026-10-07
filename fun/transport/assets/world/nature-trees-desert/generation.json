@@ -1,0 +1,524 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine dry-climate trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Dry climate dusty olive and sage crowns, warm gray/brown bark. Palm FROND ROSETTES seen from above; we see radial star shape of fronds instead of a sideways arch.\nSlot 1: palm, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 2: acacia, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 3: joshua, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 4: tamarisk, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 5: deadwood, 6m tall, 118px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 6: small-palm, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 7: bare-acacia, 8m tall, 158px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 8: small-joshua, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 9: succulent-tree, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+  "sourceSha256": "552c5b0ad6a84173bdef5a30001f0eb5d7e5739188103d128b14142280968b72",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
+    {
+      "id": "nature-trees-desert:palm",
+      "cell": 0,
+      "sourceBounds": [
+        28,
+        16,
+        407,
+        417
+      ],
+      "observedRootSource": [
+        216.0,
+        405.0
+      ],
+      "observedCrownTopSource": 20.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 385.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5378904608488584,
+      "masterOffsetPixels": [
+        26.876593360414617,
+        35.24061072979407
+      ],
+      "sourceCropPixels": [
+        379,
+        401
+      ],
+      "masterDrawPixels": [
+        204,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          28,
+          16,
+          407,
+          417
+        ],
+        "transparentFraction": 0.40294382776567816
+      },
+      "bounds": [
+        29,
+        37,
+        229,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-desert:acacia",
+      "cell": 1,
+      "sourceBounds": [
+        414,
+        81,
+        858,
+        412
+      ],
+      "observedRootSource": [
+        635.0,
+        401.0
+      ],
+      "observedCrownTopSource": 85.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 316.0,
+      "registeredPlantHeightPixels": 167.6425269645609,
+      "calibratedHeightMetres": 8.5,
+      "sourceScaleToMaster": 0.530514325837218,
+      "masterOffsetPixels": [
+        10.75633398997482,
+        74.71541573209024
+      ],
+      "sourceCropPixels": [
+        444,
+        331
+      ],
+      "masterDrawPixels": [
+        236,
+        176
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          414,
+          81,
+          858,
+          412
+        ],
+        "transparentFraction": 0.3271345363490379
+      },
+      "bounds": [
+        12,
+        77,
+        245,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-desert:joshua",
+      "cell": 2,
+      "sourceBounds": [
+        878,
+        64,
+        1233,
+        416
+      ],
+      "observedRootSource": [
+        1066.0,
+        404.0
+      ],
+      "observedCrownTopSource": 68.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 336.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.6163328197226503,
+      "masterOffsetPixels": [
+        12.129429892141744,
+        34.926841294298896
+      ],
+      "sourceCropPixels": [
+        355,
+        352
+      ],
+      "masterDrawPixels": [
+        219,
+        217
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          878,
+          64,
+          1233,
+          416
+        ],
+        "transparentFraction": 0.4431818181818182
+      },
+      "bounds": [
+        14,
+        37,
+        229,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-desert:tamarisk",
+      "cell": 3,
+      "sourceBounds": [
+        14,
+        442,
+        422,
+        822
+      ],
+      "observedRootSource": [
+        215,
+        802
+      ],
+      "observedCrownTopSource": 445,
+      "observedRootMethod": "reviewed source landmark",
+      "measuredSourceHeightPixels": 357,
+      "registeredPlantHeightPixels": 183.42064714946073,
+      "calibratedHeightMetres": 9.3,
+      "sourceScaleToMaster": 0.5137833253486295,
+      "masterOffsetPixels": [
+        24.729551604925476,
+        59.51800287449339
+      ],
+      "sourceCropPixels": [
+        408,
+        380
+      ],
+      "masterDrawPixels": [
+        210,
+        195
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          14,
+          442,
+          422,
+          822
+        ],
+        "transparentFraction": 0.29781346749226006
+      },
+      "bounds": [
+        27,
+        61,
+        233,
+        254
+      ]
+    },
+    {
+      "id": "nature-trees-desert:deadwood",
+      "cell": 4,
+      "sourceBounds": [
+        491,
+        500,
+        797,
+        769
+      ],
+      "observedRootSource": [
+        647.0,
+        758.0
+      ],
+      "observedCrownTopSource": 503.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 255.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.4640623583794073,
+      "masterOffsetPixels": [
+        55.60627209281246,
+        124.7519115381129
+      ],
+      "sourceCropPixels": [
+        306,
+        269
+      ],
+      "masterDrawPixels": [
+        142,
+        125
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          491,
+          500,
+          797,
+          769
+        ],
+        "transparentFraction": 0.7197925018830332
+      },
+      "bounds": [
+        57,
+        126,
+        197,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:small-palm",
+      "cell": 5,
+      "sourceBounds": [
+        910,
+        520,
+        1191,
+        779
+      ],
+      "observedRootSource": [
+        1057.0,
+        770.0
+      ],
+      "observedCrownTopSource": 524.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 246.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.36078018715472215,
+      "masterOffsetPixels": [
+        74.96531248825585,
+        154.28495321131945
+      ],
+      "sourceCropPixels": [
+        281,
+        259
+      ],
+      "masterDrawPixels": [
+        101,
+        93
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          910,
+          520,
+          1191,
+          779
+        ],
+        "transparentFraction": 0.3773341211063631
+      },
+      "bounds": [
+        76,
+        155,
+        175,
+        246
+      ]
+    },
+    {
+      "id": "nature-trees-desert:bare-acacia",
+      "cell": 6,
+      "sourceBounds": [
+        28,
+        851,
+        453,
+        1182
+      ],
+      "observedRootSource": [
+        223.0,
+        1171.0
+      ],
+      "observedCrownTopSource": 854.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 317.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.4977324979463674,
+      "masterOffsetPixels": [
+        30.942162900458356,
+        85.20560065716242
+      ],
+      "sourceCropPixels": [
+        425,
+        331
+      ],
+      "masterDrawPixels": [
+        212,
+        165
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          28,
+          851,
+          453,
+          1182
+        ],
+        "transparentFraction": 0.44415852141460815
+      },
+      "bounds": [
+        32,
+        86,
+        241,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-desert:small-joshua",
+      "cell": 7,
+      "sourceBounds": [
+        497,
+        907,
+        755,
+        1138
+      ],
+      "observedRootSource": [
+        637.0,
+        1128.0
+      ],
+      "observedCrownTopSource": 912.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 216.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.41088854648176687,
+      "masterOffsetPixels": [
+        70.47560349255264,
+        153.6736312275295
+      ],
+      "sourceCropPixels": [
+        258,
+        231
+      ],
+      "masterDrawPixels": [
+        106,
+        95
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          497,
+          907,
+          755,
+          1138
+        ],
+        "transparentFraction": 0.4534380348333837
+      },
+      "bounds": [
+        71,
+        155,
+        175,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:succulent-tree",
+      "cell": 8,
+      "sourceBounds": [
+        832,
+        836,
+        1235,
+        1191
+      ],
+      "observedRootSource": [
+        1056.0,
+        1180.0
+      ],
+      "observedCrownTopSource": 840.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 340.0,
+      "registeredPlantHeightPixels": 189.33744221879817,
+      "calibratedHeightMetres": 9.6,
+      "sourceScaleToMaster": 0.5568748300552887,
+      "masterOffsetPixels": [
+        3.2600380676153264,
+        52.915058460980674
+      ],
+      "sourceCropPixels": [
+        403,
+        355
+      ],
+      "masterDrawPixels": [
+        224,
+        198
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          832,
+          836,
+          1235,
+          1191
+        ],
+        "transparentFraction": 0.4283227903400552
+      },
+      "bounds": [
+        5,
+        55,
+        225,
+        249
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-trees-desert",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine dry-climate trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Dry climate dusty olive and sage crowns, warm gray/brown bark. Palm FROND ROSETTES seen from above; we see radial star shape of fronds instead of a sideways arch.\nSlot 1: palm, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 2: acacia, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 3: joshua, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 4: tamarisk, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 5: deadwood, 6m tall, 118px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 6: small-palm, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 7: bare-acacia, 8m tall, 158px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 8: small-joshua, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 9: succulent-tree, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+    "kind": "tree",
+    "heights": [
+      10.5,
+      8.5,
+      10.5,
+      9.3,
+      6,
+      4.5,
+      8,
+      4.5,
+      9.6
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-trees-desert:palm",
+      "nature-trees-desert:acacia",
+      "nature-trees-desert:joshua",
+      "nature-trees-desert:tamarisk",
+      "nature-trees-desert:deadwood",
+      "nature-trees-desert:small-palm",
+      "nature-trees-desert:bare-acacia",
+      "nature-trees-desert:small-joshua",
+      "nature-trees-desert:succulent-tree"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "landmarks": [
+      null,
+      null,
+      null,
+      {
+        "root": [
+          215,
+          802
+        ],
+        "crownTop": 445
+      },
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

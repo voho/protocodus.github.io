@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "sourceCorrectionPrompts": "isolated-generation/*/prompt.json and final-door-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "8de555f5680550f217864681463bfb282a28b4fca3f729625517f66a478e4701",
+  "measurements": "source-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "sourceAssembly": "source-assembly.json",
+  "reviewStatus": "Accepted: all11 per-sprite measurements pass. Fixed transoms and door surrounds are excluded from actual hinged leaf heights."
+}

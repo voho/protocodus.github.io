@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "id": "civic:town-hall:taiga",
+      "kind": "town-hall",
+      "runtimeIds": [
+        "civic:town-hall:taiga",
+        "civic:town-hall:tundra",
+        "civic:town-hall:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "name": "Town hall",
+      "footprint": 2,
+      "design": 0,
+      "description": "A 30m by 30m full-envelope civic garden. Broad 18m facade and 10m deep warm muted stone town hall, exactly two 3m storeys (6m wall height), broad slate hipped roof, central clock turret rising to 10m with one large cream clock disc, short portico and normal 2.1m personnel entrance. Two symmetrical broad wings, sparse shrubs. No tiny railings or texture. Expand equipment spacing, paths and planted groups across the 30m envelope; add architectural wings where appropriate without changing any human-feature height."
+    }
+  ],
+  "columns": 1,
+  "rows": 1,
+  "biome": "taiga",
+  "cellPixels": 1254,
+  "direction": "Use case: precise-object-edit. Edit ONLY this one complete registered town-hall sprite. Keep ALL ground, roof, plot, vegetation, cellmargins andcamera unchanged. Its ordinary personnel door is too tall. Reduce ONLY door LEAF height from TOP, threshold unchanged, to 37 pixels in1254x1254output. This is 60 percent ofcurrentdoorheight. Fillvacatedupperdoorareawithmatchingwalloropaque/transomglass. Clearly separate solid ordinarylowerdoorleaf fromupperwall/transom. Source is an entire512square physicalframe, retainalltransparentframing andgroundcenter at50%width,75%height. Finalsinglecutout1254x1254 actualRGBA. Noalterationsofotherfeatures."
+}

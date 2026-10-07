@@ -3,9 +3,9 @@ import { featureWorldPixels } from './sprite-art-direction.js';
 // Horizontal railway material is drawn in the square world plane and receives
 // the terrain's dimetric projection once. It cannot drift when artwork loads.
 export const RAIL_PALETTE = Object.freeze({
-  edge: '#58636a', ballast: '#a3adb1',
-  sleeper: '#60686d', steelEdge: '#434e55', steel: '#e3e9eb',
-  bridgeEdge: '#747f87', bridgeDeck: '#b4bec4', overview: '#9ca9b1',
+  edge: '#65716f', ballast: '#aeb7b5',
+  sleeper: '#6b7371', steelEdge: '#495956', steel: '#e1e7e5',
+  bridgeEdge: '#60746f', bridgeDeck: '#b5c0b4', overview: '#9faa9f',
 });
 const HALF_GAUGE = featureWorldPixels(1.435) / 2;
 const HALF_SLEEPER = featureWorldPixels(2.6) / 2;
@@ -57,12 +57,12 @@ export function drawRailSurface(c, cx, cy, arms, { inner = 0, detailLevel = 'tow
   // that has no railway. The mesh later applies the same clip on sloping ground.
   c.beginPath(); c.rect(cx-16,cy-16,32,32); c.clip();
   c.lineCap = 'butt'; c.lineJoin = 'round';
-  for (const [color,width] of [[RAIL_PALETTE.edge,BED_WIDTH],[RAIL_PALETTE.ballast,BED_WIDTH-1.4]])
+  for (const [color,width] of [[RAIL_PALETTE.edge,BED_WIDTH],[RAIL_PALETTE.ballast,BED_WIDTH-1.1]])
     for (const points of paths) stroke(c,points,color,width);
   for (const {ux,uy,reach} of directions) {
-    for (let distance = Math.max(2,inner+2); distance < reach; distance += detailLevel === 'region' ? 8 : 4) {
+    for (let distance = Math.max(2,inner+2); distance < reach; distance += detailLevel === 'region' ? 8 : 4.5) {
       const x = cx+ux*distance, y = cy+uy*distance;
-      stroke(c,[[x-uy*HALF_SLEEPER,y+ux*HALF_SLEEPER],[x+uy*HALF_SLEEPER,y-ux*HALF_SLEEPER]],RAIL_PALETTE.sleeper,1.2);
+      stroke(c,[[x-uy*HALF_SLEEPER,y+ux*HALF_SLEEPER],[x+uy*HALF_SLEEPER,y-ux*HALF_SLEEPER]],RAIL_PALETTE.sleeper,1.55);
     }
   }
   for (const offset of [-HALF_GAUGE,HALF_GAUGE]) for (const points of paths) {

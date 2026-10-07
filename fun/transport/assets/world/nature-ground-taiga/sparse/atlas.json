@@ -1,0 +1,459 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-ground-taiga:wildflowers-sparse",
+    "nature-ground-taiga:bluebells-sparse",
+    "nature-ground-taiga:ferns-sparse",
+    "nature-ground-taiga:grass-tufts-sparse",
+    "nature-ground-taiga:berry-bushes-sparse",
+    "nature-ground-taiga:heather-sparse",
+    "nature-ground-taiga:shrubs-sparse",
+    "nature-ground-taiga:reeds-sparse",
+    "nature-ground-taiga:marsh-sparse"
+  ],
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "376d2af1384699cd869ffcf186d6d7c7a4d2ff40ae1646c91235333c1e5bc34e",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
+  "sprites": [
+    {
+      "id": "nature-ground-taiga:wildflowers-sparse",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "transparentFraction": 0.5143197271124745
+      },
+      "registrationAnchorSource": [
+        209.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        42,
+        48,
+        224,
+        237
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:bluebells-sparse",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          0,
+          836,
+          418
+        ],
+        "transparentFraction": 0.4955987729218653
+      },
+      "registrationAnchorSource": [
+        627.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        39,
+        59,
+        213,
+        228
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:ferns-sparse",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          0,
+          1254,
+          418
+        ],
+        "transparentFraction": 0.4154952954373755
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        33,
+        35,
+        222,
+        233
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:grass-tufts-sparse",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          418,
+          418,
+          836
+        ],
+        "transparentFraction": 0.4612646230626588
+      },
+      "registrationAnchorSource": [
+        209.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        33,
+        59,
+        226,
+        221
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:berry-bushes-sparse",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          418,
+          836,
+          836
+        ],
+        "transparentFraction": 0.4379364025548866
+      },
+      "registrationAnchorSource": [
+        627.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        27,
+        47,
+        222,
+        225
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:heather-sparse",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          418,
+          1254,
+          836
+        ],
+        "transparentFraction": 0.5425070396740002
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        34,
+        53,
+        227,
+        218
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:shrubs-sparse",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          836,
+          418,
+          1254
+        ],
+        "transparentFraction": 0.4564398708820769
+      },
+      "registrationAnchorSource": [
+        209.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        34,
+        48,
+        223,
+        219
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:reeds-sparse",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          836,
+          836,
+          1254
+        ],
+        "transparentFraction": 0.49725281014628786
+      },
+      "registrationAnchorSource": [
+        627.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        39,
+        30,
+        226,
+        220
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:marsh-sparse",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          836,
+          1254,
+          1254
+        ],
+        "transparentFraction": 0.4604347427943499
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        38,
+        29,
+        222,
+        221
+      ]
+    }
+  ],
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "376d2af1384699cd869ffcf186d6d7c7a4d2ff40ae1646c91235333c1e5bc34e",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
+}

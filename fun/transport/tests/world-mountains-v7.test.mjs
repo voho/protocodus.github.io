@@ -111,7 +111,9 @@ for (const biome of ['taiga', 'tundra', 'desert']) for (const seed of [1847, 418
       if (x % 4 === 0 && y % 4 === 0) {
         const surface = tileSurface(world, x, y);
         assert.equal(surface.triangles.length, 2, 'each tile has two planes');
-        assert.equal(surface.center.height, (surface.nw.height + surface.se.height) / 2, 'tile center lies on the shared NW-SE diagonal');
+        const hinge = surface.triangles[0].filter(point => surface.triangles[1].includes(point));
+        assert.equal(hinge.length, 2);
+        assert.equal(surface.center.height, (hinge[0].height + hinge[1].height) / 2, 'tile center lies on the canonical shared diagonal');
         sampled++; if (surface.corners.every(corner => corner.height === surface.nw.height)) flat++;
       }
     }

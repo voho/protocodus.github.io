@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { HEIGHT_STEP, MAX_HEIGHT, TERRAIN_SLOPE_LIMIT, projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundIsFlat, pickGround, transportHeight, bridgeDeckHeight, bridgeSurface, terrainGeometryStats, clearTerrainGeometryCache } from '../terrain-geometry.js';
 import { TERRAIN_HEIGHT_VIEWS } from '../terrain-view.js';
 import { facetLight } from '../terrain-mesh.js';
+import { TERRAIN_SLOPE_SHAPES } from '../terrain-slope-shapes.js';
 
 const close=(a,b,message='')=>assert.ok(Math.abs(a-b)<1e-8,`${message}: ${a} ≠ ${b}`);
 function world(width=64,height=64,elevation=6/16){return{width,height,revision:0,tiles:Array.from({length:width*height},()=>({terrain:'grass',elevation,road:false,rail:false,bridge:false,tunnel:false}))};}
@@ -12,7 +13,7 @@ function roundtrip(game,u,v){const p=projectGround(game,u,v),picked=pickGround(g
 
 test('eight vertex heights project an elevated quadrilateral without changing saved heights',()=>{
   const game=world(),before=JSON.stringify(game),surface=tileSurface(game,20,20);
-  assert.equal(MAX_HEIGHT,7);assert.equal(HEIGHT_STEP,24);assert.equal(surface.triangles.length,2);assert.equal(surface.corners.length,4);
+  assert.equal(MAX_HEIGHT,7);assert.equal(HEIGHT_STEP,12);assert.equal(surface.triangles.length,2);assert.equal(surface.corners.length,4);
   close(surface.center.height,3);close(surface.center.y,41*16-3*HEIGHT_STEP);
   assert.deepEqual(surface.triangles,[[surface.nw,surface.ne,surface.se],[surface.nw,surface.se,surface.sw]]);
   for(const p of surface.corners)close(p.height,surface.center.height,'uniform multi-tile sites stay level');
@@ -34,7 +35,7 @@ test('all relief views preserve terrain levels and have unfolded, reversible pro
   }
   const warmed=terrainGeometryStats(game).builtChunks;
   assert.ok(warmed>cached);
-  projectGround(game,20,20,0);projectGround(game,20,20,28);
+  projectGround(game,20,20,0);projectGround(game,20,20,14);
   assert.equal(terrainGeometryStats(game).builtChunks,warmed,'views share cached levels without rebuilding the world');
   assert.equal(JSON.stringify(game),before,'changing projection never writes saved terrain');
 });
@@ -55,8 +56,9 @@ test('an isolated raise or lower moves one shared vertex and its adjacent faces'
   for(const delta of [-1,1]){
     const game=world(64,64,3/7),before=projectGround(game,20,20),centerBefore=projectGround(game,20.5,20.5);tile(game,20,20).elevation=(3+delta)/7;game.revision++;
     const after=projectGround(game,20,20),surface=tileSurface(game,20,20);
-    close(after.y-before.y,-delta*HEIGHT_STEP);close(surface.center.y-centerBefore.y,-delta*HEIGHT_STEP/2);
-    assert.notEqual(surface.center.height,surface.nw.height);close(surface.center.height,(surface.nw.height+surface.se.height)/2);
+    close(after.y-before.y,-delta*HEIGHT_STEP);close(surface.center.y,centerBefore.y,'the equal-height diagonal keeps the other half tile level');
+    assert.notEqual(surface.center.height,surface.nw.height);close(surface.center.height,surface.ne.height);
+    close(surfaceHeight(game,20.25,20.25),3+delta/2,'the triangular corner rises halfway to the edited vertex');
     assert.deepEqual(surface.nw,tileSurface(game,19,19).se,'neighboring cells use the edited vertex');
     for(const [u,v]of[[20.5,20.5],[20.12,20.22],[20.9,20.1],[20.1,20.9],[20.93,20.91],[20,20],[21,21]])roundtrip(game,u,v);
   }
@@ -139,7 +141,7 @@ test('every triangle stays unfolded for checkerboard, cliffs and steep random sa
     for(let y=0;y<36;y++)for(let x=0;x<36;x++){
       const surface=tileSurface(game,x,y),diagonal=surface.se.height-surface.nw.height;
       assert.ok(Math.abs(diagonal)<=TERRAIN_SLOPE_LIMIT);
-      for(const triangle of surface.triangles){close(area(triangle),32*(32-HEIGHT_STEP*diagonal),'NW–SE area formula');assert.ok(area(triangle)>=256,`${kind} ${x},${y} has a front-facing triangle`);}
+      for(const triangle of surface.triangles)assert.ok(area(triangle)>=256,`${kind} ${x},${y} has a front-facing triangle`);
       if((x+y)%13===0)roundtrip(game,x+.37,y+.64);
     }
   }
@@ -149,13 +151,13 @@ test('inverse picking handles world edges, high plateaus and off-map points',()=
   const game=world(64,64,1);
   for(const [u,v]of[[0,0],[64,0],[0,64],[64,64],[.5,.5],[63.5,.5],[.5,63.5],[63.5,63.5],[30.25,40.75]])roundtrip(game,u,v);
   assert.equal(pickGround(game,-100000,-100000),null);assert.equal(pickGround(game,NaN,0),null);
-  assert.deepEqual(projectTerrainPoint(3,2,5),{u:3,v:2,x:32,y:-40,height:5});
+  assert.deepEqual(projectTerrainPoint(3,2,5),{u:3,v:2,x:32,y:20,height:5});
 });
 
 test('geometry cache invalidates on revision and replacement tiles without modifying either world',()=>{
-  const game=world(64,64,3/7);const original=projectGround(game,20.5,20.5);tile(game,20,20).elevation+=1/7;game.revision++;
-  const raised=projectGround(game,20.5,20.5);assert.ok(raised.y<original.y);assert.ok(terrainGeometryStats(game).builtChunks>0);
-  game.tiles=game.tiles.map(t=>({...t,elevation:1/16}));const low=projectGround(game,20.5,20.5);assert.ok(low.y>original.y);
+  const game=world(64,64,3/7);const original=projectGround(game,20.25,20.25);tile(game,20,20).elevation+=1/7;game.revision++;
+  const raised=projectGround(game,20.25,20.25);assert.ok(raised.y<original.y);assert.ok(terrainGeometryStats(game).builtChunks>0);
+  game.tiles=game.tiles.map(t=>({...t,elevation:1/16}));const low=projectGround(game,20.25,20.25);assert.ok(low.y>original.y);
   const snapshot=JSON.stringify(game);for(let n=0;n<20;n++)roundtrip(game,20+n*.1,20.3);assert.equal(JSON.stringify(game),snapshot);
 });
 
@@ -204,4 +206,33 @@ test('uneven bridge banks ramp to the deck by the shared edge and stay level ove
     close(transportHeight(game,lowBank+direction*.25,20),(ground+deck)/2);
     for(const offset of [.5,.75,1])close(transportHeight(game,lowBank+direction*offset,20),deck,`bank${lowBank} offset${offset}`);
   }
+});
+
+
+test('all canonical corner shapes use two consistent triangles, a finite catalog and reversible picking',()=>{
+  const observed=new Set();
+  for(let mask=0;mask<16;mask++){
+    const game=world(36,36,3/7);
+    for(const [i,[x,y]]of [[20,20],[21,20],[21,21],[20,21]].entries())if(mask&(1<<i))tile(game,x,y).elevation=4/7;
+    const expectedKind=mask===0||mask===15?'flat':[3,6,9,12].includes(mask)?'ramp':[1,2,4,8].includes(mask)?'raised':[5,10].includes(mask)?'ridge':'lowered';
+    const original=JSON.stringify(game);
+    for(const {value:heightStep}of TERRAIN_HEIGHT_VIEWS){
+      const surface=tileSurface(game,20,20,heightStep);observed.add(surface.slope);
+      assert.equal(surface.slope.kind,expectedKind);assert.equal(surface.triangles.length,2);
+      assert.ok(TERRAIN_SLOPE_SHAPES.includes(surface.slope));
+      const flatFaces=surface.triangles.filter(face=>face.every(p=>p.height===face[0].height)).length;
+      assert.equal(flatFaces,expectedKind==='flat'?2:['raised','lowered'].includes(expectedKind)?1:0,'corner wedges have exactly one level half-tile');
+      for(const face of surface.triangles){
+        assert.ok(area(face)>=128,'every canonical face stays unfolded even in Steep view');
+        const u=face.reduce((sum,p)=>sum+p.u,0)/3,v=face.reduce((sum,p)=>sum+p.v,0)/3;
+        close(surfaceHeight(game,u,v),face.reduce((sum,p)=>sum+p.height,0)/3,'rendering and engineering use the same plane');
+      }
+      for(const [a,b]of[[.15,.2],[.8,.15],[.8,.75],[.2,.85],[.5,.5]]){
+        const point=projectGround(game,20+a,20+b,heightStep),picked=pickGround(game,point.x,point.y,heightStep);
+        assert.ok(picked);close(picked.x,20+a);close(picked.y,20+b);
+      }
+    }
+    assert.equal(JSON.stringify(game),original,'choosing a tile shape never rewrites saved elevations');
+  }
+  assert.equal(observed.size,15,'all-high corners normalize to flat; there are only fifteen slope shapes');
 });

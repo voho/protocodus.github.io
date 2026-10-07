@@ -20,341 +20,476 @@
     "nature-trees-taiga:bare-birch",
     "nature-trees-taiga:sapling"
   ],
-  "source": "exec-44087921-ae45-4447-b649-9f83abdcaf38.png",
-  "sourceSha256": "b1e99c36208bd56ef23ff9913ea4582f15d91b9a9a0ae20621da29c0d6287db0",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "27d562da049916fba8a9d15f6c0d3ede284902399758e601b2dafff29f16aca7",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Shared physical metre scale, root anchored; source anatomy preserved",
   "sprites": [
     {
       "id": "nature-trees-taiga:pine",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        418,
-        418
+        26,
+        45,
+        424,
+        395
+      ],
+      "observedRootSource": [
+        219,
+        391
+      ],
+      "observedCrownTopSource": 49,
+      "observedRootMethod": "reviewed source landmark",
+      "measuredSourceHeightPixels": 342,
+      "registeredPlantHeightPixels": 197.22650231124814,
+      "calibratedHeightMetres": 10.000000000000002,
+      "sourceScaleToMaster": 0.5766856792726553,
+      "masterOffsetPixels": [
+        16.699663900377516,
+        44.94675497166125
+      ],
+      "sourceCropPixels": [
+        398,
+        350
+      ],
+      "masterDrawPixels": [
+        230,
+        202
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          72,
-          56,
-          389,
-          389
+          26,
+          45,
+          424,
+          395
         ],
-        "rawAlphaBounds": [
-          0,
-          4,
-          418,
-          410
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.658919
+        "transparentFraction": 0.3849964106245513
       },
       "bounds": [
-        17,
-        12,
-        238,
-        244
+        19,
+        46,
+        245,
+        245
       ]
     },
     {
       "id": "nature-trees-taiga:spruce",
       "cell": 1,
       "sourceBounds": [
-        418,
-        0,
-        836,
-        418
+        476,
+        12,
+        786,
+        400
+      ],
+      "observedRootSource": [
+        633.5,
+        386.0
+      ],
+      "observedCrownTopSource": 15.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 371.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.558188214088438,
+      "masterOffsetPixels": [
+        40.085356281071014,
+        35.717607930924174
+      ],
+      "sourceCropPixels": [
+        310,
+        388
+      ],
+      "masterDrawPixels": [
+        173,
+        217
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          106,
-          51,
-          328,
-          394
+          476,
+          12,
+          786,
+          400
         ],
-        "rawAlphaBounds": [
-          1,
-          17,
-          418,
-          414
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.749256
+        "transparentFraction": 0.42450947788493515
       },
       "bounds": [
-        53,
-        12,
-        203,
-        244
+        41,
+        38,
+        211,
+        251
       ]
     },
     {
       "id": "nature-trees-taiga:fir",
       "cell": 2,
       "sourceBounds": [
-        836,
-        0,
-        1254,
-        418
+        874,
+        11,
+        1217,
+        400
+      ],
+      "observedRootSource": [
+        1042.0,
+        388.0
+      ],
+      "observedCrownTopSource": 14.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 374.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5537107685208836,
+      "masterOffsetPixels": [
+        34.97659088849154,
+        35.73104026762687
+      ],
+      "sourceCropPixels": [
+        343,
+        389
+      ],
+      "masterDrawPixels": [
+        190,
+        215
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          89,
-          74,
-          321,
-          394
+          874,
+          11,
+          1217,
+          400
         ],
-        "rawAlphaBounds": [
-          1,
-          17,
-          402,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.743143
+        "transparentFraction": 0.4200649044046557
       },
       "bounds": [
-        44,
-        12,
-        212,
-        244
+        36,
+        38,
+        224,
+        249
       ]
     },
     {
       "id": "nature-trees-taiga:birch",
       "cell": 3,
       "sourceBounds": [
-        0,
-        418,
-        418,
-        836
+        38,
+        428,
+        393,
+        807
+      ],
+      "observedRootSource": [
+        230.0,
+        795.0
+      ],
+      "observedCrownTopSource": 431.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 364.0,
+      "registeredPlantHeightPixels": 207.08782742681046,
+      "calibratedHeightMetres": 10.499999999999998,
+      "sourceScaleToMaster": 0.5689226028209079,
+      "masterOffsetPixels": [
+        18.76686025838569,
+        35.6854047647268
+      ],
+      "sourceCropPixels": [
+        355,
+        379
+      ],
+      "masterDrawPixels": [
+        202,
+        216
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          93,
-          55,
-          344,
-          404
+          38,
+          428,
+          393,
+          807
         ],
-        "rawAlphaBounds": [
-          9,
-          1,
-          418,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.667292
+        "transparentFraction": 0.34413021665613736
       },
       "bounds": [
-        44,
-        12,
-        211,
-        244
+        21,
+        38,
+        219,
+        251
       ]
     },
     {
       "id": "nature-trees-taiga:oak",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        423,
+        432,
+        855,
+        793
+      ],
+      "observedRootSource": [
+        628,
+        788
+      ],
+      "observedCrownTopSource": 438,
+      "observedRootMethod": "reviewed source landmark",
+      "measuredSourceHeightPixels": 350,
+      "registeredPlantHeightPixels": 193.28197226502314,
+      "calibratedHeightMetres": 9.8,
+      "sourceScaleToMaster": 0.5522342064714947,
+      "masterOffsetPixels": [
+        14.791987673343584,
+        47.88462249614787
+      ],
+      "sourceCropPixels": [
+        432,
+        361
+      ],
+      "masterDrawPixels": [
+        239,
+        199
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          17,
-          58,
-          418,
-          404
+          423,
+          432,
+          855,
+          793
         ],
-        "rawAlphaBounds": [
-          3,
-          1,
-          418,
-          412
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.498827
+        "transparentFraction": 0.3312621832358674
       },
       "bounds": [
-        12,
-        44,
-        244,
-        244
+        17,
+        49,
+        253,
+        246
       ]
     },
     {
       "id": "nature-trees-taiga:aspen",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        887,
+        434,
+        1224,
+        808
+      ],
+      "observedRootSource": [
+        1050.0,
+        796.0
+      ],
+      "observedCrownTopSource": 438.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 358.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5784576185106438,
+      "masterOffsetPixels": [
+        33.711408182765055,
+        35.07834209914694
+      ],
+      "sourceCropPixels": [
+        337,
+        374
+      ],
+      "masterDrawPixels": [
+        195,
+        216
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          0,
-          47,
-          332,
-          404
+          887,
+          434,
+          1224,
+          808
         ],
-        "rawAlphaBounds": [
-          0,
-          7,
-          412,
-          412
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.716267
+        "transparentFraction": 0.3737444262841365
       },
       "bounds": [
-        20,
-        12,
-        236,
-        244
+        36,
+        37,
+        227,
+        250
       ]
     },
     {
       "id": "nature-trees-taiga:deadwood",
       "cell": 6,
       "sourceBounds": [
-        0,
-        836,
-        418,
-        1254
+        74,
+        858,
+        355,
+        1187
+      ],
+      "observedRootSource": [
+        251.0,
+        1176.0
+      ],
+      "observedCrownTopSource": 862.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 314.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3768659279832766,
+      "masterOffsetPixels": [
+        61.29473074696004,
+        124.63663490131803
+      ],
+      "sourceCropPixels": [
+        281,
+        329
+      ],
+      "masterDrawPixels": [
+        106,
+        124
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          139,
-          38,
-          324,
-          358
+          74,
+          858,
+          355,
+          1187
         ],
-        "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.844543
+        "transparentFraction": 0.6077296671678439
       },
       "bounds": [
-        61,
-        12,
-        195,
-        244
+        62,
+        126,
+        166,
+        248
       ]
     },
     {
       "id": "nature-trees-taiga:bare-birch",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        461,
+        821,
+        815,
+        1181
+      ],
+      "observedRootSource": [
+        641.0,
+        1170.0
+      ],
+      "observedCrownTopSource": 825.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 345.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.4573368169536188,
+      "masterOffsetPixels": [
+        45.679372948348615,
+        84.86945088318703
+      ],
+      "sourceCropPixels": [
+        354,
+        360
+      ],
+      "masterDrawPixels": [
+        162,
+        165
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          73,
-          40,
-          350,
-          357
+          461,
+          821,
+          815,
+          1181
         ],
-        "rawAlphaBounds": [
-          0,
-          1,
-          398,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.713199
+        "transparentFraction": 0.5618957940991839
       },
       "bounds": [
-        26,
-        12,
-        229,
-        244
+        48,
+        86,
+        206,
+        249
       ]
     },
     {
       "id": "nature-trees-taiga:sapling",
       "cell": 8,
       "sourceBounds": [
-        836,
-        836,
-        1254,
-        1254
+        952,
+        934,
+        1159,
+        1174
+      ],
+      "observedRootSource": [
+        1052.0,
+        1165.0
+      ],
+      "observedCrownTopSource": 938.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 227.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.3909776477535755,
+      "masterOffsetPixels": [
+        88.90223522464245,
+        154.16416336892405
+      ],
+      "sourceCropPixels": [
+        207,
+        240
+      ],
+      "masterDrawPixels": [
+        81,
+        94
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          126,
-          88,
-          303,
-          358
+          952,
+          934,
+          1159,
+          1174
         ],
-        "rawAlphaBounds": [
-          1,
-          9,
-          386,
-          400
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.823167
+        "transparentFraction": 0.4058574879227053
       },
       "bounds": [
-        52,
-        12,
-        204,
-        244
+        91,
+        155,
+        169,
+        247
       ]
     }
-  ]
+  ],
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "27d562da049916fba8a9d15f6c0d3ede284902399758e601b2dafff29f16aca7",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
 }

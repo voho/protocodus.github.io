@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "91fa4b23574da2450365792782af82988862b10c784b87975aa3f8b23851440b",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "industries-2",
+    "output": "fun/transport/assets/world/plot-buildings-v2/industries-2",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "91fa4b23574da2450365792782af82988862b10c784b87975aa3f8b23851440b",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Corrected camera and registration measured; actual observable personnel doors within 25 percent of 2.1 m; obscured or ambiguous ordinary entrances explicitly unobservable."
+  },
+  "reviewStatus": "Corrected camera and registration measured; actual observable personnel doors within 25 percent of 2.1 m; obscured or ambiguous ordinary entrances explicitly unobservable.",
+  "heightCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "height-correction-prompt.txt",
+    "iterations": 2,
+    "operation": "Repaint oversized human-scale walls, doors and vehicles without independent silhouette fitting; retain full plot ground coverage."
+  },
+  "cameraCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "camera-correction-prompt.txt",
+    "operation": "Repaint the ground plane to 2:1 while preserving upright human scale; measure actual resulting ground edges and centres."
+  }
+}

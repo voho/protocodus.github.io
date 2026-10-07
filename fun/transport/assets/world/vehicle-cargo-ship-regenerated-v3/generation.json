@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Create an entirely NEW hand-painted miniature vehicle turnaround sprite sheet using only the attached plain geometric blocks for camera and spacing. Convert each block into the SAME compact working cargo ship: burgundy hull #996b63, ivory raised stern bridge at rear, long empty slate rectangular cargo hold, two muted ochre derricks kept low, pointed bow at front. The orange face marks FRONT; remove guide markings. Exactly eight vehicles arranged 3x3 with center EMPTY: NW N NE / W empty E / SW S SE. KEEP the projected geometry: diagonals at slopes +/-0.5, N/S foreshortened ground depth half E/W, vertical walls. Fixed camera no perspective. One common physical scale: 22m long, 6m wide, 5m tall including superstructure. Every frame shares scale, do not enlarge foreshortened views. Each vehicle wheel-contact midpoint at cell center. Broad roof and wall shading, large readable masses, no lettering, grain, scratch noise or decorative detail. Northwest light fixed for ALL directions, darker southeast faces, compact semitransparent contact shadow displaced down-right. True transparent RGBA background and gaps including center; absolutely no ground, pavement, water, backdrop, wakes or labels. Preserve eight distinct orientations. High-quality production game art.",
+  "source": "source-generated.png",
+  "sha256": "310ad8ccb1c5ba2a20847879d1f96eb4538570d463ee7bfce4ad2a90a27a0435",
+  "observedSourceOrder": [
+    "SE",
+    "S",
+    "SW",
+    "E",
+    null,
+    "W",
+    "NE",
+    "N",
+    "NW"
+  ],
+  "registeredOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "additionalSources": [],
+  "camera": "fixed 2:1 dimetric; NW sunlight; compact down-right shadow",
+  "normalization": "One family scale, no per-heading silhouette stretching; premultiplied alpha mipmaps",
+  "review": "front/rear identity and transparent composition visually inspected"
+}

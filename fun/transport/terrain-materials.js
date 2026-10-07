@@ -116,7 +116,9 @@ export function paintGroundTextures(c,bounds,tile,biome,profile,seed=0){
   for(const kind of ['meadow','scree','sand','snow']){
     const path=masks.get(kind);if(!path)continue;
     const authored=materialSurface(kind,biome),surface=authored||fallbackSurface(kind,biome);
-    const opacity=authored?(profile==='region'?.46:kind==='meadow'?.68:kind==='scree'?.58:.7):.8;
+    // Material grain sits beneath the broad soil color and slope light; the
+    // missing-art fallback uses the same restrained contrast.
+    const opacity=authored?(profile==='region'?.25:kind==='meadow'?.40:.38):.38;
     if(!weights){
       const pattern=c.createPattern(surface,'repeat');pattern.setTransform({a:WORLD_SIZE/SIZE,d:WORLD_SIZE/SIZE});c.fillStyle=pattern;c.globalAlpha=opacity;c.fill(land);continue;
     }
@@ -139,7 +141,7 @@ export function paintGroundTextures(c,bounds,tile,biome,profile,seed=0){
   // Natural mineral ground includes islands of lichen and low vegetation.
   // Their irregular silhouettes occupy several cells and do not repeat with
   // the authored four-tile pattern, retaining a readable large-scale surface.
-  c.globalAlpha=(profile==='region'?.22:.36)*(biome==='desert'?.48:1);
+  c.globalAlpha=(profile==='region'?.14:.22)*(biome==='desert'?.48:1);
   for(let gy=Math.floor((bounds.y0-2)/2);gy<Math.ceil((bounds.y1+2)/2);gy++)for(let gx=Math.floor((bounds.x0-2)/2);gx<Math.ceil((bounds.x1+2)/2);gx++){
     const r=randomSource(seed+Math.imul(gx,31253)+Math.imul(gy,22727)+19843),x=(gx*2+r()*2)*32,y=(gy*2+r()*2)*32;
     if(groundMaterial(tile(Math.floor(x/32),Math.floor(y/32)),biome)!=='scree'||noise(gx,gy,seed+19877,4.7)<.42)continue;

@@ -1,0 +1,6 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Remove ALL background haze, gradients, fog, glows, vignette and colored ground from this tunnel-portal sheet. Keep each concrete portal, asphalt approach and railway ballast EXACTLY as shown with exact same scale, positions and geometry. Return true transparent RGBA around each structure and between slots, even immediately next to the stone edges. Keep only a narrow compact semitransparent contact shadow cast down-right by the portal. There must be no background alpha or general diffuse shadow, absolutely no fog. Ninth bottom-right cell must be entirely alpha zero. Exact 3x3 arrangement retained.",
+  "source": "source-generated.png",
+  "sha256": "1f75116a17501f6b22d2458c93e841ee2163e6167d497a54fafeb6e89a6f9ebf"
+}

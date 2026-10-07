@@ -9,7 +9,6 @@
     256
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "nature-ground-desert:saguaro",
     "nature-ground-desert:organ-pipe-cactus",
@@ -21,117 +20,163 @@
     "nature-ground-desert:fishhook-barrel-cactus",
     "nature-ground-desert:hedgehog-cactus"
   ],
-  "source": "source-registered-2026-10-06.png",
-  "sourceSha256": "0e51a9d9f59a00837491990fcbc6998f85fcf90f94af1195cadf4c6630537594",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "20900a49eec4731dcfd23d9f0cd7c478e2c5b2dac2c8741be61c392489d848e6",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Shared physical metre scale, root anchored; source anatomy preserved",
   "sprites": [
     {
       "id": "nature-ground-desert:saguaro",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        256,
-        256
+        81,
+        38,
+        394,
+        415
+      ],
+      "observedRootSource": [
+        236.0,
+        402.0
+      ],
+      "observedCrownTopSource": 42.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 360.0,
+      "registeredPlantHeightPixels": 128.0,
+      "calibratedHeightMetres": 4.0,
+      "sourceScaleToMaster": 0.35555555555555557,
+      "masterOffsetPixels": [
+        72.88888888888889,
+        115.05777777777777
+      ],
+      "sourceCropPixels": [
+        313,
+        377
+      ],
+      "masterDrawPixels": [
+        111,
+        134
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          95,
-          114,
-          163,
-          250
+          81,
+          38,
+          394,
+          415
         ],
-        "rawAlphaBounds": [
-          97,
-          116,
-          161,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.935089
+        "transparentFraction": 0.505088939924238
       },
       "bounds": [
-        97,
+        74,
         116,
-        161,
-        249
+        183,
+        248
       ]
     },
     {
       "id": "nature-ground-desert:organ-pipe-cactus",
       "cell": 1,
       "sourceBounds": [
-        256,
-        0,
-        512,
-        256
+        516,
+        71,
+        741,
+        424
+      ],
+      "observedRootSource": [
+        640.0,
+        413.0
+      ],
+      "observedCrownTopSource": 74.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 339.0,
+      "registeredPlantHeightPixels": 106.66666666666667,
+      "calibratedHeightMetres": 3.3333333333333335,
+      "sourceScaleToMaster": 0.3146509341199607,
+      "masterOffsetPixels": [
+        88.98328416912487,
+        136.86938053097344
+      ],
+      "sourceCropPixels": [
+        225,
+        353
+      ],
+      "masterDrawPixels": [
+        71,
+        111
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          104,
-          135,
-          153,
-          251
+          516,
+          71,
+          741,
+          424
         ],
-        "rawAlphaBounds": [
-          106,
-          137,
-          152,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.944565
+        "transparentFraction": 0.315140069247718
       },
       "bounds": [
-        106,
-        137,
-        152,
-        249
+        90,
+        138,
+        159,
+        247
       ]
     },
     {
       "id": "nature-ground-desert:cardon",
       "cell": 2,
       "sourceBounds": [
-        512,
-        0,
-        768,
-        256
+        867,
+        27,
+        1197,
+        420
+      ],
+      "observedRootSource": [
+        1037.0,
+        408.0
+      ],
+      "observedCrownTopSource": 30.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 378.0,
+      "registeredPlantHeightPixels": 149.33333333333334,
+      "calibratedHeightMetres": 4.666666666666667,
+      "sourceScaleToMaster": 0.39506172839506176,
+      "masterOffsetPixels": [
+        60.839506172839506,
+        93.96148148148146
+      ],
+      "sourceCropPixels": [
+        330,
+        393
+      ],
+      "masterDrawPixels": [
+        130,
+        155
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          91,
-          92,
-          167,
-          249
+          867,
+          27,
+          1197,
+          420
         ],
-        "rawAlphaBounds": [
-          92,
-          94,
-          166,
-          248
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.890762
+        "transparentFraction": 0.4003392705682782
       },
       "bounds": [
-        92,
-        94,
-        166,
+        62,
+        95,
+        189,
         248
       ]
     },
@@ -139,225 +184,312 @@
       "id": "nature-ground-desert:senita",
       "cell": 3,
       "sourceBounds": [
-        0,
-        256,
-        256,
-        512
+        110,
+        502,
+        317,
+        825
+      ],
+      "observedRootSource": [
+        222.0,
+        814.0
+      ],
+      "observedCrownTopSource": 506.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 308.0,
+      "registeredPlantHeightPixels": 85.33333333333333,
+      "calibratedHeightMetres": 2.6666666666666665,
+      "sourceScaleToMaster": 0.27705627705627706,
+      "masterOffsetPixels": [
+        96.96969696969697,
+        158.03844155844155
+      ],
+      "sourceCropPixels": [
+        207,
+        323
+      ],
+      "masterDrawPixels": [
+        57,
+        89
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          111,
-          156,
-          154,
-          250
+          110,
+          502,
+          317,
+          825
         ],
-        "rawAlphaBounds": [
-          113,
-          158,
-          153,
-          248
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.963989
+        "transparentFraction": 0.3648763853367434
       },
       "bounds": [
-        113,
-        158,
-        153,
-        248
+        98,
+        159,
+        154,
+        247
       ]
     },
     {
       "id": "nature-ground-desert:candelabra-cactus",
       "cell": 4,
       "sourceBounds": [
-        256,
-        256,
-        512,
-        512
+        475,
+        461,
+        760,
+        820
+      ],
+      "observedRootSource": [
+        623.0,
+        809.0
+      ],
+      "observedCrownTopSource": 464.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 345.0,
+      "registeredPlantHeightPixels": 106.66666666666669,
+      "calibratedHeightMetres": 3.333333333333334,
+      "sourceScaleToMaster": 0.3091787439613527,
+      "masterOffsetPixels": [
+        82.2415458937198,
+        136.88579710144927
+      ],
+      "sourceCropPixels": [
+        285,
+        359
+      ],
+      "masterDrawPixels": [
+        88,
+        111
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          93,
-          135,
-          162,
-          249
+          475,
+          461,
+          760,
+          820
         ],
-        "rawAlphaBounds": [
-          94,
-          137,
-          160,
-          248
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.938538
+        "transparentFraction": 0.40301031129355425
       },
       "bounds": [
-        94,
-        137,
-        160,
-        248
+        83,
+        138,
+        169,
+        247
       ]
     },
     {
       "id": "nature-ground-desert:tree-cholla",
       "cell": 5,
       "sourceBounds": [
-        512,
-        256,
-        768,
-        512
+        886,
+        488,
+        1197,
+        819
+      ],
+      "observedRootSource": [
+        1043.5,
+        808.0
+      ],
+      "observedCrownTopSource": 492.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 316.0,
+      "registeredPlantHeightPixels": 64.0,
+      "calibratedHeightMetres": 2.0,
+      "sourceScaleToMaster": 0.20253164556962025,
+      "masterOffsetPixels": [
+        96.10126582278481,
+        179.6698734177215
+      ],
+      "sourceCropPixels": [
+        311,
+        331
+      ],
+      "masterDrawPixels": [
+        63,
+        67
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          94,
-          177,
-          159,
-          248
+          886,
+          488,
+          1197,
+          819
         ],
-        "rawAlphaBounds": [
-          96,
-          179,
-          157,
-          246
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.969925
+        "transparentFraction": 0.5049202941490757
       },
       "bounds": [
         96,
-        179,
-        157,
-        246
+        180,
+        159,
+        247
       ]
     },
     {
       "id": "nature-ground-desert:golden-barrel-cactus",
       "cell": 6,
       "sourceBounds": [
-        0,
-        512,
-        256,
-        768
+        97,
+        935,
+        337,
+        1169
+      ],
+      "observedRootSource": [
+        226.0,
+        1160.0
+      ],
+      "observedCrownTopSource": 939.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 221.0,
+      "registeredPlantHeightPixels": 32.0,
+      "calibratedHeightMetres": 1.0,
+      "sourceScaleToMaster": 0.14479638009049775,
+      "masterOffsetPixels": [
+        109.32126696832579,
+        211.900814479638
+      ],
+      "sourceCropPixels": [
+        240,
+        234
+      ],
+      "masterDrawPixels": [
+        35,
+        34
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          107,
-          210,
-          152,
-          250
+          97,
+          935,
+          337,
+          1169
         ],
-        "rawAlphaBounds": [
-          109,
-          212,
-          151,
-          248
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.983353
+        "transparentFraction": 0.26832264957264956
       },
       "bounds": [
         109,
         212,
-        151,
-        248
+        144,
+        246
       ]
     },
     {
       "id": "nature-ground-desert:fishhook-barrel-cactus",
       "cell": 7,
       "sourceBounds": [
-        256,
-        512,
-        512,
-        768
+        523,
+        915,
+        716,
+        1173
+      ],
+      "observedRootSource": [
+        621.0,
+        1164.0
+      ],
+      "observedCrownTopSource": 918.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 246.0,
+      "registeredPlantHeightPixels": 42.666666666666664,
+      "calibratedHeightMetres": 1.3333333333333333,
+      "sourceScaleToMaster": 0.17344173441734417,
+      "masterOffsetPixels": [
+        111.00271002710028,
+        201.2930081300813
+      ],
+      "sourceCropPixels": [
+        193,
+        258
+      ],
+      "masterDrawPixels": [
+        33,
+        45
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          108,
-          199,
-          150,
-          249
+          523,
+          915,
+          716,
+          1173
         ],
-        "rawAlphaBounds": [
-          110,
-          200,
-          149,
-          248
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.980545
+        "transparentFraction": 0.26457002851749206
       },
       "bounds": [
-        110,
-        200,
-        149,
-        248
+        111,
+        201,
+        143,
+        246
       ]
     },
     {
       "id": "nature-ground-desert:hedgehog-cactus",
       "cell": 8,
       "sourceBounds": [
-        512,
-        512,
-        768,
-        768
+        888,
+        926,
+        1173,
+        1180
+      ],
+      "observedRootSource": [
+        1034.5,
+        1171.0
+      ],
+      "observedCrownTopSource": 929.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 242.0,
+      "registeredPlantHeightPixels": 21.333333333333332,
+      "calibratedHeightMetres": 0.6666666666666666,
+      "sourceScaleToMaster": 0.08815426997245178,
+      "masterOffsetPixels": [
+        115.08539944903582,
+        222.8822038567493
+      ],
+      "sourceCropPixels": [
+        285,
+        254
+      ],
+      "masterDrawPixels": [
+        25,
+        22
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1254,
+          1254
         ],
         "sourceBounds": [
-          113,
-          221,
-          144,
-          248
+          888,
+          926,
+          1173,
+          1180
         ],
-        "rawAlphaBounds": [
-          115,
-          223,
-          142,
-          246
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.993896
+        "transparentFraction": 0.37621218400331535
       },
       "bounds": [
         115,
         223,
-        142,
-        246
+        140,
+        245
       ]
     }
   ],
-  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
-  "mipSharpening": false
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "20900a49eec4731dcfd23d9f0cd7c478e2c5b2dac2c8741be61c392489d848e6",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
 }

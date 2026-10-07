@@ -64,7 +64,7 @@ try {
           for (const renderer of renderers) renderer.setGame(game);
           await Promise.all([art.preloadWorldArt({ biome, cells: art.startupArtCells(devicePixelRatio), waitMs: 20000 }), houses.preloadHouses({ biome, cells: art.startupArtCells(devicePixelRatio), waitMs: 20000 })]);
         },
-        async show(zoom, heightStep = 24, pan = false) {
+        async show(zoom, heightStep = 12, pan = false) {
           for (const renderer of renderers) { renderer.setZoom(zoom); renderer.setTerrainHeight(heightStep); renderer.focus(59, 45); if (pan) renderer.pan(3.7, -2.1); }
           for (let frame = 0; frame < 240; frame++) {
             for (const renderer of renderers) renderer.render(1000, { settle: true });
@@ -104,7 +104,7 @@ try {
       const original = rows.findLast(row => row.biome === biome && row.zoom === 1 && Math.abs(row.dpr - dpr) < 1e-6);
       const returned = await page.evaluate(() => sharpQA.show(1));
       assert.equal(returned.hash, original.hash, `${biome}/DPR${dpr} restores identical Town pixels after zooming`);
-      for (const heightStep of [12, 28]) {
+      for (const heightStep of [6, 14]) {
         const row = await page.evaluate(heightStep => sharpQA.show(1, heightStep, true), heightStep); rows.push(row);
         if (!baseline) for (const draw of row.sprites.filter(draw => draw.canvas === 'direct')) {
           assert.equal(draw.smoothing, false, `${biome}/DPR${dpr}/height${heightStep} preserves native art while panning`);

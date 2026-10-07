@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "c4f9117a95b5631886ff0ce21397ffa522ba209a5b4c42da5303597927e0d204",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "houses-design-2-rotation-1",
+    "output": "/tmp/transport-fresh-buildings/houses-design-2-rotation-1/packed",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "c4f9117a95b5631886ff0ce21397ffa522ba209a5b4c42da5303597927e0d204",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
+  "heightCorrection": "Shared human features in 2x2 expensive-house row reduced at the original ground footprint."
+}

@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/industries-3",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "industry:wire-mill:taiga",
@@ -20,7 +20,7 @@
       "runtimeIds": [
         "industry:wire-mill:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
       "description": "An eighty metre wire mill: three long brick halls with broad green roofs, a few large copper coil stacks and loading court. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -34,7 +34,7 @@
       "runtimeIds": [
         "industry:goods-factory:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
       "description": "An eighty metre goods factory: several cream production halls with blue roofs, four broad loading docks and restrained large pallet stock. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -48,7 +48,7 @@
       "runtimeIds": [
         "industry:equipment-factory:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-tundra-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-tundra-extra/atlas.png",
       "description": "An eighty metre heavy equipment factory: several long brick or cream halls with clear red sawtooth roofs, a gantry court and large but correctly scaled loading bays. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -64,7 +64,7 @@
         "industry:dairy-farm:taiga",
         "industry:dairy-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -80,7 +80,7 @@
         "industry:vegetable-farm:taiga",
         "industry:vegetable-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -96,7 +96,7 @@
         "industry:orchard:taiga",
         "industry:orchard:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -112,7 +112,7 @@
         "industry:livestock-farm:taiga",
         "industry:livestock-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -128,7 +128,7 @@
         "industry:dairy-plant:taiga",
         "industry:dairy-plant:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "An eighty metre dairy processing compound: multiple long cream halls with broad blue roofs, silver milk silos and repeated truck loading docks. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -144,7 +144,7 @@
         "industry:cannery:taiga",
         "industry:cannery:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "An eighty metre cannery compound: several brick halls with broad green sawtooth roofs, silver process tanks, one chimney and six truck bays. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     }
   ],

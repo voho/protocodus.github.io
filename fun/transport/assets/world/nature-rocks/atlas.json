@@ -11,7 +11,6 @@
     1024
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "nature-rocks:taiga-boulder",
     "nature-rocks:taiga-scree",
@@ -23,1376 +22,440 @@
     "nature-rocks:desert-strata",
     "nature-rocks:tundra-ice"
   ],
-  "source": "source-isometric-packed.png",
-  "sourceSha256": "b511af34923798bd7a446d4e041136f531c270ec7766c010605c5bddc7c867ed",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "806dd131296b10cbd0781ec42751c5019b497e4bba8e965e4453bf6be0f18e2b",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
   "sprites": [
     {
       "id": "nature-rocks:taiga-boulder",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        640,
-        640
+        8,
+        52,
+        405,
+        397
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        42.38790931989925
+      ],
+      "sourceCropPixels": [
+        397,
+        345
+      ],
+      "masterDrawPixels": [
+        232,
+        202
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          58,
-          191,
-          577,
-          468
+          8,
+          52,
+          405,
+          397
         ],
-        "rawAlphaBounds": [
-          57,
-          186,
-          605,
-          482
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.79002
+        "transparentFraction": 0.45429854342350234
       },
+      "registrationAnchorSource": [
+        206.5,
+        397
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        120,
-        244,
-        244
+        13,
+        44,
+        242,
+        242
       ]
     },
     {
       "id": "nature-rocks:taiga-scree",
       "cell": 1,
       "sourceBounds": [
-        640,
-        0,
-        1280,
-        640
+        425,
+        85,
+        827,
+        399
+      ],
+      "sourceScaleToMaster": 0.5771144278606966,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        62.786069651741286
+      ],
+      "sourceCropPixels": [
+        402,
+        314
+      ],
+      "masterDrawPixels": [
+        232,
+        181
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          60,
-          200,
-          582,
-          470
+          425,
+          85,
+          827,
+          399
         ],
-        "rawAlphaBounds": [
-          59,
-          180,
-          584,
-          483
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.790044
+        "transparentFraction": 0.45072408657350194
       },
+      "registrationAnchorSource": [
+        626.0,
+        399
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        124,
-        244,
-        244
+        14,
+        65,
+        242,
+        242
       ]
     },
     {
       "id": "nature-rocks:tundra-glacial",
       "cell": 2,
       "sourceBounds": [
-        1280,
-        0,
-        1920,
-        640
+        848,
+        71,
+        1248,
+        399
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        53.76000000000002
+      ],
+      "sourceCropPixels": [
+        400,
+        328
+      ],
+      "masterDrawPixels": [
+        232,
+        190
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          62,
-          189,
-          589,
-          469
+          848,
+          71,
+          1248,
+          399
         ],
-        "rawAlphaBounds": [
-          62,
-          188,
-          592,
-          480
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.78541
+        "transparentFraction": 0.40315548780487803
       },
+      "registrationAnchorSource": [
+        1048.0,
+        399
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        121,
-        244,
-        244
+        14,
+        55,
+        242,
+        242
       ]
     },
     {
       "id": "nature-rocks:tundra-snow",
       "cell": 3,
       "sourceBounds": [
-        0,
-        640,
-        640,
-        1280
+        5,
+        473,
+        409,
+        802
+      ],
+      "sourceScaleToMaster": 0.5742574257425742,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        55.069306930693074
+      ],
+      "sourceCropPixels": [
+        404,
+        329
+      ],
+      "masterDrawPixels": [
+        232,
+        189
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          57,
-          190,
-          578,
-          450
+          5,
+          473,
+          409,
+          802
         ],
-        "rawAlphaBounds": [
-          54,
-          190,
-          579,
-          456
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.796196
+        "transparentFraction": 0.42654759396912334
       },
+      "registrationAnchorSource": [
+        207.0,
+        802
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        128,
-        244,
-        244
+        14,
+        57,
+        242,
+        241
       ]
     },
     {
       "id": "nature-rocks:desert-boulder",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        426,
+        483,
+        828,
+        801
+      ],
+      "sourceScaleToMaster": 0.5771144278606966,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        60.47761194029849
+      ],
+      "sourceCropPixels": [
+        402,
+        318
+      ],
+      "masterDrawPixels": [
+        232,
+        184
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          60,
-          194,
-          576,
-          454
+          426,
+          483,
+          828,
+          801
         ],
-        "rawAlphaBounds": [
-          22,
-          177,
-          613,
-          462
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.786777
+        "transparentFraction": 0.40625488907662943
       },
+      "registrationAnchorSource": [
+        627.0,
+        801
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        127,
-        244,
-        244
+        13,
+        63,
+        242,
+        242
       ]
     },
     {
       "id": "nature-rocks:desert-dunes",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        845,
+        511,
+        1251,
+        803
+      ],
+      "sourceScaleToMaster": 0.5714285714285714,
+      "masterOffsetPixels": [
+        12.0,
+        77.14285714285714
+      ],
+      "sourceCropPixels": [
+        406,
+        292
+      ],
+      "masterDrawPixels": [
+        232,
+        167
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          66,
-          196,
-          588,
-          454
+          845,
+          511,
+          1251,
+          803
         ],
-        "rawAlphaBounds": [
-          26,
-          187,
-          596,
-          462
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.79125
+        "transparentFraction": 0.3637222484648087
       },
+      "registrationAnchorSource": [
+        1048.0,
+        803
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        129,
-        244,
-        244
+        14,
+        78,
+        242,
+        243
       ]
     },
     {
       "id": "nature-rocks:desert-salt",
       "cell": 6,
       "sourceBounds": [
-        0,
-        1280,
-        640,
-        1920
+        14,
+        949,
+        406,
+        1195
+      ],
+      "sourceScaleToMaster": 0.5918367346938775,
+      "masterOffsetPixels": [
+        12.0,
+        98.40816326530611
+      ],
+      "sourceCropPixels": [
+        392,
+        246
+      ],
+      "masterDrawPixels": [
+        232,
+        146
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          73,
-          192,
-          560,
-          442
+          14,
+          949,
+          406,
+          1195
         ],
-        "rawAlphaBounds": [
-          71,
-          184,
-          583,
-          444
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.8028
+        "transparentFraction": 0.37791397046623526
       },
+      "registrationAnchorSource": [
+        210.0,
+        1195
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        125,
-        244,
-        244
+        14,
+        100,
+        242,
+        243
       ]
     },
     {
       "id": "nature-rocks:desert-strata",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        427,
+        869,
+        828,
+        1195
+      ],
+      "sourceScaleToMaster": 0.5785536159600998,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        55.39152119700748
+      ],
+      "sourceCropPixels": [
+        401,
+        326
+      ],
+      "masterDrawPixels": [
+        232,
+        189
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          74,
-          191,
-          568,
-          442
+          427,
+          869,
+          828,
+          1195
         ],
-        "rawAlphaBounds": [
-          58,
-          182,
-          567,
-          444
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.805847
+        "transparentFraction": 0.3788764285605006
       },
+      "registrationAnchorSource": [
+        627.5,
+        1195
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        126,
-        244,
-        244
+        14,
+        56,
+        242,
+        243
       ]
     },
     {
       "id": "nature-rocks:tundra-ice",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        847,
+        894,
+        1244,
+        1197
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        66.93198992443325
+      ],
+      "sourceCropPixels": [
+        397,
+        303
+      ],
+      "masterDrawPixels": [
+        232,
+        177
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          76,
-          193,
-          581,
-          443
+          847,
+          894,
+          1244,
+          1197
         ],
-        "rawAlphaBounds": [
-          25,
-          182,
-          585,
-          443
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.789338
+        "transparentFraction": 0.4472404419283238
       },
+      "registrationAnchorSource": [
+        1045.5,
+        1197
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        129,
-        244,
-        244
+        14,
+        69,
+        243,
+        242
       ]
     }
   ],
-  "highDensityCells": {
-    "512": {
-      "source": "source-isometric-packed.png",
-      "sourceSha256": "b511af34923798bd7a446d4e041136f531c270ec7766c010605c5bddc7c867ed",
-      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
-      "tool": "build-object-high-density.py",
-      "sprites": [
-        {
-          "id": "nature-rocks:taiga-boulder",
-          "cell": 0,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            0,
-            640,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            58,
-            191,
-            577,
-            468
-          ],
-          "sourceCropPixels": [
-            519,
-            277
-          ],
-          "masterDrawPixels": [
-            232,
-            124
-          ],
-          "masterOffsetPixels": [
-            12,
-            120
-          ],
-          "nativeEquivalentCellPixels": 571.8709677419355,
-          "drawPixels": [
-            464,
-            248
-          ],
-          "offsetPixels": [
-            24,
-            240
-          ],
-          "sourceToCellAffine": [
-            0.8940269749518305,
-            0,
-            0,
-            0.8953068592057761,
-            -27.85356454720617,
-            68.99638989169677
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8940269749518305,
-            0.8953068592057761
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:taiga-scree",
-          "cell": 1,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            0,
-            1280,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            60,
-            200,
-            582,
-            470
-          ],
-          "sourceCropPixels": [
-            522,
-            270
-          ],
-          "masterDrawPixels": [
-            232,
-            120
-          ],
-          "masterOffsetPixels": [
-            12,
-            124
-          ],
-          "nativeEquivalentCellPixels": 576.0,
-          "drawPixels": [
-            464,
-            240
-          ],
-          "offsetPixels": [
-            24,
-            248
-          ],
-          "sourceToCellAffine": [
-            0.8888888888888888,
-            0,
-            0,
-            0.8888888888888888,
-            -29.33333333333333,
-            70.22222222222223
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8888888888888888,
-            0.8888888888888888
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:tundra-glacial",
-          "cell": 2,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            0,
-            1920,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            62,
-            189,
-            589,
-            469
-          ],
-          "sourceCropPixels": [
-            527,
-            280
-          ],
-          "masterDrawPixels": [
-            232,
-            123
-          ],
-          "masterOffsetPixels": [
-            12,
-            121
-          ],
-          "nativeEquivalentCellPixels": 581.5172413793103,
-          "drawPixels": [
-            464,
-            246
-          ],
-          "offsetPixels": [
-            24,
-            242
-          ],
-          "sourceToCellAffine": [
-            0.8804554079696395,
-            0,
-            0,
-            0.8785714285714286,
-            -30.588235294117652,
-            75.94999999999999
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8804554079696395,
-            0.8785714285714286
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:tundra-snow",
-          "cell": 3,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            640,
-            640,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            57,
-            190,
-            578,
-            450
-          ],
-          "sourceCropPixels": [
-            521,
-            260
-          ],
-          "masterDrawPixels": [
-            232,
-            116
-          ],
-          "masterOffsetPixels": [
-            12,
-            128
-          ],
-          "nativeEquivalentCellPixels": 573.7931034482758,
-          "drawPixels": [
-            464,
-            232
-          ],
-          "offsetPixels": [
-            24,
-            256
-          ],
-          "sourceToCellAffine": [
-            0.8905950095969289,
-            0,
-            0,
-            0.8923076923076924,
-            -26.76391554702495,
-            86.46153846153845
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8905950095969289,
-            0.8923076923076924
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:desert-boulder",
-          "cell": 4,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            640,
-            1280,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            60,
-            194,
-            576,
-            454
-          ],
-          "sourceCropPixels": [
-            516,
-            260
-          ],
-          "masterDrawPixels": [
-            232,
-            117
-          ],
-          "masterOffsetPixels": [
-            12,
-            127
-          ],
-          "nativeEquivalentCellPixels": 568.8888888888889,
-          "drawPixels": [
-            464,
-            234
-          ],
-          "offsetPixels": [
-            24,
-            254
-          ],
-          "sourceToCellAffine": [
-            0.8992248062015504,
-            0,
-            0,
-            0.9,
-            -29.953488372093027,
-            79.4
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8992248062015504,
-            0.9
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:desert-dunes",
-          "cell": 5,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            640,
-            1920,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            66,
-            196,
-            588,
-            454
-          ],
-          "sourceCropPixels": [
-            522,
-            258
-          ],
-          "masterDrawPixels": [
-            232,
-            115
-          ],
-          "masterOffsetPixels": [
-            12,
-            129
-          ],
-          "nativeEquivalentCellPixels": 574.3304347826087,
-          "drawPixels": [
-            464,
-            230
-          ],
-          "offsetPixels": [
-            24,
-            258
-          ],
-          "sourceToCellAffine": [
-            0.8888888888888888,
-            0,
-            0,
-            0.8914728682170543,
-            -34.666666666666664,
-            83.27131782945736
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.8888888888888888,
-            0.8914728682170543
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:desert-salt",
-          "cell": 6,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            1280,
-            640,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            73,
-            192,
-            560,
-            442
-          ],
-          "sourceCropPixels": [
-            487,
-            250
-          ],
-          "masterDrawPixels": [
-            232,
-            119
-          ],
-          "masterOffsetPixels": [
-            12,
-            125
-          ],
-          "nativeEquivalentCellPixels": 537.3793103448276,
-          "drawPixels": [
-            464,
-            238
-          ],
-          "offsetPixels": [
-            24,
-            250
-          ],
-          "sourceToCellAffine": [
-            0.9527720739219713,
-            0,
-            0,
-            0.952,
-            -45.55236139630391,
-            67.21600000000001
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.9527720739219713,
-            0.952
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:desert-strata",
-          "cell": 7,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            1280,
-            1280,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            74,
-            191,
-            568,
-            442
-          ],
-          "sourceCropPixels": [
-            494,
-            251
-          ],
-          "masterDrawPixels": [
-            232,
-            118
-          ],
-          "masterOffsetPixels": [
-            12,
-            126
-          ],
-          "nativeEquivalentCellPixels": 544.542372881356,
-          "drawPixels": [
-            464,
-            236
-          ],
-          "offsetPixels": [
-            24,
-            252
-          ],
-          "sourceToCellAffine": [
-            0.9392712550607287,
-            0,
-            0,
-            0.9402390438247012,
-            -45.506072874493924,
-            72.41434262948206
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.9392712550607287,
-            0.9402390438247012
-          ],
-          "enlargesOriginalPixels": false
-        },
-        {
-          "id": "nature-rocks:tundra-ice",
-          "cell": 8,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            1280,
-            1920,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            76,
-            193,
-            581,
-            443
-          ],
-          "sourceCropPixels": [
-            505,
-            250
-          ],
-          "masterDrawPixels": [
-            232,
-            115
-          ],
-          "masterOffsetPixels": [
-            12,
-            129
-          ],
-          "nativeEquivalentCellPixels": 556.5217391304348,
-          "drawPixels": [
-            464,
-            230
-          ],
-          "offsetPixels": [
-            24,
-            258
-          ],
-          "sourceToCellAffine": [
-            0.9188118811881189,
-            0,
-            0,
-            0.92,
-            -45.829702970297035,
-            80.44
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            0.9188118811881189,
-            0.92
-          ],
-          "enlargesOriginalPixels": false
-        }
-      ],
-      "atlasSha256": "07fc7e6a4dca28c0a1553d0008e50464ff369e4dd5729d2ff7b0758fc8735494"
-    },
-    "1024": {
-      "source": "source-isometric-packed.png",
-      "sourceSha256": "b511af34923798bd7a446d4e041136f531c270ec7766c010605c5bddc7c867ed",
-      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
-      "tool": "build-object-high-density.py",
-      "sprites": [
-        {
-          "id": "nature-rocks:taiga-boulder",
-          "cell": 0,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            0,
-            640,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            58,
-            191,
-            577,
-            468
-          ],
-          "sourceCropPixels": [
-            519,
-            277
-          ],
-          "masterDrawPixels": [
-            232,
-            124
-          ],
-          "masterOffsetPixels": [
-            12,
-            120
-          ],
-          "nativeEquivalentCellPixels": 571.8709677419355,
-          "drawPixels": [
-            928,
-            496
-          ],
-          "offsetPixels": [
-            48,
-            480
-          ],
-          "sourceToCellAffine": [
-            1.788053949903661,
-            0,
-            0,
-            1.7906137184115523,
-            -55.70712909441234,
-            137.99277978339353
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.788053949903661,
-            1.7906137184115523
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:taiga-scree",
-          "cell": 1,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            0,
-            1280,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            60,
-            200,
-            582,
-            470
-          ],
-          "sourceCropPixels": [
-            522,
-            270
-          ],
-          "masterDrawPixels": [
-            232,
-            120
-          ],
-          "masterOffsetPixels": [
-            12,
-            124
-          ],
-          "nativeEquivalentCellPixels": 576.0,
-          "drawPixels": [
-            928,
-            480
-          ],
-          "offsetPixels": [
-            48,
-            496
-          ],
-          "sourceToCellAffine": [
-            1.7777777777777777,
-            0,
-            0,
-            1.7777777777777777,
-            -58.66666666666666,
-            140.44444444444446
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.7777777777777777,
-            1.7777777777777777
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:tundra-glacial",
-          "cell": 2,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            0,
-            1920,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            62,
-            189,
-            589,
-            469
-          ],
-          "sourceCropPixels": [
-            527,
-            280
-          ],
-          "masterDrawPixels": [
-            232,
-            123
-          ],
-          "masterOffsetPixels": [
-            12,
-            121
-          ],
-          "nativeEquivalentCellPixels": 581.5172413793103,
-          "drawPixels": [
-            928,
-            492
-          ],
-          "offsetPixels": [
-            48,
-            484
-          ],
-          "sourceToCellAffine": [
-            1.760910815939279,
-            0,
-            0,
-            1.7571428571428571,
-            -61.176470588235304,
-            151.89999999999998
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.760910815939279,
-            1.7571428571428571
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:tundra-snow",
-          "cell": 3,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            640,
-            640,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            57,
-            190,
-            578,
-            450
-          ],
-          "sourceCropPixels": [
-            521,
-            260
-          ],
-          "masterDrawPixels": [
-            232,
-            116
-          ],
-          "masterOffsetPixels": [
-            12,
-            128
-          ],
-          "nativeEquivalentCellPixels": 573.7931034482758,
-          "drawPixels": [
-            928,
-            464
-          ],
-          "offsetPixels": [
-            48,
-            512
-          ],
-          "sourceToCellAffine": [
-            1.7811900191938579,
-            0,
-            0,
-            1.7846153846153847,
-            -53.5278310940499,
-            172.9230769230769
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.7811900191938579,
-            1.7846153846153847
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:desert-boulder",
-          "cell": 4,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            640,
-            1280,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            60,
-            194,
-            576,
-            454
-          ],
-          "sourceCropPixels": [
-            516,
-            260
-          ],
-          "masterDrawPixels": [
-            232,
-            117
-          ],
-          "masterOffsetPixels": [
-            12,
-            127
-          ],
-          "nativeEquivalentCellPixels": 568.8888888888889,
-          "drawPixels": [
-            928,
-            468
-          ],
-          "offsetPixels": [
-            48,
-            508
-          ],
-          "sourceToCellAffine": [
-            1.7984496124031009,
-            0,
-            0,
-            1.8,
-            -59.90697674418605,
-            158.8
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.7984496124031009,
-            1.8
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:desert-dunes",
-          "cell": 5,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            640,
-            1920,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            66,
-            196,
-            588,
-            454
-          ],
-          "sourceCropPixels": [
-            522,
-            258
-          ],
-          "masterDrawPixels": [
-            232,
-            115
-          ],
-          "masterOffsetPixels": [
-            12,
-            129
-          ],
-          "nativeEquivalentCellPixels": 574.3304347826087,
-          "drawPixels": [
-            928,
-            460
-          ],
-          "offsetPixels": [
-            48,
-            516
-          ],
-          "sourceToCellAffine": [
-            1.7777777777777777,
-            0,
-            0,
-            1.7829457364341086,
-            -69.33333333333333,
-            166.54263565891472
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.7777777777777777,
-            1.7829457364341086
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:desert-salt",
-          "cell": 6,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            1280,
-            640,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            73,
-            192,
-            560,
-            442
-          ],
-          "sourceCropPixels": [
-            487,
-            250
-          ],
-          "masterDrawPixels": [
-            232,
-            119
-          ],
-          "masterOffsetPixels": [
-            12,
-            125
-          ],
-          "nativeEquivalentCellPixels": 537.3793103448276,
-          "drawPixels": [
-            928,
-            476
-          ],
-          "offsetPixels": [
-            48,
-            500
-          ],
-          "sourceToCellAffine": [
-            1.9055441478439425,
-            0,
-            0,
-            1.904,
-            -91.10472279260782,
-            134.43200000000002
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.9055441478439425,
-            1.904
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:desert-strata",
-          "cell": 7,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            1280,
-            1280,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            74,
-            191,
-            568,
-            442
-          ],
-          "sourceCropPixels": [
-            494,
-            251
-          ],
-          "masterDrawPixels": [
-            232,
-            118
-          ],
-          "masterOffsetPixels": [
-            12,
-            126
-          ],
-          "nativeEquivalentCellPixels": 544.542372881356,
-          "drawPixels": [
-            928,
-            472
-          ],
-          "offsetPixels": [
-            48,
-            504
-          ],
-          "sourceToCellAffine": [
-            1.8785425101214575,
-            0,
-            0,
-            1.8804780876494025,
-            -91.01214574898785,
-            144.82868525896413
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.8785425101214575,
-            1.8804780876494025
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-rocks:tundra-ice",
-          "cell": 8,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            1280,
-            1920,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            76,
-            193,
-            581,
-            443
-          ],
-          "sourceCropPixels": [
-            505,
-            250
-          ],
-          "masterDrawPixels": [
-            232,
-            115
-          ],
-          "masterOffsetPixels": [
-            12,
-            129
-          ],
-          "nativeEquivalentCellPixels": 556.5217391304348,
-          "drawPixels": [
-            928,
-            460
-          ],
-          "offsetPixels": [
-            48,
-            516
-          ],
-          "sourceToCellAffine": [
-            1.8376237623762377,
-            0,
-            0,
-            1.84,
-            -91.65940594059407,
-            160.88
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.8376237623762377,
-            1.84
-          ],
-          "enlargesOriginalPixels": true
-        }
-      ],
-      "atlasSha256": "6f5a700f5b31e1f60dbab94c0fc29a2cf8e7def42d4a3dee4698dae37d50fd89"
-    }
-  },
   "sourceDetailLimits": {
-    "originalSource": "source-isometric-packed.png",
-    "originalSourceSha256": "b511af34923798bd7a446d4e041136f531c270ec7766c010605c5bddc7c867ed",
-    "originalSheetPixels": [
-      1920,
-      1920
-    ],
-    "registeredSourceCellPixels": [
-      [
-        640,
-        640
-      ]
-    ],
-    "registrationVerification": "Exact RGBA pixel reconstruction of every published 256px master cell",
-    "historicalAtlasSha256": {
-      "atlas.png": "81059e82d42cd5165ae5e8e8be3e1193bea893df4a98a707d7576fd79e59907a",
-      "atlas-16.png": "824bba70484bb06309fee125566627609abdc011e6fd7c9ce13998a99eff57bb",
-      "atlas-32.png": "7546c20b72b5ebfc7e72e2c6061506f48c0ada2be5997e7ddcdb38d587abe998",
-      "atlas-64.png": "08493a6846ecc4696a7df038f1bb04100ff8e27cfacde3a47be564cbe15b9b11",
-      "atlas-128.png": "983643827d23f9cf8b9ec8e2b4a157fe56976150b56ff6d98e0983b26232dc94",
-      "atlas-256.png": "81059e82d42cd5165ae5e8e8be3e1193bea893df4a98a707d7576fd79e59907a"
-    },
     "noAdditionalPaintedDetail": true,
-    "resolutionNote": "Display cell sizes include transparent framing. Enlarging original pixels retains existing detail and does not create additional painted detail."
+    "originalSourceSha256": "806dd131296b10cbd0781ec42751c5019b497e4bba8e965e4453bf6be0f18e2b",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
   }
 }

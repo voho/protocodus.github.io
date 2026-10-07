@@ -1,0 +1,22 @@
+// Code-native nature recovery keeps the published compositions and clear camera.
+import assert from 'node:assert/strict';
+const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');import{mkdir,writeFile}from'node:fs/promises';
+const out=process.env.TRANSPORT_OUTPUT||'/tmp/transport-native-nature';
+await mkdir(out,{recursive:true});
+const b=await chromium.launch({channel:'chrome',headless:true});
+const p=await b.newPage({viewport:{width:1440,height:1400},deviceScaleFactor:1});
+await p.route('**/native-nature-qa',r=>r.fulfill({contentType:'text/html',body:'<body style="margin:0;background:#dbe0d1"><canvas></canvas></body>'}));
+await p.goto(new URL('native-nature-qa',process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/').href);
+const stats=await p.evaluate(async()=>{const[{drawTree,drawForest},{BIOME_NATURE,drawTerrainDetail},{rng}]=await Promise.all([import('./tree-sprites.js'),import('./terrain-sprites.js'),import('./sprites.js')]);
+const kinds=['pine','spruce','fir','larch','oak','birch','aspen','dwarf-birch','dwarf-pine','palm','acacia','joshua','tamarisk'],items=kinds.flatMap((species,i)=>[false,true].map(bare=>({label:`${species}${bare?' bare':''}`,draw:c=>drawTree(c,{x:16,y:29,size:23,species,bare,seed:8742+i},i>8?'desert':i===3||i>6?'tundra':'taiga')})));
+for(const biome of['taiga','tundra','desert'])for(const detail of BIOME_NATURE[biome].plants)for(const variant of[2,13])items.push({label:`${biome} ${detail} #${variant}`,plant:true,draw:c=>drawTerrainDetail(c,detail,rng(variant*877),biome,'detail')});
+const canvas=document.querySelector('canvas'),c=canvas.getContext('2d'),cols=9,w=160,h=140;canvas.width=cols*w;canvas.height=Math.ceil(items.length/cols)*h;items.forEach((item,index)=>{const x=index%cols*w,y=Math.floor(index/cols)*h;c.fillStyle=(index+Math.floor(index/cols))%2?'#d2dacb':'#e2e6db';c.fillRect(x,y,w,h);c.save();c.translate(x+16,y+6);c.scale(4,4);item.draw(c);c.restore();c.fillStyle='#263b30';c.font='10px sans-serif';c.textAlign='center';c.fillText(item.label,x+w/2,y+h-5);});
+const bounds=[];
+for(const biome of['taiga','tundra','desert'])for(const detail of [...BIOME_NATURE[biome].trees,'mixed','sparse','dense'])for(let variant=0;variant<64;variant++){const image=document.createElement('canvas');image.width=image.height=192;
+const d=image.getContext('2d');d.scale(4,4);d.translate(8,16);drawForest(d,biome,detail,variant);
+const data=d.getImageData(0,0,192,192).data;let edge=0,pixels=0;
+for(let i=3;i<data.length;i+=4)if(data[i]>10){pixels++;
+const x=(i-3)/4%192,y=Math.floor((i-3)/4/192);if(x===0||x===191||y===0||y===191)edge++;}if(edge||pixels<20)bounds.push({biome,detail,variant,edge,pixels});}return{items:items.length,forests:1664,issues:bounds};});
+await p.locator('canvas').screenshot({path:`${out}/native-catalogue.png`});
+await writeFile(`${out}/results.json`,JSON.stringify(stats,null,2));
+await b.close();assert.deepEqual(stats.issues,[],'all published native forest layouts must retain transparent gutters');console.log(`PASS ${stats.items} elevated tree/plant samples and ${stats.forests} native forest cutouts.`);

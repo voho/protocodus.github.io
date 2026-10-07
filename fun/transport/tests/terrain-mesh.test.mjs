@@ -41,6 +41,10 @@ test('normal lighting distinguishes the two slopes while preserving flat authore
   assert.equal(facetLight(flat), 1);
   assert.ok(facetLight(bright) > 1);
   assert.ok(facetLight(dark) < 1);
+  assert.ok(facetLight(bright) > 1.09, 'lit slopes remain legible at the compact normal relief');
+  assert.ok(facetLight(dark) < .85, 'opposing slopes get a clear but bounded shade');
+  const awayFromScreenLeft = [[0, 0, 3], [1, 0, 3], [1, 1, 4]].map(args => projectTerrainPoint(...args));
+  assert.ok(facetLight(bright) > facetLight(awayFromScreenLeft), 'the light comes from screen upper left, matching sprite shadows');
   assert.equal(facetLight(bright), facetLight([...bright].reverse()), 'winding does not reverse the light');
   assert.equal(facetLight(dark), facetLight(dark.map(p => ({ ...p, u: p.u + 400, v: p.v + 200, height: p.height + 2 }))), 'chunk location and absolute height do not change a face normal');
 });

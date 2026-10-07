@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "id": "civic:swimming-pool:taiga",
+      "kind": "swimming-pool",
+      "runtimeIds": [
+        "civic:swimming-pool:taiga",
+        "civic:swimming-pool:tundra",
+        "civic:swimming-pool:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "name": "Swimming pool",
+      "footprint": 2,
+      "design": 0,
+      "description": "A 30m by 30m full-envelope pool garden: large muted turquoise rectangular basin approximately 14m by 10m, two broad lane marks, cream paved edge. Behind it a 16m long by 4m deep one-storey changing pavilion, 3m wall height, muted brick and slate roof, two 2.1m personnel doors, two broad windows. Sparse broad shrubs only. Expand equipment spacing, paths and planted groups across the 30m envelope; add architectural wings where appropriate without changing any human-feature height."
+    }
+  ],
+  "columns": 1,
+  "rows": 1,
+  "biome": "taiga",
+  "cellPixels": 1254,
+  "direction": "Use case: precise-object-edit. Edit ONLY this one complete registered swimming-pool sprite. Keep ALL ground, roof, plot, vegetation, cellmargins andcamera unchanged. Its ordinary personnel door is too tall. Reduce ONLY door LEAF height from TOP, threshold unchanged, to 37 pixels in1254x1254output. This is 60 percent ofcurrentdoorheight. Fillvacatedupperdoorareawithmatchingwalloropaque/transomglass. Clearly separate solid ordinarylowerdoorleaf fromupperwall/transom. Source is an entire512square physicalframe, retainalltransparentframing andgroundcenter at50%width,75%height. Finalsinglecutout1254x1254 actualRGBA. Noalterationsofotherfeatures."
+}

@@ -81,7 +81,7 @@ try {
         for(const zoom of [.5,1,2])for(let i=0;i<8;i++){
           const heading=i*step,scale=zoom*devicePixelRatio,empty=q.sprite(kind,heading,scale),loaded=q.sprite(kind,heading,scale,100),partial=q.sprite(kind,heading,scale,20),negative=q.sprite(kind,heading,scale,-2),overfull=q.sprite(kind,heading,scale,120);
           const draw=empty.draws[0],atlas=q.metadata[kind],cell=draw?.args[2],index=draw?draw.args[1]/cell*3+draw.args[0]/cell:-1;
-          const cargo=loaded.draws.find(draw=>draw.src?.includes('/cargo/atlas-')),cargoScale=scale*(kind==='cargo-ship'?1.7:1);
+          const cargo=loaded.draws.find(draw=>draw.src?.includes('/cargo-regenerated-v3/atlas-')),cargoScale=scale*(kind==='cargo-ship'?1.7:1);
           const cargoMatrix=cargo&&Object.fromEntries(['a','b','c','d'].map(key=>[key,cargo.matrix[key]/cargoScale]));
           profiles.push({kind,zoom,heading:q.directions.VEHICLE_HEADINGS[i],drawn:empty.drawn,src:draw?.src,id:atlas.order[index],sourceCell:cell,sourceHeight:draw?.args[3],requiredSource:q.spec(kind).size*scale,matrix:draw?.matrix,cargoMatrix,expectedCargoMatrix:q.isometric.projectedGroundBasis(q.directions.vehicleFrameAngle(heading)),hash:empty.hash,matchesDirect:empty.hash===q.hash(q.direct(kind,heading,scale)),difference:q.difference(empty.canvas,q.direct(kind,heading,scale)),loadChanges:loaded.hash!==empty.hash,partialChanges:partial.hash!==empty.hash,fullVsPartial:partial.hash!==loaded.hash,negativeClamped:negative.hash===empty.hash,overfullClamped:overfull.hash===loaded.hash,overfullDifference:q.difference(overfull.canvas,loaded.canvas)});
         }
@@ -207,7 +207,7 @@ try {
     }
     return checks;
   });
-  for(const check of fallback){assert.equal(check.drawn,true);assert.ok(check.src.includes('/vehicles-dimetric-v2/'),`${check.kind} recovery art uses the corrected camera`);assert.ok(check.sourceCell>=check.requiredSource,`${check.kind} recovery source ${check.sourceCell}px covers ${check.requiredSource}px at scale${check.scale}`);assert.ok(Math.abs(check.matrix.b)<1e-9&&Math.abs(check.matrix.c)<1e-9,`${check.kind} recovery body stays upright`);}
+  for(const check of fallback){assert.equal(check.drawn,true);assert.ok(check.src.includes('/vehicles-regenerated-v3/'),`${check.kind} recovery art uses the corrected camera`);assert.ok(check.sourceCell>=check.requiredSource,`${check.kind} recovery source ${check.sourceCell}px covers ${check.requiredSource}px at scale${check.scale}`);assert.ok(Math.abs(check.matrix.b)<1e-9&&Math.abs(check.matrix.c)<1e-9,`${check.kind} recovery body stays upright`);}
   await fallbackContext.close();
   assert.deepEqual(errors,[],'no browser errors');
   console.log(JSON.stringify({results,fallbackChecks:fallback.length,missing,screenshots:output},null,2));

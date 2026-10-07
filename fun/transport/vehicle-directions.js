@@ -5,7 +5,7 @@ import { registerAtlas, drawAtlas } from './atlas-runtime.js';
 export const VEHICLE_HEADINGS = Object.freeze(['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE']);
 export const VEHICLE_KINDS = Object.freeze(['bus', 'express-bus', 'truck', 'locomotive', 'coach', 'wagon', 'ferry', 'cargo-ship', 'tanker']);
 export const VEHICLE_ATLAS_PATHS = Object.freeze(Object.fromEntries(
-  VEHICLE_KINDS.map(kind => [kind, `./assets/world/vehicle-${kind}-dimetric-v2/atlas`])
+  VEHICLE_KINDS.map(kind => [kind, `./assets/world/vehicle-${kind}-regenerated-v3/atlas`])
 ));
 const compass = ['NW', 'N', 'NE', 'W', null, 'E', 'SW', 'S', 'SE'];
 for (const kind of VEHICLE_KINDS) {

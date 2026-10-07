@@ -66,7 +66,7 @@ try{
       }
       const stats=cache.getStats(),before=factories.get(1).factory.getStats().created;cache.clear();const{factory}=factories.get(1),drawBus=()=>factory.draw(canvas.getContext('2d'),{angle:0,capacity:100,load:0,level:1},{mode:'road',cargo:'passengers',color:'#71909d'});drawBus();const clearedRebuild=factory.getStats().created-before;
       const revisionBefore=worldArtRevision(),createdBefore=factory.getStats().created;
-      registerAtlas({id:'prepared-qa-late-art',path:'./assets/world/vehicles-dimetric-v2/atlas',entries:['prepared-qa-late-art:probe']});await preloadWorldArt({waitMs:20000});drawBus();const assetRebuild=factory.getStats().created-createdBefore;drawBus();
+      registerAtlas({id:'prepared-qa-late-art',path:'./assets/world/vehicles-regenerated-v3/atlas',entries:['prepared-qa-late-art:probe']});await preloadWorldArt({waitMs:20000});drawBus();const assetRebuild=factory.getStats().created-createdBefore;drawBus();
       return {dpr:devicePixelRatio,cases,infrastructure,colors,warm,stats,clearedRebuild,assetRebuild,artChanged:worldArtRevision()>revisionBefore,assetStable:factory.getStats().created-createdBefore===assetRebuild};
     });
     for(const row of result.cases){const label=`${row.kind} zoom${row.zoom} direction${row.n} load${row.load} DPR${dpr}`;assert.ok(row.source&&row.painted,label);assert.equal(row.native,true,`${label} copies at native physical resolution`);assert.equal(row.frame.kind,row.kind,label);assert.ok(row.difference.max<=3&&row.difference.total<=row.difference.bytes*.04,`${label} preserves authored pixels: ${JSON.stringify(row.difference)}`);}

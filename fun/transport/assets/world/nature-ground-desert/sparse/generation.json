@@ -1,0 +1,462 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, warm dry desert olive, gray-green and ochre palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. SPARSE variant: exactly TWO OR THREE SMALL SEPARATED clumps per cell, with LARGE TRANSPARENT GAPS occupying at least75% of a ground patch. Flowers only3to5 individual stalks total. Reeds only3to5 stalks total. Grass2small tufts. Shrubs one tiny open low bush plusonevery smallsprig. No continuous foliage carpet. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: cactus; 2: agave; 3: prickly-pear; 4: aloe; 5: desert-flowers; 6: dry-grass; 7: scrub; 8: reeds; 9: saltflat.",
+  "sourceSha256": "57b6752e3bc591e47c5c61f2f93dd0e3c4cec32ccc8fcf0226c8867fff528644",
+  "scale": {
+    "bottomAnchor": 0.953125,
+    "calibration": "authored footprint patch; no measured physical height"
+  },
+  "measurements": [
+    {
+      "id": "nature-ground-desert:cactus-sparse",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "transparentFraction": 0.5644387720061353
+      },
+      "registrationAnchorSource": [
+        209.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        55,
+        39,
+        216,
+        233
+      ]
+    },
+    {
+      "id": "nature-ground-desert:agave-sparse",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          0,
+          836,
+          418
+        ],
+        "transparentFraction": 0.5269568004395504
+      },
+      "registrationAnchorSource": [
+        627.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        41,
+        57,
+        212,
+        243
+      ]
+    },
+    {
+      "id": "nature-ground-desert:prickly-pear-sparse",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          0,
+          1254,
+          418
+        ],
+        "transparentFraction": 0.6002667063482979
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        33,
+        86,
+        216,
+        240
+      ]
+    },
+    {
+      "id": "nature-ground-desert:aloe-sparse",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          418,
+          418,
+          836
+        ],
+        "transparentFraction": 0.6015201117190541
+      },
+      "registrationAnchorSource": [
+        209.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        50,
+        43,
+        219,
+        227
+      ]
+    },
+    {
+      "id": "nature-ground-desert:desert-flowers-sparse",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          418,
+          836,
+          836
+        ],
+        "transparentFraction": 0.6036377372312904
+      },
+      "registrationAnchorSource": [
+        627.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        53,
+        69,
+        222,
+        223
+      ]
+    },
+    {
+      "id": "nature-ground-desert:dry-grass-sparse",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          418,
+          1254,
+          836
+        ],
+        "transparentFraction": 0.5622238501865799
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        35,
+        50,
+        213,
+        218
+      ]
+    },
+    {
+      "id": "nature-ground-desert:scrub-sparse",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          836,
+          418,
+          1254
+        ],
+        "transparentFraction": 0.5783006341429913
+      },
+      "registrationAnchorSource": [
+        209.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        43,
+        43,
+        220,
+        197
+      ]
+    },
+    {
+      "id": "nature-ground-desert:reeds-sparse",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          836,
+          836,
+          1254
+        ],
+        "transparentFraction": 0.646448112451638
+      },
+      "registrationAnchorSource": [
+        627.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        44,
+        23,
+        207,
+        208
+      ]
+    },
+    {
+      "id": "nature-ground-desert:saltflat-sparse",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          836,
+          1254,
+          1254
+        ],
+        "transparentFraction": 0.6811828941645108
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        39,
+        65,
+        211,
+        204
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-ground-desert/sparse",
+    "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, warm dry desert olive, gray-green and ochre palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. SPARSE variant: exactly TWO OR THREE SMALL SEPARATED clumps per cell, with LARGE TRANSPARENT GAPS occupying at least75% of a ground patch. Flowers only3to5 individual stalks total. Reeds only3to5 stalks total. Grass2small tufts. Shrubs one tiny open low bush plusonevery smallsprig. No continuous foliage carpet. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: cactus; 2: agave; 3: prickly-pear; 4: aloe; 5: desert-flowers; 6: dry-grass; 7: scrub; 8: reeds; 9: saltflat.",
+    "kind": "ground",
+    "heights": null,
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-ground-desert:cactus-sparse",
+      "nature-ground-desert:agave-sparse",
+      "nature-ground-desert:prickly-pear-sparse",
+      "nature-ground-desert:aloe-sparse",
+      "nature-ground-desert:desert-flowers-sparse",
+      "nature-ground-desert:dry-grass-sparse",
+      "nature-ground-desert:scrub-sparse",
+      "nature-ground-desert:reeds-sparse",
+      "nature-ground-desert:saltflat-sparse"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "gridCells": true,
+    "sparse": true
+  }
+}

@@ -138,7 +138,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     variant=((Math.floor(variant)%variants)+variants)%variants;
     const houseRotation=house?variant%2:0,houseDesign=house?Math.floor(variant/6)%3:0;
     const shopDesign=shop?buildingArtworkDesign(variant):0;
-    const span=Math.max(1,Math.min(Object.hasOwn(INDUSTRIES,kind)?5:3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
+    const span=Math.max(1,Math.min(Object.hasOwn(INDUSTRIES,kind)?5:['rock','mountain'].includes(kind)?6:3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
     // An explicit footprint is a world site's saved extent. Omitted extents
     // retain the normalized thumbnail API while drawing the catalog parcel.
     const logicalFootprint=footprint===undefined?undefined:span;
@@ -151,7 +151,11 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
     const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(width*density));canvas.height=Math.max(1,Math.round(height*density));
-    const ctx=canvas.getContext('2d');ctx.scale(canvas.width/width,canvas.height/height);if(!natureObject)ctx.translate(forest?8:0,forest?16:8);
+    // Prepared pixels also supply alpha hit masks. Keep their raster backing
+    // consistent: mixing accelerated and software preparation can choose
+    // different high-quality filters for the same tiny fractional tree draw
+    // after a zoom/climate change, before scenery batching even starts.
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.scale(canvas.width/width,canvas.height/height);if(!natureObject)ctx.translate(forest?8:0,forest?16:8);
     const r=rng(7331+variant*799+kind.length*371+level*97);
     if(natureObject){
       if(!drawRasterNatureObject(ctx,kind,biome,detail,variant,span,density)){

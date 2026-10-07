@@ -1,105 +1,189 @@
 {
-  "date": "2026-10-06",
-  "generator": "image_gen.imagegen",
-  "imagegenSource": "/workspace/generated_images/exec-5fbbd9ab-ac8a-48dc-be3f-f7ff80f9331b.png",
-  "transparentBackground": true,
-  "styleReference": "assets/houses/tundra/house-atlas.png",
-  "styleReferenceSha256": "5d9ecb8d7b4bf0bf1a21395dc1a57295daa0c2528c348adaa0ef5ed944aa45e5",
-  "source": "source-generated-2026-10-06.png",
-  "sourceSha256": "1104fb0d1b910f381fba9b318d8abafd954ef15490ef2745668f3b15f07d67eb",
-  "prompt": "prompt.txt",
-  "promptSha256": "53eaacfccac9c6ccb63ed44d87136e03830c1a443de3bbd22600dd03248acb06",
-  "canonicalArtCatalog": "../../../../tree-art-catalog.js",
-  "canonicalArtCatalogSha256": "b35c4ebe62c57350b562235b7588df478b933feac7e25de4d9c519acfbf9b197",
-  "sharedStyleContract": "../../../../sprite-art-direction.js",
-  "sharedStyleContractSha256": "5ac8428e5ccedb1e074b7f6304fcfaf913713c47ab41e6719bf98bdf6450802a",
-  "columns": 3,
-  "rows": 1,
-  "normalisedCellPixels": 256,
-  "rootAnchor": 0.955,
-  "pixelsPerMetre": 19.72265023112481,
-  "registration": "One shared 0.25 source-pixel scale for all three hollow trees, preserving generated relative dimensions.",
-  "sourceTrim": "Alpha above 8 with two source pixels of padding. Invisible external matte specks omitted; all retained cutout RGBA is resampled as a whole.",
-  "records": [
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of three hollow trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x1 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Cold-climate dead hollow trunks with very few sparse branches; see top-facing broken wood edges, dark cavities, minimal snow.\nSlot 1: hollow-birch, 7.33m tall, 144.6px vertical tree height in the normalized256px cell. Standing old white birch with a clearly visible broad dark trunk hollow, broken upper limbs, sparse muted sage foliage and a little snow. Keep the opening a large simple dark shape.\nSlot 2: hollow-larch, 8m tall, 157.8px vertical tree height in the normalized256px cell. Weathered standing grey-brown larch with a broad open dark cavity in the lower trunk, broken high fork, sparse large olive needle cushions and restrained snow.\nSlot 3: hollow-spruce, 8.67m tall, 170.9px vertical tree height in the normalized256px cell. Old standing dark spruce with a broad visible split hollow trunk, a broken leader, sparse blue-green boughs and snow on large branch ledges.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+  "sourceSha256": "816a0b84fdbf5d9d0a655d67e00ca910b4df8e6685d4fec1ba6cef5381617dc7",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
     {
-      "id": "hollow-birch",
-      "heightMetres": 7.333333333333333,
-      "description": "Standing old white birch with a clearly visible broad dark trunk hollow, broken upper limbs, sparse muted sage foliage and a little snow. Keep the opening a large simple dark shape.",
-      "logicalId": "nature-trees-tundra:hollow-birch",
-      "sourceBox": [
+      "id": "nature-trees-tundra:hollow-birch",
+      "cell": 0,
+      "sourceBounds": [
+        125,
         0,
-        0,
-        724,
-        724
+        728,
+        672
       ],
-      "rootFoot": [
-        430,
-        681
+      "observedRootSource": [
+        387.0,
+        657.0
       ],
-      "crownTop": 70,
-      "measuredCrownToRootPixels": 611,
-      "uniformWholeCutoutScale": 0.25,
-      "registeredPlantHeightPixels": 152.75,
-      "registeredMeasuredHeightMetres": 7.744902343749999
+      "observedCrownTopSource": 103.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 554.0,
+      "registeredPlantHeightPixels": 144.63276836158192,
+      "calibratedHeightMetres": 7.333333333333333,
+      "sourceScaleToMaster": 0.2610699789920251,
+      "masterOffsetPixels": [
+        59.599665504089415,
+        72.95702380223949
+      ],
+      "sourceCropPixels": [
+        603,
+        672
+      ],
+      "masterDrawPixels": [
+        157,
+        175
+      ],
+      "normalization": {
+        "originalSize": [
+          2172,
+          724
+        ],
+        "sourceBounds": [
+          125,
+          0,
+          728,
+          672
+        ],
+        "transparentFraction": 0.6517635039090263
+      },
+      "bounds": [
+        61,
+        100,
+        180,
+        247
+      ]
     },
     {
-      "id": "hollow-larch",
-      "heightMetres": 8.0,
-      "description": "Weathered standing grey-brown larch with a broad open dark cavity in the lower trunk, broken high fork, sparse large olive needle cushions and restrained snow.",
-      "logicalId": "nature-trees-tundra:hollow-larch",
-      "sourceBox": [
-        724,
-        0,
-        1448,
-        724
+      "id": "nature-trees-tundra:hollow-larch",
+      "cell": 1,
+      "sourceBounds": [
+        831,
+        61,
+        1355,
+        664
       ],
-      "rootFoot": [
-        1150,
-        683
+      "observedRootSource": [
+        1116.5,
+        648.0
       ],
-      "crownTop": 41,
-      "measuredCrownToRootPixels": 642,
-      "uniformWholeCutoutScale": 0.25,
-      "registeredPlantHeightPixels": 160.5,
-      "registeredMeasuredHeightMetres": 8.1378515625
+      "observedCrownTopSource": 65.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 583.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.27063670986106086,
+      "masterOffsetPixels": [
+        50.733219334667126,
+        85.61625131155725
+      ],
+      "sourceCropPixels": [
+        524,
+        603
+      ],
+      "masterDrawPixels": [
+        142,
+        163
+      ],
+      "normalization": {
+        "originalSize": [
+          2172,
+          724
+        ],
+        "sourceBounds": [
+          831,
+          61,
+          1355,
+          664
+        ],
+        "transparentFraction": 0.5341137822338689
+      },
+      "bounds": [
+        52,
+        87,
+        192,
+        249
+      ]
     },
     {
-      "id": "hollow-spruce",
-      "heightMetres": 8.666666666666666,
-      "description": "Old standing dark spruce with a broad visible split hollow trunk, a broken leader, sparse blue-green boughs and snow on large branch ledges.",
-      "logicalId": "nature-trees-tundra:hollow-spruce",
-      "sourceBox": [
-        1448,
-        0,
-        2172,
-        724
+      "id": "nature-trees-tundra:hollow-spruce",
+      "cell": 2,
+      "sourceBounds": [
+        1570,
+        46,
+        2055,
+        677
       ],
-      "rootFoot": [
-        1858,
-        685
+      "observedRootSource": [
+        1856.0,
+        660.0
       ],
-      "crownTop": 29,
-      "measuredCrownToRootPixels": 656,
-      "uniformWholeCutoutScale": 0.25,
-      "registeredPlantHeightPixels": 164.0,
-      "registeredMeasuredHeightMetres": 8.3153125
+      "observedCrownTopSource": 49.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 611.0,
+      "registeredPlantHeightPixels": 170.929635336415,
+      "calibratedHeightMetres": 8.666666666666666,
+      "sourceScaleToMaster": 0.27975390398758593,
+      "masterOffsetPixels": [
+        47.99038345955043,
+        72.71110295162222
+      ],
+      "sourceCropPixels": [
+        485,
+        631
+      ],
+      "masterDrawPixels": [
+        136,
+        177
+      ],
+      "normalization": {
+        "originalSize": [
+          2172,
+          724
+        ],
+        "sourceBounds": [
+          1570,
+          46,
+          2055,
+          677
+        ],
+        "transparentFraction": 0.4803764275327985
+      },
+      "bounds": [
+        49,
+        74,
+        183,
+        249
+      ]
     }
   ],
-  "buildCommand": "python fun/transport/tools/build-world-atlases.py --atlas fun/transport/assets/world/nature-trees-tundra/hollow/source-registered-2026-10-06.png --columns 3 --rows 1 --ids nature-trees-tundra:hollow-birch,nature-trees-tundra:hollow-larch,nature-trees-tundra:hollow-spruce --output-dir fun/transport/assets/world/nature-trees-tundra/hollow --aligned --preserve-grid-scale --max-cell 256 --no-sharpen",
-  "projectionCorrection": {
-    "date": "2026-10-06",
-    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
-    "historicalAssumedWorldEnlargement": 1.5,
-    "actualWorldEnlargement": 1,
-    "historicalHeightToActualWorldMetres": 0.6666666666666666,
-    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
-    "artworkUnchanged": true,
-    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
-    "historicalPixelsPerMetre": 13.14843348741654,
-    "historicalNominalHeightsMetres": {
-      "hollow-birch": 11,
-      "hollow-larch": 12,
-      "hollow-spruce": 13
-    }
+  "job": {
+    "path": "nature-trees-tundra/hollow",
+    "prompt": "Generate a transparent game SPRITE SHEET of three hollow trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x1 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Cold-climate dead hollow trunks with very few sparse branches; see top-facing broken wood edges, dark cavities, minimal snow.\nSlot 1: hollow-birch, 7.33m tall, 144.6px vertical tree height in the normalized256px cell. Standing old white birch with a clearly visible broad dark trunk hollow, broken upper limbs, sparse muted sage foliage and a little snow. Keep the opening a large simple dark shape.\nSlot 2: hollow-larch, 8m tall, 157.8px vertical tree height in the normalized256px cell. Weathered standing grey-brown larch with a broad open dark cavity in the lower trunk, broken high fork, sparse large olive needle cushions and restrained snow.\nSlot 3: hollow-spruce, 8.67m tall, 170.9px vertical tree height in the normalized256px cell. Old standing dark spruce with a broad visible split hollow trunk, a broken leader, sparse blue-green boughs and snow on large branch ledges.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+    "kind": "tree",
+    "heights": [
+      7.333333333333333,
+      8,
+      8.666666666666666
+    ],
+    "columns": 3,
+    "rows": 1,
+    "order": [
+      "nature-trees-tundra:hollow-birch",
+      "nature-trees-tundra:hollow-larch",
+      "nature-trees-tundra:hollow-spruce"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ]
   }
 }

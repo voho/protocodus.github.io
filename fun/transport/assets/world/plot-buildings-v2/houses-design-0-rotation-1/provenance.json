@@ -1,31 +1,29 @@
 {
-  "tool": "image_gen.imagegen",
-  "transparent_background": true,
-  "stages": [
-    {
-      "operation": "Native registered guide material repaint",
-      "source": "/workspace/generated_images/exec-5fff71d4-3736-4dc7-9109-ce811b71ed9b.png",
-      "references": [
-        "/tmp/transport-wide-art/houses-design-0-rotation-1/guide.png"
-      ],
-      "prompt": "generation-prompt.txt"
-    },
-    {
-      "operation": "Bottom-row architectural height correction",
-      "source": "/workspace/generated_images/exec-fdd89798-9a1f-4601-8460-053edbd59b8d.png",
-      "references": [
-        "/workspace/generated_images/exec-5fff71d4-3736-4dc7-9109-ce811b71ed9b.png"
-      ],
-      "prompt": "height-correction-prompt.txt"
-    },
-    {
-      "operation": "Bare garden ground alpha cleanup",
-      "source": "/workspace/generated_images/exec-45a978ed-39c6-4e45-8504-af82fbe4f330.png",
-      "references": [
-        "/workspace/generated_images/exec-fdd89798-9a1f-4601-8460-053edbd59b8d.png"
-      ],
-      "prompt": "alpha-cleanup-prompt.txt"
-    }
-  ],
-  "packing": "Uniform sheet-density resampling plus observed ground translation; no silhouette fitting, colour keying, warping or pixel painting"
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "bce48088c80c3b674ddb42bf6f1b8114bffd74d7a2a622d82d3edd4d56f8b4b0",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "houses-design-0-rotation-1",
+    "output": "/tmp/transport-fresh-buildings/houses-design-0-rotation-1/packed",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "bce48088c80c3b674ddb42bf6f1b8114bffd74d7a2a622d82d3edd4d56f8b4b0",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
+  "heightCorrection": "Shared human features in 2x2 expensive-house row reduced at the original ground footprint."
 }

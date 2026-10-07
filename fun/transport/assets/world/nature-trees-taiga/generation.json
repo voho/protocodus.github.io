@@ -1,0 +1,530 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. Slots row-major:1 Scots pine with broad umbrella canopy,2 spruce conical tiered radial crown,3 fir broad conical tiered crown,4 silver birch domed canopy with white lowertrunk,5 oak broad dome with just a short exposed thick lowertrunk,6 aspen rounded pale green canopy,7 deadwood branching stump viewed from above including visible upward-facing broken wood surfaces,8 leafless birch with radial branches spreading both toward and away from camera,9 young small pine. Relative heights in metres:10.5,10.5,10.5,10.5,10.5,10.5,6,8,4.5. Maintain the shared metre scale; do not enlarge small sapling. True transparent background.",
+  "sourceSha256": "27d562da049916fba8a9d15f6c0d3ede284902399758e601b2dafff29f16aca7",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
+    {
+      "id": "nature-trees-taiga:pine",
+      "cell": 0,
+      "sourceBounds": [
+        26,
+        45,
+        424,
+        395
+      ],
+      "observedRootSource": [
+        219,
+        391
+      ],
+      "observedCrownTopSource": 49,
+      "observedRootMethod": "reviewed source landmark",
+      "measuredSourceHeightPixels": 342,
+      "registeredPlantHeightPixels": 197.22650231124814,
+      "calibratedHeightMetres": 10.000000000000002,
+      "sourceScaleToMaster": 0.5766856792726553,
+      "masterOffsetPixels": [
+        16.699663900377516,
+        44.94675497166125
+      ],
+      "sourceCropPixels": [
+        398,
+        350
+      ],
+      "masterDrawPixels": [
+        230,
+        202
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          26,
+          45,
+          424,
+          395
+        ],
+        "transparentFraction": 0.3849964106245513
+      },
+      "bounds": [
+        19,
+        46,
+        245,
+        245
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:spruce",
+      "cell": 1,
+      "sourceBounds": [
+        476,
+        12,
+        786,
+        400
+      ],
+      "observedRootSource": [
+        633.5,
+        386.0
+      ],
+      "observedCrownTopSource": 15.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 371.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.558188214088438,
+      "masterOffsetPixels": [
+        40.085356281071014,
+        35.717607930924174
+      ],
+      "sourceCropPixels": [
+        310,
+        388
+      ],
+      "masterDrawPixels": [
+        173,
+        217
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          476,
+          12,
+          786,
+          400
+        ],
+        "transparentFraction": 0.42450947788493515
+      },
+      "bounds": [
+        41,
+        38,
+        211,
+        251
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:fir",
+      "cell": 2,
+      "sourceBounds": [
+        874,
+        11,
+        1217,
+        400
+      ],
+      "observedRootSource": [
+        1042.0,
+        388.0
+      ],
+      "observedCrownTopSource": 14.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 374.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5537107685208836,
+      "masterOffsetPixels": [
+        34.97659088849154,
+        35.73104026762687
+      ],
+      "sourceCropPixels": [
+        343,
+        389
+      ],
+      "masterDrawPixels": [
+        190,
+        215
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          874,
+          11,
+          1217,
+          400
+        ],
+        "transparentFraction": 0.4200649044046557
+      },
+      "bounds": [
+        36,
+        38,
+        224,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:birch",
+      "cell": 3,
+      "sourceBounds": [
+        38,
+        428,
+        393,
+        807
+      ],
+      "observedRootSource": [
+        230.0,
+        795.0
+      ],
+      "observedCrownTopSource": 431.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 364.0,
+      "registeredPlantHeightPixels": 207.08782742681046,
+      "calibratedHeightMetres": 10.499999999999998,
+      "sourceScaleToMaster": 0.5689226028209079,
+      "masterOffsetPixels": [
+        18.76686025838569,
+        35.6854047647268
+      ],
+      "sourceCropPixels": [
+        355,
+        379
+      ],
+      "masterDrawPixels": [
+        202,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          38,
+          428,
+          393,
+          807
+        ],
+        "transparentFraction": 0.34413021665613736
+      },
+      "bounds": [
+        21,
+        38,
+        219,
+        251
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:oak",
+      "cell": 4,
+      "sourceBounds": [
+        423,
+        432,
+        855,
+        793
+      ],
+      "observedRootSource": [
+        628,
+        788
+      ],
+      "observedCrownTopSource": 438,
+      "observedRootMethod": "reviewed source landmark",
+      "measuredSourceHeightPixels": 350,
+      "registeredPlantHeightPixels": 193.28197226502314,
+      "calibratedHeightMetres": 9.8,
+      "sourceScaleToMaster": 0.5522342064714947,
+      "masterOffsetPixels": [
+        14.791987673343584,
+        47.88462249614787
+      ],
+      "sourceCropPixels": [
+        432,
+        361
+      ],
+      "masterDrawPixels": [
+        239,
+        199
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          423,
+          432,
+          855,
+          793
+        ],
+        "transparentFraction": 0.3312621832358674
+      },
+      "bounds": [
+        17,
+        49,
+        253,
+        246
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:aspen",
+      "cell": 5,
+      "sourceBounds": [
+        887,
+        434,
+        1224,
+        808
+      ],
+      "observedRootSource": [
+        1050.0,
+        796.0
+      ],
+      "observedCrownTopSource": 438.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 358.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5784576185106438,
+      "masterOffsetPixels": [
+        33.711408182765055,
+        35.07834209914694
+      ],
+      "sourceCropPixels": [
+        337,
+        374
+      ],
+      "masterDrawPixels": [
+        195,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          887,
+          434,
+          1224,
+          808
+        ],
+        "transparentFraction": 0.3737444262841365
+      },
+      "bounds": [
+        36,
+        37,
+        227,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:deadwood",
+      "cell": 6,
+      "sourceBounds": [
+        74,
+        858,
+        355,
+        1187
+      ],
+      "observedRootSource": [
+        251.0,
+        1176.0
+      ],
+      "observedCrownTopSource": 862.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 314.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3768659279832766,
+      "masterOffsetPixels": [
+        61.29473074696004,
+        124.63663490131803
+      ],
+      "sourceCropPixels": [
+        281,
+        329
+      ],
+      "masterDrawPixels": [
+        106,
+        124
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          74,
+          858,
+          355,
+          1187
+        ],
+        "transparentFraction": 0.6077296671678439
+      },
+      "bounds": [
+        62,
+        126,
+        166,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:bare-birch",
+      "cell": 7,
+      "sourceBounds": [
+        461,
+        821,
+        815,
+        1181
+      ],
+      "observedRootSource": [
+        641.0,
+        1170.0
+      ],
+      "observedCrownTopSource": 825.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 345.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.4573368169536188,
+      "masterOffsetPixels": [
+        45.679372948348615,
+        84.86945088318703
+      ],
+      "sourceCropPixels": [
+        354,
+        360
+      ],
+      "masterDrawPixels": [
+        162,
+        165
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          461,
+          821,
+          815,
+          1181
+        ],
+        "transparentFraction": 0.5618957940991839
+      },
+      "bounds": [
+        48,
+        86,
+        206,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-taiga:sapling",
+      "cell": 8,
+      "sourceBounds": [
+        952,
+        934,
+        1159,
+        1174
+      ],
+      "observedRootSource": [
+        1052.0,
+        1165.0
+      ],
+      "observedCrownTopSource": 938.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 227.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.3909776477535755,
+      "masterOffsetPixels": [
+        88.90223522464245,
+        154.16416336892405
+      ],
+      "sourceCropPixels": [
+        207,
+        240
+      ],
+      "masterDrawPixels": [
+        81,
+        94
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          952,
+          934,
+          1159,
+          1174
+        ],
+        "transparentFraction": 0.4058574879227053
+      },
+      "bounds": [
+        91,
+        155,
+        169,
+        247
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-trees-taiga",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. Slots row-major:1 Scots pine with broad umbrella canopy,2 spruce conical tiered radial crown,3 fir broad conical tiered crown,4 silver birch domed canopy with white lowertrunk,5 oak broad dome with just a short exposed thick lowertrunk,6 aspen rounded pale green canopy,7 deadwood branching stump viewed from above including visible upward-facing broken wood surfaces,8 leafless birch with radial branches spreading both toward and away from camera,9 young small pine. Relative heights in metres:10.5,10.5,10.5,10.5,10.5,10.5,6,8,4.5. Maintain the shared metre scale; do not enlarge small sapling. True transparent background.",
+    "kind": "tree",
+    "heights": [
+      10,
+      10.5,
+      10.5,
+      10.5,
+      9.8,
+      10.5,
+      6,
+      8,
+      4.5
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-trees-taiga:pine",
+      "nature-trees-taiga:spruce",
+      "nature-trees-taiga:fir",
+      "nature-trees-taiga:birch",
+      "nature-trees-taiga:oak",
+      "nature-trees-taiga:aspen",
+      "nature-trees-taiga:deadwood",
+      "nature-trees-taiga:bare-birch",
+      "nature-trees-taiga:sapling"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ],
+    "landmarks": [
+      {
+        "root": [
+          219,
+          391
+        ],
+        "crownTop": 49
+      },
+      null,
+      null,
+      null,
+      {
+        "root": [
+          628,
+          788
+        ],
+        "crownTop": 438
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+}

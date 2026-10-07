@@ -1,0 +1,507 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects ONLY from this list, keep botanical identity but canopy view overrides any frontal trunk/fork description. Cold blue/sage green with restrained snow on canopy TOP surfaces and pale trunks.\nSlot 1: pine, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 2: larch, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 3: dwarf-birch, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 4: dwarf-pine, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 5: deadwood, 6m tall, 118px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 6: bare-birch, 8m tall, 158px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 7: sapling, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 8: ice-pine, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 9: willow-tree, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nRelative size comes from metre heights; do not fit all plants to equal heights. Complete crown and root foot, no ground discs. 12% empty gutter. Natural irregular foliage, visible radial crown TOPS conceal80% of trunks.",
+  "sourceSha256": "f0cf1f91a69e24bda6d52ac35d5c0fa84e172d954cd4c34c65c4bf86077ba294",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
+    {
+      "id": "nature-trees-tundra:pine",
+      "cell": 0,
+      "sourceBounds": [
+        66,
+        16,
+        371,
+        408
+      ],
+      "observedRootSource": [
+        220.0,
+        396.0
+      ],
+      "observedCrownTopSource": 19.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 377.0,
+      "registeredPlantHeightPixels": 207.08782742681052,
+      "calibratedHeightMetres": 10.500000000000002,
+      "sourceScaleToMaster": 0.5493045820339801,
+      "masterOffsetPixels": [
+        43.407094366767055,
+        35.74425882708755
+      ],
+      "sourceCropPixels": [
+        305,
+        392
+      ],
+      "masterDrawPixels": [
+        168,
+        215
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          66,
+          16,
+          371,
+          408
+        ],
+        "transparentFraction": 0.4436015389762462
+      },
+      "bounds": [
+        45,
+        37,
+        210,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:larch",
+      "cell": 1,
+      "sourceBounds": [
+        472,
+        16,
+        784,
+        408
+      ],
+      "observedRootSource": [
+        629.0,
+        396.0
+      ],
+      "observedCrownTopSource": 19.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 377.0,
+      "registeredPlantHeightPixels": 207.08782742681052,
+      "calibratedHeightMetres": 10.500000000000002,
+      "sourceScaleToMaster": 0.5493045820339801,
+      "masterOffsetPixels": [
+        41.75918062066512,
+        35.74425882708755
+      ],
+      "sourceCropPixels": [
+        312,
+        392
+      ],
+      "masterDrawPixels": [
+        171,
+        215
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          472,
+          16,
+          784,
+          408
+        ],
+        "transparentFraction": 0.4089400183150183
+      },
+      "bounds": [
+        43,
+        37,
+        211,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:dwarf-birch",
+      "cell": 2,
+      "sourceBounds": [
+        897,
+        152,
+        1178,
+        406
+      ],
+      "observedRootSource": [
+        1040.5,
+        398.0
+      ],
+      "observedCrownTopSource": 156.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 242.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.3667434960333126,
+      "masterOffsetPixels": [
+        75.37230831921966,
+        154.2610999758051
+      ],
+      "sourceCropPixels": [
+        281,
+        254
+      ],
+      "masterDrawPixels": [
+        103,
+        93
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          897,
+          152,
+          1178,
+          406
+        ],
+        "transparentFraction": 0.37084932888726985
+      },
+      "bounds": [
+        76,
+        155,
+        177,
+        246
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:dwarf-pine",
+      "cell": 3,
+      "sourceBounds": [
+        76,
+        581,
+        369,
+        796
+      ],
+      "observedRootSource": [
+        221.0,
+        787.0
+      ],
+      "observedCrownTopSource": 585.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 202.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.4393659704953547,
+      "masterOffsetPixels": [
+        64.29193427817357,
+        153.9706100779569
+      ],
+      "sourceCropPixels": [
+        293,
+        215
+      ],
+      "masterDrawPixels": [
+        129,
+        94
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          76,
+          581,
+          369,
+          796
+        ],
+        "transparentFraction": 0.28784824192396224
+      },
+      "bounds": [
+        65,
+        155,
+        191,
+        247
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:deadwood",
+      "cell": 4,
+      "sourceBounds": [
+        528,
+        439,
+        736,
+        798
+      ],
+      "observedRootSource": [
+        629.0,
+        787.0
+      ],
+      "observedCrownTopSource": 443.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 344.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.34399971333357227,
+      "masterOffsetPixels": [
+        93.2560289533092,
+        124.76809975991684
+      ],
+      "sourceCropPixels": [
+        208,
+        359
+      ],
+      "masterDrawPixels": [
+        72,
+        123
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          528,
+          439,
+          736,
+          798
+        ],
+        "transparentFraction": 0.6314147203771159
+      },
+      "bounds": [
+        94,
+        126,
+        164,
+        247
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:bare-birch",
+      "cell": 5,
+      "sourceBounds": [
+        895,
+        426,
+        1185,
+        797
+      ],
+      "observedRootSource": [
+        1038.0,
+        786.0
+      ],
+      "observedCrownTopSource": 430.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 356.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.44320562317134404,
+      "masterOffsetPixels": [
+        64.6215958864978,
+        84.92597565831613
+      ],
+      "sourceCropPixels": [
+        290,
+        371
+      ],
+      "masterDrawPixels": [
+        129,
+        164
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          895,
+          426,
+          1185,
+          797
+        ],
+        "transparentFraction": 0.5157449577098243
+      },
+      "bounds": [
+        66,
+        86,
+        193,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:sapling",
+      "cell": 6,
+      "sourceBounds": [
+        122,
+        952,
+        322,
+        1197
+      ],
+      "observedRootSource": [
+        219.0,
+        1188.0
+      ],
+      "observedCrownTopSource": 955.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 233.0,
+      "registeredPlantHeightPixels": 88.75192604006165,
+      "calibratedHeightMetres": 4.5,
+      "sourceScaleToMaster": 0.3809095538200071,
+      "masterOffsetPixels": [
+        91.05177327945931,
+        154.58534529847833
+      ],
+      "sourceCropPixels": [
+        200,
+        245
+      ],
+      "masterDrawPixels": [
+        76,
+        93
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          122,
+          952,
+          322,
+          1197
+        ],
+        "transparentFraction": 0.4810408163265306
+      },
+      "bounds": [
+        92,
+        156,
+        166,
+        247
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:ice-pine",
+      "cell": 7,
+      "sourceBounds": [
+        469,
+        819,
+        783,
+        1218
+      ],
+      "observedRootSource": [
+        628.0,
+        1205.0
+      ],
+      "observedCrownTopSource": 822.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 383.0,
+      "registeredPlantHeightPixels": 207.0878274268105,
+      "calibratedHeightMetres": 10.5,
+      "sourceScaleToMaster": 0.5406992883206541,
+      "masterOffsetPixels": [
+        42.028813157016,
+        35.770074708227526
+      ],
+      "sourceCropPixels": [
+        314,
+        399
+      ],
+      "masterDrawPixels": [
+        170,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          469,
+          819,
+          783,
+          1218
+        ],
+        "transparentFraction": 0.4262327794007311
+      },
+      "bounds": [
+        44,
+        38,
+        211,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-tundra:willow-tree",
+      "cell": 8,
+      "sourceBounds": [
+        860,
+        832,
+        1209,
+        1218
+      ],
+      "observedRootSource": [
+        1038.0,
+        1205.0
+      ],
+      "observedCrownTopSource": 836.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 369.0,
+      "registeredPlantHeightPixels": 207.08782742681046,
+      "calibratedHeightMetres": 10.499999999999998,
+      "sourceScaleToMaster": 0.561213624462901,
+      "masterOffsetPixels": [
+        28.103974845603616,
+        35.14731807533792
+      ],
+      "sourceCropPixels": [
+        349,
+        386
+      ],
+      "masterDrawPixels": [
+        196,
+        217
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          860,
+          832,
+          1209,
+          1218
+        ],
+        "transparentFraction": 0.28642902742105497
+      },
+      "bounds": [
+        30,
+        37,
+        223,
+        250
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-trees-tundra",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects ONLY from this list, keep botanical identity but canopy view overrides any frontal trunk/fork description. Cold blue/sage green with restrained snow on canopy TOP surfaces and pale trunks.\nSlot 1: pine, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 2: larch, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 3: dwarf-birch, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 4: dwarf-pine, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 5: deadwood, 6m tall, 118px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 6: bare-birch, 8m tall, 158px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 7: sapling, 4.5m tall, 89px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 8: ice-pine, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nSlot 9: willow-tree, 10.5m tall, 207px height in normalized 256px cell. Broad simple species-defining silhouette. No labels.\nRelative size comes from metre heights; do not fit all plants to equal heights. Complete crown and root foot, no ground discs. 12% empty gutter. Natural irregular foliage, visible radial crown TOPS conceal80% of trunks.",
+    "kind": "tree",
+    "heights": [
+      10.5,
+      10.5,
+      4.5,
+      4.5,
+      6,
+      8,
+      4.5,
+      10.5,
+      10.5
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-trees-tundra:pine",
+      "nature-trees-tundra:larch",
+      "nature-trees-tundra:dwarf-birch",
+      "nature-trees-tundra:dwarf-pine",
+      "nature-trees-tundra:deadwood",
+      "nature-trees-tundra:bare-birch",
+      "nature-trees-tundra:sapling",
+      "nature-trees-tundra:ice-pine",
+      "nature-trees-tundra:willow-tree"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ]
+  }
+}

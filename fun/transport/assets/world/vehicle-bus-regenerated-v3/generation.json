@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Create an entirely NEW hand-painted miniature vehicle turnaround sprite sheet using only the attached plain geometric blocks for camera and spacing. Do not reproduce old bus design. Convert each block into the SAME streamlined 1960s single-deck city bus: muted sage lower body #84988a, ivory roof #e3d7b7, broad dark slate-blue continuous windows #587178, ochre front destination board without text, two axles. The orange face marks the FRONT; remove all orange guide markings. Exactly eight vehicles arranged 3x3 with center EMPTY: NW N NE / W empty E / SW S SE. KEEP the projected geometry: diagonals at slopes +/-0.5, N/S foreshortened ground depth half E/W, vertical walls. Fixed camera no perspective. One common physical scale: 9m long, 2.5m wide, 3.1m tall. Each vehicle wheel-contact midpoint at its cell center. Recessed windows and broad roof and wall shading, large readable masses, no tiny lettering, grain, scratch noise or decorative detail. Northwest light fixed for ALL directions, darker southeast faces, compact semitransparent shadow displaced down-right. True transparent RGBA background and gaps including center; absolutely no ground, pavement, backdrop or labels. Preserve all eight distinct orientations. High-quality production game art.",
+  "source": "source-generated.png",
+  "sha256": "1210b5a497756b2d2342cead146769fe9422764c71a275edb4fd66034ea12d54",
+  "observedSourceOrder": [
+    "SE",
+    "S",
+    "SW",
+    "W",
+    null,
+    "E",
+    "NE",
+    "N",
+    "NW"
+  ],
+  "registeredOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "additionalSources": [],
+  "camera": "fixed 2:1 dimetric; NW sunlight; compact down-right shadow",
+  "normalization": "One family scale, no per-heading silhouette stretching; premultiplied alpha mipmaps",
+  "review": "front/rear identity and transparent composition visually inspected"
+}

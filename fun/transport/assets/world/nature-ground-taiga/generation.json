@@ -1,0 +1,461 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, temperate sage/olive with restrained flower colours palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. Moderately dense natural patch, irregular open edges and visible spaces through foliage; groups occupy no more than60% of a5m ground patch. Do not make a filled rounded hedge. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: wildflowers; 2: bluebells; 3: ferns; 4: grass-tufts; 5: berry-bushes; 6: heather; 7: shrubs; 8: reeds; 9: marsh.",
+  "sourceSha256": "5b9533458bde972f3896d801a29c7c7e228847a118f90684e595402db1f8eba0",
+  "scale": {
+    "bottomAnchor": 0.953125,
+    "calibration": "authored footprint patch; no measured physical height"
+  },
+  "measurements": [
+    {
+      "id": "nature-ground-taiga:wildflowers",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        432,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        432,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          0,
+          0,
+          432,
+          405
+        ],
+        "transparentFraction": 0.3745827617741198
+      },
+      "registrationAnchorSource": [
+        216.0,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        22,
+        38,
+        235,
+        233
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:bluebells",
+      "cell": 1,
+      "sourceBounds": [
+        432,
+        0,
+        863,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        431,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          432,
+          0,
+          863,
+          405
+        ],
+        "transparentFraction": 0.3730056429205694
+      },
+      "registrationAnchorSource": [
+        647.5,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        27,
+        40,
+        228,
+        231
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:ferns",
+      "cell": 2,
+      "sourceBounds": [
+        863,
+        0,
+        1295,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        432,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          863,
+          0,
+          1295,
+          405
+        ],
+        "transparentFraction": 0.4103395061728395
+      },
+      "registrationAnchorSource": [
+        1079.0,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        24,
+        34,
+        235,
+        234
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:grass-tufts",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        405,
+        432,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        432,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          0,
+          405,
+          432,
+          795
+        ],
+        "transparentFraction": 0.368417616334283
+      },
+      "registrationAnchorSource": [
+        216.0,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        24,
+        37,
+        229,
+        237
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:berry-bushes",
+      "cell": 4,
+      "sourceBounds": [
+        432,
+        405,
+        863,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        431,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          432,
+          405,
+          863,
+          795
+        ],
+        "transparentFraction": 0.3535011006008686
+      },
+      "registrationAnchorSource": [
+        647.5,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        19,
+        43,
+        236,
+        235
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:heather",
+      "cell": 5,
+      "sourceBounds": [
+        863,
+        405,
+        1295,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        432,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          863,
+          405,
+          1295,
+          795
+        ],
+        "transparentFraction": 0.38808167141500477
+      },
+      "registrationAnchorSource": [
+        1079.0,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        22,
+        44,
+        230,
+        233
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:shrubs",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        795,
+        432,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        432,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          0,
+          795,
+          432,
+          1214
+        ],
+        "transparentFraction": 0.290384955361089
+      },
+      "registrationAnchorSource": [
+        216.0,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        21,
+        20,
+        237,
+        231
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:reeds",
+      "cell": 7,
+      "sourceBounds": [
+        432,
+        795,
+        863,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        431,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          432,
+          795,
+          863,
+          1214
+        ],
+        "transparentFraction": 0.34744641146470717
+      },
+      "registrationAnchorSource": [
+        647.5,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        23,
+        22,
+        236,
+        231
+      ]
+    },
+    {
+      "id": "nature-ground-taiga:marsh",
+      "cell": 8,
+      "sourceBounds": [
+        863,
+        795,
+        1295,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        432,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
+      ],
+      "normalization": {
+        "originalSize": [
+          1295,
+          1214
+        ],
+        "sourceBounds": [
+          863,
+          795,
+          1295,
+          1214
+        ],
+        "transparentFraction": 0.36398943693096436
+      },
+      "registrationAnchorSource": [
+        1079.0,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        16,
+        27,
+        232,
+        229
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-ground-taiga",
+    "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, temperate sage/olive with restrained flower colours palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. Moderately dense natural patch, irregular open edges and visible spaces through foliage; groups occupy no more than60% of a5m ground patch. Do not make a filled rounded hedge. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: wildflowers; 2: bluebells; 3: ferns; 4: grass-tufts; 5: berry-bushes; 6: heather; 7: shrubs; 8: reeds; 9: marsh.",
+    "kind": "ground",
+    "heights": null,
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-ground-taiga:wildflowers",
+      "nature-ground-taiga:bluebells",
+      "nature-ground-taiga:ferns",
+      "nature-ground-taiga:grass-tufts",
+      "nature-ground-taiga:berry-bushes",
+      "nature-ground-taiga:heather",
+      "nature-ground-taiga:shrubs",
+      "nature-ground-taiga:reeds",
+      "nature-ground-taiga:marsh"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "gridCells": true
+  }
+}

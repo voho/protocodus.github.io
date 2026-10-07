@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "4b123476b7c11702fb391e22cea76242a0efd8d8cddd6b86ab100f4603f18dc6",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "city-retail-variety",
+    "output": "/tmp/transport-fresh-buildings/city-retail-variety/packed",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "4b123476b7c11702fb391e22cea76242a0efd8d8cddd6b86ab100f4603f18dc6",
+    "groundRegistrationApplied": true,
+    "physicalReview": "All occupied sprites measured and accepted; actual generated source evidence retained."
+  },
+  "reviewStatus": "All occupied sprites measured; actual ground axes, centre and observable personnel doors accepted.",
+  "heightCorrection": null,
+  "doorScaleCorrection": "door-scale-correction/assembly-recipe.json"
+}

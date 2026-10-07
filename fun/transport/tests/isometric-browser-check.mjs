@@ -102,7 +102,7 @@ try {
           const order = [];
           c.drawImage = function(image, ...args) {
             // Vehicles draw from prepared canvases that name their frame.
-            if (image?.vehicleFrame || image instanceof HTMLImageElement && image.src.includes('/vehicle-bus-dimetric-v2/')) order.push('vehicle');
+            if (image?.vehicleFrame || image instanceof HTMLImageElement && image.src.includes('/vehicle-bus-regenerated-v3/')) order.push('vehicle');
             if (image instanceof HTMLCanvasElement && args.length === 4 && args[2] === 48 * span && args[3] === 48 * span + 12) order.push(span === 1 ? 'building' : 'industry');
             return original.call(this, image, ...args);
           };

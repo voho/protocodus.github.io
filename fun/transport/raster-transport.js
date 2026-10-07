@@ -3,46 +3,31 @@ import { drawDirectionalVehicle, vehicleHeadingIndex, vehicleFrameAngle, VEHICLE
 import { projectedGroundBasis } from './isometric.js';
 import { createSpriteCache } from './sprite-cache.js';
 import { drawRailSurface, drawRailPortrait } from './rail-surface-art.js';
+import { drawRoadSurface, drawRoadPortrait } from './road-surface-art.js';
+import { drawIsometricInfrastructure } from './isometric-infrastructure.js';
 
-registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',maxCell:256,entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
-registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
-registerAtlas({id:'city-ground-v3',path:'./assets/world/city-ground-v3/atlas',maxCell:512,entries:['ground:road','ground:rail','ground:road-bridge','ground:rail-bridge','ground:road-junction','ground:rail-junction','zone:residential','zone:commercial','zone:industrial']});
-registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
+registerAtlas({id:'vehicles',path:'./assets/world/vehicles-regenerated-v3/atlas',maxCell:256,entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
+registerAtlas({id:'cargo',path:'./assets/world/cargo-regenerated-v3/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
 export const hasRasterTransport=kind=>atlasAvailable(kind);
-export const hasRasterNetwork=kind=>kind==='rail'||kind==='rail-bridge'||atlasAvailable('ground:'+kind)||atlasAvailable('infra:'+kind);
-export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>kind==='rail'||kind==='rail-bridge'?drawRailPortrait(c,kind,x,y,w,h):drawAtlas(c,'infra:'+kind,x,y,w,h,{pixelScale});
-export const drawRasterZone=(c,zone,x,y,size,pixelScale=1)=>drawAtlas(c,'zone:'+zone,x,y,size,size,{pixelScale});
+export const hasRasterNetwork=kind=>['road','road-bridge','rail','rail-bridge'].includes(kind);
+export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>kind==='rail'||kind==='rail-bridge'?drawRailPortrait(c,kind,x,y,w,h):kind==='road'||kind==='road-bridge'?drawRoadPortrait(c,kind,x,y,w,h):drawIsometricInfrastructure(c,kind,x,y,w,h,pixelScale);
+export function drawRasterZone(c,zone,x,y,size){
+  const colors={residential:'#91a77a',commercial:'#769493',industrial:'#c2a269'};
+  if(!colors[zone])return false;c.save();c.translate(x,y);c.scale(size/32,size/32);
+  c.strokeStyle=colors[zone];c.lineWidth=1.4;
+  // Corner survey marks leave the underlying climate texture completely clear.
+  c.beginPath();for(const [u,v,sx,sy]of [[3,3,1,1],[29,3,-1,1],[29,29,-1,-1],[3,29,1,-1]]){c.moveTo(u+sx*5,v);c.lineTo(u,v);c.lineTo(u,v+sy*5);}c.stroke();c.restore();return true;
+}
 
-// The authored road tiles run north/south. Compose their textured arms for
-// bends and junctions too, retaining the renderer's connected bed beneath the
-// transparent edges. Wedges meet at the tile center without painting a road
-// into a direction that is not connected.
+// Connected surfaces are authored in the terrain plane and projected exactly
+// once by the renderer. All curves, bridges and junctions share the same scale.
 export function drawRasterNetwork(c,kind,cx,cy,arms,pixelScale=1,detailLevel='town'){
   if(!arms.length)return false;
-  // Network geometry and the gray material stay identical before/after the
-  // legacy infrastructure atlases load, including prepared ground and decks.
+  // Network geometry and its material palette are independent of raster
+  // availability, including prepared ground and bridge decks.
   if(kind==='rail'||kind==='rail-bridge')return drawRailSurface(c,cx,cy,arms,{detailLevel});
-  const bridge=kind.endsWith('-bridge'),fresh=atlasAvailable('ground:'+kind),width=fresh?(bridge?40:44):bridge?32:44;
-  const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
-  c.save();c.beginPath();c.rect(cx-16,cy-16,32,32);c.clip();c.translate(cx,cy);
-  const drawStrip=()=>drawAtlas(c,'ground:'+kind,-width/2,-18,width,36,{pixelScale})||drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale);
-  let painted=false;
-  if(straight){
-    if(arms[0][0]!==0)c.rotate(Math.PI/2);
-    painted=drawStrip();
-  }else for(const [dx,dy]of arms){
-    c.save();c.rotate(Math.atan2(dy,dx)+Math.PI/2);
-    c.beginPath();c.moveTo(0,0);c.lineTo(-16,-16);c.lineTo(16,-16);c.closePath();c.clip();
-    painted=drawStrip()||painted;
-    c.restore();
-  }
-  // Junctions keep their connected silhouette, while a small unmarked material
-  // patch prevents the center dashes of several arms from piling up together.
-  if(fresh&&!straight&&kind==='road'){
-    c.save();c.beginPath();c.arc(0,0,5.5,0,Math.PI*2);c.clip();
-    drawAtlas(c,'ground:road-junction',-16,-16,32,32,{pixelScale});c.restore();
-  }
-  c.restore();return painted;
+  if(kind==='road'||kind==='road-bridge')return drawRoadSurface(c,cx,cy,arms,{bridge:kind==='road-bridge',detailLevel:typeof detailLevel==='string'?detailLevel:detailLevel.detailLevel});
+  return false;
 }
 
 function upright(c,heading){
@@ -56,16 +41,32 @@ function upright(c,heading){
 function payload(c,cargo,fraction,ship=false,pixelScale=1){
   if(!fraction)return;
   const count=Math.min(3,Math.ceil(fraction*3)),timber=['timber','lumber'].includes(cargo),bulk=['coal','iron','copper','stone','sand','grain','cement'].includes(cargo);
-  const colors={coal:'#424845',iron:'#b47857',copper:'#b27b4d',stone:'#aaa79b',sand:'#d8bc7f',grain:'#ddc177',steel:'#95abb0',glass:'#8bbbb7',food:'#86a25b',fish:'#81a8af',goods:'#aa8199',wire:'#bc8b5d',cement:'#c7c3ab',milk:'#d8e5e7',produce:'#b4c87a',livestock:'#bca185'};
   const scale=ship?1.7:1;c.save();c.scale(scale,scale);
   const material=timber?'timber':['oil','fuel','milk'].includes(cargo)?'barrels':cargo==='coal'?'coal':['iron','copper','stone','sand','cement'].includes(cargo)?'ore':cargo==='grain'?'grain':['steel','wire','machinery'].includes(cargo)?'steel':cargo==='glass'?'glass':cargo==='fish'?'fish':'crates';
   if(drawAtlas(c,'cargo:'+material,-5.5,-2.7,3.5+count*1.5,5,{pixelScale:pixelScale*scale})){c.restore();return;}
+  // Fresh recovery artwork is authored in the same deck plane as the PNGs.
+  // The caller supplies projection once; these marks never turn a second time.
+  const palette={coal:'#48534e',ore:'#a68f70',grain:'#d0b57b',steel:'#81968e',glass:'#8eb3ab',fish:'#b4c5b8',barrels:'#909b83',crates:'#b6956b'};
+  const oval=(x,y,rx,ry,color)=>{c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
   for(let n=0;n<count;n++){
-    const x=-5+n*2.4;c.fillStyle=colors[cargo]||'#b18f61';
-    if(timber){c.fillStyle='#926e43';c.fillRect(-5,-2.8+n*1.7,7,1.3);c.fillStyle='#dfbd86';c.fillRect(1,-2.8+n*1.7,.8,1.3);}
-    else if(bulk){c.beginPath();c.moveTo(x-1,2);c.lineTo(x-1.1,-1);c.lineTo(x+.8,-2.3);c.lineTo(x+2,1.4);c.closePath();c.fill();}
-    else if(cargo==='oil'||cargo==='fuel'||cargo==='milk'){c.fillStyle=cargo==='oil'?'#7e8988':cargo==='milk'?'#d8e5e7':'#c2b079';c.fillRect(x,-2,1.7,4);c.fillStyle='#d8d7b9';c.fillRect(x,-2,1.7,.7);}
-    else{c.fillRect(x,-2.3,2,4.6);c.fillStyle='#eee0bb70';c.fillRect(x,-2.3,2,.7);c.fillStyle='#534e474a';c.fillRect(x+1.6,-1.6,.4,3.9);}
+    const x=-4.4+n*2.8,color=palette[material];
+    if(timber){
+      const y=-2.3+n*1.6;c.fillStyle='#66716080';c.fillRect(-4.8,y+.4,8.2,1.2);
+      c.fillStyle='#9e805c';c.fillRect(-5,y,8,1.1);oval(3,y+.55,.45,.55,'#d4bc88');
+      c.fillStyle='#c3a477';c.fillRect(-4.8,y,7.6,.28);
+    }else if(bulk){
+      oval(x+.25,.45,1.7,2.15,'#56625760');oval(x,0,1.6,2.1,color);
+      oval(x-.35,-.55,.75,1.15,material==='coal'?'#627064':material==='grain'?'#e0c997':'#c0ab87');
+    }else if(material==='barrels'){
+      oval(x+.3,.3,1.12,2.15,'#465b5060');oval(x,0,1.1,2.1,color);
+      c.strokeStyle='#c8c9aa';c.lineWidth=.35;c.beginPath();c.ellipse(x,0,.8,1.7,0,0,Math.PI*2);c.stroke();
+      oval(x-.25,-.8,.22,.3,'#52665b');
+    }else{
+      c.fillStyle='#495e5260';c.fillRect(x-.85,-1.85,2.4,4.3);
+      c.fillStyle=color;c.fillRect(x-1.1,-2.15,2.25,4.15);
+      c.fillStyle='#e0d7b080';c.fillRect(x-.9,-1.95,1.85,.45);
+      c.fillStyle='#637465';c.fillRect(x-.15,-2.15,.35,4.15);
+    }
   }
   c.restore();
 }

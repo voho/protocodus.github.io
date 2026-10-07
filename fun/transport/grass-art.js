@@ -31,11 +31,11 @@ function grainSurface(p, variant) {
     pixels.data[i+3]=Math.round((roll<.42?32:20)+r()*(roll<.42?48:42));
   }
   c.putImageData(pixels,0,0);c.scale(GRAIN_SIZE/TILE,GRAIN_SIZE/TILE);
-  // Coarser broken soil/moss grains survive the regional downscale, while the
-  // dense fine pores remain visible when approaching the meadow.
-  for(let n=0;n<128;n++){
+  // Sparse soil/moss flecks suggest the surface without competing with the
+  // broad moisture colors, vegetation sprites or directional slope lighting.
+  for(let n=0;n<48;n++){
     const x=r()*TILE,y=r()*TILE,w=.3+r()*.85,h=.22+r()*.62;
-    c.fillStyle=n%5===0?p.earth:n%2?p.blade:p.shade;c.globalAlpha=.16+r()*.22;
+    c.fillStyle=n%5===0?p.earth:n%2?p.blade:p.shade;c.globalAlpha=.08+r()*.1;
     c.fillRect(x,y,w,h);
     if(n%4===0)c.fillRect(x+w*.55,y+h*.6,w*.45,h*.65);
   }
@@ -78,7 +78,7 @@ export function paintGrassGround(c, bounds, tile, biome, seed, profile) {
     const x=(gx*2+r()*2)*TILE,y=(gy*2+r()*2)*TILE;
     if(!grassy(tile(Math.floor(x/TILE),Math.floor(y/TILE))))continue;
     const radius=7+r()*13,color=r()>.48?p.moss:p.shade;
-    c.globalAlpha=regional?.06:.14;c.drawImage(mottle(color),x-radius,y-radius,radius*2,radius*2);
+    c.globalAlpha=regional?.04:.08;c.drawImage(mottle(color),x-radius,y-radius,radius*2,radius*2);
   }
   const grainMasks=new Map();
   for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
@@ -97,7 +97,7 @@ export function paintGrassGround(c, bounds, tile, biome, seed, profile) {
   for(const [key,mask]of grainMasks){
     const pattern=c.createPattern(grainSurface(p,Math.floor(key/3)),'repeat');
     pattern.setTransform({a:TILE/GRAIN_SIZE,d:TILE/GRAIN_SIZE});
-    c.fillStyle=pattern;c.globalAlpha=(regional?.72:.92)*[.83,.97,.7][key%3];c.fill(mask);
+    c.fillStyle=pattern;c.globalAlpha=(regional?.18:profile==='town'?.30:.38)*[.83,.97,.7][key%3];c.fill(mask);
   }
   c.imageSmoothingEnabled=smoothing;
   for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){
@@ -114,7 +114,7 @@ export function paintGrassGround(c, bounds, tile, biome, seed, profile) {
     for(let n=0;n<24;n++){
       const xx=px+((n%6)+.1+r()*.8)*TILE/6,yy=py+(Math.floor(n/6)+.1+r()*.8)*8;
       const length=n%5===0?2.3+r()*2.2:1.4+r()*1.6,size=forest?.65:1,lean=(r()-.5)*.75,roll=r();
-      if(profile==='town'&&n%3===0||roll>.48+meadow*.42)continue;
+      if(profile==='town'&&n%3===0||roll>.24+meadow*.24)continue;
       const blades=roll<.22?3:2;
       for(let j=0;j<blades;j++){
         const angle=-Math.PI*.6+(j-(blades-1)/2)*.72+lean,l=length*size*(.72+r()*.6);
@@ -133,10 +133,10 @@ export function paintGrassGround(c, bounds, tile, biome, seed, profile) {
         grain(flowers,xx+1.3,yy+.65,.3,.25);
       }
     }
-    c.fillStyle=p.shade;c.globalAlpha=forest?.38:.48;c.fill(shade);
-    c.fillStyle=p.blade;c.globalAlpha=forest?.36:.56;c.fill(light);
-    c.fillStyle=p.earth;c.globalAlpha=.24;c.fill(earth);
-    c.fillStyle=p.bloom;c.globalAlpha=.56;c.fill(flowers);
+    c.fillStyle=p.shade;c.globalAlpha=forest?.18:.23;c.fill(shade);
+    c.fillStyle=p.blade;c.globalAlpha=forest?.18:.28;c.fill(light);
+    c.fillStyle=p.earth;c.globalAlpha=.12;c.fill(earth);
+    c.fillStyle=p.bloom;c.globalAlpha=.35;c.fill(flowers);
   }
   c.restore();
 }

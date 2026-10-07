@@ -20,7 +20,7 @@ const ORIGINAL_GROUND_KINDS = {
   tundra: ['arctic-poppies','cotton-grass','heather','lichen','willow-scrub','tundra-grass','shrubs','reeds','marsh'],
   desert: ['cactus','agave','prickly-pear','aloe','desert-flowers','dry-grass','scrub','reeds','saltflat'],
 };
-const GROUND_KINDS = {...ORIGINAL_GROUND_KINDS,desert:[...ORIGINAL_GROUND_KINDS.desert,...CACTUS_ART.map(plant=>plant.id)]};
+const GROUND_KINDS = Object.fromEntries(Object.entries(ORIGINAL_GROUND_KINDS).map(([biome,kinds])=>[biome,[...kinds,...kinds.map(kind=>`${kind}-sparse`),...(biome==='desert'?CACTUS_ART.map(plant=>plant.id):[])]]));
 const MOUNTAINS = ['granite-ridge','wooded-foothill','granite-peak','ice-peak','glacier','frost-ridge','mesa','butte','canyon'];
 const RELIEF_NEIGHBORS = {
   'granite-ridge': ['granite-peak','wooded-foothill'], 'wooded-foothill': ['granite-ridge','granite-peak'],
@@ -52,6 +52,7 @@ for (const [biome, kinds] of Object.entries(ORIGINAL_TREE_KINDS)) {
 for (const [biome, kinds] of Object.entries(ORIGINAL_GROUND_KINDS)) {
   const id = `nature-ground-${biome}`;
   registerAtlas({ id, path: `./assets/world/${id}/atlas`, biome, columns: 3, rows: 3, entries: kinds.map(kind => `${id}:${kind}`) });
+  registerAtlas({ id:`${id}-sparse`, path:`./assets/world/${id}/sparse/atlas`, biome, columns:3, rows:3, entries:kinds.map(kind=>`${id}:${kind}-sparse`) });
 }
 registerAtlas({id:'nature-ground-desert-cacti',path:'./assets/world/nature-ground-desert/cacti/atlas',biome:'desert',columns:3,rows:3,maxCell:256,entries:CACTUS_IDS});
 registerAtlas({ id: 'nature-mountains', path: './assets/world/nature-mountains/atlas', columns: 3, rows: 3, maxCell: 1024, entries: MOUNTAINS.map(kind => `nature-mountains:${kind}`) });
@@ -118,7 +119,7 @@ export function rasterCactusIdentity(detail='cactus',variant=0) {
   const choice=artworkChoice(seedFor('desert',detail,variant));
   return choice%3?CACTUS_IDS[Math.floor(choice/3)%CACTUS_IDS.length]:`nature-ground-desert:${detail}`;
 }
-export const nativeNatureDetail=detail=>CACTUS_IDS_BY_KIND[detail]?'cactus':detail;
+export const nativeNatureDetail=detail=>CACTUS_IDS_BY_KIND[detail]?'cactus':detail?.replace(/-sparse$/,'');
 export function drawNativeHollowTree(c,detail,biome='tundra',variant=0,profile='town') {
   const art=HOLLOW_TREE_BY_KIND[detail];if(!art)return false;
   const tree={x:16,y:27,size:TREE_ART_SCALE.nominalSpriteSize*art.heightMetres/TREE_ART_SCALE.nominalReferenceHeightMetres,species:detail.slice(7),bare:true,seed:seedFor(biome,detail,variant)>>>0};
@@ -144,10 +145,18 @@ function groundID(detail, biome, variant = 0) {
   return null;
 }
 
+// Sparse artwork is a distinct authored patch with open ground between clumps.
+// Stable seed selection changes only rendering; no saved terrain is rewritten.
+export function rasterGroundIdentity(detail, biome='taiga', variant=0) {
+  const id=groundID(detail,biome,variant);
+  if(!id||id!==`nature-ground-${biome}:${detail}`||detail.endsWith('-sparse')||!ORIGINAL_GROUND_KINDS[biome]?.includes(detail)||wrap(variant)===0)return id;
+  return artworkChoice(seedFor(biome,`${detail}-density`,variant))%3!==0?`${id}-sparse`:id;
+}
+
 // The footprint grows along the ground axes. Tree height remains a mature-tree
 // height instead of stretching a one-tile grove into a tower of foliage.
 export function natureObjectLayout(footprint) {
-  const span = clamp(Math.floor(footprint) || 2, 2, 3);
+  const span = clamp(Math.floor(footprint) || 2, 2, 6);
   return { width: 64 * span, height: 64 * span, anchorX: 32 * span, anchorY: 48 * span };
 }
 
@@ -228,7 +237,7 @@ export function drawRasterTreeShadows(c,{biome='taiga',detail='',variant=0,densi
 
 export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1) {
   if (!TREE_KINDS[biome]) biome = 'taiga';
-  const span = clamp(Math.floor(footprint) || 2, 2, 3), v = wrap(variant), layout = natureObjectLayout(span);
+  const span = clamp(Math.floor(footprint) || 2, 2, kind === 'forest' ? 3 : 6), v = wrap(variant), layout = natureObjectLayout(span);
   if(kind==='forest'){
     const trees=rasterForestComposition(biome,rawDetail,v,{footprint:span});
     if(!trees.every(tree=>atlasAvailable(rasterTreeIdentity(tree,biome))))return false;
@@ -248,7 +257,7 @@ export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footp
     id = `nature-rocks:${rock}`;
   } else return false;
   const size = (kind === 'mountain' ? 60 : 56) * span;
-  return drawAtlas(c, id, layout.anchorX - size / 2, layout.anchorY + 14 * span - size, size, size, { pixelScale, flipX: v % 2 === 1 });
+  return drawAtlas(c, id, layout.anchorX - size / 2, layout.anchorY + 14 * span - size, size, size, { pixelScale });
 }
 
 export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1, { density = 1 } = {}) {
@@ -280,15 +289,16 @@ export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', varia
     // Mixed outcrops and uneven baselines break the repeated peak-per-tile
     // silhouette while preserving the terrain's principal geological identity.
     const paired = r() < .52, width = 20 + r() * 11;
-    const pieces = [{ id, width, height: width * (.88 + r() * .1), left: .5 + (31 - width) * r(), bottom: 25 + r() * 6, flip: r() < .5 }];
+    r(); // Retain the published placement sequence; artwork keeps its aspect ratio.
+    const pieces = [{ id, width, height: width, left: .5 + (31 - width) * r(), bottom: 25 + r() * 6, flip: r() < .5 }];
     if (paired) {
       const neighbors = RELIEF_NEIGHBORS[mountain], companion = neighbors[Math.floor(r() * neighbors.length)];
       const width = 10 + r() * 8;
-      pieces.push({ id: `nature-mountains:${companion}`, width, height: width * .9,
+      pieces.push({ id: `nature-mountains:${companion}`, width, height: width,
         left: .5 + (31 - width) * r(), bottom: 23 + r() * 8, flip: r() < .5 });
     }
     for (const piece of pieces.sort((a, b) => a.bottom - b.bottom)) {
-      drawAtlas(c, piece.id, piece.left, Math.max(-7.3, piece.bottom - piece.height), piece.width, piece.height, { pixelScale, flipX: piece.flip });
+      drawAtlas(c, piece.id, piece.left, Math.max(-7.3, piece.bottom - piece.height), piece.width, piece.height, { pixelScale });
     }
     // The bare variant uses the very same rocky hill without the optional trees.
     if (rawDetail === 'wooded-foothill') for (let i = 0; i < 1 + v % 3; i++) {
@@ -317,11 +327,12 @@ export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', varia
     return true;
   }
   if (kind !== 'terrain-detail' || !detail) return false;
-  const id = groundID(detail, biome, v);
+  const id = rasterGroundIdentity(detail, biome, v);
   if (!id || !atlasAvailable(id)) return false;
   const cactus=CACTUS_ID_SET.has(id);
   const flat = ['ice','snow','dunes','saltflat','canyon','lichen','marsh'].includes(detail);
-  const count = flat ? 1 + v % 2 : 1 + v % 3;
+  const sparse = id.endsWith('-sparse');
+  const count = sparse ? 1 : flat ? 1 + v % 2 : 1 + v % 3;
   const plants = Array.from({ length: count }, () => {
     const originalSize=flat?14+r()*11:detail==='deadwood'?10+r()*8:7+r()*9;
     return {size:cactus?CACTUS_ART_SCALE.nominalSpriteSize:originalSize,x:4+r()*24,y:8+r()*22};

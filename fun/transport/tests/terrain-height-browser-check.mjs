@@ -14,10 +14,10 @@ try{
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base);
   await createWorldFromMenu(page,{size:'square512',generationVersion:10});
-  assert.equal(await page.locator('#terrain-height').inputValue(),'24');
+  assert.equal(await page.locator('#terrain-height').inputValue(),'12');
   assert.deepEqual(await page.locator('#terrain-height option').allTextContents(),['Flat','Gentle','Normal','Steep']);
   const before=await page.evaluate(()=>JSON.stringify(transport.game));
-  for(const step of[0,12,24,28]){
+  for(const step of[0,6,12,14]){
     await page.getByLabel('Terrain height',{exact:true}).selectOption(String(step));
     assert.equal(await page.evaluate(()=>transport.renderer.getStats().heightStep),step);
     assert.equal(await page.evaluate(()=>JSON.stringify(transport.game)),before,'relief controls never mutate the world');
@@ -38,8 +38,8 @@ try{
   await page.setViewportSize({width:1280,height:900});await page.screenshot({path:`${output}/desktop-control.png`});
   await page.evaluate(()=>transport.persist());
   await page.reload();await loadAutosaveFromMenu(page);
-  assert.equal(await page.locator('#terrain-height').inputValue(),'28','the chosen view survives a reload');
-  assert.equal(await page.evaluate(()=>transport.renderer.getTerrainHeight()),28);
+  assert.equal(await page.locator('#terrain-height').inputValue(),'14','the chosen view survives a reload');
+  assert.equal(await page.evaluate(()=>transport.renderer.getTerrainHeight()),14);
   await page.close();
 
   for(const dpr of[1,2]){
@@ -48,7 +48,7 @@ try{
     await fixture.route('**/terrain-height-qa',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><style>body{margin:0}canvas{display:block;width:1100px;height:800px}#other{display:none}</style><canvas></canvas><canvas id="other"></canvas>'}));
     await fixture.goto(new URL('terrain-height-qa',base).href);
     await fixture.evaluate(async()=>{
-      const {createGame}=await import('./model.js'),{createRenderer}=await import('./renderer.js'),geometry=await import('./terrain-geometry.js'),{preloadWorldArt}=await import('./atlas-runtime.js'),{preloadHouses}=await import('./raster-houses.js');
+      const {SPRITE_SCALE}=await import('./sprite-art-direction.js'),{createGame}=await import('./model.js'),{createRenderer}=await import('./renderer.js'),geometry=await import('./terrain-geometry.js'),{preloadWorldArt}=await import('./atlas-runtime.js'),{preloadHouses}=await import('./raster-houses.js');
       await Promise.all([preloadWorldArt({waitMs:12000}),preloadHouses({biome:'taiga',waitMs:12000})]);
       const original=createGame({size:'regional',seed:1847,generationVersion:10}),game={...original,width:64,height:64,day:0,revision:1,networkRevision:1};
       for(const key of['cities','industries','stations','routes','vehicles','zones'])game[key]=[];
@@ -59,12 +59,12 @@ try{
       game.routes=[{id:'qa-road',mode:'road',cargo:'grain',active:true,stops:[],path,color:'#cb6b36',number:1}];
       game.vehicles=[{id:'qa-truck',routeId:'qa-road',x:25,y:20,angle:0,progress:5,load:0,capacity:20,level:1}];
       const layers={trees:false,zones:false,names:false,industryIcons:false,stations:false,vehicleLoads:false,weather:false,grid:true,roads:true,rails:true,buildings:true,vehicles:true,routes:true};
-      const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers,sceneryBatching:false}),other=createRenderer(document.querySelector('#other'),game,{layers,heightStep:12,sceneryBatching:false});
-      window.heightQA={game,canvas,renderer,other,geometry,before:JSON.stringify(game)};
+      const canvas=document.querySelector('canvas'),renderer=createRenderer(canvas,game,{layers,sceneryBatching:false}),other=createRenderer(document.querySelector('#other'),game,{layers,heightStep:6,sceneryBatching:false});
+      window.heightQA={game,canvas,renderer,other,geometry,frame:SPRITE_SCALE.billboardPixelsPerTile,before:JSON.stringify(game)};
     });
-    for(const zoom of[.5,1,2])for(const step of[24,0,12,28]){
+    for(const zoom of[.5,1,2])for(const step of[12,0,6,14]){
       const result=await fixture.evaluate(({zoom,step,dpr})=>{
-        const {game:g,canvas,renderer:r,other,geometry:k,before}=heightQA,rect=canvas.getBoundingClientRect(),c=canvas.getContext('2d');
+        const {game:g,canvas,renderer:r,other,geometry:k,frame,before}=heightQA,rect=canvas.getBoundingClientRect(),c=canvas.getContext('2d');
         r.setZoom(zoom);r.focus(40.5,32.5);r.pan(31,-17);
         const centerBefore=r.screenToTile(rect.left+550,rect.top+400),oldComposed=r.getStats().composedChunks;
         r.setTerrainHeight(step);
@@ -76,7 +76,7 @@ try{
         c.drawImage=function(image,...args){
           const m=this.getTransform();
           if(image.vehicleFrame?.kind==='truck')capturedTruck={x:m.e/dpr,y:m.f/dpr};
-          if(args.length===4&&args[2]===96&&args[3]===108)buildings.push({x:(m.a*args[0]+m.c*args[1]+m.e)/dpr,y:(m.b*args[0]+m.d*args[1]+m.f)/dpr});
+          if(args.length===4&&args[2]===frame*2&&args[3]===frame*2.25)buildings.push({x:(m.a*args[0]+m.c*args[1]+m.e)/dpr,y:(m.b*args[0]+m.d*args[1]+m.f)/dpr});
           return original.call(this,image,...args);
         };
         try{r.render(0,{settle:true,showRoutes:false});}finally{c.drawImage=original;}
@@ -85,10 +85,10 @@ try{
         const withRoad=c.getImageData(0,0,canvas.width,canvas.height).data;
         r.setLayers({roads:false});r.render(0,{settle:true,showRoutes:false});const withoutRoad=c.getImageData(0,0,canvas.width,canvas.height).data;
         let roadInk=0;const road=r.worldToScreen(30,20);for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const i=((Math.round(road.y*dpr)+dy)*canvas.width+Math.round(road.x*dpr)+dx)*4;roadInk=Math.max(roadInk,Math.abs(withRoad[i]-withoutRoad[i])+Math.abs(withRoad[i+1]-withoutRoad[i+1])+Math.abs(withRoad[i+2]-withoutRoad[i+2]));}
-        r.setLayers({roads:true});r.focus(40.5,32.5);buildings=[];c.drawImage=function(image,...args){const m=this.getTransform();if(args.length===4&&args[2]===96&&args[3]===108)buildings.push({x:(m.a*args[0]+m.c*args[1]+m.e)/dpr,y:(m.b*args[0]+m.d*args[1]+m.f)/dpr});return original.call(this,image,...args);};
+        r.setLayers({roads:true});r.focus(40.5,32.5);buildings=[];c.drawImage=function(image,...args){const m=this.getTransform();if(args.length===4&&args[2]===frame*2&&args[3]===frame*2.25)buildings.push({x:(m.a*args[0]+m.c*args[1]+m.e)/dpr,y:(m.b*args[0]+m.d*args[1]+m.f)/dpr});return original.call(this,image,...args);};
         try{r.render(0,{settle:true});}finally{c.drawImage=original;}
         const anchor=r.worldToScreen(40.5,32.5),foundationLevel=Math.max(...[40,41,42].flatMap(x=>[32,33,34].map(y=>k.surfaceHeight(g,x,y))));
-        const expectedBuilding={x:anchor.x-48*zoom,y:anchor.y+(k.surfaceHeight(g,41,33)-foundationLevel)*step*zoom-84*zoom};
+        const expectedBuilding={x:anchor.x-frame*zoom,y:anchor.y+(k.surfaceHeight(g,41,33)-foundationLevel)*step*zoom-frame*1.75*zoom};
         const routeBuilds=r.getStats().routePathBuilds,warm=r.getStats().composedChunks;r.render(0,{settle:true});
         return{dpr,zoom,step,centerBefore,centerAfter,checks,bridgePick,vehiclePick,capturedTruck,vehicle,roadInk,buildings,expectedBuilding,routeBuilds,routeWarm:r.getStats().routePathBuilds-routeBuilds,warmRebuilds:r.getStats().composedChunks-warm,composed:r.getStats().composedChunks-oldComposed,otherHeight:other.getTerrainHeight(),unchanged:JSON.stringify(g)===before};
       },{zoom,step,dpr});profiles.push(result);
@@ -99,7 +99,7 @@ try{
       assert.ok(result.capturedTruck,'the rendered truck is present');close(result.capturedTruck.x,result.vehicle.x,'vehicle x');close(result.capturedTruck.y,result.vehicle.y,'vehicle y follows its deck');
       assert.ok(result.roadInk>4,`the road follows its projected ground centre (${dpr} DPR, ${zoom} zoom, ${step}px relief)`);
       assert.ok(result.buildings.some(p=>Math.abs(p.x-result.expectedBuilding.x)<1.1&&Math.abs(p.y-result.expectedBuilding.y)<1.1),'building anchor follows the top of its stone foundation');
-      assert.equal(result.otherHeight,12,'another renderer keeps its independent relief');assert.equal(result.unchanged,true);
+      assert.equal(result.otherHeight,6,'another renderer keeps its independent relief');assert.equal(result.unchanged,true);
       assert.equal(result.warmRebuilds,0);assert.equal(result.routeWarm,0);
       if(zoom===1)await fixture.locator('canvas').first().screenshot({path:`${output}/relief-${step}-dpr${dpr}.png`});
     }

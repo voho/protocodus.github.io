@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/industries-1",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "industry:logging-camp:taiga",
@@ -20,7 +20,7 @@
       "runtimeIds": [
         "industry:logging-camp:taiga"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre timber yard: several modest timber shelters with broad dark roofs, long neat log stacks and a crane. Most parcel area is working yard, not oversized lodge. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -34,7 +34,7 @@
       "runtimeIds": [
         "industry:sawmill:taiga"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre sawmill compound: long low saw halls with broad red roofs, open timber-loading sheds and a few large log stacks. Six distinct modest truck bays. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -50,7 +50,7 @@
         "industry:coal-mine:taiga",
         "industry:coal-mine:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre coal mine: tall clear dark winding tower, two low scale-correct mine workshops, conveyors and a few broad charcoal coal heaps. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -66,7 +66,7 @@
         "industry:iron-mine:taiga",
         "industry:iron-mine:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre iron mine: clear winding tower, ore sorting sheds, brown-red ore heaps and long conveyors. Small ordinary doors. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -82,7 +82,7 @@
         "industry:steel-mill:taiga",
         "industry:steel-mill:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre steel mill: several long red-brick furnace halls, tall broad chimneys and large blast furnaces. Small ordinary doors and repeated loading bays. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -98,7 +98,7 @@
         "industry:farm:taiga",
         "industry:farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "A grain farm with a low barn cluster and one tall silo. For a five-tile site, broad grain fields surround a small central two-tile farmyard; for a two-tile core, ONLY the barn, silo and simple farmyard are shown. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -114,7 +114,7 @@
         "industry:food-plant:taiga",
         "industry:food-plant:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre food processing compound: multiple long low cream halls with broad green roofs, several silver silos and four loading docks. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -128,7 +128,7 @@
       "runtimeIds": [
         "industry:furniture-factory:taiga"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre furniture works: three connected brick production wings with broad slate roofs, simple lumber stock and four loading docks. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -144,7 +144,7 @@
         "industry:machine-works:taiga",
         "industry:machine-works:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "An eighty metre engineering works: multiple long cream halls with broad blue roofs, a crane court, a few large machined metal pieces. Six normal truck-size loading bays. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     }
   ],

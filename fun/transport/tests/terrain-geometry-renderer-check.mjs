@@ -93,11 +93,11 @@ try {
         const grid=strokes.find(s=>s.points.length>100),highlight=strokes.find(s=>s.style===hoverColor&&s.points.length===4),expectedCorners=[[56,50],[57,50],[57,51],[56,51]].map(([u,v])=>r.worldToScreen(u-.5,v-.5));
         const nearest=(points,p)=>Math.min(...points.map(q=>Math.hypot(q.x-p.x,q.y-p.y)));
         const gridError=grid?Math.max(...expectedCorners.map(p=>nearest(grid.points,p))):Infinity;
-        const expectedHighlight=r.worldToScreen(56+.035-.5,50+.035-.5),highlightError=highlight?nearest(highlight.points,expectedHighlight):Infinity;
+        const expectedHighlight=r.gridPointToScreen(56,50),highlightError=highlight?nearest(highlight.points,expectedHighlight):Infinity;
         const chunk=r.getStats().chunkTiles,edit={x:chunk*12,y:chunk*6};g.tiles[edit.y*g.width+edit.x].elevation=3/7;g.revision++;r.focus(edit.x,edit.y);r.render(0);r.render(0);
-        const oldComposed=r.getStats().composedChunks,before=c.getImageData(0,0,canvas.width,canvas.height).data,groundBefore=r.worldToScreen(edit.x,edit.y);
+        const oldComposed=r.getStats().composedChunks,before=c.getImageData(0,0,canvas.width,canvas.height).data,groundBefore=r.worldToScreen(edit.x-.25,edit.y-.25);
         g.tiles[edit.y*g.width+edit.x].elevation=4/7;g.revision++;r.render(0);
-        const after=c.getImageData(0,0,canvas.width,canvas.height).data,groundAfter=r.worldToScreen(edit.x,edit.y),rebuilt=r.getStats().composedChunks-oldComposed;let changedPixels=0;
+        const after=c.getImageData(0,0,canvas.width,canvas.height).data,groundAfter=r.worldToScreen(edit.x-.25,edit.y-.25),rebuilt=r.getStats().composedChunks-oldComposed;let changedPixels=0;
         for(let n=0;n<before.length;n+=4)if(Math.abs(before[n]-after[n])+Math.abs(before[n+1]-after[n+1])+Math.abs(before[n+2]-after[n+2])>6)changedPixels++;
         const warmed=r.getStats().composedChunks;r.render(0);const warmRebuilds=r.getStats().composedChunks-warmed;
         r.focus(0,0);let outside=null;try{outside={picked:r.screenToTile(rect.left+1000,rect.top+20)};}catch(e){outside={error:e.message};}
@@ -109,19 +109,20 @@ try {
           bridgeInk.push(contrast);
         }
         r.focus(56,50);r.render(0,{showGrid:true});const stats=r.getStats();
-        return{zoom,dpr,checks,vertexChecks,pan:{x:panAfter.x-panBefore.x,y:panAfter.y-panBefore.y},anchorError,gridError,highlightError,rebuilt,warmRebuilds,changedPixels,centerShift:groundAfter.y-groundBefore.y,outside,bridgeInk,stats};
+        return{zoom,dpr,checks,vertexChecks,pan:{x:panAfter.x-panBefore.x,y:panAfter.y-panBefore.y},anchorError,gridError,highlightError,rebuilt,warmRebuilds,changedPixels,cornerShift:groundAfter.y-groundBefore.y,outside,bridgeInk,stats};
       }, { zoom, dpr, hoverColor: MAP.hover.color.toLowerCase() });
       profiles.push(result);await page.locator('canvas').screenshot({path:`${output}/controlled-hill-valley-zoom${zoom}-dpr${dpr}.png`});
     }
-    const foundation = await page.evaluate(() => {
+    const foundation = await page.evaluate(async () => {
+      const {SPRITE_SCALE}=await import('./sprite-art-direction.js'),frame=SPRITE_SCALE.billboardPixelsPerTile;
       const q=elevationQA,{game:g,renderer:r,canvas,geometry:k}=q,x=72,y=54,span=3,c=canvas.getContext('2d');
       for(let dy=-2;dy<5;dy++)for(let dx=-2;dx<5;dx++){const t=g.tiles[(y+dy)*g.width+x+dx];t.elevation=3/7;t.terrain='grass';}
       g.tiles[y*g.width+x].building={kind:'stadium',level:1,footprint:span};g.tiles[(y+1)*g.width+x+1].elevation=4/7;g.revision++;r.setLayers({buildings:true});r.setZoom(2);r.focus(x+1,y+1);
       const original=c.drawImage;let imageY;
-      c.drawImage=function(image,...args){if(args.length===4&&args[2]===48*span&&args[3]===48*span+12)imageY=args[1];return original.call(this,image,...args);};
+      c.drawImage=function(image,...args){if(args.length===4&&args[2]===frame*span&&args[3]===frame*(span+.25))imageY=args[1];return original.call(this,image,...args);};
       try{r.render(0);}finally{c.drawImage=original;}
       let maximum=0;for(let dy=0;dy<span;dy++)for(let dx=0;dx<span;dx++)for(const p of [...k.tileSurface(g,x+dx,y+dy).corners,k.tileSurface(g,x+dx,y+dy).center])maximum=Math.max(maximum,p.height);
-      const expected=(x+y+span)*16-maximum*k.HEIGHT_STEP-36*span-12;
+      const expected=(x+y+span)*16-maximum*k.HEIGHT_STEP-frame*(.75*span+.25);
       return{imageY,expected,error:Math.abs(imageY-expected)};
     });
     profiles.push({dpr,foundation});await page.locator('canvas').screenshot({path:`${output}/off-center-foundation-dpr${dpr}.png`});
@@ -177,7 +178,7 @@ try {
     for(const p of profile.checks){assert.deepEqual(p.picked,p.expected,`${profile.zoom}× DPR${profile.dpr} projected picking`);assert.ok(p.focusError<=tolerance);}
     for(const p of profile.vertexChecks)assert.deepEqual(p.picked,p.expected,`${profile.zoom}× DPR${profile.dpr} grid vertex picking`);
     assert.ok(Math.abs(profile.pan.x-73)<=tolerance&&Math.abs(profile.pan.y+41)<=tolerance,JSON.stringify(profile.pan));assert.ok(profile.anchorError<=tolerance);
-    assert.ok(profile.gridError<1e-6);assert.ok(profile.highlightError<1e-6);assert.ok(profile.rebuilt>=4,'raised seam invalidates its neighboring chunks');assert.equal(profile.warmRebuilds,0);assert.ok(profile.changedPixels>0);assert.ok(profile.centerShift<0);assert.equal(profile.outside.error,undefined);assert.ok(profile.bridgeInk.every(c=>c>25),`bridge approach centerline stays painted: ${JSON.stringify({zoom:profile.zoom,dpr:profile.dpr,ink:profile.bridgeInk})}`);
+    assert.ok(profile.gridError<1e-6);assert.ok(profile.highlightError<1e-6);assert.ok(profile.rebuilt>=4,'raised seam invalidates its neighboring chunks');assert.equal(profile.warmRebuilds,0);assert.ok(profile.changedPixels>0);assert.ok(profile.cornerShift<0);assert.equal(profile.outside.error,undefined);assert.ok(profile.bridgeInk.every(c=>c>25),`bridge approach centerline stays painted: ${JSON.stringify({zoom:profile.zoom,dpr:profile.dpr,ink:profile.bridgeInk})}`);
     assert.ok(profile.stats.cacheBytes<=profile.stats.cacheLimit);assert.ok(profile.stats.maxSurfaceWidth<=2048);
   }
   if(!viaductOnly){assert.deepEqual([huge.width,huge.height],[2048,2048]);for(const s of huge.samples){assert.equal(s.warmRebuilds,0);assert.ok(s.cacheBytes<=s.cacheLimit);assert.ok(s.geometry.cachedChunks<=s.geometry.cacheLimit);assert.equal(s.warmGeometryBuilds,0,'warm viewport does not touch remote terrain fields');assert.ok(s.coldGeometryBuilds<64,'only nearby geometry chunks are sampled');}}

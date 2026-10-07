@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "f0abe3a37cc556c3c321f421e89967d4e94ef6f84ffcf354eee88677ac281dda",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "city-civic",
+    "output": "/tmp/transport-house-camera-review/city-civic/packed",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "f0abe3a37cc556c3c321f421e89967d4e94ef6f84ffcf354eee88677ac281dda",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
+  "heightCorrection": null,
+  "sourceCorrectionPrompts": [
+    "door-correction-prompt.txt",
+    "generation-prompt.txt",
+    "door-correction-v2-prompt.txt",
+    "door-correction-v3-prompt.txt"
+  ],
+  "sourceAssembly": null
+}

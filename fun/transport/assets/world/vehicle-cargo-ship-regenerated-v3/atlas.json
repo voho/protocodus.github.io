@@ -1,0 +1,330 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "vehicle:cargo-ship:NW",
+    "vehicle:cargo-ship:N",
+    "vehicle:cargo-ship:NE",
+    "vehicle:cargo-ship:W",
+    null,
+    "vehicle:cargo-ship:E",
+    "vehicle:cargo-ship:SW",
+    "vehicle:cargo-ship:S",
+    "vehicle:cargo-ship:SE"
+  ],
+  "source": "source-registered.png",
+  "sourceSha256": "7f9631675f21f0168b80fdd624a2211e36079a36842e22b928c8b8c19b17505d",
+  "sprites": [
+    {
+      "id": "vehicle:cargo-ship:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        482,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          77,
+          120,
+          394,
+          341
+        ],
+        "rawAlphaBounds": [
+          33,
+          32,
+          434,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.855194
+      },
+      "bounds": [
+        32,
+        61,
+        224,
+        195
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:N",
+      "cell": 1,
+      "sourceBounds": [
+        482,
+        0,
+        964,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          193,
+          106,
+          322,
+          357
+        ],
+        "rawAlphaBounds": [
+          33,
+          1,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.892801
+      },
+      "bounds": [
+        89,
+        52,
+        167,
+        204
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:NE",
+      "cell": 2,
+      "sourceBounds": [
+        964,
+        0,
+        1446,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          116,
+          120,
+          432,
+          341
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          450,
+          434
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.841282
+      },
+      "bounds": [
+        32,
+        61,
+        223,
+        195
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        482,
+        482,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          46,
+          154,
+          430,
+          301
+        ],
+        "rawAlphaBounds": [
+          1,
+          32,
+          436,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.854337
+      },
+      "bounds": [
+        12,
+        83,
+        244,
+        172
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:cargo-ship:E",
+      "cell": 5,
+      "sourceBounds": [
+        964,
+        482,
+        1446,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          89,
+          154,
+          455,
+          301
+        ],
+        "rawAlphaBounds": [
+          53,
+          32,
+          482,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.857402
+      },
+      "bounds": [
+        17,
+        83,
+        238,
+        172
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        964,
+        482,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          82,
+          132,
+          395,
+          369
+        ],
+        "rawAlphaBounds": [
+          32,
+          53,
+          434,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.845552
+      },
+      "bounds": [
+        33,
+        56,
+        222,
+        199
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:S",
+      "cell": 7,
+      "sourceBounds": [
+        482,
+        964,
+        964,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          190,
+          117,
+          323,
+          407
+        ],
+        "rawAlphaBounds": [
+          33,
+          47,
+          450,
+          482
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.877382
+      },
+      "bounds": [
+        88,
+        40,
+        168,
+        215
+      ]
+    },
+    {
+      "id": "vehicle:cargo-ship:SE",
+      "cell": 8,
+      "sourceBounds": [
+        964,
+        964,
+        1446,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          113,
+          125,
+          433,
+          368
+        ],
+        "rawAlphaBounds": [
+          57,
+          51,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.853777
+      },
+      "bounds": [
+        31,
+        54,
+        224,
+        201
+      ]
+    }
+  ],
+  "sharedScale": 0.6041666666666666,
+  "registration": "One uniform family scale, centered per frame; source foreshortening preserved",
+  "mipSharpening": false
+}

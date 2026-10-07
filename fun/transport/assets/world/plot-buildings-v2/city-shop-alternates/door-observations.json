@@ -1,0 +1,100 @@
+[
+  {
+    "id": "civic:shop-hardware:taiga:design-1",
+    "personnelDoorEndpointsSource": [
+      [
+        177,
+        342
+      ],
+      [
+        177,
+        370
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-florist:taiga:design-1",
+    "personnelDoorEndpointsSource": [
+      [
+        129,
+        321
+      ],
+      [
+        129,
+        349
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-grocery:taiga:design-2",
+    "personnelDoorEndpointsSource": [
+      [
+        160,
+        359
+      ],
+      [
+        160,
+        387
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-bakery:taiga:design-2",
+    "personnelDoorEndpointsSource": [
+      [
+        374,
+        262
+      ],
+      [
+        374,
+        297
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-butcher:taiga:design-2",
+    "personnelDoorEndpointsSource": [
+      [
+        148,
+        320
+      ],
+      [
+        148,
+        355
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-hardware:taiga:design-2",
+    "personnelDoorEndpointsSource": [
+      [
+        145,
+        323
+      ],
+      [
+        145,
+        352
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  },
+  {
+    "id": "civic:shop-florist:taiga:design-2",
+    "personnelDoorEndpointsSource": [
+      [
+        225,
+        289
+      ],
+      [
+        225,
+        322
+      ]
+    ],
+    "doorObservationMethod": "Manual final source review of the actual ordinary leaf below fixed transom; both endpoints at identical x; nominal418pxcelllocal. Final florist greenhouse rebuilt with lower walls and roof, its primary shop leaf independently measures32sourcepx."
+  }
+]

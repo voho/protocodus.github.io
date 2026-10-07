@@ -1,0 +1,1 @@
+python3 fun/transport/tools/pack-station-cutouts.py fun/transport/assets/world/isometric-rail-station/generated-source.png fun/transport/assets/world/isometric-rail-station/registration-measurements.json /tmp/repacked-isometric-rail-station

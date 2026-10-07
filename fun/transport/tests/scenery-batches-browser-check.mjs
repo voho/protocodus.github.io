@@ -14,7 +14,18 @@ try {
     await page.evaluate(async()=>{const{createRenderer}=await import('./renderer.js');busyQA.select('forest',1,'day');window.directRenderer=createRenderer(document.querySelector('#direct'),busyQA.game,{sceneryBatching:false});});
     for(const scene of (process.env.TRANSPORT_SCENES||'forest,city,mixed').split(','))for(const zoom of (process.env.TRANSPORT_ZOOMS||'.5,1,2').split(',').map(Number)){
       const result=await page.evaluate(async({scene,zoom})=>{
-        const q=busyQA,direct=directRenderer,condition='day';q.renderer.setLayers({trees:true,buildings:true});q.select(scene,zoom,condition);direct.setGame(q.game);direct.setZoom(zoom);direct.focus(q.point.x,q.point.y);direct.setLayers(q.renderer.getLayers());
+        const q=busyQA,direct=directRenderer,condition='day';q.renderer.setLayers({trees:true,buildings:true});q.select(scene,zoom,condition);
+        // Large calibrated city parcels can leave fewer than four objects in
+        // every strip at Detail/DPR2, correctly using direct drawing. Add a
+        // compact diagonal stand so this fixture always exercises strip reuse
+        // alongside that direct fallback, even at the highest tested density.
+        if(['city','mixed'].includes(scene)&&!q.game.sceneryQAStand){
+          for(const depth of [244,248,252,256,260,264])for(let x=108;x<149;x++){
+            const y=depth-x;q.game.tiles[y*q.game.width+x]={terrain:'forest',elevation:4/7,detail:'mixed',variant:(x+depth)%64};
+          }
+          q.game.sceneryQAStand=true;q.game.revision++;
+        }
+        direct.setGame(q.game);direct.setZoom(zoom);direct.focus(q.point.x,q.point.y);direct.setLayers(q.renderer.getLayers());
         const pair=()=>{q.renderer.render(1000);direct.render(1000);};pair();await new Promise(r=>setTimeout(r,70));pair();
         const compare=stage=>{
           const a=document.querySelector('#batched'),b=document.querySelector('#direct'),aa=a.getContext('2d').getImageData(0,0,a.width,a.height).data,bb=b.getContext('2d').getImageData(0,0,b.width,b.height).data;

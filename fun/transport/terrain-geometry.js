@@ -1,8 +1,9 @@
 import { landHeightLevel, LAND_HEIGHT_LEVELS, TERRAIN_LEVELS } from './terrain-elevation.js';
 import { surfaceChangesSince } from './change-journal.js';
+import { terrainSlopeShape, slopeHeight } from './terrain-slope-shapes.js';
 
 export const TERRAIN_TILE_SIZE = 32;
-export const HEIGHT_STEP = 24;
+export const HEIGHT_STEP = 12;
 export const MAX_VISUAL_HEIGHT = LAND_HEIGHT_LEVELS;
 export const MAX_HEIGHT = MAX_VISUAL_HEIGHT;
 export const TERRAIN_SLOPE_LIMIT = 1;
@@ -80,33 +81,31 @@ function vertexHeight(game, x, y) {
 function heightsForTile(game, x, y) {
   if (x >= 0 && y >= 0 && x + 1 <= game.width && y + 1 <= game.height && x % CHUNK < CHUNK - 1 && y % CHUNK < CHUNK - 1) {
     const cx = Math.floor(x / CHUNK), cy = Math.floor(y / CHUNK), heights = fieldChunk(game, cx, cy), i = (y - cy * CHUNK) * CHUNK + x - cx * CHUNK;
-    return { nw: heights[i], ne: heights[i + 1], se: heights[i + CHUNK + 1], sw: heights[i + CHUNK], center: (heights[i] + heights[i + CHUNK + 1]) / 2 };
+    return { nw: heights[i], ne: heights[i + 1], se: heights[i + CHUNK + 1], sw: heights[i + CHUNK] };
   }
   const nw = vertexHeight(game, x, y), ne = vertexHeight(game, x + 1, y), se = vertexHeight(game, x + 1, y + 1), sw = vertexHeight(game, x, y + 1);
-  return { nw, ne, se, sw, center: (nw + se) / 2 };
+  return { nw, ne, se, sw };
 }
 
-// Every quadrilateral uses the same NW–SE split for painting and picking.
-// Both faces have diagonal derivative hSE-hNW, bounded to one level. Their
-// projected doubled area is 32*(32-HEIGHT_STEP*(hSE-hNW)), strictly positive
-// even at the steepest coast; no view-dependent fold or diagonal switching.
+// Use the same finite corner-shape catalog for painting, anchoring and picking.
+// Canonical corner cuts can climb in both axes, so display relief stays below
+// half the 32px ground half-width. Even the steepest allowed face stays open.
 export function surfaceHeight(game, u, v) {
   u = clamp(u, 0, game.width); v = clamp(v, 0, game.height);
   if (Number.isInteger(u) && Number.isInteger(v)) return vertexHeight(game, u, v);
   const x = Math.min(Math.floor(u), game.width - 1), y = Math.min(Math.floor(v), game.height - 1), a = u - x, b = v - y;
-  if (a === b) return vertexHeight(game, x, y) * (1 - a) + vertexHeight(game, x + 1, y + 1) * a;
   const h = heightsForTile(game, x, y);
-  return a >= b ? h.nw + (h.ne - h.nw) * a + (h.se - h.ne) * b : h.nw + (h.se - h.sw) * a + (h.sw - h.nw) * b;
+  return slopeHeight(h, a, b);
 }
-// A view may choose a height step in 0–28 px. Only projection changes: height
+// A view may choose a height step in 0–14 px. Only projection changes: height
 // continues to hold the original terrain level for engineering and saves.
 export function projectTerrainPoint(u, v, height = 0, heightStep = HEIGHT_STEP) {
   return { u, v, x: (u - v) * TERRAIN_TILE_SIZE, y: (u + v) * TERRAIN_TILE_SIZE / 2 - height * heightStep, height };
 }
 export function projectGround(game, u, v, heightStep = HEIGHT_STEP) { return projectTerrainPoint(u, v, surfaceHeight(game, u, v), heightStep); }
 export function tileSurface(game, x, y, heightStep = HEIGHT_STEP) {
-  const h = heightsForTile(game, x, y), nw = projectTerrainPoint(x, y, h.nw, heightStep), ne = projectTerrainPoint(x + 1, y, h.ne, heightStep), se = projectTerrainPoint(x + 1, y + 1, h.se, heightStep), sw = projectTerrainPoint(x, y + 1, h.sw, heightStep), center = projectTerrainPoint(x + .5, y + .5, h.center, heightStep);
-  return { nw, ne, se, sw, center, corners: [nw, ne, se, sw], triangles: [[nw, ne, se], [nw, se, sw]] };
+  const h = heightsForTile(game, x, y), slope = terrainSlopeShape(h), nw = projectTerrainPoint(x, y, h.nw, heightStep), ne = projectTerrainPoint(x + 1, y, h.ne, heightStep), se = projectTerrainPoint(x + 1, y + 1, h.se, heightStep), sw = projectTerrainPoint(x, y + 1, h.sw, heightStep), center = projectTerrainPoint(x + .5, y + .5, slopeHeight(h, .5, .5, slope), heightStep);
+  return { nw, ne, se, sw, center, slope, corners: [nw, ne, se, sw], triangles: slope.diagonal === 'ne-sw' ? [[nw, ne, sw], [ne, se, sw]] : [[nw, ne, se], [nw, se, sw]] };
 }
 // Decorations need a horizontal surface across their entire footprint. Read
 // the same shared vertices as the mesh, including interior points of parcels.

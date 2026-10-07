@@ -1,0 +1,72 @@
+[
+  {
+    "id": "farm-core:farm:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        259,
+        373
+      ],
+      [
+        259,
+        387
+      ]
+    ],
+    "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
+  },
+  {
+    "id": "farm-core:dairy-farm:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        394,
+        390
+      ],
+      [
+        394,
+        404
+      ]
+    ],
+    "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
+  },
+  {
+    "id": "farm-core:vegetable-farm:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        225,
+        385
+      ],
+      [
+        225,
+        403
+      ]
+    ],
+    "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
+  },
+  {
+    "id": "farm-core:orchard:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        213,
+        256
+      ],
+      [
+        213,
+        275
+      ]
+    ],
+    "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
+  },
+  {
+    "id": "farm-core:livestock-farm:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        307,
+        274
+      ],
+      [
+        307,
+        292
+      ]
+    ],
+    "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
+  }
+]

@@ -63,59 +63,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          59,
-          108,
-          493,
-          512
+          42,
+          185,
+          455,
+          487
         ],
         "meaningfulAlphaBounds": [
-          62,
-          278,
+          67,
+          252,
           452,
-          490
+          485
         ],
-        "transparentFraction": 0.8165931701660156,
-        "nontransparentPixels": 53365,
-        "meaningfulPixels": 46721,
-        "fractionalAlphaPixels": 53266,
+        "transparentFraction": 0.7938880920410156,
+        "nontransparentPixels": 57150,
+        "meaningfulPixels": 52792,
+        "fractionalAlphaPixels": 57039,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 22
+        "minimumFilteringGutterPixels": 27
       },
       "masterAlpha": {
         "alphaBounds": [
-          29,
-          60,
-          246,
-          256
-        ],
-        "meaningfulAlphaBounds": [
-          31,
-          139,
-          226,
+          21,
+          97,
+          228,
           245
         ],
-        "transparentFraction": 0.8157196044921875,
-        "nontransparentPixels": 13209,
-        "meaningfulPixels": 11704,
-        "fractionalAlphaPixels": 13079,
+        "meaningfulAlphaBounds": [
+          33,
+          126,
+          226,
+          243
+        ],
+        "transparentFraction": 0.793060302734375,
+        "nontransparentPixels": 14229,
+        "meaningfulPixels": 13256,
+        "fractionalAlphaPixels": 14027,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 11
+        "minimumFilteringGutterPixels": 13
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.025993219160219072,
+        "envelopeZeroAlphaFraction": 0.070590280796314,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.037381567614125755,
+        "frontGroundZeroAlphaFraction": 0.13023255813953488,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -159,64 +159,85 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                92.88685948999232,
-                389.5860664558222
+                67.97767563320132,
+                375.3662181324543
               ],
               [
-                260.46885316465773,
-                482.3147696224704
+                272.26139021550694,
+                483.63658686107624
               ]
             ],
             [
               [
-                260.46885316465773,
-                482.3147696224704
+                271.24505332703774,
+                483.83985423877004
               ],
               [
-                444.8090462067897,
-                384.0
+                444.02232436679867,
+                392.63378186754574
               ]
             ]
           ],
-          "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "personnelDoorEndpointsSource": [
+            [
+              204.16681868807171,
+              418.0726941859293
+            ],
+            [
+              204.16681868807171,
+              425.1870524052136
+            ]
+          ],
+          "personnelDoorObservable": true,
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              46.44342974499616,
-              194.7930332279111
+              33.98883781660066,
+              187.68310906622716
             ],
             [
-              130.23442658232887,
-              241.1573848112352
+              136.13069510775347,
+              241.81829343053812
             ]
           ],
           [
             [
-              130.23442658232887,
-              241.1573848112352
+              135.62252666351887,
+              241.91992711938502
             ],
             [
-              222.40452310339484,
-              192.0
+              222.01116218339934,
+              196.31689093377287
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5533333333333333,
-          -0.5333333333333335
+          0.5299999999999997,
+          -0.527882352941176
         ],
-        "groundSlopeMaximumAbsoluteError": 0.053333333333333344,
+        "groundSlopeMaximumAbsoluteError": 0.029999999999999694,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.557179109642135,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            102.08340934403586,
+            209.03634709296466
+          ],
+          [
+            102.08340934403586,
+            212.5935262026068
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.19101979117482193
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
@@ -235,13 +256,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          31.0,
-          139.0,
-          226.0,
-          245.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 11.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          33.5,
+          126.0,
+          226.0,
+          242.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 13.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -286,30 +312,39 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              92.88685948999232,
-              389.5860664558222
+              67.97767563320132,
+              375.3662181324543
             ],
             [
-              260.46885316465773,
-              482.3147696224704
+              272.26139021550694,
+              483.63658686107624
             ]
           ],
           [
             [
-              260.46885316465773,
-              482.3147696224704
+              271.24505332703774,
+              483.83985423877004
             ],
             [
-              444.8090462067897,
-              384.0
+              444.02232436679867,
+              392.63378186754574
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            204.16681868807171,
+            418.0726941859293
+          ],
+          [
+            204.16681868807171,
+            425.1870524052136
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "dfab0b6daa0eb78ada451275fd568a1fe928db98278d5b9a651534ce04286f94"
+      "masterSha256": "b5c6445271ba46ca54f5ad8107654f4158f4dc3ece6ceeb39f1952fe6c9f42f3"
     },
     {
       "id": "industry:sawmill:taiga",
@@ -349,46 +384,46 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          18,
-          58,
-          484,
-          512
+          43,
+          127,
+          467,
+          486
         ],
         "meaningfulAlphaBounds": [
-          47,
-          284,
-          462,
-          484
+          53,
+          247,
+          461,
+          483
         ],
-        "transparentFraction": 0.8123588562011719,
-        "nontransparentPixels": 56098,
-        "meaningfulPixels": 47737,
-        "fractionalAlphaPixels": 56014,
+        "transparentFraction": 0.7751922607421875,
+        "nontransparentPixels": 61913,
+        "meaningfulPixels": 57859,
+        "fractionalAlphaPixels": 61772,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 28
+        "minimumFilteringGutterPixels": 29
       },
       "masterAlpha": {
         "alphaBounds": [
-          18,
-          66,
-          240,
-          256
+          22,
+          121,
+          233,
+          244
         ],
         "meaningfulAlphaBounds": [
-          24,
-          142,
+          26,
+          124,
           231,
           242
         ],
-        "transparentFraction": 0.811767578125,
-        "nontransparentPixels": 13878,
-        "meaningfulPixels": 11967,
-        "fractionalAlphaPixels": 13723,
+        "transparentFraction": 0.773681640625,
+        "nontransparentPixels": 15439,
+        "meaningfulPixels": 14517,
+        "fractionalAlphaPixels": 15220,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
@@ -399,9 +434,9 @@
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.03477353733808572,
+        "envelopeZeroAlphaFraction": 0.035295140398157,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.040482342807924204,
+        "frontGroundZeroAlphaFraction": 0.06580534022394488,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -445,64 +480,85 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                83.94915316067683,
-                386.23442658232887
+                53.24079075039816,
+                374.4057797728509
               ],
               [
-                256.0,
-                480.0803430401415
+                243.29578889413523,
+                481.1618065376538
               ]
             ],
             [
               [
-                256.0,
-                480.0803430401415
+                339.84779329870753,
+                457.4913204052065
               ],
               [
-                449.27789937144746,
-                379.5311468353422
+                458.75920924960184,
+                393.59422022714904
               ]
             ]
           ],
-          "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "personnelDoorEndpointsSource": [
+            [
+              260.5735159981113,
+              434.4509631436102
+            ],
+            [
+              260.5735159981113,
+              439.53264758595606
+            ]
+          ],
+          "personnelDoorObservable": true,
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              41.974576580338415,
-              193.11721329116443
+              26.62039537519908,
+              187.20288988642545
             ],
             [
-              128.0,
-              240.04017152007074
+              121.64789444706761,
+              240.5809032688269
             ]
           ],
           [
             [
-              128.0,
-              240.04017152007074
+              169.92389664935376,
+              228.74566020260326
             ],
             [
-              224.63894968572373,
-              189.7655734176711
+              229.37960462480092,
+              196.79711011357452
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5454545454545453,
-          -0.5202312138728324
+          0.5617112299465239,
+          -0.5373504273504274
         ],
-        "groundSlopeMaximumAbsoluteError": 0.0454545454545453,
+        "groundSlopeMaximumAbsoluteError": 0.06171122994652389,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.5408422211729373,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            130.28675799905565,
+            217.2254815718051
+          ],
+          [
+            130.28675799905565,
+            219.76632379297803
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.14927157773227548
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
@@ -521,13 +577,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          23.5,
-          142.0,
-          231.0,
-          242.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 14.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          26.5,
+          123.5,
+          230.5,
+          241.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 14.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -572,30 +633,39 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              83.94915316067683,
-              386.23442658232887
+              53.24079075039816,
+              374.4057797728509
             ],
             [
-              256.0,
-              480.0803430401415
+              243.29578889413523,
+              481.1618065376538
             ]
           ],
           [
             [
-              256.0,
-              480.0803430401415
+              339.84779329870753,
+              457.4913204052065
             ],
             [
-              449.27789937144746,
-              379.5311468353422
+              458.75920924960184,
+              393.59422022714904
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            260.5735159981113,
+            434.4509631436102
+          ],
+          [
+            260.5735159981113,
+            439.53264758595606
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "09e90919b439f0a714e70e3d5d32e0384174858fe64a7afd8fce2c0d130a995a"
+      "masterSha256": "1824074ddd33e270dd998aaead7588c36652b1bbae76820d0eacc3c24f084f2d"
     },
     {
       "id": "industry:coal-mine:taiga",
@@ -637,59 +707,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          17,
-          61,
-          464,
-          509
+          56,
+          173,
+          453,
+          482
         ],
         "meaningfulAlphaBounds": [
-          64,
-          226,
-          460,
-          470
+          63,
+          231,
+          450,
+          481
         ],
-        "transparentFraction": 0.8251800537109375,
-        "nontransparentPixels": 50269,
-        "meaningfulPixels": 44496,
-        "fractionalAlphaPixels": 50177,
+        "transparentFraction": 0.803955078125,
+        "nontransparentPixels": 54229,
+        "meaningfulPixels": 50257,
+        "fractionalAlphaPixels": 54110,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 42
+        "minimumFilteringGutterPixels": 31
       },
       "masterAlpha": {
         "alphaBounds": [
-          15,
-          31,
-          232,
-          250
+          29,
+          113,
+          227,
+          242
         ],
         "meaningfulAlphaBounds": [
-          32,
-          113,
-          230,
-          235
+          31,
+          115,
+          225,
+          240
         ],
-        "transparentFraction": 0.824249267578125,
-        "nontransparentPixels": 12444,
-        "meaningfulPixels": 11171,
-        "fractionalAlphaPixels": 12285,
+        "transparentFraction": 0.80303955078125,
+        "nontransparentPixels": 13495,
+        "meaningfulPixels": 12616,
+        "fractionalAlphaPixels": 13304,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 21
+        "minimumFilteringGutterPixels": 16
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.17247674519690515,
+        "envelopeZeroAlphaFraction": 0.06485264713552986,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.23169681309216192,
+        "frontGroundZeroAlphaFraction": 0.12075796726959517,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -733,64 +803,85 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                69.42538037553916,
-                366.124587341369
+                63.40415963509,
+                388.71580316249697
               ],
               [
-                212.428681644587,
-                434.27459810239964
+                222.9690511247516,
+                479.5864843605266
               ]
             ],
             [
               [
-                212.428681644587,
-                434.27459810239964
+                350.01116218339934,
+                433.5769134195267
               ],
               [
-                329.7360772168528,
-                376.179506961849
+                448.59584036491003,
+                379.284196837503
               ]
             ]
           ],
-          "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "personnelDoorEndpointsSource": [
+            [
+              293.0962964291251,
+              364.0086534038112
+            ],
+            [
+              293.0962964291251,
+              370.10667473462627
+            ]
+          ],
+          "personnelDoorObservable": true,
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              34.71269018776958,
-              183.0622936706845
+              31.702079817545,
+              194.35790158124848
             ],
             [
-              106.2143408222935,
-              217.13729905119982
+              111.4845255623758,
+              239.7932421802633
             ]
           ],
           [
             [
-              106.2143408222935,
-              217.13729905119982
+              175.00558109169967,
+              216.78845670976335
             ],
             [
-              164.8680386084264,
-              188.0897534809245
+              224.29792018245502,
+              189.6420984187515
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.47656250000000006,
-          -0.49523809523809514
+          0.5694904458598729,
+          -0.5507216494845362
         ],
-        "groundSlopeMaximumAbsoluteError": 0.023437499999999944,
+        "groundSlopeMaximumAbsoluteError": 0.06949044585987285,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.049010665407536,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            146.54814821456256,
+            182.0043267019056
+          ],
+          [
+            146.54814821456256,
+            185.05333736731313
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.02087410672127323
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
@@ -809,13 +900,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          32.0,
-          113.0,
-          230.0,
-          235.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 21.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          31.5,
+          115.5,
+          225.0,
+          240.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 15.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -860,30 +956,39 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              69.42538037553916,
-              366.124587341369
+              63.40415963509,
+              388.71580316249697
             ],
             [
-              212.428681644587,
-              434.27459810239964
+              222.9690511247516,
+              479.5864843605266
             ]
           ],
           [
             [
-              212.428681644587,
-              434.27459810239964
+              350.01116218339934,
+              433.5769134195267
             ],
             [
-              329.7360772168528,
-              376.179506961849
+              448.59584036491003,
+              379.284196837503
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            293.0962964291251,
+            364.0086534038112
+          ],
+          [
+            293.0962964291251,
+            370.10667473462627
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "4ea99c59c18f9204f1b3ce9fcff48e022b96a3a273e4e9ab9ba71686d81a3b9a"
+      "masterSha256": "fa2be5d00d54fa8b31622a5a66b2f02478aed445cf7fc33d0ae43dc7ea01f2ae"
     },
     {
       "id": "industry:iron-mine:taiga",
@@ -925,59 +1030,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          30,
-          98,
-          497,
-          511
+          49,
+          99,
+          477,
+          490
         ],
         "meaningfulAlphaBounds": [
-          59,
-          235,
-          456,
-          467
+          62,
+          199,
+          475,
+          466
         ],
-        "transparentFraction": 0.8096046447753906,
-        "nontransparentPixels": 54375,
-        "meaningfulPixels": 48388,
-        "fractionalAlphaPixels": 54248,
+        "transparentFraction": 0.760498046875,
+        "nontransparentPixels": 66377,
+        "meaningfulPixels": 61408,
+        "fractionalAlphaPixels": 66233,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 45
+        "minimumFilteringGutterPixels": 37
       },
       "masterAlpha": {
         "alphaBounds": [
-          15,
-          49,
-          246,
-          247
+          24,
+          56,
+          239,
+          245
         ],
         "meaningfulAlphaBounds": [
-          30,
-          117,
-          228,
-          234
+          31,
+          99,
+          237,
+          233
         ],
-        "transparentFraction": 0.8091278076171875,
-        "nontransparentPixels": 13508,
-        "meaningfulPixels": 12117,
-        "fractionalAlphaPixels": 13323,
+        "transparentFraction": 0.759521484375,
+        "nontransparentPixels": 16537,
+        "meaningfulPixels": 15410,
+        "fractionalAlphaPixels": 16288,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 22
+        "minimumFilteringGutterPixels": 19
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.08076154046770408,
+        "envelopeZeroAlphaFraction": 0.0918021385725463,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.14263565891472868,
+        "frontGroundZeroAlphaFraction": 0.17605512489233419,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1021,57 +1126,57 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                61.60488733738812,
-                369.4762272148624
+                62.89599119085541,
+                372.33245252037386
               ],
               [
-                212.428681644587,
-                447.6811575963729
+                218.39553512664028,
+                462.54251474089847
               ]
             ],
             [
               [
-                212.428681644587,
-                447.6811575963729
+                369.82973150854843,
+                439.05496924837564
               ],
               [
-                353.1975563313059,
-                377.2967202530134
+                449.1040088091446,
+                395.66754747962625
               ]
             ]
           ],
           "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "entranceReview": "No exposed ordinary personnel entrance",
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              30.80244366869406,
-              184.7381136074312
+              31.447995595427706,
+              186.16622626018693
             ],
             [
-              106.2143408222935,
-              223.84057879818644
+              109.19776756332014,
+              231.27125737044923
             ]
           ],
           [
             [
-              106.2143408222935,
-              223.84057879818644
+              184.91486575427422,
+              219.52748462418782
             ],
             [
-              176.59877816565296,
-              188.6483601265067
+              224.5520044045723,
+              197.83377373981313
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5185185185185185,
-          -0.5000000000000001
+          0.5801307189542484,
+          -0.5473076923076926
         ],
-        "groundSlopeMaximumAbsoluteError": 0.01851851851851849,
+        "groundSlopeMaximumAbsoluteError": 0.08013071895424839,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -1097,13 +1202,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          29.5,
-          117.5,
-          228.0,
-          233.5
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 22.5,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          31.0,
+          99.5,
+          237.5,
+          233.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 18.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -1148,30 +1258,30 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              61.60488733738812,
-              369.4762272148624
+              62.89599119085541,
+              372.33245252037386
             ],
             [
-              212.428681644587,
-              447.6811575963729
+              218.39553512664028,
+              462.54251474089847
             ]
           ],
           [
             [
-              212.428681644587,
-              447.6811575963729
+              369.82973150854843,
+              439.05496924837564
             ],
             [
-              353.1975563313059,
-              377.2967202530134
+              449.1040088091446,
+              395.66754747962625
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "c928ff3fec32675732ad6218e0cf66cab21f51d59241ded8a2918514cd47b1bc"
+      "masterSha256": "117bcaadccd3ab5fd0039ccd96f5ac4e3c249dba3363e92c605e5ef721421a92"
     },
     {
       "id": "industry:steel-mill:taiga",
@@ -1213,59 +1323,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          17,
-          93,
-          478,
-          512
+          42,
+          118,
+          466,
+          489
         ],
         "meaningfulAlphaBounds": [
-          42,
-          179,
-          466,
-          476
+          57,
+          175,
+          461,
+          482
         ],
-        "transparentFraction": 0.7472686767578125,
-        "nontransparentPixels": 73819,
-        "meaningfulPixels": 64067,
-        "fractionalAlphaPixels": 73639,
+        "transparentFraction": 0.7406158447265625,
+        "nontransparentPixels": 72204,
+        "meaningfulPixels": 66181,
+        "fractionalAlphaPixels": 72034,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 36
+        "minimumFilteringGutterPixels": 30
       },
       "masterAlpha": {
         "alphaBounds": [
-          16,
-          46,
-          238,
-          256
+          21,
+          59,
+          233,
+          243
         ],
         "meaningfulAlphaBounds": [
-          21,
-          89,
-          233,
-          238
+          28,
+          88,
+          230,
+          241
         ],
-        "transparentFraction": 0.7463226318359375,
-        "nontransparentPixels": 18237,
-        "meaningfulPixels": 16050,
-        "fractionalAlphaPixels": 18006,
+        "transparentFraction": 0.7392578125,
+        "nontransparentPixels": 17981,
+        "meaningfulPixels": 16616,
+        "fractionalAlphaPixels": 17692,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 18
+        "minimumFilteringGutterPixels": 15
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.07624098061375294,
+        "envelopeZeroAlphaFraction": 0.06389637485873251,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.14332472006890612,
+        "frontGroundZeroAlphaFraction": 0.12058570198105081,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1309,64 +1419,85 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                62.722100628552546,
-                368.3590139236979
+                57.81430674850949,
+                372.8609477023778
               ],
               [
-                177.79506961848946,
-                428.6885316465774
+                246.85296800377736,
+                480.4503707157254
               ]
             ],
             [
               [
-                177.79506961848946,
-                428.6885316465774
+                371.8624052854868,
+                441.9312026427434
               ],
               [
-                233.65573417671126,
-                400.75819936746655
+                454.18569325149053,
+                395.13905229762224
               ]
             ]
           ],
-          "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "personnelDoorEndpointsSource": [
+            [
+              190.95443913797234,
+              361.57960824036985
+            ],
+            [
+              190.95443913797234,
+              368.6939664596541
+            ]
+          ],
+          "personnelDoorObservable": true,
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              31.361050314276273,
-              184.17950696184894
+              28.907153374254744,
+              186.4304738511889
             ],
             [
-              88.89753480924473,
-              214.3442658232887
+              123.42648400188868,
+              240.2251853578627
             ]
           ],
           [
             [
-              88.89753480924473,
-              214.3442658232887
+              185.9312026427434,
+              220.9656013213717
             ],
             [
-              116.82786708835563,
-              200.37909968373327
+              227.09284662574527,
+              197.56952614881112
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5242718446601939,
-          -0.4999999999999995
+          0.5691397849462364,
+          -0.5683950617283954
         ],
-        "groundSlopeMaximumAbsoluteError": 0.024271844660193942,
+        "groundSlopeMaximumAbsoluteError": 0.0691397849462364,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.557179109642135,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            95.47721956898617,
+            180.78980412018493
+          ],
+          [
+            95.47721956898617,
+            184.34698322982706
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.19101979117482193
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
@@ -1385,13 +1516,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          21.0,
-          89.5,
-          233.0,
-          238.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 18.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          28.5,
+          87.5,
+          230.5,
+          241.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 15.0,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -1436,30 +1572,39 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              62.722100628552546,
-              368.3590139236979
+              57.81430674850949,
+              372.8609477023778
             ],
             [
-              177.79506961848946,
-              428.6885316465774
+              246.85296800377736,
+              480.4503707157254
             ]
           ],
           [
             [
-              177.79506961848946,
-              428.6885316465774
+              371.8624052854868,
+              441.9312026427434
             ],
             [
-              233.65573417671126,
-              400.75819936746655
+              454.18569325149053,
+              395.13905229762224
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            190.95443913797234,
+            361.57960824036985
+          ],
+          [
+            190.95443913797234,
+            368.6939664596541
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "cce4072fc9877971b84e19fc056b5db85376c0f4365f4e7458518c4b162b2975"
+      "masterSha256": "15cb93019140ab2868e3b67e2eb2f39673486ee62a9c673bad50b4e9de5b76aa"
     },
     {
       "id": "industry:farm:taiga",
@@ -1502,45 +1647,45 @@
       "sourceAlpha": {
         "alphaBounds": [
           38,
-          271,
+          272,
           474,
-          494
+          493
         ],
         "meaningfulAlphaBounds": [
           38,
-          271,
+          272,
           474,
-          494
+          493
         ],
-        "transparentFraction": 0.8655166625976562,
-        "nontransparentPixels": 35473,
-        "meaningfulPixels": 34508,
-        "fractionalAlphaPixels": 34473,
+        "transparentFraction": 0.8825340270996094,
+        "nontransparentPixels": 31120,
+        "meaningfulPixels": 30137,
+        "fractionalAlphaPixels": 31119,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 18
+        "minimumFilteringGutterPixels": 19
       },
       "masterAlpha": {
         "alphaBounds": [
-          16,
-          133,
-          240,
+          17,
+          134,
+          239,
           249
         ],
         "meaningfulAlphaBounds": [
-          18,
-          135,
-          238,
+          19,
+          136,
+          237,
           247
         ],
-        "transparentFraction": 0.853240966796875,
-        "nontransparentPixels": 10331,
-        "meaningfulPixels": 9144,
-        "fractionalAlphaPixels": 9897,
+        "transparentFraction": 0.8610687255859375,
+        "nontransparentPixels": 10010,
+        "meaningfulPixels": 8531,
+        "fractionalAlphaPixels": 9757,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
@@ -1551,9 +1696,9 @@
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.22498478657741458,
+        "envelopeZeroAlphaFraction": 0.23211336173172217,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.1231696813092162,
+        "frontGroundZeroAlphaFraction": 0.22583979328165374,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1615,12 +1760,12 @@
           "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
           "personnelDoorEndpointsSource": [
             [
-              186.4,
-              343.64444444444445
+              252.1635908914916,
+              362.77900808784784
             ],
             [
-              186.4,
-              350.0444444444445
+              252.1635908914916,
+              368.1499808397596
             ]
           ],
           "personnelDoorObservable": true,
@@ -1659,18 +1804,18 @@
           192.0
         ],
         "groundCenterErrorMasterPixels": 0.0,
-        "personnelDoorHeightMasterMeasured": 3.200000000000017,
+        "personnelDoorHeightMasterMeasured": 2.6854863759558896,
         "personnelDoorEndpointsMasterMeasured": [
           [
-            93.2,
-            171.82222222222222
+            126.0817954457458,
+            181.38950404392392
           ],
           [
-            93.2,
-            175.02222222222224
+            126.0817954457458,
+            184.0749904198798
           ]
         ],
-        "personnelDoorHeightRelativeError": 0.07142857142857709
+        "personnelDoorHeightRelativeError": 0.10084161519334059
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
@@ -1689,13 +1834,18 @@
           128.0,
           192.0
         ],
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
+        ],
+        "registrationOffsetReview": "",
         "transformedMeaningfulAlphaBoundsMaster": [
           19.0,
-          135.5,
+          136.0,
           237.0,
-          247.0
+          246.5
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 9.0,
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -1758,18 +1908,18 @@
         "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
         "personnelDoorEndpointsSource": [
           [
-            186.4,
-            343.64444444444445
+            252.1635908914916,
+            362.77900808784784
           ],
           [
-            186.4,
-            350.0444444444445
+            252.1635908914916,
+            368.1499808397596
           ]
         ],
         "personnelDoorObservable": true,
         "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
       },
-      "masterSha256": "16985cdc34016d90eab72e6a68632c85c20806c07ddda6da461c0fdb40bab06e"
+      "masterSha256": "36ec525cdc85d2358ba4d5fffa4cf1f9c854afd5943bbaa324a4f0277d91106b"
     },
     {
       "id": "industry:food-plant:taiga",
@@ -1811,59 +1961,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          20,
-          149,
-          487,
-          512
+          28,
+          135,
+          453,
+          494
         ],
         "meaningfulAlphaBounds": [
-          47,
-          270,
-          476,
-          484
+          51,
+          235,
+          447,
+          457
         ],
-        "transparentFraction": 0.774688720703125,
-        "nontransparentPixels": 66921,
-        "meaningfulPixels": 57500,
-        "fractionalAlphaPixels": 66786,
+        "transparentFraction": 0.7813911437988281,
+        "nontransparentPixels": 61246,
+        "meaningfulPixels": 55857,
+        "fractionalAlphaPixels": 61061,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 28
+        "minimumFilteringGutterPixels": 51
       },
       "masterAlpha": {
         "alphaBounds": [
-          15,
-          78,
-          243,
-          256
+          14,
+          69,
+          227,
+          243
         ],
         "meaningfulAlphaBounds": [
-          23,
-          135,
-          238,
-          242
+          25,
+          117,
+          223,
+          229
         ],
-        "transparentFraction": 0.77398681640625,
-        "nontransparentPixels": 16563,
-        "meaningfulPixels": 14409,
-        "fractionalAlphaPixels": 16366,
+        "transparentFraction": 0.7809600830078125,
+        "nontransparentPixels": 15189,
+        "meaningfulPixels": 14026,
+        "fractionalAlphaPixels": 14993,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 14
+        "minimumFilteringGutterPixels": 25
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.014083282621924716,
+        "envelopeZeroAlphaFraction": 0.15961053638181344,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.027906976744186046,
+        "frontGroundZeroAlphaFraction": 0.2904392764857881,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1907,57 +2057,57 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                67.1909537932103,
-                377.29672025301335
+                78.64921296212773,
+                388.95464233128723
               ],
               [
-                194.55326898595604,
-                446.5639443052084
+                184.34824936292267,
+                450.3820438703646
               ]
             ],
             [
               [
-                194.55326898595604,
-                446.5639443052084
+                326.6354137486082,
+                438.12502099542627
               ],
               [
-                252.6483601265067,
-                416.3991854437686
+                433.3507870378723,
+                379.0453576687127
               ]
             ]
           ],
           "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "entranceReview": "No exposed ordinary personnel entrance",
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              33.59547689660515,
-              188.64836012650667
+              39.32460648106387,
+              194.47732116564362
             ],
             [
-              97.27663449297802,
-              223.2819721526042
+              92.17412468146134,
+              225.1910219351823
             ]
           ],
           [
             [
-              97.27663449297802,
-              223.2819721526042
+              163.3177068743041,
+              219.06251049771313
             ],
             [
-              126.32418006325335,
-              208.1995927218843
+              216.67539351893615,
+              189.52267883435636
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5438596491228069,
-          -0.5192307692307697
+          0.5811538461538462,
+          -0.5536190476190477
         ],
-        "groundSlopeMaximumAbsoluteError": 0.04385964912280693,
+        "groundSlopeMaximumAbsoluteError": 0.08115384615384624,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -1983,13 +2133,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          23.5,
-          135.0,
-          238.0,
-          242.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 14.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          25.5,
+          117.5,
+          223.5,
+          228.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 25.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -2034,30 +2189,30 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              67.1909537932103,
-              377.29672025301335
+              78.64921296212773,
+              388.95464233128723
             ],
             [
-              194.55326898595604,
-              446.5639443052084
+              184.34824936292267,
+              450.3820438703646
             ]
           ],
           [
             [
-              194.55326898595604,
-              446.5639443052084
+              326.6354137486082,
+              438.12502099542627
             ],
             [
-              252.6483601265067,
-              416.3991854437686
+              433.3507870378723,
+              379.0453576687127
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "206be826d974848f71eb77e430e7b68cc1cfb1ecf8691266dbb3eb148ab1991f"
+      "masterSha256": "d1b4130935ea957fb16d3bcdf0b3236798db2e4aa8a27e145801e9cf07037c62"
     },
     {
       "id": "industry:furniture-factory:taiga",
@@ -2097,59 +2252,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          16,
-          138,
-          483,
-          500
+          42,
+          163,
+          467,
+          494
         ],
         "meaningfulAlphaBounds": [
-          44,
-          273,
-          471,
-          489
+          60,
+          252,
+          458,
+          483
         ],
-        "transparentFraction": 0.7779197692871094,
-        "nontransparentPixels": 63717,
-        "meaningfulPixels": 56757,
-        "fractionalAlphaPixels": 63590,
+        "transparentFraction": 0.7906761169433594,
+        "nontransparentPixels": 57858,
+        "meaningfulPixels": 53661,
+        "fractionalAlphaPixels": 57723,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 23
+        "minimumFilteringGutterPixels": 29
       },
       "masterAlpha": {
         "alphaBounds": [
-          10,
-          69,
-          241,
-          250
-        ],
-        "meaningfulAlphaBounds": [
-          22,
-          136,
-          235,
+          28,
+          85,
+          233,
           244
         ],
-        "transparentFraction": 0.7772216796875,
-        "nontransparentPixels": 15768,
-        "meaningfulPixels": 14218,
-        "fractionalAlphaPixels": 15588,
+        "meaningfulAlphaBounds": [
+          30,
+          126,
+          229,
+          242
+        ],
+        "transparentFraction": 0.7897491455078125,
+        "nontransparentPixels": 14403,
+        "meaningfulPixels": 13461,
+        "fractionalAlphaPixels": 14215,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 12
+        "minimumFilteringGutterPixels": 14
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.014431017995305573,
+        "envelopeZeroAlphaFraction": 0.08971572633226114,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.02652885443583118,
+        "frontGroundZeroAlphaFraction": 0.16330749354005167,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -2193,57 +2348,57 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                70.5425936667036,
-                375.06229367068454
+                60.35514896968243,
+                360.2482069164752
               ],
               [
-                197.9049088594493,
-                442.09509114055066
+                265.65520044045724,
+                481.6598116130037
               ]
             ],
             [
               [
-                197.9049088594493,
-                442.09509114055066
+                342.89680396411507,
+                466.7603128280455
               ],
               [
-                252.64836012650667,
-                413.04754557027536
+                451.64485103031757,
+                407.75179308352483
               ]
             ]
           ],
           "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "entranceReview": "No exposed ordinary personnel entrance",
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              35.2712968333518,
-              187.53114683534227
+              30.177574484841216,
+              180.1241034582376
             ],
             [
-              98.95245442972465,
-              221.04754557027533
+              132.82760022022862,
+              240.82990580650184
             ]
           ],
           [
             [
-              98.95245442972465,
-              221.04754557027533
+              171.44840198205753,
+              233.38015641402276
             ],
             [
-              126.32418006325334,
-              206.52377278513768
+              225.82242551515878,
+              203.87589654176242
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.526315789473684,
-          -0.5306122448979586
+          0.5913861386138611,
+          -0.5426168224299063
         ],
-        "groundSlopeMaximumAbsoluteError": 0.03061224489795855,
+        "groundSlopeMaximumAbsoluteError": 0.09138613861386113,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -2269,13 +2424,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          22.0,
-          136.5,
-          235.5,
-          244.5
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 11.5,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          30.0,
+          126.0,
+          229.0,
+          241.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 14.5,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -2320,30 +2480,30 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              70.5425936667036,
-              375.06229367068454
+              60.35514896968243,
+              360.2482069164752
             ],
             [
-              197.9049088594493,
-              442.09509114055066
+              265.65520044045724,
+              481.6598116130037
             ]
           ],
           [
             [
-              197.9049088594493,
-              442.09509114055066
+              342.89680396411507,
+              466.7603128280455
             ],
             [
-              252.64836012650667,
-              413.04754557027536
+              451.64485103031757,
+              407.75179308352483
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "4f6f7659cdc5a4f25a4b79c05b37327fc72065d0f2fdb1de380754e9da906c62"
+      "masterSha256": "9b921efc8647874f1484a1a6ee15a610c33c89b9ea5b875a329b95c8ff7badaf"
     },
     {
       "id": "industry:machine-works:taiga",
@@ -2385,59 +2545,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          17,
-          138,
-          484,
-          512
+          40,
+          146,
+          465,
+          489
         ],
         "meaningfulAlphaBounds": [
-          40,
-          272,
-          472,
-          488
+          58,
+          261,
+          455,
+          484
         ],
-        "transparentFraction": 0.7651214599609375,
-        "nontransparentPixels": 67494,
-        "meaningfulPixels": 60003,
-        "fractionalAlphaPixels": 67371,
+        "transparentFraction": 0.7936210632324219,
+        "nontransparentPixels": 56810,
+        "meaningfulPixels": 53031,
+        "fractionalAlphaPixels": 56605,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 24
+        "minimumFilteringGutterPixels": 28
       },
       "masterAlpha": {
         "alphaBounds": [
-          9,
-          81,
-          242,
-          256
-        ],
-        "meaningfulAlphaBounds": [
           20,
-          136,
-          236,
+          73,
+          232,
           244
         ],
-        "transparentFraction": 0.7645721435546875,
-        "nontransparentPixels": 16695,
-        "meaningfulPixels": 15043,
-        "fractionalAlphaPixels": 16518,
+        "meaningfulAlphaBounds": [
+          29,
+          130,
+          228,
+          242
+        ],
+        "transparentFraction": 0.7924346923828125,
+        "nontransparentPixels": 14201,
+        "meaningfulPixels": 13317,
+        "fractionalAlphaPixels": 13977,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 12
+        "minimumFilteringGutterPixels": 14
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.01860384247587586,
+        "envelopeZeroAlphaFraction": 0.04051117099886986,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.03548664944013781,
+        "frontGroundZeroAlphaFraction": 0.07510766580534023,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -2481,57 +2641,57 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                75.01144683136134,
-                369.4762272148623
+                58.83064363697865,
+                372.1850836715457
               ],
               [
-                188.96720253013382,
-                426.4541050642486
+                241.77128356143143,
+                480.7400267289391
               ]
             ],
             [
               [
-                188.96720253013382,
-                426.4541050642486
+                302.75149686958235,
+                481.07541790213395
               ],
               [
-                257.11721329116443,
-                394.05491962047995
+                453.16935636302134,
+                395.8149163284543
               ]
             ]
           ],
           "personnelDoorObservable": false,
-          "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+          "entranceReview": "No exposed ordinary personnel entrance",
           "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              37.50572341568067,
-              184.73811360743116
+              29.415321818489325,
+              186.09254183577286
             ],
             [
-              94.48360126506691,
-              213.2270525321243
+              120.88564178071572,
+              240.37001336446954
             ]
           ],
           [
             [
-              94.48360126506691,
-              213.2270525321243
+              151.37574843479118,
+              240.53770895106697
             ],
             [
-              128.55860664558222,
-              197.02745981023998
+              226.58467818151067,
+              197.90745816422714
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5000000000000004,
-          -0.47540983606557385
+          0.593388888888889,
+          -0.5668243243243242
         ],
-        "groundSlopeMaximumAbsoluteError": 0.024590163934426146,
+        "groundSlopeMaximumAbsoluteError": 0.09338888888888897,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -2557,13 +2717,18 @@
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          20.0,
-          136.0,
-          236.0,
-          244.0
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 12.0,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          29.0,
+          130.5,
+          227.5,
+          242.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 14.0,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -2608,39 +2773,39 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              75.01144683136134,
-              369.4762272148623
+              58.83064363697865,
+              372.1850836715457
             ],
             [
-              188.96720253013382,
-              426.4541050642486
+              241.77128356143143,
+              480.7400267289391
             ]
           ],
           [
             [
-              188.96720253013382,
-              426.4541050642486
+              302.75149686958235,
+              481.07541790213395
             ],
             [
-              257.11721329116443,
-              394.05491962047995
+              453.16935636302134,
+              395.8149163284543
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
-      "masterSha256": "839e0e76623bf3c3315d2435eaf4c1ce2453a3ca37144b9792fbd5b48f2bdcaf"
+      "masterSha256": "9cafa9ed84229aae462322d2d6fcdd0efdca6034637dcce9e6122a81da5b3034"
     }
   ],
   "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
   "groundRegistrationApplied": true,
   "source": "generated-source.png",
-  "sourceSha256": "2ef97229eb45fdaa110cbd9358a6272f31176448c5ce1b876fa82be76bf61483",
-  "generationJobSha256": "850fff7b45403acc814b2e2d2ea12e3384370915f393aba40f5927495cff753d",
+  "sourceSha256": "481ac17e713fc3707ce5cc752192d2c44244ff5b107b9031ee82ba2e03260ce3",
+  "generationJobSha256": "e02afa5b9e4d9ac63ddbc1a2f5f1cf5f51c0335e90264296e8d837b175ebabfe",
   "measurements": "registration-measurements.json",
-  "measurementsSha256": "1ea5865fd4c2056a84ccfc7ad164e078ce82be7d6231ec394a0ccf407ed758d1",
+  "measurementsSha256": "a0e7a94ecfb59a16a65835e973c8f3f0b78bb272c9a1239ea7f584676b8ee148",
   "originalSourceResolution": {
     "sheetPixels": [
       1536,
@@ -2661,27 +2826,36 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              92.88685948999232,
-              389.5860664558222
+              67.97767563320132,
+              375.3662181324543
             ],
             [
-              260.46885316465773,
-              482.3147696224704
+              272.26139021550694,
+              483.63658686107624
             ]
           ],
           [
             [
-              260.46885316465773,
-              482.3147696224704
+              271.24505332703774,
+              483.83985423877004
             ],
             [
-              444.8090462067897,
-              384.0
+              444.02232436679867,
+              392.63378186754574
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            204.16681868807171,
+            418.0726941859293
+          ],
+          [
+            204.16681868807171,
+            425.1870524052136
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2693,27 +2867,36 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              83.94915316067683,
-              386.23442658232887
+              53.24079075039816,
+              374.4057797728509
             ],
             [
-              256.0,
-              480.0803430401415
+              243.29578889413523,
+              481.1618065376538
             ]
           ],
           [
             [
-              256.0,
-              480.0803430401415
+              339.84779329870753,
+              457.4913204052065
             ],
             [
-              449.27789937144746,
-              379.5311468353422
+              458.75920924960184,
+              393.59422022714904
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            260.5735159981113,
+            434.4509631436102
+          ],
+          [
+            260.5735159981113,
+            439.53264758595606
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2725,27 +2908,36 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              69.42538037553916,
-              366.124587341369
+              63.40415963509,
+              388.71580316249697
             ],
             [
-              212.428681644587,
-              434.27459810239964
+              222.9690511247516,
+              479.5864843605266
             ]
           ],
           [
             [
-              212.428681644587,
-              434.27459810239964
+              350.01116218339934,
+              433.5769134195267
             ],
             [
-              329.7360772168528,
-              376.179506961849
+              448.59584036491003,
+              379.284196837503
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            293.0962964291251,
+            364.0086534038112
+          ],
+          [
+            293.0962964291251,
+            370.10667473462627
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2757,27 +2949,27 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              61.60488733738812,
-              369.4762272148624
+              62.89599119085541,
+              372.33245252037386
             ],
             [
-              212.428681644587,
-              447.6811575963729
+              218.39553512664028,
+              462.54251474089847
             ]
           ],
           [
             [
-              212.428681644587,
-              447.6811575963729
+              369.82973150854843,
+              439.05496924837564
             ],
             [
-              353.1975563313059,
-              377.2967202530134
+              449.1040088091446,
+              395.66754747962625
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2789,27 +2981,36 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              62.722100628552546,
-              368.3590139236979
+              57.81430674850949,
+              372.8609477023778
             ],
             [
-              177.79506961848946,
-              428.6885316465774
+              246.85296800377736,
+              480.4503707157254
             ]
           ],
           [
             [
-              177.79506961848946,
-              428.6885316465774
+              371.8624052854868,
+              441.9312026427434
             ],
             [
-              233.65573417671126,
-              400.75819936746655
+              454.18569325149053,
+              395.13905229762224
             ]
           ]
         ],
-        "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "personnelDoorEndpointsSource": [
+          [
+            190.95443913797234,
+            361.57960824036985
+          ],
+          [
+            190.95443913797234,
+            368.6939664596541
+          ]
+        ],
+        "personnelDoorObservable": true,
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2839,12 +3040,12 @@
         "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
         "personnelDoorEndpointsSource": [
           [
-            186.4,
-            343.64444444444445
+            252.1635908914916,
+            362.77900808784784
           ],
           [
-            186.4,
-            350.0444444444445
+            252.1635908914916,
+            368.1499808397596
           ]
         ],
         "personnelDoorObservable": true,
@@ -2859,27 +3060,27 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              67.1909537932103,
-              377.29672025301335
+              78.64921296212773,
+              388.95464233128723
             ],
             [
-              194.55326898595604,
-              446.5639443052084
+              184.34824936292267,
+              450.3820438703646
             ]
           ],
           [
             [
-              194.55326898595604,
-              446.5639443052084
+              326.6354137486082,
+              438.12502099542627
             ],
             [
-              252.6483601265067,
-              416.3991854437686
+              433.3507870378723,
+              379.0453576687127
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2891,27 +3092,27 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              70.5425936667036,
-              375.06229367068454
+              60.35514896968243,
+              360.2482069164752
             ],
             [
-              197.9049088594493,
-              442.09509114055066
+              265.65520044045724,
+              481.6598116130037
             ]
           ],
           [
             [
-              197.9049088594493,
-              442.09509114055066
+              342.89680396411507,
+              466.7603128280455
             ],
             [
-              252.64836012650667,
-              413.04754557027536
+              451.64485103031757,
+              407.75179308352483
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       },
       {
@@ -2923,27 +3124,27 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              75.01144683136134,
-              369.4762272148623
+              58.83064363697865,
+              372.1850836715457
             ],
             [
-              188.96720253013382,
-              426.4541050642486
+              241.77128356143143,
+              480.7400267289391
             ]
           ],
           [
             [
-              188.96720253013382,
-              426.4541050642486
+              302.75149686958235,
+              481.07541790213395
             ],
             [
-              257.11721329116443,
-              394.05491962047995
+              453.16935636302134,
+              395.8149163284543
             ]
           ]
         ],
         "personnelDoorObservable": false,
-        "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+        "entranceReview": "No exposed ordinary personnel entrance",
         "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
       }
     ],
@@ -2986,10 +3187,10 @@
         -2
       ]
     },
-    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "contractSha256": "1b259372f2589951aad69b101d3830132fc50ee8f539cde679922c2b9e71dcf2",
     "sourceCellPixels": 512,
     "sourceToMasterScale": 0.5,
-    "meaningfulSourcePixelsRetained": 460177,
+    "meaningfulSourcePixelsRetained": 481183,
     "sourceIsolationNoise": {
       "omittedSourcePixels": 0,
       "omittedSourceAlphaEnergy": 0,
@@ -3010,7 +3211,7 @@
   "outputs": {
     "16": {
       "path": "atlas-16.png",
-      "sha256": "07c6bc56e2cdb0736d5d65e619b7fee4453d07e879da5cbb103950f5ea7d3ade",
+      "sha256": "5634be6d2d50f848a2710bee7e953d26fa7c0dbfab7a95067efaf5564ef789b8",
       "dimensions": [
         48,
         48
@@ -3022,7 +3223,7 @@
     },
     "32": {
       "path": "atlas-32.png",
-      "sha256": "8e71b7706f00e97b18d6fa678464d0eb7dafe3469f0064ae42fbf354208671f7",
+      "sha256": "880657d041ec88c4d2d9d1e8acb4f273ad236429aea836a5e1aacd256e39c0e9",
       "dimensions": [
         96,
         96
@@ -3034,7 +3235,7 @@
     },
     "64": {
       "path": "atlas-64.png",
-      "sha256": "000b8d1fa7438043b744f6ede12d8cf3d2d3b28281da76f2fc17d0ce0f74e95c",
+      "sha256": "746b667425ef4a1d019d0cdf48332113874ca1dde0458ead3b9719536139c00a",
       "dimensions": [
         192,
         192
@@ -3046,7 +3247,7 @@
     },
     "128": {
       "path": "atlas-128.png",
-      "sha256": "7a6a85f359c664f98cd22aebf704c4d618df71be575f47ea2fe41f500c0fba60",
+      "sha256": "d5432e64a66c770952c3067870ff7cd6b96ac8153ba6c837a07ee135aaed6519",
       "dimensions": [
         384,
         384
@@ -3058,7 +3259,7 @@
     },
     "256": {
       "path": "atlas-256.png",
-      "sha256": "91b543a6f956c82d29d220f1aa09b2f39a8579f3dcb7c79a8cefa562bd328ac5",
+      "sha256": "0833212e5c2fdcb8d08423dca93bafb72918ec40ce7a375bf425f1c8ab097e16",
       "dimensions": [
         768,
         768
@@ -3070,7 +3271,7 @@
     },
     "512": {
       "path": "atlas-512.png",
-      "sha256": "2ef97229eb45fdaa110cbd9358a6272f31176448c5ce1b876fa82be76bf61483",
+      "sha256": "481ac17e713fc3707ce5cc752192d2c44244ff5b107b9031ee82ba2e03260ce3",
       "dimensions": [
         1536,
         1536
@@ -3084,7 +3285,7 @@
   "provenance": {
     "operation": "Registered 512px atlas assembly, then uniform premultiplied-alpha mip packing; original processor and core sources retained",
     "generator": "image_gen painted cutouts + game renderer farm geometry",
-    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+    "styleReference": "generation-reference.png",
     "sourceReview": "Measured farm field, fence, core entrance and processor source geometry verified"
   },
   "farmComposition": {
@@ -3095,7 +3296,7 @@
       {
         "kind": "farm",
         "cell": 5,
-        "compoundSha256": "d4a879d53390610acd3e6b9682097d81001cfbc3a8b5d244d593f1aa65dfbc6c",
+        "compoundSha256": "40e6a7ff4dda94d28c8a6d2efd30b9a177d354d09a3f4059d78527c661ff9db1",
         "geometry": {
           "kind": "farm",
           "sourceCellPixels": 512,
@@ -3127,122 +3328,136 @@
           ],
           "coreMasterToCompoundSourceScale": 0.8
         },
-        "coreOriginalSourceSha256": "614883b25be18100706418f4738b32b8b2e896c26f00739a66c99da9e48c5427",
-        "coreRegisteredMasterSha256": "193a54986343b19471ad714840f4b2bb03badb70adb7061601e9073c709d0bbb",
+        "coreOriginalSourceSha256": "9956359846be6daefb108c6b9cb379f477e5d7d9bb35025e108b0b80573556ef",
+        "coreRegisteredMasterSha256": "f7c29216cafe4806fa691520eb1b3c10197c9d1d79ebe99de049384d621a7c10",
         "coreOriginalMeasurements": {
           "id": "farm-core:farm:taiga",
-          "visibleOppositeGroundVerticesSource": [
+          "sourceBoundsSheet": [
+            0,
+            0,
+            498,
+            482
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              62,
-              292
+              [
+                205.0,
+                416.0
+              ],
+              [
+                305.0,
+                466.0
+              ]
             ],
             [
-              466,
-              384
+              [
+                307.0,
+                466.0
+              ],
+              [
+                495.0,
+                369.0
+              ]
             ]
           ],
-          "visibleGroundEdgesSource": [
+          "visibleOppositeGroundVerticesSource": [
             [
-              [
-                62,
-                292
-              ],
-              [
-                268,
-                390
-              ]
+              205.0,
+              416.0
             ],
             [
-              [
-                268,
-                390
-              ],
-              [
-                386,
-                334
-              ]
+              495.0,
+              369.0
             ]
+          ],
+          "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+          "groundCenterSource": [
+            269.0,
+            369.0
           ],
           "personnelDoorEndpointsSource": [
             [
-              90,
-              294
+              259,
+              373
             ],
             [
-              90,
-              310
+              259,
+              387
             ]
           ],
-          "personnelDoorObservable": true,
-          "measurementUncertaintyMasterPixels": 2,
-          "groundCentreNote": "Compound datum is midpoint of observed far-left barn masonry ground contact and far-right equipment/work-structure ground contact. The transparent yard has no painted perimeter. Ground camera is separately measured on both exposed main-barn footing directions; hidden rear corner not declared observed."
+          "personnelDoorObservationMethod": "Actual visible green personnel leaf head and sill, excluding anti-aliased frame fringe; manually read original RGBA at 4x view, approximately one source-pixel uncertainty."
         },
         "coreSourceRegistration": {
           "status": "measured-translation-applied",
           "applied": true,
           "sourceGroundCenter": [
-            264.0,
-            338.0
+            269.0,
+            369.0
           ],
-          "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
-          "uniformSourceToMasterScale": 0.5,
+          "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+          "uniformSourceToMasterScale": 0.4795511385635517,
           "translationMaster": [
-            -4.0,
-            23.0
+            -0.9992562735953925,
+            15.045629870049424
           ],
           "targetGroundCenterMaster": [
             128.0,
             192.0
           ],
-          "transformedMeaningfulAlphaBoundsMaster": [
-            25.5,
-            128.0,
-            235.0,
-            228.5
+          "wholeSheetRegistrationOffsetMaster": [
+            0,
+            0
           ],
-          "minimumMeaningfulFilteringGutterMasterPixels": 21.0,
+          "registrationOffsetReview": "",
+          "transformedMeaningfulAlphaBoundsMaster": [
+            17.223686991819573,
+            111.91495985988686,
+            237.81721073105336,
+            239.4755627177916
+          ],
+          "minimumMeaningfulFilteringGutterMasterPixels": 16.524437282208396,
           "requiredMinimumGutterMasterPixels": 2,
           "clipping": {
-            "clippedSourcePixels": 156,
-            "clippedSourceAlphaEnergy": 156,
+            "clippedSourcePixels": 0,
+            "clippedSourceAlphaEnergy": 0,
             "clippedNonNoiseSourcePixels": 0,
             "clippedNonNoiseSourceAlphaEnergy": 0,
             "maximumAllowedClippedAlpha": 2,
             "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
           },
           "sourceCropToMasterAffine": [
-            0.5,
+            0.4795511385635517,
             0,
-            -4.0,
+            -0.9992562735953925,
             0,
-            0.5,
-            23.0
+            0.4795511385635517,
+            15.045629870049424
           ],
           "sourceSheetToMasterAffine": [
-            0.5,
+            0.4795511385635517,
             0,
-            -4.0,
+            -0.9992562735953925,
             0,
-            0.5,
-            23.0
+            0.4795511385635517,
+            15.045629870049424
           ],
           "sourceNominalCellToMasterAffine": [
-            0.5,
+            0.4795511385635517,
             0,
-            -4.0,
+            -0.9992562735953925,
             0,
-            0.5,
-            23.0
+            0.4795511385635517,
+            15.045629870049424
           ],
           "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
         }
       }
     ],
     "paintedSource": "painted-source.png",
-    "paintedSourceSha256": "8a14c8158328dca92e740bfcb2f1935ee176878a3c2b4f6f03514e6ba998b2a9",
+    "paintedSourceSha256": "f88d625dac4ce50903b41c32d8b2e2530b8f684965b86e22b59631bc9396d271",
     "paintedSourceMetadata": "painted-source-atlas.json",
     "paintedSourceMeasurements": "painted-source-measurements.json",
     "coreAtlasMetadata": "../farm-cores/atlas.json",
-    "coreAtlas512Sha256": "ae6708078bdeaca58b6e5d493ba9331adac8e43b2e8fdc2427251bdd2649910b"
+    "coreAtlas512Sha256": "9533a2a1e0e17e9ba5972b3ed44107e6854ba8e996c48cfa34237a3dd286029b"
   }
 }

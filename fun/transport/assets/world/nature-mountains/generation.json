@@ -1,0 +1,463 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "From-scratch production sprite atlas for Transport. Fixed orthographic 2:1 dimetric camera; ground axes at +26.565 and -26.565 degrees. No perspective. Muted natural paint with broad graphic masses and very few details, northwest upper-left daylight, right faces darker, tiny soft ground contact shadow toward bottom-right. Genuine RGBA transparent background everywhere outside objects, no ground disc, rectangle, card or base. No labels, letters, frames, watermark, checkerboard, grid or UI. Each cell fully isolated with at least 8% transparent gutters. Exactly 9 cells in a 3 by 3 equal-cell square atlas. Do not crop anything. Ground centre within each cell horizontally centered; lowest contact at 94% height. Sculptural exposed geology arranged within a 2:1 ground diamond. Keep all bare terrain transparent; only actual rocks, ice or sand formations visible. Footprint width around 82% of cell, maximum height 78%, contact baseline 94%. Granite neutral gray with muted sage, tundra cold gray and ivory snow/blue-gray ice, desert muted warm sandstone and ochre. Large clean planes and readable light/shadow, no texture speckle. Slots row-major: 1: granite-ridge; 2: wooded-foothill; 3: granite-peak; 4: ice-peak; 5: glacier; 6: frost-ridge; 7: mesa; 8: butte; 9: canyon",
+  "sourceSha256": "446aaadc344c6ac069eccfa2ed5344bc24196002acb05c75ec2dd0b61a380c8a",
+  "scale": {
+    "bottomAnchor": 0.953125,
+    "calibration": "authored footprint patch; no measured physical height"
+  },
+  "measurements": [
+    {
+      "id": "nature-mountains:granite-ridge",
+      "cell": 0,
+      "sourceBounds": [
+        13,
+        108,
+        413,
+        415
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        65.94000000000003
+      ],
+      "sourceCropPixels": [
+        400,
+        307
+      ],
+      "masterDrawPixels": [
+        232,
+        178
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          13,
+          108,
+          413,
+          415
+        ],
+        "transparentFraction": 0.43640065146579804
+      },
+      "registrationAnchorSource": [
+        213.0,
+        415
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        68,
+        242,
+        243
+      ]
+    },
+    {
+      "id": "nature-mountains:wooded-foothill",
+      "cell": 1,
+      "sourceBounds": [
+        433,
+        123,
+        832,
+        413
+      ],
+      "sourceScaleToMaster": 0.581453634085213,
+      "masterOffsetPixels": [
+        12.0,
+        75.37844611528823
+      ],
+      "sourceCropPixels": [
+        399,
+        290
+      ],
+      "masterDrawPixels": [
+        232,
+        169
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          433,
+          123,
+          832,
+          413
+        ],
+        "transparentFraction": 0.4536600120992135
+      },
+      "registrationAnchorSource": [
+        632.5,
+        413
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        77,
+        242,
+        243
+      ]
+    },
+    {
+      "id": "nature-mountains:granite-peak",
+      "cell": 2,
+      "sourceBounds": [
+        852,
+        69,
+        1245,
+        417
+      ],
+      "sourceScaleToMaster": 0.5903307888040712,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        38.56488549618322
+      ],
+      "sourceCropPixels": [
+        393,
+        348
+      ],
+      "masterDrawPixels": [
+        232,
+        205
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          852,
+          69,
+          1245,
+          417
+        ],
+        "transparentFraction": 0.47111813050217893
+      },
+      "registrationAnchorSource": [
+        1048.5,
+        417
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        41,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:ice-peak",
+      "cell": 3,
+      "sourceBounds": [
+        16,
+        463,
+        408,
+        817
+      ],
+      "sourceScaleToMaster": 0.5918367346938775,
+      "masterOffsetPixels": [
+        12.0,
+        34.48979591836735
+      ],
+      "sourceCropPixels": [
+        392,
+        354
+      ],
+      "masterDrawPixels": [
+        232,
+        210
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          16,
+          463,
+          408,
+          817
+        ],
+        "transparentFraction": 0.4735025366078635
+      },
+      "registrationAnchorSource": [
+        212.0,
+        817
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        36,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:glacier",
+      "cell": 4,
+      "sourceBounds": [
+        433,
+        531,
+        833,
+        817
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        78.12
+      ],
+      "sourceCropPixels": [
+        400,
+        286
+      ],
+      "masterDrawPixels": [
+        232,
+        166
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          433,
+          531,
+          833,
+          817
+        ],
+        "transparentFraction": 0.3569055944055944
+      },
+      "registrationAnchorSource": [
+        633.0,
+        817
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        13,
+        79,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:frost-ridge",
+      "cell": 5,
+      "sourceBounds": [
+        845,
+        535,
+        1242,
+        813
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        81.54156171284635
+      ],
+      "sourceCropPixels": [
+        397,
+        278
+      ],
+      "masterDrawPixels": [
+        232,
+        162
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          845,
+          535,
+          1242,
+          813
+        ],
+        "transparentFraction": 0.4441857093670152
+      },
+      "registrationAnchorSource": [
+        1043.5,
+        813
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        84,
+        243,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:mesa",
+      "cell": 6,
+      "sourceBounds": [
+        12,
+        875,
+        416,
+        1188
+      ],
+      "sourceScaleToMaster": 0.5742574257425742,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        64.25742574257427
+      ],
+      "sourceCropPixels": [
+        404,
+        313
+      ],
+      "masterDrawPixels": [
+        232,
+        180
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          12,
+          875,
+          416,
+          1188
+        ],
+        "transparentFraction": 0.3772814981178629
+      },
+      "registrationAnchorSource": [
+        214.0,
+        1188
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        13,
+        65,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:butte",
+      "cell": 7,
+      "sourceBounds": [
+        436,
+        857,
+        827,
+        1196
+      ],
+      "sourceScaleToMaster": 0.5933503836317136,
+      "masterOffsetPixels": [
+        12.0,
+        42.85421994884911
+      ],
+      "sourceCropPixels": [
+        391,
+        339
+      ],
+      "masterDrawPixels": [
+        232,
+        201
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          436,
+          857,
+          827,
+          1196
+        ],
+        "transparentFraction": 0.48618246837018764
+      },
+      "registrationAnchorSource": [
+        631.5,
+        1196
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        44,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-mountains:canyon",
+      "cell": 8,
+      "sourceBounds": [
+        847,
+        869,
+        1254,
+        1200
+      ],
+      "sourceScaleToMaster": 0.5700245700245701,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        55.3218673218673
+      ],
+      "sourceCropPixels": [
+        407,
+        331
+      ],
+      "masterDrawPixels": [
+        232,
+        189
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          847,
+          869,
+          1254,
+          1200
+        ],
+        "transparentFraction": 0.27364772077763017
+      },
+      "registrationAnchorSource": [
+        1050.5,
+        1200
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        57,
+        242,
+        242
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-mountains",
+    "prompt": "From-scratch production sprite atlas for Transport. Fixed orthographic 2:1 dimetric camera; ground axes at +26.565 and -26.565 degrees. No perspective. Muted natural paint with broad graphic masses and very few details, northwest upper-left daylight, right faces darker, tiny soft ground contact shadow toward bottom-right. Genuine RGBA transparent background everywhere outside objects, no ground disc, rectangle, card or base. No labels, letters, frames, watermark, checkerboard, grid or UI. Each cell fully isolated with at least 8% transparent gutters. Exactly 9 cells in a 3 by 3 equal-cell square atlas. Do not crop anything. Ground centre within each cell horizontally centered; lowest contact at 94% height. Sculptural exposed geology arranged within a 2:1 ground diamond. Keep all bare terrain transparent; only actual rocks, ice or sand formations visible. Footprint width around 82% of cell, maximum height 78%, contact baseline 94%. Granite neutral gray with muted sage, tundra cold gray and ivory snow/blue-gray ice, desert muted warm sandstone and ochre. Large clean planes and readable light/shadow, no texture speckle. Slots row-major: 1: granite-ridge; 2: wooded-foothill; 3: granite-peak; 4: ice-peak; 5: glacier; 6: frost-ridge; 7: mesa; 8: butte; 9: canyon",
+    "kind": "rock",
+    "heights": null,
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-mountains:granite-ridge",
+      "nature-mountains:wooded-foothill",
+      "nature-mountains:granite-peak",
+      "nature-mountains:ice-peak",
+      "nature-mountains:glacier",
+      "nature-mountains:frost-ridge",
+      "nature-mountains:mesa",
+      "nature-mountains:butte",
+      "nature-mountains:canyon"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024
+    ]
+  }
+}

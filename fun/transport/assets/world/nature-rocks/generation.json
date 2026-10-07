@@ -1,0 +1,463 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "From-scratch production sprite atlas for Transport. Fixed orthographic 2:1 dimetric camera; ground axes at +26.565 and -26.565 degrees. No perspective. Muted natural paint with broad graphic masses and very few details, northwest upper-left daylight, right faces darker, tiny soft ground contact shadow toward bottom-right. Genuine RGBA transparent background everywhere outside objects, no ground disc, rectangle, card or base. No labels, letters, frames, watermark, checkerboard, grid or UI. Each cell fully isolated with at least 8% transparent gutters. Exactly 9 cells in a 3 by 3 equal-cell square atlas. Do not crop anything. Ground centre within each cell horizontally centered; lowest contact at 94% height. Sculptural exposed geology arranged within a 2:1 ground diamond. Keep all bare terrain transparent; only actual rocks, ice or sand formations visible. Footprint width around 82% of cell, maximum height 78%, contact baseline 94%. Granite neutral gray with muted sage, tundra cold gray and ivory snow/blue-gray ice, desert muted warm sandstone and ochre. Large clean planes and readable light/shadow, no texture speckle. Slots row-major: 1: taiga-boulder; 2: taiga-scree; 3: tundra-glacial; 4: tundra-snow; 5: desert-boulder; 6: desert-dunes; 7: desert-salt; 8: desert-strata; 9: tundra-ice",
+  "sourceSha256": "806dd131296b10cbd0781ec42751c5019b497e4bba8e965e4453bf6be0f18e2b",
+  "scale": {
+    "bottomAnchor": 0.953125,
+    "calibration": "authored footprint patch; no measured physical height"
+  },
+  "measurements": [
+    {
+      "id": "nature-rocks:taiga-boulder",
+      "cell": 0,
+      "sourceBounds": [
+        8,
+        52,
+        405,
+        397
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        42.38790931989925
+      ],
+      "sourceCropPixels": [
+        397,
+        345
+      ],
+      "masterDrawPixels": [
+        232,
+        202
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          8,
+          52,
+          405,
+          397
+        ],
+        "transparentFraction": 0.45429854342350234
+      },
+      "registrationAnchorSource": [
+        206.5,
+        397
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        13,
+        44,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-rocks:taiga-scree",
+      "cell": 1,
+      "sourceBounds": [
+        425,
+        85,
+        827,
+        399
+      ],
+      "sourceScaleToMaster": 0.5771144278606966,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        62.786069651741286
+      ],
+      "sourceCropPixels": [
+        402,
+        314
+      ],
+      "masterDrawPixels": [
+        232,
+        181
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          425,
+          85,
+          827,
+          399
+        ],
+        "transparentFraction": 0.45072408657350194
+      },
+      "registrationAnchorSource": [
+        626.0,
+        399
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        65,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-glacial",
+      "cell": 2,
+      "sourceBounds": [
+        848,
+        71,
+        1248,
+        399
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        53.76000000000002
+      ],
+      "sourceCropPixels": [
+        400,
+        328
+      ],
+      "masterDrawPixels": [
+        232,
+        190
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          848,
+          71,
+          1248,
+          399
+        ],
+        "transparentFraction": 0.40315548780487803
+      },
+      "registrationAnchorSource": [
+        1048.0,
+        399
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        55,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-snow",
+      "cell": 3,
+      "sourceBounds": [
+        5,
+        473,
+        409,
+        802
+      ],
+      "sourceScaleToMaster": 0.5742574257425742,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        55.069306930693074
+      ],
+      "sourceCropPixels": [
+        404,
+        329
+      ],
+      "masterDrawPixels": [
+        232,
+        189
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          5,
+          473,
+          409,
+          802
+        ],
+        "transparentFraction": 0.42654759396912334
+      },
+      "registrationAnchorSource": [
+        207.0,
+        802
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        57,
+        242,
+        241
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-boulder",
+      "cell": 4,
+      "sourceBounds": [
+        426,
+        483,
+        828,
+        801
+      ],
+      "sourceScaleToMaster": 0.5771144278606966,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        60.47761194029849
+      ],
+      "sourceCropPixels": [
+        402,
+        318
+      ],
+      "masterDrawPixels": [
+        232,
+        184
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          426,
+          483,
+          828,
+          801
+        ],
+        "transparentFraction": 0.40625488907662943
+      },
+      "registrationAnchorSource": [
+        627.0,
+        801
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        13,
+        63,
+        242,
+        242
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-dunes",
+      "cell": 5,
+      "sourceBounds": [
+        845,
+        511,
+        1251,
+        803
+      ],
+      "sourceScaleToMaster": 0.5714285714285714,
+      "masterOffsetPixels": [
+        12.0,
+        77.14285714285714
+      ],
+      "sourceCropPixels": [
+        406,
+        292
+      ],
+      "masterDrawPixels": [
+        232,
+        167
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          845,
+          511,
+          1251,
+          803
+        ],
+        "transparentFraction": 0.3637222484648087
+      },
+      "registrationAnchorSource": [
+        1048.0,
+        803
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        78,
+        242,
+        243
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-salt",
+      "cell": 6,
+      "sourceBounds": [
+        14,
+        949,
+        406,
+        1195
+      ],
+      "sourceScaleToMaster": 0.5918367346938775,
+      "masterOffsetPixels": [
+        12.0,
+        98.40816326530611
+      ],
+      "sourceCropPixels": [
+        392,
+        246
+      ],
+      "masterDrawPixels": [
+        232,
+        146
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          14,
+          949,
+          406,
+          1195
+        ],
+        "transparentFraction": 0.37791397046623526
+      },
+      "registrationAnchorSource": [
+        210.0,
+        1195
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        100,
+        242,
+        243
+      ]
+    },
+    {
+      "id": "nature-rocks:desert-strata",
+      "cell": 7,
+      "sourceBounds": [
+        427,
+        869,
+        828,
+        1195
+      ],
+      "sourceScaleToMaster": 0.5785536159600998,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        55.39152119700748
+      ],
+      "sourceCropPixels": [
+        401,
+        326
+      ],
+      "masterDrawPixels": [
+        232,
+        189
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          427,
+          869,
+          828,
+          1195
+        ],
+        "transparentFraction": 0.3788764285605006
+      },
+      "registrationAnchorSource": [
+        627.5,
+        1195
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        56,
+        242,
+        243
+      ]
+    },
+    {
+      "id": "nature-rocks:tundra-ice",
+      "cell": 8,
+      "sourceBounds": [
+        847,
+        894,
+        1244,
+        1197
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        66.93198992443325
+      ],
+      "sourceCropPixels": [
+        397,
+        303
+      ],
+      "masterDrawPixels": [
+        232,
+        177
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          847,
+          894,
+          1244,
+          1197
+        ],
+        "transparentFraction": 0.4472404419283238
+      },
+      "registrationAnchorSource": [
+        1045.5,
+        1197
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
+      "bounds": [
+        14,
+        69,
+        243,
+        242
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-rocks",
+    "prompt": "From-scratch production sprite atlas for Transport. Fixed orthographic 2:1 dimetric camera; ground axes at +26.565 and -26.565 degrees. No perspective. Muted natural paint with broad graphic masses and very few details, northwest upper-left daylight, right faces darker, tiny soft ground contact shadow toward bottom-right. Genuine RGBA transparent background everywhere outside objects, no ground disc, rectangle, card or base. No labels, letters, frames, watermark, checkerboard, grid or UI. Each cell fully isolated with at least 8% transparent gutters. Exactly 9 cells in a 3 by 3 equal-cell square atlas. Do not crop anything. Ground centre within each cell horizontally centered; lowest contact at 94% height. Sculptural exposed geology arranged within a 2:1 ground diamond. Keep all bare terrain transparent; only actual rocks, ice or sand formations visible. Footprint width around 82% of cell, maximum height 78%, contact baseline 94%. Granite neutral gray with muted sage, tundra cold gray and ivory snow/blue-gray ice, desert muted warm sandstone and ochre. Large clean planes and readable light/shadow, no texture speckle. Slots row-major: 1: taiga-boulder; 2: taiga-scree; 3: tundra-glacial; 4: tundra-snow; 5: desert-boulder; 6: desert-dunes; 7: desert-salt; 8: desert-strata; 9: tundra-ice",
+    "kind": "rock",
+    "heights": null,
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-rocks:taiga-boulder",
+      "nature-rocks:taiga-scree",
+      "nature-rocks:tundra-glacial",
+      "nature-rocks:tundra-snow",
+      "nature-rocks:desert-boulder",
+      "nature-rocks:desert-dunes",
+      "nature-rocks:desert-salt",
+      "nature-rocks:desert-strata",
+      "nature-rocks:tundra-ice"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024
+    ]
+  }
+}

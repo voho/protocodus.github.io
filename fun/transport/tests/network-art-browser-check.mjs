@@ -18,6 +18,7 @@ try {
       const { createRenderer } = await import('./renderer.js'), { createGame } = await import('./model.js');
       const { drawRasterNetwork } = await import('./raster-transport.js'), art = await import('./atlas-runtime.js');
       const { RAIL_PALETTE } = await import('./rail-surface-art.js');
+      const { ROAD_PALETTE } = await import('./road-surface-art.js');
       await art.preloadWorldArt({ waitMs: 12000 });
       const game = createGame({ size: 'regional', seed: 418 });
       for (const key of ['cities', 'industries', 'stations', 'vehicles', 'routes', 'zones']) game[key] = [];
@@ -32,7 +33,7 @@ try {
       }
       game.revision++;
       const canvas = document.querySelector('canvas'), renderer = createRenderer(canvas, game, { layers: { names:false, trees:false, buildings:false, industryIcons:false, routes:false } });
-      window.networkArtQA = { game, renderer, canvas, drawRasterNetwork, art, directions, centers, palette: RAIL_PALETTE };
+      window.networkArtQA = { game, renderer, canvas, drawRasterNetwork, art, directions, centers, palette: RAIL_PALETTE, roadPalette: ROAD_PALETTE };
     });
     for (const zoom of [.5, 1, 2]) {
       const checks = await page.evaluate(zoom => {
@@ -50,19 +51,19 @@ try {
           let opaque=0,coolGray=0;
           for(let i=0;i<pixels.length;i+=4)if(pixels[i+3]>200){opaque++;if(pixels[i+2]+2>=pixels[i]&&pixels[i+1]+2>=pixels[i])coolGray++;}
           const endpoints=q.directions.map(([dx,dy],i)=>({connected:Boolean(mask&(1<<i)),alpha:c.getImageData(Math.floor((32+dx*14)*scale),Math.floor((32+dy*14)*scale),1,1).data[3]}));
-          masks.push({kind,mask,painted,draws,expectedDraws:kind.startsWith('rail')?0:straight?1:arms.length+(kind==='road'?1:0),junction:!straight&&kind==='road',expectedIndex:expectedIndices[kind],ink:Array.from(pixels).some((v,i)=>i%4===3&&v>0),opaque,coolGray,endpoints});
+          masks.push({kind,mask,painted,draws,expectedDraws:0,junction:!straight&&kind==='road',expectedIndex:expectedIndices[kind],ink:Array.from(pixels).some((v,i)=>i%4===3&&v>0),opaque,coolGray,endpoints});
         }
         q.renderer.setZoom(zoom);q.renderer.focus(30,25);
         const observed=[],draw=CanvasRenderingContext2D.prototype.drawImage,stroke=CanvasRenderingContext2D.prototype.stroke;
-        let steelStrokes=0;
+        let steelStrokes=0,roadStrokes=0;
         CanvasRenderingContext2D.prototype.drawImage=function(image,...args){
           if(image.src?.includes('/city-ground-v3/'))observed.push(args[1]/args[3]*3+args[0]/args[2]);
           return draw.call(this,image,...args);
         };
-        CanvasRenderingContext2D.prototype.stroke=function(...args){if(this.strokeStyle===q.palette.steel)steelStrokes++;return stroke.call(this,...args);};
+        CanvasRenderingContext2D.prototype.stroke=function(...args){if(this.strokeStyle===q.palette.steel)steelStrokes++;if(this.strokeStyle===q.roadPalette.asphalt)roadStrokes++;return stroke.call(this,...args);};
         try{q.renderer.render(0);}finally{CanvasRenderingContext2D.prototype.drawImage=draw;CanvasRenderingContext2D.prototype.stroke=stroke;}
         const composed=q.renderer.getStats().composedChunks;q.renderer.render(0);
-        return{masks,observed,steelStrokes,extra:q.renderer.getStats().composedChunks-composed,stats:q.art.worldArtStats()};
+        return{masks,observed,steelStrokes,roadStrokes,extra:q.renderer.getStats().composedChunks-composed,stats:q.art.worldArtStats()};
       },zoom);
       assert.deepEqual(checks.stats.errors,[]);
       for(const p of checks.masks){
@@ -72,16 +73,15 @@ try {
           assert.ok(p.opaque>8,label);assert.ok(p.coolGray/p.opaque>.98,`${label}: visible material is cool gray`);
           for(const endpoint of p.endpoints)assert.equal(endpoint.alpha>128,endpoint.connected,`${label}: only connected arms reach the tile boundary`);
         }else{
-          for(const draw of p.draws)assert.ok(draw.src.includes('/city-ground-v3/'),label);
-          assert.equal(p.draws.filter(draw=>draw.index===p.expectedIndex).length,p.expectedDraws-(p.junction?1:0),`${label}: correct authored road arms`);
-          assert.equal(p.draws.filter(draw=>draw.index===4).length,p.junction?1:0,`${label}: road junction patch remains isolated`);
+          assert.ok(p.opaque>8,label);
+          for(const endpoint of p.endpoints)assert.equal(endpoint.alpha>128,endpoint.connected,`${label}: only connected road arms reach the tile boundary`);
         }
       }
-      assert.ok(checks.observed.filter(i=>i===0).length>=30,'real renderer uses authored road textures on connected bends and junctions');
+      assert.ok(checks.roadStrokes>=30,'real renderer paints the new carriageway on connected bends and junctions');
       assert.ok(checks.steelStrokes>=30,'real renderer paints gray steel on connected railway bends and junctions');
       assert.ok(!checks.observed.some(i=>i===1||i===3||i===5),'legacy brown rail strips and junction patches cannot cover gray geometry');
       assert.equal(checks.extra,0,'unchanged generated network chunks remain cached');
-      results.push({zoom,dpr,shapes:checks.masks.length,roadAtlasDraws:checks.observed.length,railSteelStrokes:checks.steelStrokes});
+      results.push({zoom,dpr,shapes:checks.masks.length,roadSurfaceStrokes:checks.roadStrokes,railSteelStrokes:checks.steelStrokes});
       await page.locator('canvas').screenshot({path:`${output}/junctions-zoom${zoom}-dpr${dpr}.png`});
     }
     await context.close();

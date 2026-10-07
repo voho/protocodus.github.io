@@ -1,0 +1,462 @@
+{
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, cool tundra blue-green, pale sage and ivory palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. SPARSE variant: exactly TWO OR THREE SMALL SEPARATED clumps per cell, with LARGE TRANSPARENT GAPS occupying at least75% of a ground patch. Flowers only3to5 individual stalks total. Reeds only3to5 stalks total. Grass2small tufts. Shrubs one tiny open low bush plusonevery smallsprig. No continuous foliage carpet. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: arctic-poppies; 2: cotton-grass; 3: heather; 4: lichen; 5: willow-scrub; 6: tundra-grass; 7: shrubs; 8: reeds; 9: marsh.",
+  "sourceSha256": "fb907551af0334ab89b1f114bdb86e0d6dd8daf5c1a78f6e738fc6017e07759f",
+  "scale": {
+    "bottomAnchor": 0.953125,
+    "calibration": "authored footprint patch; no measured physical height"
+  },
+  "measurements": [
+    {
+      "id": "nature-ground-tundra:arctic-poppies-sparse",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "transparentFraction": 0.6513873308761247
+      },
+      "registrationAnchorSource": [
+        209.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        53,
+        66,
+        205,
+        222
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:cotton-grass-sparse",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          0,
+          836,
+          418
+        ],
+        "transparentFraction": 0.5906458185481102
+      },
+      "registrationAnchorSource": [
+        627.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        47,
+        61,
+        206,
+        234
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:heather-sparse",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          0,
+          1254,
+          418
+        ],
+        "transparentFraction": 0.6221583754950665
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        40,
+        80,
+        219,
+        232
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:lichen-sparse",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        824
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        28.373205741626805
+      ],
+      "sourceCropPixels": [
+        418,
+        406
+      ],
+      "masterDrawPixels": [
+        222,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          418,
+          418,
+          824
+        ],
+        "transparentFraction": 0.6060468569542979
+      },
+      "registrationAnchorSource": [
+        209.0,
+        824
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        51,
+        87,
+        221,
+        225
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:willow-scrub-sparse",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        824
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        28.373205741626805
+      ],
+      "sourceCropPixels": [
+        418,
+        406
+      ],
+      "masterDrawPixels": [
+        222,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          418,
+          836,
+          824
+        ],
+        "transparentFraction": 0.49549814976312256
+      },
+      "registrationAnchorSource": [
+        627.0,
+        824
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        37,
+        60,
+        213,
+        221
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:tundra-grass-sparse",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        824
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        28.373205741626805
+      ],
+      "sourceCropPixels": [
+        418,
+        406
+      ],
+      "masterDrawPixels": [
+        222,
+        216
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          418,
+          1254,
+          824
+        ],
+        "transparentFraction": 0.5962948122657742
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        824
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        40,
+        67,
+        220,
+        205
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:shrubs-sparse",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        824,
+        418,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        15.626794258373195
+      ],
+      "sourceCropPixels": [
+        418,
+        430
+      ],
+      "masterDrawPixels": [
+        222,
+        228
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          824,
+          418,
+          1254
+        ],
+        "transparentFraction": 0.5189551574496495
+      },
+      "registrationAnchorSource": [
+        209.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        40,
+        45,
+        221,
+        203
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:reeds-sparse",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        824,
+        836,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        15.626794258373195
+      ],
+      "sourceCropPixels": [
+        418,
+        430
+      ],
+      "masterDrawPixels": [
+        222,
+        228
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          824,
+          836,
+          1254
+        ],
+        "transparentFraction": 0.5514298431067097
+      },
+      "registrationAnchorSource": [
+        627.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        51,
+        17,
+        201,
+        200
+      ]
+    },
+    {
+      "id": "nature-ground-tundra:marsh-sparse",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        824,
+        1254,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        15.626794258373195
+      ],
+      "sourceCropPixels": [
+        418,
+        430
+      ],
+      "masterDrawPixels": [
+        222,
+        228
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          824,
+          1254,
+          1254
+        ],
+        "transparentFraction": 0.5232502503616334
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        42,
+        58,
+        219,
+        205
+      ]
+    }
+  ],
+  "job": {
+    "path": "nature-ground-tundra/sparse",
+    "prompt": "Exactly NINE isolated ground-plant sprites in a3x3 equal-square-cell atlas. View DOWN from elevated orthographic isometric game camera,35degrees above horizon,yaw45degrees, ground circles projected2:1. See flower heads and leaf TOP surfaces and radial rosettes, not a side-view bouquet or upright frontal curtain. Quiet painted miniature natural plants, broad shapes, no microdetail. Northwest light, soft short southeast contact shadows, cool tundra blue-green, pale sage and ivory palette. Genuine RGBA transparent background, absolutely NO bare ground, lawn, soil, sand, rock, backdrop or platform. Each sprite complete in its own cell with12% empty gutters. SPARSE variant: exactly TWO OR THREE SMALL SEPARATED clumps per cell, with LARGE TRANSPARENT GAPS occupying at least75% of a ground patch. Flowers only3to5 individual stalks total. Reeds only3to5 stalks total. Grass2small tufts. Shrubs one tiny open low bush plusonevery smallsprig. No continuous foliage carpet. Each patch has same5m physicalgroundspan. Flowers/grasses0.3\u20130.7m high, shrubs up to1.2m, desert cacti up to2m; foreground/near plants lower in screen, far plants higher, visible2:1 ground depth. No labels/letters/UI. Subjects row-major: 1: arctic-poppies; 2: cotton-grass; 3: heather; 4: lichen; 5: willow-scrub; 6: tundra-grass; 7: shrubs; 8: reeds; 9: marsh.",
+    "kind": "ground",
+    "heights": null,
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-ground-tundra:arctic-poppies-sparse",
+      "nature-ground-tundra:cotton-grass-sparse",
+      "nature-ground-tundra:heather-sparse",
+      "nature-ground-tundra:lichen-sparse",
+      "nature-ground-tundra:willow-scrub-sparse",
+      "nature-ground-tundra:tundra-grass-sparse",
+      "nature-ground-tundra:shrubs-sparse",
+      "nature-ground-tundra:reeds-sparse",
+      "nature-ground-tundra:marsh-sparse"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "gridCells": true,
+    "sparse": true
+  }
+}

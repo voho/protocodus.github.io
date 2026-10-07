@@ -1,0 +1,23 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "vehicle:bus",
+    "vehicle:truck",
+    "vehicle:locomotive",
+    "vehicle:coach",
+    "vehicle:wagon",
+    "vehicle:express-bus",
+    "vehicle:ferry",
+    "vehicle:cargo-ship",
+    "vehicle:tanker"
+  ]
+}

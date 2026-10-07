@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "f88d625dac4ce50903b41c32d8b2e2530b8f684965b86e22b59631bc9396d271",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "industries-1",
+    "output": "fun/transport/assets/world/plot-buildings-v2/industries-1",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "f88d625dac4ce50903b41c32d8b2e2530b8f684965b86e22b59631bc9396d271",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Corrected source camera and registration measured; actual observable personnel doors within25percent of2.1m; obscured/ambiguous ordinary entrances explicitly unobservable."
+  },
+  "reviewStatus": "Corrected source camera and registration measured; actual observable personnel doors within25percent of2.1m; obscured/ambiguous ordinary entrances explicitly unobservable.",
+  "heightCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "height-correction-prompt.txt",
+    "iterations": 2,
+    "operation": "Repaint oversized human-scale architecture and vehicles while preserving industrial identity and ground coverage; remeasure corrected original pixels and repack at one observed whole-sheet density."
+  }
+}

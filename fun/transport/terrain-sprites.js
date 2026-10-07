@@ -17,7 +17,6 @@ export const isPlantDetail = detail => PLANT_DETAILS.has(normalizedDetail(detail
 function randomStream(seed){let a=seed>>>0;return()=>{a+=0x6d2b79f5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
 const TAU=Math.PI*2;
-function curve(c,x,y,cx,cy,tx,ty,color,width=.65){c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(cx,cy,tx,ty);c.stroke();}
 function outline(c,points){c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();}
 function jagged(g,x,y,rx,ry,points=13){return Array.from({length:points},(_,i)=>{const a=(i+g()*.35)*TAU/points,k=.72+g()*.34;return[x+Math.cos(a)*rx*k,y+Math.sin(a)*ry*k];});}
 function patch(c,g,t,x,y,rx,ry,palette,regional){
@@ -36,87 +35,6 @@ function clusters(g,min,max,spread=5){
   return Array.from({length:count},(_,i)=>{const center=centers[i%centers.length];return{x:clamp(center.x+(g()+g()-1)*spread,5,27),y:clamp(center.y+(g()+g()-1)*spread,9,28),s:.65+g()*.7};}).sort((a,b)=>a.y-b.y);
 }
 function foliage(biome){return biome==='desert'?['#788060','#98a078','#bdc098']:biome==='tundra'?['#7e9180','#a2b19a','#c9ceb0']:['#58754e','#7f975f','#b1bb83'];}
-function shrub(c,g,t,plant,biome,detail,regional){
-  const {x,y}=plant,s=Math.min(plant.s,(Math.min(x,32-x)-.5)/5.8),palette=foliage(biome),dry=detail==='scrub';
-  const branches=3+Math.floor(g()*4),width=(dry?3.7:4.6)*s,height=(dry?2.5:3.5)*s;
-  oval(c,x+.7,y+.6,width*.9,.85*s,'#53614620');
-  const tips=[];
-  for(let k=0;k<branches;k++){
-    const bx=x+(g()-.5)*width*1.7,by=y-height*(.55+g()*.75);tips.push([bx,by]);
-    curve(c,x+(g()-.5),y,bx+(x-bx)*.4,by+height*.4,bx,by,dry?'#91866a':'#778264',.5*s);
-  }
-  if(detail==='willow-scrub'){
-    for(const [bx,by]of tips){
-      const lean=(bx-x)*.35;
-      for(let j=0;j<4;j++){const px=bx-lean*j*.15,py=by+j*.7*s;
-        poly(c,[[px,py+.9],[px-1.7*s,py-.1],[px-.6*s,py-.6],[px+.8*s,py-.15]],j%2?palette[1]:palette[2]);}
-    }
-  }else{
-    patch(c,g,t,x,y-height*.47,width,height,palette,regional);
-    for(const [bx,by]of tips.slice(0,dry?2:3))patch(c,g,t,bx,by,1.2*s,.9*s,[palette[0],palette[1],palette[2]],regional);
-    if(detail==='heather'||detail==='berry-bushes'){
-      const buds=7+Math.floor(g()*7),flower=detail==='heather';
-      for(let i=0;i<buds;i++){
-        const bx=x+(g()+g()-1)*width*.9,by=y-height*.35-g()*height*.8;
-        if(flower)line(c,[[bx,by+.9],[bx+.15,by-.6]],i%3?'#b3a0ad':'#cbb6bd',regional?.8:.65);
-        else oval(c,bx,by,.4+g()*.22,.4,i%3?'#a88170':'#cead89');
-      }
-    }
-  }
-}
-function grass(c,g,plant,detail,biome,regional){
-  const {x,y,s}=plant,cotton=detail==='cotton-grass',reeds=detail==='reeds';
-  const colors=detail==='dry-grass'?['#9e8962','#c5ae7d','#dbca9f']:biome==='tundra'?['#7f9684','#a9b698','#ccd1b0']:['#6b8659','#96aa74','#bfca94'];
-  const count=(reeds?7:4)+Math.floor(g()*5),height=(reeds?6:3.2)*s,lean=(g()-.5)*2.5;
-  oval(c,x+.4,y+.4,2.8*s,.6*s,'#5d6a4420');
-  for(let i=0;i<count;i++){
-    const root=x+(g()-.5)*2.7*s,dx=(g()-.5)*(reeds?4:6)*s+lean,h=Math.min(y-1.8,height*(.45+g()*.85)),tipY=y-h,stroke=.45+g()*.22;
-    curve(c,root,y,root+dx*.15,tipY-.7,root+dx,tipY,colors[i%3],regional?.65:stroke);
-    // Geometry randomness is consumed regardless of profile.
-    const head=g(),seedSize=.5+g()*.4;
-    if(cotton&&head>.53){
-      const tipX=root+dx;poly(c,[[tipX-1*seedSize,tipY],[tipX-.8,tipY-1.1],[tipX+.25,tipY-1.5],[tipX+1,tipY-.7],[tipX+.6,tipY+.45]],'#e4e7cd');
-      if(!regional)line(c,[[tipX-.6,tipY-.8],[tipX+.4,tipY-.5]],'#faf7e3',.5);
-    }else if(reeds&&head>.59)line(c,[[root+dx,tipY-.7],[root+dx-.15,tipY+.6]],'#8a8162',.85);
-    else if(detail==='dry-grass'&&head>.68)line(c,[[root+dx-.6,tipY-.25],[root+dx+.5,tipY+.4]],colors[2],.55);
-  }
-}
-function flowers(c,g,t,detail,biome,regional){
-  const palette=detail==='bluebells'?['#8c8fac','#b1a4bf','#cac0d0']:detail==='arctic-poppies'?['#ccb367','#ebd899','#ece4c0']:detail==='desert-flowers'?['#bd8f83','#d7ac94','#e4ccb0']:['#ddd8af','#b7b2ca','#cca7a0','#cfbe86'];
-  const plants=clusters(g,7,14,7);
-  for(const plant of plants){
-    const {x,y,s}=plant,h=(detail==='bluebells'?3.5:2.3)*s,lean=(g()-.5)*2.2,topX=x+lean,topY=y-h;
-    curve(c,x,y,x-.3,topY,topX,topY,biome==='desert'?'#89946d':'#718d60',regional?.65:.5);
-    const leafSide=g()<.5?-1:1,leafY=y-h*.35;
-    poly(c,[[x,leafY],[x+leafSide*1.7,leafY-.8],[x+leafSide*.8,leafY+.2]],'#9aad79');
-    const color=palette[Math.floor(g()*palette.length)],bend=(g()-.5)*.5;
-    if(detail==='bluebells'){
-      poly(c,[[topX-.35,topY-.6],[topX+.65,topY-.45],[topX+1.1,topY+.9],[topX-.6,topY+.7]],color);
-      if(!regional)line(c,[[topX-.35,topY+.8],[topX+.75,topY+.95]],palette[2],.45);
-    }else{
-      const petals=3+Math.floor(g()*3),angle=g()*TAU;
-      for(let j=0;j<petals;j++){const a=angle+j*TAU/petals;oval(c,topX+Math.cos(a)*.58*s,topY+Math.sin(a)*.42*s,.54*s,.43*s,color);}
-      oval(c,topX+bend,topY,.25,.23,'#aa946b');
-    }
-    const dustX=x+(t()-.5)*2,dustY=y+t();if(!regional)rect(c,dustX,dustY,.55,.35,'#c4c59b65');
-  }
-}
-function fern(c,g,plant,regional){
-  const {x,y}=plant,s=Math.min(plant.s,(Math.min(x,32-x)-.8)/6.7),fronds=5+Math.floor(g()*4),turn=g()*TAU;
-  oval(c,x+.5,y+.6,3.8*s,1.3*s,'#53644524');
-  for(let k=0;k<fronds;k++){
-    const a=turn+k*TAU/fronds+(g()-.5)*.35,len=(3.7+g()*3)*s,dx=Math.cos(a)*len,dy=Math.sin(a)*len*.55-1.3*s,bend=(g()-.5)*1.8;
-    curve(c,x,y,x+dx*.38+bend,y+dy*.4-.8,x+dx,y+dy,k%2?'#527c4e':'#6c915f',.6);
-    const leaflets=4+Math.floor(g()*3);
-    for(let j=1;j<leaflets;j++){
-      const u=j/leaflets,px=x+dx*u+bend*Math.sin(u*Math.PI)*.4,py=y+dy*u-.65*Math.sin(u*Math.PI),size=(1-u)*1.5*s+.25;
-      const nx=-Math.sin(a)*size,ny=Math.cos(a)*size*.65;
-      poly(c,[[px-.2,py+.3],[px+nx-dx*.11,py+ny-dy*.11],[px+dx*.06,py+dy*.06]],k%2?'#789d60':'#63894f');
-      poly(c,[[px+.2,py],[px-nx-dx*.09,py-ny-dy*.09],[px+dx*.08,py+dy*.08]],'#a3bc80');
-    }
-    if(!regional)curve(c,x,y,x+dx*.35+bend,y+dy*.35-.8,x+dx*.84,y+dy*.84,'#bdcba07d',.3);
-  }
-}
 function stone(c,g,t,plant,biome,regional){
   const {x,y,s}=plant,w=(2+g()*2.5)*s,h=w*(.45+g()*.4),left=.5+g()*.25;
   const colors=biome==='desert'?['#96826c','#baa488','#d9c29e']:['#829388','#adbbae','#d2d9c4'];
@@ -126,63 +44,74 @@ function stone(c,g,t,plant,biome,regional){
   poly(c,[pts[1],pts[2],pts[3],[x+w*.1,y-h*.57],[x-w*.56,y-h*.4]],colors[2]);
   if(!regional){c.save();outline(c,pts);c.clip();for(let i=0;i<12;i++)rect(c,x+(t()-.5)*w*2,y-t()*h,.4+t()*.6,.35,i%3?'#edf0d359':'#586d5b40');c.restore();line(c,[[x-w*.1,y-h*.76],[x-w*.21,y-h*.3],[x+w*.2,y]],colors[0],.4);}
 }
-function succulent(c,g,t,plant,detail,regional){
-  const s=plant.s,x=clamp(plant.x,7*s,32-7*s),y=Math.max(plant.y,11*s),aloe=detail==='aloe',prickly=detail==='prickly-pear';
-  oval(c,x+1,y+.8,4*s,1.1*s,'#706b4928');
-  if(prickly){
-    const pads=3+Math.floor(g()*4),lean=(g()-.5)*2;
-    for(let i=0;i<pads;i++){
-      const px=x+(i?Math.sin(i*2.4+lean)*(1.5+i*.45)*s:0),py=y-1.6*s-i*.9*s,angle=(g()-.5)*.65,w=(1.15+g()*.45)*s,h=(1.7+g()*.55)*s;
-      c.save();c.translate(px,py);c.rotate(angle);oval(c,.3,.2,w,h,'#728968');oval(c,-.2,-.2,w*.86,h*.92,i%2?'#93aa7c':'#a5b489');
-      if(!regional)for(let j=0;j<5;j++)rect(c,(t()-.5)*w*1.3,(t()-.5)*h*1.6,.35,.45,'#dae0b094');c.restore();
-      if(i>1&&g()>.72)oval(c,px,py-h,.55,.4,'#c79a84');
-    }
-  }else{
-    const count=6+Math.floor(g()*5),turn=g()*TAU;
-    for(let i=0;i<count;i++){
-      const a=turn+i*TAU/count+(g()-.5)*.4,len=(aloe?3.1:4.1)*s*(.7+g()*.6),dx=Math.cos(a)*len,dy=Math.sin(a)*len*.63-1.1*s,wide=(aloe?.95:.6)*s,bend=(g()-.5)*1.6;
-      c.fillStyle=i%3===0?'#5e857b':i%2?'#86a697':'#a9bbae';c.beginPath();c.moveTo(x-wide,y);c.quadraticCurveTo(x+dx*.6+bend,y+dy*.5-1.1,x+dx,y+dy);c.quadraticCurveTo(x+dx*.5,y+dy*.5+wide,x+wide*.5,y);c.fill();
-      if(!regional)curve(c,x,y,x+dx*.5+bend*.4,y+dy*.5,x+dx,y+dy,'#d4dcc15c',.35);
-      if(aloe)line(c,[[x+dx*.82,y+dy*.82],[x+dx,y+dy]],'#b7988399',.48);
+// Sparse native plants are projected from a horizontal ground plane. Short,
+// broad leaves expose their upper surfaces instead of forming frontal clumps.
+function drawPlants(c,g,detail,biome){
+  const colors=foliage(biome),dry=['dry-grass','scrub','desert-flowers'].includes(detail),flower=['wildflowers','bluebells','arctic-poppies','desert-flowers'].includes(detail);
+  const count=flower?2+Math.floor(g()*3):g()<.8?1:2;
+  const plants=clusters(g,count,count,7);
+  for(const plant of plants){
+    const {x,y}=plant,s=.48+g()*.42,turn=g()*TAU;
+    const at=(u,v,z=0)=>[x+(u-v)*s,y+(u+v)*s/2-z*s];
+    const shape=(points,color)=>poly(c,points.map(q=>at(...q)),color);
+    const stem=(points,color=colors[0],width=.48)=>line(c,points.map(q=>at(...q)),color,width*s);
+    const leaf=(u,v,z,a,length,width,color)=>{
+      const dx=Math.cos(a)*length,dy=Math.sin(a)*length,nx=-Math.sin(a)*width,ny=Math.cos(a)*width;
+      shape([[u,v,z],[u+dx*.48+nx,v+dy*.48+ny,z+length*.15],[u+dx,v+dy,z-length*.06],[u+dx*.5-nx,v+dy*.5-ny,z+length*.05]],color);
+    };
+    const crown=(u,v,z,radius)=>{
+      const ring=Array.from({length:6},(_,i)=>{const a=i*TAU/6;return[u+Math.cos(a)*radius,v+Math.sin(a)*radius,z];});
+      shape(ring.map(([a,b,h])=>[a,b,h-.65]),colors[0]);
+      shape(ring,colors[1]);shape([[u-radius*.9,v,z],[u-radius*.5,v-radius*.85,z],[u+radius*.5,v-radius*.85,z],[u,v,z+.35]],colors[2]);
+    };
+    const column=(u,v,z,width,depth,height,color=colors[1])=>{
+      shape([[u-width,v-depth,z],[u+width,v-depth,z],[u+width,v-depth,z+height],[u-width,v-depth,z+height]],color);
+      shape([[u+width,v-depth,z],[u+width,v+depth,z],[u+width,v+depth,z+height],[u+width,v-depth,z+height]],colors[0]);
+      shape([[u-width,v+depth,z],[u+width,v+depth,z],[u+width,v+depth,z+height],[u-width,v+depth,z+height]],color);
+      shape([[u-width,v-depth,z+height],[u+width,v-depth,z+height],[u+width,v+depth,z+height],[u-width,v+depth,z+height]],colors[2]);
+    };
+    shape([[-1.4,-.9],[1.6,-.5],[2.3,1],[-.4,1.4]],'#304a3624');
+    if(flower){
+      const z=detail==='bluebells'?2.5:1.7;stem([[0,0],[.12,.03,z]],dry?'#a28e65':colors[0]);
+      leaf(0,0,.35,turn,1.7,.42,colors[1]);leaf(0,0,.4,turn+Math.PI,1.3,.35,colors[2]);
+      const color=detail==='bluebells'?'#a2a5bb':detail==='arctic-poppies'?'#d4bd7e':detail==='desert-flowers'?'#c79a88':g()<.5?'#d4cfb0':'#bca3a6';
+      shape([[-.65,0,z],[0,-.65,z+.15],[.65,0,z],[0,.65,z-.15]],color);
+    }else if(['grass-tufts','tundra-grass','dry-grass','cotton-grass','reeds','marsh'].includes(detail)){
+      const tall=detail==='reeds'||detail==='marsh',z=tall?3.4:1.4,n=tall?3:4;
+      if(detail==='marsh')shape([[-2.5,0],[0,-2],[2.5,0],[0,2]],'#71988b3a');
+      for(let i=0;i<n;i++){
+        const a=turn+i*TAU/n,len=1.8+g()*1.5,u=Math.cos(a)*.6,v=Math.sin(a)*.6;
+        if(tall){stem([[u,v],[u+.15,v-.1,z]],colors[0],.62);leaf(u,v,z*.5,a,len,.36,colors[i%3]);}
+        else leaf(0,0,z*.45,a,len,.35,dry?['#9e8962','#c5ae7d','#dbca9f'][i%3]:colors[i%3]);
+        if(detail==='cotton-grass')shape([[u-.4,v,z],[u,v-.4,z+.25],[u+.4,v,z],[u,v+.4,z]],'#e4e3c9');
+      }
+    }else if(['ferns','agave','aloe'].includes(detail)){
+      const count=detail==='ferns'?6:7,radius=detail==='ferns'?3.8:3.2;
+      for(let i=0;i<count;i++){
+        const a=turn+i*TAU/count;leaf(0,0,.75,a,radius,.55,colors[(i+1)%3]);
+        if(detail==='ferns')for(const t of [.45,.7]){const u=Math.cos(a)*radius*t,v=Math.sin(a)*radius*t;leaf(u,v,1,a+.85,1.25*(1-t),.3,colors[2]);leaf(u,v,1,a-.85,1.25*(1-t),.3,colors[1]);}
+      }
+    }else if(detail==='cactus'){
+      const height=2.5+g()*3.2;column(0,0,0,.58,.5,height);
+      const a=turn,u=Math.cos(a)*1.3,v=Math.sin(a)*1.3;
+      stem([[0,0,height*.4],[u,v,height*.4]],colors[1],1);column(u,v,height*.4,.38,.35,height*.3);
+    }else if(detail==='prickly-pear'){
+      column(0,0,0,.55,.22,1.6);column(-.6,.6,.9,.68,.2,1.5);column(.6,-.45,1.4,.55,.2,1.3);
+    }else if(detail==='lichen'){
+      shape([[-2.6,0],[-.8,-1.8],[2.5,-.6],[2.2,1.2],[-1,1.5]],'#b9c3a17a');
+      shape([[-1.7,0],[-.5,-.9],[1.3,-.4],[.7,.7]],'#d7d7b798');
+    }else{
+      stem([[0,0],[0,0,1.8]],dry?'#a28e65':colors[0]);crown(-.55,-.2,1.55,1.8);crown(.8,.45,1.2,1.5);
+      if(detail==='heather'||detail==='berry-bushes')shape([[-.8,-.4,1.7],[-.2,-.8,1.7],[.6,-.4,1.7],[0,.15,1.7]],detail==='heather'?'#b2a0ac':'#ab8774');
     }
   }
-}
-function cactus(c,g,t,plant,regional){
-  const {x,s}=plant,h=(6+g()*5)*s,y=Math.max(plant.y,h+1.5),lean=(g()-.5)*1.1,width=(1.1+g()*.45)*s;
-  oval(c,x+1,y+.6,2.8*s,.9*s,'#766b4928');
-  line(c,[[x,y],[x+lean,y-h]],'#667f61',width*2);line(c,[[x-.35*s,y-.3],[x+lean-.35*s,y-h+.1]],'#97aa7b',width);
-  const arms=Math.floor(g()*4);
-  for(let i=0;i<arms;i++){
-    const side=i%2?-1:1,at=y-h*(.2+g()*.42),reach=(1.7+g()*1.4)*s,up=(1.8+g()*2.4)*s;
-    c.strokeStyle=i%2?'#738e68':'#8da675';c.lineWidth=width*1.15;c.lineCap='round';c.beginPath();c.moveTo(x,at);c.quadraticCurveTo(x+side*reach,at+.3,x+side*reach,at-up);c.stroke();
-  }
-  if(!regional)for(let i=0;i<9;i++){const yy=y-t()*h;rect(c,x+(t()-.5)*width*1.1,yy,.3,.45,'#d4d8ac8a');}
-  if(g()>.68)oval(c,x+lean,y-h-.35,.7*s,.45*s,'#c0a080');
 }
 export function drawTerrainDetail(c,rawDetail,r,biome,detailLevel='town'){
   const regional=detailLevel==='region',detail=normalizedDetail(rawDetail);
   const g=randomStream(Math.floor(r()*4294967296)),t=randomStream(Math.floor(r()*4294967296));
   c.save();c.beginPath();c.rect(0,0,32,32);c.clip();
-  if(['wildflowers','bluebells','arctic-poppies','desert-flowers'].includes(detail))flowers(c,g,t,detail,biome,regional);
-  else if(['grass-tufts','tundra-grass','dry-grass','cotton-grass','reeds'].includes(detail))for(const plant of clusters(g,2,4,6))grass(c,g,plant,detail,biome,regional);
-  else if(detail==='ferns')for(const plant of clusters(g,1,3,6))fern(c,g,plant,regional);
-  else if(['shrubs','scrub','heather','berry-bushes','willow-scrub'].includes(detail))for(const plant of clusters(g,1,3,7))shrub(c,g,t,plant,biome,detail,regional);
-  else if(['agave','aloe','prickly-pear'].includes(detail))for(const plant of clusters(g,1,3,7))succulent(c,g,t,plant,detail,regional);
-  else if(detail==='cactus'){
-    const plants=clusters(g,1,3,7);for(const plant of plants)cactus(c,g,t,plant,regional);
-    if(g()>.45)stone(c,g,t,{x:6+g()*20,y:7+g()*20,s:.35},biome,regional);
-  }else if(detail==='marsh'){
-    for(const plant of clusters(g,1,3,7)){
-      const {x,y,s}=plant;patch(c,g,t,x,y,4.6*s,2.1*s,['#658c7a50','#82a08d48','#b3c4a762'],regional);
-      line(c,[[x-2*s,y+.7],[x+.5*s,y+1]],'#c0cdb058',.5);
-      grass(c,g,{x:x+2*s,y:y+1,s:.7*s},'reeds',biome,regional);
-    }
-  }else if(detail==='lichen'){
-    for(const {x,y,s}of clusters(g,2,5,8)){
-      patch(c,g,t,x,y,3.6*s,1.7*s,['#9daa8b52','#c2c7a685','#e2e0baba'],regional);
-      if(!regional)for(let i=0;i<6;i++){const px=x+(t()-.5)*4*s,py=y+(t()-.5)*2*s;line(c,[[px-.5,py+.4],[px,py-.3],[px+.5,py+.2]],'#e5e3bf85',.35);}
-    }
-  }else if(detail==='glacial'){
+  if(isPlantDetail(detail)&&detail!=='deadwood')drawPlants(c,g,detail,biome);
+  else if(detail==='glacial'){
     for(const plant of clusters(g,2,5,8))stone(c,g,t,plant,biome,regional);
   }else if(detail==='ice'){
     for(const {x,y,s}of clusters(g,1,2,7)){

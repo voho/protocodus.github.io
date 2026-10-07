@@ -1,0 +1,18 @@
+{
+  "baseSource": "source-before-florist-replacement.png",
+  "replacementSource": "generated-florist-full-frame.png",
+  "sourceFramePixels": [
+    1254,
+    1254
+  ],
+  "replacementFramePixels": [
+    418,
+    418
+  ],
+  "replacementPositionPixels": [
+    0,
+    836
+  ],
+  "method": "Premultiplied-alpha LANCZOS resize of entire replacement frame to418square then lossless paste into full row3col1 cell. No silhouette fitting, colour keys or pixel painting.",
+  "outputSha256": "6d25e625a86776f44574da8ca3b4bcce9a9016853cb16e1738f1eacca387ac6d"
+}

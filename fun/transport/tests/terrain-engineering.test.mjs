@@ -271,9 +271,11 @@ test('span paths reject side entry and wrong deck heights, but retain ordinary a
     // These saved surface roads predate the span; new slope construction has its own tests.
     for (let y = 8; y < 10; y++) tileAt(game, 12, y).road = true;
     assert.equal(findPath(game, { x: 12, y: 8 }, points[0]), null, 'surface roads cannot enter the side of an engineered span');
-    tileAt(game, 10, 10).elevation = 1 / 7;
+    // Lower both west-side corners so the bank centre is below the deck. A
+    // single corner edit now leaves the opposite canonical half-tile level.
+    for(const y of [10,11])tileAt(game,10,y).elevation=1/7;game.revision++;
     assert.equal(findPath(game, points[0], points.at(-1)), null, 'ground cannot connect one level below the deck or portal');
-    tileAt(game, 10, 10).elevation = 2 / 7;
+    for(const y of [10,11])tileAt(game,10,y).elevation=2/7;game.revision++;
     assert.ok(findPath(game, points[0], points.at(-1)));
     assert.equal(build(game, 'bulldoze', 12, 10).ok, true);
     assert.equal(tileAt(game, 12, 10).structureLevel, undefined);

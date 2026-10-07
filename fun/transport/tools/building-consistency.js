@@ -136,7 +136,7 @@ function annotate() {
   context.save(); context.setTransform(dpr, 0, 0, dpr, 0, 0);
   label('Transport — every building on flat grass', MARGIN, 42, 26, true);
   label(`${entries.length} samples · ${zoom === 1 ? 'Town' : 'Detail'} view (${zoom}×) · shared 16 m tile · no individual sprite resizing`, MARGIN, 70);
-  label('Taiga town styles; industry source climate labelled. Farm fields and station grounds use the actual world renderer.', MARGIN, 94);
+  label('Renewed architecture on taiga ground. Farm fields and station grounds use the actual world renderer.', MARGIN, 94);
   label('Scale references:', MARGIN, 142, 14, true);
   context.save(); context.scale(zoom, zoom); context.translate(MARGIN + 156, 139);
   context.fillStyle = '#2e4952'; context.fillRect(0, -featureWorldPixels(SPRITE_SCALE.doorHeightMetres), featureWorldPixels(SPRITE_SCALE.doorWidthMetres), featureWorldPixels(SPRITE_SCALE.doorHeightMetres));

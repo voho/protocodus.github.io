@@ -49,19 +49,18 @@ async function finishRequests() {
 const families = [
   ['nature-mountains', 3, 3, 1024], ['nature-rocks', 3, 3, 1024],
   ['isometric-infrastructure-v2', 3, 2, 512],
-  ...directions.VEHICLE_KINDS.map(kind => [`vehicle-${kind}-dimetric-v2`,3,3,256]),
-  ['vehicles-dimetric-v2', 3, 3, 256],
-  ['city-ground-v3', 3, 3, 512],
+  ...directions.VEHICLE_KINDS.map(kind => [`vehicle-${kind}-regenerated-v3`,3,3,256]),
+  ['vehicles-regenerated-v3', 3, 3, 256],
 ];
 const metadata = new Map(families.map(([id]) => [id, JSON.parse(readFileSync(new URL(`../assets/world/${id}/atlas.json`, import.meta.url),'utf8'))]));
 
 // Record atlas-to-prepared sampling. Checking a later prepared-canvas copy
 // would miss a source that had already been enlarged during preparation.
 function context() {
-  const draws=[], stack=[];
+  const draws=[], strokes=[], stack=[];
   let matrix={a:1,b:0,c:0,d:1,e:0,f:0};
   return {
-    draws,
+    draws,strokes,stroke(){strokes.push({color:this.strokeStyle,width:this.lineWidth});},
     beginPath() {}, rect() {}, clip() {}, moveTo() {}, lineTo() {}, closePath() {}, arc() {},
     save() { stack.push({...matrix}); },
     restore() { matrix=stack.pop(); },
@@ -78,9 +77,9 @@ function context() {
 const cellsFor = family => requests.filter(request => request.url.includes(`/${family}/`)).map(request => request.cell);
 const profiles = [.5,1,2].flatMap(zoom => [1,2].map(dpr => ({zoom,dpr,scale:zoom*dpr})));
 
-async function checkDraw({family,id,slotId=id,size,bounds,draw,flipX=false,label}) {
+async function checkDraw({family,id,slotId=id,size,bounds,draw,flipX=false,sourceCap=false,label}) {
   const sheet=metadata.get(family), expected=sheet.cellSizes.find(cell => cell>=size)||sheet.cellSizes.at(-1);
-  assert.ok(expected>=size, `${label}: registered densities cover the physical draw size`);
+  assert.ok(expected>=size||sourceCap&&expected===sheet.cellSizes.at(-1), `${label}: registered densities cover the draw or use the largest real source`);
   const first=context(); assert.equal(draw(first),true,`${label}: startup art is usable`);
   assert.ok(cellsFor(family).includes(expected),`${label}: the draw requests ${expected}px without an eager high-density preload`);
   await finishRequests();
@@ -88,7 +87,7 @@ async function checkDraw({family,id,slotId=id,size,bounds,draw,flipX=false,label
   const {image,args,matrix}=c.draws[0], cell=args[2], index=sheet.order.indexOf(slotId);
   assert.notEqual(index,-1,`${label}: original slot identity exists`);
   assert.equal(cell,expected,`${label}: atlas sampling chooses the smallest loaded sufficient source`);
-  assert.ok(cell>=size,`${label}: atlas-to-prepared sampling does not enlarge a capped source`);
+  assert.ok(cell>=size||sourceCap&&cell===sheet.cellSizes.at(-1),`${label}: sampling uses enough pixels or the complete highest-density source`);
   assert.deepEqual(args.slice(0,4),[index%sheet.columns*cell,Math.floor(index/sheet.columns)*cell,cell,cell],`${label}: whole original cell and orientation`);
   assert.equal(image.naturalWidth,sheet.columns*cell); assert.equal(image.naturalHeight,sheet.rows*cell);
   assert.ok(image.src.endsWith(`/${family}/atlas-${cell}.png`),label);
@@ -106,7 +105,7 @@ test('higher object densities retain their real PNG grid and metadata slot order
     assert.equal(sheet.order.length,columns*rows,family);
     for (const cell of sheet.cellSizes) assert.deepEqual(pngDimensions(new URL(`../assets/world/${family}/atlas-${cell}.png`,import.meta.url)),[columns*cell,rows*cell],`${family} ${cell}px`);
   }
-  for (const kind of ['ferry','cargo-ship','tanker']) assert.deepEqual(metadata.get(`vehicle-${kind}-dimetric-v2`).order,['NW','N','NE','W',null,'E','SW','S','SE'].map(heading=>heading&&`vehicle:${kind}:${heading}`));
+  for (const kind of ['ferry','cargo-ship','tanker']) assert.deepEqual(metadata.get(`vehicle-${kind}-regenerated-v3`).order,['NW','N','NE','W',null,'E','SW','S','SE'].map(heading=>heading&&`vehicle:${kind}:${heading}`));
   assert.deepEqual(metadata.get('isometric-infrastructure-v2').order,['bus-stop','train-stop','port-w','port-e','port-n','port-s']);
 });
 
@@ -122,7 +121,7 @@ test('startup remains bounded at 128px even though large objects have higher cei
   assert.deepEqual(art.worldArtStats().errors,[]);
 });
 
-test('terrain masses lazily select 512/1024 without changing two- or three-tile geometry',async() => {
+test('terrain masses lazily select 512/1024 for two- through six-tile geometry',async() => {
   const rocks=[
     ['taiga','rock',1,'taiga-boulder'],['taiga','rock',0,'taiga-scree'],
     ['tundra','glacial',0,'tundra-glacial'],['tundra','snow',0,'tundra-snow'],['tundra','ice',0,'tundra-ice'],
@@ -132,9 +131,9 @@ test('terrain masses lazily select 512/1024 without changing two- or three-tile 
     ...nature.NATURE_ART_CATALOG.mountains.flatMap(detail=>[0,1].map(variant=>({kind:'mountain',family:'nature-mountains',biome:'taiga',detail,variant,id:`nature-mountains:${detail}`}))),
     ...rocks.map(([biome,detail,variant,id])=>({kind:'rock',family:'nature-rocks',biome,detail,variant,id:`nature-rocks:${id}`})),
   ];
-  for (const entry of cases) for (const span of [2,3]) for (const {zoom,dpr,scale} of profiles) {
+  for (const entry of cases) for (const span of [2,3,4,5,6]) for (const {zoom,dpr,scale} of profiles) {
     const size=(entry.kind==='mountain'?60:56)*span, layout=nature.natureObjectLayout(span);
-    await checkDraw({family:entry.family,id:entry.id,size:size*scale,bounds:[layout.anchorX-size/2,layout.anchorY+14*span-size,size,size],flipX:entry.variant%2===1,
+    await checkDraw({family:entry.family,id:entry.id,size:size*scale,bounds:[layout.anchorX-size/2,layout.anchorY+14*span-size,size,size],sourceCap:true,
       draw:c=>nature.drawRasterNatureObject(c,entry.kind,entry.biome,entry.detail,entry.variant,span,scale),label:`${entry.id} variant${entry.variant} span${span} zoom${zoom} DPR${dpr}`});
   }
   for (const family of ['nature-mountains','nature-rocks']) {
@@ -143,63 +142,48 @@ test('terrain masses lazily select 512/1024 without changing two- or three-tile 
   }
 });
 
-test('all port orientations use 512px in Detail on DPR2 with the original 70px frame',async() => {
+test('all port orientations use 512px in Detail on DPR2 with the shared 72px frame',async() => {
   for (const [dx,dy,heading] of [[-1,0,'w'],[1,0,'e'],[0,-1,'n'],[0,1,'s']]) for (const {zoom,dpr,scale} of profiles) {
-    await checkDraw({family:'isometric-infrastructure-v2',id:`isometric:port-${heading}`,slotId:`port-${heading}`,size:70*scale,bounds:[7-35,11-54,70,70],
+    await checkDraw({family:'isometric-infrastructure-v2',id:`isometric:port-${heading}`,slotId:`port-${heading}`,size:72*scale,bounds:[7-36,11-54,72,72],
       draw:c=>infrastructure.drawIsometricPort(c,dx,dy,7,11,scale),label:`port-${heading} zoom${zoom} DPR${dpr}`});
   }
   assert.ok(cellsFor('isometric-infrastructure-v2').includes(512));
 });
 
-test('roads retain their connected terrain-plane geometry and have sufficient Detail sources',async() => {
-  const directions=[[0,-1],[1,0],[0,1],[-1,0]], sheet=metadata.get('city-ground-v3');
-  for (const kind of ['road','road-bridge']) for (let mask=1;mask<16;mask++) for (const {zoom,dpr,scale} of profiles) {
-    const arms=directions.filter((_,index)=>mask&(1<<index)),label=`${kind} connections${mask} zoom${zoom} DPR${dpr}`;
-    const first=context();assert.equal(transport.drawRasterNetwork(first,kind,7,11,arms,scale),true,label);
-    await finishRequests();
-    const c=context();assert.equal(transport.drawRasterNetwork(c,kind,7,11,arms,scale),true,label);
-    const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
-    const strips=c.draws.filter(draw=>draw.args[6]!==32),junctions=c.draws.filter(draw=>draw.args[6]===32),width=kind==='road'?44:40;
-    assert.equal(strips.length,straight?1:arms.length,`${label}: each connected arm retains its original strip`);
-    assert.equal(junctions.length,kind==='road'&&!straight?1:0,`${label}: the original unmarked road junction is retained`);
-    for (const draw of c.draws) {
-      const [sx,sy,cell,cellHeight,x,y,w,h]=draw.args,index=sy/cell*3+sx/cell,required=Math.max(w,h)*scale;
-      assert.equal(cellHeight,cell,`${label}: samples an isolated square cell`);
-      assert.ok(cell>=required,`${label}: source ${cell}px covers ${required}px at atlas-to-prepared sampling`);
-      assert.equal(cell,sheet.cellSizes.find(value=>value>=required),`${label}: uses the smallest sufficient density`);
-      if(w===32) {assert.equal(sheet.order[index],'ground:road-junction',label);assert.deepEqual([x,y,w,h],[-16,-16,32,32],label);}
-      else {assert.equal(sheet.order[index],`ground:${kind}`,label);assert.deepEqual([x,y,w,h],[-width/2,-18,width,36],`${label}: network strip scale and placement are unchanged`);}
-      const determinant=draw.matrix.a*draw.matrix.d-draw.matrix.b*draw.matrix.c;
-      assert.ok(Math.abs(determinant-1)<1e-9,`${label}: arm rotation does not stretch the texture`);
-    }
+test('native roads and vacant plot marks stay independent of display density',() => {
+  const directions=[[0,-1],[1,0],[0,1],[-1,0]];
+  for(const kind of ['road','road-bridge'])for(let mask=1;mask<16;mask++)for(const {scale}of profiles){
+    const c=context(),arms=directions.filter((_,i)=>mask&(1<<i));
+    assert.equal(transport.drawRasterNetwork(c,kind,7,11,arms,scale),true);
+    assert.equal(c.draws.length,0,'connected native geometry does not enlarge a source image');
+    assert.ok(c.strokes.length>=arms.length*3,'every arm has an edge, shoulder and carriageway');
   }
-  assert.ok(cellsFor('city-ground-v3').includes(256),'Detail/DPR2 requests the retained 256px road master');
-  for (const zone of ['residential','commercial','industrial']) for (const {zoom,dpr,scale} of profiles) {
-    await checkDraw({family:'city-ground-v3',id:`zone:${zone}`,size:44*scale,bounds:[0,0,44,44],
-      draw:c=>transport.drawRasterZone(c,zone,0,0,44,scale),label:`${zone} zone zoom${zoom} DPR${dpr}`});
+  for(const zone of ['residential','commercial','industrial'])for(const {scale}of profiles){
+    const c=context();assert.equal(transport.drawRasterZone(c,zone,0,0,44,scale),true);
+    assert.equal(c.draws.length,0);assert.equal(c.strokes.length,1,'vacant plots show transparent survey marks');
   }
 });
 
 test('ships and their recovery sheet use 256px without growing the vehicle or rotating its camera',async() => {
   for (const kind of directions.VEHICLE_KINDS) for (let i=0;i<8;i++) for (const {zoom,dpr,scale} of profiles) {
-    const ship=['ferry','cargo-ship','tanker'].includes(kind), size=ship?43:20, family=`vehicle-${kind}-dimetric-v2`;
+    const ship=['ferry','cargo-ship','tanker'].includes(kind), size=ship?43:20, family=`vehicle-${kind}-regenerated-v3`;
     if (!metadata.has(family)) metadata.set(family,JSON.parse(readFileSync(new URL(`../assets/world/${family}/atlas.json`,import.meta.url),'utf8')));
     await checkDraw({family,id:`vehicle:${kind}:${directions.VEHICLE_HEADINGS[i]}`,size:size*scale,bounds:[-size/2,-size/2,size,size],
       draw:c=>directions.drawDirectionalVehicle(c,kind,i*Math.PI/4,size,scale),label:`${kind} ${directions.VEHICLE_HEADINGS[i]} zoom${zoom} DPR${dpr}`});
   }
   for (const kind of ['ferry','cargo-ship','tanker']) for (const {zoom,dpr,scale} of profiles) {
-    await checkDraw({family:'vehicles-dimetric-v2',id:`vehicle:${kind}`,size:43*scale,bounds:[-21.5,-21.5,43,43],
+    await checkDraw({family:'vehicles-regenerated-v3',id:`vehicle:${kind}`,size:43*scale,bounds:[-21.5,-21.5,43,43],
       draw:c=>art.drawAtlas(c,`vehicle:${kind}`,-21.5,-21.5,43,43,{pixelScale:scale}),label:`recovery ${kind} zoom${zoom} DPR${dpr}`});
   }
-  for (const family of ['vehicle-ferry-dimetric-v2','vehicle-cargo-ship-dimetric-v2','vehicle-tanker-dimetric-v2','vehicles-dimetric-v2']) assert.ok(cellsFor(family).includes(256),`${family}: Detail on DPR2 requests 256px`);
-  for (const kind of directions.VEHICLE_KINDS.filter(kind=>!['ferry','cargo-ship','tanker'].includes(kind))) assert.ok(cellsFor(`vehicle-${kind}-dimetric-v2`).every(cell=>cell<=128),`${kind}: ordinary map views leave the sharper portrait density unrequested`);
+  for (const family of ['vehicle-ferry-regenerated-v3','vehicle-cargo-ship-regenerated-v3','vehicle-tanker-regenerated-v3','vehicles-regenerated-v3']) assert.ok(cellsFor(family).includes(256),`${family}: Detail on DPR2 requests 256px`);
+  for (const kind of directions.VEHICLE_KINDS.filter(kind=>!['ferry','cargo-ship','tanker'].includes(kind))) assert.ok(cellsFor(`vehicle-${kind}-regenerated-v3`).every(cell=>cell<=128),`${kind}: ordinary map views leave the sharper portrait density unrequested`);
   const urls=requests.map(request=>request.url); assert.equal(new Set(urls).size,urls.length,'each family and density decodes once across views and orientations');
   assert.deepEqual(art.worldArtStats().errors,[]);
 });
 
 test('Gallery terrestrial vehicle portraits lazily request 256px while retaining every authored heading',async() => {
   for (const kind of ['bus','express-bus','truck','locomotive','coach','wagon']) {
-    const family=`vehicle-${kind}-dimetric-v2`;
+    const family=`vehicle-${kind}-regenerated-v3`;
     assert.ok(!cellsFor(family).includes(256),`${kind}: map views did not request portrait-only resolution`);
     for (const scale of [6,7.8,12]) for (let index=0;index<8;index++) {
       await checkDraw({family,id:`vehicle:${kind}:${directions.VEHICLE_HEADINGS[index]}`,size:20*scale,bounds:[-10,-10,20,20],

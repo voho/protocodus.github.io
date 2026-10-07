@@ -11,7 +11,6 @@
     1024
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "nature-mountains:granite-ridge",
     "nature-mountains:wooded-foothill",
@@ -23,1376 +22,440 @@
     "nature-mountains:butte",
     "nature-mountains:canyon"
   ],
-  "source": "source-isometric-packed.png",
-  "sourceSha256": "741c08a97fd3524bbde0b5ef28da88840db440917ecde6b69fd5f276dfe24a47",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "446aaadc344c6ac069eccfa2ed5344bc24196002acb05c75ec2dd0b61a380c8a",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
   "sprites": [
     {
       "id": "nature-mountains:granite-ridge",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        640,
-        640
+        13,
+        108,
+        413,
+        415
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        65.94000000000003
+      ],
+      "sourceCropPixels": [
+        400,
+        307
+      ],
+      "masterDrawPixels": [
+        232,
+        178
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          112,
-          175,
-          527,
-          465
+          13,
+          108,
+          413,
+          415
         ],
-        "rawAlphaBounds": [
-          111,
-          174,
-          528,
-          466
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.833777
+        "transparentFraction": 0.43640065146579804
       },
+      "registrationAnchorSource": [
+        213.0,
+        415
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        82,
-        244,
-        244
+        14,
+        68,
+        242,
+        243
       ]
     },
     {
       "id": "nature-mountains:wooded-foothill",
       "cell": 1,
       "sourceBounds": [
-        640,
-        0,
-        1280,
-        640
+        433,
+        123,
+        832,
+        413
+      ],
+      "sourceScaleToMaster": 0.581453634085213,
+      "masterOffsetPixels": [
+        12.0,
+        75.37844611528823
+      ],
+      "sourceCropPixels": [
+        399,
+        290
+      ],
+      "masterDrawPixels": [
+        232,
+        169
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          115,
-          178,
-          524,
-          462
+          433,
+          123,
+          832,
+          413
         ],
-        "rawAlphaBounds": [
-          114,
-          177,
-          525,
-          463
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.811619
+        "transparentFraction": 0.4536600120992135
       },
+      "registrationAnchorSource": [
+        632.5,
+        413
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        83,
-        244,
-        244
+        14,
+        77,
+        242,
+        243
       ]
     },
     {
       "id": "nature-mountains:granite-peak",
       "cell": 2,
       "sourceBounds": [
-        1280,
-        0,
-        1920,
-        640
+        852,
+        69,
+        1245,
+        417
+      ],
+      "sourceScaleToMaster": 0.5903307888040712,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        38.56488549618322
+      ],
+      "sourceCropPixels": [
+        393,
+        348
+      ],
+      "masterDrawPixels": [
+        232,
+        205
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          119,
-          176,
-          521,
-          464
+          852,
+          69,
+          1245,
+          417
         ],
-        "rawAlphaBounds": [
-          118,
-          175,
-          521,
-          465
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.806885
+        "transparentFraction": 0.47111813050217893
       },
+      "registrationAnchorSource": [
+        1048.5,
+        417
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        78,
-        244,
-        244
+        14,
+        41,
+        242,
+        242
       ]
     },
     {
       "id": "nature-mountains:ice-peak",
       "cell": 3,
       "sourceBounds": [
-        0,
-        640,
-        640,
-        1280
+        16,
+        463,
+        408,
+        817
+      ],
+      "sourceScaleToMaster": 0.5918367346938775,
+      "masterOffsetPixels": [
+        12.0,
+        34.48979591836735
+      ],
+      "sourceCropPixels": [
+        392,
+        354
+      ],
+      "masterDrawPixels": [
+        232,
+        210
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          115,
-          174,
-          524,
-          466
+          16,
+          463,
+          408,
+          817
         ],
-        "rawAlphaBounds": [
-          114,
-          173,
-          525,
-          467
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.801892
+        "transparentFraction": 0.4735025366078635
       },
+      "registrationAnchorSource": [
+        212.0,
+        817
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        78,
-        244,
-        244
+        14,
+        36,
+        242,
+        242
       ]
     },
     {
       "id": "nature-mountains:glacier",
       "cell": 4,
       "sourceBounds": [
-        640,
-        640,
-        1280,
-        1280
+        433,
+        531,
+        833,
+        817
+      ],
+      "sourceScaleToMaster": 0.58,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        78.12
+      ],
+      "sourceCropPixels": [
+        400,
+        286
+      ],
+      "masterDrawPixels": [
+        232,
+        166
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          111,
-          175,
-          529,
-          465
+          433,
+          531,
+          833,
+          817
         ],
-        "rawAlphaBounds": [
-          111,
-          174,
-          530,
-          466
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.782715
+        "transparentFraction": 0.3569055944055944
       },
+      "registrationAnchorSource": [
+        633.0,
+        817
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        83,
-        244,
-        244
+        13,
+        79,
+        242,
+        242
       ]
     },
     {
       "id": "nature-mountains:frost-ridge",
       "cell": 5,
       "sourceBounds": [
-        1280,
-        640,
-        1920,
-        1280
+        845,
+        535,
+        1242,
+        813
+      ],
+      "sourceScaleToMaster": 0.5843828715365239,
+      "masterOffsetPixels": [
+        12.0,
+        81.54156171284635
+      ],
+      "sourceCropPixels": [
+        397,
+        278
+      ],
+      "masterDrawPixels": [
+        232,
+        162
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          117,
-          182,
-          523,
-          457
+          845,
+          535,
+          1242,
+          813
         ],
-        "rawAlphaBounds": [
-          116,
-          181,
-          524,
-          458
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.815103
+        "transparentFraction": 0.4441857093670152
       },
+      "registrationAnchorSource": [
+        1043.5,
+        813
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        87,
-        244,
-        244
+        14,
+        84,
+        243,
+        242
       ]
     },
     {
       "id": "nature-mountains:mesa",
       "cell": 6,
       "sourceBounds": [
-        0,
-        1280,
-        640,
-        1920
+        12,
+        875,
+        416,
+        1188
+      ],
+      "sourceScaleToMaster": 0.5742574257425742,
+      "masterOffsetPixels": [
+        12.000000000000014,
+        64.25742574257427
+      ],
+      "sourceCropPixels": [
+        404,
+        313
+      ],
+      "masterDrawPixels": [
+        232,
+        180
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          113,
-          169,
-          527,
-          470
+          12,
+          875,
+          416,
+          1188
         ],
-        "rawAlphaBounds": [
-          112,
-          168,
-          528,
-          471
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.782051
+        "transparentFraction": 0.3772814981178629
       },
+      "registrationAnchorSource": [
+        214.0,
+        1188
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        75,
-        244,
-        244
+        13,
+        65,
+        242,
+        242
       ]
     },
     {
       "id": "nature-mountains:butte",
       "cell": 7,
       "sourceBounds": [
-        640,
-        1280,
-        1280,
-        1920
+        436,
+        857,
+        827,
+        1196
+      ],
+      "sourceScaleToMaster": 0.5933503836317136,
+      "masterOffsetPixels": [
+        12.0,
+        42.85421994884911
+      ],
+      "sourceCropPixels": [
+        391,
+        339
+      ],
+      "masterDrawPixels": [
+        232,
+        201
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          113,
-          168,
-          527,
-          472
+          436,
+          857,
+          827,
+          1196
         ],
-        "rawAlphaBounds": [
-          112,
-          167,
-          528,
-          473
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.793352
+        "transparentFraction": 0.48618246837018764
       },
+      "registrationAnchorSource": [
+        631.5,
+        1196
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        74,
-        244,
-        244
+        14,
+        44,
+        242,
+        242
       ]
     },
     {
       "id": "nature-mountains:canyon",
       "cell": 8,
       "sourceBounds": [
-        1280,
-        1280,
-        1920,
-        1920
+        847,
+        869,
+        1254,
+        1200
+      ],
+      "sourceScaleToMaster": 0.5700245700245701,
+      "masterOffsetPixels": [
+        11.999999999999986,
+        55.3218673218673
+      ],
+      "sourceCropPixels": [
+        407,
+        331
+      ],
+      "masterDrawPixels": [
+        232,
+        189
       ],
       "normalization": {
         "originalSize": [
-          640,
-          640
+          1254,
+          1254
         ],
         "sourceBounds": [
-          118,
-          152,
-          522,
-          487
+          847,
+          869,
+          1254,
+          1200
         ],
-        "rawAlphaBounds": [
-          117,
-          151,
-          523,
-          488
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.76603
+        "transparentFraction": 0.27364772077763017
       },
+      "registrationAnchorSource": [
+        1050.5,
+        1200
+      ],
+      "registrationMethod": "isolated geological-patch bottom centre",
       "bounds": [
-        12,
-        52,
-        244,
-        244
+        14,
+        57,
+        242,
+        242
       ]
     }
   ],
-  "highDensityCells": {
-    "512": {
-      "source": "source-isometric-packed.png",
-      "sourceSha256": "741c08a97fd3524bbde0b5ef28da88840db440917ecde6b69fd5f276dfe24a47",
-      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
-      "tool": "build-object-high-density.py",
-      "sprites": [
-        {
-          "id": "nature-mountains:granite-ridge",
-          "cell": 0,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            0,
-            640,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            112,
-            175,
-            527,
-            465
-          ],
-          "sourceCropPixels": [
-            415,
-            290
-          ],
-          "masterDrawPixels": [
-            232,
-            162
-          ],
-          "masterOffsetPixels": [
-            12,
-            82
-          ],
-          "nativeEquivalentCellPixels": 457.9310344827586,
-          "drawPixels": [
-            464,
-            324
-          ],
-          "offsetPixels": [
-            24,
-            164
-          ],
-          "sourceToCellAffine": [
-            1.1180722891566266,
-            0,
-            0,
-            1.1172413793103448,
-            -101.22409638554218,
-            -31.51724137931035
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1180722891566266,
-            1.1172413793103448
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:wooded-foothill",
-          "cell": 1,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            0,
-            1280,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            115,
-            178,
-            524,
-            462
-          ],
-          "sourceCropPixels": [
-            409,
-            284
-          ],
-          "masterDrawPixels": [
-            232,
-            161
-          ],
-          "masterOffsetPixels": [
-            12,
-            83
-          ],
-          "nativeEquivalentCellPixels": 451.3103448275862,
-          "drawPixels": [
-            464,
-            322
-          ],
-          "offsetPixels": [
-            24,
-            166
-          ],
-          "sourceToCellAffine": [
-            1.1344743276283618,
-            0,
-            0,
-            1.1338028169014085,
-            -106.4645476772616,
-            -35.81690140845072
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1344743276283618,
-            1.1338028169014085
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:granite-peak",
-          "cell": 2,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            0,
-            1920,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            119,
-            176,
-            521,
-            464
-          ],
-          "sourceCropPixels": [
-            402,
-            288
-          ],
-          "masterDrawPixels": [
-            232,
-            166
-          ],
-          "masterOffsetPixels": [
-            12,
-            78
-          ],
-          "nativeEquivalentCellPixels": 443.58620689655174,
-          "drawPixels": [
-            464,
-            332
-          ],
-          "offsetPixels": [
-            24,
-            156
-          ],
-          "sourceToCellAffine": [
-            1.154228855721393,
-            0,
-            0,
-            1.1527777777777777,
-            -113.35323383084577,
-            -46.88888888888886
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.154228855721393,
-            1.1527777777777777
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:ice-peak",
-          "cell": 3,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            640,
-            640,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            115,
-            174,
-            524,
-            466
-          ],
-          "sourceCropPixels": [
-            409,
-            292
-          ],
-          "masterDrawPixels": [
-            232,
-            166
-          ],
-          "masterOffsetPixels": [
-            12,
-            78
-          ],
-          "nativeEquivalentCellPixels": 450.31325301204816,
-          "drawPixels": [
-            464,
-            332
-          ],
-          "offsetPixels": [
-            24,
-            156
-          ],
-          "sourceToCellAffine": [
-            1.1344743276283618,
-            0,
-            0,
-            1.1369863013698631,
-            -106.4645476772616,
-            -41.83561643835617
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1344743276283618,
-            1.1369863013698631
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:glacier",
-          "cell": 4,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            640,
-            1280,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            111,
-            175,
-            529,
-            465
-          ],
-          "sourceCropPixels": [
-            418,
-            290
-          ],
-          "masterDrawPixels": [
-            232,
-            161
-          ],
-          "masterOffsetPixels": [
-            12,
-            83
-          ],
-          "nativeEquivalentCellPixels": 461.11801242236027,
-          "drawPixels": [
-            464,
-            322
-          ],
-          "offsetPixels": [
-            24,
-            166
-          ],
-          "sourceToCellAffine": [
-            1.1100478468899522,
-            0,
-            0,
-            1.110344827586207,
-            -99.2153110047847,
-            -28.31034482758622
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1100478468899522,
-            1.110344827586207
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:frost-ridge",
-          "cell": 5,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            640,
-            1920,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            117,
-            182,
-            523,
-            457
-          ],
-          "sourceCropPixels": [
-            406,
-            275
-          ],
-          "masterDrawPixels": [
-            232,
-            157
-          ],
-          "masterOffsetPixels": [
-            12,
-            87
-          ],
-          "nativeEquivalentCellPixels": 448.0,
-          "drawPixels": [
-            464,
-            314
-          ],
-          "offsetPixels": [
-            24,
-            174
-          ],
-          "sourceToCellAffine": [
-            1.1428571428571428,
-            0,
-            0,
-            1.1418181818181818,
-            -109.7142857142857,
-            -33.81090909090909
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1428571428571428,
-            1.1418181818181818
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:mesa",
-          "cell": 6,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            1280,
-            640,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            113,
-            169,
-            527,
-            470
-          ],
-          "sourceCropPixels": [
-            414,
-            301
-          ],
-          "masterDrawPixels": [
-            232,
-            169
-          ],
-          "masterOffsetPixels": [
-            12,
-            75
-          ],
-          "nativeEquivalentCellPixels": 455.9526627218935,
-          "drawPixels": [
-            464,
-            338
-          ],
-          "offsetPixels": [
-            24,
-            150
-          ],
-          "sourceToCellAffine": [
-            1.1207729468599035,
-            0,
-            0,
-            1.1229235880398671,
-            -102.6473429951691,
-            -39.774086378737536
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1207729468599035,
-            1.1229235880398671
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:butte",
-          "cell": 7,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            1280,
-            1280,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            113,
-            168,
-            527,
-            472
-          ],
-          "sourceCropPixels": [
-            414,
-            304
-          ],
-          "masterDrawPixels": [
-            232,
-            170
-          ],
-          "masterOffsetPixels": [
-            12,
-            74
-          ],
-          "nativeEquivalentCellPixels": 456.82758620689657,
-          "drawPixels": [
-            464,
-            340
-          ],
-          "offsetPixels": [
-            24,
-            148
-          ],
-          "sourceToCellAffine": [
-            1.1207729468599035,
-            0,
-            0,
-            1.118421052631579,
-            -102.6473429951691,
-            -39.89473684210526
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1207729468599035,
-            1.118421052631579
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:canyon",
-          "cell": 8,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            1280,
-            1920,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            118,
-            152,
-            522,
-            487
-          ],
-          "sourceCropPixels": [
-            404,
-            335
-          ],
-          "masterDrawPixels": [
-            232,
-            192
-          ],
-          "masterOffsetPixels": [
-            12,
-            52
-          ],
-          "nativeEquivalentCellPixels": 445.7931034482759,
-          "drawPixels": [
-            464,
-            384
-          ],
-          "offsetPixels": [
-            24,
-            104
-          ],
-          "sourceToCellAffine": [
-            1.1485148514851484,
-            0,
-            0,
-            1.146268656716418,
-            -111.52475247524751,
-            -70.23283582089553
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            1.1485148514851484,
-            1.146268656716418
-          ],
-          "enlargesOriginalPixels": true
-        }
-      ],
-      "atlasSha256": "be1da16ae58c176f505e6178b9fd4c4d29f71a950bf01d94bfb431448b5fe1c9"
-    },
-    "1024": {
-      "source": "source-isometric-packed.png",
-      "sourceSha256": "741c08a97fd3524bbde0b5ef28da88840db440917ecde6b69fd5f276dfe24a47",
-      "operation": "Independent original-cutout premultiplied-alpha Lanczos; unchanged historical scale and anchor; no sharpening or recoloring",
-      "tool": "build-object-high-density.py",
-      "sprites": [
-        {
-          "id": "nature-mountains:granite-ridge",
-          "cell": 0,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            0,
-            640,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            112,
-            175,
-            527,
-            465
-          ],
-          "sourceCropPixels": [
-            415,
-            290
-          ],
-          "masterDrawPixels": [
-            232,
-            162
-          ],
-          "masterOffsetPixels": [
-            12,
-            82
-          ],
-          "nativeEquivalentCellPixels": 457.9310344827586,
-          "drawPixels": [
-            928,
-            648
-          ],
-          "offsetPixels": [
-            48,
-            328
-          ],
-          "sourceToCellAffine": [
-            2.236144578313253,
-            0,
-            0,
-            2.2344827586206897,
-            -202.44819277108436,
-            -63.0344827586207
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.236144578313253,
-            2.2344827586206897
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:wooded-foothill",
-          "cell": 1,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            0,
-            1280,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            115,
-            178,
-            524,
-            462
-          ],
-          "sourceCropPixels": [
-            409,
-            284
-          ],
-          "masterDrawPixels": [
-            232,
-            161
-          ],
-          "masterOffsetPixels": [
-            12,
-            83
-          ],
-          "nativeEquivalentCellPixels": 451.3103448275862,
-          "drawPixels": [
-            928,
-            644
-          ],
-          "offsetPixels": [
-            48,
-            332
-          ],
-          "sourceToCellAffine": [
-            2.2689486552567235,
-            0,
-            0,
-            2.267605633802817,
-            -212.9290953545232,
-            -71.63380281690144
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.2689486552567235,
-            2.267605633802817
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:granite-peak",
-          "cell": 2,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            0,
-            1920,
-            640
-          ],
-          "sourceCropBoundsCell": [
-            119,
-            176,
-            521,
-            464
-          ],
-          "sourceCropPixels": [
-            402,
-            288
-          ],
-          "masterDrawPixels": [
-            232,
-            166
-          ],
-          "masterOffsetPixels": [
-            12,
-            78
-          ],
-          "nativeEquivalentCellPixels": 443.58620689655174,
-          "drawPixels": [
-            928,
-            664
-          ],
-          "offsetPixels": [
-            48,
-            312
-          ],
-          "sourceToCellAffine": [
-            2.308457711442786,
-            0,
-            0,
-            2.3055555555555554,
-            -226.70646766169153,
-            -93.77777777777771
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.308457711442786,
-            2.3055555555555554
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:ice-peak",
-          "cell": 3,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            640,
-            640,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            115,
-            174,
-            524,
-            466
-          ],
-          "sourceCropPixels": [
-            409,
-            292
-          ],
-          "masterDrawPixels": [
-            232,
-            166
-          ],
-          "masterOffsetPixels": [
-            12,
-            78
-          ],
-          "nativeEquivalentCellPixels": 450.31325301204816,
-          "drawPixels": [
-            928,
-            664
-          ],
-          "offsetPixels": [
-            48,
-            312
-          ],
-          "sourceToCellAffine": [
-            2.2689486552567235,
-            0,
-            0,
-            2.2739726027397262,
-            -212.9290953545232,
-            -83.67123287671234
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.2689486552567235,
-            2.2739726027397262
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:glacier",
-          "cell": 4,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            640,
-            1280,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            111,
-            175,
-            529,
-            465
-          ],
-          "sourceCropPixels": [
-            418,
-            290
-          ],
-          "masterDrawPixels": [
-            232,
-            161
-          ],
-          "masterOffsetPixels": [
-            12,
-            83
-          ],
-          "nativeEquivalentCellPixels": 461.11801242236027,
-          "drawPixels": [
-            928,
-            644
-          ],
-          "offsetPixels": [
-            48,
-            332
-          ],
-          "sourceToCellAffine": [
-            2.2200956937799043,
-            0,
-            0,
-            2.220689655172414,
-            -198.4306220095694,
-            -56.62068965517244
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.2200956937799043,
-            2.220689655172414
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:frost-ridge",
-          "cell": 5,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            640,
-            1920,
-            1280
-          ],
-          "sourceCropBoundsCell": [
-            117,
-            182,
-            523,
-            457
-          ],
-          "sourceCropPixels": [
-            406,
-            275
-          ],
-          "masterDrawPixels": [
-            232,
-            157
-          ],
-          "masterOffsetPixels": [
-            12,
-            87
-          ],
-          "nativeEquivalentCellPixels": 448.0,
-          "drawPixels": [
-            928,
-            628
-          ],
-          "offsetPixels": [
-            48,
-            348
-          ],
-          "sourceToCellAffine": [
-            2.2857142857142856,
-            0,
-            0,
-            2.2836363636363637,
-            -219.4285714285714,
-            -67.62181818181818
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.2857142857142856,
-            2.2836363636363637
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:mesa",
-          "cell": 6,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            0,
-            1280,
-            640,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            113,
-            169,
-            527,
-            470
-          ],
-          "sourceCropPixels": [
-            414,
-            301
-          ],
-          "masterDrawPixels": [
-            232,
-            169
-          ],
-          "masterOffsetPixels": [
-            12,
-            75
-          ],
-          "nativeEquivalentCellPixels": 455.9526627218935,
-          "drawPixels": [
-            928,
-            676
-          ],
-          "offsetPixels": [
-            48,
-            300
-          ],
-          "sourceToCellAffine": [
-            2.241545893719807,
-            0,
-            0,
-            2.2458471760797343,
-            -205.2946859903382,
-            -79.54817275747507
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.241545893719807,
-            2.2458471760797343
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:butte",
-          "cell": 7,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            640,
-            1280,
-            1280,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            113,
-            168,
-            527,
-            472
-          ],
-          "sourceCropPixels": [
-            414,
-            304
-          ],
-          "masterDrawPixels": [
-            232,
-            170
-          ],
-          "masterOffsetPixels": [
-            12,
-            74
-          ],
-          "nativeEquivalentCellPixels": 456.82758620689657,
-          "drawPixels": [
-            928,
-            680
-          ],
-          "offsetPixels": [
-            48,
-            296
-          ],
-          "sourceToCellAffine": [
-            2.241545893719807,
-            0,
-            0,
-            2.236842105263158,
-            -205.2946859903382,
-            -79.78947368421052
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.241545893719807,
-            2.236842105263158
-          ],
-          "enlargesOriginalPixels": true
-        },
-        {
-          "id": "nature-mountains:canyon",
-          "cell": 8,
-          "originalCellPixels": [
-            640,
-            640
-          ],
-          "sourceCellBoundsSheet": [
-            1280,
-            1280,
-            1920,
-            1920
-          ],
-          "sourceCropBoundsCell": [
-            118,
-            152,
-            522,
-            487
-          ],
-          "sourceCropPixels": [
-            404,
-            335
-          ],
-          "masterDrawPixels": [
-            232,
-            192
-          ],
-          "masterOffsetPixels": [
-            12,
-            52
-          ],
-          "nativeEquivalentCellPixels": 445.7931034482759,
-          "drawPixels": [
-            928,
-            768
-          ],
-          "offsetPixels": [
-            48,
-            208
-          ],
-          "sourceToCellAffine": [
-            2.297029702970297,
-            0,
-            0,
-            2.292537313432836,
-            -223.04950495049502,
-            -140.46567164179106
-          ],
-          "sourceCoordinateSpace": "original cell pixels",
-          "sourcePixelScale": [
-            2.297029702970297,
-            2.292537313432836
-          ],
-          "enlargesOriginalPixels": true
-        }
-      ],
-      "atlasSha256": "d4869b1d10001067e6af84c566501eaf0ae5fb0f17eedd348da6e10272d5fc0f"
-    }
-  },
   "sourceDetailLimits": {
-    "originalSource": "source-isometric-packed.png",
-    "originalSourceSha256": "741c08a97fd3524bbde0b5ef28da88840db440917ecde6b69fd5f276dfe24a47",
-    "originalSheetPixels": [
-      1920,
-      1920
-    ],
-    "registeredSourceCellPixels": [
-      [
-        640,
-        640
-      ]
-    ],
-    "registrationVerification": "Exact RGBA pixel reconstruction of every published 256px master cell",
-    "historicalAtlasSha256": {
-      "atlas.png": "762bd14e7a7fdbf24eae0a7358930b1f7f28b190e8057c27869ffdc7da797de1",
-      "atlas-16.png": "83362eaaa09f827d0d4477e2553637faa18d67e272eb7178799a3e4081be0b93",
-      "atlas-32.png": "c0ef71fa55a50efab51bca207cdeb32d818c771743945e280adf379aee62bf25",
-      "atlas-64.png": "108b297c875c5d6631d7bef4c7e449005331ca3aa1e47fce440d6cd67729c43e",
-      "atlas-128.png": "4d44f628b4122da43e114137aac28c97f278f943541bd5bcf5a003d47e87007b",
-      "atlas-256.png": "762bd14e7a7fdbf24eae0a7358930b1f7f28b190e8057c27869ffdc7da797de1"
-    },
     "noAdditionalPaintedDetail": true,
-    "resolutionNote": "Display cell sizes include transparent framing. Enlarging original pixels retains existing detail and does not create additional painted detail."
+    "originalSourceSha256": "446aaadc344c6ac069eccfa2ed5344bc24196002acb05c75ec2dd0b61a380c8a",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
   }
 }

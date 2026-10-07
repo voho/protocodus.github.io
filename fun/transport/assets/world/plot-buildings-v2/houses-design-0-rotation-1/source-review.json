@@ -1,8 +1,0 @@
-{
-  "status": "accepted-measured-source",
-  "review": "Two visible ground axes and physical ground centre measured directly on final PNG; all observable personnel leaves satisfy canonical shared scale. Final alpha-only cleanup keeps architectural geometry. Full-generator original retained. One common source density per sheet and measured translations only.",
-  "measuredSprites": 9,
-  "personnelDoorsObserved": 8,
-  "unobservableCourtyardEntrances": "Each courtyard entrance obscured by roof/planting; no unsupported door height asserted.",
-  "qa": "guide-comparison.png, ground-comparison.png and lod-comparison.png produced by pack-plot-cutouts.py; root handles runtime visual review."
-}

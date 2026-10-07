@@ -1,0 +1,151 @@
+{
+  "baseSource": "base-source.png",
+  "method": "Each separately generated full RGBA frame is normalized by its observed physical parcel edge, then translated by observed ground center into the common sheet density. Original canvas retained; one scalar per separately generated source, no silhouette fit, no axis distortion.",
+  "sheetSourceToMasterScale": 0.5988947205937525,
+  "replacements": [
+    {
+      "index": 2,
+      "kind": "swimming-pool",
+      "source": "swimming-pool-generated-full-frame.png",
+      "sourceSha256": "6cafa49e5adf28a8e1cf4c18a0a09f14f901798da769c451e45c47471ac252d7",
+      "originalSourceDimensions": [
+        1254,
+        1254
+      ],
+      "clearSourceBounds": [
+        696,
+        0,
+        1068,
+        359
+      ],
+      "observedGroundVerticesSource": [
+        [
+          29,
+          822
+        ],
+        [
+          660,
+          1176
+        ],
+        [
+          1223,
+          858
+        ]
+      ],
+      "physicalGroundEdgeMetres": 30,
+      "sourceToMasterScale": 0.16482949486013976,
+      "sourceToSheetScale": 0.2752228216283582,
+      "sourceToSheetTranslation": [
+        720.2105136606477,
+        30.0828298321791
+      ],
+      "personnelDoorEndpointsOriginalSource": [
+        [
+          745,
+          648
+        ],
+        [
+          745,
+          694
+        ]
+      ],
+      "physicalCalibrationNote": "Actual complete 30m built-paving boundary within the 32m two-tile parcel leaves 1m per side."
+    },
+    {
+      "index": 7,
+      "kind": "town-hall",
+      "source": "town-hall-generated-full-frame.png",
+      "sourceSha256": "0b61f1ccc6b469bea649cc8dcec68033c7a06f6027c93c1ce2b4653e19a74b0e",
+      "originalSourceDimensions": [
+        1254,
+        1254
+      ],
+      "clearSourceBounds": [
+        1086,
+        359,
+        1448,
+        688
+      ],
+      "observedGroundVerticesSource": [
+        [
+          84,
+          905
+        ],
+        [
+          622,
+          1215
+        ],
+        [
+          1170,
+          899
+        ]
+      ],
+      "physicalGroundEdgeMetres": 29,
+      "sourceToMasterScale": 0.18566220280201423,
+      "sourceToSheetScale": 0.31000808058208656,
+      "sourceToSheetTranslation": [
+        1072.6249334750316,
+        304.327711314958
+      ],
+      "personnelDoorEndpointsOriginalSource": [
+        [
+          560,
+          878
+        ],
+        [
+          560,
+          921
+        ]
+      ],
+      "physicalCalibrationNote": "Actual complete 29m built-paving boundary within the 32m two-tile parcel leaves 1.5m per side for the measured camera and filtering margin."
+    },
+    {
+      "index": 9,
+      "kind": "shop-pharmacy",
+      "source": "shop-pharmacy-generated-full-frame.png",
+      "sourceSha256": "54e7ec924ada6e44999c39d8d92b939582492c362a3a628b9eb432dbb33293a6",
+      "originalSourceDimensions": [
+        1254,
+        1254
+      ],
+      "clearSourceBounds": [
+        348,
+        688,
+        710,
+        1086
+      ],
+      "observedGroundVerticesSource": [
+        [
+          158,
+          929
+        ],
+        [
+          646,
+          1190
+        ],
+        [
+          1101,
+          935
+        ]
+      ],
+      "physicalGroundEdgeMetres": 15,
+      "sourceToMasterScale": 0.2154939321666709,
+      "sourceToSheetScale": 0.35981938854466317,
+      "sourceToSheetTranslation": [
+        321.4936949111345,
+        575.4233298763738
+      ],
+      "personnelDoorEndpointsOriginalSource": [
+        [
+          593,
+          1002
+        ],
+        [
+          593,
+          1065
+        ]
+      ],
+      "physicalCalibrationNote": "Actual complete 15m built-paving boundary within the 16m tile leaves 0.5m per side."
+    }
+  ]
+}

@@ -1,101 +1,507 @@
 {
-  "schemaVersion": 1,
-  "generatedDate": "2026-10-06",
-  "climate": "desert",
-  "sheet": 2,
-  "canonicalTreePromptModule": "../../../../tree-art-catalog.js",
-  "canonicalStyleAndScale": "../../../../sprite-art-direction.js",
-  "originalNineSlotsPreserved": true,
-  "acceptedRawFile": "source-generation-2026-10-06.png",
-  "registeredSourceFile": "registered-generation-2026-10-06.png",
-  "registration": "registration.json",
-  "jobs": [
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine dry-climate trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Dry climate dusty olive and sage crowns, warm gray/brown bark. Palm FROND ROSETTES seen from above; we see radial star shape of fronds instead of a sideways arch.\nSlot 1: desert-willow, 6m tall, 118.3px vertical tree height in the normalized256px cell. Slender warm grey forked trunk, loose pale green crown with a few broad muted mauve patches.\nSlot 2: olive-tree, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Gnarled thick grey trunk with separated rounded silvery green crown masses.\nSlot 3: carob, 7.33m tall, 144.6px vertical tree height in the normalized256px cell. Dense broad dark olive dome above a short stout branching brown trunk.\nSlot 4: argan, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Low wide irregular muted green crown and sculptural split dark trunk.\nSlot 5: mopane, 8m tall, 157.8px vertical tree height in the normalized256px cell. Upright dense warm olive crown on a clear reddish grey forked trunk.\nSlot 6: marula, 8.67m tall, 170.9px vertical tree height in the normalized256px cell. Broad rounded soft sage canopy on a smooth pale grey stout trunk.\nSlot 7: bottle-tree, 8m tall, 157.8px vertical tree height in the normalized256px cell. Distinctively swollen pale green-grey trunk with a small rounded olive canopy.\nSlot 8: euphorbia-tree, 6m tall, 118.3px vertical tree height in the normalized256px cell. Sculptural succulent candelabra of thick muted green upright branched stems.\nSlot 9: desert-cypress, 9.33m tall, 184.1px vertical tree height in the normalized256px cell. Tall slender blue-green pointed column on a short exposed warm grey trunk.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+  "sourceSha256": "6f03017299d786b7d88bfc30e169a30b6f16fcc91c5bd4747d64442a9279ce22",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 19.72265023112481,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
     {
-      "tool": "image_gen.imagegen",
-      "parameters": {
-        "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nDry woodland and oasis species: dusty olive, sage and blue-green, warm grey and ochre trunks. No ground sand disc or scenery.\nSlot 1: desert-willow, 9m tall, 118.3px vertical tree height in the normalized256px cell. Slender warm grey forked trunk, loose pale green crown with a few broad muted mauve patches.\nSlot 2: olive-tree, 10m tall, 131.5px vertical tree height in the normalized256px cell. Gnarled thick grey trunk with separated rounded silvery green crown masses.\nSlot 3: carob, 11m tall, 144.6px vertical tree height in the normalized256px cell. Dense broad dark olive dome above a short stout branching brown trunk.\nSlot 4: argan, 10m tall, 131.5px vertical tree height in the normalized256px cell. Low wide irregular muted green crown and sculptural split dark trunk.\nSlot 5: mopane, 12m tall, 157.8px vertical tree height in the normalized256px cell. Upright dense warm olive crown on a clear reddish grey forked trunk.\nSlot 6: marula, 13m tall, 170.9px vertical tree height in the normalized256px cell. Broad rounded soft sage canopy on a smooth pale grey stout trunk.\nSlot 7: bottle-tree, 12m tall, 157.8px vertical tree height in the normalized256px cell. Distinctively swollen pale green-grey trunk with a small rounded olive canopy.\nSlot 8: euphorbia-tree, 9m tall, 118.3px vertical tree height in the normalized256px cell. Sculptural succulent candelabra of thick muted green upright branched stems.\nSlot 9: desert-cypress, 14m tall, 184.1px vertical tree height in the normalized256px cell. Tall slender blue-green pointed column on a short exposed warm grey trunk.",
-        "referenced_image_paths": [
-          "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-desert/atlas.png",
-          "/workspace/protocodus.github.io/fun/transport/assets/houses/desert/house-atlas.png"
-        ],
-        "transparent_background": true
-      },
-      "rawSourcePath": "/workspace/generated_images/exec-e0088df7-dccf-4dcd-a2db-6bd8b515f781.png",
-      "rawSourceSha256": "381d1432b89bdeb9dd1d2d89526a4eb5e3325a62012d0ab54443e7b40c8c4cfa",
-      "references": [
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/world/nature-trees-desert/atlas.png",
-          "sha256": "1869f285f1e03b6877b93dd793849c5474650582aeb3f8c2c0c55536d55692ad"
-        },
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/desert/house-atlas.png",
-          "sha256": "9f2aaca297b31a1f005a6d9691cd78b9ba695124cd444cbb880ec0f5e4e373d9"
-        }
+      "id": "nature-trees-desert:desert-willow",
+      "cell": 0,
+      "sourceBounds": [
+        33,
+        63,
+        395,
+        382
       ],
-      "accepted": false,
-      "review": "Rejected: botanical identities present, but missing equal-cell gutters, ground mounds, inconsistent physical heights and excessive tiny detail."
+      "observedRootSource": [
+        213.0,
+        371.0
+      ],
+      "observedCrownTopSource": 67.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 304.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3892628335090423,
+      "masterOffsetPixels": [
+        57.93268996837239,
+        124.58704727921497
+      ],
+      "sourceCropPixels": [
+        362,
+        319
+      ],
+      "masterDrawPixels": [
+        141,
+        124
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          33,
+          63,
+          395,
+          382
+        ],
+        "transparentFraction": 0.4028646149050035
+      },
+      "bounds": [
+        59,
+        126,
+        198,
+        248
+      ]
     },
     {
-      "tool": "image_gen.imagegen",
-      "parameters": {
-        "prompt": "Production asset: exactly NINE different isolated individual trees in a transparent3x3 equal-cell sprite atlas, row-major order. Match the supplied approved game artwork in palette, camera, shading and painterly material treatment.\nFixed orthographic2:1 dimetric game camera; ground axes at+26.565/-26.565 degrees, no perspective convergence. Northwest daylight, restrained warm hand-painted miniature style. Full crowns, trunks, roots and a tiny soft contact shadow are visible.\nShared physical scale with game buildings: one ground tile is16m square, an adult is1.75m and a door is2.1m. Do not draw people, doors or buildings. The normalized256px cell uses13.15px per vertical metre. Tree heights vary naturally; do not enlarge shorter species to fill their cells.\nEvery tree root meets the shared horizontal baseline at95.5% of its cell height, centred horizontally. Crown and all branches stay inside their own cell with generous transparent gutters. Keep side gutters at least12% of cell width and top gutters at least10%. Tiny contact shadows fade out before the cell bottom. No long baked directional shadow; the game supplies the projected ground shadow.\nBroad asymmetrical foliage masses and clear species silhouettes readable at Region and Town zoom. A few large boughs and trunk forks; no individual leaves, fine needle lines, stippling, scratches, tiny bark fissures, tiny fruit dots, lettering or botanical labels. Each requested species has distinct branch architecture and crown proportions.\nGenuine transparent RGBA background; no coloured backdrop, checkerboard, ground rectangle, floating plinth, pots, frame, labels or UI. Exactly one whole tree per cell; no forest groups.\nDry woodland and oasis species: dusty olive, sage and blue-green, warm grey and ochre trunks. No ground sand disc or scenery.\nSlot 1: desert-willow, 9m tall, 118.3px vertical tree height in the normalized256px cell. Slender warm grey forked trunk, loose pale green crown with a few broad muted mauve patches.\nSlot 2: olive-tree, 10m tall, 131.5px vertical tree height in the normalized256px cell. Gnarled thick grey trunk with separated rounded silvery green crown masses.\nSlot 3: carob, 11m tall, 144.6px vertical tree height in the normalized256px cell. Dense broad dark olive dome above a short stout branching brown trunk.\nSlot 4: argan, 10m tall, 131.5px vertical tree height in the normalized256px cell. Low wide irregular muted green crown and sculptural split dark trunk.\nSlot 5: mopane, 12m tall, 157.8px vertical tree height in the normalized256px cell. Upright dense warm olive crown on a clear reddish grey forked trunk.\nSlot 6: marula, 13m tall, 170.9px vertical tree height in the normalized256px cell. Broad rounded soft sage canopy on a smooth pale grey stout trunk.\nSlot 7: bottle-tree, 12m tall, 157.8px vertical tree height in the normalized256px cell. Distinctively swollen pale green-grey trunk with a small rounded olive canopy.\nSlot 8: euphorbia-tree, 9m tall, 118.3px vertical tree height in the normalized256px cell. Sculptural succulent candelabra of thick muted green upright branched stems.\nSlot 9: desert-cypress, 14m tall, 184.1px vertical tree height in the normalized256px cell. Tall slender blue-green pointed column on a short exposed warm grey trunk.\n\nREPAIR REQUIREMENTS FOR THE SUPPLIED DRAFT: Regenerate the nine trees with much simpler broad painted masses; the draft has too many tiny leaf and bark marks. Do not preserve its packing. Use an exact three-column, three-row invisible equal-cell grid. Every whole tree is entirely confined to its own cell; every cell has at least 12% transparent side gutters. The highest tree point must be the following fraction of its cell measured UPWARD from the shared trunk-root baseline at 95.5%: slot 1 desert willow 46%; slot 2 olive tree 51%; slot 3 carob 56%; slot 4 argan 51%; slot 5 mopane 62%; slot 6 marula 67%; slot 7 bottle tree 62%; slot 8 euphorbia tree 46%; slot 9 desert cypress 72%. These are absolute shared-scale heights, not suggestions. The 9m desert willow and euphorbia tree must be about 64% as tall as the 14m desert cypress. Do not scale the shortest trees up to fill their cells. Root tip at cell y=95.5%, tiny translucent contact shadow only below the trunk. No rocky/turfy ground mound, no grass tufts. Crown widths at most 76% of a cell. All silhouettes separated by real transparent gutters. A few broad foliage cushions rather than dozens of little leaves, no etched linework.",
-        "referenced_image_paths": [
-          "/workspace/generated_images/exec-e0088df7-dccf-4dcd-a2db-6bd8b515f781.png",
-          "/workspace/protocodus.github.io/fun/transport/assets/houses/desert/house-atlas.png"
-        ],
-        "transparent_background": true
-      },
-      "rawSourcePath": "/workspace/generated_images/exec-bdfcfc70-c644-4f1b-8f3f-6f29b6e6a59b.png",
-      "rawSourceSha256": "b1997ba75e67ed035546f87939ca2b30e727605e1c66d2df6b67905430ae1dde",
-      "references": [
-        {
-          "path": "/workspace/generated_images/exec-e0088df7-dccf-4dcd-a2db-6bd8b515f781.png",
-          "sha256": "381d1432b89bdeb9dd1d2d89526a4eb5e3325a62012d0ab54443e7b40c8c4cfa"
-        },
-        {
-          "path": "/workspace/protocodus.github.io/fun/transport/assets/houses/desert/house-atlas.png",
-          "sha256": "9f2aaca297b31a1f005a6d9691cd78b9ba695124cd444cbb880ec0f5e4e373d9"
-        }
+      "id": "nature-trees-desert:olive-tree",
+      "cell": 1,
+      "sourceBounds": [
+        446,
+        47,
+        805,
+        383
       ],
-      "accepted": true,
-      "review": "Accepted: nine clear species, quiet foliage masses, clean roots; complete-tree physical calibration and root registration described in registration.json."
+      "observedRootSource": [
+        640.0,
+        372.0
+      ],
+      "observedCrownTopSource": 50.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 322.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.4083364437085882,
+      "masterOffsetPixels": [
+        48.782729920533896,
+        111.77065579470883
+      ],
+      "sourceCropPixels": [
+        359,
+        336
+      ],
+      "masterDrawPixels": [
+        147,
+        137
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          446,
+          47,
+          805,
+          383
+        ],
+        "transparentFraction": 0.35331277357739754
+      },
+      "bounds": [
+        50,
+        113,
+        195,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:carob",
+      "cell": 2,
+      "sourceBounds": [
+        865,
+        37,
+        1237,
+        383
+      ],
+      "observedRootSource": [
+        1052.0,
+        372.0
+      ],
+      "observedCrownTopSource": 40.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 332.0,
+      "registeredPlantHeightPixels": 144.63276836158192,
+      "calibratedHeightMetres": 7.333333333333333,
+      "sourceScaleToMaster": 0.4356408685589817,
+      "masterOffsetPixels": [
+        46.53515757947042,
+        98.5403090327411
+      ],
+      "sourceCropPixels": [
+        372,
+        346
+      ],
+      "masterDrawPixels": [
+        162,
+        151
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          865,
+          37,
+          1237,
+          383
+        ],
+        "transparentFraction": 0.3365731244949966
+      },
+      "bounds": [
+        48,
+        100,
+        208,
+        249
+      ]
+    },
+    {
+      "id": "nature-trees-desert:argan",
+      "cell": 3,
+      "sourceBounds": [
+        11,
+        494,
+        413,
+        791
+      ],
+      "observedRootSource": [
+        215.0,
+        781.0
+      ],
+      "observedCrownTopSource": 498.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 283.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.4646089571525279,
+      "masterOffsetPixels": [
+        33.21977274088431,
+        111.13722929722448
+      ],
+      "sourceCropPixels": [
+        402,
+        297
+      ],
+      "masterDrawPixels": [
+        187,
+        138
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          11,
+          494,
+          413,
+          791
+        ],
+        "transparentFraction": 0.39362949561954536
+      },
+      "bounds": [
+        34,
+        112,
+        219,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:mopane",
+      "cell": 4,
+      "sourceBounds": [
+        459,
+        431,
+        799,
+        797
+      ],
+      "observedRootSource": [
+        630.0,
+        786.0
+      ],
+      "observedCrownTopSource": 434.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 352.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.44824205070738204,
+      "masterOffsetPixels": [
+        51.35060932903767,
+        85.35407199887936
+      ],
+      "sourceCropPixels": [
+        340,
+        366
+      ],
+      "masterDrawPixels": [
+        152,
+        164
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          459,
+          431,
+          799,
+          797
+        ],
+        "transparentFraction": 0.3843539054966249
+      },
+      "bounds": [
+        52,
+        86,
+        202,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:marula",
+      "cell": 5,
+      "sourceBounds": [
+        855,
+        446,
+        1244,
+        797
+      ],
+      "observedRootSource": [
+        1048.0,
+        784.0
+      ],
+      "observedCrownTopSource": 450.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 334.0,
+      "registeredPlantHeightPixels": 170.929635336415,
+      "calibratedHeightMetres": 8.666666666666666,
+      "sourceScaleToMaster": 0.5117653752587276,
+      "masterOffsetPixels": [
+        29.229282575065582,
+        71.50330316255008
+      ],
+      "sourceCropPixels": [
+        389,
+        351
+      ],
+      "masterDrawPixels": [
+        199,
+        180
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          855,
+          446,
+          1244,
+          797
+        ],
+        "transparentFraction": 0.4069899442650085
+      },
+      "bounds": [
+        31,
+        74,
+        226,
+        250
+      ]
+    },
+    {
+      "id": "nature-trees-desert:bottle-tree",
+      "cell": 6,
+      "sourceBounds": [
+        73,
+        860,
+        335,
+        1205
+      ],
+      "observedRootSource": [
+        204.0,
+        1194.0
+      ],
+      "observedCrownTopSource": 863.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 331.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.4766803681238625,
+      "masterOffsetPixels": [
+        65.55487177577402,
+        85.26875704662993
+      ],
+      "sourceCropPixels": [
+        262,
+        345
+      ],
+      "masterDrawPixels": [
+        125,
+        164
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          73,
+          860,
+          335,
+          1205
+        ],
+        "transparentFraction": 0.48101559907069363
+      },
+      "bounds": [
+        67,
+        86,
+        190,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:euphorbia-tree",
+      "cell": 7,
+      "sourceBounds": [
+        482,
+        885,
+        774,
+        1202
+      ],
+      "observedRootSource": [
+        631.0,
+        1191.0
+      ],
+      "observedCrownTopSource": 891.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 300.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3944530046224962,
+      "masterOffsetPixels": [
+        69.22650231124805,
+        123.77738058551614
+      ],
+      "sourceCropPixels": [
+        292,
+        317
+      ],
+      "masterDrawPixels": [
+        115,
+        125
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          482,
+          885,
+          774,
+          1202
+        ],
+        "transparentFraction": 0.44167278855710645
+      },
+      "bounds": [
+        70,
+        126,
+        183,
+        248
+      ]
+    },
+    {
+      "id": "nature-trees-desert:desert-cypress",
+      "cell": 8,
+      "sourceBounds": [
+        966,
+        832,
+        1134,
+        1221
+      ],
+      "observedRootSource": [
+        1054.0,
+        1209.0
+      ],
+      "observedCrownTopSource": 835.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 374.0,
+      "registeredPlantHeightPixels": 184.07806882383156,
+      "calibratedHeightMetres": 9.333333333333334,
+      "sourceScaleToMaster": 0.49218734979634104,
+      "masterOffsetPixels": [
+        84.68751321792199,
+        58.92536912677943
+      ],
+      "sourceCropPixels": [
+        168,
+        389
+      ],
+      "masterDrawPixels": [
+        83,
+        191
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          966,
+          832,
+          1134,
+          1221
+        ],
+        "transparentFraction": 0.40632268331497123
+      },
+      "bounds": [
+        86,
+        60,
+        167,
+        249
+      ]
     }
   ],
-  "packing": {
-    "tool": "../../../../tools/build-world-atlases.py",
-    "arguments": [
-      "--atlas",
-      "registered-generation-2026-10-06.png",
-      "--columns",
-      "3",
-      "--rows",
-      "3",
-      "--ids",
-      "nature-trees-desert:desert-willow,nature-trees-desert:olive-tree,nature-trees-desert:carob,nature-trees-desert:argan,nature-trees-desert:mopane,nature-trees-desert:marula,nature-trees-desert:bottle-tree,nature-trees-desert:euphorbia-tree,nature-trees-desert:desert-cypress",
-      "--output-dir",
-      ".",
-      "--aligned",
-      "--preserve-grid-scale",
-      "--max-cell",
-      "256",
-      "--no-sharpen"
+  "job": {
+    "path": "nature-trees-desert/variety-2",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine dry-climate trees. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. Dry climate dusty olive and sage crowns, warm gray/brown bark. Palm FROND ROSETTES seen from above; we see radial star shape of fronds instead of a sideways arch.\nSlot 1: desert-willow, 6m tall, 118.3px vertical tree height in the normalized256px cell. Slender warm grey forked trunk, loose pale green crown with a few broad muted mauve patches.\nSlot 2: olive-tree, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Gnarled thick grey trunk with separated rounded silvery green crown masses.\nSlot 3: carob, 7.33m tall, 144.6px vertical tree height in the normalized256px cell. Dense broad dark olive dome above a short stout branching brown trunk.\nSlot 4: argan, 6.67m tall, 131.5px vertical tree height in the normalized256px cell. Low wide irregular muted green crown and sculptural split dark trunk.\nSlot 5: mopane, 8m tall, 157.8px vertical tree height in the normalized256px cell. Upright dense warm olive crown on a clear reddish grey forked trunk.\nSlot 6: marula, 8.67m tall, 170.9px vertical tree height in the normalized256px cell. Broad rounded soft sage canopy on a smooth pale grey stout trunk.\nSlot 7: bottle-tree, 8m tall, 157.8px vertical tree height in the normalized256px cell. Distinctively swollen pale green-grey trunk with a small rounded olive canopy.\nSlot 8: euphorbia-tree, 6m tall, 118.3px vertical tree height in the normalized256px cell. Sculptural succulent candelabra of thick muted green upright branched stems.\nSlot 9: desert-cypress, 9.33m tall, 184.1px vertical tree height in the normalized256px cell. Tall slender blue-green pointed column on a short exposed warm grey trunk.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+    "kind": "tree",
+    "heights": [
+      6,
+      6.666666666666667,
+      7.333333333333333,
+      6.666666666666667,
+      8,
+      8.666666666666666,
+      8,
+      6,
+      9.333333333333334
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-trees-desert:desert-willow",
+      "nature-trees-desert:olive-tree",
+      "nature-trees-desert:carob",
+      "nature-trees-desert:argan",
+      "nature-trees-desert:mopane",
+      "nature-trees-desert:marula",
+      "nature-trees-desert:bottle-tree",
+      "nature-trees-desert:euphorbia-tree",
+      "nature-trees-desert:desert-cypress"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
     ]
-  },
-  "review": {
-    "masterAlphaEdges": 0,
-    "physicalRootBaseline": 0.955,
-    "lowDetailMipFiltering": "Premultiplied alpha, no sharpening",
-    "duplicateSpecies": 0,
-    "missingSpecies": 0
-  },
-  "projectionCorrection": {
-    "date": "2026-10-06",
-    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
-    "historicalAssumedWorldEnlargement": 1.5,
-    "actualWorldEnlargement": 1,
-    "historicalHeightToActualWorldMetres": 0.6666666666666666,
-    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
-    "artworkUnchanged": true,
-    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged."
   }
 }

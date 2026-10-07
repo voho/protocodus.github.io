@@ -5,7 +5,8 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
   "order": [
@@ -19,8 +20,12 @@
     "nature-ground-taiga:reeds",
     "nature-ground-taiga:marsh"
   ],
-  "source": "exec-78c30eeb-15f9-49a4-8965-1b612b0e6860.png",
-  "sourceSha256": "1857e7b106a550a6b62c6c6f38352fc24521e7dc2247d5dcb028dee687f0be92",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "5b9533458bde972f3896d801a29c7c7e228847a118f90684e595402db1f8eba0",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
   "sprites": [
     {
       "id": "nature-ground-taiga:wildflowers",
@@ -28,109 +33,139 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        418
+        432,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        432,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          41,
-          96,
-          387,
-          360
+          0,
+          0,
+          432,
+          405
         ],
-        "rawAlphaBounds": [
-          24,
-          19,
-          418,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.669547
+        "transparentFraction": 0.3745827617741198
       },
+      "registrationAnchorSource": [
+        216.0,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        67,
-        244,
-        244
+        22,
+        38,
+        235,
+        233
       ]
     },
     {
       "id": "nature-ground-taiga:bluebells",
       "cell": 1,
       "sourceBounds": [
-        418,
+        432,
         0,
-        836,
-        418
+        863,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        431,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          55,
-          86,
-          368,
-          363
+          432,
+          0,
+          863,
+          405
         ],
-        "rawAlphaBounds": [
-          1,
-          19,
-          414,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.669748
+        "transparentFraction": 0.3730056429205694
       },
+      "registrationAnchorSource": [
+        647.5,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        39,
-        244,
-        244
+        27,
+        40,
+        228,
+        231
       ]
     },
     {
       "id": "nature-ground-taiga:ferns",
       "cell": 2,
       "sourceBounds": [
-        836,
+        863,
         0,
-        1254,
-        418
+        1295,
+        405
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        26.332046332046332
+      ],
+      "sourceCropPixels": [
+        432,
+        405
+      ],
+      "masterDrawPixels": [
+        232,
+        218
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          5,
-          45,
-          387,
-          370
+          863,
+          0,
+          1295,
+          405
         ],
-        "rawAlphaBounds": [
-          1,
-          20,
-          400,
-          412
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.565103
+        "transparentFraction": 0.4103395061728395
       },
+      "registrationAnchorSource": [
+        1079.0,
+        405
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        47,
-        244,
-        244
+        24,
+        34,
+        235,
+        234
       ]
     },
     {
@@ -138,110 +173,140 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        418,
-        418,
-        836
+        405,
+        432,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        432,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          37,
-          39,
-          390,
-          338
-        ],
-        "rawAlphaBounds": [
           0,
-          9,
-          418,
-          418
+          405,
+          432,
+          795
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.619228
+        "transparentFraction": 0.368417616334283
       },
+      "registrationAnchorSource": [
+        216.0,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        47,
-        244,
-        244
+        24,
+        37,
+        229,
+        237
       ]
     },
     {
       "id": "nature-ground-taiga:berry-bushes",
       "cell": 4,
       "sourceBounds": [
-        418,
-        418,
-        836,
-        836
+        432,
+        405,
+        863,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        431,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          42,
-          67,
-          377,
-          418
+          432,
+          405,
+          863,
+          795
         ],
-        "rawAlphaBounds": [
-          1,
-          0,
-          418,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.638012
+        "transparentFraction": 0.3535011006008686
       },
+      "registrationAnchorSource": [
+        647.5,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        17,
-        12,
-        238,
-        244
+        19,
+        43,
+        236,
+        235
       ]
     },
     {
       "id": "nature-ground-taiga:heather",
       "cell": 5,
       "sourceBounds": [
-        836,
-        418,
-        1254,
-        836
+        863,
+        405,
+        1295,
+        795
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        34.393822393822376
+      ],
+      "sourceCropPixels": [
+        432,
+        390
+      ],
+      "masterDrawPixels": [
+        232,
+        210
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          34,
-          77,
-          385,
-          342
+          863,
+          405,
+          1295,
+          795
         ],
-        "rawAlphaBounds": [
-          1,
-          1,
-          412,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.656641
+        "transparentFraction": 0.38808167141500477
       },
+      "registrationAnchorSource": [
+        1079.0,
+        795
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        69,
-        244,
-        244
+        22,
+        44,
+        230,
+        233
       ]
     },
     {
@@ -249,111 +314,146 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
-        418,
-        1254
+        795,
+        432,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        432,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          44,
-          40,
-          392,
-          351
-        ],
-        "rawAlphaBounds": [
           0,
-          0,
-          418,
-          418
+          795,
+          432,
+          1214
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.543125
+        "transparentFraction": 0.290384955361089
       },
+      "registrationAnchorSource": [
+        216.0,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        37,
-        244,
-        244
+        21,
+        20,
+        237,
+        231
       ]
     },
     {
       "id": "nature-ground-taiga:reeds",
       "cell": 7,
       "sourceBounds": [
-        418,
-        836,
-        836,
-        1254
+        432,
+        795,
+        863,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        12.179150579150573,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        431,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          55,
-          0,
-          360,
-          360
+          432,
+          795,
+          863,
+          1214
         ],
-        "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.579417
+        "transparentFraction": 0.34744641146470717
       },
+      "registrationAnchorSource": [
+        647.5,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        29,
-        12,
-        226,
-        244
+        23,
+        22,
+        236,
+        231
       ]
     },
     {
       "id": "nature-ground-taiga:marsh",
       "cell": 8,
       "sourceBounds": [
-        836,
-        836,
-        1254,
-        1254
+        863,
+        795,
+        1295,
+        1214
+      ],
+      "sourceScaleToMaster": 0.5374517374517375,
+      "masterOffsetPixels": [
+        11.910424710424707,
+        18.807722007721992
+      ],
+      "sourceCropPixels": [
+        432,
+        419
+      ],
+      "masterDrawPixels": [
+        232,
+        225
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1295,
+          1214
         ],
         "sourceBounds": [
-          18,
-          28,
-          387,
-          364
+          863,
+          795,
+          1295,
+          1214
         ],
-        "rawAlphaBounds": [
-          1,
-          0,
-          404,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.549106
+        "transparentFraction": 0.36398943693096436
       },
+      "registrationAnchorSource": [
+        1079.0,
+        1214
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        33,
-        244,
-        244
+        16,
+        27,
+        232,
+        229
       ]
     }
-  ]
+  ],
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "5b9533458bde972f3896d801a29c7c7e228847a118f90684e595402db1f8eba0",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
 }

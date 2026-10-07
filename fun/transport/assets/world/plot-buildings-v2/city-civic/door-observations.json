@@ -1,0 +1,112 @@
+[
+  {
+    "id": "civic:school:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        194,
+        291
+      ],
+      [
+        194,
+        306
+      ]
+    ]
+  },
+  {
+    "id": "civic:hospital:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        231,
+        343
+      ],
+      [
+        231,
+        360
+      ]
+    ]
+  },
+  {
+    "id": "civic:police-station:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        133,
+        335
+      ],
+      [
+        133,
+        353
+      ]
+    ]
+  },
+  {
+    "id": "civic:fire-station:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        250,
+        329
+      ],
+      [
+        250,
+        346
+      ]
+    ]
+  },
+  {
+    "id": "civic:stadium:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorObservable": false,
+    "personnelDoorObservationReason": "Outdoor stadium has gates and roofed grandstands, no visible ordinary personnel door."
+  },
+  {
+    "id": "civic:church:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorObservable": false,
+    "personnelDoorObservationReason": "Church entrance is a tall arched ceremonial portal; it is not a standard personnel door and no separate ordinary door is visible."
+  },
+  {
+    "id": "civic:pub:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        293,
+        260
+      ],
+      [
+        293,
+        292
+      ]
+    ]
+  },
+  {
+    "id": "civic:shop-grocery:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        295,
+        272
+      ],
+      [
+        295,
+        308
+      ]
+    ]
+  },
+  {
+    "id": "civic:shop-bakery:taiga",
+    "doorObservationMethod": "Manual final corrected-source review; source exec-66bea25b-916a-4266-834b-8dd69c878090.png; actual ordinary door leaf boundaries below transoms, at same x for head/sill; nominal418pxcelllocal.",
+    "personnelDoorEndpointsSource": [
+      [
+        359,
+        234
+      ],
+      [
+        359,
+        264
+      ]
+    ]
+  }
+]

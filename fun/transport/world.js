@@ -25,7 +25,7 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 10;
+export const WORLD_GENERATION_VERSION = 11;
 export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= WORLD_GENERATION_VERSION;
 
 // Keep complete production chains together: one district contains one of every
@@ -62,7 +62,7 @@ export function generateWorld(biome, seed, size = DEFAULT_WORLD_SIZE, generation
       // Recipes 8 and 9 retain their published plots; recipe 10 gives every industry 5 × 5 tiles.
       const world=generateWorldV8(biome,seed,size,config,generationVersion);
       if (generationOptions) world.generationOptions = { ...generationOptions };
-      allocateTerrainObjects({...world,biome,seed});world.terrainObjectVersion=1;
+      allocateTerrainObjects({...world,biome,seed},{largeLandforms:generationVersion>=11});world.terrainObjectVersion=1;
       return world;
     }
     const world=generateWorldV2(biome,seed,size,config,generationVersion>=4?{naturalRelief:true,...(generationVersion>=7?{mountainRelief:true}:{})}:undefined);

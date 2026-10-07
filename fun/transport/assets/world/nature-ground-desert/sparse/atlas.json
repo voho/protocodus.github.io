@@ -1,0 +1,459 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "order": [
+    "nature-ground-desert:cactus-sparse",
+    "nature-ground-desert:agave-sparse",
+    "nature-ground-desert:prickly-pear-sparse",
+    "nature-ground-desert:aloe-sparse",
+    "nature-ground-desert:desert-flowers-sparse",
+    "nature-ground-desert:dry-grass-sparse",
+    "nature-ground-desert:scrub-sparse",
+    "nature-ground-desert:reeds-sparse",
+    "nature-ground-desert:saltflat-sparse"
+  ],
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "57b6752e3bc591e47c5c61f2f93dd0e3c4cec32ccc8fcf0226c8867fff528644",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
+  "sprites": [
+    {
+      "id": "nature-ground-desert:cactus-sparse",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          0,
+          418,
+          418
+        ],
+        "transparentFraction": 0.5644387720061353
+      },
+      "registrationAnchorSource": [
+        209.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        55,
+        39,
+        216,
+        233
+      ]
+    },
+    {
+      "id": "nature-ground-desert:agave-sparse",
+      "cell": 1,
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          0,
+          836,
+          418
+        ],
+        "transparentFraction": 0.5269568004395504
+      },
+      "registrationAnchorSource": [
+        627.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        41,
+        57,
+        212,
+        243
+      ]
+    },
+    {
+      "id": "nature-ground-desert:prickly-pear-sparse",
+      "cell": 2,
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          0,
+          1254,
+          418
+        ],
+        "transparentFraction": 0.6002667063482979
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        33,
+        86,
+        216,
+        240
+      ]
+    },
+    {
+      "id": "nature-ground-desert:aloe-sparse",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          418,
+          418,
+          836
+        ],
+        "transparentFraction": 0.6015201117190541
+      },
+      "registrationAnchorSource": [
+        209.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        50,
+        43,
+        219,
+        227
+      ]
+    },
+    {
+      "id": "nature-ground-desert:desert-flowers-sparse",
+      "cell": 4,
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          418,
+          836,
+          836
+        ],
+        "transparentFraction": 0.6036377372312904
+      },
+      "registrationAnchorSource": [
+        627.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        53,
+        69,
+        222,
+        223
+      ]
+    },
+    {
+      "id": "nature-ground-desert:dry-grass-sparse",
+      "cell": 5,
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          418,
+          1254,
+          836
+        ],
+        "transparentFraction": 0.5622238501865799
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        836
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        35,
+        50,
+        213,
+        218
+      ]
+    },
+    {
+      "id": "nature-ground-desert:scrub-sparse",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          836,
+          418,
+          1254
+        ],
+        "transparentFraction": 0.5783006341429913
+      },
+      "registrationAnchorSource": [
+        209.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        43,
+        43,
+        220,
+        197
+      ]
+    },
+    {
+      "id": "nature-ground-desert:reeds-sparse",
+      "cell": 7,
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          418,
+          836,
+          836,
+          1254
+        ],
+        "transparentFraction": 0.646448112451638
+      },
+      "registrationAnchorSource": [
+        627.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        44,
+        23,
+        207,
+        208
+      ]
+    },
+    {
+      "id": "nature-ground-desert:saltflat-sparse",
+      "cell": 8,
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          836,
+          836,
+          1254,
+          1254
+        ],
+        "transparentFraction": 0.6811828941645108
+      },
+      "registrationAnchorSource": [
+        1045.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
+      "bounds": [
+        39,
+        65,
+        211,
+        204
+      ]
+    }
+  ],
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "57b6752e3bc591e47c5c61f2f93dd0e3c4cec32ccc8fcf0226c8867fff528644",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
+}

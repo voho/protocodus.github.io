@@ -25,6 +25,8 @@ import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, drawRasterZone, hasRasterNetwork, hasRasterTransport } from './raster-transport.js';
 import { drawRailSurface, RAIL_PALETTE } from './rail-surface-art.js';
+import { drawRoadSurface, ROAD_PALETTE, BRIDGE_SUPPORT_PALETTE } from './road-surface-art.js';
+import { drawNativeVehicle, drawStreetLamp, drawStreetBin } from './native-transport-art.js';
 import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
 import { createOverlayGrid, siteShape, insideShape } from './overlay-placement.js';
 import { drawRasterIndustry } from './raster-industries.js';
@@ -40,7 +42,7 @@ import { natureVariant as placedNatureVariant, natureDensity as placedNatureDens
 import { populationText } from './formatters.js';
 import { shorelineContours, appendShoreline } from './shoreline.js';
 import { projectPoint, unprojectPoint, projectAngle } from './isometric.js';
-import { projectGround as projectGroundAtHeight, projectTerrainPoint as projectTerrainPointAtHeight, surfaceHeight, tileSurface as tileSurfaceAtHeight, groundIsFlat, pickGround as pickGroundAtHeight, transportHeight, bridgeDeckHeight, bridgeSurface, HEIGHT_STEP, MAX_HEIGHT } from './terrain-geometry.js';
+import { projectGround as projectGroundAtHeight, projectTerrainPoint as projectTerrainPointAtHeight, surfaceHeight, tileSurface as tileSurfaceAtHeight, groundIsFlat, pickGround as pickGroundAtHeight, transportHeight, bridgeDeckHeight, bridgeSurface, MAX_HEIGHT } from './terrain-geometry.js';
 import { normalizeTerrainHeight } from './terrain-view.js';
 import { drawTerrainMesh, paintTerrainTile } from './terrain-mesh.js';
 import { partitionScenery, transferSceneryGroups, createSceneryBudget } from './scenery-batches.js';
@@ -55,6 +57,8 @@ import { aircraftPose } from './air-flight.js';
 import { paintAirportGround, createAirportSprites, PART_FRONTS, PART_BOXES, localToWorld } from './airport-art.js';
 
 const TAU=Math.PI*2;
+// Flight altitude retains its physical presentation when ground relief changes.
+const AIRCRAFT_HEIGHT_STEP=24;
 const BUILDING_FRAME=SPRITE_SCALE.billboardPixelsPerTile,BUILDING_FRAME_SCALE=BUILDING_FRAME/TILE,BUILDING_GUTTER=8*BUILDING_FRAME_SCALE;
 const CHUNK_TILES=6, CHUNK_PIXELS=CHUNK_TILES*TILE, CHUNK_GUTTER=8;
 const CACHE_BASE=48*1024*1024, CACHE_MAX=256*1024*1024;
@@ -182,7 +186,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   function airPose(v,route){
     const [a,b]=(route.stops||[]).map(id=>stationById.get(id));if(!a||!b||!(route.path?.length>1))return null;
     const pose=aircraftPose(route,[a,b],v,{heights:s=>surfaceHeight(game,s.x,s.y),cruise:cruiseLevel(route,a,b),cache:flightCache(route,a,b)}),g=surfaceHeight(game,pose.x,pose.y),p=projectPoint(pose.x*TILE,pose.y*TILE);
-    return{pose,route,body:{x:p.x,y:p.y-g*heightStep-(pose.z-g)*HEIGHT_STEP},ground:{x:p.x,y:p.y-g*heightStep},lift:Math.max(0,pose.z-g)};
+    return{pose,route,body:{x:p.x,y:p.y-g*heightStep-(pose.z-g)*AIRCRAFT_HEIGHT_STEP},ground:{x:p.x,y:p.y-g*heightStep},lift:Math.max(0,pose.z-g)};
   }
   let largestSurface=0, lastTime=0, vehicleIndicatorCounts={empty:0,partial:0,full:0};
   function code(value){if(!value)return 0;const key=String(value);if(codes.has(key))return codes.get(key);let h=0;for(let i=0;i<key.length;i++)h=(Math.imul(h,31)+key.charCodeAt(i))|0;codes.set(key,h);return h;}
@@ -281,7 +285,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(!tile(x,y))return null;
     const id=y*game.width+x;if(terrainObjectIndex.has(id))return terrainObjectIndex.get(id);
     if(terrainObjectIndex.size>=65536)terrainObjectIndex.clear();
-    const found=terrainObjectAt(game,x,y);let site=found?.object.kind==='mountain'?null:found;
+    const found=terrainObjectAt(game,x,y);let site=found;
     // Saved parcels use the original elevation recipe. Only draw their large
     // artwork when every displayed vertex is level; small fallback scenery
     // is eligible separately on each remaining flat cell.
@@ -316,9 +320,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // its artwork may use smaller scenery. Resolve the actual parcel rather
     // than the flat-only billboard lookup used by pointer previews.
     const terrain=tileOnly?null:terrainObjectAt(game,selected.x,selected.y);
-    // Legacy mountain anchors describe terrain, which is inspected and
-    // engineered one tile at a time rather than drawn as a parcel billboard.
-    const site=tileOnly?selected:siteAt(selected.x,selected.y)||(terrain?.object.kind==='mountain'?null:terrain)||selected,span=siteSize(site);
+    const site=tileOnly?selected:siteAt(selected.x,selected.y)||terrain||selected,span=siteSize(site);
     const {w,h}=typeof span==='number'?{w:span,h:span}:span,mark=MAP.selection,z=camera.zoom;
     const flat=foundationSite(site),project=flat?foundationProjection(site.x,site.y,w):(u,v)=>projectGround(game,u,v);
     const point=(u,v,first=false)=>{const p=project(u,v);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);};
@@ -661,9 +663,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // mouths are upright objects, depth-sorted with buildings and vehicles.
     for(const [dx,dy]of portalArms(x,y,t,mode)){
       if(mode==='rail'){drawRailSurface(c,cx,cy,[[dx,dy]],{inner:6,detailLevel});continue;}
-      const mouthX=cx+dx*6,mouthY=cy+dy*6;
-      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],'#b5a587',18);
-      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],'#696963',12);
+      drawRoadSurface(c,cx,cy,[[dx,dy]],{inner:6,detailLevel});
     }
   }
   // Road tiles joined into a block (2 × 2, 2 × 3 and larger) are one paved square, like a town square or car park:
@@ -672,13 +672,18 @@ export function createRenderer(canvas, initialGame, options={}) {
   const pavedSquare=(x,y)=>[[-1,-1],[0,-1],[-1,0],[0,0]].some(([ox,oy])=>plainRoad(x+ox,y+oy)&&plainRoad(x+ox+1,y+oy)&&plainRoad(x+ox,y+oy+1)&&plainRoad(x+ox+1,y+oy+1));
   // One asphalt surface without lanes; a kerb and parking bays where it meets land, open where a street joins it.
   function paveSquare(c,x,y,px,py){
-    c.fillStyle='#6b6a66';c.fillRect(px,py,TILE,TILE);
-    for(const [dx,dy] of [[0,-1],[1,0],[0,1],[-1,0]]){
+    c.fillStyle=ROAD_PALETTE.asphalt;c.fillRect(px,py,TILE,TILE);
+    // A broad perimeter pavement with 3m parking bays; surfaces meet adjacent
+    // square tiles without repeated little cards or grid-aligned seams.
+    for(const [dx,dy]of [[0,-1],[1,0],[0,1],[-1,0]]){
       if(tile(x+dx,y+dy)?.road)continue;
       const ex=dx>0?px+TILE:px,ey=dy>0?py+TILE:py,along=dx?[0,1]:[1,0],inward=[-dx,-dy];
       const edge=(o,d)=>[ex+along[0]*o+inward[0]*d,ey+along[1]*o+inward[1]*d];
-      if(detailLevel!=='region')for(let o=4;o<TILE;o+=8)line(c,[edge(o,2),edge(o,10)],'#d6d2c299',.8);
-      line(c,[edge(0,1),edge(TILE,1)],'#c9c2aa',2);
+      line(c,[edge(0,1.25),edge(TILE,1.25)],ROAD_PALETTE.shoulder,2.5);
+      if(detailLevel!=='region'){
+        line(c,[edge(3,9),edge(29,9)],ROAD_PALETTE.lane,.5);
+        for(let o=4;o<TILE-2;o+=6)line(c,[edge(o,3),edge(o,9)],ROAD_PALETTE.lane,.65);
+      }
     }
   }
   // A public road beside a building or a zone is a town street: paved sidewalks, lamps and bins.
@@ -690,15 +695,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     if((x*7+y*13)%5===0)items.push(['bin',e||w?[16+(w?-6:6),27]:[5,16+(n?-6:6)]]);
     return items;
   }
-  function drawLamp(p){
-    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+1,p.y+.3,1.8,.7,0,0,TAU);ctx.fill();
-    ctx.fillStyle='#38403c';ctx.fillRect(p.x-.6,p.y-15,1.2,15);ctx.fillRect(p.x-.6,p.y-15.6,3.6,1.1);
-    ctx.fillStyle='#f4e7b0';ctx.fillRect(p.x+1.7,p.y-14.6,1.7,1.2);
-  }
-  function drawBin(p){
-    ctx.fillStyle='#2f37332a';ctx.beginPath();ctx.ellipse(p.x+.6,p.y+.3,2,.8,0,0,TAU);ctx.fill();
-    ctx.fillStyle='#4e6a57';ctx.fillRect(p.x-1.4,p.y-4,2.8,4);ctx.fillStyle='#6f8c78';ctx.fillRect(p.x-1.6,p.y-4.6,3.2,.9);
-  }
+  const drawLamp=p=>drawStreetLamp(ctx,p.x,p.y);
+  const drawBin=p=>drawStreetBin(ctx,p.x,p.y);
   function network(c,x,y,t,mode,elevated=false){
     if(!t[mode])return;const px=x*TILE,py=y*TILE,cx=px+16,cy=py+16;
     if(mode==='road'&&!elevated&&pavedSquare(x,y)){paveSquare(c,x,y,px,py);return;}
@@ -716,27 +714,27 @@ export function createRenderer(canvas, initialGame, options={}) {
     const stroke=(color,width)=>{for(const p of points)line(c,[[cx,cy],p],color,width);dot(c,cx,cy,width/2,color);};
     if(bridge){
       if(!elevated){const clearance=t.structureLevel?Math.max(1,t.structureLevel-terrainLevel(t)):1,drop=Math.min(18,4+clearance*2);
-      c.save();c.translate(3+drop*.3,drop);stroke('#203c4840',18);c.restore();
+      c.save();c.translate(3+drop*.3,drop);stroke(BRIDGE_SUPPORT_PALETTE.shadow,18);c.restore();
       if(t.structureLevel){
         // Visible southeast faces give land viaducts the same sense of height
         // as water crossings; the deck itself stays aligned with the route.
-        c.fillStyle='#4d574a80';c.beginPath();c.moveTo(cx-4,cy+5);c.lineTo(cx+3,cy+5);c.lineTo(cx+3+drop*.3,cy+5+drop);c.lineTo(cx-4+drop*.3,cy+5+drop);c.closePath();c.fill();
-        line(c,[[cx-4,cy+5],[cx-4+drop*.3,cy+5+drop]],'#c4bea0',2.5);
-        line(c,[[cx-5+drop*.3,cy+5+drop],[cx+5+drop*.3,cy+5+drop]],'#626b5680',3);
+        c.fillStyle=BRIDGE_SUPPORT_PALETTE.sideShadow;c.beginPath();c.moveTo(cx-4,cy+5);c.lineTo(cx+3,cy+5);c.lineTo(cx+3+drop*.3,cy+5+drop);c.lineTo(cx-4+drop*.3,cy+5+drop);c.closePath();c.fill();
+        line(c,[[cx-4,cy+5],[cx-4+drop*.3,cy+5+drop]],BRIDGE_SUPPORT_PALETTE.light,2.5);
+        line(c,[[cx-5+drop*.3,cy+5+drop],[cx+5+drop*.3,cy+5+drop]],BRIDGE_SUPPORT_PALETTE.sideShadow,3);
       }
-      }stroke(mode==='rail'?RAIL_PALETTE.bridgeEdge:'#b7b4a0',17);stroke(mode==='rail'?RAIL_PALETTE.bridgeDeck:'#737f73',15);
+      }stroke(mode==='rail'?RAIL_PALETTE.bridgeEdge:ROAD_PALETTE.bridgeEdge,18);stroke(mode==='rail'?RAIL_PALETTE.bridgeDeck:ROAD_PALETTE.bridge,16);
     }
     else{
       if(mode==='road'&&townStreet(x,y,t)){
-        stroke('#a8a28c',27);stroke('#d3cdb6',25);
-        if(detailLevel!=='region')for(const [dx,dy]of arms)for(let k=4;k<16;k+=4)for(const side of [-1,1]){const ox=dy*side*10.5,oy=-dx*side*10.5;line(c,[[cx+dx*k+ox-dy*side*1.5,cy+dy*k+oy+dx*side*1.5],[cx+dx*k+ox+dy*side*1.5,cy+dy*k+oy-dx*side*1.5]],'#b9b29a',.5);}
+        stroke('#a9ad9d',25);stroke('#d1cab3',23);
+        if(detailLevel!=='region')for(const [dx,dy]of arms)for(let k=5;k<16;k+=6)for(const side of [-1,1]){const ox=dy*side*10.5,oy=-dx*side*10.5;line(c,[[cx+dx*k+ox-dy*side*1.5,cy+dy*k+oy+dx*side*1.5],[cx+dx*k+ox+dy*side*1.5,cy+dy*k+oy-dx*side*1.5]],'#b6b49f',.6);}
       }
-      if(mode==='road')stroke('#b5a587',18);
+      if(mode==='road')stroke(ROAD_PALETTE.shoulder,17);
     }
     if(mode==='road'){
-      stroke('#676762',12);stroke('#6c6b67',10);c.lineCap='butt';
-      if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
-      if(bridge)for(const [dx,dy]of arms){const ox=dy*7,oy=-dx*7;line(c,[[cx+ox,cy+oy],[cx+dx*16+ox,cy+dy*16+oy]],'#dfd9bd',1);line(c,[[cx-ox,cy-oy],[cx+dx*16-ox,cy+dy*16-oy]],'#d6d2b5',1);}
+      stroke(ROAD_PALETTE.asphalt,12.8);c.lineCap='butt';
+      if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],ROAD_PALETTE.lane,.65);c.setLineDash([]);}
+      if(bridge)for(const [dx,dy]of arms){const ox=dy*7,oy=-dx*7;line(c,[[cx+ox,cy+oy],[cx+dx*16+ox,cy+dy*16+oy]],ROAD_PALETTE.shoulder,1);line(c,[[cx-ox,cy-oy],[cx+dx*16-ox,cy+dy*16-oy]],ROAD_PALETTE.shoulder,1);}
     }
     if(!tunnel)drawRasterNetwork(c,mode+(bridge?'-bridge':''),cx,cy,arms,rasterScale,detailLevel);
   }
@@ -814,7 +812,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     return [[-1,0],[1,0],[0,-1],[0,1]].filter(([dx,dy])=>{const n=tile(x+dx,y+dy);return n?.bridge&&n[mode]&&networkEdgeAllowed(t,n,dx,dy,mode,game,x,y);});
   }
   function drawBridgeApproach(x,y,t,mode,directions){
-    // Keep the authored road/rail texture, but lift its shore-facing edge to
+    // Keep the new road/rail surface, but lift its shore-facing edge to
     // the deck. Baking this on the riverbank would leave a road below the bridge.
     const size=Math.ceil((TILE+4)*rasterScale);
     if(approachCanvas.width!==size)approachCanvas.width=approachCanvas.height=size;
@@ -834,8 +832,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     const h=transportHeight(game,x,y,mode),base=projectTile(x,y),deck=transportPoint(x,y,mode),drop=base.y-deck.y;
     bridgeHits.push({x,y,height:h,axis:bridgeSurface(game,x,y,mode)?.axis||t.structureAxis||'y'});
     if(drop>2){
-      ctx.fillStyle='#293e3935';ctx.beginPath();ctx.ellipse(base.x+3,base.y+2,11,4,0,0,TAU);ctx.fill();
-      for(const side of [-5,5]){line(ctx,[[deck.x+side,deck.y+2],[base.x+side,base.y]],side<0?'#9b9e85':'#68735f',3);line(ctx,[[base.x+side-3,base.y],[base.x+side+3,base.y]],'#68735f',2);}
+      ctx.fillStyle=BRIDGE_SUPPORT_PALETTE.shadow;ctx.beginPath();ctx.ellipse(base.x+3,base.y+2,11,4,0,0,TAU);ctx.fill();
+      for(const side of [-5,5]){line(ctx,[[deck.x+side,deck.y+2],[base.x+side,base.y]],side<0?BRIDGE_SUPPORT_PALETTE.light:BRIDGE_SUPPORT_PALETTE.shade,3);line(ctx,[[base.x+side-3,base.y],[base.x+side+3,base.y]],BRIDGE_SUPPORT_PALETTE.foot,2);}
     }
     ctx.save();ctx.translate(0,-h*heightStep);groundTransform(ctx);network(ctx,x,y,t,mode,true);ctx.restore();
   }
@@ -905,14 +903,9 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   function drawCar(v,route,x,y,worldAngle,engine){
     if(isUndergroundAt(game,x,y))return;
-    const p=transportPoint(x,y,route?.mode),angle=projectAngle(worldAngle),train=route?.mode==='rail';
+    const p=transportPoint(x,y,route?.mode),angle=projectAngle(worldAngle);
     ctx.save();ctx.translate(p.x,p.y);
-    if(!vehicleSprites.draw(ctx,v,route,{engine,heading:angle})){
-      ctx.rotate(angle);
-      ctx.fillStyle='#263c35';roundRect(ctx,-9,-4.5,18,9,2);ctx.fill();ctx.fillStyle=lineFor(route).fill;roundRect(ctx,-8,-3.5,16,7,2);ctx.fill();
-      ctx.fillStyle='#e9ddbd';ctx.fillRect(-6,-2.5,10,5);ctx.fillStyle='#426878';ctx.fillRect(4,-2.5,2,5);
-      if(train&&engine){ctx.fillStyle='#526361';ctx.fillRect(-2,-2,4,4);}
-    }
+    if(!vehicleSprites.draw(ctx,v,route,{engine,heading:angle}))drawNativeVehicle(ctx,v,route,{engine,heading:angle});
     ctx.restore();
   }
   function ship(v,route){const p=transportPoint(v.x,v.y,'water');ctx.drawImage(marine.ship({...v,angle:projectAngle(v.angle||0)},route),p.x-MARINE_SIZE/2,p.y-MARINE_SIZE/2,MARINE_SIZE,MARINE_SIZE);}
@@ -1609,7 +1602,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.
-    if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}
+    if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*AIRCRAFT_HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}
     drawScenery({x0,y0,x1,y1},routesById);
     if(layers.vehicles&&airPoses.size)for(const a of [...airPoses.values()].filter(a=>!a.pose.ground).sort((a,b)=>a.body.y-b.body.y))airportSprites.aircraft(ctx,a.pose.heading,lineFor(a.route).fill,a.body.x,a.body.y);
     ctx.save();

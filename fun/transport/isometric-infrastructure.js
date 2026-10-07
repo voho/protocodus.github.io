@@ -1,28 +1,31 @@
 import { registerAtlas, drawAtlas, worldArtRevision } from './atlas-runtime.js';
 import { createSpriteCache } from './sprite-cache.js';
 import { drawRailStationFallback } from './rail-station-art.js';
+import { drawNativeBusStop, drawNativePort, drawNativePortal } from './native-transport-art.js';
 
 // Upright structures use authored dimetric views. Road/rail surface textures
 // remain in the ground plane and receive the shared projection exactly once.
 registerAtlas({id:'isometric-infrastructure',path:'./assets/world/isometric-infrastructure-v2/atlas',columns:3,rows:2,maxCell:512,
   entries:['bus-stop',null,'port-w','port-e','port-n','port-s'].map(id=>id&&'isometric:'+id)});
-registerAtlas({id:'isometric-rail-station',path:'./assets/world/isometric-rail-station/atlas',columns:1,rows:1,maxCell:256,
+registerAtlas({id:'isometric-rail-station',path:'./assets/world/isometric-rail-station/atlas',columns:1,rows:1,maxCell:512,
   entries:['isometric:train-stop']});
-registerAtlas({id:'isometric-portals',path:'./assets/world/isometric-portals-v2/atlas',columns:3,rows:3,maxCell:256,
+registerAtlas({id:'isometric-portals',path:'./assets/world/isometric-portals-regenerated-v3/atlas',columns:3,rows:3,maxCell:256,
   entries:['road-e','road-s','road-w','road-n','rail-e','rail-s','rail-w','rail-n',null].map(id=>id&&'portal:'+id)});
 
 export const cardinalDirection=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?dx>0?'e':'w':dy>0?'s':'n';
 // Atlas cells share one dimetric camera. Scaling both axes equally preserves
 // their 2:1 ground directions; keep the pavement's lower contact point stable.
-export const isometricStationBounds=mode=>mode==='water'
-  ?{left:-35,top:-54,size:70}:mode==='rail'
-  // The calibrated 48px one-tile parcel has transparent padding to a 64px
-  // frame, so all zooms can copy whole atlas-density pixels. Pavement retains
-  // the road shelter's +2.5px ground contact; the building does not grow.
-  ?{left:-32,top:-60,size:64}:{left:-16,top:-28,size:32};
+export const isometricStationBounds=()=>({left:-36,top:-54,size:72});
 function drawStationArt(c,id,x,y,size,pixelScale){
-  return drawAtlas(c,id,x,y,size,size,{pixelScale})||
-    (id==='isometric:train-stop'&&drawRailStationFallback(c,x,y,size));
+  if(drawAtlas(c,id,x,y,size,size,{pixelScale}))return true;
+  if(id==='isometric:train-stop')return drawRailStationFallback(c,x,y,size);
+  const heading={e:Math.atan2(1,2),s:Math.atan2(1,-2),w:Math.atan2(-1,-2),n:Math.atan2(-1,2)}[id.split('-').at(-1)]||0;
+  c.save();
+  let drawn=false;
+  if(id==='isometric:bus-stop'){c.translate(x+size/2,y+size*.75);c.scale(size/72,size/72);drawn=drawNativeBusStop(c);}
+  else if(id.startsWith('isometric:port-')){c.translate(x+size/2,y+size*.75);c.scale(size/72,size/72);drawn=drawNativePort(c,{heading});}
+  else if(id.startsWith('portal:')){c.translate(x+size/2,y+size*35/44);c.scale(size/44,size/44);drawn=drawNativePortal(c,{mode:id.includes('rail-')?'rail':'road',heading});}
+  c.restore();return drawn;
 }
 export function drawIsometricInfrastructure(c,kind,x,y,w,h,pixelScale=1){
   const id=kind==='port'?'isometric:port-w':['bus-stop','train-stop'].includes(kind)?'isometric:'+kind:kind==='road-tunnel'?'portal:road-e':kind==='rail-tunnel'?'portal:rail-e':null;
@@ -30,8 +33,8 @@ export function drawIsometricInfrastructure(c,kind,x,y,w,h,pixelScale=1){
   return id?drawStationArt(c,id,x+(w-size)/2,y+(h-size)/2,size,pixelScale):false;
 }
 export function drawIsometricStop(c,mode,x,y,pixelScale=1){const{left,top,size}=isometricStationBounds(mode);return drawStationArt(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x+left,y+top,size,pixelScale);}
-export function drawIsometricPort(c,dx,dy,x,y,pixelScale=1){const{left,top,size}=isometricStationBounds('water');return drawAtlas(c,'isometric:port-'+cardinalDirection(dx,dy),x+left,y+top,size,size,{pixelScale});}
-export function drawIsometricPortal(c,mode,dx,dy,x,y,pixelScale=1){return drawAtlas(c,'portal:'+mode+'-'+cardinalDirection(dx,dy),x-22,y-35,44,44,{pixelScale});}
+export function drawIsometricPort(c,dx,dy,x,y,pixelScale=1){const{left,top,size}=isometricStationBounds('water');return drawStationArt(c,'isometric:port-'+cardinalDirection(dx,dy),x+left,y+top,size,pixelScale);}
+export function drawIsometricPortal(c,mode,dx,dy,x,y,pixelScale=1){return drawStationArt(c,'portal:'+mode+'-'+cardinalDirection(dx,dy),x-22,y-35,44,pixelScale);}
 
 // World structures share the fleet's bounded cache of prepared zoom images.
 // The direct atlas helpers above still serve arbitrary-sized menu previews.

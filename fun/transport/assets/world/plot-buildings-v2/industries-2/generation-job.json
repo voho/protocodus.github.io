@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-tundra/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/industries-2",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "industry:fishery:taiga",
@@ -20,7 +20,7 @@
       "runtimeIds": [
         "industry:fishery:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-tundra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-tundra/atlas.png",
       "description": "An eighty metre fish landing yard: low blue shore buildings, two long piers and small normal-size fishing vessels; broad net storage sheds. No sea outside the parcel. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -34,7 +34,7 @@
       "runtimeIds": [
         "industry:fish-processor:tundra"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-tundra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-tundra/atlas.png",
       "description": "An eighty metre fish processor: two broad pale halls with blue roofs, loading bays, large refrigeration equipment and yard. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -52,7 +52,7 @@
         "industry:oil-well:tundra",
         "industry:oil-well:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
       "description": "An eighty metre oil pump compound: three distinct pumpjacks, three storage tanks, small maintenance sheds and quiet sandy hardstanding. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -70,7 +70,7 @@
         "industry:refinery:tundra",
         "industry:refinery:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
       "description": "An eighty metre refinery compound: an array of large rounded storage tanks and tall distillation towers linked by broad essential pipes, low scale-correct office. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -88,7 +88,7 @@
         "industry:quarry:tundra",
         "industry:quarry:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga-extra/atlas.png",
       "description": "An eighty metre pale stone quarry: three broad stepped excavation benches, a bold conveyor and small shed, two correctly scaled quarry excavators; no tiny individual stone pattern. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -102,7 +102,7 @@
       "runtimeIds": [
         "industry:cement-works:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
       "description": "An eighty metre cement works: several tall silver silos, a long processing shed, broad essential conveyor and quiet loading yard. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -116,7 +116,7 @@
       "runtimeIds": [
         "industry:sand-pit:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
       "description": "An eighty metre sand pit: broad stepped ochre excavation with a clear conveyor, a small equipment shed and correctly scaled excavator. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -130,7 +130,7 @@
       "runtimeIds": [
         "industry:glassworks:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
       "description": "An eighty metre glass works: broad green glazed production halls, two brick furnace halls with one chimney, four loading docks. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -144,7 +144,7 @@
       "runtimeIds": [
         "industry:copper-mine:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-desert/atlas.png",
       "description": "An eighty metre copper mine: broad red-brown excavated benches, tall winding tower, low crushing shed and copper-colored ore heaps. This slot is ONLY a 80m square full industry plot; use repeated wings, loading sheds, process equipment and storage groups almost to the 75m envelope. All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     }
   ],

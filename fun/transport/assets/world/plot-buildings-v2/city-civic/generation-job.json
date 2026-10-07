@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/buildings-civic/taiga/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/city-civic",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "civic:school:taiga",

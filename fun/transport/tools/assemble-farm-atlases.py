@@ -96,7 +96,9 @@ def assemble(compounds, job_id):
     # writes its canonical composition source and metadata.
     for current, retained in [('generated-source.png', 'painted-source.png'),
                               ('atlas.json', 'painted-source-atlas.json'),
-                              ('registration-measurements.json', 'painted-source-measurements.json')]:
+                              ('registration-measurements.json', 'painted-source-measurements.json'),
+                              ('source-measurements.json', 'painted-source-manual-measurements.json'),
+                              ('provenance.json', 'painted-source-provenance.json')]:
         shutil.copyfile(dest / current, dest / retained)
     source = dest / 'farm-composition-source.png'
     packer.save_png(sheet, source)
@@ -121,6 +123,9 @@ def assemble(compounds, job_id):
                                   'paintedSource': 'painted-source.png', 'paintedSourceSha256': original['sourceSha256'],
                                   'paintedSourceMetadata': 'painted-source-atlas.json', 'paintedSourceMeasurements': 'painted-source-measurements.json',
                                   'coreAtlasMetadata': '../farm-cores/atlas.json', 'coreAtlas512Sha256': cores['outputs']['512']['sha256']}
+    if original.get('regeneration'):
+        result['regeneration'] = {**original['regeneration'],
+                                  'farmComposition': 'Fresh native fields and corrected painted cores assembled at canonical physical scale; processor samples unchanged.'}
     result['provenance'].update({'generator': 'image_gen painted cutouts + game renderer farm geometry',
                                  'operation': 'Registered 512px atlas assembly, then uniform premultiplied-alpha mip packing; original processor and core sources retained',
                                  'sourceReview': 'Measured farm field, fence, core entrance and processor source geometry verified'})
@@ -128,6 +133,18 @@ def assemble(compounds, job_id):
     for output in result['outputs'].values():
         output['sourceDetailPolicy'] = 'Direct canonical composition resampling; retained original generator calibration records describe painted source resolution'
     write_json(dest / 'atlas.json', result)
+    write_json(dest / 'source-measurements.json', {
+        'source': 'generated-source.png', 'sourceDimensions': list(sheet.size),
+        'entries': observations,
+        'observationPolicy': 'Game-renderer farm geometry and actual painted door endpoints; unchanged processor observations transformed through their archived registration affine',
+        'paintedSourceObservations': 'painted-source-manual-measurements.json'})
+    provenance = json.loads((dest / 'painted-source-provenance.json').read_text())
+    provenance.update({'source': 'generated-source.png', 'sourceSha256': result['sourceSha256'],
+                       'paintedSourceProvenance': 'painted-source-provenance.json',
+                       'farmComposition': 'atlas.json#farmComposition',
+                       'reviewStatus': 'Composed farm plots and unchanged processors all pass actual camera, ground-centre and observable personnel-scale checks.'})
+    provenance['packing'] = {**provenance.get('packing', {}), **summary}
+    write_json(dest / 'provenance.json', provenance)
     return {**summary, 'farmCells': len(farm_cells), 'registeredProcessor512SamplesUnchanged': True}
 
 

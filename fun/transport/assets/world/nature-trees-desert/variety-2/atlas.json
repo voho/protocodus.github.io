@@ -9,7 +9,6 @@
     256
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "nature-trees-desert:desert-willow",
     "nature-trees-desert:olive-tree",
@@ -21,154 +20,214 @@
     "nature-trees-desert:euphorbia-tree",
     "nature-trees-desert:desert-cypress"
   ],
-  "source": "registered-generation-2026-10-06.png",
-  "sourceSha256": "30120656a764283952e0b94e9e4487157634eeb85ef6e5f82bf06f3c32490aaa",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "6f03017299d786b7d88bfc30e169a30b6f16fcc91c5bd4747d64442a9279ce22",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Shared physical metre scale, root anchored; source anatomy preserved",
   "sprites": [
     {
       "id": "nature-trees-desert:desert-willow",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        512,
-        512
+        33,
+        63,
+        395,
+        382
+      ],
+      "observedRootSource": [
+        213.0,
+        371.0
+      ],
+      "observedCrownTopSource": 67.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 304.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3892628335090423,
+      "masterOffsetPixels": [
+        57.93268996837239,
+        124.58704727921497
+      ],
+      "sourceCropPixels": [
+        362,
+        319
+      ],
+      "masterDrawPixels": [
+        141,
+        124
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          125,
-          250,
-          391,
-          497
+          33,
+          63,
+          395,
+          382
         ],
-        "rawAlphaBounds": [
-          125,
-          250,
-          390,
-          497
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.858292
+        "transparentFraction": 0.4028646149050035
       },
       "bounds": [
-        61,
-        124,
-        197,
-        249
+        59,
+        126,
+        198,
+        248
       ]
     },
     {
       "id": "nature-trees-desert:olive-tree",
       "cell": 1,
       "sourceBounds": [
-        512,
-        0,
-        1024,
-        512
+        446,
+        47,
+        805,
+        383
+      ],
+      "observedRootSource": [
+        640.0,
+        372.0
+      ],
+      "observedCrownTopSource": 50.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 322.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.4083364437085882,
+      "masterOffsetPixels": [
+        48.782729920533896,
+        111.77065579470883
+      ],
+      "sourceCropPixels": [
+        359,
+        336
+      ],
+      "masterDrawPixels": [
+        147,
+        137
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          91,
-          223,
-          389,
-          495
+          446,
+          47,
+          805,
+          383
         ],
-        "rawAlphaBounds": [
-          92,
-          223,
-          390,
-          494
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.805569
+        "transparentFraction": 0.35331277357739754
       },
       "bounds": [
-        45,
-        110,
-        196,
-        247
+        50,
+        113,
+        195,
+        248
       ]
     },
     {
       "id": "nature-trees-desert:carob",
       "cell": 2,
       "sourceBounds": [
-        1024,
-        0,
-        1536,
-        512
+        865,
+        37,
+        1237,
+        383
+      ],
+      "observedRootSource": [
+        1052.0,
+        372.0
+      ],
+      "observedCrownTopSource": 40.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 332.0,
+      "registeredPlantHeightPixels": 144.63276836158192,
+      "calibratedHeightMetres": 7.333333333333333,
+      "sourceScaleToMaster": 0.4356408685589817,
+      "masterOffsetPixels": [
+        46.53515757947042,
+        98.5403090327411
+      ],
+      "sourceCropPixels": [
+        372,
+        346
+      ],
+      "masterDrawPixels": [
+        162,
+        151
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          73,
-          197,
-          417,
-          497
+          865,
+          37,
+          1237,
+          383
         ],
-        "rawAlphaBounds": [
-          73,
-          197,
-          417,
-          496
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.762405
+        "transparentFraction": 0.3365731244949966
       },
       "bounds": [
-        35,
-        97,
-        210,
-        248
+        48,
+        100,
+        208,
+        249
       ]
     },
     {
       "id": "nature-trees-desert:argan",
       "cell": 3,
       "sourceBounds": [
-        0,
-        512,
-        512,
-        1024
+        11,
+        494,
+        413,
+        791
+      ],
+      "observedRootSource": [
+        215.0,
+        781.0
+      ],
+      "observedCrownTopSource": 498.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 283.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.4646089571525279,
+      "masterOffsetPixels": [
+        33.21977274088431,
+        111.13722929722448
+      ],
+      "sourceCropPixels": [
+        402,
+        297
+      ],
+      "masterDrawPixels": [
+        187,
+        138
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          72,
-          263,
-          442,
-          496
+          11,
+          494,
+          413,
+          791
         ],
-        "rawAlphaBounds": [
-          72,
-          263,
-          442,
-          495
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.808392
+        "transparentFraction": 0.39362949561954536
       },
       "bounds": [
-        35,
-        130,
-        222,
+        34,
+        112,
+        219,
         248
       ]
     },
@@ -176,36 +235,50 @@
       "id": "nature-trees-desert:mopane",
       "cell": 4,
       "sourceBounds": [
-        512,
-        512,
-        1024,
-        1024
+        459,
+        431,
+        799,
+        797
+      ],
+      "observedRootSource": [
+        630.0,
+        786.0
+      ],
+      "observedCrownTopSource": 434.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 352.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.44824205070738204,
+      "masterOffsetPixels": [
+        51.35060932903767,
+        85.35407199887936
+      ],
+      "sourceCropPixels": [
+        340,
+        366
+      ],
+      "masterDrawPixels": [
+        152,
+        164
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          80,
-          171,
-          415,
-          496
+          459,
+          431,
+          799,
+          797
         ],
-        "rawAlphaBounds": [
-          80,
-          171,
-          415,
-          496
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.757797
+        "transparentFraction": 0.3843539054966249
       },
       "bounds": [
-        39,
-        84,
-        209,
+        52,
+        86,
+        202,
         248
       ]
     },
@@ -213,73 +286,101 @@
       "id": "nature-trees-desert:marula",
       "cell": 5,
       "sourceBounds": [
-        1024,
-        512,
-        1536,
-        1024
+        855,
+        446,
+        1244,
+        797
+      ],
+      "observedRootSource": [
+        1048.0,
+        784.0
+      ],
+      "observedCrownTopSource": 450.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 334.0,
+      "registeredPlantHeightPixels": 170.929635336415,
+      "calibratedHeightMetres": 8.666666666666666,
+      "sourceScaleToMaster": 0.5117653752587276,
+      "masterOffsetPixels": [
+        29.229282575065582,
+        71.50330316255008
+      ],
+      "sourceCropPixels": [
+        389,
+        351
+      ],
+      "masterDrawPixels": [
+        199,
+        180
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          62,
-          185,
-          419,
-          495
+          855,
+          446,
+          1244,
+          797
         ],
-        "rawAlphaBounds": [
-          62,
-          184,
-          419,
-          495
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.734787
+        "transparentFraction": 0.4069899442650085
       },
       "bounds": [
-        30,
-        91,
-        211,
-        248
+        31,
+        74,
+        226,
+        250
       ]
     },
     {
       "id": "nature-trees-desert:bottle-tree",
       "cell": 6,
       "sourceBounds": [
-        0,
-        1024,
-        512,
-        1536
+        73,
+        860,
+        335,
+        1205
+      ],
+      "observedRootSource": [
+        204.0,
+        1194.0
+      ],
+      "observedCrownTopSource": 863.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 331.0,
+      "registeredPlantHeightPixels": 157.78120184899848,
+      "calibratedHeightMetres": 8.0,
+      "sourceScaleToMaster": 0.4766803681238625,
+      "masterOffsetPixels": [
+        65.55487177577402,
+        85.26875704662993
+      ],
+      "sourceCropPixels": [
+        262,
+        345
+      ],
+      "masterDrawPixels": [
+        125,
+        164
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          107,
-          169,
-          399,
-          495
+          73,
+          860,
+          335,
+          1205
         ],
-        "rawAlphaBounds": [
-          107,
-          170,
-          399,
-          495
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.812691
+        "transparentFraction": 0.48101559907069363
       },
       "bounds": [
-        53,
-        84,
-        200,
+        67,
+        86,
+        190,
         248
       ]
     },
@@ -287,77 +388,108 @@
       "id": "nature-trees-desert:euphorbia-tree",
       "cell": 7,
       "sourceBounds": [
-        512,
-        1024,
-        1024,
-        1536
+        482,
+        885,
+        774,
+        1202
+      ],
+      "observedRootSource": [
+        631.0,
+        1191.0
+      ],
+      "observedCrownTopSource": 891.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 300.0,
+      "registeredPlantHeightPixels": 118.33590138674886,
+      "calibratedHeightMetres": 6.0,
+      "sourceScaleToMaster": 0.3944530046224962,
+      "masterOffsetPixels": [
+        69.22650231124805,
+        123.77738058551614
+      ],
+      "sourceCropPixels": [
+        292,
+        317
+      ],
+      "masterDrawPixels": [
+        115,
+        125
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          143,
-          249,
-          360,
-          494
+          482,
+          885,
+          774,
+          1202
         ],
-        "rawAlphaBounds": [
-          143,
-          250,
-          360,
-          494
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.887104
+        "transparentFraction": 0.44167278855710645
       },
       "bounds": [
         70,
-        123,
-        181,
-        247
+        126,
+        183,
+        248
       ]
     },
     {
       "id": "nature-trees-desert:desert-cypress",
       "cell": 8,
       "sourceBounds": [
-        1024,
-        1024,
-        1536,
-        1536
+        966,
+        832,
+        1134,
+        1221
+      ],
+      "observedRootSource": [
+        1054.0,
+        1209.0
+      ],
+      "observedCrownTopSource": 835.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 374.0,
+      "registeredPlantHeightPixels": 184.07806882383156,
+      "calibratedHeightMetres": 9.333333333333334,
+      "sourceScaleToMaster": 0.49218734979634104,
+      "masterOffsetPixels": [
+        84.68751321792199,
+        58.92536912677943
+      ],
+      "sourceCropPixels": [
+        168,
+        389
+      ],
+      "masterDrawPixels": [
+        83,
+        191
       ],
       "normalization": {
         "originalSize": [
-          512,
-          512
+          1254,
+          1254
         ],
         "sourceBounds": [
-          158,
-          118,
-          339,
-          495
+          966,
+          832,
+          1134,
+          1221
         ],
-        "rawAlphaBounds": [
-          158,
-          118,
-          340,
-          495
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.833401
+        "transparentFraction": 0.40632268331497123
       },
       "bounds": [
-        78,
-        58,
-        171,
-        248
+        86,
+        60,
+        167,
+        249
       ]
     }
   ],
-  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
-  "mipSharpening": false
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "6f03017299d786b7d88bfc30e169a30b6f16fcc91c5bd4747d64442a9279ce22",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
 }

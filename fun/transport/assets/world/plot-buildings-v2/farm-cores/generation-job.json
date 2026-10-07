@@ -6,8 +6,8 @@
   "biome": "taiga",
   "cellPixels": 256,
   "transparent_background": true,
-  "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/farm-cores-v1/taiga/atlas.png",
-  "destination": "/workspace/protocodus.github.io/fun/transport/assets/world/plot-buildings-v2/farm-cores",
+  "reference": "generation-reference.png",
+  "destination": ".",
   "entries": [
     {
       "id": "farm-core:farm:taiga",
@@ -22,7 +22,7 @@
         "farm-core:farm:taiga",
         "farm-core:farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/industries-taiga/atlas.png",
       "description": "A grain farm with a low barn cluster and one tall silo. For a five-tile site, broad grain fields surround a small central two-tile farmyard; for a two-tile core, ONLY the barn, silo and simple farmyard are shown. This slot is ONLY a 32m square farm building core with compact broad barn wings, equipment and isolated planted groups; NO fields or perimeter fence (terrain renders those separately). All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -38,7 +38,7 @@
         "farm-core:dairy-farm:taiga",
         "farm-core:dairy-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard. This slot is ONLY a 32m square farm building core with compact broad barn wings, equipment and isolated planted groups; NO fields or perimeter fence (terrain renders those separately). All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -54,7 +54,7 @@
         "farm-core:vegetable-farm:taiga",
         "farm-core:vegetable-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard. This slot is ONLY a 32m square farm building core with compact broad barn wings, equipment and isolated planted groups; NO fields or perimeter fence (terrain renders those separately). All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -70,7 +70,7 @@
         "farm-core:orchard:taiga",
         "farm-core:orchard:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins. This slot is ONLY a 32m square farm building core with compact broad barn wings, equipment and isolated planted groups; NO fields or perimeter fence (terrain renders those separately). All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     {
@@ -86,7 +86,7 @@
         "farm-core:livestock-farm:taiga",
         "farm-core:livestock-farm:desert"
       ],
-      "reference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
+      "reference": "/Users/vojta/.codex/worktrees/ad67/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
       "description": "Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard. This slot is ONLY a 32m square farm building core with compact broad barn wings, equipment and isolated planted groups; NO fields or perimeter fence (terrain renders those separately). All generic yard ground is zero-alpha; keep paths, paved working surfaces, useful equipment, contact shadows and material heaps."
     },
     null

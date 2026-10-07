@@ -2,9 +2,11 @@
 // same scale as other two-tile sites. Crop ground follows terrain and caches.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { FARM_CORE_PLOT_ATLASES } from '../plot-building-catalog.js';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
 const output = process.env.TRANSPORT_OUTPUT || '/tmp/transport-farm-fields';
+const farmCorePrefixes = FARM_CORE_PLOT_ATLASES.map(atlas => new URL(`${atlas.path}-`,base).href);
 await mkdir(output, { recursive:true });
 const browser = await chromium.launch({ channel:process.env.TRANSPORT_BROWSER || 'chrome', headless:true });
 const results=[],errors=[];
@@ -78,7 +80,7 @@ try {
     // must retire the cached native core without changing the saved farm.
     const late=await browser.newPage({viewport:{width:960,height:640},deviceScaleFactor:dpr});
     let release;const held=new Promise(resolve=>{release=resolve;});let blocked=0;
-    await late.route('**/farm-cores-v1/**/atlas-*.png',async route=>{blocked++;await held;await route.continue();});
+    await late.route(url=>farmCorePrefixes.some(prefix=>url.href.startsWith(prefix)),async route=>{blocked++;await held;await route.continue();});
     await late.route('**/farm-fields-qa',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><style>body{margin:0}canvas{width:960px;height:640px}</style><canvas></canvas>'}));
     await late.goto(new URL('farm-fields-qa',base).href);
     await late.evaluate(async()=>{
@@ -89,8 +91,8 @@ try {
       const hash=()=>{const image=document.querySelector('canvas'),copy=document.createElement('canvas');copy.width=image.width;copy.height=image.height;const c=copy.getContext('2d');c.drawImage(image,0,0);const pixels=c.getImageData(0,0,copy.width,copy.height).data;let n=2166136261;for(const value of pixels)n=Math.imul(n^value,16777619);return n>>>0;};
       window.farmLate={game,renderer,art,hash};
     });
-    await late.waitForFunction(()=>{const a=window.farmLate.art.worldArtStats();return a.usable===a.atlases-2;});
-    assert.ok(blocked>=2);
+    await late.waitForFunction(count=>{const a=window.farmLate.art.worldArtStats();return a.usable===a.atlases-count;},FARM_CORE_PLOT_ATLASES.length);
+    assert.ok(blocked>=FARM_CORE_PLOT_ATLASES.length,'every registered core family must be held unavailable');
     const initial=await late.evaluate(()=>{const q=window.farmLate;q.renderer.render(1000,{settle:true});return{hash:q.hash(),game:JSON.stringify(q.game),revision:q.art.worldArtRevision(),core:q.art.worldArtStats().rasterizedEntries['farm-core:farm:taiga']||0};});
     assert.equal(initial.core,0,'blocked generated cores should use native recovery');release();
     await late.waitForFunction(previous=>window.farmLate.art.worldArtRevision()>previous&&window.farmLate.art.worldArtStats().loading===0,initial.revision);

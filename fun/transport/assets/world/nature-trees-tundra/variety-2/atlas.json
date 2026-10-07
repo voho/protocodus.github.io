@@ -9,7 +9,6 @@
     256
   ],
   "masterCell": 256,
-  "vehicleLengthNormalized": false,
   "order": [
     "nature-trees-tundra:arctic-birch",
     "nature-trees-tundra:mountain-birch",
@@ -21,43 +20,61 @@
     "nature-trees-tundra:feltleaf-willow",
     "nature-trees-tundra:goat-willow"
   ],
-  "source": "source-registered-2026-10-06.png",
-  "sourceSha256": "c4d50d397fe115837b250a8b099a05781af0d6580457770e6f6fe6c4c7a77f6d",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "0897cc1afdee4fe5e30c24595b4e4986edbcb5c68602997a059a182be5fa138b",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Shared physical metre scale, root anchored; source anatomy preserved",
   "sprites": [
     {
       "id": "nature-trees-tundra:arctic-birch",
       "cell": 0,
       "sourceBounds": [
-        0,
-        0,
-        256,
-        256
+        62,
+        135,
+        360,
+        401
+      ],
+      "observedRootSource": [
+        209.0,
+        391.0
+      ],
+      "observedCrownTopSource": 138.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 253.0,
+      "registeredPlantHeightPixels": 92.03903441191578,
+      "calibratedHeightMetres": 4.666666666666667,
+      "sourceScaleToMaster": 0.36379064984946946,
+      "masterOffsetPixels": [
+        74.52277447212799,
+        151.3495936385358
+      ],
+      "sourceCropPixels": [
+        298,
+        266
+      ],
+      "masterDrawPixels": [
+        108,
+        97
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          70,
-          150,
-          185,
-          249
+          62,
+          135,
+          360,
+          401
         ],
-        "rawAlphaBounds": [
-          71,
-          151,
-          184,
-          247
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.897705
+        "transparentFraction": 0.3441615784427512
       },
       "bounds": [
-        71,
-        151,
-        184,
+        76,
+        152,
+        182,
         247
       ]
     },
@@ -65,184 +82,254 @@
       "id": "nature-trees-tundra:mountain-birch",
       "cell": 1,
       "sourceBounds": [
-        256,
-        0,
-        512,
-        256
+        453,
+        93,
+        807,
+        402
+      ],
+      "observedRootSource": [
+        651.0,
+        392.0
+      ],
+      "observedCrownTopSource": 96.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 296.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.44420383403434255,
+      "masterOffsetPixels": [
+        40.04764086120018,
+        111.66305362373157
+      ],
+      "sourceCropPixels": [
+        354,
+        309
+      ],
+      "masterDrawPixels": [
+        157,
+        137
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          45,
-          110,
-          200,
-          250
+          453,
+          93,
+          807,
+          402
         ],
-        "rawAlphaBounds": [
-          45,
-          111,
-          199,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.821136
+        "transparentFraction": 0.4044393249593184
       },
       "bounds": [
-        45,
-        111,
-        199,
-        249
+        41,
+        113,
+        196,
+        248
       ]
     },
     {
       "id": "nature-trees-tundra:silver-birch",
       "cell": 2,
       "sourceBounds": [
-        512,
-        0,
-        768,
-        256
+        914,
+        15,
+        1172,
+        407
+      ],
+      "observedRootSource": [
+        1055.0,
+        395.0
+      ],
+      "observedCrownTopSource": 18.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 377.0,
+      "registeredPlantHeightPixels": 184.07806882383156,
+      "calibratedHeightMetres": 9.333333333333334,
+      "sourceScaleToMaster": 0.4882707395857601,
+      "masterOffsetPixels": [
+        59.15382571840783,
+        58.937118957411144
+      ],
+      "sourceCropPixels": [
+        258,
+        392
+      ],
+      "masterDrawPixels": [
+        126,
+        191
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          53,
-          58,
-          195,
-          250
+          914,
+          15,
+          1172,
+          407
         ],
-        "rawAlphaBounds": [
-          53,
-          59,
-          194,
-          250
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.768631
+        "transparentFraction": 0.4027151558297738
       },
       "bounds": [
-        53,
-        59,
-        194,
-        250
+        61,
+        60,
+        184,
+        249
       ]
     },
     {
       "id": "nature-trees-tundra:grey-alder",
       "cell": 3,
       "sourceBounds": [
-        0,
-        256,
-        256,
-        512
+        64,
+        477,
+        347,
+        801
+      ],
+      "observedRootSource": [
+        203.0,
+        790.0
+      ],
+      "observedCrownTopSource": 481.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 309.0,
+      "registeredPlantHeightPixels": 144.63276836158192,
+      "calibratedHeightMetres": 7.333333333333333,
+      "sourceScaleToMaster": 0.4680672115261551,
+      "masterOffsetPixels": [
+        62.938657597864434,
+        97.97496279231345
+      ],
+      "sourceCropPixels": [
+        283,
+        324
+      ],
+      "masterDrawPixels": [
+        132,
+        152
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          59,
-          98,
-          199,
-          251
+          64,
+          477,
+          347,
+          801
         ],
-        "rawAlphaBounds": [
-          59,
-          98,
-          198,
-          250
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.789139
+        "transparentFraction": 0.3510011778563015
       },
       "bounds": [
-        59,
-        98,
-        198,
-        250
+        64,
+        99,
+        194,
+        249
       ]
     },
     {
       "id": "nature-trees-tundra:green-alder",
       "cell": 4,
       "sourceBounds": [
-        256,
-        256,
-        512,
-        512
+        445,
+        532,
+        795,
+        789
+      ],
+      "observedRootSource": [
+        622.0,
+        780.0
+      ],
+      "observedCrownTopSource": 536.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 244.0,
+      "registeredPlantHeightPixels": 105.18746789933232,
+      "calibratedHeightMetres": 5.333333333333333,
+      "sourceScaleToMaster": 0.43109617991529636,
+      "masterOffsetPixels": [
+        51.69597615499255,
+        137.5681473810065
+      ],
+      "sourceCropPixels": [
+        350,
+        257
+      ],
+      "masterDrawPixels": [
+        151,
+        111
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          40,
-          137,
-          211,
-          250
+          445,
+          532,
+          795,
+          789
         ],
-        "rawAlphaBounds": [
-          40,
-          138,
-          210,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.821808
+        "transparentFraction": 0.32474708171206224
       },
       "bounds": [
-        40,
-        138,
-        210,
-        249
+        53,
+        140,
+        202,
+        248
       ]
     },
     {
       "id": "nature-trees-tundra:balsam-poplar",
       "cell": 5,
       "sourceBounds": [
-        512,
-        256,
-        768,
-        512
+        902,
+        425,
+        1170,
+        804
+      ],
+      "observedRootSource": [
+        1052.0,
+        792.0
+      ],
+      "observedCrownTopSource": 428.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 364.0,
+      "registeredPlantHeightPixels": 184.0780688238316,
+      "calibratedHeightMetres": 9.333333333333334,
+      "sourceScaleToMaster": 0.5057089802852516,
+      "masterOffsetPixels": [
+        52.14365295721227,
+        58.88480423531266
+      ],
+      "sourceCropPixels": [
+        268,
+        379
+      ],
+      "masterDrawPixels": [
+        136,
+        192
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          64,
-          57,
-          194,
-          251
+          902,
+          425,
+          1170,
+          804
         ],
-        "rawAlphaBounds": [
-          64,
-          58,
-          193,
-          250
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.764984
+        "transparentFraction": 0.36868428307013745
       },
       "bounds": [
-        64,
-        58,
-        193,
+        53,
+        60,
+        186,
         250
       ]
     },
@@ -250,36 +337,50 @@
       "id": "nature-trees-tundra:quaking-aspen",
       "cell": 6,
       "sourceBounds": [
-        0,
-        512,
-        256,
-        768
+        46,
+        835,
+        354,
+        1207
+      ],
+      "observedRootSource": [
+        201.0,
+        1195.0
+      ],
+      "observedCrownTopSource": 838.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 357.0,
+      "registeredPlantHeightPixels": 170.929635336415,
+      "calibratedHeightMetres": 8.666666666666666,
+      "sourceScaleToMaster": 0.47879449674065827,
+      "masterOffsetPixels": [
+        53.78685300519797,
+        72.11398117336302
+      ],
+      "sourceCropPixels": [
+        308,
+        372
+      ],
+      "masterDrawPixels": [
+        147,
+        178
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          43,
-          71,
-          203,
-          249
+          46,
+          835,
+          354,
+          1207
         ],
-        "rawAlphaBounds": [
-          44,
-          71,
-          202,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.762161
+        "transparentFraction": 0.40535539729088116
       },
       "bounds": [
-        44,
-        71,
-        202,
+        55,
+        73,
+        200,
         249
       ]
     },
@@ -287,86 +388,108 @@
       "id": "nature-trees-tundra:feltleaf-willow",
       "cell": 7,
       "sourceBounds": [
-        256,
-        512,
-        512,
-        768
+        432,
+        906,
+        807,
+        1186
+      ],
+      "observedRootSource": [
+        620.0,
+        1176.0
+      ],
+      "observedCrownTopSource": 910.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 266.0,
+      "registeredPlantHeightPixels": 105.18746789933232,
+      "calibratedHeightMetres": 5.333333333333333,
+      "sourceScaleToMaster": 0.39544160864410643,
+      "masterOffsetPixels": [
+        53.656977574907984,
+        137.71076566609125
+      ],
+      "sourceCropPixels": [
+        375,
+        280
+      ],
+      "masterDrawPixels": [
+        148,
+        111
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          34,
-          137,
-          202,
-          250
+          432,
+          906,
+          807,
+          1186
         ],
-        "rawAlphaBounds": [
-          34,
-          138,
-          201,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.80452
+        "transparentFraction": 0.3667142857142857
       },
       "bounds": [
-        34,
-        138,
+        55,
+        139,
         201,
-        249
+        248
       ]
     },
     {
       "id": "nature-trees-tundra:goat-willow",
       "cell": 8,
       "sourceBounds": [
-        512,
-        512,
-        768,
-        768
+        874,
+        874,
+        1209,
+        1194
+      ],
+      "observedRootSource": [
+        1050.0,
+        1183.0
+      ],
+      "observedCrownTopSource": 878.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 305.0,
+      "registeredPlantHeightPixels": 131.4843348741654,
+      "calibratedHeightMetres": 6.666666666666667,
+      "sourceScaleToMaster": 0.43109617991529636,
+      "masterOffsetPixels": [
+        52.12707233490784,
+        111.27128040617342
+      ],
+      "sourceCropPixels": [
+        335,
+        320
+      ],
+      "masterDrawPixels": [
+        144,
+        138
       ],
       "normalization": {
         "originalSize": [
-          256,
-          256
+          1235,
+          1274
         ],
         "sourceBounds": [
-          37,
-          111,
-          201,
-          250
+          874,
+          874,
+          1209,
+          1194
         ],
-        "rawAlphaBounds": [
-          37,
-          112,
-          200,
-          249
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.804672
+        "transparentFraction": 0.3377518656716418
       },
       "bounds": [
-        37,
+        53,
         112,
-        200,
-        249
+        195,
+        248
       ]
     }
   ],
-  "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
-  "mipSharpening": false,
-  "physicalCalibration": {
-    "contract": "../../../../tree-art-catalog.js",
-    "source": "generation.json",
-    "metresToMasterPixels": 19.72265023112481,
-    "rootAnchor": 0.955,
-    "mipSharpening": false,
-    "method": "Complete-tree proportional crown-to-root height calibration; shared physical unit scale, no max-bbox fitting.",
-    "projectionCorrection": "generation.json#projectionCorrection"
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "0897cc1afdee4fe5e30c24595b4e4986edbcb5c68602997a059a182be5fa138b",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
   }
 }

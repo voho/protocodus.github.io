@@ -1,0 +1,6 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Generate a new 3x3 sheet of NINE transport-game cargo loads, all on genuine transparent RGBA. Orthographic STRAIGHT OVERHEAD camera because these are material layers projected onto vehicle decks in the game, absolutely no perspective or isometric angle here. Slots row-major: 1 broad heap of dark blue-gray coal; 2 broad heap of muted iron ore; 3 orderly bundle of 5 timber logs; 4 broad warm ochre grain heap; 5 three broad cream wooden shipping crates; 6 stacked slate steel beams; 7 three olive-gray oil barrels; 8 stack of pale blue-green glass sheets; 9 three pale gray fish on an empty transparent patch. Every cargo load occupies 75 percent of its square slot with wide clear transparent gutters. Restrained painterly miniature surfaces, broad readable masses, no tiny texture/noise, no text or logos, no scenery, no pallet unless part of the cargo, no background square. Shared muted palette with soft highlights upper-left and short down-right contact shadows; opaque cargo and semitransparent narrow shadow only. Exactly three equal columns and three equal rows, high-resolution individual readable items.",
+  "source": "source-generated.png",
+  "sha256": "331747ec83259be29ae041bd48c7678c3772e32f3fe501fa44cc53fe12435df6"
+}

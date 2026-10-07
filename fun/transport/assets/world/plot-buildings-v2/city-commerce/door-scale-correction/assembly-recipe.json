@@ -1,0 +1,31 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-07",
+  "base": "sheet-before-local-corrections.png",
+  "baseOriginal": "exec-4e04b4e2-cb8a-4b8f-b48b-f33ca610de62.png",
+  "basePrompt": "sheet-door-prompt.txt",
+  "operation": "Pillow RGBA: resize each entire generated source frame to the stated original crop dimensions with LANCZOS; paste RGBA including its alpha at destination. Never fit an alpha bounding box, stretch individual doors, remove colors or erase foliage. Fully opaque microcrops contain only structural walls/paving; surrounding full-sheet background remains transparent.",
+  "steps": [
+    {
+      "file": "hotel-generated.png",
+      "original": "exec-ac0a5ad8-d864-41a0-8ae5-92e8cb86d141.png",
+      "resize": [
+        400,
+        382
+      ],
+      "destination": [
+        854,
+        462
+      ],
+      "prompt": "hotel-correction-prompt.txt",
+      "sha256": "0abafe9097ddbee9e3f248285747d1cc819827231ca1dfce276eed2aadc58ed9",
+      "sourceDimensions": [
+        1283,
+        1226
+      ]
+    }
+  ],
+  "result": "../generated-source.png",
+  "sourceBeforeReview": "source-before-review.png",
+  "measurementEvidence": "../source-measurements.json"
+}

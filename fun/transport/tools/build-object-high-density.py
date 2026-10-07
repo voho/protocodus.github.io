@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """Export denser object cells directly from their retained original cutouts.
 
-Existing 16–256 PNGs, physical scale and registration remain unchanged. The
-historical 256px mapping must reconstruct exactly before a larger cell is
-accepted. Every new level samples the original independently in premultiplied
-alpha. A 1024px display cell can enlarge a 640px source; provenance records the
-real crop resolution and enlargement, without claiming additional detail.
+Historical families retain their exact 16–256 PNGs and registration. Renewed
+families are reconstructed with their retained source and measured packing
+recipe, including every shipping mip and source cell. Every level samples the
+original independently in premultiplied alpha. A larger display cell can
+enlarge source pixels without adding painted detail.
 
 Run without arguments to export all supported families; --verify checks the
 source, registration, outputs and unchanged historical PNGs without writing.
 """
 import argparse
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
+import shutil
+import tempfile
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image
@@ -42,6 +47,92 @@ spec.loader.exec_module(house)
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def renewal_packer(family, metadata):
+    if family in ('nature-mountains', 'nature-rocks') and metadata.get('artRevision') == 'from-scratch-2026-10-07':
+        return 'pack-nature-renewal.py'
+    if family == 'isometric-infrastructure-v2' and metadata.get('regenerationDate') == '2026-10-07':
+        return 'pack-station-cutouts.py'
+    return None
+
+
+@lru_cache(maxsize=None)
+def load_packer(filename):
+    spec = importlib.util.spec_from_file_location(filename.removesuffix('.py').replace('-', '_'), Path(__file__).with_name(filename))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def renewed_cell_details(metadata, size):
+    """Report actual original-pixel sampling, without assuming a source grid."""
+    details = []
+    for record in metadata['sprites']:
+        left, top, right, bottom = record['sourceBounds']
+        crop = [right-left, bottom-top]
+        entry = {'id': record['id'], 'sourceBoundsSheet': record['sourceBounds'], 'sourceCropPixels': crop}
+        if 'sourceScaleToMaster' in record:
+            factor = record['sourceScaleToMaster'] * size / 256
+            draw = [max(1, round(dimension*factor)) for dimension in crop]
+            scales = [draw[i]/crop[i] for i in range(2)]
+            entry.update(drawPixels=draw,
+                         offsetPixels=[round(value*size/256) for value in record['masterOffsetPixels']],
+                         nativeEquivalentCellPixels=256/record['sourceScaleToMaster'])
+        else:
+            # Architecture samples a measured world frame, including transparent
+            # space outside the crop. It does not fit the cutout to the cell.
+            extent = metadata['worldFramePixels'] * record['sourcePixelsPerWorldPixel']
+            scales = [size/extent, size/extent]
+            entry.update(originalSamplingWindowPixels=[extent, extent], nativeEquivalentCellPixels=extent)
+        entry.update(sourcePixelScale=scales, enlargesOriginalPixels=any(scale > 1 for scale in scales))
+        details.append(entry)
+    return details
+
+
+def build_renewed(folder, family, metadata, source_path, verify):
+    """Re-run the retained packing recipe; never reinterpret new art as old cells."""
+    filename = renewal_packer(family, metadata)
+    packer = load_packer(filename)
+    with tempfile.TemporaryDirectory(prefix='transport-object-density-') as directory:
+        output = Path(directory)
+        if filename == 'pack-nature-renewal.py':
+            generation = json.loads((folder / 'generation.json').read_text())
+            if generation.get('sourceSha256') != metadata['sourceSha256']:
+                raise ValueError(f'{folder}: generation source hash no longer matches its registration')
+            with contextlib.redirect_stdout(io.StringIO()):
+                packer.build(generation['job'], source_path, output)
+            metadata_files = ('atlas.json', 'generation.json')
+        else:
+            packer.pack(source_path, folder / 'registration-measurements.json', output)
+            metadata_files = ('atlas.json',)
+        for name in metadata_files:
+            if json.loads((folder / name).read_text()) != json.loads((output / name).read_text()):
+                raise ValueError(f'{folder / name}: renewed source registration differs from its packing recipe')
+        if not set(FAMILIES[family]['levels']).issubset(metadata['cellSizes']):
+            raise ValueError(f'{folder}: renewed recipe omits a required density')
+        # Check low mips and isolated master cells as well as high densities.
+        # Exact PNG bytes also detect source-cell drift or altered file payloads.
+        pngs = sorted(path for path in output.rglob('*.png') if path.name != metadata['source'])
+        for generated in pngs:
+            target = folder / generated.relative_to(output)
+            if verify:
+                if not target.exists() or digest(target) != digest(generated):
+                    raise ValueError(f'{target}: PNG differs from the renewed original-source export')
+            else:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(generated, target)
+    with Image.open(source_path) as source:
+        source_size = list(source.size)
+    exports = []
+    for size in FAMILIES[family]['levels']:
+        details = renewed_cell_details(metadata, size)
+        exports.append({'cell': size, 'bytes': (folder / f'atlas-{size}.png').stat().st_size,
+                        'enlargedOriginalCutouts': sum(entry['enlargesOriginalPixels'] for entry in details)})
+    return {'family': family, 'originalSheetPixels': source_size,
+            'sourceCellPixels': sorted({tuple(entry['sourceCropPixels']) for entry in details}),
+            'registrationVerification': f'Exact original-source regeneration with {filename}',
+            'noAdditionalPaintedDetail': True, 'exports': exports, 'verified': verify}
 
 
 def historical_hashes(folder, metadata):
@@ -151,6 +242,8 @@ def build(folder, family=None, verify=False):
     source_path = folder / metadata['source']
     if digest(source_path) != metadata['sourceSha256']:
         raise ValueError(f'{source_path}: original source hash no longer matches its registration')
+    if renewal_packer(family, metadata):
+        return build_renewed(folder, family, metadata, source_path, verify)
     source = Image.open(source_path).convert('RGBA')
     master = Image.open(folder / 'atlas.png').convert('RGBA')
     columns, rows = metadata['columns'], metadata['rows']

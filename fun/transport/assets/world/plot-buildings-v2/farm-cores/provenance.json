@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "9956359846be6daefb108c6b9cb379f477e5d7d9bb35025e108b0b80573556ef",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "farm-cores",
+    "output": "/tmp/transport-house-camera-review/farm-cores/packed",
+    "sourceCellPixels": 512,
+    "occupied": 5,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "9956359846be6daefb108c6b9cb379f477e5d7d9bb35025e108b0b80573556ef",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
+  "heightCorrection": null,
+  "sourceCorrectionPrompts": [
+    "door-correction-prompt.txt",
+    "generation-prompt.txt",
+    "height-correction-prompt.txt"
+  ],
+  "sourceAssembly": null
+}

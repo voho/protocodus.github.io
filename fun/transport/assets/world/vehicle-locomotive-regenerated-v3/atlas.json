@@ -1,0 +1,330 @@
+{
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "masterCell": 256,
+  "vehicleLengthNormalized": false,
+  "order": [
+    "vehicle:locomotive:NW",
+    "vehicle:locomotive:N",
+    "vehicle:locomotive:NE",
+    "vehicle:locomotive:W",
+    null,
+    "vehicle:locomotive:E",
+    "vehicle:locomotive:SW",
+    "vehicle:locomotive:S",
+    "vehicle:locomotive:SE"
+  ],
+  "source": "source-registered.png",
+  "sourceSha256": "514b3bbb391fae66e2887b8c53fc9eaa440775362a2955381ddec7d4c1f2c84d",
+  "sprites": [
+    {
+      "id": "vehicle:locomotive:NW",
+      "cell": 0,
+      "sourceBounds": [
+        0,
+        0,
+        482,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          71,
+          92,
+          429,
+          368
+        ],
+        "rawAlphaBounds": [
+          33,
+          32,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.75835
+      },
+      "bounds": [
+        31,
+        53,
+        224,
+        202
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:N",
+      "cell": 1,
+      "sourceBounds": [
+        482,
+        0,
+        964,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          176,
+          96,
+          329,
+          359
+        ],
+        "rawAlphaBounds": [
+          32,
+          0,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.856571
+      },
+      "bounds": [
+        87,
+        57,
+        169,
+        199
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:NE",
+      "cell": 2,
+      "sourceBounds": [
+        964,
+        0,
+        1446,
+        482
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          80,
+          92,
+          437,
+          368
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.74799
+      },
+      "bounds": [
+        32,
+        53,
+        224,
+        202
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:W",
+      "cell": 3,
+      "sourceBounds": [
+        0,
+        482,
+        482,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          65,
+          160,
+          482,
+          316
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          482,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.762887
+      },
+      "bounds": [
+        16,
+        86,
+        240,
+        170
+      ]
+    },
+    {
+      "id": null
+    },
+    {
+      "id": "vehicle:locomotive:E",
+      "cell": 5,
+      "sourceBounds": [
+        964,
+        482,
+        1446,
+        964
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          6,
+          160,
+          437,
+          316
+        ],
+        "rawAlphaBounds": [
+          1,
+          32,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.76188
+      },
+      "bounds": [
+        12,
+        86,
+        244,
+        170
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:SW",
+      "cell": 6,
+      "sourceBounds": [
+        0,
+        964,
+        482,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          87,
+          109,
+          428,
+          389
+        ],
+        "rawAlphaBounds": [
+          33,
+          47,
+          434,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.757081
+      },
+      "bounds": [
+        36,
+        52,
+        220,
+        203
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:S",
+      "cell": 7,
+      "sourceBounds": [
+        482,
+        964,
+        964,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          176,
+          113,
+          329,
+          382
+        ],
+        "rawAlphaBounds": [
+          32,
+          32,
+          450,
+          482
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.860914
+      },
+      "bounds": [
+        87,
+        55,
+        169,
+        200
+      ]
+    },
+    {
+      "id": "vehicle:locomotive:SE",
+      "cell": 8,
+      "sourceBounds": [
+        964,
+        964,
+        1446,
+        1446
+      ],
+      "normalization": {
+        "originalSize": [
+          482,
+          482
+        ],
+        "sourceBounds": [
+          81,
+          107,
+          428,
+          391
+        ],
+        "rawAlphaBounds": [
+          32,
+          49,
+          450,
+          450
+        ],
+        "trimAlphaThreshold": 8,
+        "trimPadding": 2,
+        "transparentFraction": 0.763107
+      },
+      "bounds": [
+        34,
+        51,
+        221,
+        204
+      ]
+    }
+  ],
+  "sharedScale": 0.5382830626450116,
+  "registration": "One uniform family scale, centered per frame; source foreshortening preserved",
+  "mipSharpening": false
+}

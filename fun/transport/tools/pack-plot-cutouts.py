@@ -456,7 +456,7 @@ def pack(source: Path, manifest: Path, destination: Path | None=None, qa_dir: Pa
               'mipFilter':'Independent original-cutout premultiplied-alpha Lanczos affine; no sharpening','mipSharpening':False,
               'groundKey':'RGBA alpha, bare ground must be authored transparent; no colour keying','outputs':outputs,
               'provenance':{'operation':'Uniform source pixel density and measured registration only; generator output preserved verbatim',
-                            'generator':'image_gen','styleReference':job.get('reference'),'sourceReview':'pending measured camera/door and bare-ground review'}}
+                            'generator':'image_gen','styleReference':job.get('reference'),'sourceReview':('Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted' if all(record.get('measuredGeometry',{}).get('status')=='measured' for record in records if record['id']) else 'Pending measured camera or personnel-scale acceptance; inspect per-sprite measuredGeometry')}}
     (destination/'atlas.json').write_text(json.dumps(metadata,indent=2)+'\n')
     if qa_dir:qa_images(masters,entries,job,qa_dir)
     return {'job':job['id'],'output':str(destination),'sourceCellPixels':source_cell,'occupied':sum(bool(entry) for entry in entries),

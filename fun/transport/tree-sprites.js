@@ -36,145 +36,104 @@ export function forestComposition(biome='taiga',detail='',variant=0) {
   }
   return trees.sort((a,b)=>a.y-b.y);
 }
-function path(c,points,color,width=1) {c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.lineJoin='round';c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
-function polygon(c,points,color) {c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
-function oval(c,x,y,rx,ry,color) {c.fillStyle=color;c.beginPath();c.ellipse(x,y,rx,ry,0,0,TAU);c.fill();}
-// Broken edges and offset light planes give crowns volume without smooth circles.
-function crown(c,x,y,rx,ry,colors,r,profile,needles=false) {
-  const points=[],n=needles?19:23;
-  for(let i=0;i<n;i++){const a=i/n*TAU,s=.79+r()*.26;points.push([x+Math.cos(a)*rx*s,y+Math.sin(a)*ry*s]);}
-  polygon(c,points,colors[0]);
-  polygon(c,points.map(([px,py])=>[x+(px-x)*.87-.25,y+(py-y)*.85-.6]),colors[1]);
-  const lobes=5+Math.floor(r()*3);
-  for(let k=0;k<lobes;k++){
-    const a=r()*TAU,rad=Math.sqrt(r())*.61,lx=x+Math.cos(a)*rx*rad-rx*.14,ly=y+Math.sin(a)*ry*rad-ry*.15,w=rx*(.22+r()*.23),h=ry*(.24+r()*.24);
-    const edge=[];for(let j=0;j<7;j++){const aa=j/7*TAU,s=.72+r()*.32;edge.push([lx+Math.cos(aa)*w*s,ly+Math.sin(aa)*h*s]);}
-    polygon(c,edge,colors[k%3===0?3:2]);
+// All native foliage is modeled in a horizontal u/v plane and projected with
+// the same 2:1 ground axes as the buildings. Crowns hide upper trunks naturally.
+const point=(u,v,z=0)=>[u-v,(u+v)/2-z];
+function path(c,points,color,width=1){c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.lineJoin='round';c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
+function polygon(c,points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
+function branch(c,points,white,width){const p=points.map(q=>point(...q));path(c,p,white?'#63705e':'#4b5642',width);path(c,p.map(([x,y])=>[x-width*.18,y-width*.1]),white?'#c8c9ad':'#9e9671',width*.48);}
+// An upper octagon and four visible side facets give a broad crown a real top.
+// There is no frontal disc, central black outline or decorative leaf noise.
+function canopy(c,u,v,z,radius,depth,colors,turn=0){
+  const count=8,ring=Array.from({length:count},(_,i)=>{const a=turn+i/count*TAU;return[u+Math.cos(a)*radius,v+Math.sin(a)*radius,z];});
+  const upper=ring.map(([x,y])=>[u+(x-u)*.65,v+(y-v)*.65,z+depth]);
+  const low=ring.map(([x,y])=>[u+(x-u)*.84,v+(y-v)*.84,z-depth*.42]);
+  for(let i=0;i<count;i++){
+    const j=(i+1)%count,a=ring[i],b=ring[j];if(a[0]+a[1]+b[0]+b[1]<2*(u+v))continue;
+    polygon(c,[point(...a),point(...b),point(...low[j]),point(...low[i])],i<count/2?colors[0]:colors[1]);
   }
-  for(let k=0;k<22;k++){
-    const a=r()*TAU,rad=Math.sqrt(r())*.82,px=x+Math.cos(a)*rx*rad,py=y+Math.sin(a)*ry*rad;
-    const w=.35+r()*.8,h=.3+r()*.4,bright=r()>.43;
-    if(profile==='region'&&k%5!==0)continue;
-    c.globalAlpha=bright?.55:.35;
-    if(needles)path(c,[[px-.65,py+.2],[px+.1,py-.6],[px+.7,py-.3]],colors[bright?3:0],profile==='region'?.65:.4);
-    else{c.fillStyle=colors[bright?3:0];c.fillRect(px,py,w,h);}
-    c.globalAlpha=1;
+  for(let i=0;i<count;i++){
+    const j=(i+1)%count,a=ring[i],b=ring[j],lit=(a[0]+b[0])-(a[1]+b[1])<2*(u-v);
+    polygon(c,[point(...a),point(...b),point(...upper[j]),point(...upper[i])],lit?colors[2]:colors[1]);
+  }
+  polygon(c,upper.map(q=>point(...q)),colors[2]);
+  polygon(c,[point(u-radius*.22,v-radius*.26,z+depth*.99),point(...upper[4]),point(...upper[5]),point(...upper[6])],colors[3]);
+}
+function bareTree(c,tree,r){
+  const h=tree.size*.82,white=/birch|aspen/.test(tree.species),turn=r()*TAU;
+  branch(c,[[0,0,0],[h*.025,0,h*.46],[0,-h*.025,h]],white,h*.054);
+  for(let i=0;i<5;i++){
+    const a=turn+i*TAU/5,reach=h*(.2+r()*.08),z=h*(.4+i*.08),u=Math.cos(a)*reach,v=Math.sin(a)*reach;
+    branch(c,[[0,0,z],[u*.55,v*.55,z+h*.08],[u,v,z+h*.19]],white,h*.024);
+    branch(c,[[u*.55,v*.55,z+h*.08],[u*.62-v*.3,v*.62+u*.3,z+h*.23]],white,h*.013);
   }
 }
-function skeleton(c,h,w,lean,r,white,profile) {
-  const trunk=white?'#c6c6a9':'#726e51',shade=white?'#626e5e':'#484f3d';
-  path(c,[[0,0],[-.3,-h*.26],[lean*.42,-h*.54],[lean,-h*.86]],shade,Math.max(.8,h*.064));
-  path(c,[[-.25,0],[-.6,-h*.27],[lean*.42-.3,-h*.54],[lean-.2,-h*.86]],trunk,Math.max(.48,h*.034));
-  const branches=[];
-  for(let i=0;i<7;i++) {
-    const side=i%2?1:-1,t=.25+i*.072,y=-h*t,reach=w*(.6+r()*.4)*(i<2?.7:1),tx=lean*t+side*reach,ty=y-h*(.13+r()*.12),bend=lean*t+side*reach*.47;
-    path(c,[[lean*t*.55,y+1],[bend,y-h*.05],[tx,ty]],trunk,Math.max(.4,h*.027*(1-i*.06)));
-    for(let j=0;j<3;j++){
-      const f=.48+j*.2,xx=bend+(tx-bend)*f,yy=y-h*.05+(ty-y+h*.05)*f;
-      path(c,[[xx,yy],[xx+side*w*.12,yy-h*.09],[xx+side*w*.1,yy-h*.14]],trunk,profile==='region'?.55:.36);
+function broadleaf(c,tree,r,colors){
+  const h=tree.size,white=/birch|aspen/.test(tree.species),wide=tree.species==='oak'?1.1:tree.species==='aspen'?.72:1,turn=r()*TAU,nodes=[];
+  branch(c,[[0,0,0],[h*.015,-h*.02,h*.5],[0,0,h*.82]],white,h*.058);
+  for(let i=0;i<3;i++){
+    const a=turn+i*TAU/3,u=Math.cos(a)*h*.15*wide,v=Math.sin(a)*h*.15*wide,z=h*(.57+r()*.08),radius=h*(.21+r()*.035)*wide;
+    branch(c,[[0,0,h*.32],[u*.75,v*.75,z*.9],[u,v,z]],white,h*.028);
+    nodes.push({u,v,z,radius,depth:h*.1});
+  }
+  nodes.push({u:-h*.015,v:-h*.02,z:h*.79,radius:h*.22*wide,depth:h*.11});
+  nodes.sort((a,b)=>a.u+a.v-b.u-b.v||a.z-b.z);
+  for(const node of nodes)canopy(c,node.u,node.v,node.z,node.radius,node.depth,colors,turn);
+}
+function evergreen(c,tree,r,colors){
+  const h=tree.size,pine=/pine/.test(tree.species),dwarf=tree.species==='dwarf-pine',turn=r()*TAU;
+  branch(c,[[0,0,0],[h*.025,0,h*.4],[0,0,h*.9]],false,h*.052);
+  if(pine){
+    const nodes=[];
+    for(let i=0;i<3;i++){
+      const a=turn+i*TAU/3,u=Math.cos(a)*h*(dwarf?.18:.14),v=Math.sin(a)*h*(dwarf?.18:.14),z=h*(.52+i*.095),radius=h*(dwarf?.21:.19);
+      branch(c,[[0,0,z*.55],[u,v,z]],false,h*.025);nodes.push({u,v,z,radius});
     }
-    branches.push({x:tx,y:ty,side});
-  }
-  if(white)for(let i=0;i<6;i++)path(c,[[-.4+lean*i*.055,-i*h*.12],[.4+lean*i*.055,-i*h*.12-.3]],'#626a55',.5);
-  return branches;
-}
-function broadleaf(c,tree,r,colors,profile) {
-  const h=tree.size,w=h*(tree.species==='oak'?.45:tree.species==='aspen'?.29:.34),lean=(r()-.5)*h*.19;
-  const branches=skeleton(c,h,w,lean,r,/birch|aspen/.test(tree.species),profile);
-  if(tree.bare)return;
-  const narrow=tree.species==='aspen',nodes=branches.map((b,i)=>({x:b.x*.78,y:b.y,rx:w*(.48+r()*.2),ry:h*(narrow?.2:.17)*(1+r()*.3)}));
-  nodes.push({x:lean,y:-h*.8,rx:w*.67,ry:h*.2});
-  nodes.sort((a,b)=>a.y-b.y);
-  for(const node of nodes)crown(c,node.x,node.y,node.rx,node.ry,colors,r,profile);
-  // A short exposed fork makes the branch architecture visible through the leaves.
-  path(c,[[0,-h*.15],[lean*.4,-h*.42],[-w*.25,-h*.58]],/birch|aspen/.test(tree.species)?'#bfc4a0':'#788062',profile==='region'?.6:.5);
-}
-function evergreen(c,tree,r,colors,profile) {
-  const h=tree.size,lean=(r()-.5)*h*.14,species=tree.species;
-  if(tree.bare){skeleton(c,h,h*.28,lean,r,false,profile);return;}
-  path(c,[[0,1],[lean*.3,-h*.4],[lean,-h*.95]],'#5c5c45',Math.max(.8,h*.055));
-  path(c,[[-.3,0],[lean*.3-.3,-h*.4]],'#9b9070',.45);
-  if(species==='pine'||species==='dwarf-pine'){
-    // Pines have open, crooked stems and separate windswept needle cushions.
-    const dwarf=species==='dwarf-pine',w=h*(dwarf?.42:.33),n=dwarf?5:4+Math.floor(r()*3);
-    for(let i=0;i<n;i++){
-      const t=.36+i/n*.55,side=i%2?1:-1,x=lean*t+side*w*(.4+r()*.46),y=-h*t;
-      path(c,[[lean*t*.5,y+h*.15],[x*.7,y+h*.035],[x,y-h*.02]],'#776f50',Math.max(.5,h*.025));
-      crown(c,x,y,w*(.46+r()*.25),h*(.075+r()*.06),colors,r,profile,true);
-    }
-    crown(c,lean,-h*.91,w*.56,h*.12,colors,r,profile,true);
+    nodes.sort((a,b)=>a.u+a.v-b.u-b.v);for(const n of nodes)canopy(c,n.u,n.v,n.z,n.radius,h*.075,colors,turn);
+    canopy(c,0,0,h*.89,h*.16,h*.08,colors,turn);
   }else{
-    // A single irregular outline with drooping branch tips, rather than stacked triangles.
-    const width=h*(species==='spruce'?.24:species==='larch'?.3:.32),tiers=6+Math.floor(r()*3),outline=[];
-    for(let side=-1;side<=1;side+=2){
-      const flank=[];
-      for(let i=0;i<tiers;i++){
-        const t=i/tiers,yy=-h*.14-h*.82*t,ww=width*(1-t)*(.77+r()*.35);
-        flank.push([lean*t+side*ww,yy+h*.055],[lean*t+side*ww*.68,yy-h*.06],[lean*t+side*ww*.83,yy-h*.055]);
-      }
-      if(side<0)outline.push(...flank,[lean,-h]);else outline.push(...flank.reverse());
-    }
-    polygon(c,outline,colors[0]);
-    for(let i=0;i<tiers;i++){
-      const t=i/tiers,yy=-h*.18-h*.77*t,ww=width*(1-t)*(.7+r()*.22),cx=lean*t;
-      const ends=[cx-ww,yy+.7,cx+ww*(.5+r()*.45),yy+1.1];
-      polygon(c,[[cx,yy-h*.17],[cx-ww*.36,yy-h*.08],[ends[0],ends[1]],[cx-.2,yy-h*.025],[ends[2],ends[3]],[cx+ww*.38,yy-h*.07]],colors[1]);
-      for(let j=0;j<4;j++){
-        const xx=cx-ww*.8+r()*ww*1.15,by=yy-r()*h*.045;
-        path(c,[[xx-ww*.16,by+.3],[xx,by-h*.065],[xx+ww*.16,by-.3]],j%3?colors[2]:colors[3],profile==='region'?.7:.5);
-      }
+    // Horizontal diamond tiers show their lit upper planes. Lower tiers remain
+    // broad enough to read as a conifer crown instead of a flat green triangle.
+    const width=h*(tree.species==='spruce'?.23:tree.species==='larch'?.3:.27);
+    for(let i=0;i<4;i++){
+      const t=i/4,z=h*(.2+t*.67),radius=width*(1-t*.79),tip=point(0,0,z+h*(.3-t*.1));
+      const corners=[point(-radius,0,z),point(0,-radius,z),point(radius,0,z),point(0,radius,z)];
+      polygon(c,[corners[0],corners[1],tip],colors[2]);polygon(c,[corners[1],corners[2],tip],colors[1]);
+      polygon(c,[corners[2],corners[3],tip],colors[0]);polygon(c,[corners[3],corners[0],tip],colors[1]);
+      polygon(c,[corners[0],point(-radius*.3,0,z+h*.2),tip],colors[3]);
     }
   }
 }
-function aridTree(c,tree,r,colors,profile) {
-  const h=tree.size,w=h*.46;
-  if(tree.bare){skeleton(c,h,w*.68,(r()-.5)*2,r,false,profile);return;}
+function rosette(c,u,v,z,radius,colors,turn,count=7){
+  for(let i=0;i<count;i++){
+    const a=turn+i*TAU/count,dx=Math.cos(a)*radius,dy=Math.sin(a)*radius,nx=-Math.sin(a)*radius*.11,ny=Math.cos(a)*radius*.11;
+    polygon(c,[point(u,v,z),point(u+dx*.46+nx,v+dy*.46+ny,z+radius*.12),point(u+dx,v+dy,z-radius*.16),point(u+dx*.48-nx,v+dy*.48-ny,z+radius*.06)],Math.cos(a)-Math.sin(a)<0?colors[2]:colors[1]);
+    path(c,[point(u,v,z),point(u+dx*.5,v+dy*.5,z+radius*.12),point(u+dx,v+dy,z-radius*.16)],colors[3],.36);
+  }
+}
+function aridTree(c,tree,r,colors){
+  const h=tree.size,turn=r()*TAU;
   if(tree.species==='palm'){
-    const lean=(r()-.5)*h*.27,top=-h*.8;
-    path(c,[[0,0],[lean*.5,-h*.4],[lean,top]],'#786e50',h*.071);
-    path(c,[[-.4,0],[lean*.5-.4,-h*.4],[lean-.4,top]],'#bcaa7c',h*.035);
-    for(let i=1;i<8;i++){const t=i/8;path(c,[[lean*t-1,-h*.8*t],[lean*t+.4,-h*.8*t-.3]],'#655f4699',.45);}
-    const n=7+Math.floor(r()*3);
-    for(let i=0;i<n;i++){
-      const a=i/n*TAU+r()*.24,len=w*(.65+r()*.37),dx=Math.cos(a)*len,dy=Math.sin(a)*len*.48;
-      polygon(c,[[lean,top],[lean+dx*.42,top+dy*.45-h*.1],[lean+dx*.86,top+dy-h*.04],[lean+dx,top+dy+h*.12],[lean+dx*.62,top+dy*.58]],colors[i%3===0?1:2]);
-      path(c,[[lean,top],[lean+dx*.6,top+dy*.5-h*.03],[lean+dx,top+dy+h*.12]],colors[3],.45);
-      for(let j=2;j<6;j++){const t=j/6;path(c,[[lean+dx*t,top+dy*t-h*.03],[lean+dx*t-dy*.2,top+dy*t+h*.055]],colors[0],.42);}
-    }
-    oval(c,lean+.8,top+1,1,1.2,'#877958');
+    const u=h*.06,v=-h*.03,z=h*.73;branch(c,[[0,0,0],[u*.3,v*.3,h*.37],[u,v,z]],false,h*.063);rosette(c,u,v,z,h*.32,colors,turn,8);
+    canopy(c,u,v,z,.9,.45,colors,turn);
   }else if(tree.species==='joshua'){
-    const lean=(r()-.5)*2;
-    path(c,[[0,0],[lean,-h*.48],[lean-3,-h*.76]],'#8c8265',h*.1);
-    path(c,[[lean,-h*.28],[h*.2,-h*.45],[h*.23,-h*.78]],'#8c8265',h*.075);
-    for(const [x,y]of [[lean-3,-h*.76],[h*.23,-h*.78],[lean,-h*.48]]){
-      for(let i=0;i<12;i++){const a=i/12*TAU,len=h*(.11+r()*.07);polygon(c,[[x-.6,y],[x+Math.cos(a)*len,y+Math.sin(a)*len],[x+.6,y+.3]],colors[i%3+1]);}
-    }
+    branch(c,[[0,0,0],[0,0,h*.6]],false,h*.075);
+    for(let i=0;i<3;i++){const a=turn+i*TAU/3,u=Math.cos(a)*h*.17,v=Math.sin(a)*h*.17,z=h*(.52+i*.1);branch(c,[[0,0,h*.3],[u,v,h*.4],[u,v,z]],false,h*.045);rosette(c,u,v,z,h*.15,colors,turn+i,9);}
   }else if(tree.species==='acacia'){
-    const lean=(r()-.5)*h*.2;
-    path(c,[[0,1],[lean,-h*.43],[-h*.21,-h*.7]],'#746e50',h*.065);
-    path(c,[[lean,-h*.43],[h*.15,-h*.62],[h*.3,-h*.72]],'#746e50',h*.047);
-    for(let i=0;i<5;i++){const x=(i-2)*h*.19,y=-h*.73+r()*h*.05;crown(c,x,y,h*(.17+r()*.05),h*.1,colors,r,profile);}
-  }else{
-    skeleton(c,h*.82,w*.67,(r()-.5)*h*.2,r,false,profile);
-    for(let i=0;i<6;i++){const x=(r()-.5)*w*1.2,y=-h*(.35+r()*.44);crown(c,x,y,h*.2,h*.19,colors,r,profile);}
-  }
+    branch(c,[[0,0,0],[h*.035,0,h*.4],[0,0,h*.64]],false,h*.066);
+    const nodes=[];for(let i=0;i<3;i++){const a=turn+i*TAU/3,u=Math.cos(a)*h*.18,v=Math.sin(a)*h*.18;branch(c,[[0,0,h*.32],[u,v,h*.64]],false,h*.027);nodes.push({u,v});}
+    nodes.sort((a,b)=>a.u+a.v-b.u-b.v);for(const n of nodes)canopy(c,n.u,n.v,h*.65,h*.24,h*.065,colors,turn);
+  }else broadleaf(c,{...tree,size:h*.8},r,colors);
 }
-export function drawTree(c,tree,biome='taiga',profile='town') {
-  const r=random(tree.seed),colors=palette[tree.species]||palette.pine;
+export function drawTree(c,tree,biome='taiga',profile='town'){
+  const r=random(tree.seed),colors=palette[tree.species]||palette.pine,h=tree.size;
   c.save();c.translate(tree.x,tree.y);
-  const shadow=tree.size*(tree.bare?.3:.42);
-  oval(c,1.7,1.2,shadow,Math.max(1,tree.size*.085),'#283e302b');
-  if(biome==='desert')aridTree(c,tree,r,colors,profile);
-  else if(['pine','spruce','fir','larch','dwarf-pine'].includes(tree.species))evergreen(c,tree,r,colors,profile);
-  else broadleaf(c,tree,r,colors,profile);
-  // Broken leaf litter and small roots anchor trunks without identical base discs.
-  for(let i=0;i<4;i++){
-    const x=(r()-.5)*tree.size*.42,y=r()*1.6;
-    if(profile!=='region'){c.fillStyle=biome==='desert'?'#a8976880':tree.bare?'#a7986580':'#8b995c70';c.fillRect(x,y,.7+r()*.6,.45);}
-  }
+  // A subdued ground-plane shadow projects toward the southeast. This does
+  // not alter composition or the generated-sprite shadow placement contract.
+  polygon(c,[point(-h*.13,0),point(0,-h*.13),point(h*.25,h*.03),point(h*.22,h*.1),point(0,h*.12)],'#283e302b');
+  if(tree.bare)bareTree(c,tree,r);else if(biome==='desert')aridTree(c,tree,r,colors);else if(['pine','spruce','fir','larch','dwarf-pine'].includes(tree.species))evergreen(c,tree,r,colors);else broadleaf(c,tree,r,colors);
   c.restore();
 }
-export function drawForest(c,biome,detail,variant,profile='town') {
-  const trees=forestComposition(biome,detail,variant);
-  for(const tree of trees)drawTree(c,tree,biome,profile);
+export function drawForest(c,biome,detail,variant,profile='town'){
+  for(const tree of forestComposition(biome,detail,variant))drawTree(c,tree,biome,profile);
 }

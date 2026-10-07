@@ -59,7 +59,7 @@ try {
       window.stationQA = { renderer, game, art, infra };
       return { dpr: devicePixelRatio, fallbackPainted, fallbackInk, profiles, art: art.worldArtStats() };
     });
-    for (const row of preparation.profiles) { assert.ok(row.authored && row.prepared && row.ink > 0); assert.ok(row.max <= 3 && row.mean <= .04, `native station pixels: ${JSON.stringify(row)}`); assert.equal(row.reused, true); assert.equal(row.envelope, row.mode === 'rail' ? 64 : 32); }
+    for (const row of preparation.profiles) { assert.ok(row.authored && row.prepared && row.ink > 0); assert.ok(row.max <= 3 && row.mean <= .04, `native station pixels: ${JSON.stringify(row)}`); assert.equal(row.reused, true); assert.equal(row.envelope, 72); }
     assert.ok(preparation.fallbackPainted && preparation.fallbackInk > 80, 'unavailable rail artwork retains a visible station');
     assert.deepEqual(preparation.art.errors, []);
     const worlds = [];

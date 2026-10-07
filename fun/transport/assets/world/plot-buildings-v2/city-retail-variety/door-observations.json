@@ -1,0 +1,101 @@
+[
+  {
+    "id": "civic:park-village:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open park has no enclosed building or personnel entrance."
+  },
+  {
+    "id": "civic:park-formal:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open park has no enclosed building or personnel entrance."
+  },
+  {
+    "id": "civic:park-woodland:taiga",
+    "personnelDoorObservable": false,
+    "personnelDoorNotes": "Open park has no enclosed building or personnel entrance."
+  },
+  {
+    "id": "civic:mall-neighborhood:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        353,
+        269
+      ],
+      [
+        353,
+        286
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  },
+  {
+    "id": "civic:mall-shopping:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        128,
+        299
+      ],
+      [
+        128,
+        309
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  },
+  {
+    "id": "civic:mall-modern:taiga",
+    "personnelDoorEndpointsSource": [
+      [
+        132,
+        308
+      ],
+      [
+        132,
+        318
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  },
+  {
+    "id": "civic:shop-grocery:taiga:design-1",
+    "personnelDoorEndpointsSource": [
+      [
+        148,
+        283
+      ],
+      [
+        148,
+        313
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  },
+  {
+    "id": "civic:shop-bakery:taiga:design-1",
+    "personnelDoorEndpointsSource": [
+      [
+        355,
+        271
+      ],
+      [
+        355,
+        302
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  },
+  {
+    "id": "civic:shop-butcher:taiga:design-1",
+    "personnelDoorEndpointsSource": [
+      [
+        348,
+        250
+      ],
+      [
+        348,
+        280
+      ]
+    ],
+    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+  }
+]

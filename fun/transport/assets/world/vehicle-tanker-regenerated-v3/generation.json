@@ -1,0 +1,32 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Fix ONLY bottom-middle tanker direction to point NORTH (away from viewer): bow at TOP, stern and white bridge at BOTTOM nearest viewer. The bottom-middle image is currently incorrectly duplicated south view. The other seven frames keep their exact ship identity, scale, camera, positions and lighting. True transparent RGBA background throughout, no ground or backdrop, compact down-right contact shadows only. Maintain fixed orthographic 2:1 dimetric projection, half depth foreshortening.",
+  "source": "source-generated.png",
+  "sha256": "60a77b8da8e692a35cfa091974815fdad90f50a9a8689557d10303df8cea8713",
+  "observedSourceOrder": [
+    "SE",
+    "S",
+    "SW",
+    "E",
+    null,
+    "W",
+    "NE",
+    "N",
+    "NW"
+  ],
+  "registeredOrder": [
+    "NW",
+    "N",
+    "NE",
+    "W",
+    null,
+    "E",
+    "SW",
+    "S",
+    "SE"
+  ],
+  "additionalSources": [],
+  "camera": "fixed 2:1 dimetric; NW sunlight; compact down-right shadow",
+  "normalization": "One family scale, no per-heading silhouette stretching; premultiplied alpha mipmaps",
+  "review": "front/rear identity and transparent composition visually inspected"
+}

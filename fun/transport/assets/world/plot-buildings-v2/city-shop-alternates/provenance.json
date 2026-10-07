@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "6d25e625a86776f44574da8ca3b4bcce9a9016853cb16e1738f1eacca387ac6d",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "city-shop-alternates",
+    "output": "/tmp/transport-house-camera-review/city-shop-alternates/packed",
+    "sourceCellPixels": 418,
+    "occupied": 7,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "6d25e625a86776f44574da8ca3b4bcce9a9016853cb16e1738f1eacca387ac6d",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  },
+  "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
+  "heightCorrection": null,
+  "sourceCorrectionPrompts": [
+    "door-correction-prompt.txt",
+    "florist-low-annex-prompt.txt",
+    "generation-prompt.txt",
+    "door-correction-v2-prompt.txt",
+    "door-correction-v3-prompt.txt"
+  ],
+  "sourceAssembly": "source-assembly.json"
+}

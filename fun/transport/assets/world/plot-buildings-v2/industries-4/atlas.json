@@ -53,63 +53,63 @@
         1254,
         1254
       ],
-      "sourceScale": 0.1851362567633239,
+      "sourceScale": 0.17257478240787996,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          58,
-          51,
-          1237,
-          1190
+          19,
+          339,
+          1242,
+          1212
         ],
         "meaningfulAlphaBounds": [
-          61,
-          638,
-          1232,
-          1184
+          24,
+          461,
+          1239,
+          1006
         ],
-        "transparentFraction": 0.8350198026601955,
-        "nontransparentPixels": 269532,
-        "meaningfulPixels": 255749,
-        "fractionalAlphaPixels": 268981,
+        "transparentFraction": 0.7289979879378016,
+        "nontransparentPixels": 430723,
+        "meaningfulPixels": 423547,
+        "fractionalAlphaPixels": 430310,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 22
+        "minimumFilteringGutterPixels": 15
       },
       "masterAlpha": {
         "alphaBounds": [
-          17,
-          138,
-          238,
-          244
+          21,
+          121,
+          235,
+          238
         ],
         "meaningfulAlphaBounds": [
-          19,
-          140,
-          236,
-          242
+          23,
+          141,
+          233,
+          236
         ],
-        "transparentFraction": 0.8575592041015625,
-        "nontransparentPixels": 9716,
-        "meaningfulPixels": 9022,
-        "fractionalAlphaPixels": 9244,
+        "transparentFraction": 0.80126953125,
+        "nontransparentPixels": 13311,
+        "meaningfulPixels": 12807,
+        "fractionalAlphaPixels": 12982,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 14
+        "minimumFilteringGutterPixels": 20
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.43101799530557244,
+        "envelopeZeroAlphaFraction": 0.06746066243588629,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.43979328165374676,
+        "frontGroundZeroAlphaFraction": 0.09285099052540913,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -155,81 +155,81 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                694,
-                772
+                25.0,
+                744.64
               ],
               [
-                1030,
-                944
+                447.0,
+                991.95
               ]
             ],
             [
               [
-                1030,
-                944
+                806.0,
+                1005.73
               ],
               [
-                1168,
-                875
+                1237.0,
+                762.83
               ]
             ]
           ],
           "groundCenterSource": [
-            650,
-            916.5
+            631.0,
+            753.735
           ],
-          "groundCenterObservation": "Midpoint of observed opposing inner ground-contact corners of the two long refrigeration blocks: [484,996] and[816,837]. This registers the central compound circulation ground; the irregular compound has no painted square parcel border. Source uncertainty approximately8pixels; not based on alpha/silhouette bounds.",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              25.0,
+              744.64
+            ],
+            [
+              1237.0,
+              762.83
+            ]
+          ],
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorObservable": true,
           "personnelDoorEndpointsSource": [
             [
-              713,
-              756
+              335,
+              674
             ],
             [
-              713,
-              774
+              335,
+              690
             ]
           ],
-          "personnelDoorObservation": "Actual narrow green entrance opening on left end of the rear refrigeration hall, inner vertical jamb observed by8x pixel inspection; door leaf18source pixels (frame exterior approximately20).",
-          "loadingBayEndpointsSource": [
-            [
-              312,
-              891
-            ],
-            [
-              312,
-              923
-            ]
-          ],
-          "reviewNote": "Tall tanks and refrigeration equipment retained. Ground is zeroalpha except explicitly paved loading strips."
+          "personnelDoorObservationNote": "Front main hall single personnel door, clearly narrower than truck loading bays; measured lintel and sill atx335, excluding bollards and cast shadow."
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              136.14599529758624,
-              165.24781089769968
+              23.419681860824745,
+              190.43043235400032
             ],
             [
-              198.35177757006306,
-              197.0912470609914
+              96.24624003695008,
+              233.10990179129314
             ]
           ],
           [
             [
-              198.35177757006306,
-              197.0912470609914
+              158.200586921379,
+              235.4879822928737
             ],
             [
-              223.90058100340178,
-              184.31684534432205
+              232.58031813917523,
+              193.56956764599968
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5119047619047619,
-          -0.5
+          0.5860426540284361,
+          -0.5635730858468677
         ],
-        "groundSlopeMaximumAbsoluteError": 0.011904761904761862,
+        "groundSlopeMaximumAbsoluteError": 0.08604265402843614,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -237,75 +237,80 @@
           192.0
         ],
         "groundCenterErrorMasterPixels": 0.0,
-        "personnelDoorHeightMasterMeasured": 3.3324526217398303,
+        "personnelDoorHeightMasterMeasured": 2.7611965185260794,
         "personnelDoorEndpointsMasterMeasured": [
           [
-            139.6635841760894,
-            162.2856307894865
+            76.91786440726753,
+            178.23974972470768
           ],
           [
-            139.6635841760894,
-            165.61808341122634
+            76.91786440726753,
+            181.00094624323378
           ]
         ],
-        "personnelDoorHeightRelativeError": 0.1157765474575324
+        "personnelDoorHeightRelativeError": 0.07549223710064311
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          650,
-          916.5
+          631.0,
+          753.735
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.1851362567633239,
+        "uniformSourceToMasterScale": 0.17257478240787996,
         "translationMaster": [
-          7.661433103839457,
-          22.322620676413635
+          19.105312300627745,
+          61.924346381796596
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          18.954744766402214,
-          140.4395524914143,
-          235.74930143625448,
-          241.52394868418912
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 14.476051315810878,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          23.247107078416864,
+          141.48132107182926,
+          232.925467703991,
+          235.53457748412384
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 20.465422515876156,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 0,
-          "clippedSourceAlphaEnergy": 0,
+          "clippedSourcePixels": 7,
+          "clippedSourceAlphaEnergy": 7,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.1851362567633239,
+          0.17257478240787996,
           0,
-          7.661433103839457,
+          19.105312300627745,
           0,
-          0.1851362567633239,
-          22.322620676413635
+          0.17257478240787996,
+          61.924346381796596
         ],
         "sourceSheetToMasterAffine": [
-          0.1851362567633239,
+          0.17257478240787996,
           0,
-          7.661433103839457,
+          19.105312300627745,
           0,
-          0.1851362567633239,
-          22.322620676413635
+          0.17257478240787996,
+          61.924346381796596
         ],
         "sourceNominalCellToMasterAffine": [
-          0.1851362567633239,
+          0.17257478240787996,
           0,
-          7.661433103839457,
+          19.105312300627745,
           0,
-          0.1851362567633239,
-          22.322620676413635
+          0.17257478240787996,
+          61.924346381796596
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
@@ -320,63 +325,63 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              694,
-              772
+              25.0,
+              744.64
             ],
             [
-              1030,
-              944
+              447.0,
+              991.95
             ]
           ],
           [
             [
-              1030,
-              944
+              806.0,
+              1005.73
             ],
             [
-              1168,
-              875
+              1237.0,
+              762.83
             ]
           ]
         ],
         "groundCenterSource": [
-          650,
-          916.5
+          631.0,
+          753.735
         ],
-        "groundCenterObservation": "Midpoint of observed opposing inner ground-contact corners of the two long refrigeration blocks: [484,996] and[816,837]. This registers the central compound circulation ground; the irregular compound has no painted square parcel border. Source uncertainty approximately8pixels; not based on alpha/silhouette bounds.",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            25.0,
+            744.64
+          ],
+          [
+            1237.0,
+            762.83
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorObservable": true,
         "personnelDoorEndpointsSource": [
           [
-            713,
-            756
+            335,
+            674
           ],
           [
-            713,
-            774
+            335,
+            690
           ]
         ],
-        "personnelDoorObservation": "Actual narrow green entrance opening on left end of the rear refrigeration hall, inner vertical jamb observed by8x pixel inspection; door leaf18source pixels (frame exterior approximately20).",
-        "loadingBayEndpointsSource": [
-          [
-            312,
-            891
-          ],
-          [
-            312,
-            923
-          ]
-        ],
-        "reviewNote": "Tall tanks and refrigeration equipment retained. Ground is zeroalpha except explicitly paved loading strips."
+        "personnelDoorObservationNote": "Front main hall single personnel door, clearly narrower than truck loading bays; measured lintel and sill atx335, excluding bollards and cast shadow."
       },
-      "masterSha256": "bd0fda76d5eee501b5e44a65e68623ec4b7bf473023bb1e3963a4ed0d4a474fe"
+      "masterSha256": "94877e9ad6bb2f7537e12db991d0fa7c822ef22fb943328672d86e215831559b"
     }
   ],
   "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
   "groundRegistrationApplied": true,
   "source": "generated-source.png",
-  "sourceSha256": "a2849ff78d7c1df09a5f852c4adf9f1dca9b24b763c58b190ecf83de5e4fd7a4",
-  "generationJobSha256": "2d99ee4fdb6090ec57beb19c378ee8466fc471fc9c80c95cd0400e2638397d9e",
+  "sourceSha256": "8dc32cacd5e8d43d6b0144aac864d8a939f2a5fbd627ccfa1a9caa84aeec8c75",
+  "generationJobSha256": "98756c0ae9335ef96aa149fc4898e424527472373b27357b2ff728ef1905a6a5",
   "measurements": "registration-measurements.json",
-  "measurementsSha256": "665a003b66c81c187bd9218729e5537492d1efb1ee7afd7c92ebf73aef422df0",
+  "measurementsSha256": "0908208e68685c5abcb54421cb84c3a9a8dca5ef71cb727be68fb9a931f82992",
   "originalSourceResolution": {
     "sheetPixels": [
       1254,
@@ -387,6 +392,11 @@
     "rows": 1
   },
   "originalMeasurements": {
+    "source": "industries-4-final.png",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
     "entries": [
       {
         "id": "industry:meat-packer:taiga",
@@ -399,101 +409,114 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              694,
-              772
+              25.0,
+              744.64
             ],
             [
-              1030,
-              944
+              447.0,
+              991.95
             ]
           ],
           [
             [
-              1030,
-              944
+              806.0,
+              1005.73
             ],
             [
-              1168,
-              875
+              1237.0,
+              762.83
             ]
           ]
         ],
         "groundCenterSource": [
-          650,
-          916.5
+          631.0,
+          753.735
         ],
-        "groundCenterObservation": "Midpoint of observed opposing inner ground-contact corners of the two long refrigeration blocks: [484,996] and[816,837]. This registers the central compound circulation ground; the irregular compound has no painted square parcel border. Source uncertainty approximately8pixels; not based on alpha/silhouette bounds.",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            25.0,
+            744.64
+          ],
+          [
+            1237.0,
+            762.83
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorObservable": true,
         "personnelDoorEndpointsSource": [
           [
-            713,
-            756
+            335,
+            674
           ],
           [
-            713,
-            774
+            335,
+            690
           ]
         ],
-        "personnelDoorObservation": "Actual narrow green entrance opening on left end of the rear refrigeration hall, inner vertical jamb observed by8x pixel inspection; door leaf18source pixels (frame exterior approximately20).",
-        "loadingBayEndpointsSource": [
-          [
-            312,
-            891
-          ],
-          [
-            312,
-            923
-          ]
-        ],
-        "reviewNote": "Tall tanks and refrigeration equipment retained. Ground is zeroalpha except explicitly paved loading strips."
+        "personnelDoorObservationNote": "Front main hall single personnel door, clearly narrower than truck loading bays; measured lintel and sill atx335, excluding bollards and cast shadow."
       }
     ],
+    "reviewStatus": "Visible source camera axes, inferred square-envelope registration and actual ordinary door checked; no unmeasured acceptance.",
     "sheetScaleCalibration": {
       "observations": [
         {
           "sourceEdgeEndpoints": [
             [
-              205,
-              869
+              806.0,
+              1005.73
             ],
             [
-              486,
-              998
+              1237.0,
+              762.83
             ]
           ],
-          "physicalSpanMetres": 36,
+          "physicalSpanMetres": 53.69407201597296,
           "footprint": 5,
-          "note": "Actual long front ground-contact edge of the first refrigeration wing. Designed physical length36m for this wing (the paired wing extends the long packing block to about72m within the75m compound envelope); this explicit architectural extent assumption calibrates ONE complete source density, preserving all horizontal layout proportions. No alpha/bounding-box fitting."
+          "note": "Observed straight southeast fence run ends at the recessed entrance, so it is a PARTIAL parcel edge. The visible two front fence axes intersect at the virtual75m envelope corner; the observed run is53.694m of that75m side. This explicit geometric inference calibrates the one source density; no silhouette bounds or source-door expectations set scale.",
+          "inferredFullEnvelopeCornerSource": [
+            634.978235094855,
+            1102.1132637945702
+          ],
+          "observedPartialSourceSpanPixels": 494.73367582973367,
+          "inferredFullEnvelopeSidePixels": 691.0451059884598
         }
       ]
     }
   },
   "sheetScaleCalibration": {
     "status": "observed-whole-sheet-density",
-    "requestedSourceToMasterScale": 0.1851362567633239,
+    "requestedSourceToMasterScale": 0.17257478240787996,
     "defaultNominalSourceToMasterScale": 0.20414673046251994,
-    "relativeScaleToNominal": 0.9068783827390944,
+    "relativeScaleToNominal": 0.8453467857010994,
     "observations": [
       {
         "observation": {
           "sourceEdgeEndpoints": [
             [
-              205,
-              869
+              806.0,
+              1005.73
             ],
             [
-              486,
-              998
+              1237.0,
+              762.83
             ]
           ],
-          "physicalSpanMetres": 36,
+          "physicalSpanMetres": 53.69407201597296,
           "footprint": 5,
-          "note": "Actual long front ground-contact edge of the first refrigeration wing. Designed physical length36m for this wing (the paired wing extends the long packing block to about72m within the75m compound envelope); this explicit architectural extent assumption calibrates ONE complete source density, preserving all horizontal layout proportions. No alpha/bounding-box fitting."
+          "note": "Observed straight southeast fence run ends at the recessed entrance, so it is a PARTIAL parcel edge. The visible two front fence axes intersect at the virtual75m envelope corner; the observed run is53.694m of that75m side. This explicit geometric inference calibrates the one source density; no silhouette bounds or source-door expectations set scale.",
+          "inferredFullEnvelopeCornerSource": [
+            634.978235094855,
+            1102.1132637945702
+          ],
+          "observedPartialSourceSpanPixels": 494.73367582973367,
+          "inferredFullEnvelopeSidePixels": 691.0451059884598
         },
-        "sourceSpanPixels": 309.19573088902763,
-        "targetMasterSpanPixels": 57.24334022399462,
-        "observedSourceToMasterScale": 0.1851362567633239,
+        "sourceSpanPixels": 494.73367582973367,
+        "targetMasterSpanPixels": 85.3785564561669,
+        "observedSourceToMasterScale": 0.17257478240787996,
         "requestedScaleRelativeError": 0.0,
-        "observedGroundEdgeSlope": 0.45907473309608543
+        "observedGroundEdgeSlope": -0.5635730858468677
       }
     ],
     "originalEvidence": {
@@ -501,17 +524,23 @@
         {
           "sourceEdgeEndpoints": [
             [
-              205,
-              869
+              806.0,
+              1005.73
             ],
             [
-              486,
-              998
+              1237.0,
+              762.83
             ]
           ],
-          "physicalSpanMetres": 36,
+          "physicalSpanMetres": 53.69407201597296,
           "footprint": 5,
-          "note": "Actual long front ground-contact edge of the first refrigeration wing. Designed physical length36m for this wing (the paired wing extends the long packing block to about72m within the75m compound envelope); this explicit architectural extent assumption calibrates ONE complete source density, preserving all horizontal layout proportions. No alpha/bounding-box fitting."
+          "note": "Observed straight southeast fence run ends at the recessed entrance, so it is a PARTIAL parcel edge. The visible two front fence axes intersect at the virtual75m envelope corner; the observed run is53.694m of that75m side. This explicit geometric inference calibrates the one source density; no silhouette bounds or source-door expectations set scale.",
+          "inferredFullEnvelopeCornerSource": [
+            634.978235094855,
+            1102.1132637945702
+          ],
+          "observedPartialSourceSpanPixels": 494.73367582973367,
+          "inferredFullEnvelopeSidePixels": 691.0451059884598
         }
       ]
     },
@@ -554,10 +583,10 @@
         -2
       ]
     },
-    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "contractSha256": "1b259372f2589951aad69b101d3830132fc50ee8f539cde679922c2b9e71dcf2",
     "sourceCellPixels": 1254,
-    "sourceToMasterScale": 0.1851362567633239,
-    "meaningfulSourcePixelsRetained": 255749,
+    "sourceToMasterScale": 0.17257478240787996,
+    "meaningfulSourcePixelsRetained": 423547,
     "sourceIsolationNoise": {
       "omittedSourcePixels": 0,
       "omittedSourceAlphaEnergy": 0,
@@ -578,73 +607,73 @@
   "outputs": {
     "16": {
       "path": "atlas-16.png",
-      "sha256": "588efb9a878544acf45df4b5097cd31a270c4983cf006132b07028e0254ba2e2",
+      "sha256": "48427564b04b254bfc67a12ec0ce5844ef2c154201bcb8590f54076eaa907486",
       "dimensions": [
         16,
         16
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.011571016047707744,
+      "sourceToLevelScale": 0.010785923900492498,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "32": {
       "path": "atlas-32.png",
-      "sha256": "0f189b64e290cf96152cd7d4211cd1ae7a1710fff9159309b043dc2999d5e7bd",
+      "sha256": "4a6071bbac44cc7c9ed8489da85e167d814263a3ecdc608790caf1fcfe39320a",
       "dimensions": [
         32,
         32
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.023142032095415488,
+      "sourceToLevelScale": 0.021571847800984995,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "64": {
       "path": "atlas-64.png",
-      "sha256": "9f64508eb8d069ba532dd48bdfda052854f5542992d3330bf74ea07fcae041ef",
+      "sha256": "6877a798c559d8f76dfd3d042adc628315ba3e9415a2713006e1d3c7c25e31b6",
       "dimensions": [
         64,
         64
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.046284064190830976,
+      "sourceToLevelScale": 0.04314369560196999,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "128": {
       "path": "atlas-128.png",
-      "sha256": "9e2ce8504daa939c932980dc9df33346df574a0e38b779dc31b024f461c8279f",
+      "sha256": "67668b83621c8d374561b0ad02e1fa8d04cbb87a37dd507c734b2af826fe9813",
       "dimensions": [
         128,
         128
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.09256812838166195,
+      "sourceToLevelScale": 0.08628739120393998,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "256": {
       "path": "atlas-256.png",
-      "sha256": "bd0fda76d5eee501b5e44a65e68623ec4b7bf473023bb1e3963a4ed0d4a474fe",
+      "sha256": "94877e9ad6bb2f7537e12db991d0fa7c822ef22fb943328672d86e215831559b",
       "dimensions": [
         256,
         256
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.1851362567633239,
+      "sourceToLevelScale": 0.17257478240787996,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "512": {
       "path": "atlas-512.png",
-      "sha256": "cb869b045de339b538bed8684ac15a4cdc596c133fbd1130d78cef621d641a0f",
+      "sha256": "441ceb58b8a538aeb328614339693b9d4a682d7921240962f7826125b0dea4b0",
       "dimensions": [
         512,
         512
       ],
       "generatedSourceCellPixels": 1254,
-      "sourceToLevelScale": 0.3702725135266478,
+      "sourceToLevelScale": 0.3451495648157599,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     }
@@ -652,7 +681,7 @@
   "provenance": {
     "operation": "Uniform source pixel density and measured registration only; generator output preserved verbatim",
     "generator": "image_gen",
-    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/world/food-industry-v1/taiga/atlas.png",
-    "sourceReview": "Measured ground axes, registration and observable entrances reviewed; genuine bare-ground alpha checked on contrasting textures and actual world gallery. Obscured personnel entrances and public/service openings retain their explicit source classifications."
+    "styleReference": "generation-reference.png",
+    "sourceReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
   }
 }

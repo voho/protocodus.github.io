@@ -1,0 +1,1 @@
+python3 fun/transport/tools/pack-station-cutouts.py fun/transport/assets/world/isometric-infrastructure-v2/generated-source.png fun/transport/assets/world/isometric-infrastructure-v2/registration-measurements.json /tmp/repacked-isometric-infrastructure-v2

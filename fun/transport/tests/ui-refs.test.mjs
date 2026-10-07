@@ -54,7 +54,7 @@ test('a reference is one button: the kind mark, the escaped label, data-ref and 
   assert.match(cases.town[0], /<svg class="i i16"[^>]*aria-hidden="true"/, 'the mark is decorative: the button carries the name');
   assert.match(cases.vehicle[0], /<span class="ref-label">Truck 1<\/span><span class="bullet[^"]*"[^>]*aria-hidden="true"/, 'a vehicle names its route with a small bullet after the label');
   assert.ok(cases.vehicle[0].includes(GLYPHS.truck), 'a freight vehicle leads with the truck glyph');
-  assert.match(ref('vehicle', 'vehicle-9', 'Train 1', { mode: 'rail' }), /<rect x="5.5" y="3"/, 'a train leads with the train glyph');
+  assert.ok(ref('vehicle', 'vehicle-9', 'Train 1', { mode: 'rail' }).includes(GLYPHS.train), 'a train leads with the train glyph');
   assert.match(ref('industry', 'industry-13', 'Steel mill'), /class="i i16"/, 'an industry without a cargo falls back to the industry glyph');
   const hostile = ref('stop', 'station-8', 'Pinehaven <East> & "Co"');
   assert.ok(hostile.includes('Pinehaven &lt;East&gt; &amp; &quot;Co&quot;') && !hostile.includes('<East>'), 'labels and names are escaped');
@@ -142,7 +142,7 @@ test('the strip places capsules by progress, caps them at eight and adds +N', ()
   assert.match(passengers, /Pinehaven &lt;East&gt;/);
   const broken = strip({ route, stops, broken: .4 });
   assert.match(broken, /class="strip__gap" style="left:34%;right:54%"/, 'a broken line stops at the break and dashes the gap');
-  assert.match(broken, /class="strip__cut" style="left:40%">[\s\S]*<path d="M2.5 12H7M17 12h4.5"\/>/, 'the cut wears the broken glyph');
+  assert.ok(broken.includes('class="strip__cut" style="left:40%">') && broken.includes(GLYPHS.broken), 'the cut wears the broken glyph');
   assert.match(broken, /The line is cut\./);
   const proposed = strip({ route: { mode: 'rail', cargo: 'coal' }, stops, proposed: true });
   assert.match(proposed, /^<div class="strip strip--rail strip--proposed">/, 'a proposed strip has no line colour yet');

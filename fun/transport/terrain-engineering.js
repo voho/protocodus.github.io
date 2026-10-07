@@ -132,7 +132,7 @@ export function planTerraformLevel(game, points, targetLevel) {
 }
 
 // Tiny natural grade variations are playable as level ground. Beyond that,
-// the fan must describe one straight, monotonic ramp with matching side edges.
+// the tile must describe one straight, monotonic ramp with matching side edges.
 export function networkTerrainShape(game, x, y) {
   const surface = tileSurface(game, x, y), { nw, ne, se, sw, center } = surface;
   const heights = [nw.height, ne.height, se.height, sw.height, center.height];

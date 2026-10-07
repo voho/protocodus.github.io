@@ -1,484 +1,533 @@
 {
-  "source": "/workspace/generated_images/exec-45a978ed-39c6-4e45-8504-af82fbe4f330.png",
+  "source": "generated-source.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        400,
+        435
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            24.0,
+            327.92
+          ],
+          [
+            206.0,
+            426.41
+          ]
+        ],
+        [
+          [
+            203.0,
+            426.41
+          ],
+          [
+            397.0,
+            332.92
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          24.0,
+          327.92
+        ],
+        [
+          397.0,
+          332.92
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        210.5,
+        330.42
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          247.0,
+          319.0
+        ],
+        [
+          247.0,
+          347.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceBoundsSheet": [
+        400,
+        0,
+        816,
+        435
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            28.0,
+            326.47
+          ],
+          [
+            206.0,
+            421.6
+          ]
+        ],
+        [
+          [
+            204.0,
+            421.46
+          ],
+          [
+            394.0,
+            334.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          28.0,
+          326.47
+        ],
+        [
+          394.0,
+          334.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        211.0,
+        330.235
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          249.0,
+          322.0
+        ],
+        [
+          249.0,
+          345.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceBoundsSheet": [
+        816,
+        0,
+        1254,
+        435
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            29.0,
+            341.0
+          ],
+          [
+            191.0,
+            434.15
+          ]
+        ],
+        [
+          [
+            188.0,
+            433.91
+          ],
+          [
+            400.0,
+            337.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          29.0,
+          341.0
+        ],
+        [
+          400.0,
+          337.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        214.5,
+        339.0
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          200.0,
+          338.0
+        ],
+        [
+          200.0,
+          368.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-normal-1",
+      "sourceBoundsSheet": [
+        0,
+        435,
+        387,
+        820
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            26.0,
+            287.9
+          ],
+          [
+            204.0,
+            386.1
+          ]
+        ],
+        [
+          [
+            200.0,
+            386.46
+          ],
+          [
+            384.0,
+            297.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          26.0,
+          287.9
+        ],
+        [
+          384.0,
+          297.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        205.0,
+        292.45
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          260.0,
+          281.0
+        ],
+        [
+          260.0,
+          306.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-normal-2",
+      "sourceBoundsSheet": [
+        387,
+        435,
+        822,
+        820
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            29.0,
+            294.09
+          ],
+          [
+            213.0,
+            394.45
+          ]
+        ],
+        [
+          [
+            210.0,
+            394.46
+          ],
+          [
+            401.0,
+            306.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          29.0,
+          294.09
+        ],
+        [
+          401.0,
+          306.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        215.0,
+        300.045
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          263.0,
+          287.0
+        ],
+        [
+          263.0,
+          317.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-normal-3",
+      "sourceBoundsSheet": [
+        822,
+        435,
+        1254,
+        820
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            53.0,
+            300.01
+          ],
+          [
+            230.0,
+            400.13
+          ]
+        ],
+        [
+          [
+            226.0,
+            399.41
+          ],
+          [
+            405.0,
+            316.54
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          53.0,
+          300.01
+        ],
+        [
+          405.0,
+          316.54
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        229.0,
+        308.275
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          250.0,
+          288.0
+        ],
+        [
+          250.0,
+          319.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceBoundsSheet": [
+        0,
+        820,
+        423,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            14.0,
+            237.0
+          ],
+          [
+            199.0,
+            338.96
+          ]
+        ],
+        [
+          [
+            196.0,
+            339.47
+          ],
+          [
+            420.0,
+            234.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          14.0,
+          237.0
+        ],
+        [
+          420.0,
+          234.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        217.0,
+        235.5
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          222.0,
+          213.0
+        ],
+        [
+          222.0,
+          228.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceBoundsSheet": [
+        423,
+        820,
+        832,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            28.0,
+            233.0
+          ],
+          [
+            214.0,
+            333.48
+          ]
+        ],
+        [
+          [
+            207.0,
+            333.49
+          ],
+          [
+            409.0,
+            234.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          28.0,
+          233.0
+        ],
+        [
+          409.0,
+          234.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        218.5,
+        233.5
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          191.0,
+          211.0
+        ],
+        [
+          191.0,
+          225.0
+        ]
+      ],
+      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceBoundsSheet": [
+        832,
+        820,
+        1254,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            17.0,
+            235.0
+          ],
+          [
+            203.0,
+            340.33
+          ]
+        ],
+        [
+          [
+            198.0,
+            340.42
+          ],
+          [
+            406.0,
+            242.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          17.0,
+          235.0
+        ],
+        [
+          406.0,
+          242.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        211.5,
+        238.5
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Courtyard arcades are open passages; no complete ordinary personnel-door leaf is visible."
+    }
+  ],
+  "reviewStatus": "observed-pixel-ground-registration; personnel-feature review pending where no explicit endpoints",
   "sheetScaleCalibration": {
     "observations": [
       {
         "sourceEdgeEndpoints": [
           [
-            14,
-            1053
+            1242,
+            1078.0
           ],
           [
-            202,
-            1151
+            1036.810538220295,
+            1175.0901289824928
           ]
         ],
         "physicalSpanMetres": 30,
         "footprint": 2,
-        "note": "Observed full lower-left perimeter hedge ground-contact axis of the 30m-wide two-tile country-manor estate; calibration fixes one density for the entire sheet, independent of individual alpha bounds."
+        "note": "Visually identified full front ground boundary of house-expensive-3 2x2 parcel. Boundary pixel line intersections and visible endpoint supply one common density; this visible delivered parcel edge is assigned its calibrated per-tile architectural envelope, with narrow filtering setback. Other cells keep their observed relative dimensions."
       }
     ]
-  },
-  "entries": [
-    {
-      "id": "house-cheap-1",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            34,
-            352
-          ],
-          [
-            193,
-            431
-          ]
-        ],
-        [
-          [
-            193,
-            431
-          ],
-          [
-            380,
-            352
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          34,
-          352
-        ],
-        [
-          380,
-          352
-        ]
-      ],
-      "sourceBoundsSheet": [
-        0,
-        0,
-        418,
-        450
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          239,
-          321
-        ],
-        [
-          239,
-          352
-        ]
-      ]
-    },
-    {
-      "id": "house-cheap-2",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            43,
-            350
-          ],
-          [
-            203,
-            425
-          ]
-        ],
-        [
-          [
-            203,
-            425
-          ],
-          [
-            372,
-            330
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          43,
-          350
-        ],
-        [
-          372,
-          330
-        ]
-      ],
-      "sourceBoundsSheet": [
-        418,
-        0,
-        836,
-        450
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          260,
-          325
-        ],
-        [
-          260,
-          352
-        ]
-      ]
-    },
-    {
-      "id": "house-cheap-3",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            43,
-            360
-          ],
-          [
-            212,
-            436
-          ]
-        ],
-        [
-          [
-            212,
-            436
-          ],
-          [
-            404,
-            355
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          43,
-          360
-        ],
-        [
-          404,
-          355
-        ]
-      ],
-      "sourceBoundsSheet": [
-        836,
-        0,
-        1254,
-        450
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          283,
-          318
-        ],
-        [
-          283,
-          346
-        ]
-      ]
-    },
-    {
-      "id": "house-normal-1",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            34,
-            266
-          ],
-          [
-            211,
-            355
-          ]
-        ],
-        [
-          [
-            211,
-            355
-          ],
-          [
-            389,
-            270
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          34,
-          266
-        ],
-        [
-          389,
-          270
-        ]
-      ],
-      "sourceBoundsSheet": [
-        0,
-        450,
-        418,
-        860
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          247,
-          259
-        ],
-        [
-          247,
-          286
-        ]
-      ]
-    },
-    {
-      "id": "house-normal-2",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            43,
-            266
-          ],
-          [
-            203,
-            360
-          ]
-        ],
-        [
-          [
-            203,
-            360
-          ],
-          [
-            393,
-            268
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          43,
-          266
-        ],
-        [
-          393,
-          268
-        ]
-      ],
-      "sourceBoundsSheet": [
-        418,
-        450,
-        836,
-        860
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          275,
-          258
-        ],
-        [
-          275,
-          288
-        ]
-      ]
-    },
-    {
-      "id": "house-normal-3",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            48,
-            288
-          ],
-          [
-            233,
-            384
-          ]
-        ],
-        [
-          [
-            233,
-            384
-          ],
-          [
-            404,
-            283
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          48,
-          288
-        ],
-        [
-          404,
-          283
-        ]
-      ],
-      "sourceBoundsSheet": [
-        836,
-        450,
-        1254,
-        860
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          285,
-          263
-        ],
-        [
-          285,
-          292
-        ]
-      ]
-    },
-    {
-      "id": "house-expensive-1",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            14,
-            217
-          ],
-          [
-            202,
-            315
-          ]
-        ],
-        [
-          [
-            202,
-            315
-          ],
-          [
-            409,
-            210
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          14,
-          217
-        ],
-        [
-          409,
-          210
-        ]
-      ],
-      "sourceBoundsSheet": [
-        0,
-        860,
-        418,
-        1254
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          235,
-          212
-        ],
-        [
-          235,
-          228
-        ]
-      ]
-    },
-    {
-      "id": "house-expensive-2",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            22,
-            214
-          ],
-          [
-            190,
-            309
-          ]
-        ],
-        [
-          [
-            190,
-            309
-          ],
-          [
-            404,
-            209
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          22,
-          214
-        ],
-        [
-          404,
-          209
-        ]
-      ],
-      "sourceBoundsSheet": [
-        418,
-        860,
-        836,
-        1254
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorEndpointsSource": [
-        [
-          270,
-          218
-        ],
-        [
-          270,
-          233
-        ]
-      ]
-    },
-    {
-      "id": "house-expensive-3",
-      "groundEdgeSegmentsSource": [
-        [
-          [
-            22,
-            218
-          ],
-          [
-            195,
-            316
-          ]
-        ],
-        [
-          [
-            195,
-            316
-          ],
-          [
-            404,
-            213
-          ]
-        ]
-      ],
-      "visibleOppositeGroundVerticesSource": [
-        [
-          22,
-          218
-        ],
-        [
-          404,
-          213
-        ]
-      ],
-      "sourceBoundsSheet": [
-        836,
-        860,
-        1254,
-        1254
-      ],
-      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
-      "personnelDoorObservable": false,
-      "doorVisibilityNote": "Courtyard personnel entrances obscured by the roof/foreground plants; no leaf threshold observable."
-    }
-  ]
+  }
 }

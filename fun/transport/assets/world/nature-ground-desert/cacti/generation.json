@@ -1,237 +1,507 @@
 {
-  "date": "2026-10-06",
-  "generator": "image_gen.imagegen",
-  "imagegenSource": "/workspace/generated_images/exec-8f5eaf67-728e-454d-b8df-f1cd3c217066.png",
-  "transparentBackground": true,
-  "styleReference": "assets/houses/desert/house-atlas.png",
-  "styleReferenceSha256": "9f2aaca297b31a1f005a6d9691cd78b9ba695124cd444cbb880ec0f5e4e373d9",
-  "source": "source-generated-2026-10-06.png",
-  "sourceSha256": "af4b39c6a8d7385cd58839b69b56aa3f2d64ed1c844583f4b196eb674030a628",
-  "prompt": "prompt.txt",
-  "promptSha256": "bfbbc0501d74a35e0d73030c2c2333571c1c74d09d7b99ed824cd9977a0fa501",
-  "canonicalArtCatalog": "../../../../tree-art-catalog.js",
-  "canonicalArtCatalogSha256": "b35c4ebe62c57350b562235b7588df478b933feac7e25de4d9c519acfbf9b197",
-  "sharedStyleContract": "../../../../sprite-art-direction.js",
-  "sharedStyleContractSha256": "5ac8428e5ccedb1e074b7f6304fcfaf913713c47ab41e6719bf98bdf6450802a",
-  "columns": 3,
-  "rows": 3,
-  "normalisedCellPixels": 256,
-  "rootAnchor": 0.955,
-  "pixelsPerMetre": 32.0,
-  "registration": "Whole-cactus uniform resampling to canonical metre heights; no per-cell maximum-bounds fitting.",
-  "sourceTrim": "Alpha above 8 with two source pixels of padding. Invisible external matte specks omitted; all retained cutout RGBA is resampled as a whole.",
-  "records": [
+  "tool": "built-in image_gen",
+  "date": "2026-10-07",
+  "prompt": "Generate a transparent game SPRITE SHEET of nine desert cacti. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. View DOWN onto radial cactus arm arrangement and rounded TOP ends, visible upper surfaces of barrels and succulents.\nSlot 1: saguaro, 4m tall, 128.0px vertical plant height in the normalized256px cell. Tall ridged green column with two unmistakable raised bent arms.\nSlot 2: organ-pipe-cactus, 3.33m tall, 106.7px vertical plant height in the normalized256px cell. Several tall parallel olive-green cylindrical stems rising together from one root clump.\nSlot 3: cardon, 4.67m tall, 149.3px vertical plant height in the normalized256px cell. Massive branching blue-green columnar cactus with thick widely spaced upright arms.\nSlot 4: senita, 2.67m tall, 85.3px vertical plant height in the normalized256px cell. A small group of slender muted green columns with soft pale caps on their upper ends.\nSlot 5: candelabra-cactus, 3.33m tall, 106.7px vertical plant height in the normalized256px cell. Distinctive many-armed sage candelabra of thick vertical columns on a central green stem.\nSlot 6: tree-cholla, 2m tall, 64.0px vertical plant height in the normalized256px cell. Open woody brown trunk and a loose branching crown of chunky dusty green cylindrical segments.\nSlot 7: golden-barrel-cactus, 1m tall, 32.0px vertical plant height in the normalized256px cell. One broad squat spherical green barrel with large golden rib bands, no individual tiny spines.\nSlot 8: fishhook-barrel-cactus, 1.33m tall, 42.7px vertical plant height in the normalized256px cell. Upright oval blue-green barrel with broad pale ribs and a muted rust cap.\nSlot 9: hedgehog-cactus, 0.67m tall, 21.3px vertical plant height in the normalized256px cell. Small irregular clump of three broad short ribbed green columns with one large muted magenta flower mass.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+  "sourceSha256": "20900a49eec4731dcfd23d9f0cd7c478e2c5b2dac2c8741be61c392489d848e6",
+  "scale": {
+    "normalizedMasterPixelsPerVerticalMetre": 32,
+    "rootAnchor": 0.955
+  },
+  "measurements": [
     {
-      "id": "saguaro",
-      "heightMetres": 4.0,
-      "description": "Tall ridged green column with two unmistakable raised bent arms.",
-      "logicalId": "nature-ground-desert:saguaro",
-      "sourceBox": [
-        0,
-        0,
-        418,
-        525
+      "id": "nature-ground-desert:saguaro",
+      "cell": 0,
+      "sourceBounds": [
+        81,
+        38,
+        394,
+        415
       ],
-      "rootFoot": [
-        232,
-        485
+      "observedRootSource": [
+        236.0,
+        402.0
       ],
-      "crownTop": 74,
-      "measuredCrownToRootPixels": 411,
-      "uniformWholeCutoutScale": 0.31143552311435524,
+      "observedCrownTopSource": 42.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 360.0,
       "registeredPlantHeightPixels": 128.0,
-      "registeredMeasuredHeightMetres": 4.0
+      "calibratedHeightMetres": 4.0,
+      "sourceScaleToMaster": 0.35555555555555557,
+      "masterOffsetPixels": [
+        72.88888888888889,
+        115.05777777777777
+      ],
+      "sourceCropPixels": [
+        313,
+        377
+      ],
+      "masterDrawPixels": [
+        111,
+        134
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          81,
+          38,
+          394,
+          415
+        ],
+        "transparentFraction": 0.505088939924238
+      },
+      "bounds": [
+        74,
+        116,
+        183,
+        248
+      ]
     },
     {
-      "id": "organ-pipe-cactus",
-      "heightMetres": 3.3333333333333335,
-      "description": "Several tall parallel olive-green cylindrical stems rising together from one root clump.",
-      "logicalId": "nature-ground-desert:organ-pipe-cactus",
-      "sourceBox": [
-        418,
-        0,
-        836,
-        525
+      "id": "nature-ground-desert:organ-pipe-cactus",
+      "cell": 1,
+      "sourceBounds": [
+        516,
+        71,
+        741,
+        424
       ],
-      "rootFoot": [
-        643,
-        482
+      "observedRootSource": [
+        640.0,
+        413.0
       ],
-      "crownTop": 121,
-      "measuredCrownToRootPixels": 361,
-      "uniformWholeCutoutScale": 0.29547553093259465,
+      "observedCrownTopSource": 74.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 339.0,
       "registeredPlantHeightPixels": 106.66666666666667,
-      "registeredMeasuredHeightMetres": 3.3333333333333335
+      "calibratedHeightMetres": 3.3333333333333335,
+      "sourceScaleToMaster": 0.3146509341199607,
+      "masterOffsetPixels": [
+        88.98328416912487,
+        136.86938053097344
+      ],
+      "sourceCropPixels": [
+        225,
+        353
+      ],
+      "masterDrawPixels": [
+        71,
+        111
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          516,
+          71,
+          741,
+          424
+        ],
+        "transparentFraction": 0.315140069247718
+      },
+      "bounds": [
+        90,
+        138,
+        159,
+        247
+      ]
     },
     {
-      "id": "cardon",
-      "heightMetres": 4.666666666666667,
-      "description": "Massive branching blue-green columnar cactus with thick widely spaced upright arms.",
-      "logicalId": "nature-ground-desert:cardon",
-      "sourceBox": [
-        836,
-        0,
-        1254,
-        525
+      "id": "nature-ground-desert:cardon",
+      "cell": 2,
+      "sourceBounds": [
+        867,
+        27,
+        1197,
+        420
       ],
-      "rootFoot": [
-        1040,
-        491
+      "observedRootSource": [
+        1037.0,
+        408.0
       ],
-      "crownTop": 51,
-      "measuredCrownToRootPixels": 440,
-      "uniformWholeCutoutScale": 0.3393939393939394,
+      "observedCrownTopSource": 30.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 378.0,
       "registeredPlantHeightPixels": 149.33333333333334,
-      "registeredMeasuredHeightMetres": 4.666666666666667
+      "calibratedHeightMetres": 4.666666666666667,
+      "sourceScaleToMaster": 0.39506172839506176,
+      "masterOffsetPixels": [
+        60.839506172839506,
+        93.96148148148146
+      ],
+      "sourceCropPixels": [
+        330,
+        393
+      ],
+      "masterDrawPixels": [
+        130,
+        155
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          867,
+          27,
+          1197,
+          420
+        ],
+        "transparentFraction": 0.4003392705682782
+      },
+      "bounds": [
+        62,
+        95,
+        189,
+        248
+      ]
     },
     {
-      "id": "senita",
-      "heightMetres": 2.6666666666666665,
-      "description": "A small group of slender muted green columns with soft pale caps on their upper ends.",
-      "logicalId": "nature-ground-desert:senita",
-      "sourceBox": [
-        0,
-        525,
-        418,
-        970
+      "id": "nature-ground-desert:senita",
+      "cell": 3,
+      "sourceBounds": [
+        110,
+        502,
+        317,
+        825
       ],
-      "rootFoot": [
-        231,
-        908
+      "observedRootSource": [
+        222.0,
+        814.0
       ],
-      "crownTop": 584,
-      "measuredCrownToRootPixels": 324,
-      "uniformWholeCutoutScale": 0.2633744855967078,
+      "observedCrownTopSource": 506.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 308.0,
       "registeredPlantHeightPixels": 85.33333333333333,
-      "registeredMeasuredHeightMetres": 2.6666666666666665
+      "calibratedHeightMetres": 2.6666666666666665,
+      "sourceScaleToMaster": 0.27705627705627706,
+      "masterOffsetPixels": [
+        96.96969696969697,
+        158.03844155844155
+      ],
+      "sourceCropPixels": [
+        207,
+        323
+      ],
+      "masterDrawPixels": [
+        57,
+        89
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          110,
+          502,
+          317,
+          825
+        ],
+        "transparentFraction": 0.3648763853367434
+      },
+      "bounds": [
+        98,
+        159,
+        154,
+        247
+      ]
     },
     {
-      "id": "candelabra-cactus",
-      "heightMetres": 3.3333333333333335,
-      "description": "Distinctive many-armed sage candelabra of thick vertical columns on a central green stem.",
-      "logicalId": "nature-ground-desert:candelabra-cactus",
-      "sourceBox": [
-        418,
-        525,
-        836,
-        970
+      "id": "nature-ground-desert:candelabra-cactus",
+      "cell": 4,
+      "sourceBounds": [
+        475,
+        461,
+        760,
+        820
       ],
-      "rootFoot": [
-        642,
-        899
+      "observedRootSource": [
+        623.0,
+        809.0
       ],
-      "crownTop": 553,
-      "measuredCrownToRootPixels": 346,
-      "uniformWholeCutoutScale": 0.3082851637764933,
-      "registeredPlantHeightPixels": 106.66666666666667,
-      "registeredMeasuredHeightMetres": 3.3333333333333335
+      "observedCrownTopSource": 464.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 345.0,
+      "registeredPlantHeightPixels": 106.66666666666669,
+      "calibratedHeightMetres": 3.333333333333334,
+      "sourceScaleToMaster": 0.3091787439613527,
+      "masterOffsetPixels": [
+        82.2415458937198,
+        136.88579710144927
+      ],
+      "sourceCropPixels": [
+        285,
+        359
+      ],
+      "masterDrawPixels": [
+        88,
+        111
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          475,
+          461,
+          760,
+          820
+        ],
+        "transparentFraction": 0.40301031129355425
+      },
+      "bounds": [
+        83,
+        138,
+        169,
+        247
+      ]
     },
     {
-      "id": "tree-cholla",
-      "heightMetres": 2.0,
-      "description": "Open woody brown trunk and a loose branching crown of chunky dusty green cylindrical segments.",
-      "logicalId": "nature-ground-desert:tree-cholla",
-      "sourceBox": [
-        836,
-        525,
-        1254,
-        970
+      "id": "nature-ground-desert:tree-cholla",
+      "cell": 5,
+      "sourceBounds": [
+        886,
+        488,
+        1197,
+        819
       ],
-      "rootFoot": [
-        1056,
-        908
+      "observedRootSource": [
+        1043.5,
+        808.0
       ],
-      "crownTop": 623,
-      "measuredCrownToRootPixels": 285,
-      "uniformWholeCutoutScale": 0.22456140350877193,
+      "observedCrownTopSource": 492.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 316.0,
       "registeredPlantHeightPixels": 64.0,
-      "registeredMeasuredHeightMetres": 2.0
+      "calibratedHeightMetres": 2.0,
+      "sourceScaleToMaster": 0.20253164556962025,
+      "masterOffsetPixels": [
+        96.10126582278481,
+        179.6698734177215
+      ],
+      "sourceCropPixels": [
+        311,
+        331
+      ],
+      "masterDrawPixels": [
+        63,
+        67
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          886,
+          488,
+          1197,
+          819
+        ],
+        "transparentFraction": 0.5049202941490757
+      },
+      "bounds": [
+        96,
+        180,
+        159,
+        247
+      ]
     },
     {
-      "id": "golden-barrel-cactus",
-      "heightMetres": 1.0,
-      "description": "One broad squat spherical green barrel with large golden rib bands, no individual tiny spines.",
-      "logicalId": "nature-ground-desert:golden-barrel-cactus",
-      "sourceBox": [
-        0,
-        970,
-        418,
-        1254
+      "id": "nature-ground-desert:golden-barrel-cactus",
+      "cell": 6,
+      "sourceBounds": [
+        97,
+        935,
+        337,
+        1169
       ],
-      "rootFoot": [
-        232,
-        1173
+      "observedRootSource": [
+        226.0,
+        1160.0
       ],
-      "crownTop": 1052,
-      "measuredCrownToRootPixels": 121,
-      "uniformWholeCutoutScale": 0.2644628099173554,
+      "observedCrownTopSource": 939.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 221.0,
       "registeredPlantHeightPixels": 32.0,
-      "registeredMeasuredHeightMetres": 1.0
+      "calibratedHeightMetres": 1.0,
+      "sourceScaleToMaster": 0.14479638009049775,
+      "masterOffsetPixels": [
+        109.32126696832579,
+        211.900814479638
+      ],
+      "sourceCropPixels": [
+        240,
+        234
+      ],
+      "masterDrawPixels": [
+        35,
+        34
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          97,
+          935,
+          337,
+          1169
+        ],
+        "transparentFraction": 0.26832264957264956
+      },
+      "bounds": [
+        109,
+        212,
+        144,
+        246
+      ]
     },
     {
-      "id": "fishhook-barrel-cactus",
-      "heightMetres": 1.3333333333333333,
-      "description": "Upright oval blue-green barrel with broad pale ribs and a muted rust cap.",
-      "logicalId": "nature-ground-desert:fishhook-barrel-cactus",
-      "sourceBox": [
-        418,
-        970,
-        836,
-        1254
-      ],
-      "rootFoot": [
-        639,
+      "id": "nature-ground-desert:fishhook-barrel-cactus",
+      "cell": 7,
+      "sourceBounds": [
+        523,
+        915,
+        716,
         1173
       ],
-      "crownTop": 1024,
-      "measuredCrownToRootPixels": 149,
-      "uniformWholeCutoutScale": 0.28635346756152125,
+      "observedRootSource": [
+        621.0,
+        1164.0
+      ],
+      "observedCrownTopSource": 918.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 246.0,
       "registeredPlantHeightPixels": 42.666666666666664,
-      "registeredMeasuredHeightMetres": 1.3333333333333333
+      "calibratedHeightMetres": 1.3333333333333333,
+      "sourceScaleToMaster": 0.17344173441734417,
+      "masterOffsetPixels": [
+        111.00271002710028,
+        201.2930081300813
+      ],
+      "sourceCropPixels": [
+        193,
+        258
+      ],
+      "masterDrawPixels": [
+        33,
+        45
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          523,
+          915,
+          716,
+          1173
+        ],
+        "transparentFraction": 0.26457002851749206
+      },
+      "bounds": [
+        111,
+        201,
+        143,
+        246
+      ]
     },
     {
-      "id": "hedgehog-cactus",
-      "heightMetres": 0.6666666666666666,
-      "description": "Small irregular clump of three broad short ribbed green columns with one large muted magenta flower mass.",
-      "logicalId": "nature-ground-desert:hedgehog-cactus",
-      "sourceBox": [
-        836,
-        970,
-        1254,
-        1254
+      "id": "nature-ground-desert:hedgehog-cactus",
+      "cell": 8,
+      "sourceBounds": [
+        888,
+        926,
+        1173,
+        1180
       ],
-      "rootFoot": [
-        1052,
-        1182
+      "observedRootSource": [
+        1034.5,
+        1171.0
       ],
-      "crownTop": 1037,
-      "measuredCrownToRootPixels": 145,
-      "uniformWholeCutoutScale": 0.1471264367816092,
+      "observedCrownTopSource": 929.0,
+      "observedRootMethod": "opaque trunk-base estimate, 1.8% above contact-shadow bound",
+      "measuredSourceHeightPixels": 242.0,
       "registeredPlantHeightPixels": 21.333333333333332,
-      "registeredMeasuredHeightMetres": 0.6666666666666666
+      "calibratedHeightMetres": 0.6666666666666666,
+      "sourceScaleToMaster": 0.08815426997245178,
+      "masterOffsetPixels": [
+        115.08539944903582,
+        222.8822038567493
+      ],
+      "sourceCropPixels": [
+        285,
+        254
+      ],
+      "masterDrawPixels": [
+        25,
+        22
+      ],
+      "normalization": {
+        "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          888,
+          926,
+          1173,
+          1180
+        ],
+        "transparentFraction": 0.37621218400331535
+      },
+      "bounds": [
+        115,
+        223,
+        140,
+        245
+      ]
     }
   ],
-  "buildCommand": "python fun/transport/tools/build-world-atlases.py --atlas fun/transport/assets/world/nature-ground-desert/cacti/source-registered-2026-10-06.png --columns 3 --rows 3 --ids nature-ground-desert:saguaro,nature-ground-desert:organ-pipe-cactus,nature-ground-desert:cardon,nature-ground-desert:senita,nature-ground-desert:candelabra-cactus,nature-ground-desert:tree-cholla,nature-ground-desert:golden-barrel-cactus,nature-ground-desert:fishhook-barrel-cactus,nature-ground-desert:hedgehog-cactus --output-dir fun/transport/assets/world/nature-ground-desert/cacti --aligned --preserve-grid-scale --max-cell 256 --no-sharpen",
-  "projectionCorrection": {
-    "date": "2026-10-06",
-    "reason": "Forest and ground sprite envelopes draw at 1:1 world pixels. The historical generation requests assumed the 1.5x enlargement used only for building billboards.",
-    "historicalAssumedWorldEnlargement": 1.5,
-    "actualWorldEnlargement": 1,
-    "historicalHeightToActualWorldMetres": 0.6666666666666666,
-    "historicalPixelsPerMetreToActualPixelsPerMetre": 1.5,
-    "artworkUnchanged": true,
-    "historicalRequestsPreserved": "Exact image-generation prompts, parameters, source hashes and reference hashes are retained verbatim. Only present-day calibration units are corrected; all pixel transforms, root positions and atlas pixels are unchanged.",
-    "historicalPixelsPerMetre": 21.333333333333332,
-    "historicalNominalHeightsMetres": {
-      "saguaro": 6,
-      "organ-pipe-cactus": 5,
-      "cardon": 7,
-      "senita": 4,
-      "candelabra-cactus": 5,
-      "tree-cholla": 3,
-      "golden-barrel-cactus": 1.5,
-      "fishhook-barrel-cactus": 2,
-      "hedgehog-cactus": 1
-    }
+  "job": {
+    "path": "nature-ground-desert/cacti",
+    "prompt": "Generate a transparent game SPRITE SHEET of nine desert cacti. Use the attached geometry as the elevated isometric CAMERA guide: top faces are very visible, trunks short below the canopy, radial branch spread in the horizontal2:1 plane. Replace the simple geometry with restrained painted organic trees. IMPORTANT remove every green ground diamond completely to alpha0. Do NOT return frontal tree illustrations. Camera looks down onto the TOP of crowns from35 degrees elevation, fixed orthographic three-quarter view. Crown tops and layered radial foliage dominate, crowns conceal inner trunk forks. Northwest light, muted sage and deep olive greens, warm brown wood. Full plants with clear empty gutters in exactly3x3 equal square cells. No tiny leaves or needles, lettering or UI. Root foot near85% cell height; canopy and branches wholly contained in its own cell. \nSubjects from this list only, canopy view overrides frontal-trunk descriptions. View DOWN onto radial cactus arm arrangement and rounded TOP ends, visible upper surfaces of barrels and succulents.\nSlot 1: saguaro, 4m tall, 128.0px vertical plant height in the normalized256px cell. Tall ridged green column with two unmistakable raised bent arms.\nSlot 2: organ-pipe-cactus, 3.33m tall, 106.7px vertical plant height in the normalized256px cell. Several tall parallel olive-green cylindrical stems rising together from one root clump.\nSlot 3: cardon, 4.67m tall, 149.3px vertical plant height in the normalized256px cell. Massive branching blue-green columnar cactus with thick widely spaced upright arms.\nSlot 4: senita, 2.67m tall, 85.3px vertical plant height in the normalized256px cell. A small group of slender muted green columns with soft pale caps on their upper ends.\nSlot 5: candelabra-cactus, 3.33m tall, 106.7px vertical plant height in the normalized256px cell. Distinctive many-armed sage candelabra of thick vertical columns on a central green stem.\nSlot 6: tree-cholla, 2m tall, 64.0px vertical plant height in the normalized256px cell. Open woody brown trunk and a loose branching crown of chunky dusty green cylindrical segments.\nSlot 7: golden-barrel-cactus, 1m tall, 32.0px vertical plant height in the normalized256px cell. One broad squat spherical green barrel with large golden rib bands, no individual tiny spines.\nSlot 8: fishhook-barrel-cactus, 1.33m tall, 42.7px vertical plant height in the normalized256px cell. Upright oval blue-green barrel with broad pale ribs and a muted rust cap.\nSlot 9: hedgehog-cactus, 0.67m tall, 21.3px vertical plant height in the normalized256px cell. Small irregular clump of three broad short ribbed green columns with one large muted magenta flower mass.\nRelative size from metre heights; preserve smaller plants. Complete crowns and root feet with 12% empty gutter. Genuine alpha; no ground discs.",
+    "kind": "cactus",
+    "heights": [
+      4,
+      3.3333333333333335,
+      4.666666666666667,
+      2.6666666666666665,
+      3.3333333333333335,
+      2,
+      1,
+      1.3333333333333333,
+      0.6666666666666666
+    ],
+    "columns": 3,
+    "rows": 3,
+    "order": [
+      "nature-ground-desert:saguaro",
+      "nature-ground-desert:organ-pipe-cactus",
+      "nature-ground-desert:cardon",
+      "nature-ground-desert:senita",
+      "nature-ground-desert:candelabra-cactus",
+      "nature-ground-desert:tree-cholla",
+      "nature-ground-desert:golden-barrel-cactus",
+      "nature-ground-desert:fishhook-barrel-cactus",
+      "nature-ground-desert:hedgehog-cactus"
+    ],
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256
+    ]
   }
 }

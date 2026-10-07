@@ -39,14 +39,14 @@
       "sourceBounds": [
         0,
         0,
-        418,
-        540
+        441,
+        479
       ],
       "sourceBoundsSheet": [
         0,
         0,
-        418,
-        540
+        441,
+        479
       ],
       "sourceNominalCellBoundsSheet": [
         0,
@@ -56,66 +56,66 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        540
+        441,
+        479
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
           0,
-          19,
-          418,
-          540
+          119,
+          441,
+          479
         ],
         "meaningfulAlphaBounds": [
-          19,
-          294,
-          398,
-          492
+          12,
+          250,
+          440,
+          473
         ],
-        "transparentFraction": 0.7916710969342549,
-        "nontransparentPixels": 50721,
-        "meaningfulPixels": 46119,
-        "fractionalAlphaPixels": 50523,
+        "transparentFraction": 0.7582027939916398,
+        "nontransparentPixels": 54258,
+        "meaningfulPixels": 50004,
+        "fractionalAlphaPixels": 54201,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 19
+        "minimumFilteringGutterPixels": 1
       },
       "masterAlpha": {
         "alphaBounds": [
-          18,
-          20,
-          245,
-          256
+          21,
+          72,
+          236,
+          248
         ],
         "meaningfulAlphaBounds": [
-          20,
-          128,
+          23,
+          136,
           234,
-          240
+          245
         ],
-        "transparentFraction": 0.77044677734375,
-        "nontransparentPixels": 15953,
-        "meaningfulPixels": 14716,
-        "fractionalAlphaPixels": 15737,
+        "transparentFraction": 0.8115234375,
+        "nontransparentPixels": 12944,
+        "meaningfulPixels": 12097,
+        "fractionalAlphaPixels": 12748,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 16
+        "minimumFilteringGutterPixels": 11
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.07163348691645657,
+        "envelopeZeroAlphaFraction": 0.019733982439363643,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.09888027562446167,
+        "frontGroundZeroAlphaFraction": 0.02342807924203273,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -152,176 +152,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:wire-mill:taiga",
-          "groundVerticesSource": [
-            [
-              84,
-              346
-            ],
-            [
-              207,
-              401
-            ],
-            [
-              152,
-              431
-            ],
-            [
-              29,
-              376
-            ]
-          ],
-          "groundCenterSource": [
-            210,
-            407
-          ],
-          "groundCenterMethod": "Centre of observed compound physical ground perimeter, using rear hall base and front paved-working strip, excluding chimney/roof silhouettes",
-          "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-          "groundCenterUncertaintySourcePixels": 10,
           "sourceBoundsSheet": [
             0,
             0,
-            418,
-            540
+            441,
+            479
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "16x endpoint review: gray mark at x174,y413\u2013420 has brick wall visibly continuing beneath it to the base; gray object at x140 is obscured by forklift/yard equipment. Remaining visible entrances are broad bays. No narrow personnel door has both lintel and physical ground endpoint observable.",
-          "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                12.0,
+                364.46
+              ],
+              [
+                229.0,
+                470.69
+              ]
+            ],
+            [
+              [
+                227.0,
+                470.96
+              ],
+              [
+                438.0,
+                364.37
+              ]
+            ]
+          ],
+          "groundCenterSource": [
+            225.0,
+            364.415
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              12.0,
+              364.46
+            ],
+            [
+              438.0,
+              364.37
+            ]
+          ],
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              296,
+              411
+            ],
+            [
+              296,
+              417
+            ]
+          ],
+          "personnelDoorObservationNote": "Ordinary narrow entry on the shaded gable of the foremost wire hall, distinct from loading bays.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            57.004665487076124,
-            157.62924281517178
+            [
+              23.61458167196155,
+              192.02205325739322
+            ],
+            [
+              129.96028954606646,
+              244.08244287705298
+            ]
           ],
           [
-            126.30963489254944,
-            188.61926978509885
-          ],
-          [
-            95.31960792262235,
-            205.52292085960454
-          ],
-          [
-            26.014638517149038,
-            174.53289388967747
+            [
+              128.98014477303323,
+              244.21476242141244
+            ],
+            [
+              232.38541832803844,
+              191.97794674260675
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.44715447154471544,
-          -0.5454545454545454,
-          0.44715447154471544,
-          -0.5454545454545454
+          0.48953917050691254,
+          -0.5051658767772511
         ],
-        "groundSlopeMaximumAbsoluteError": 0.05284552845528456,
+        "groundSlopeMaximumAbsoluteError": 0.010460829493087465,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.9404343190996745,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            162.79513944267947,
+            214.83002212587638
+          ],
+          [
+            162.79513944267947,
+            217.77045644497605
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.015479580658591188
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          210,
-          407
+          225.0,
+          364.415
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          9.674442478460207,
-          -37.32619957746047
+          17.7337130337622,
+          13.410271267548666
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          20.380088158980477,
-          128.32958095269524,
-          233.92954673356897,
-          239.8936780444328
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 16.10632195556721,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          23.61458167196155,
+          135.9283678967018,
+          233.36556310107167,
+          245.21451008990636
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 10.785489910093645,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 482,
-          "clippedSourceAlphaEnergy": 482,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.674442478460207,
+          17.7337130337622,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          13.410271267548666
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.674442478460207,
+          17.7337130337622,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          13.410271267548666
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.674442478460207,
+          17.7337130337622,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          13.410271267548666
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:wire-mill:taiga",
-        "groundVerticesSource": [
-          [
-            84,
-            346
-          ],
-          [
-            207,
-            401
-          ],
-          [
-            152,
-            431
-          ],
-          [
-            29,
-            376
-          ]
-        ],
-        "groundCenterSource": [
-          210,
-          407
-        ],
-        "groundCenterMethod": "Centre of observed compound physical ground perimeter, using rear hall base and front paved-working strip, excluding chimney/roof silhouettes",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
         "sourceBoundsSheet": [
           0,
           0,
-          418,
-          540
+          441,
+          479
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x endpoint review: gray mark at x174,y413\u2013420 has brick wall visibly continuing beneath it to the base; gray object at x140 is obscured by forklift/yard equipment. Remaining visible entrances are broad bays. No narrow personnel door has both lintel and physical ground endpoint observable.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              12.0,
+              364.46
+            ],
+            [
+              229.0,
+              470.69
+            ]
+          ],
+          [
+            [
+              227.0,
+              470.96
+            ],
+            [
+              438.0,
+              364.37
+            ]
+          ]
+        ],
+        "groundCenterSource": [
+          225.0,
+          364.415
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            12.0,
+            364.46
+          ],
+          [
+            438.0,
+            364.37
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            296,
+            411
+          ],
+          [
+            296,
+            417
+          ]
+        ],
+        "personnelDoorObservationNote": "Ordinary narrow entry on the shaded gable of the foremost wire hall, distinct from loading bays.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "099e1c50445dfbd4b620d08cc5a5e82e3600dfc21b415207a9d2e05d9fb90255"
+      "masterSha256": "cb5dc5455f707323fe1900b542cf8d829bdccbaadd34ea40355b9e4d0e3e7f6f"
     },
     {
       "id": "industry:goods-factory:taiga",
@@ -335,16 +392,16 @@
         "desert"
       ],
       "sourceBounds": [
-        418,
+        441,
         0,
-        836,
-        540
+        833,
+        479
       ],
       "sourceBoundsSheet": [
-        418,
+        441,
         0,
-        836,
-        540
+        833,
+        479
       ],
       "sourceNominalCellBoundsSheet": [
         418,
@@ -354,53 +411,53 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        540
+        392,
+        479
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          1,
-          53,
-          418,
-          540
+          0,
+          101,
+          392,
+          478
         ],
         "meaningfulAlphaBounds": [
-          17,
-          300,
-          402,
-          485
+          0,
+          273,
+          391,
+          473
         ],
-        "transparentFraction": 0.8036948431685274,
-        "nontransparentPixels": 47422,
-        "meaningfulPixels": 43522,
-        "fractionalAlphaPixels": 47213,
+        "transparentFraction": 0.7566251970516807,
+        "nontransparentPixels": 48573,
+        "meaningfulPixels": 44828,
+        "fractionalAlphaPixels": 48516,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
-          0.0,
+          0.020876826722338204,
           0.0
         ],
-        "minimumFilteringGutterPixels": 16
+        "minimumFilteringGutterPixels": 0
       },
       "masterAlpha": {
         "alphaBounds": [
-          10,
-          44,
-          245,
-          256
+          29,
+          55,
+          224,
+          240
         ],
         "meaningfulAlphaBounds": [
-          19,
-          133,
-          236,
+          31,
+          139,
+          222,
           238
         ],
-        "transparentFraction": 0.7834930419921875,
-        "nontransparentPixels": 15033,
-        "meaningfulPixels": 13883,
-        "fractionalAlphaPixels": 14786,
+        "transparentFraction": 0.8314208984375,
+        "nontransparentPixels": 11623,
+        "meaningfulPixels": 10831,
+        "fractionalAlphaPixels": 11476,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
@@ -411,9 +468,9 @@
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.12475006520038251,
+        "envelopeZeroAlphaFraction": 0.11101451795183866,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.15314384151593455,
+        "frontGroundZeroAlphaFraction": 0.20172265288544358,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -450,200 +507,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:goods-factory:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            441,
+            0,
+            833,
+            479
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              88,
-              348
+              [
+                38.0,
+                374.01
+              ],
+              [
+                233.0,
+                471.57
+              ]
             ],
             [
-              208,
-              404
-            ],
-            [
-              151,
-              435
-            ],
-            [
-              30,
-              380
+              [
+                231.0,
+                471.42
+              ],
+              [
+                407.0,
+                385.51
+              ]
             ]
           ],
           "groundCenterSource": [
-            211,
-            404
+            222.5,
+            379.76
           ],
-          "groundCenterMethod": "Centre of observed compound ground-plane extrema and hall footprints; crates/truck roofs excluded",
-          "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-          "groundCenterUncertaintySourcePixels": 10,
-          "sourceBoundsSheet": [
-            418,
-            0,
-            836,
-            540
-          ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-          "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-          "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-          "industrialWindowEndpointsSource": [
+          "visibleOppositeGroundVerticesSource": [
             [
-              290,
-              464
+              38.0,
+              374.01
             ],
             [
-              290,
-              473
+              407.0,
+              385.51
             ]
           ],
-          "industrialWindowHeightMasterObserved": 5.071095322351706
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              274,
+              419
+            ],
+            [
+              274,
+              424
+            ]
+          ],
+          "personnelDoorObservationNote": "Repainted narrow front personnel entry at the right end of the foremost goods hall; measured actual lintel to sill after the final wall-height correction.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            58.69503059452669,
-            160.44651799425606
+            [
+              37.58164468768501,
+              189.18208377752947
+            ],
+            [
+              133.14576005842443,
+              236.9935458060902
+            ]
           ],
           [
-            126.30963489254944,
-            192.0
-          ],
-          [
-            94.19269785098864,
-            209.46710611032253
-          ],
-          [
-            26.014638517149034,
-            178.47707914039543
+            [
+              132.1656152853912,
+              236.92003494811271
+            ],
+            [
+              218.418355312315,
+              194.81791622247053
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.4666666666666667,
-          -0.543859649122807,
-          0.45454545454545453,
-          -0.5517241379310345
+          0.5003076923076923,
+          -0.48812500000000014
         ],
-        "groundSlopeMaximumAbsoluteError": 0.051724137931034475,
+        "groundSlopeMaximumAbsoluteError": 0.011874999999999858,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.4503619325830623,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            153.23872790560554,
+            211.23044044691187
+          ],
+          [
+            153.23872790560554,
+            213.68080237949493
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.17956631721549254
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          211,
-          404
+          222.5,
+          379.76
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          9.11098744264335,
-          -35.63583447000991
+          18.958894000053732,
+          5.890110496451257
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          18.689723051529903,
-          133.40067627504695,
-          235.61991184101953,
-          237.63985790116533
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 18.36014209883467,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          30.230558889935818,
+          139.67987201548647,
+          221.84886201793128,
+          237.69434931880895
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 18.305650681191054,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 137,
-          "clippedSourceAlphaEnergy": 137,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          30.230558889935818,
           0,
-          0.5634550358168562,
-          -35.63583447000991
+          0.49007238651661245,
+          5.890110496451257
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -226.41321752880253,
+          -185.89136356389028,
           0,
-          0.5634550358168562,
-          -35.63583447000991
+          0.49007238651661245,
+          5.890110496451257
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          18.958894000053732,
           0,
-          0.5634550358168562,
-          -35.63583447000991
+          0.49007238651661245,
+          5.890110496451257
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:goods-factory:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          441,
+          0,
+          833,
+          479
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            88,
-            348
+            [
+              38.0,
+              374.01
+            ],
+            [
+              233.0,
+              471.57
+            ]
           ],
           [
-            208,
-            404
-          ],
-          [
-            151,
-            435
-          ],
-          [
-            30,
-            380
+            [
+              231.0,
+              471.42
+            ],
+            [
+              407.0,
+              385.51
+            ]
           ]
         ],
         "groundCenterSource": [
-          211,
-          404
+          222.5,
+          379.76
         ],
-        "groundCenterMethod": "Centre of observed compound ground-plane extrema and hall footprints; crates/truck roofs excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          418,
-          0,
-          836,
-          540
-        ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-        "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-        "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-        "industrialWindowEndpointsSource": [
+        "visibleOppositeGroundVerticesSource": [
           [
-            290,
-            464
+            38.0,
+            374.01
           ],
           [
-            290,
-            473
+            407.0,
+            385.51
           ]
         ],
-        "industrialWindowHeightMasterObserved": 5.071095322351706
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            274,
+            419
+          ],
+          [
+            274,
+            424
+          ]
+        ],
+        "personnelDoorObservationNote": "Repainted narrow front personnel entry at the right end of the foremost goods hall; measured actual lintel to sill after the final wall-height correction.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "b0a9be593987a087effe8da67cdab1171eec1e35c50accfab69c2486085b8314"
+      "masterSha256": "fae0ff8de32e5e27a4f4ab1d05cab8b8c819c3b282b573e6ab0414c77cf2e39a"
     },
     {
       "id": "industry:equipment-factory:taiga",
@@ -657,16 +747,16 @@
         "tundra"
       ],
       "sourceBounds": [
-        836,
+        833,
         0,
         1254,
-        540
+        479
       ],
       "sourceBoundsSheet": [
-        836,
+        833,
         0,
         1254,
-        540
+        479
       ],
       "sourceNominalCellBoundsSheet": [
         836,
@@ -676,66 +766,66 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        540
+        421,
+        479
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          1,
-          21,
-          403,
-          532
+          0,
+          174,
+          421,
+          479
         ],
         "meaningfulAlphaBounds": [
-          24,
-          307,
-          401,
-          497
+          2,
+          259,
+          410,
+          478
         ],
-        "transparentFraction": 0.7952108807371965,
-        "nontransparentPixels": 49159,
-        "meaningfulPixels": 45370,
-        "fractionalAlphaPixels": 48964,
+        "transparentFraction": 0.7488879742535667,
+        "nontransparentPixels": 53588,
+        "meaningfulPixels": 49698,
+        "fractionalAlphaPixels": 53526,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 17
+        "minimumFilteringGutterPixels": 1
       },
       "masterAlpha": {
         "alphaBounds": [
-          18,
-          46,
-          237,
-          256
+          27,
+          132,
+          235,
+          244
         ],
         "meaningfulAlphaBounds": [
-          23,
-          135,
-          235,
-          243
+          29,
+          134,
+          229,
+          242
         ],
-        "transparentFraction": 0.774017333984375,
-        "nontransparentPixels": 15580,
-        "meaningfulPixels": 14483,
-        "fractionalAlphaPixels": 15381,
+        "transparentFraction": 0.8131256103515625,
+        "nontransparentPixels": 12838,
+        "meaningfulPixels": 12004,
+        "fractionalAlphaPixels": 12650,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 13
+        "minimumFilteringGutterPixels": 14
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.06746066243588629,
+        "envelopeZeroAlphaFraction": 0.06824306702599323,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.026184323858742465,
+        "frontGroundZeroAlphaFraction": 0.11231696813092162,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -772,200 +862,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:equipment-factory:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            833,
+            0,
+            1254,
+            479
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              90,
-              350
+              [
+                -1.0,
+                369.24
+              ],
+              [
+                215.0,
+                476.14
+              ]
             ],
             [
-              213,
-              405
-            ],
-            [
-              153,
-              439
-            ],
-            [
-              30,
-              383
+              [
+                213.0,
+                476.09
+              ],
+              [
+                402.0,
+                384.33
+              ]
             ]
           ],
           "groundCenterSource": [
-            211,
-            407
+            200.5,
+            376.785
           ],
-          "groundCenterMethod": "Centre of observed hall/pavement ground footprint; crane beam, pipe stacks and roof peaks excluded",
-          "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-          "groundCenterUncertaintySourcePixels": 10,
-          "sourceBoundsSheet": [
-            836,
-            0,
-            1254,
-            540
-          ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-          "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-          "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-          "industrialWindowEndpointsSource": [
+          "visibleOppositeGroundVerticesSource": [
             [
-              289,
-              474
+              -1.0,
+              369.24
             ],
             [
-              289,
-              482
+              402.0,
+              384.33
             ]
           ],
-          "industrialWindowHeightMasterObserved": 4.5076402865348495
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              307,
+              407
+            ],
+            [
+              307,
+              413
+            ]
+          ],
+          "personnelDoorObservationNote": "Narrow personnel entry on shaded gable of the foremost equipment hall; broad material bays excluded.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            59.82194066616041,
-            159.88306295843918
+            [
+              29.250414116902594,
+              188.30240384373215
+            ],
+            [
+              135.10604960449086,
+              240.69114196235802
+            ]
           ],
           [
-            129.12691007163372,
-            190.87308992836628
-          ],
-          [
-            95.31960792262234,
-            210.0305611461394
-          ],
-          [
-            26.014638517149034,
-            178.47707914039546
+            [
+              134.12590483145766,
+              240.66663834303216
+            ],
+            [
+              226.74958588309738,
+              195.69759615626782
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.44715447154471544,
-          -0.5666666666666667,
-          0.45528455284552843,
-          -0.55
+          0.4949074074074073,
+          -0.48550264550264544
         ],
-        "groundSlopeMaximumAbsoluteError": 0.06666666666666665,
+        "groundSlopeMaximumAbsoluteError": 0.014497354497354564,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.9404343190996745,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            180.19270916401922,
+            206.80753715859942
+          ],
+          [
+            180.19270916401922,
+            209.7479714776991
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.015479580658591188
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          211,
-          407
+          200.5,
+          376.785
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          9.11098744264335,
-          -37.32619957746047
+          29.740486503419206,
+          7.348075846338162
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          22.633908302247896,
-          135.65449641831438,
-          235.05645680520269,
-          242.71095322351707
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 13.289046776482934,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          29.250414116902594,
+          134.27682395414078,
+          229.19994781568047,
+          241.60267660127892
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 14.397323398721085,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 114,
-          "clippedSourceAlphaEnergy": 114,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          28.27026934386937,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          7.348075846338162
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -461.93742250024843,
+          -379.9600286244688,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          7.348075846338162
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          29.740486503419206,
           0,
-          0.5634550358168562,
-          -37.32619957746047
+          0.49007238651661245,
+          7.348075846338162
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:equipment-factory:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          833,
+          0,
+          1254,
+          479
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            90,
-            350
+            [
+              -1.0,
+              369.24
+            ],
+            [
+              215.0,
+              476.14
+            ]
           ],
           [
-            213,
-            405
-          ],
-          [
-            153,
-            439
-          ],
-          [
-            30,
-            383
+            [
+              213.0,
+              476.09
+            ],
+            [
+              402.0,
+              384.33
+            ]
           ]
         ],
         "groundCenterSource": [
-          211,
-          407
+          200.5,
+          376.785
         ],
-        "groundCenterMethod": "Centre of observed hall/pavement ground footprint; crane beam, pipe stacks and roof peaks excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          836,
-          0,
-          1254,
-          540
-        ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-        "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-        "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-        "industrialWindowEndpointsSource": [
+        "visibleOppositeGroundVerticesSource": [
           [
-            289,
-            474
+            -1.0,
+            369.24
           ],
           [
-            289,
-            482
+            402.0,
+            384.33
           ]
         ],
-        "industrialWindowHeightMasterObserved": 4.5076402865348495
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            307,
+            407
+          ],
+          [
+            307,
+            413
+          ]
+        ],
+        "personnelDoorObservationNote": "Narrow personnel entry on shaded gable of the foremost equipment hall; broad material bays excluded.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "6f80a1e17acfe1e950444f7ad3b327b25905354df447823ca5ce04c0d9ab7472"
+      "masterSha256": "090a7c57b04b39f8740b3390f11d508081a79ece67e70d94a607a9cf11a632ad"
     },
     {
       "id": "industry:dairy-farm:taiga",
@@ -982,15 +1105,15 @@
       ],
       "sourceBounds": [
         0,
-        540,
-        418,
-        935
+        479,
+        421,
+        836
       ],
       "sourceBoundsSheet": [
         0,
-        540,
-        418,
-        935
+        479,
+        421,
+        836
       ],
       "sourceNominalCellBoundsSheet": [
         0,
@@ -1000,53 +1123,28 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        395
+        421,
+        357
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
           0,
-          0,
-          418,
-          395
+          8,
+          421,
+          357
         ],
         "meaningfulAlphaBounds": [
-          15,
-          106,
-          397,
-          328
+          4,
+          112,
+          420,
+          339
         ],
-        "transparentFraction": 0.7722911998061898,
-        "nontransparentPixels": 46837,
-        "meaningfulPixels": 34626,
-        "fractionalAlphaPixels": 46707,
-        "edgeMeaningfulFractions": [
-          0.0,
-          0.0,
-          0.0,
-          0.0
-        ],
-        "minimumFilteringGutterPixels": 15
-      },
-      "masterAlpha": {
-        "alphaBounds": [
-          19,
-          69,
-          248,
-          256
-        ],
-        "meaningfulAlphaBounds": [
-          21,
-          129,
-          236,
-          255
-        ],
-        "transparentFraction": 0.816314697265625,
-        "nontransparentPixels": 14657,
-        "meaningfulPixels": 11123,
-        "fractionalAlphaPixels": 14452,
+        "transparentFraction": 0.6591615268435165,
+        "nontransparentPixels": 54980,
+        "meaningfulPixels": 50114,
+        "fractionalAlphaPixels": 54942,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
@@ -1055,11 +1153,36 @@
         ],
         "minimumFilteringGutterPixels": 1
       },
+      "masterAlpha": {
+        "alphaBounds": [
+          24,
+          93,
+          233,
+          252
+        ],
+        "meaningfulAlphaBounds": [
+          26,
+          136,
+          231,
+          247
+        ],
+        "transparentFraction": 0.811248779296875,
+        "nontransparentPixels": 13081,
+        "meaningfulPixels": 12119,
+        "fractionalAlphaPixels": 12967,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.14813526906024516,
+        "envelopeZeroAlphaFraction": 0.009562722767973573,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.25254091300602927,
+        "frontGroundZeroAlphaFraction": 0.01619293712316968,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1096,176 +1219,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:dairy-farm:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            0,
+            479,
+            421,
+            836
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              205,
-              241
+              [
+                3.0,
+                283.03
+              ],
+              [
+                210.0,
+                399.54
+              ]
             ],
             [
-              391,
-              336
-            ],
-            [
-              204,
-              444
-            ],
-            [
-              18,
-              343
+              [
+                209.0,
+                398.65
+              ],
+              [
+                418.0,
+                292.56
+              ]
             ]
           ],
           "groundCenterSource": [
-            204.5,
-            339.5
+            210.5,
+            287.795
           ],
-          "groundCenterMethod": "Midpoint of the observed opposite left/right fence-post feet; front post foot checks the inferred back ground corner; fence tops excluded",
-          "groundVertexLandmarks": "Outer farm fence footprint at post feet; rear corner behind barn inferred from observed fence directions",
-          "groundCenterUncertaintySourcePixels": 3,
-          "sourceBoundsSheet": [
-            0,
-            540,
-            418,
-            935
+          "visibleOppositeGroundVerticesSource": [
+            [
+              3.0,
+              283.03
+            ],
+            [
+              418.0,
+              292.56
+            ]
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "Stable entrances are broad animal/service bays; no separate unobscured personnel entrance",
-          "reviewNotes": "Fence posts are approximately 14\u201315 source px tall, versus about 2.79px for a 1.2m fence; lower registered filtering gutter is insufficient at the true measured ground centre."
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              179,
+              225
+            ],
+            [
+              179,
+              232
+            ]
+          ],
+          "personnelDoorObservationNote": "Left narrow personnel entry on the dairy barn front; measured actual opening lintel to threshold.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            128.28172751790842,
-            136.49967897203967
+            [
+              26.309979797802914,
+              189.66480507824832
+            ],
+            [
+              127.75496380674169,
+              246.76313883129885
+            ]
           ],
           [
-            233.08436417984367,
-            190.027907374641
-          ],
-          [
-            127.71827248209156,
-            250.88105124286147
-          ],
-          [
-            22.915635820156318,
-            193.97209262535898
+            [
+              127.26489142022508,
+              246.32697440729905
+            ],
+            [
+              229.6900202021971,
+              194.33519492175165
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.510752688172043,
-          -0.5775401069518716,
-          0.543010752688172,
-          -0.5454545454545454
+          0.5628502415458939,
+          -0.5076076555023922
         ],
-        "groundSlopeMaximumAbsoluteError": 0.07754010695187163,
+        "groundSlopeMaximumAbsoluteError": 0.06285024154589391,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.430506705616287,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            112.5627198247267,
+            161.2259044886893
+          ],
+          [
+            112.5627198247267,
+            164.65641119430558
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.14860715589831033
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          204.5,
-          339.5
+          210.5,
+          287.795
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          12.773445175452906,
-          0.7070153401773211
+          24.839762638253077,
+          50.95961752245151
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          21.22527071270575,
-          129.17476350642053,
-          236.46509439474482,
-          254.2617814577626
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 1.738218542237405,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          26.800052184319526,
+          135.74214038982547,
+          230.6701649752303,
+          246.9885721290965
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.011427870903503,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 233,
-          "clippedSourceAlphaEnergy": 233,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          12.773445175452906,
+          24.839762638253077,
           0,
-          0.5634550358168562,
-          69.44852970983378
+          0.49007238651661245,
+          80.85403309996487
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          12.773445175452906,
+          24.839762638253077,
           0,
-          0.5634550358168562,
-          -234.81718963126858
+          0.49007238651661245,
+          -153.8906400414925
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          12.773445175452906,
+          24.839762638253077,
           0,
-          0.5634550358168562,
-          0.7070153401773211
+          0.49007238651661245,
+          50.95961752245151
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:dairy-farm:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          0,
+          479,
+          421,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            205,
-            241
+            [
+              3.0,
+              283.03
+            ],
+            [
+              210.0,
+              399.54
+            ]
           ],
           [
-            391,
-            336
-          ],
-          [
-            204,
-            444
-          ],
-          [
-            18,
-            343
+            [
+              209.0,
+              398.65
+            ],
+            [
+              418.0,
+              292.56
+            ]
           ]
         ],
         "groundCenterSource": [
-          204.5,
-          339.5
+          210.5,
+          287.795
         ],
-        "groundCenterMethod": "Midpoint of the observed opposite left/right fence-post feet; front post foot checks the inferred back ground corner; fence tops excluded",
-        "groundVertexLandmarks": "Outer farm fence footprint at post feet; rear corner behind barn inferred from observed fence directions",
-        "groundCenterUncertaintySourcePixels": 3,
-        "sourceBoundsSheet": [
-          0,
-          540,
-          418,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            3.0,
+            283.03
+          ],
+          [
+            418.0,
+            292.56
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Stable entrances are broad animal/service bays; no separate unobscured personnel entrance",
-        "reviewNotes": "Fence posts are approximately 14\u201315 source px tall, versus about 2.79px for a 1.2m fence; lower registered filtering gutter is insufficient at the true measured ground centre."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            179,
+            225
+          ],
+          [
+            179,
+            232
+          ]
+        ],
+        "personnelDoorObservationNote": "Left narrow personnel entry on the dairy barn front; measured actual opening lintel to threshold.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "dc362b63147f1102943067aa7ceefb5af3a8338810f1fc667028e350ab38cc2d"
+      "masterSha256": "59862d76613e93fc7bd5b155703c91d5abf4f1905a4ac1266b1ddde82acf58e0"
     },
     {
       "id": "industry:vegetable-farm:taiga",
@@ -1281,16 +1461,16 @@
         "desert"
       ],
       "sourceBounds": [
-        418,
-        540,
-        836,
-        935
+        421,
+        479,
+        838,
+        836
       ],
       "sourceBoundsSheet": [
-        418,
-        540,
-        836,
-        935
+        421,
+        479,
+        838,
+        836
       ],
       "sourceNominalCellBoundsSheet": [
         418,
@@ -1300,53 +1480,53 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        395
+        417,
+        357
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          1,
           0,
-          418,
-          387
+          4,
+          417,
+          348
         ],
         "meaningfulAlphaBounds": [
-          15,
-          109,
-          404,
-          328
+          7,
+          113,
+          416,
+          346
         ],
-        "transparentFraction": 0.7143782932590395,
-        "nontransparentPixels": 50691,
-        "meaningfulPixels": 46133,
-        "fractionalAlphaPixels": 50618,
+        "transparentFraction": 0.6545956512101243,
+        "nontransparentPixels": 55227,
+        "meaningfulPixels": 50337,
+        "fractionalAlphaPixels": 55201,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 14
+        "minimumFilteringGutterPixels": 1
       },
       "masterAlpha": {
         "alphaBounds": [
-          11,
-          62,
-          246,
-          256
+          24,
+          81,
+          231,
+          249
         ],
         "meaningfulAlphaBounds": [
-          19,
-          123,
-          239,
+          28,
+          133,
+          229,
           247
         ],
-        "transparentFraction": 0.7698211669921875,
-        "nontransparentPixels": 16075,
-        "meaningfulPixels": 14725,
-        "fractionalAlphaPixels": 15844,
+        "transparentFraction": 0.8105621337890625,
+        "nontransparentPixels": 13155,
+        "meaningfulPixels": 12181,
+        "fractionalAlphaPixels": 13045,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
@@ -1357,9 +1537,9 @@
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.012779274971746501,
+        "envelopeZeroAlphaFraction": 0.009736590454664,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.025322997416020673,
+        "frontGroundZeroAlphaFraction": 0.01757105943152455,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1396,69 +1576,80 @@
         "status": "measured",
         "measurement": {
           "id": "industry:vegetable-farm:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            421,
+            479,
+            838,
+            836
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              205,
-              253
+              [
+                10.0,
+                289.35
+              ],
+              [
+                216.0,
+                405.92
+              ]
             ],
             [
-              398,
-              355
-            ],
-            [
-              203,
-              445
-            ],
-            [
-              18,
-              350
+              [
+                216.0,
+                405.15
+              ],
+              [
+                417.0,
+                298.57
+              ]
             ]
           ],
           "groundCenterSource": [
-            208,
-            352.5
+            213.5,
+            293.96
           ],
-          "groundCenterMethod": "Midpoint of observed opposite garden fence/greenhouse ground corners, checked against front crop-bed ground endpoint; fence tops excluded",
-          "groundVertexLandmarks": "Working garden parcel at fence-post feet; right corner partly behind greenhouse",
-          "groundCenterUncertaintySourcePixels": 4,
-          "sourceBoundsSheet": [
-            418,
-            540,
-            836,
-            935
+          "visibleOppositeGroundVerticesSource": [
+            [
+              10.0,
+              289.35
+            ],
+            [
+              417.0,
+              298.57
+            ]
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
           "personnelDoorObservable": false,
-          "personnelDoorNotes": "Only broad barn equipment openings are visible; no separate narrow entrance has observable lintel and ground endpoints",
-          "reviewNotes": "Crop beds and greenhouse extend to the parcel perimeter, unlike the intended narrow-setback envelope."
+          "personnelDoorObservationNote": "The produce shed has a broad equipment/produce entry and the greenhouse has a large glass opening; no unambiguous ordinary personnel entry is visible. No door dimension is inferred from expected scale."
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            126.30963489254943,
-            135.93622393622283
+            [
+              28.27026934386937,
+              189.74076629815843
+            ],
+            [
+              129.22518096629153,
+              246.86850439439993
+            ]
           ],
           [
-            235.05645680520269,
-            193.40863758954217
-          ],
-          [
-            125.18272482091571,
-            244.1195908130592
-          ],
-          [
-            20.94354319479732,
-            190.59136241045786
+            [
+              129.22518096629153,
+              246.49114865678214
+            ],
+            [
+              227.72973065613064,
+              194.2592337018416
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5284974093264249,
-          -0.46153846153846156,
-          0.5135135135135135,
-          -0.5187165775401069
+          0.565873786407767,
+          -0.5302487562189054
         ],
-        "groundSlopeMaximumAbsoluteError": 0.038461538461538436,
+        "groundSlopeMaximumAbsoluteError": 0.06587378640776698,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -1471,101 +1662,115 @@
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          208,
-          352.5
+          213.5,
+          293.96
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          10.80135255009391,
-          -6.617900125441793
+          23.369545478703245,
+          47.93832125957661
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          19.253178087346754,
-          123.54021314825198,
-          238.4371870201038,
-          246.9368659921435
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 9.06313400785649,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          28.27026934386937,
+          133.21091651346717,
+          228.70987542916387,
+          247.39778257183787
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 8.602217428162135,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 17,
-          "clippedSourceAlphaEnergy": 17,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          10.80135255009391,
+          24.83976263825308,
           0,
-          0.5634550358168562,
-          62.123614244214664
+          0.49007238651661245,
+          77.83273683708997
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -224.722852421352,
+          -181.48071208524078,
           0,
-          0.5634550358168562,
-          -242.1421050968877
+          0.49007238651661245,
+          -156.9119363043674
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          10.80135255009391,
+          23.369545478703245,
           0,
-          0.5634550358168562,
-          -6.617900125441793
+          0.49007238651661245,
+          47.93832125957661
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:vegetable-farm:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          421,
+          479,
+          838,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            205,
-            253
+            [
+              10.0,
+              289.35
+            ],
+            [
+              216.0,
+              405.92
+            ]
           ],
           [
-            398,
-            355
-          ],
-          [
-            203,
-            445
-          ],
-          [
-            18,
-            350
+            [
+              216.0,
+              405.15
+            ],
+            [
+              417.0,
+              298.57
+            ]
           ]
         ],
         "groundCenterSource": [
-          208,
-          352.5
+          213.5,
+          293.96
         ],
-        "groundCenterMethod": "Midpoint of observed opposite garden fence/greenhouse ground corners, checked against front crop-bed ground endpoint; fence tops excluded",
-        "groundVertexLandmarks": "Working garden parcel at fence-post feet; right corner partly behind greenhouse",
-        "groundCenterUncertaintySourcePixels": 4,
-        "sourceBoundsSheet": [
-          418,
-          540,
-          836,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            10.0,
+            289.35
+          ],
+          [
+            417.0,
+            298.57
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
         "personnelDoorObservable": false,
-        "personnelDoorNotes": "Only broad barn equipment openings are visible; no separate narrow entrance has observable lintel and ground endpoints",
-        "reviewNotes": "Crop beds and greenhouse extend to the parcel perimeter, unlike the intended narrow-setback envelope."
+        "personnelDoorObservationNote": "The produce shed has a broad equipment/produce entry and the greenhouse has a large glass opening; no unambiguous ordinary personnel entry is visible. No door dimension is inferred from expected scale."
       },
-      "masterSha256": "4a0df06a23101b671cc07fb636bb791742bda19bb73ba7f944e83d440bfaf378"
+      "masterSha256": "076e54f1b5565b349cff1fef9f1485378282ece82d167cae63f258b03c9cd17e"
     },
     {
       "id": "industry:orchard:taiga",
@@ -1581,16 +1786,16 @@
         "desert"
       ],
       "sourceBounds": [
-        836,
-        540,
+        838,
+        479,
         1254,
-        935
+        836
       ],
       "sourceBoundsSheet": [
-        836,
-        540,
+        838,
+        479,
         1254,
-        935
+        836
       ],
       "sourceNominalCellBoundsSheet": [
         836,
@@ -1600,66 +1805,66 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        395
+        416,
+        357
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
           0,
-          10,
-          408,
-          391
+          0,
+          416,
+          345
         ],
         "meaningfulAlphaBounds": [
-          19,
-          108,
-          404,
-          335
+          4,
+          113,
+          413,
+          343
         ],
-        "transparentFraction": 0.7110532372357822,
-        "nontransparentPixels": 51632,
-        "meaningfulPixels": 46253,
-        "fractionalAlphaPixels": 51553,
+        "transparentFraction": 0.6582363714716656,
+        "nontransparentPixels": 54210,
+        "meaningfulPixels": 49805,
+        "fractionalAlphaPixels": 54175,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 14
+        "minimumFilteringGutterPixels": 3
       },
       "masterAlpha": {
         "alphaBounds": [
-          11,
-          72,
-          240,
-          256
+          26,
+          79,
+          231,
+          250
         ],
         "meaningfulAlphaBounds": [
-          21,
-          124,
-          238,
-          252
+          28,
+          135,
+          229,
+          248
         ],
-        "transparentFraction": 0.7681121826171875,
-        "nontransparentPixels": 16267,
-        "meaningfulPixels": 14749,
-        "fractionalAlphaPixels": 16128,
+        "transparentFraction": 0.81268310546875,
+        "nontransparentPixels": 12960,
+        "meaningfulPixels": 12044,
+        "fractionalAlphaPixels": 12833,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 4
+        "minimumFilteringGutterPixels": 8
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.006954707467617143,
+        "envelopeZeroAlphaFraction": 0.010432061201425716,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.012747631352282515,
+        "frontGroundZeroAlphaFraction": 0.018776916451335057,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1696,176 +1901,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:orchard:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            838,
+            479,
+            1254,
+            836
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              214,
-              246
+              [
+                5.0,
+                286.97
+              ],
+              [
+                209.0,
+                402.65
+              ]
             ],
             [
-              397,
-              349
-            ],
-            [
-              212,
-              447
-            ],
-            [
-              21,
-              352
+              [
+                210.0,
+                403.34
+              ],
+              [
+                413.0,
+                293.49
+              ]
             ]
           ],
           "groundCenterSource": [
-            209,
-            350.5
+            209.0,
+            290.23
           ],
-          "groundCenterMethod": "Midpoint of observed opposite left/right orchard fence-post feet; rear corner inferred from visible fence runs behind barn",
-          "groundVertexLandmarks": "Orchard outer fence footprint at post feet",
-          "groundCenterUncertaintySourcePixels": 3,
-          "sourceBoundsSheet": [
-            836,
-            540,
-            1254,
-            935
+          "visibleOppositeGroundVerticesSource": [
+            [
+              5.0,
+              286.97
+            ],
+            [
+              413.0,
+              293.49
+            ]
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "Barn face is mostly occupied by the broad service bay and foliage; no distinct personnel doorway",
-          "reviewNotes": "Observed fence posts are around 12\u201314px tall; source should reduce fence height at fixed sheet density."
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              188,
+              226
+            ],
+            [
+              188,
+              232
+            ]
+          ],
+          "personnelDoorObservationNote": "Left narrow personnel entry on the orchard packing shed front; source pixels measured excluding shadow.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            130.81727517908428,
-            133.11894875713853
+            [
+              28.025233150611058,
+              190.40236401995585
+            ],
+            [
+              128.0,
+              247.09393769219756
+            ]
           ],
           [
-            233.92954673356897,
-            191.1548174462747
-          ],
-          [
-            129.69036510745056,
-            246.3734109563266
-          ],
-          [
-            22.07045326643103,
-            192.84518255372527
+            [
+              128.4900723865166,
+              247.43208763889402
+            ],
+            [
+              227.97476684938894,
+              193.59763598004415
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5628415300546448,
-          -0.5297297297297298,
-          0.4973821989528796,
-          -0.5492227979274611
+          0.5670588235294115,
+          -0.5411330049261082
         ],
-        "groundSlopeMaximumAbsoluteError": 0.06284153005464477,
+        "groundSlopeMaximumAbsoluteError": 0.0670588235294115,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.9404343190996745,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            117.70847988315113,
+            160.52265061403796
+          ],
+          [
+            117.70847988315113,
+            163.46308493313762
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.015479580658591188
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          209,
-          350.5
+          209.0,
+          290.23
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          10.237897514277051,
-          -5.490990053808105
+          25.574871218027994,
+          49.766291261283556
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          20.94354319479732,
-          124.10366818406882,
-          237.87373198428696,
-          252.00796131449516
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 3.9920386855048378,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          28.515305537127666,
+          135.0388865151741,
+          228.95491162242217,
+          247.755535413995
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 8.244464586004995,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 151,
-          "clippedSourceAlphaEnergy": 151,
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          10.237897514277051,
+          26.555015991061218,
           0,
-          0.5634550358168562,
-          63.25052431584835
+          0.49007238651661245,
+          79.66070683879691
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -460.81051242861474,
+          -384.12564390986006,
           0,
-          0.5634550358168562,
-          -241.015195025254
+          0.49007238651661245,
+          -155.08396630266046
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          10.237897514277051,
+          25.574871218027994,
           0,
-          0.5634550358168562,
-          -5.490990053808105
+          0.49007238651661245,
+          49.766291261283556
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:orchard:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          838,
+          479,
+          1254,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            214,
-            246
+            [
+              5.0,
+              286.97
+            ],
+            [
+              209.0,
+              402.65
+            ]
           ],
           [
-            397,
-            349
-          ],
-          [
-            212,
-            447
-          ],
-          [
-            21,
-            352
+            [
+              210.0,
+              403.34
+            ],
+            [
+              413.0,
+              293.49
+            ]
           ]
         ],
         "groundCenterSource": [
-          209,
-          350.5
+          209.0,
+          290.23
         ],
-        "groundCenterMethod": "Midpoint of observed opposite left/right orchard fence-post feet; rear corner inferred from visible fence runs behind barn",
-        "groundVertexLandmarks": "Orchard outer fence footprint at post feet",
-        "groundCenterUncertaintySourcePixels": 3,
-        "sourceBoundsSheet": [
-          836,
-          540,
-          1254,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            5.0,
+            286.97
+          ],
+          [
+            413.0,
+            293.49
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Barn face is mostly occupied by the broad service bay and foliage; no distinct personnel doorway",
-        "reviewNotes": "Observed fence posts are around 12\u201314px tall; source should reduce fence height at fixed sheet density."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            188,
+            226
+          ],
+          [
+            188,
+            232
+          ]
+        ],
+        "personnelDoorObservationNote": "Left narrow personnel entry on the orchard packing shed front; source pixels measured excluding shadow.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "0575283a98956e1446119e3e345e3f7b267d182856be94b7bc23250400074d1e"
+      "masterSha256": "74b31d259f1638fc5f16c5d12bbb54162a17384c55e3241c418ab992d434f141"
     },
     {
       "id": "industry:livestock-farm:taiga",
@@ -1882,13 +2144,13 @@
       ],
       "sourceBounds": [
         0,
-        935,
+        836,
         418,
         1254
       ],
       "sourceBoundsSheet": [
         0,
-        935,
+        836,
         418,
         1254
       ],
@@ -1901,65 +2163,65 @@
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
         418,
-        319
+        418
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
           0,
-          0,
+          1,
           418,
-          319
+          370
         ],
         "meaningfulAlphaBounds": [
-          17,
-          74,
-          390,
-          295
+          11,
+          104,
+          411,
+          325
         ],
-        "transparentFraction": 0.7495912765670232,
-        "nontransparentPixels": 44385,
-        "meaningfulPixels": 30576,
-        "fractionalAlphaPixels": 44253,
+        "transparentFraction": 0.7307925642727959,
+        "nontransparentPixels": 50985,
+        "meaningfulPixels": 46234,
+        "fractionalAlphaPixels": 50944,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 17
+        "minimumFilteringGutterPixels": 7
       },
       "masterAlpha": {
         "alphaBounds": [
-          14,
-          85,
-          250,
-          254
+          25,
+          95,
+          230,
+          256
         ],
         "meaningfulAlphaBounds": [
-          24,
-          127,
-          234,
-          252
+          30,
+          137,
+          226,
+          245
         ],
-        "transparentFraction": 0.835235595703125,
-        "nontransparentPixels": 13892,
-        "meaningfulPixels": 9864,
-        "fractionalAlphaPixels": 13708,
+        "transparentFraction": 0.8260650634765625,
+        "nontransparentPixels": 12102,
+        "meaningfulPixels": 11182,
+        "fractionalAlphaPixels": 12013,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 4
+        "minimumFilteringGutterPixels": 11
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.16108841171868207,
+        "envelopeZeroAlphaFraction": 0.03720768495175172,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.1937984496124031,
+        "frontGroundZeroAlphaFraction": 0.05857019810508183,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -1996,69 +2258,80 @@
         "status": "measured",
         "measurement": {
           "id": "industry:livestock-farm:taiga",
-          "groundVerticesSource": [
-            [
-              207,
-              186
-            ],
-            [
-              381,
-              292
-            ],
-            [
-              206,
-              387
-            ],
-            [
-              23,
-              286
-            ]
-          ],
-          "groundCenterSource": [
-            202,
-            289
-          ],
-          "groundCenterMethod": "Midpoint of opposite observed pasture fence-post feet, checked against front post foot; roof peaks and cattle silhouettes excluded",
-          "groundVertexLandmarks": "Livestock pasture outer fence ground footprint, hidden back corner inferred from visible runs",
-          "groundCenterUncertaintySourcePixels": 3,
           "sourceBoundsSheet": [
             0,
-            935,
+            836,
             418,
             1254
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                11.0,
+                211.11
+              ],
+              [
+                208.0,
+                323.86
+              ]
+            ],
+            [
+              [
+                208.0,
+                324.18
+              ],
+              [
+                408.0,
+                223.43
+              ]
+            ]
+          ],
+          "groundCenterSource": [
+            209.5,
+            217.27
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              11.0,
+              211.11
+            ],
+            [
+              408.0,
+              223.43
+            ]
+          ],
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
           "personnelDoorObservable": false,
-          "personnelDoorNotes": "Barn entrance is a wide animal/service opening; no narrow personnel entrance is separately visible",
-          "reviewNotes": "Visible pasture fence posts are about 11 source px tall, well above the 1.2m fence target."
+          "personnelDoorObservationNote": "The stable has a broad livestock entry; a separate ordinary personnel entry is not visible. No door dimension is inferred from expected scale."
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            130.81727517908428,
-            133.96413131086382
+            [
+              30.72063127645243,
+              188.98115409905768
+            ],
+            [
+              127.26489142022508,
+              244.23681567880573
+            ]
           ],
           [
-            228.85845141121726,
-            193.69036510745056
-          ],
-          [
-            130.25382014326743,
-            247.2185935100519
-          ],
-          [
-            27.141548588782737,
-            190.30963489254944
+            [
+              127.26489142022508,
+              244.39363884249104
+            ],
+            [
+              225.27936872354758,
+              195.01884590094232
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.6091954022988506,
-          -0.5428571428571428,
-          0.5519125683060109,
-          -0.5434782608695652
+          0.5723350253807107,
+          -0.50375
         ],
-        "groundSlopeMaximumAbsoluteError": 0.10919540229885061,
+        "groundSlopeMaximumAbsoluteError": 0.07233502538071068,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -2071,101 +2344,115 @@
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          202,
-          289
+          209.5,
+          217.27
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          14.182082764995044,
-          29.161494648928567
+          25.329835024769693,
+          85.5219725815356
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          23.760818373881598,
-          126.63921584524468,
-          233.92954673356897,
-          251.16277876076992
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 4.837221239230075,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          30.72063127645243,
+          136.4895007792633,
+          226.7495858830974,
+          244.79549819943466
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 11.204501800565339,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 12,
-          "clippedSourceAlphaEnergy": 12,
+          "clippedSourcePixels": 57,
+          "clippedSourceAlphaEnergy": 57,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          14.182082764995044,
+          25.329835024769693,
           0,
-          0.5634550358168562,
-          84.94354319479733
+          0.49007238651661245,
+          85.5219725815356
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          14.182082764995044,
+          25.329835024769693,
           0,
-          0.5634550358168562,
-          -441.8869152939632
+          0.49007238651661245,
+          -324.17854254635245
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          14.182082764995044,
+          25.329835024769693,
           0,
-          0.5634550358168562,
-          29.161494648928567
+          0.49007238651661245,
+          85.5219725815356
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:livestock-farm:taiga",
-        "groundVerticesSource": [
-          [
-            207,
-            186
-          ],
-          [
-            381,
-            292
-          ],
-          [
-            206,
-            387
-          ],
-          [
-            23,
-            286
-          ]
-        ],
-        "groundCenterSource": [
-          202,
-          289
-        ],
-        "groundCenterMethod": "Midpoint of opposite observed pasture fence-post feet, checked against front post foot; roof peaks and cattle silhouettes excluded",
-        "groundVertexLandmarks": "Livestock pasture outer fence ground footprint, hidden back corner inferred from visible runs",
-        "groundCenterUncertaintySourcePixels": 3,
         "sourceBoundsSheet": [
           0,
-          935,
+          836,
           418,
           1254
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              11.0,
+              211.11
+            ],
+            [
+              208.0,
+              323.86
+            ]
+          ],
+          [
+            [
+              208.0,
+              324.18
+            ],
+            [
+              408.0,
+              223.43
+            ]
+          ]
+        ],
+        "groundCenterSource": [
+          209.5,
+          217.27
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            11.0,
+            211.11
+          ],
+          [
+            408.0,
+            223.43
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
         "personnelDoorObservable": false,
-        "personnelDoorNotes": "Barn entrance is a wide animal/service opening; no narrow personnel entrance is separately visible",
-        "reviewNotes": "Visible pasture fence posts are about 11 source px tall, well above the 1.2m fence target."
+        "personnelDoorObservationNote": "The stable has a broad livestock entry; a separate ordinary personnel entry is not visible. No door dimension is inferred from expected scale."
       },
-      "masterSha256": "8b42cb04b0d0fc66201b4d699827ee3c68fa821b2df8789012788f96b25fccd4"
+      "masterSha256": "925f7d815b0c60da1c83be640c7fcb9cb2b7ad5305c4dcd802bcb3fe23a74e8d"
     },
     {
       "id": "industry:dairy-plant:taiga",
@@ -2182,14 +2469,14 @@
       ],
       "sourceBounds": [
         418,
-        935,
         836,
+        833,
         1254
       ],
       "sourceBoundsSheet": [
         418,
-        935,
         836,
+        833,
         1254
       ],
       "sourceNominalCellBoundsSheet": [
@@ -2200,66 +2487,66 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        319
+        415,
+        418
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          1,
           0,
-          418,
-          319
+          33,
+          415,
+          398
         ],
         "meaningfulAlphaBounds": [
-          17,
-          77,
-          401,
-          284
+          4,
+          114,
+          411,
+          332
         ],
-        "transparentFraction": 0.6218595791273567,
-        "nontransparentPixels": 54399,
-        "meaningfulPixels": 49127,
-        "fractionalAlphaPixels": 54282,
+        "transparentFraction": 0.7011010549374531,
+        "nontransparentPixels": 55151,
+        "meaningfulPixels": 50949,
+        "fractionalAlphaPixels": 55103,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 17
+        "minimumFilteringGutterPixels": 4
       },
       "masterAlpha": {
         "alphaBounds": [
-          10,
-          79,
-          243,
-          253
+          31,
+          96,
+          235,
+          246
         ],
         "meaningfulAlphaBounds": [
-          19,
-          123,
-          236,
-          240
+          33,
+          136,
+          233,
+          242
         ],
-        "transparentFraction": 0.7543487548828125,
-        "nontransparentPixels": 17187,
-        "meaningfulPixels": 15673,
-        "fractionalAlphaPixels": 16938,
+        "transparentFraction": 0.8084716796875,
+        "nontransparentPixels": 13158,
+        "meaningfulPixels": 12307,
+        "fractionalAlphaPixels": 13005,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 16
+        "minimumFilteringGutterPixels": 14
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.08050073893766843,
+        "envelopeZeroAlphaFraction": 0.0851082326349648,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.13006029285099052,
+        "frontGroundZeroAlphaFraction": 0.15710594315245477,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -2296,176 +2583,233 @@
         "status": "measured",
         "measurement": {
           "id": "industry:dairy-plant:taiga",
-          "groundVerticesSource": [
+          "sourceBoundsSheet": [
+            418,
+            836,
+            833,
+            1254
+          ],
+          "groundEdgeSegmentsSource": [
             [
-              88,
-              240
+              [
+                5.0,
+                212.4
+              ],
+              [
+                217.0,
+                330.23
+              ]
             ],
             [
-              208,
-              290
-            ],
-            [
-              150,
-              323
-            ],
-            [
-              30,
-              268
+              [
+                215.0,
+                330.7
+              ],
+              [
+                391.0,
+                245.21
+              ]
             ]
           ],
           "groundCenterSource": [
-            210,
-            299
+            198.0,
+            228.805
           ],
-          "groundCenterMethod": "Centre of observed paved compound footprint and hall base geometry; silo tops, truck bodies and crate silhouettes excluded",
-          "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-          "groundCenterUncertaintySourcePixels": 10,
-          "sourceBoundsSheet": [
-            418,
-            935,
-            836,
-            1254
+          "visibleOppositeGroundVerticesSource": [
+            [
+              5.0,
+              212.4
+            ],
+            [
+              391.0,
+              245.21
+            ]
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "16x endpoint review of the edited green mark at x174,y309\u2013321: lower part is blocked by crates and equipment, so its ground endpoint cannot be observed. Broad loading bays are separate and are not measured as personnel doors.",
-          "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              255,
+              274
+            ],
+            [
+              255,
+              281
+            ]
+          ],
+          "personnelDoorObservationNote": "Repainted narrow personnel entry at front-right end of the foremost dairy hall; measured source lintel to threshold after wall-height correction.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            59.25848563034355,
-            158.7561528868055
+            [
+              33.4160294022938,
+              183.96036249919496
+            ],
+            [
+              137.31137534381566,
+              241.70559180244743
+            ]
           ],
           [
-            126.8730899283663,
-            186.92890467764832
-          ],
-          [
-            94.19269785098864,
-            205.52292085960457
-          ],
-          [
-            26.578093552965893,
-            174.53289388967747
+            [
+              136.3312305707824,
+              241.9359258241102
+            ],
+            [
+              222.58397059770618,
+              200.03963750080504
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.4166666666666667,
-          -0.5689655172413793,
-          0.4583333333333333,
-          -0.4827586206896552
+          0.5558018867924529,
+          -0.48573863636363623
         ],
-        "groundSlopeMaximumAbsoluteError": 0.08333333333333331,
+        "groundSlopeMaximumAbsoluteError": 0.055801886792452904,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.430506705616287,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            155.9341260314469,
+            214.1488215086183
+          ],
+          [
+            155.9341260314469,
+            217.57932821423458
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.14860715589831033
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          210,
-          299
+          198.0,
+          228.805
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          9.674442478460207,
-          23.526944290760014
+          30.965667469710738,
+          79.86898760306649
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          19.25317808734676,
-          122.6950305945267,
-          235.61991184101953,
-          239.33022300861592
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 16.669776991384083,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          32.925957015777186,
+          135.73723966596032,
+          232.38541832803844,
+          242.57301992658182
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 13.426980073418179,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 49,
-          "clippedSourceAlphaEnergy": 49,
+          "clippedSourcePixels": 57,
+          "clippedSourceAlphaEnergy": 57,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.674442478460207,
+          30.965667469710738,
           0,
-          0.5634550358168562,
-          79.30899283662878
+          0.49007238651661245,
+          79.86898760306649
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -225.8497624929857,
+          -173.88459009423326,
           0,
-          0.5634550358168562,
-          -447.5214656521318
+          0.49007238651661245,
+          -329.8315275248215
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.674442478460207,
+          30.965667469710738,
           0,
-          0.5634550358168562,
-          23.526944290760014
+          0.49007238651661245,
+          79.86898760306649
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:dairy-plant:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          418,
+          836,
+          833,
+          1254
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            88,
-            240
+            [
+              5.0,
+              212.4
+            ],
+            [
+              217.0,
+              330.23
+            ]
           ],
           [
-            208,
-            290
-          ],
-          [
-            150,
-            323
-          ],
-          [
-            30,
-            268
+            [
+              215.0,
+              330.7
+            ],
+            [
+              391.0,
+              245.21
+            ]
           ]
         ],
         "groundCenterSource": [
-          210,
-          299
+          198.0,
+          228.805
         ],
-        "groundCenterMethod": "Centre of observed paved compound footprint and hall base geometry; silo tops, truck bodies and crate silhouettes excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          418,
-          935,
-          836,
-          1254
+        "visibleOppositeGroundVerticesSource": [
+          [
+            5.0,
+            212.4
+          ],
+          [
+            391.0,
+            245.21
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x endpoint review of the edited green mark at x174,y309\u2013321: lower part is blocked by crates and equipment, so its ground endpoint cannot be observed. Broad loading bays are separate and are not measured as personnel doors.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            255,
+            274
+          ],
+          [
+            255,
+            281
+          ]
+        ],
+        "personnelDoorObservationNote": "Repainted narrow personnel entry at front-right end of the foremost dairy hall; measured source lintel to threshold after wall-height correction.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "d7539a4e0dc2bd74fa2318c48210d965c34407affc3538ba62dc5c406e89fe55"
+      "masterSha256": "9f3cb66b44c37208e34d14b10415748b8efc0523434ce44ba7ee4ed87e710ea0"
     },
     {
       "id": "industry:cannery:taiga",
@@ -2481,14 +2825,14 @@
         "desert"
       ],
       "sourceBounds": [
+        833,
         836,
-        935,
         1254,
         1254
       ],
       "sourceBoundsSheet": [
+        833,
         836,
-        935,
         1254,
         1254
       ],
@@ -2500,66 +2844,66 @@
       ],
       "sourceCellPixels": 418,
       "observedSourceCropPixels": [
-        418,
-        319
+        421,
+        418
       ],
-      "sourceScale": 0.5634550358168562,
+      "sourceScale": 0.49007238651661245,
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          1,
-          2,
-          405,
-          319
+          0,
+          11,
+          421,
+          384
         ],
         "meaningfulAlphaBounds": [
-          17,
-          77,
-          403,
-          286
+          2,
+          99,
+          416,
+          325
         ],
-        "transparentFraction": 0.5906391084579502,
-        "nontransparentPixels": 57936,
-        "meaningfulPixels": 53409,
-        "fractionalAlphaPixels": 57823,
+        "transparentFraction": 0.6970700883064929,
+        "nontransparentPixels": 56639,
+        "meaningfulPixels": 52429,
+        "fractionalAlphaPixels": 56571,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 15
+        "minimumFilteringGutterPixels": 2
       },
       "masterAlpha": {
         "alphaBounds": [
-          10,
-          81,
-          238,
-          242
+          31,
+          109,
+          239,
+          246
         ],
         "meaningfulAlphaBounds": [
-          18,
-          122,
+          33,
+          133,
           236,
-          240
+          244
         ],
-        "transparentFraction": 0.7340545654296875,
-        "nontransparentPixels": 18316,
-        "meaningfulPixels": 17042,
-        "fractionalAlphaPixels": 18085,
+        "transparentFraction": 0.8029022216796875,
+        "nontransparentPixels": 13553,
+        "meaningfulPixels": 12672,
+        "fractionalAlphaPixels": 13369,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 16
+        "minimumFilteringGutterPixels": 12
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.05207337216378336,
+        "envelopeZeroAlphaFraction": 0.07684951751716944,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.08130921619293713,
+        "frontGroundZeroAlphaFraction": 0.14418604651162792,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -2596,185 +2940,242 @@
         "status": "measured",
         "measurement": {
           "id": "industry:cannery:taiga",
-          "groundVerticesSource": [
-            [
-              84,
-              242
-            ],
-            [
-              212,
-              304
-            ],
-            [
-              150,
-              330
-            ],
-            [
-              28,
-              273
-            ]
-          ],
-          "groundCenterSource": [
-            211,
-            300
-          ],
-          "groundCenterMethod": "Centre of observed compound hall/paved-working ground footprint; roof/chimney peaks and truck bodies excluded",
-          "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-          "groundCenterUncertaintySourcePixels": 10,
           "sourceBoundsSheet": [
+            833,
             836,
-            935,
             1254,
             1254
           ],
-          "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-          "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-          "personnelDoorObservable": false,
-          "personnelDoorNotes": "16x review: edited green mark at x173,y306\u2013315 has visible brick wall continuing down to the facade baseline near y324; it is a raised window rather than an observable ground-reaching door. Remaining visible openings are broad bays.",
-          "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                -1.0,
+                203.51
+              ],
+              [
+                211.0,
+                322.98
+              ]
+            ],
+            [
+              [
+                209.0,
+                323.86
+              ],
+              [
+                386.0,
+                234.43
+              ]
+            ]
+          ],
+          "groundCenterSource": [
+            192.5,
+            218.97
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              -1.0,
+              203.51
+            ],
+            [
+              386.0,
+              234.43
+            ]
+          ],
+          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "personnelDoorEndpointsSource": [
+            [
+              254,
+              268
+            ],
+            [
+              254,
+              275
+            ]
+          ],
+          "personnelDoorObservationNote": "Narrow front personnel entry at right end of the foremost cannery hall, distinct from wide loading bays.",
+          "personnelDoorObservable": true
         },
-        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
-        "groundVerticesMasterMeasured": [
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
           [
-            56.441210451259266,
-            159.31960792262234
+            [
+              33.17099320903549,
+              184.42348090445316
+            ],
+            [
+              137.06633915055733,
+              242.97242892159286
+            ]
           ],
           [
-            128.56345503581684,
-            194.25382014326743
-          ],
-          [
-            93.62924281517178,
-            208.9036510745057
-          ],
-          [
-            24.88772844551532,
-            176.78671403294487
+            [
+              136.08619437752412,
+              243.4036926217275
+            ],
+            [
+              222.8290067909645,
+              199.57651909554681
+            ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.484375,
-          -0.41935483870967744,
-          0.4672131147540984,
-          -0.5535714285714286
+          0.5635377358490568,
+          -0.5052542372881357
         ],
-        "groundSlopeMaximumAbsoluteError": 0.08064516129032256,
+        "groundSlopeMaximumAbsoluteError": 0.06353773584905675,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
           128.0,
           192.0
         ],
-        "groundCenterErrorMasterPixels": 0.0
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.430506705616287,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            158.13945177077164,
+            216.0282491109095
+          ],
+          [
+            158.13945177077164,
+            219.45875581652578
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.14860715589831033
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          211,
-          300
+          192.5,
+          218.97
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
-        "uniformSourceToMasterScale": 0.5634550358168562,
+        "uniformSourceToMasterScale": 0.49007238651661245,
         "translationMaster": [
-          9.11098744264335,
-          22.96348925494314
+          33.6610655955521,
+          84.68884952445737
         ],
         "targetGroundCenterMaster": [
           128.0,
           192.0
         ],
-        "transformedMeaningfulAlphaBoundsMaster": [
-          18.689723051529903,
-          122.13157555870983,
-          236.18336687683637,
-          239.89367804443276
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 16.10632195556724,
-        "requiredMinimumGutterMasterPixels": 1,
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          33.17099320903549,
+          133.206015789602,
+          236.06096122691304,
+          243.96237514235642
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 12.037624857643578,
+        "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 2,
-          "clippedSourceAlphaEnergy": 2,
+          "clippedSourcePixels": 7,
+          "clippedSourceAlphaEnergy": 7,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
           "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
         },
         "sourceCropToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          32.19084843600226,
           0,
-          0.5634550358168562,
-          78.7455378008119
+          0.49007238651661245,
+          84.68884952445737
         ],
         "sourceSheetToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          -461.93742250024843,
+          -376.03944953233594,
           0,
-          0.5634550358168562,
-          -448.0849206879486
+          0.49007238651661245,
+          -325.01166560343063
         ],
         "sourceNominalCellToMasterAffine": [
-          0.5634550358168562,
+          0.49007238651661245,
           0,
-          9.11098744264335,
+          33.6610655955521,
           0,
-          0.5634550358168562,
-          22.96348925494314
+          0.49007238651661245,
+          84.68884952445737
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
       "originalMeasurements": {
         "id": "industry:cannery:taiga",
-        "groundVerticesSource": [
-          [
-            84,
-            242
-          ],
-          [
-            212,
-            304
-          ],
-          [
-            150,
-            330
-          ],
-          [
-            28,
-            273
-          ]
-        ],
-        "groundCenterSource": [
-          211,
-          300
-        ],
-        "groundCenterMethod": "Centre of observed compound hall/paved-working ground footprint; roof/chimney peaks and truck bodies excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
         "sourceBoundsSheet": [
+          833,
           836,
-          935,
           1254,
           1254
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x review: edited green mark at x173,y306\u2013315 has visible brick wall continuing down to the facade baseline near y324; it is a raised window rather than an observable ground-reaching door. Remaining visible openings are broad bays.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              -1.0,
+              203.51
+            ],
+            [
+              211.0,
+              322.98
+            ]
+          ],
+          [
+            [
+              209.0,
+              323.86
+            ],
+            [
+              386.0,
+              234.43
+            ]
+          ]
+        ],
+        "groundCenterSource": [
+          192.5,
+          218.97
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            -1.0,
+            203.51
+          ],
+          [
+            386.0,
+            234.43
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            254,
+            268
+          ],
+          [
+            254,
+            275
+          ]
+        ],
+        "personnelDoorObservationNote": "Narrow front personnel entry at right end of the foremost cannery hall, distinct from wide loading bays.",
+        "personnelDoorObservable": true
       },
-      "masterSha256": "650af009fc62fdbf363a2a2f7e232e1037768a8c5eb4ebee6965805aabf5d49e"
+      "masterSha256": "254ab1a1ad1a1fee0788b033bb8eda8780c1176c50202a9a1c9511fcf52aef06"
     }
   ],
   "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
   "groundRegistrationApplied": true,
   "source": "generated-source.png",
-  "sourceSha256": "993e7a1425a92a0b5bea9490978b7abb646e1ae4bc2fe8b1ee6926cc7343c0a9",
-  "generationJobSha256": "d8b9678ef784e9b6ae0e11ece32f2e13c75cc6395f12b9795cb2557b28a6907e",
+  "sourceSha256": "93cb7eb0fe0f9cd41b22d3c48e0a93e7f56c04d65affa3c7fdb2daee644c5498",
+  "generationJobSha256": "d1d1252c18547f59281630f979278119e75ecfcd38233c0d993acada5a957eca",
   "measurements": "registration-measurements.json",
-  "measurementsSha256": "94fb3e366316ffcc954721323c59d8882c036737649d736763d4d9b2141ae1d2",
+  "measurementsSha256": "31dfd919f041f19eb64ad2c34812702740348aadff4aca9a28060f5ab1ac10f0",
   "originalSourceResolution": {
     "sheetPixels": [
       1254,
@@ -2785,457 +3186,563 @@
     "rows": 3
   },
   "originalMeasurements": {
-    "sourceImage": "/workspace/generated_images/exec-565dbcc7-e123-4627-a260-dcf7884b4ef7.png",
-    "sourceCellPixels": 418,
-    "reviewStatus": "Observed measurements; do not treat uncertain or outside-contract findings as an approval",
+    "source": "industries-3-final.png",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
     "entries": [
       {
         "id": "industry:wire-mill:taiga",
-        "groundVerticesSource": [
-          [
-            84,
-            346
-          ],
-          [
-            207,
-            401
-          ],
-          [
-            152,
-            431
-          ],
-          [
-            29,
-            376
-          ]
-        ],
-        "groundCenterSource": [
-          210,
-          407
-        ],
-        "groundCenterMethod": "Centre of observed compound physical ground perimeter, using rear hall base and front paved-working strip, excluding chimney/roof silhouettes",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
         "sourceBoundsSheet": [
           0,
           0,
-          418,
-          540
+          441,
+          479
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x endpoint review: gray mark at x174,y413\u2013420 has brick wall visibly continuing beneath it to the base; gray object at x140 is obscured by forklift/yard equipment. Remaining visible entrances are broad bays. No narrow personnel door has both lintel and physical ground endpoint observable.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              12.0,
+              364.46
+            ],
+            [
+              229.0,
+              470.69
+            ]
+          ],
+          [
+            [
+              227.0,
+              470.96
+            ],
+            [
+              438.0,
+              364.37
+            ]
+          ]
+        ],
+        "groundCenterSource": [
+          225.0,
+          364.415
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            12.0,
+            364.46
+          ],
+          [
+            438.0,
+            364.37
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            296,
+            411
+          ],
+          [
+            296,
+            417
+          ]
+        ],
+        "personnelDoorObservationNote": "Ordinary narrow entry on the shaded gable of the foremost wire hall, distinct from loading bays.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:goods-factory:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          441,
+          0,
+          833,
+          479
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            88,
-            348
+            [
+              38.0,
+              374.01
+            ],
+            [
+              233.0,
+              471.57
+            ]
           ],
           [
-            208,
-            404
-          ],
-          [
-            151,
-            435
-          ],
-          [
-            30,
-            380
+            [
+              231.0,
+              471.42
+            ],
+            [
+              407.0,
+              385.51
+            ]
           ]
         ],
         "groundCenterSource": [
-          211,
-          404
+          222.5,
+          379.76
         ],
-        "groundCenterMethod": "Centre of observed compound ground-plane extrema and hall footprints; crates/truck roofs excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          418,
-          0,
-          836,
-          540
-        ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-        "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-        "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-        "industrialWindowEndpointsSource": [
+        "visibleOppositeGroundVerticesSource": [
           [
-            290,
-            464
+            38.0,
+            374.01
           ],
           [
-            290,
-            473
+            407.0,
+            385.51
           ]
         ],
-        "industrialWindowHeightMasterObserved": 5.071095322351706
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            274,
+            419
+          ],
+          [
+            274,
+            424
+          ]
+        ],
+        "personnelDoorObservationNote": "Repainted narrow front personnel entry at the right end of the foremost goods hall; measured actual lintel to sill after the final wall-height correction.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:equipment-factory:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          833,
+          0,
+          1254,
+          479
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            90,
-            350
+            [
+              -1.0,
+              369.24
+            ],
+            [
+              215.0,
+              476.14
+            ]
           ],
           [
-            213,
-            405
-          ],
-          [
-            153,
-            439
-          ],
-          [
-            30,
-            383
+            [
+              213.0,
+              476.09
+            ],
+            [
+              402.0,
+              384.33
+            ]
           ]
         ],
         "groundCenterSource": [
-          211,
-          407
+          200.5,
+          376.785
         ],
-        "groundCenterMethod": "Centre of observed hall/pavement ground footprint; crane beam, pipe stacks and roof peaks excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          836,
-          0,
-          1254,
-          540
-        ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
-        "personnelDoorEndpointUncertaintySourcePixels": 1.5,
-        "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
-        "industrialWindowEndpointsSource": [
+        "visibleOppositeGroundVerticesSource": [
           [
-            289,
-            474
+            -1.0,
+            369.24
           ],
           [
-            289,
-            482
+            402.0,
+            384.33
           ]
         ],
-        "industrialWindowHeightMasterObserved": 4.5076402865348495
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            307,
+            407
+          ],
+          [
+            307,
+            413
+          ]
+        ],
+        "personnelDoorObservationNote": "Narrow personnel entry on shaded gable of the foremost equipment hall; broad material bays excluded.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:dairy-farm:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          0,
+          479,
+          421,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            205,
-            241
+            [
+              3.0,
+              283.03
+            ],
+            [
+              210.0,
+              399.54
+            ]
           ],
           [
-            391,
-            336
-          ],
-          [
-            204,
-            444
-          ],
-          [
-            18,
-            343
+            [
+              209.0,
+              398.65
+            ],
+            [
+              418.0,
+              292.56
+            ]
           ]
         ],
         "groundCenterSource": [
-          204.5,
-          339.5
+          210.5,
+          287.795
         ],
-        "groundCenterMethod": "Midpoint of the observed opposite left/right fence-post feet; front post foot checks the inferred back ground corner; fence tops excluded",
-        "groundVertexLandmarks": "Outer farm fence footprint at post feet; rear corner behind barn inferred from observed fence directions",
-        "groundCenterUncertaintySourcePixels": 3,
-        "sourceBoundsSheet": [
-          0,
-          540,
-          418,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            3.0,
+            283.03
+          ],
+          [
+            418.0,
+            292.56
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Stable entrances are broad animal/service bays; no separate unobscured personnel entrance",
-        "reviewNotes": "Fence posts are approximately 14\u201315 source px tall, versus about 2.79px for a 1.2m fence; lower registered filtering gutter is insufficient at the true measured ground centre."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            179,
+            225
+          ],
+          [
+            179,
+            232
+          ]
+        ],
+        "personnelDoorObservationNote": "Left narrow personnel entry on the dairy barn front; measured actual opening lintel to threshold.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:vegetable-farm:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          421,
+          479,
+          838,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            205,
-            253
+            [
+              10.0,
+              289.35
+            ],
+            [
+              216.0,
+              405.92
+            ]
           ],
           [
-            398,
-            355
-          ],
-          [
-            203,
-            445
-          ],
-          [
-            18,
-            350
+            [
+              216.0,
+              405.15
+            ],
+            [
+              417.0,
+              298.57
+            ]
           ]
         ],
         "groundCenterSource": [
-          208,
-          352.5
+          213.5,
+          293.96
         ],
-        "groundCenterMethod": "Midpoint of observed opposite garden fence/greenhouse ground corners, checked against front crop-bed ground endpoint; fence tops excluded",
-        "groundVertexLandmarks": "Working garden parcel at fence-post feet; right corner partly behind greenhouse",
-        "groundCenterUncertaintySourcePixels": 4,
-        "sourceBoundsSheet": [
-          418,
-          540,
-          836,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            10.0,
+            289.35
+          ],
+          [
+            417.0,
+            298.57
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
         "personnelDoorObservable": false,
-        "personnelDoorNotes": "Only broad barn equipment openings are visible; no separate narrow entrance has observable lintel and ground endpoints",
-        "reviewNotes": "Crop beds and greenhouse extend to the parcel perimeter, unlike the intended narrow-setback envelope."
+        "personnelDoorObservationNote": "The produce shed has a broad equipment/produce entry and the greenhouse has a large glass opening; no unambiguous ordinary personnel entry is visible. No door dimension is inferred from expected scale."
       },
       {
         "id": "industry:orchard:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          838,
+          479,
+          1254,
+          836
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            214,
-            246
+            [
+              5.0,
+              286.97
+            ],
+            [
+              209.0,
+              402.65
+            ]
           ],
           [
-            397,
-            349
-          ],
-          [
-            212,
-            447
-          ],
-          [
-            21,
-            352
+            [
+              210.0,
+              403.34
+            ],
+            [
+              413.0,
+              293.49
+            ]
           ]
         ],
         "groundCenterSource": [
-          209,
-          350.5
+          209.0,
+          290.23
         ],
-        "groundCenterMethod": "Midpoint of observed opposite left/right orchard fence-post feet; rear corner inferred from visible fence runs behind barn",
-        "groundVertexLandmarks": "Orchard outer fence footprint at post feet",
-        "groundCenterUncertaintySourcePixels": 3,
-        "sourceBoundsSheet": [
-          836,
-          540,
-          1254,
-          935
+        "visibleOppositeGroundVerticesSource": [
+          [
+            5.0,
+            286.97
+          ],
+          [
+            413.0,
+            293.49
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "Barn face is mostly occupied by the broad service bay and foliage; no distinct personnel doorway",
-        "reviewNotes": "Observed fence posts are around 12\u201314px tall; source should reduce fence height at fixed sheet density."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            188,
+            226
+          ],
+          [
+            188,
+            232
+          ]
+        ],
+        "personnelDoorObservationNote": "Left narrow personnel entry on the orchard packing shed front; source pixels measured excluding shadow.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:livestock-farm:taiga",
-        "groundVerticesSource": [
-          [
-            207,
-            186
-          ],
-          [
-            381,
-            292
-          ],
-          [
-            206,
-            387
-          ],
-          [
-            23,
-            286
-          ]
-        ],
-        "groundCenterSource": [
-          202,
-          289
-        ],
-        "groundCenterMethod": "Midpoint of opposite observed pasture fence-post feet, checked against front post foot; roof peaks and cattle silhouettes excluded",
-        "groundVertexLandmarks": "Livestock pasture outer fence ground footprint, hidden back corner inferred from visible runs",
-        "groundCenterUncertaintySourcePixels": 3,
         "sourceBoundsSheet": [
           0,
-          935,
+          836,
           418,
           1254
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              11.0,
+              211.11
+            ],
+            [
+              208.0,
+              323.86
+            ]
+          ],
+          [
+            [
+              208.0,
+              324.18
+            ],
+            [
+              408.0,
+              223.43
+            ]
+          ]
+        ],
+        "groundCenterSource": [
+          209.5,
+          217.27
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            11.0,
+            211.11
+          ],
+          [
+            408.0,
+            223.43
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
         "personnelDoorObservable": false,
-        "personnelDoorNotes": "Barn entrance is a wide animal/service opening; no narrow personnel entrance is separately visible",
-        "reviewNotes": "Visible pasture fence posts are about 11 source px tall, well above the 1.2m fence target."
+        "personnelDoorObservationNote": "The stable has a broad livestock entry; a separate ordinary personnel entry is not visible. No door dimension is inferred from expected scale."
       },
       {
         "id": "industry:dairy-plant:taiga",
-        "groundVerticesSource": [
+        "sourceBoundsSheet": [
+          418,
+          836,
+          833,
+          1254
+        ],
+        "groundEdgeSegmentsSource": [
           [
-            88,
-            240
+            [
+              5.0,
+              212.4
+            ],
+            [
+              217.0,
+              330.23
+            ]
           ],
           [
-            208,
-            290
-          ],
-          [
-            150,
-            323
-          ],
-          [
-            30,
-            268
+            [
+              215.0,
+              330.7
+            ],
+            [
+              391.0,
+              245.21
+            ]
           ]
         ],
         "groundCenterSource": [
-          210,
-          299
+          198.0,
+          228.805
         ],
-        "groundCenterMethod": "Centre of observed paved compound footprint and hall base geometry; silo tops, truck bodies and crate silhouettes excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
-        "sourceBoundsSheet": [
-          418,
-          935,
-          836,
-          1254
+        "visibleOppositeGroundVerticesSource": [
+          [
+            5.0,
+            212.4
+          ],
+          [
+            391.0,
+            245.21
+          ]
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x endpoint review of the edited green mark at x174,y309\u2013321: lower part is blocked by crates and equipment, so its ground endpoint cannot be observed. Broad loading bays are separate and are not measured as personnel doors.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            255,
+            274
+          ],
+          [
+            255,
+            281
+          ]
+        ],
+        "personnelDoorObservationNote": "Repainted narrow personnel entry at front-right end of the foremost dairy hall; measured source lintel to threshold after wall-height correction.",
+        "personnelDoorObservable": true
       },
       {
         "id": "industry:cannery:taiga",
-        "groundVerticesSource": [
-          [
-            84,
-            242
-          ],
-          [
-            212,
-            304
-          ],
-          [
-            150,
-            330
-          ],
-          [
-            28,
-            273
-          ]
-        ],
-        "groundCenterSource": [
-          211,
-          300
-        ],
-        "groundCenterMethod": "Centre of observed compound hall/paved-working ground footprint; roof/chimney peaks and truck bodies excluded",
-        "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
-        "groundCenterUncertaintySourcePixels": 10,
         "sourceBoundsSheet": [
+          833,
           836,
-          935,
           1254,
           1254
         ],
-        "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
-        "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
-        "personnelDoorObservable": false,
-        "personnelDoorNotes": "16x review: edited green mark at x173,y306\u2013315 has visible brick wall continuing down to the facade baseline near y324; it is a raised window rather than an observable ground-reaching door. Remaining visible openings are broad bays.",
-        "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
-      }
-    ],
-    "observations": {
-      "physicalSheetDensity": {
-        "sourceEdgeEndpoints": [
+        "groundEdgeSegmentsSource": [
           [
-            18,
-            343
+            [
+              -1.0,
+              203.51
+            ],
+            [
+              211.0,
+              322.98
+            ]
           ],
           [
-            204,
-            444
+            [
+              209.0,
+              323.86
+            ],
+            [
+              386.0,
+              234.43
+            ]
           ]
         ],
-        "entryId": "industry:dairy-farm:taiga",
-        "physicalSpanMetres": 75,
-        "footprint": 5,
-        "sourceCoordinateSystem": "local nominal 418px cell",
-        "sourceHorizontalSpanPixels": 186,
-        "masterHorizontalSpanAtContractPixels": 106.66666666666667,
-        "calibratedMasterPixelsPerSourcePixel": 0.5734767025089605,
-        "proposedUniformMasterPixelsPerSourcePixel": 0.57,
-        "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells."
+        "groundCenterSource": [
+          192.5,
+          218.97
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            -1.0,
+            203.51
+          ],
+          [
+            386.0,
+            234.43
+          ]
+        ],
+        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "personnelDoorEndpointsSource": [
+          [
+            254,
+            268
+          ],
+          [
+            254,
+            275
+          ]
+        ],
+        "personnelDoorObservationNote": "Narrow front personnel entry at right end of the foremost cannery hall, distinct from wide loading bays.",
+        "personnelDoorObservable": true
       }
-    },
+    ],
+    "reviewStatus": "Corrected original reviewed: two actual ground axes and measured centre per entry; visible ordinary doors measured, ambiguous/hidden entrances explicitly unobservable.",
     "sheetScaleCalibration": {
       "observations": [
         {
           "sourceEdgeEndpoints": [
             [
-              18,
-              761
+              835.0,
+              1039.51
             ],
             [
-              204,
-              862
+              1047.0,
+              1158.98
             ]
           ],
           "physicalSpanMetres": 75,
           "footprint": 5,
-          "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells. Coordinates converted to original fullsheet pixels where necessary; Euclidean projected ground-axis length calibrates the density."
+          "note": "Visible full front working-yard/parcel ground edge of cannery, observed in corrected original pixels; spans the75m architectural envelope inside its80m site. One measured density applies to the entire sheet."
         }
       ]
-    },
-    "packingSheetScale": 0.5634550358168562
+    }
   },
   "sheetScaleCalibration": {
     "status": "observed-whole-sheet-density",
-    "requestedSourceToMasterScale": 0.5634550358168562,
+    "requestedSourceToMasterScale": 0.49007238651661245,
     "defaultNominalSourceToMasterScale": 0.6124401913875598,
-    "relativeScaleToNominal": 0.9200164256697105,
+    "relativeScaleToNominal": 0.8001963186091563,
     "observations": [
       {
         "observation": {
           "sourceEdgeEndpoints": [
             [
-              18,
-              761
+              835.0,
+              1039.51
             ],
             [
-              204,
-              862
+              1047.0,
+              1158.98
             ]
           ],
           "physicalSpanMetres": 75,
           "footprint": 5,
-          "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells. Coordinates converted to original fullsheet pixels where necessary; Euclidean projected ground-axis length calibrates the density."
+          "note": "Visible full front working-yard/parcel ground edge of cannery, observed in corrected original pixels; spans the75m architectural envelope inside its80m site. One measured density applies to the entire sheet."
         },
-        "sourceSpanPixels": 211.65301793265317,
+        "sourceSpanPixels": 243.3455997136583,
         "targetMasterSpanPixels": 119.2569587999888,
-        "observedSourceToMasterScale": 0.5634550358168562,
+        "observedSourceToMasterScale": 0.49007238651661245,
         "requestedScaleRelativeError": 0.0,
-        "observedGroundEdgeSlope": 0.543010752688172
+        "observedGroundEdgeSlope": 0.5635377358490568
       }
     ],
     "originalEvidence": {
@@ -3243,17 +3750,17 @@
         {
           "sourceEdgeEndpoints": [
             [
-              18,
-              761
+              835.0,
+              1039.51
             ],
             [
-              204,
-              862
+              1047.0,
+              1158.98
             ]
           ],
           "physicalSpanMetres": 75,
           "footprint": 5,
-          "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells. Coordinates converted to original fullsheet pixels where necessary; Euclidean projected ground-axis length calibrates the density."
+          "note": "Visible full front working-yard/parcel ground edge of cannery, observed in corrected original pixels; spans the75m architectural envelope inside its80m site. One measured density applies to the entire sheet."
         }
       ]
     },
@@ -3296,10 +3803,10 @@
         -2
       ]
     },
-    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "contractSha256": "1b259372f2589951aad69b101d3830132fc50ee8f539cde679922c2b9e71dcf2",
     "sourceCellPixels": 418,
-    "sourceToMasterScale": 0.5634550358168562,
-    "meaningfulSourcePixelsRetained": 395135,
+    "sourceToMasterScale": 0.49007238651661245,
+    "meaningfulSourcePixelsRetained": 444398,
     "sourceIsolationNoise": {
       "omittedSourcePixels": 0,
       "omittedSourceAlphaEnergy": 0,
@@ -3307,7 +3814,7 @@
       "method": "Original sheet alpha outside the union of explicit occupied-slot crop rectangles"
     },
     "measuredGeometryVerified": true,
-    "minimumFilteringGutterMasterPixels": 1,
+    "minimumFilteringGutterMasterPixels": 2,
     "measurementTolerances": {
       "groundSlopeAbsoluteError": 0.11,
       "groundCenterMasterPixels": 3,
@@ -3320,81 +3827,81 @@
   "outputs": {
     "16": {
       "path": "atlas-16.png",
-      "sha256": "2d97227cee4c2b9b303d795c607936a341a23f553cb5b97188295db53312714f",
+      "sha256": "5f6d041009bf999b34ef2473fbda41e700c3138964d828ac99340882f7c1506f",
       "dimensions": [
         48,
         48
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 0.03521593973855351,
+      "sourceToLevelScale": 0.030629524157288278,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "32": {
       "path": "atlas-32.png",
-      "sha256": "0873acb14a7824cfce7fff125fd0b6b8350df8e3f37233ca5ca27b6b11b9e3cc",
+      "sha256": "8cfe33916e1c270d02a8eda6380537784b45dacfab4b9a4f85a2964ba71c8a10",
       "dimensions": [
         96,
         96
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 0.07043187947710702,
+      "sourceToLevelScale": 0.061259048314576556,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "64": {
       "path": "atlas-64.png",
-      "sha256": "12aa91d4671a86cf873037cda27f4569e2558759e39c13c5b2325f7731732f76",
+      "sha256": "893226764df4fe83c0b87c5796796a59c9220a95a277bf29b7a999ae349362c0",
       "dimensions": [
         192,
         192
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 0.14086375895421405,
+      "sourceToLevelScale": 0.12251809662915311,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "128": {
       "path": "atlas-128.png",
-      "sha256": "40c0d6665c1683551f54c5d334b862632aa334c5cebca9a1da9f78d5ac26f935",
+      "sha256": "8f19f025acdd48f5a6318b6ab9787f1c1aa12caac11ae48458fc0111d5306a29",
       "dimensions": [
         384,
         384
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 0.2817275179084281,
+      "sourceToLevelScale": 0.24503619325830622,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "256": {
       "path": "atlas-256.png",
-      "sha256": "76eaa5c1d9a187f77513036cc76b40f23c602d433182f52c43b0a5f2218c614f",
+      "sha256": "4838e12c0df0ca3dd45a9dbf30e4d17609bde861da9dcf13cb19bc7bb10b78c3",
       "dimensions": [
         768,
         768
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 0.5634550358168562,
+      "sourceToLevelScale": 0.49007238651661245,
       "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     },
     "512": {
       "path": "atlas-512.png",
-      "sha256": "cbb285122dcf5d6d1ed3e927af45c6b74eab04459031d6e9770f109dbdd07eb0",
+      "sha256": "97006b9859424eeea6684a6492afa3552fc5ed4edfe187064edf115bd582aa00",
       "dimensions": [
         1536,
         1536
       ],
       "generatedSourceCellPixels": 418,
-      "sourceToLevelScale": 1.1269100716337124,
-      "upsampledFromGeneratedSource": true,
+      "sourceToLevelScale": 0.9801447730332249,
+      "upsampledFromGeneratedSource": false,
       "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
     }
   },
   "provenance": {
     "operation": "Uniform source pixel density and measured registration only; generator output preserved verbatim",
     "generator": "image_gen",
-    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
-    "sourceReview": "pending measured camera/door and bare-ground review"
+    "styleReference": "generation-reference.png",
+    "sourceReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
   }
 }

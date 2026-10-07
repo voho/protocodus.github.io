@@ -26,7 +26,7 @@ import { distancePay, transitPay, payTiles } from './economy-pricing.js';
 import { VEHICLE_SPEEDS } from './data.js';
 import { isTownTraffic } from './data.js';
 import { MAIL_POOL_SHARE } from './settlements.js';
-import { TERRAIN_OBJECT_KINDS, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
+import { TERRAIN_OBJECT_KINDS, validTerrainObjectSize, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { surfaceHeight } from './terrain-geometry.js';
 import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
@@ -1400,7 +1400,7 @@ export function validateGame(game) {
   for(let index=0;index<game.tiles.length;index++){
     const building=game.tiles[index].building,object=game.tiles[index].terrainObject;
     if(object!==undefined){
-      if(!object||!TERRAIN_OBJECT_KINDS.has(object.kind)||![2,3].includes(object.footprint)||typeof object.detail!=='string'||object.detail.length>=80||!Number.isInteger(object.variant))return false;
+      if(!object||!TERRAIN_OBJECT_KINDS.has(object.kind)||!validTerrainObjectSize(object.kind,object.footprint)||typeof object.detail!=='string'||object.detail.length>=80||!Number.isInteger(object.variant))return false;
       terrainSites.push({x:index%game.width,y:Math.floor(index/game.width),object});
     }
     if(building&&!claim(index%game.width,Math.floor(index/game.width),buildingSize(building),'building',index))return false;

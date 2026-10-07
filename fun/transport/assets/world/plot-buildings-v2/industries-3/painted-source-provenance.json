@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "93cb7eb0fe0f9cd41b22d3c48e0a93e7f56c04d65affa3c7fdb2daee644c5498",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "industries-3",
+    "output": "fun/transport/assets/world/plot-buildings-v2/industries-3",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "93cb7eb0fe0f9cd41b22d3c48e0a93e7f56c04d65affa3c7fdb2daee644c5498",
+    "groundRegistrationApplied": true,
+    "physicalReview": "Corrected camera and registration measured; actual observable personnel doors within 25 percent of 2.1 m; obscured or ambiguous ordinary entrances explicitly unobservable."
+  },
+  "reviewStatus": "Corrected camera and registration measured; actual observable personnel doors within 25 percent of 2.1 m; obscured or ambiguous ordinary entrances explicitly unobservable.",
+  "heightCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "height-correction-prompt.txt",
+    "iterations": 2,
+    "operation": "Repaint oversized human-scale walls, doors and vehicles without independent silhouette fitting; retain full plot ground coverage."
+  },
+  "cameraCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "camera-correction-prompt.txt",
+    "operation": "Repaint the ground plane to 2:1 while preserving upright human scale; measure actual resulting ground edges and centres."
+  },
+  "personnelDoorCorrection": {
+    "tool": "built-in image_gen",
+    "date": "2026-10-07",
+    "prompt": "personnel-door-correction-prompt.txt",
+    "operation": "Correct residual oversized ordinary doors and upright walls on goods factory and dairy plant only; remeasure actual source door endpoints and all nine ground axes before packing."
+  }
+}

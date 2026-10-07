@@ -5,7 +5,8 @@
     16,
     32,
     64,
-    128
+    128,
+    256
   ],
   "masterCell": 256,
   "order": [
@@ -19,8 +20,12 @@
     "nature-ground-tundra:reeds",
     "nature-ground-tundra:marsh"
   ],
-  "source": "exec-da1aabac-fc91-45ad-b3ef-36a39a76c1bf.png",
-  "sourceSha256": "5b7aeea9238132a76f096b4f5f9f4bba064486382dcbc8c9761d7a732aa4def8",
+  "source": "source-renewal-2026-10-07.png",
+  "sourceSha256": "e4e9e0a968389834e338a64cf9eac1c99fa02193bf55d1a7fe440c57b0ca57e4",
+  "artRevision": "from-scratch-2026-10-07",
+  "generator": "built-in image_gen",
+  "mipSharpening": false,
+  "registration": "Complete footprint patch, common sheet scale for ground cover; source aspect ratio preserved",
   "sprites": [
     {
       "id": "nature-ground-tundra:arctic-poppies",
@@ -31,32 +36,42 @@
         418,
         418
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
       "normalization": {
         "originalSize": [
+          1254,
+          1254
+        ],
+        "sourceBounds": [
+          0,
+          0,
           418,
           418
         ],
-        "sourceBounds": [
-          52,
-          143,
-          382,
-          385
-        ],
-        "rawAlphaBounds": [
-          0,
-          0,
-          418,
-          410
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.700539
+        "transparentFraction": 0.38401135505139533
       },
+      "registrationAnchorSource": [
+        209.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        74,
-        244,
-        244
+        29,
+        40,
+        232,
+        235
       ]
     },
     {
@@ -68,32 +83,42 @@
         836,
         418
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          57,
-          113,
-          355,
-          409
-        ],
-        "rawAlphaBounds": [
-          0,
-          21,
           418,
+          0,
+          836,
           418
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.641721
+        "transparentFraction": 0.3064032416840274
       },
+      "registrationAnchorSource": [
+        627.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        14,
-        244,
-        244
+        22,
+        35,
+        231,
+        236
       ]
     },
     {
@@ -105,32 +130,42 @@
         1254,
         418
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        22.0
+      ],
+      "sourceCropPixels": [
+        418,
+        418
+      ],
+      "masterDrawPixels": [
+        222,
+        222
+      ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          26,
-          148,
-          381,
-          398
-        ],
-        "rawAlphaBounds": [
-          1,
+          836,
           0,
-          400,
+          1254,
           418
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.657609
+        "transparentFraction": 0.419793502895996
       },
+      "registrationAnchorSource": [
+        1045.0,
+        418
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        81,
-        244,
-        244
+        21,
+        50,
+        228,
+        236
       ]
     },
     {
@@ -140,34 +175,44 @@
         0,
         418,
         418,
-        836
+        830
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        25.186602870813402
+      ],
+      "sourceCropPixels": [
+        418,
+        412
+      ],
+      "masterDrawPixels": [
+        222,
+        219
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          41,
-          123,
-          406,
-          345
-        ],
-        "rawAlphaBounds": [
           0,
-          1,
           418,
-          418
+          418,
+          830
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.660276
+        "transparentFraction": 0.4137594648580852
       },
+      "registrationAnchorSource": [
+        209.0,
+        830
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        103,
-        244,
-        244
+        28,
+        51,
+        231,
+        225
       ]
     },
     {
@@ -177,34 +222,44 @@
         418,
         418,
         836,
-        836
+        830
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        25.186602870813402
+      ],
+      "sourceCropPixels": [
+        418,
+        412
+      ],
+      "masterDrawPixels": [
+        222,
+        219
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          38,
-          78,
-          385,
-          357
-        ],
-        "rawAlphaBounds": [
-          0,
-          1,
           418,
-          418
+          418,
+          836,
+          830
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.615319
+        "transparentFraction": 0.357725182329168
       },
+      "registrationAnchorSource": [
+        627.0,
+        830
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        57,
-        244,
-        244
+        23,
+        40,
+        227,
+        231
       ]
     },
     {
@@ -214,34 +269,44 @@
         836,
         418,
         1254,
-        836
+        830
+      ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        25.186602870813402
+      ],
+      "sourceCropPixels": [
+        418,
+        412
+      ],
+      "masterDrawPixels": [
+        222,
+        219
       ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          25,
-          71,
-          387,
-          351
+          836,
+          418,
+          1254,
+          830
         ],
-        "rawAlphaBounds": [
-          1,
-          0,
-          412,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.632214
+        "transparentFraction": 0.36568030844985366
       },
+      "registrationAnchorSource": [
+        1045.0,
+        830
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        65,
-        244,
-        244
+        23,
+        38,
+        222,
+        230
       ]
     },
     {
@@ -249,36 +314,46 @@
       "cell": 6,
       "sourceBounds": [
         0,
-        836,
+        830,
         418,
         1254
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        18.813397129186598
+      ],
+      "sourceCropPixels": [
+        418,
+        424
+      ],
+      "masterDrawPixels": [
+        222,
+        225
+      ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          41,
-          67,
-          401,
-          310
-        ],
-        "rawAlphaBounds": [
           0,
-          0,
+          830,
           418,
-          418
+          1254
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.657998
+        "transparentFraction": 0.3465344858716259
       },
+      "registrationAnchorSource": [
+        209.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        87,
-        244,
-        244
+        28,
+        20,
+        233,
+        224
       ]
     },
     {
@@ -286,36 +361,46 @@
       "cell": 7,
       "sourceBounds": [
         418,
-        836,
+        830,
         836,
         1254
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        18.813397129186598
+      ],
+      "sourceCropPixels": [
+        418,
+        424
+      ],
+      "masterDrawPixels": [
+        222,
+        225
+      ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          53,
-          3,
-          359,
-          324
-        ],
-        "rawAlphaBounds": [
-          0,
-          0,
           418,
-          418
+          830,
+          836,
+          1254
         ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.648737
+        "transparentFraction": 0.3370779543197617
       },
+      "registrationAnchorSource": [
+        627.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        17,
-        12,
-        238,
-        244
+        25,
+        20,
+        227,
+        224
       ]
     },
     {
@@ -323,37 +408,52 @@
       "cell": 8,
       "sourceBounds": [
         836,
-        836,
+        830,
         1254,
         1254
       ],
+      "sourceScaleToMaster": 0.5311004784688995,
+      "masterOffsetPixels": [
+        17.0,
+        18.813397129186598
+      ],
+      "sourceCropPixels": [
+        418,
+        424
+      ],
+      "masterDrawPixels": [
+        222,
+        225
+      ],
       "normalization": {
         "originalSize": [
-          418,
-          418
+          1254,
+          1254
         ],
         "sourceBounds": [
-          18,
-          57,
-          386,
-          324
+          836,
+          830,
+          1254,
+          1254
         ],
-        "rawAlphaBounds": [
-          0,
-          1,
-          402,
-          418
-        ],
-        "trimAlphaThreshold": 8,
-        "trimPadding": 2,
-        "transparentFraction": 0.607335
+        "transparentFraction": 0.35978830008124946
       },
+      "registrationAnchorSource": [
+        1045.0,
+        1254
+      ],
+      "registrationMethod": "complete source-cell bottom centre",
       "bounds": [
-        12,
-        76,
-        244,
-        244
+        19,
+        30,
+        227,
+        224
       ]
     }
-  ]
+  ],
+  "sourceDetailLimits": {
+    "noAdditionalPaintedDetail": true,
+    "originalSourceSha256": "e4e9e0a968389834e338a64cf9eac1c99fa02193bf55d1a7fe440c57b0ca57e4",
+    "description": "Every mip samples isolated original RGBA pixels; larger exports may enlarge source detail."
+  }
 }

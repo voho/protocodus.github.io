@@ -1,0 +1,27 @@
+{
+  "entries": [
+    {
+      "id": "civic:shop-pharmacy:taiga",
+      "kind": "shop-pharmacy",
+      "runtimeIds": [
+        "civic:shop-pharmacy:taiga",
+        "civic:shop-pharmacy:tundra",
+        "civic:shop-pharmacy:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "name": "Pharmacy",
+      "footprint": 1,
+      "design": 0,
+      "description": "A 15m by 15m full-envelope pharmacy parcel. A substantial two-storey neighbourhood pharmacy with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, cream-stone broad walls. One normal 2.1m personnel door and broad muted glass storefront, one low muted green canopy. One large recognizable green cross on the front upper facade, at least 1.5m tall. Broad upper windows, no fine panes or lettering. Architecture size equals cafe. Expand equipment spacing, paths and planted groups across the 15m envelope; add architectural wings where appropriate without changing any human-feature height."
+    }
+  ],
+  "columns": 1,
+  "rows": 1,
+  "biome": "taiga",
+  "cellPixels": 1254,
+  "direction": "Use case: precise-object-edit. Edit ONLY this one complete registered shop-pharmacy sprite. Keep ALL ground, roof, plot, vegetation, cellmargins andcamera unchanged. Its ordinary personnel door is too tall. Reduce ONLY door LEAF height from TOP, threshold unchanged, to 73 pixels in1254x1254output. This is 78 percent ofcurrentdoorheight. Fillvacatedupperdoorareawithmatchingwalloropaque/transomglass. Clearly separate solid ordinarylowerdoorleaf fromupperwall/transom. Source is an entire512square physicalframe, retainalltransparentframing andgroundcenter at50%width,75%height. Finalsinglecutout1254x1254 actualRGBA. Noalterationsofotherfeatures."
+}

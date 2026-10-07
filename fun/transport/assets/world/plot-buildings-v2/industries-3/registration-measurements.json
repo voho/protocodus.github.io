@@ -6,26 +6,39 @@
         256.0,
         384.0
       ],
-      "groundVerticesSource": [
+      "groundEdgeSegmentsSource": [
         [
-          114.00933097415225,
-          315.25848563034356
+          [
+            47.2291633439231,
+            384.04410651478645
+          ],
+          [
+            259.9205790921329,
+            488.16488575410597
+          ]
         ],
         [
-          252.61926978509888,
-          377.2385395701977
-        ],
-        [
-          190.6392158452447,
-          411.0458417192091
-        ],
-        [
-          52.029277034298076,
-          349.06578777935493
+          [
+            257.96028954606646,
+            488.4295248428249
+          ],
+          [
+            464.7708366560769,
+            383.9558934852135
+          ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "No exposed ordinary personnel entrance",
+      "personnelDoorEndpointsSource": [
+        [
+          325.59027888535894,
+          429.66004425175277
+        ],
+        [
+          325.59027888535894,
+          435.5409128899521
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -34,26 +47,39 @@
         256.0,
         384.0
       ],
-      "groundVerticesSource": [
+      "groundEdgeSegmentsSource": [
         [
-          117.39006118905338,
-          320.8930359885121
+          [
+            75.16328937537001,
+            378.36416755505894
+          ],
+          [
+            266.29152011684886,
+            473.9870916121804
+          ]
         ],
         [
-          252.61926978509888,
-          384.0
-        ],
-        [
-          188.38539570197727,
-          418.93421222064507
-        ],
-        [
-          52.02927703429807,
-          356.95415828079086
+          [
+            264.3312305707824,
+            473.84006989622543
+          ],
+          [
+            436.83671062463,
+            389.63583244494106
+          ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "No exposed ordinary personnel entrance",
+      "personnelDoorEndpointsSource": [
+        [
+          306.4774558112111,
+          422.46088089382374
+        ],
+        [
+          306.4774558112111,
+          427.36160475898987
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -62,26 +88,39 @@
         256.0,
         384.0
       ],
-      "groundVerticesSource": [
+      "groundEdgeSegmentsSource": [
         [
-          119.64388133232082,
-          319.76612591687837
+          [
+            58.50082823380519,
+            376.6048076874643
+          ],
+          [
+            270.2120992089817,
+            481.38228392471603
+          ]
         ],
         [
-          258.25382014326743,
-          381.74617985673257
-        ],
-        [
-          190.63921584524468,
-          420.0611222922788
-        ],
-        [
-          52.02927703429807,
-          356.9541582807909
+          [
+            268.2518096629153,
+            481.3332766860643
+          ],
+          [
+            453.49917176619476,
+            391.39519231253564
+          ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "No exposed ordinary personnel entrance",
+      "personnelDoorEndpointsSource": [
+        [
+          360.38541832803844,
+          413.61507431719883
+        ],
+        [
+          360.38541832803844,
+          419.4959429553982
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -111,12 +150,12 @@
       "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
       "personnelDoorEndpointsSource": [
         [
-          182.8,
-          340.0444444444445
+          301.6532683912501,
+          371.6027490374172
         ],
         [
-          182.8,
-          346.44444444444446
+          301.6532683912501,
+          376.9737217893289
         ]
       ],
       "personnelDoorObservable": true,
@@ -149,12 +188,12 @@
       "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
       "personnelDoorEndpointsSource": [
         [
-          182.4,
-          339.64444444444445
+          247.17625905043064,
+          362.77900808784784
         ],
         [
-          182.4,
-          345.2444444444444
+          247.17625905043064,
+          369.684544483163
         ]
       ],
       "personnelDoorObservable": true,
@@ -187,12 +226,12 @@
       "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
       "personnelDoorEndpointsSource": [
         [
-          179.6,
-          345.64444444444445
+          234.51610899235288,
+          360.47716262274275
         ],
         [
-          179.6,
-          351.2444444444444
+          234.51610899235288,
+          367.7663399289088
         ]
       ],
       "personnelDoorObservable": true,
@@ -225,12 +264,12 @@
       "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
       "personnelDoorEndpointsSource": [
         [
-          183.2,
-          346.0444444444445
+          272.49655916658617,
+          365.0808535529529
         ],
         [
-          183.2,
-          352.44444444444446
+          272.49655916658617,
+          371.98638994826797
         ]
       ],
       "personnelDoorObservable": true,
@@ -242,26 +281,39 @@
         256.0,
         384.0
       ],
-      "groundVerticesSource": [
+      "groundEdgeSegmentsSource": [
         [
-          118.5169712606871,
-          317.512305773611
+          [
+            66.8320588045876,
+            367.9207249983899
+          ],
+          [
+            274.6227506876313,
+            483.41118360489486
+          ]
         ],
         [
-          253.7461798567326,
-          373.85780935529664
-        ],
-        [
-          188.38539570197727,
-          411.04584171920914
-        ],
-        [
-          53.156187105931785,
-          349.06578777935493
+          [
+            272.6624611415648,
+            483.8718516482204
+          ],
+          [
+            445.16794119541237,
+            400.0792750016101
+          ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "No exposed ordinary personnel entrance",
+      "personnelDoorEndpointsSource": [
+        [
+          311.8682520628938,
+          428.2976430172366
+        ],
+        [
+          311.8682520628938,
+          435.15865642846916
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     },
     {
@@ -270,26 +322,39 @@
         256.0,
         384.0
       ],
-      "groundVerticesSource": [
+      "groundEdgeSegmentsSource": [
         [
-          112.88242090251853,
-          318.6392158452447
+          [
+            66.34198641807097,
+            368.8469618089063
+          ],
+          [
+            274.13267830111465,
+            485.94485784318573
+          ]
         ],
         [
-          257.1269100716337,
-          388.50764028653487
-        ],
-        [
-          187.25848563034356,
-          417.8073021490114
-        ],
-        [
-          49.77545689103064,
-          353.57342806588974
+          [
+            272.17238875504825,
+            486.807385243455
+          ],
+          [
+            445.658013581929,
+            399.15303819109363
+          ]
         ]
       ],
-      "personnelDoorObservable": false,
-      "entranceReview": "No exposed ordinary personnel entrance",
+      "personnelDoorEndpointsSource": [
+        [
+          316.2789035415433,
+          432.056498221819
+        ],
+        [
+          316.2789035415433,
+          438.91751163305156
+        ]
+      ],
+      "personnelDoorObservable": true,
       "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
     }
   ],

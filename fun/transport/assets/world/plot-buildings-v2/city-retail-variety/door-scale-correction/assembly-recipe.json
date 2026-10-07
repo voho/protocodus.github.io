@@ -1,0 +1,89 @@
+{
+  "generator": "built-in image_gen",
+  "date": "2026-10-07",
+  "base": "sheet-before-local-corrections.png",
+  "baseOriginal": "exec-fb95ca56-2320-4c89-b3c2-08ae29111158.png",
+  "basePrompt": "sheet-door-prompt.txt",
+  "operation": "Pillow RGBA: resize each entire generated source frame to the stated original crop dimensions with LANCZOS; paste RGBA including its alpha at destination. Never fit an alpha bounding box, stretch individual doors, remove colors or erase foliage. Fully opaque microcrops contain only structural walls/paving; surrounding full-sheet background remains transparent.",
+  "steps": [
+    {
+      "file": "neighborhood-generated.png",
+      "original": "exec-d928822f-57cc-46d5-9b40-4f5f58eeed3b.png",
+      "resize": [
+        402,
+        396
+      ],
+      "destination": [
+        0,
+        421
+      ],
+      "prompt": "neighborhood-correction-prompt.txt",
+      "sha256": "d2a1c7007c034d06248f6b5e2384725acfdcaf2baaaed8b671192dd2a8e14c6e",
+      "sourceDimensions": [
+        1265,
+        1244
+      ]
+    },
+    {
+      "file": "butcher-generated.png",
+      "original": "exec-1ab0de73-354c-488c-9ce0-afe27d83c3e8.png",
+      "resize": [
+        436,
+        437
+      ],
+      "destination": [
+        818,
+        817
+      ],
+      "prompt": "butcher-correction-prompt.txt",
+      "sha256": "1e8aa54172a0b1c45196f6157d97ef32216be39d6673935abfc9c41f97d9a375",
+      "sourceDimensions": [
+        1246,
+        1263
+      ]
+    },
+    {
+      "file": "modern-wall-generated.png",
+      "original": "exec-7d91dad0-c3ea-4954-bd19-2d05f9ab0990.png",
+      "resize": [
+        31,
+        44
+      ],
+      "destination": [
+        952,
+        699
+      ],
+      "prompt": "modern-wall-second-prompt.txt",
+      "firstPassOriginal": "exec-d47427f1-392e-4b7c-a9ef-bad1b47f143c.png",
+      "firstPassPrompt": "modern-wall-prompt.txt",
+      "sha256": "6ee5895b1539726137dc7b03381e150e572d51a697d41d8242c7a11be8395ccd",
+      "sourceDimensions": [
+        1052,
+        1494
+      ]
+    },
+    {
+      "file": "shopping-wall-generated.png",
+      "original": "exec-40a1db44-e015-4200-ad41-c86152e03102.png",
+      "resize": [
+        36,
+        36
+      ],
+      "destination": [
+        531,
+        694
+      ],
+      "prompt": "shopping-wall-second-prompt.txt",
+      "firstPassOriginal": "exec-5f2387ca-39a3-42d7-a3d8-bbb72dd7a4b1.png",
+      "firstPassPrompt": "shopping-wall-prompt.txt",
+      "sha256": "ad5e1148fe0f4eee5ff16fceb85d1998b72999742535007d05fea04d8ccfdf56",
+      "sourceDimensions": [
+        1254,
+        1254
+      ]
+    }
+  ],
+  "result": "../generated-source.png",
+  "sourceBeforeReview": "source-before-review.png",
+  "measurementEvidence": "../source-measurements.json"
+}

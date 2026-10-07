@@ -67,7 +67,8 @@ test('loaded brown atlases cannot replace the gray rail geometry or Gallery port
     };
     assert.equal(await preloadWorldArt({cells:[16],waitMs:1000}),true);
     const road = context(); assert.equal(drawRasterNetwork(road,'road',16,16,[[0,-1],[0,1]]),true);
-    assert.ok(road.images.length > 0,'the fixture really loaded the legacy atlas');
+    assert.equal(road.images.length,0,'new road geometry remains independent of historical texture sheets');
+    assert.ok(road.strokes.length>0);
     for (const kind of kinds) for (const density of [1,2,4]) {
       const c = context(); assert.equal(drawRasterNetwork(c,kind,16,16,arms,density),true);
       assert.deepEqual(c.strokes,before.get(kind),'density and late assets retain railway materials and physical dimensions');

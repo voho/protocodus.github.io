@@ -66,7 +66,9 @@ test('runtime envelopes retain measured painted source and low-density filter gu
   const { readFile } = await import('node:fs/promises');
   const { PART_BOXES } = await import('../airport-art.js');
   const metadata=JSON.parse(await readFile(new URL('../assets/world/airport-buildings-v2/atlas.json',import.meta.url),'utf8'));
-  assert.equal(metadata.sourcePixelsPerWorldPixel,5.6);
+  assert.ok(metadata.sourcePixelsPerWorldPixel > 0);
+  close(metadata.sourcePixelsPerWorldPixel, metadata.sourceCalibration.fittedSourcePixelsPerWorldPixel);
+  assert.equal(metadata.processing.perEntryScale, false);
   for(const entry of metadata.entries){
     const b=PART_BOXES[entry.axis][entry.kind], [left,top,right,bottom]=entry.airportAnchorAlphaBoundsWorld;
     assert.ok(b.left<=left-4 && b.top<=top-4 && b.left+b.width>=right+4 && b.top+b.height>=bottom+4,entry.id+' complete painted envelope');

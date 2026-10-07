@@ -1,0 +1,334 @@
+{
+  "columns": 3,
+  "rows": 2,
+  "sourceDimensions": [
+    1536,
+    1024
+  ],
+  "densityGroups": {
+    "bus": {
+      "sourceEdgeEndpointsSheet": [
+        [
+          113,
+          311
+        ],
+        [
+          322,
+          416
+        ]
+      ],
+      "physicalSpanMetres": 9,
+      "note": "Observed long bottom edge of the nine metre bus platform."
+    },
+    "rail": {
+      "sourceEdgeEndpointsSheet": [
+        [
+          542,
+          279
+        ],
+        [
+          856,
+          443
+        ]
+      ],
+      "physicalSpanMetres": 13,
+      "note": "Observed long bottom edge of thirteen metre rail platform."
+    },
+    "dock": {
+      "sourceEdgeEndpointsSheet": [
+        [
+          1043,
+          315
+        ],
+        [
+          1287,
+          440
+        ]
+      ],
+      "physicalSpanMetres": 15,
+      "note": "Observed fifteen metre dock edge, shared by four cardinal port views."
+    }
+  },
+  "entries": [
+    {
+      "id": "bus-stop",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "densityGroup": "bus",
+      "groundCenterSheet": [
+        253.5,
+        347
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            113,
+            311
+          ],
+          [
+            322,
+            416
+          ]
+        ],
+        [
+          [
+            322,
+            416
+          ],
+          [
+            394,
+            383
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": null,
+      "personnelDoorObservable": false,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent.",
+      "personnelDoorNotes": "Open bus shelter has no personnel door."
+    },
+    {
+      "id": "train-stop",
+      "sourceBoundsSheet": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "densityGroup": "rail",
+      "groundCenterSheet": [
+        747,
+        335.5
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            542,
+            279
+          ],
+          [
+            856,
+            443
+          ]
+        ],
+        [
+          [
+            856,
+            443
+          ],
+          [
+            952,
+            392
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          734,
+          305
+        ],
+        [
+          734,
+          346
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent."
+    },
+    {
+      "id": "port-w",
+      "sourceBoundsSheet": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "densityGroup": "dock",
+      "groundCenterSheet": [
+        1277,
+        381
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1043,
+            315
+          ],
+          [
+            1287,
+            440
+          ]
+        ],
+        [
+          [
+            1287,
+            440
+          ],
+          [
+            1511,
+            340
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          1231,
+          229
+        ],
+        [
+          1231,
+          267
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent."
+    },
+    {
+      "id": "port-e",
+      "sourceBoundsSheet": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "densityGroup": "dock",
+      "groundCenterSheet": [
+        258.5,
+        829
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            33,
+            778
+          ],
+          [
+            259,
+            908
+          ]
+        ],
+        [
+          [
+            259,
+            908
+          ],
+          [
+            484,
+            802
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          119,
+          754
+        ],
+        [
+          119,
+          788
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent."
+    },
+    {
+      "id": "port-n",
+      "sourceBoundsSheet": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "densityGroup": "dock",
+      "groundCenterSheet": [
+        768,
+        826
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            541,
+            781
+          ],
+          [
+            758,
+            909
+          ]
+        ],
+        [
+          [
+            758,
+            909
+          ],
+          [
+            995,
+            789
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          879,
+          719
+        ],
+        [
+          879,
+          755
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent."
+    },
+    {
+      "id": "port-s",
+      "sourceBoundsSheet": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "densityGroup": "dock",
+      "groundCenterSheet": [
+        1274,
+        827
+      ],
+      "groundEdgeSegmentsSheet": [
+        [
+          [
+            1044,
+            780
+          ],
+          [
+            1273,
+            910
+          ]
+        ],
+        [
+          [
+            1273,
+            910
+          ],
+          [
+            1504,
+            793
+          ]
+        ]
+      ],
+      "personnelDoorEndpointsSheet": [
+        [
+          1204,
+          799
+        ],
+        [
+          1204,
+          834
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "groundCenterNote": "Observed opposing platform vertices; ports use the corresponding pile-base water datum below deck, not shadow extent."
+    }
+  ]
+}
