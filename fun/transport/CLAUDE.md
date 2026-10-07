@@ -10,6 +10,8 @@ Open the [interactive scene](tools/building-consistency.html) to switch between 
 
 Use [generate-building-reference.mjs](tools/generate-building-reference.mjs) and the measured camera/ground-centre workflow in [SPRITES.md](SPRITES.md) when correcting authored alignment. Increasing atlas density cannot correct a painted ground edge or an incorrectly registered yard.
 
+The flat comparison does not exercise raised foundation tops. [foundation-ground-browser-check.mjs](tests/foundation-ground-browser-check.mjs) checks textured ground beneath houses, civic buildings, industries and farm cores on slopes, including warm draws and panning.
+
 Regenerate from the repository root with a local HTTP server and Playwright plus Chrome installed:
 
 ```sh

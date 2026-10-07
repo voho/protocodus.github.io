@@ -800,7 +800,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   // Raised plots stand on irregular rubble-stone walls. Terrain boundaries and
   // shading are cached per plot; small stone materials are shared across walls.
   const WALL={taiga:{top:'#9caa85',faces:['#7b8067','#9a9a80'],lip:'#bbc3a2'},tundra:{top:'#bfc9b9',faces:['#858d86','#a4aba2'],lip:'#d7dece'},desert:{top:'#c7b58d',faces:['#a88d63','#c4a878'],lip:'#d5c59e'}};
-  function drawFoundation(x,y,span,terrainGarden=false){
+  function drawFoundation(x,y,span){
     const height=foundationHeight(x,y,span),top=(u,v)=>{const p=projectPoint(u*TILE,v*TILE);p.y-=height*heightStep;return p;};
     const entry=foundations.get((y*game.width+x)*8+span);
     if(!entry.paths){
@@ -824,7 +824,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       }
     }
     for(const {path,color} of entry.paths){ctx.fillStyle=color;ctx.fill(path);}
-    if(terrainGarden&&entry.paths.length){
+    if(entry.paths.length){
       const bounds={x0:x,y0:y,x1:x+span,y1:y+span};
       if(entry.gardenRevision!==cachedRevision||entry.gardenScale!==rasterScale||entry.gardenDetail!==detailLevel){
         const reach={x0:Math.max(0,x-2),y0:Math.max(0,y-2),x1:Math.min(game.width,x+span+2),y1:Math.min(game.height,y+span+2)};
@@ -835,9 +835,9 @@ export function createRenderer(canvas, initialGame, options={}) {
         image=document.createElement('canvas');image.width=image.height=Math.ceil(TILE*span*rasterScale);
         const c=image.getContext('2d');c.scale(rasterScale,rasterScale);c.translate(-x*TILE,-y*TILE);drawGround(c,bounds);gardenSurfaces.set(entry.gardenKey,image);
       }
-      // A sloped parcel is levelled for its house. Replay the exact same
-      // world-anchored grass/color field on that raised garden, rather than
-      // revealing the old flat foundation tint through the lawn cutout.
+      // Every raised building parcel replays its world-anchored ground texture.
+      // Houses, civic buildings, industries and farm cores share the same
+      // surface, so transparent sprite margins never reveal a flat green slab.
       ctx.save();ctx.clip(entry.paths[0].path);ctx.translate(0,-height*heightStep);groundTransform(ctx);
       ctx.drawImage(image,x*TILE,y*TILE,TILE*span,TILE*span);ctx.restore();
     }
@@ -1021,7 +1021,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         // them upright; baking stones into ground would project them twice.
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;billboard(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
-      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span,kind.startsWith('house-'));billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&isLargeFarm(ind)){
         const core=farmCore(ind);
