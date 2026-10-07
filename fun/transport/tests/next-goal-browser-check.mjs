@@ -44,7 +44,7 @@ try {
   await page.locator('#close-management').click();
   while (!(await page.locator('#objective-detail').textContent()).includes('Stone quarry')) await page.locator('#objective-another').click();
   await page.evaluate(({ x, y }) => transport.inspect(x, y), quarry);
-  assert.equal(await page.locator('#inspector h3').textContent(), 'Stone quarry');
+  assert.equal(await page.locator('#inspector h3').first().textContent(), 'Stone quarry');
   assert.equal(await page.locator('#objective-card').isVisible(), true, 'wide screens keep the card beside the inspector');
   await page.locator('#inspector .tiny-button').click();
 

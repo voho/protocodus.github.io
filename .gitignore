@@ -11,3 +11,7 @@
 # Local browser QA artifacts
 .playwright-mcp/
 test-results/
+node_modules
+node_modules/
+**/node_modules
+**/node_modules/

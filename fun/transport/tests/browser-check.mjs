@@ -129,7 +129,7 @@ try {
   // Inspect all 37 architectural choices, build a civic landmark, and navigate a huge map.
   await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-category="towns"]').click();
-  const expectedGroups={homes:9,community:15,shops:8,services:5};
+  const expectedGroups={homes:9,community:18,shops:11,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
     await page.locator('#building-group').selectOption(group);
     assert.equal(await page.locator('.building-grid [data-building-sprite]').count(),count,group+' has distinct buildable designs');
@@ -165,11 +165,13 @@ try {
   await page.locator('.main-nav [data-view="build"]').click();
   await page.locator('[data-category="network"]').click();
 
-  // Fill the visible route form, purchase its vehicle, then exercise retirement confirmation.
   await page.locator('.main-nav [data-view="routes"]').click();
-  await page.locator('#route-form [name="name"]').fill('QA city shuttle');
+  if (await page.locator('#new-route-button').isVisible()) await page.locator('#new-route-button').click();
+  await page.locator('#route-form').waitFor({ state: 'visible' });
   await page.locator('#route-form [name="from"]').selectOption('station-1');
   await page.locator('#route-form [name="to"]').selectOption('station-2');
+  await page.locator('#route-form [data-cargo-choice="mail"]').click();
+  await page.locator('#route-form [name="name"]').fill('QA city shuttle');
   const beforeRoute = await page.evaluate(() => transport.game.money);
   await page.locator('#route-form button[type="submit"]').click();
   assert.equal(await page.evaluate(() => transport.game.routes.length), 2);

@@ -30,12 +30,12 @@
 #world.build-mode{cursor:crosshair}
 #world.dragging{cursor:grabbing}
 .map-topline{position:absolute;top:18px;left:20px;right:20px;display:flex;align-items:center;gap:8px;pointer-events:none}
-.map-title{background:var(--paper);border:1px solid transparent;border-radius:var(--r-2);box-shadow:var(--e1);display:flex;align-items:center;gap:12px;padding:12px 12px;max-width:calc(100% - 67px);font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.map-title{display:none}
 #weather{display:flex;align-items:center;gap:4px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .map-chip{display:flex;align-items:center;gap:8px;background:var(--paper);box-shadow:var(--e1);border-radius:var(--r-2);padding:12px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);pointer-events:auto}
 .map-chip[aria-pressed=true]{background:var(--well);color:var(--ink-2)}
 .map-bottomline{position:absolute;bottom:19px;left:20px;right:231px;display:flex;align-items:center;justify-content:space-between;gap:12px;pointer-events:none}
-.map-hint{display:flex;align-items:center;gap:8px;border-radius:var(--r-2);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);padding:12px 12px;background:var(--paper)}
+.map-hint{display:none}
 .map-hint i{padding:0 4px;font-style:normal;color:var(--ink-2)}
 .view-controls{display:flex;align-items:center;background:var(--paper);border:1px solid transparent;border-radius:var(--r-2);padding:4px;pointer-events:auto;box-shadow:var(--e1);gap:1px}
 .view-controls .icon-button{width:27px;height:27px;font-size:var(--fs-title);line-height:var(--lh-title);color:var(--ink-2)}
@@ -166,6 +166,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .hud-finance-wrap:hover .hud-tooltip,.hud-finances:focus-visible+.hud-tooltip,.hud-finances[aria-expanded=true]+.hud-tooltip{display:block}
 .hud-tooltip>div{display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:var(--fs-small);line-height:var(--lh-small)}
 .hud-tooltip>div+div{margin-top:8px}
+.hud-tooltip>div:nth-child(2),.hud-tooltip>div:nth-child(6){padding-bottom:8px;border-bottom:1px solid var(--rule);margin-bottom:8px}
 .hud-tooltip strong{font-weight:500;white-space:nowrap}
 .hud-tooltip small{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .topbar .date-block{margin:0;flex-shrink:0;text-align:center}
@@ -407,7 +408,13 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 #app.compact-play .inspector{width:var(--drawer-width);max-width:calc(100% - 16px);overflow:auto}
 #app.compact-play #zoom-menu,#game-menu{position:fixed;left:8px;right:auto;top:calc(var(--play-header) + 8px);bottom:auto;max-height:calc(100dvh - var(--play-header) - 16px)}
 #app.compact-play #zoom-menu{width:190px}
-#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden]),#layers-panel:not([hidden]),#map-options:not([hidden]),#zoom-menu:not([hidden]),#game-menu:not([hidden]),#active-tool-bar:not([hidden]),.route-pick-banner,.minimap-wrap:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
+#app.compact-play:has(#layers-panel:not([hidden]),#map-options:not([hidden]),#zoom-menu:not([hidden]),#game-menu:not([hidden]),#active-tool-bar:not([hidden]),.route-pick-banner,.minimap-wrap:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
+@media(max-width:1100px){
+ #app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
+}
+@media(min-width:1101px){
+ #app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) #objective-card{left:calc(var(--drawer-width) + 16px);right:auto}
+}
 @media(prefers-reduced-motion:reduce){#app.compact-play .sidebar{transition:none}}
 /* Everyday construction and the gallery stay on the main rail. Let only this rail scroll when a computer window
    becomes unusually narrow, so finance, speed and the game menu keep their place. */
