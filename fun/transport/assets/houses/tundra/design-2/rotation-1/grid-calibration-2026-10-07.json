@@ -1,0 +1,715 @@
+{
+  "source": "exec-2e18fee9-3b17-409b-a7dc-402a17d03d92.png",
+  "biome": "tundra",
+  "design": 2,
+  "rotation": 1,
+  "tierSourceScales": {
+    "1": 0.4514691558780867,
+    "2": 0.4184538131603723
+  },
+  "tierCalibration": {
+    "1": {
+      "sourceMedianGeometricDoor": 37.0,
+      "targetMasterDoor": 22.4,
+      "uniformCalibratedScale": 0.6054054054054053,
+      "uniformSourceScaleWithGutter": 0.4514691558780867
+    },
+    "2": {
+      "sourceMedianGeometricDoor": 26.0,
+      "targetMasterDoor": 11.2,
+      "uniformCalibratedScale": 0.43076923076923074,
+      "uniformSourceScaleWithGutter": 0.4184538131603723
+    }
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceRegion": [
+        0,
+        0,
+        435,
+        463
+      ],
+      "groundCenterSource": [
+        207.5,
+        347.3225
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          17.0,
+          343.304
+        ],
+        "front": [
+          211.494,
+          457.411
+        ],
+        "right": [
+          398.0,
+          351.341
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5866864787602704,
+        -0.5687216497056394
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 39,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            290,
+            305
+          ],
+          [
+            290,
+            344
+          ]
+        ],
+        "boundsSource": [
+          289,
+          305,
+          292,
+          345
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Actual personnel door at the path endpoint and visible hardware. Automatic candidate at x243 is a raised facade window and is excluded. Both inner door endpoints visible; outer cream frame excluded. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 46,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            290,
+            300
+          ],
+          [
+            290,
+            346
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2459,
+      "sourceMeaningfulBounds": [
+        17,
+        193,
+        399,
+        458
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceRegion": [
+        435,
+        0,
+        850,
+        463
+      ],
+      "groundCenterSource": [
+        195.5,
+        350.72900000000004
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          7.0,
+          348.922
+        ],
+        "front": [
+          199.414,
+          458.518
+        ],
+        "right": [
+          384.0,
+          352.536
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5695843337802861,
+        -0.5741605538881603
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 39,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            273,
+            307
+          ],
+          [
+            273,
+            346
+          ]
+        ],
+        "boundsSource": [
+          272,
+          307,
+          275,
+          347
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 48,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            273,
+            300
+          ],
+          [
+            273,
+            348
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.244,
+      "sourceMeaningfulBounds": [
+        7,
+        191,
+        386,
+        458
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceRegion": [
+        850,
+        0,
+        1254,
+        463
+      ],
+      "groundCenterSource": [
+        207.5,
+        355.574
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          21.0,
+          349.603
+        ],
+        "front": [
+          209.8130000000001,
+          462.471
+        ],
+        "right": [
+          394.0,
+          361.545
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5977766361426381,
+        -0.5479539815513583
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            283,
+            317
+          ],
+          [
+            283,
+            354
+          ]
+        ],
+        "boundsSource": [
+          282,
+          317,
+          285,
+          355
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 51,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            283,
+            305
+          ],
+          [
+            283,
+            356
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2389,
+      "sourceMeaningfulBounds": [
+        21,
+        196,
+        396,
+        463
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceRegion": [
+        0,
+        463,
+        435,
+        858
+      ],
+      "groundCenterSource": [
+        212.0,
+        276.4435
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          17.0,
+          272.74299999999994
+        ],
+        "front": [
+          211.372,
+          391.37300000000005
+        ],
+        "right": [
+          407.0,
+          280.144
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6103245323400495,
+        -0.5685740282577139
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            292,
+            244
+          ],
+          [
+            292,
+            281
+          ]
+        ],
+        "boundsSource": [
+          291,
+          244,
+          294,
+          282
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 43,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            292,
+            240
+          ],
+          [
+            292,
+            283
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2627,
+      "sourceMeaningfulBounds": [
+        16,
+        69,
+        408,
+        394
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceRegion": [
+        435,
+        463,
+        850,
+        858
+      ],
+      "groundCenterSource": [
+        197.5,
+        279.4815
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          3.0,
+          278.135
+        ],
+        "front": [
+          197.255,
+          394.211
+        ],
+        "right": [
+          392.0,
+          280.828
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5975444647499422,
+        -0.5822126370381783
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 36,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            280,
+            245
+          ],
+          [
+            280,
+            281
+          ]
+        ],
+        "boundsSource": [
+          279,
+          245,
+          282,
+          282
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 44,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            280,
+            239
+          ],
+          [
+            280,
+            283
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2556,
+      "sourceMeaningfulBounds": [
+        2,
+        66,
+        393,
+        395
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceRegion": [
+        850,
+        463,
+        1254,
+        858
+      ],
+      "groundCenterSource": [
+        202.5,
+        275.39050000000003
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          12.0,
+          271.0640000000001
+        ],
+        "front": [
+          200.43900000000008,
+          394.072
+        ],
+        "right": [
+          393.0,
+          279.717
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6527735765950778,
+        -0.5938637626518354
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            279,
+            247
+          ],
+          [
+            279,
+            282
+          ]
+        ],
+        "boundsSource": [
+          278,
+          247,
+          281,
+          283
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement. Separately observed pale outer-frame head and bright threshold endpoints are recorded at the same x; source cream/wall boundary has \u00b13px ambiguity. Frame endpoints exclude roof eaves and higher facade framing; no hidden endpoint inferred.",
+        "fullFrameHeightSource": 42,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            279,
+            242
+          ],
+          [
+            279,
+            284
+          ]
+        ],
+        "fullFrameUncertaintyPixels": 3
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2697,
+      "sourceMeaningfulBounds": [
+        11,
+        131,
+        395,
+        395
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceRegion": [
+        0,
+        858,
+        435,
+        1254
+      ],
+      "groundCenterSource": [
+        225.0,
+        230.303
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          17.0,
+          229.63200000000006
+        ],
+        "front": [
+          213.378,
+          356.68100000000004
+        ],
+        "right": [
+          433.0,
+          230.97399999999993
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.646961472262677,
+        -0.5723789055741233
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 26,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            291,
+            224
+          ],
+          [
+            291,
+            250
+          ]
+        ],
+        "boundsSource": [
+          290,
+          224,
+          293,
+          251
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1868,
+      "sourceMeaningfulBounds": [
+        16,
+        56,
+        435,
+        357
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceRegion": [
+        435,
+        858,
+        850,
+        1254
+      ],
+      "groundCenterSource": [
+        208.5,
+        224.95349999999996
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          4.0,
+          221.45100000000002
+        ],
+        "front": [
+          207.365,
+          352.6880000000001
+        ],
+        "right": [
+          413.0,
+          228.4559999999999
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6453273670493943,
+        -0.6041384005641073
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 26,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            278,
+            220
+          ],
+          [
+            278,
+            246
+          ]
+        ],
+        "boundsSource": [
+          277,
+          220,
+          280,
+          247
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Visible dark personnel-door leaf with head, sill and hardware. Outer pale frame excluded; same-x geometric measurement.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2274,
+      "sourceMeaningfulBounds": [
+        2,
+        54,
+        415,
+        354
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceRegion": [
+        850,
+        858,
+        1254,
+        1254
+      ],
+      "groundCenterSource": [
+        205.0,
+        233.04050000000007
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          12.0,
+          229.67200000000003
+        ],
+        "front": [
+          207.81500000000005,
+          356.55200000000013
+        ],
+        "right": [
+          398.0,
+          236.4090000000001
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6479585322881295,
+        -0.6317164865788578
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+      "doorHeightSourceMeasured": 16,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            235,
+            205
+          ],
+          [
+            235,
+            221
+          ]
+        ],
+        "boundsSource": [
+          234,
+          205,
+          237,
+          222
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Actual rear-wing courtyard entrance glazing, not an annex window. The foreground wing roof physically hides the lower door and sill; only the visible glazing segment is measured. No complete hidden frame inferred.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2624,
+      "sourceMeaningfulBounds": [
+        11,
+        68,
+        403,
+        357
+      ]
+    }
+  ],
+  "landmarkReview": "review-tundra-d2-r1-final-landmarks.json",
+  "measurementMethod": "Independent manual source endpoints and actual fence-post feet. Two-point door endpoints use geometric bottom-top height. Full cutouts partitioned at empty source gutters; one human-calibrated scale per footprint tier, never per-silhouette fit."
+}

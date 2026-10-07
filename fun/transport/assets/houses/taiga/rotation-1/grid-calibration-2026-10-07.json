@@ -1,0 +1,640 @@
+{
+  "source": "exec-7d220e22-774a-4ad5-a926-20078289fe95.png",
+  "biome": "taiga",
+  "design": 0,
+  "rotation": 1,
+  "tierSourceScales": {
+    "1": 0.5203314704181922,
+    "2": 0.4455077963864366
+  },
+  "tierCalibration": {
+    "1": {
+      "sourceMedianGeometricDoor": 34.5,
+      "targetMasterDoor": 22.4,
+      "uniformCalibratedScale": 0.6492753623188405,
+      "uniformSourceScaleWithGutter": 0.5203314704181922
+    },
+    "2": {
+      "sourceMedianGeometricDoor": 23.5,
+      "targetMasterDoor": 11.2,
+      "uniformCalibratedScale": 0.47659574468085103,
+      "uniformSourceScaleWithGutter": 0.4455077963864366
+    }
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceRegion": [
+        0,
+        0,
+        420,
+        485
+      ],
+      "groundCenterSource": [
+        211.5,
+        327.765
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          33.0,
+          327.61
+        ],
+        "front": [
+          214.05,
+          420.58
+        ],
+        "right": [
+          390.0,
+          327.92
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5135045567522781,
+        -0.5266268826371127
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            248,
+            298
+          ],
+          [
+            248,
+            335
+          ]
+        ],
+        "boundsSource": [
+          247,
+          298,
+          250,
+          336
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2135,
+      "sourceMeaningfulBounds": [
+        32,
+        195,
+        391,
+        422
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceRegion": [
+        420,
+        0,
+        835,
+        485
+      ],
+      "groundCenterSource": [
+        208.5,
+        327.58000000000004
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          30.0,
+          324.55
+        ],
+        "front": [
+          215.63,
+          421.2
+        ],
+        "right": [
+          387.0,
+          330.61
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5206593761784193,
+        -0.5286222792787534
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            250,
+            305
+          ],
+          [
+            250,
+            340
+          ]
+        ],
+        "boundsSource": [
+          249,
+          305,
+          252,
+          341
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2385,
+      "sourceMeaningfulBounds": [
+        30,
+        197,
+        388,
+        422
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceRegion": [
+        835,
+        0,
+        1254,
+        485
+      ],
+      "groundCenterSource": [
+        212.0,
+        332.26
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          28.0,
+          330.1
+        ],
+        "front": [
+          217.49,
+          434.18
+        ],
+        "right": [
+          396.0,
+          334.42
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5492638133938466,
+        -0.5588482437958657
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 36,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            255,
+            303
+          ],
+          [
+            255,
+            339
+          ]
+        ],
+        "boundsSource": [
+          254,
+          303,
+          257,
+          340
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.224,
+      "sourceMeaningfulBounds": [
+        28,
+        194,
+        397,
+        434
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceRegion": [
+        0,
+        485,
+        419,
+        865
+      ],
+      "groundCenterSource": [
+        210.0,
+        249.32
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          29.0,
+          248.01
+        ],
+        "front": [
+          213.59,
+          347.03999999999996
+        ],
+        "right": [
+          391.0,
+          250.63
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5364862668616933,
+        -0.5434304717885123
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 34,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            263,
+            227
+          ],
+          [
+            263,
+            261
+          ]
+        ],
+        "boundsSource": [
+          262,
+          227,
+          265,
+          262
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2227,
+      "sourceMeaningfulBounds": [
+        29,
+        52,
+        393,
+        347
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceRegion": [
+        419,
+        485,
+        837,
+        865
+      ],
+      "groundCenterSource": [
+        209.5,
+        244.21999999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          28.0,
+          242.76999999999998
+        ],
+        "front": [
+          212.28999999999996,
+          347.65
+        ],
+        "right": [
+          391.0,
+          245.66999999999996
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5691030441152533,
+        -0.5706451793408315
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 34,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            263,
+            224
+          ],
+          [
+            263,
+            258
+          ]
+        ],
+        "boundsSource": [
+          262,
+          224,
+          265,
+          259
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.187,
+      "sourceMeaningfulBounds": [
+        27,
+        69,
+        393,
+        348
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceRegion": [
+        837,
+        485,
+        1254,
+        865
+      ],
+      "groundCenterSource": [
+        211.5,
+        245.175
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          27.0,
+          244.19000000000005
+        ],
+        "front": [
+          215.27999999999997,
+          348.13
+        ],
+        "right": [
+          396.0,
+          246.15999999999997
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5520501380922028,
+        -0.5642430278884463
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 27,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            273,
+            229
+          ],
+          [
+            273,
+            256
+          ]
+        ],
+        "boundsSource": [
+          272,
+          229,
+          275,
+          257
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Personnel door head is visibly hidden behind the porch roof/beam; the measured visible inner leaf is an observed lower bound, not a full-frame doorway height.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2244,
+      "sourceMeaningfulBounds": [
+        27,
+        101,
+        398,
+        346
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceRegion": [
+        0,
+        865,
+        428,
+        1254
+      ],
+      "groundCenterSource": [
+        217.0,
+        212.015
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          15.0,
+          211.96000000000004
+        ],
+        "front": [
+          206.8,
+          325.28
+        ],
+        "right": [
+          419.0,
+          212.06999999999994
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5908237747653803,
+        -0.5335061262959474
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 21,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            242,
+            191
+          ],
+          [
+            242,
+            212
+          ]
+        ],
+        "boundsSource": [
+          241,
+          191,
+          244,
+          213
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.3238,
+      "sourceMeaningfulBounds": [
+        14,
+        61,
+        420,
+        326
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceRegion": [
+        428,
+        865,
+        829,
+        1254
+      ],
+      "groundCenterSource": [
+        199.5,
+        216.375
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          8.0,
+          216.47000000000003
+        ],
+        "front": [
+          195.37,
+          326.75
+        ],
+        "right": [
+          391.0,
+          216.27999999999997
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5885680738645459,
+        -0.5646884424679243
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 26,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            246,
+            199
+          ],
+          [
+            246,
+            225
+          ]
+        ],
+        "boundsSource": [
+          245,
+          199,
+          248,
+          226
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2783,
+      "sourceMeaningfulBounds": [
+        7,
+        33,
+        393,
+        328
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceRegion": [
+        829,
+        865,
+        1254,
+        1254
+      ],
+      "groundCenterSource": [
+        213.5,
+        208.78999999999996
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          9.0,
+          210.74
+        ],
+        "front": [
+          212.41000000000008,
+          330.0999999999999
+        ],
+        "right": [
+          418.0,
+          206.83999999999992
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5867951428150034,
+        -0.5995427793180604
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 26,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            203,
+            152
+          ],
+          [
+            203,
+            178
+          ]
+        ],
+        "boundsSource": [
+          202,
+          152,
+          205,
+          179
+        ],
+        "uncertaintyPixels": 3,
+        "partiallyOccluded": true,
+        "notes": "Courtyard doorway lower part is hidden by the near red annex roof. Reported bottom is last visible leaf pixel, not the threshold; full height unobservable, exclude from tier median.",
+        "fullFrameHeightSource": null
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1535,
+      "sourceMeaningfulBounds": [
+        8,
+        32,
+        420,
+        330
+      ]
+    }
+  ],
+  "landmarkReview": "review-taiga-d0-r1-landmarks.json",
+  "measurementMethod": "Independent manual source endpoints and actual fence-post feet. Two-point door endpoints use geometric bottom-top height. Full cutouts partitioned at empty source gutters; one human-calibrated scale per footprint tier, never per-silhouette fit."
+}

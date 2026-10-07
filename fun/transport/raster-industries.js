@@ -35,7 +35,7 @@ export const FARM_CORE_KINDS = Object.freeze(['farm', 'dairy-farm', 'vegetable-f
 const coreIds = new Set();
 for (const biome of ['taiga', 'desert']) {
   const entries = FARM_CORE_KINDS.map(kind => { const id = `farm-core:${kind}:${biome}`; coreIds.add(id); return id; });
-  registerAtlas({ id: `farm-cores-${biome}`, path: `./assets/world/farm-cores-v1/${biome}/atlas`, biome, columns: 3, rows: 2, entries, maxCell: 256 });
+  registerAtlas({ id: `farm-cores-${biome}`, path: `./assets/world/farm-cores-v1/${biome}/atlas`, biome, columns: 3, rows: 2, entries, maxCell: 512 });
 }
 export const RASTER_FARM_CORE_IDS = Object.freeze([...coreIds]);
 const coreCandidates = (kind, biome) => [...new Set([`farm-core:${kind}:${biome}`, `farm-core:${kind}:taiga`, `farm-core:${kind}:desert`])].filter(id => coreIds.has(id));

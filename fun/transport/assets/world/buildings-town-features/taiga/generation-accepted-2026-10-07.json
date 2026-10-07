@@ -1,0 +1,137 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "registration": {
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "groundEdgeSlope": 0.5,
+    "architecturalEnvelopeMetresPerTile": 10,
+    "eastWorldPixelsPerMetre": [
+      2,
+      1
+    ],
+    "northWorldPixelsPerMetre": [
+      -2,
+      1
+    ],
+    "upWorldPixelsPerMetre": [
+      0,
+      -2
+    ]
+  },
+  "palette": {
+    "plaster": "#e3d7b7",
+    "stone": "#c7bca5",
+    "brick": "#b1846c",
+    "timber": "#997a5b",
+    "slate": "#697780",
+    "terracotta": "#a76f51",
+    "glass": "#769493",
+    "metal": "#6c7878",
+    "ink": "#4b5954",
+    "cream": "#f0e9d6",
+    "ochre": "#c2a269",
+    "burgundy": "#996b63",
+    "paving": "#cdc6ae",
+    "path": "#d8cfb2",
+    "water": "#658f9c",
+    "ground": "#91a77a",
+    "foliage": "#758f63"
+  },
+  "job": {
+    "columns": 4,
+    "rows": 3,
+    "biome": "taiga",
+    "entries": [
+      {
+        "id": "park",
+        "footprint": 2,
+        "name": "Park",
+        "description": "A 20m by 20m inset municipal garden with two broad rounded tree groups, crossing gravel paths and one large stone fountain. A few low benches. Quiet lawn masses, no speckled leaves, no opaque raised base. Garden boundary locks to the exact grid axes."
+      },
+      {
+        "id": "playground",
+        "footprint": 1,
+        "name": "Playground",
+        "description": "A 10m by 10m inset neighbourhood playground. One unmistakable broad ochre-yellow slide with 2.1m high ladder platform, one simple blue-grey 2.2m high swing frame with two seats, one broad sandy patch, and low 1.2m timber fence. Broad sparse planting; no equipment clutter."
+      },
+      {
+        "id": "swimming-pool",
+        "footprint": 2,
+        "name": "Swimming pool",
+        "description": "A 20m by 20m inset pool garden: large muted turquoise rectangular basin approximately 14m by 10m, two broad lane marks, cream paved edge. Behind it a 16m long by 4m deep one-storey changing pavilion, 3m wall height, muted brick and slate roof, two 2.1m personnel doors, two broad windows. Sparse broad shrubs only."
+      },
+      {
+        "id": "sports-field",
+        "footprint": 2,
+        "name": "Sports field",
+        "description": "A 20m by 20m inset mini community football ground. A broad quiet green rectangular pitch approximately 17m by 15m, readable cream touchlines, centre circle and two goals; one 14m long, 3m high simple covered spectator stand behind. Roof and every ground marking at exact grid axes. Omit tall floodlights and net mesh."
+      },
+      {
+        "id": "tennis-courts",
+        "footprint": 1,
+        "name": "Tennis courts",
+        "description": "A 10m by 10m inset compact tennis practice court: broad muted burgundy-red playing rectangle with dark sage surround, large clean cream court markings and one unmistakable centre net 1m high. Quiet low perimeter fence 1.2m high, no wire mesh or tall posts. No trees crowding corners."
+      },
+      {
+        "id": "ballpark",
+        "footprint": 3,
+        "name": "Ballpark",
+        "description": "A 30m by 30m inset compact baseball park: broad muted green outfield, large warm ochre infield diamond with a small cream home plate, two broad low bleacher wings and simple rear covered stand, 3m high with one 2.1m personnel service door. Only broad sparse shrubs. Ground boundary and stands at exact grid axes."
+      },
+      {
+        "id": "sports-hall",
+        "footprint": 2,
+        "name": "Sports hall",
+        "description": "A 20m by 20m inset sports complex: broad rectangular muted brick sports hall 16m by 12m with 6m eave height and recognizable blue-grey barrel roof, one 3m high pale-plaster entrance annex, two normal 2.1m personnel doors and two broad windows. Huge quiet roof mass, no rib lines or brick texture. Sparse planting."
+      },
+      {
+        "id": "town-hall",
+        "footprint": 2,
+        "name": "Town hall",
+        "description": "A 20m by 20m inset civic garden. Broad 18m facade and 10m deep warm muted stone town hall, exactly two 3m storeys (6m wall height), broad slate hipped roof, central clock turret rising to 10m with one large cream clock disc, short portico and normal 2.1m personnel entrance. Two symmetrical broad wings, sparse shrubs. No tiny railings or texture."
+      },
+      {
+        "id": "shop-cafe",
+        "footprint": 1,
+        "name": "Caf\u00e9",
+        "description": "A 10m by 10m inset cafe parcel. A substantial two-storey corner cafe with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), terracotta hipped roof, cream-plaster broad walls. One clearly visible ordinary 2.1m personnel door, NOT an oversized shop opening. One broad green-and-cream striped awning across 7m of storefront, two broad upper windows per facade and one broad muted glass shop window. One quiet outdoor table, no clutter or tiny chairs. This shop is architectural, not a tiny cottage."
+      },
+      {
+        "id": "shop-pharmacy",
+        "footprint": 1,
+        "name": "Pharmacy",
+        "description": "A 10m by 10m inset pharmacy parcel. A substantial two-storey neighbourhood pharmacy with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, cream-stone broad walls. One normal 2.1m personnel door and broad muted glass storefront, one low muted green canopy. One large recognizable green cross on the front upper facade, at least 1.5m tall. Broad upper windows, no fine panes or lettering. Architecture size equals cafe."
+      },
+      {
+        "id": "shop-bookshop",
+        "footprint": 1,
+        "name": "Bookshop",
+        "description": "A 10m by 10m inset bookshop parcel. A substantial two-storey bookshop with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, muted brick broad walls. One normal 2.1m personnel door, one broad burgundy shop awning, broad warm storefront. One LARGE simple cream open-book emblem on upper front facade, at least 1.8m wide. Two broad upper windows, no book-spine grids or lettering. Architecture size equals cafe."
+      },
+      null
+    ],
+    "direction": "Paint the exact 4x3 construction-guide silhouettes and broad masses into restrained 2D game artwork. Exact low-angle 2:1 orthographic camera, like classic transport simulation sprites: all ground diagonals rise only one pixel for two pixels sideways. Keep the original projected ground geometry and human-feature heights. Equal square slots; twelve slots with a truly empty transparent bottom-right slot. Guide shapes are geometric constraints. Add restrained painted shading inside existing faces, never rotate or tilt them. No outline strokes, no texture noise, no reference markers."
+  },
+  "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nLock every building, roof ridge, garden boundary, fence, court and yard to the same two ground axes. No in-plot yaw, diagonal rotation, camera tilt or camera rotation. An alternate entrance orientation swaps the two grid axes; it never rotates a building off-grid.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nUse the supplied semantic muted material swatches across all families; maintain broad light and shaded facades within those hues. Give each identity a distinct roofline or one large identifying mass, with restrained slate, terracotta, foliage, ochre or burgundy accents. Recognition at Town size must come from silhouette and broad colour blocks, not tiny ornaments or texture.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 4x3 atlas, exactly 12 slots in row-major order; each cell is a registered architectural cutout at the stated parcel scale, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nPhysical ground registration in every 256px square cell: parcel centre is (128.0,192.0), independent of alpha bounds, shadows, roof height and planting. Around that centre project east/north/up metres with x=(east-north)*2 and y=(east+north)-height*2 in world pixels, then multiply by 256/(48*footprint). The inset architectural/garden envelope is at most 10m*footprint square; its exact 2:1 ground vertices are (128.0,138.7), (234.7,192.0), (128.0,245.3), (21.3,192.0). The full 16m*footprint parcel is native world terrain and extends beyond this cutout cell; do not shrink its physical metre scale or paint a full-parcel opaque diamond to fit the cell. Register the actual ground centre, never the silhouette bottom or contact-shadow extremity. Keep all complete architecture and planting inside the transparent cell with filtering gutters.\nTemperate green grass, muted red brick, pale plaster, timber, slate and terracotta roofs.\nCanonical taiga material swatches: plaster #e3d7b7; stone #c7bca5; brick #b1846c; timber #997a5b; slate #697780; terracotta #a76f51; glass #769493; metal #6c7878; ink #4b5954; cream #f0e9d6; ochre #c2a269; burgundy #996b63; paving #cdc6ae; path #d8cfb2; water #658f9c; ground #91a77a; foliage #758f63. These are restrained painted colour targets, with soft light/shade variation, not saturated replacements.\nPaint the exact 4x3 construction-guide silhouettes and broad masses into restrained 2D game artwork. Exact low-angle 2:1 orthographic camera, like classic transport simulation sprites: all ground diagonals rise only one pixel for two pixels sideways. Keep the original projected ground geometry and human-feature heights. Equal square slots; twelve slots with a truly empty transparent bottom-right slot. Guide shapes are geometric constraints. Add restrained painted shading inside existing faces, never rotate or tilt them. No outline strokes, no texture noise, no reference markers.\nSlot 1: Park; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A 20m by 20m inset municipal garden with two broad rounded tree groups, crossing gravel paths and one large stone fountain. A few low benches. Quiet lawn masses, no speckled leaves, no opaque raised base. Garden boundary locks to the exact grid axes.\nSlot 2: Playground; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A 10m by 10m inset neighbourhood playground. One unmistakable broad ochre-yellow slide with 2.1m high ladder platform, one simple blue-grey 2.2m high swing frame with two seats, one broad sandy patch, and low 1.2m timber fence. Broad sparse planting; no equipment clutter.\nSlot 3: Swimming pool; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A 20m by 20m inset pool garden: large muted turquoise rectangular basin approximately 14m by 10m, two broad lane marks, cream paved edge. Behind it a 16m long by 4m deep one-storey changing pavilion, 3m wall height, muted brick and slate roof, two 2.1m personnel doors, two broad windows. Sparse broad shrubs only.\nSlot 4: Sports field; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A 20m by 20m inset mini community football ground. A broad quiet green rectangular pitch approximately 17m by 15m, readable cream touchlines, centre circle and two goals; one 14m long, 3m high simple covered spectator stand behind. Roof and every ground marking at exact grid axes. Omit tall floodlights and net mesh.\nSlot 5: Tennis courts; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A 10m by 10m inset compact tennis practice court: broad muted burgundy-red playing rectangle with dark sage surround, large clean cream court markings and one unmistakable centre net 1m high. Quiet low perimeter fence 1.2m high, no wire mesh or tall posts. No trees crowding corners.\nSlot 6: Ballpark; 3x3 tile parcel (48m square). At a 256px normalized cell, personnel door height is 7.5px, a storey 10.7px and a low fence 4.3px. A 30m by 30m inset compact baseball park: broad muted green outfield, large warm ochre infield diamond with a small cream home plate, two broad low bleacher wings and simple rear covered stand, 3m high with one 2.1m personnel service door. Only broad sparse shrubs. Ground boundary and stands at exact grid axes.\nSlot 7: Sports hall; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A 20m by 20m inset sports complex: broad rectangular muted brick sports hall 16m by 12m with 6m eave height and recognizable blue-grey barrel roof, one 3m high pale-plaster entrance annex, two normal 2.1m personnel doors and two broad windows. Huge quiet roof mass, no rib lines or brick texture. Sparse planting.\nSlot 8: Town hall; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A 20m by 20m inset civic garden. Broad 18m facade and 10m deep warm muted stone town hall, exactly two 3m storeys (6m wall height), broad slate hipped roof, central clock turret rising to 10m with one large cream clock disc, short portico and normal 2.1m personnel entrance. Two symmetrical broad wings, sparse shrubs. No tiny railings or texture.\nSlot 9: Caf\u00e9; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A 10m by 10m inset cafe parcel. A substantial two-storey corner cafe with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), terracotta hipped roof, cream-plaster broad walls. One clearly visible ordinary 2.1m personnel door, NOT an oversized shop opening. One broad green-and-cream striped awning across 7m of storefront, two broad upper windows per facade and one broad muted glass shop window. One quiet outdoor table, no clutter or tiny chairs. This shop is architectural, not a tiny cottage.\nSlot 10: Pharmacy; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A 10m by 10m inset pharmacy parcel. A substantial two-storey neighbourhood pharmacy with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, cream-stone broad walls. One normal 2.1m personnel door and broad muted glass storefront, one low muted green canopy. One large recognizable green cross on the front upper facade, at least 1.5m tall. Broad upper windows, no fine panes or lettering. Architecture size equals cafe.\nSlot 11: Bookshop; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. A 10m by 10m inset bookshop parcel. A substantial two-storey bookshop with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, muted brick broad walls. One normal 2.1m personnel door, one broad burgundy shop awning, broad warm storefront. One LARGE simple cream open-book emblem on upper front facade, at least 1.8m wide. Two broad upper windows, no book-spine grids or lettering. Architecture size equals cafe.\nSlot 12: EMPTY transparent cell.\nRepaint the attached construction-template directly. Treat this image as a geometry-locked pixel layout: retain every major existing planar ground vertex, building corner, eave and vertical extent in place. Add charming restrained HAND-PAINTED shading to the surfaces of these shapes, more developed tree crown masses, large shop windows and recognizable sport features. Preserve the exact shallow diagonal ground directions shown, NOT normal30degree isometric. This is a classic transport-simulation2:1spritecamera, low angle dimetric. Do not rearrange or redraw the silhouettes from anothercamera. Use broad painted masses, soft material variation and muted sharedswatches. The3shopshave broad substantial64pxwallheight and normally sized22.4pxdoors at the normalized256px scale; all2tilebuildings have11.2pxdoors. No people, labels, templateguidelines, vector outlines, white or colouredbackground. Background must be transparent, including the entire finalslot. Do not add denseplanting, detailedrooflines, tilepatterns or opaque raisedslabs. Complete11identities in existingguideorder.",
+  "transparent_background": true,
+  "references": [
+    "../construction-guide-2026-10-07.png"
+  ],
+  "source": "source-generated-2026-10-07.png",
+  "acceptedAttempt": 4,
+  "rejectedAttemptSummary": "Earlier full-sheet edits kept the previous steep camera; a later door-clearance edit drifted back towards that camera. Accepted geometry-guide repaint keeps broader shops and quiet masses, with actual painted-camera error retained in camera-scale-audit metadata."
+}

@@ -1,0 +1,669 @@
+{
+  "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+  "biome": "tundra",
+  "design": 0,
+  "rotation": 1,
+  "tierSourceScales": {
+    "1": 0.48315662327204384,
+    "2": 0.4322939598927268
+  },
+  "tierCalibration": {
+    "1": {
+      "sourceMedianGeometricDoor": 36.0,
+      "targetMasterDoor": 22.4,
+      "uniformCalibratedScale": 0.6222222222222222,
+      "uniformSourceScaleWithGutter": 0.48315662327204384
+    },
+    "2": {
+      "sourceMedianGeometricDoor": 25.0,
+      "targetMasterDoor": 11.2,
+      "uniformCalibratedScale": 0.44799999999999995,
+      "uniformSourceScaleWithGutter": 0.4322939598927268
+    }
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceRegion": [
+        0,
+        0,
+        420,
+        484
+      ],
+      "groundCenterSource": [
+        209.0,
+        335.73
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          334.3
+        ],
+        "front": [
+          214.0,
+          434.22
+        ],
+        "right": [
+          395.0,
+          337.16
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5231413612565445,
+        -0.5362430939226519
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 38,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            250,
+            303
+          ],
+          [
+            250,
+            341
+          ]
+        ],
+        "boundsSource": [
+          249,
+          303,
+          252,
+          342
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2018,
+      "sourceMeaningfulBounds": [
+        22,
+        192,
+        397,
+        434
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceRegion": [
+        420,
+        0,
+        840,
+        484
+      ],
+      "groundCenterSource": [
+        210.0,
+        336.53499999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          24.0,
+          334.08
+        ],
+        "front": [
+          222.91999999999996,
+          433.37
+        ],
+        "right": [
+          396.0,
+          338.99
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.4991453850794291,
+        -0.5452969724982666
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 36,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            257,
+            309
+          ],
+          [
+            257,
+            345
+          ]
+        ],
+        "boundsSource": [
+          256,
+          309,
+          259,
+          346
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2075,
+      "sourceMeaningfulBounds": [
+        23,
+        192,
+        397,
+        433
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceRegion": [
+        840,
+        0,
+        1254,
+        484
+      ],
+      "groundCenterSource": [
+        211.0,
+        340.025
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          338.95
+        ],
+        "front": [
+          220.24,
+          444.71
+        ],
+        "right": [
+          399.0,
+          341.1
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5361995538430337,
+        -0.579603938241217
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            258,
+            307
+          ],
+          [
+            258,
+            344
+          ]
+        ],
+        "boundsSource": [
+          257,
+          307,
+          260,
+          345
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.166,
+      "sourceMeaningfulBounds": [
+        23,
+        192,
+        400,
+        444
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceRegion": [
+        0,
+        484,
+        418,
+        858
+      ],
+      "groundCenterSource": [
+        209.0,
+        253.235
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          20.0,
+          251.33000000000004
+        ],
+        "front": [
+          212.48,
+          359.28999999999996
+        ],
+        "right": [
+          398.0,
+          255.14
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5608894430590188,
+        -0.5613949978438981
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            260,
+            226
+          ],
+          [
+            260,
+            261
+          ]
+        ],
+        "boundsSource": [
+          259,
+          226,
+          262,
+          262
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            260,
+            223
+          ],
+          [
+            260,
+            262
+          ]
+        ]
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2336,
+      "sourceMeaningfulBounds": [
+        19,
+        40,
+        400,
+        359
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceRegion": [
+        418,
+        484,
+        843,
+        858
+      ],
+      "groundCenterSource": [
+        214.0,
+        247.23499999999996
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          20.0,
+          245.53999999999996
+        ],
+        "front": [
+          221.01,
+          360.29999999999995
+        ],
+        "right": [
+          408.0,
+          248.92999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5709168698074722,
+        -0.5955933472378202
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            267,
+            225
+          ],
+          [
+            267,
+            260
+          ]
+        ],
+        "boundsSource": [
+          266,
+          225,
+          269,
+          261
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            267,
+            223
+          ],
+          [
+            267,
+            262
+          ]
+        ]
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1879,
+      "sourceMeaningfulBounds": [
+        19,
+        55,
+        411,
+        359
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceRegion": [
+        843,
+        484,
+        1254,
+        858
+      ],
+      "groundCenterSource": [
+        210.5,
+        252.25
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          16.0,
+          252.17999999999995
+        ],
+        "front": [
+          209.4000000000001,
+          361.28
+        ],
+        "right": [
+          405.0,
+          252.32000000000005
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5641158221302998,
+        -0.5570552147239263
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 28,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            276,
+            231
+          ],
+          [
+            276,
+            259
+          ]
+        ],
+        "boundsSource": [
+          275,
+          231,
+          278,
+          260
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Front porch canopy physically overlaps the personnel-door head. At the selected source column x1119 the visible dark opening begins immediately beneath the canopy underside; this boundary is roof occlusion, not an independently visible full head. Source y715\u2013743 endpoints unchanged and retained as a visible lower bound. Hidden full frame is not inferred. Magnified source crop tundra-d0-r1-normal3-porch-detail.png corroborates the obstruction.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2256,
+      "sourceMeaningfulBounds": [
+        15,
+        91,
+        411,
+        360
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceRegion": [
+        0,
+        858,
+        427,
+        1254
+      ],
+      "groundCenterSource": [
+        214.5,
+        225.03499999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          8.0,
+          227.20000000000005
+        ],
+        "front": [
+          208.14,
+          345.5899999999999
+        ],
+        "right": [
+          421.0,
+          222.8699999999999
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5915359248526025,
+        -0.5765291741050457
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 22,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            247,
+            196
+          ],
+          [
+            247,
+            218
+          ]
+        ],
+        "boundsSource": [
+          246,
+          196,
+          249,
+          219
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2819,
+      "sourceMeaningfulBounds": [
+        7,
+        66,
+        424,
+        345
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceRegion": [
+        427,
+        858,
+        826,
+        1254
+      ],
+      "groundCenterSource": [
+        198.5,
+        227.81500000000005
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          6.0,
+          227.5
+        ],
+        "front": [
+          201.89,
+          346.27
+        ],
+        "right": [
+          391.0,
+          228.1300000000001
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6063096635867068,
+        -0.6247157738882125
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 28,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            249,
+            201
+          ],
+          [
+            249,
+            229
+          ]
+        ],
+        "boundsSource": [
+          248,
+          201,
+          251,
+          230
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2639,
+      "sourceMeaningfulBounds": [
+        5,
+        14,
+        393,
+        345
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceRegion": [
+        826,
+        858,
+        1254,
+        1254
+      ],
+      "groundCenterSource": [
+        216.0,
+        225.08499999999992
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          7.0,
+          225.1099999999999
+        ],
+        "front": [
+          221.79999999999995,
+          354.1600000000001
+        ],
+        "right": [
+          425.0,
+          225.05999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6007914338919935,
+        -0.6353346456692919
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 29,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            212,
+            156
+          ],
+          [
+            212,
+            185
+          ]
+        ],
+        "boundsSource": [
+          211,
+          156,
+          214,
+          186
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Main rear courtyard personnel entrance. Near annex roof covers the lower-left leaf and chosen lower endpoint. This is a visible-only interval, not full doorway height; exclude calibration. No fully visible alternative side personnel entrance identified.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1548,
+      "sourceMeaningfulBounds": [
+        7,
+        17,
+        427,
+        350
+      ]
+    }
+  ],
+  "landmarkReview": "review-tundra-d0-r1-landmarks.json",
+  "measurementMethod": "Independent manual source endpoints and actual fence-post feet. Two-point door endpoints use geometric bottom-top height. Full cutouts partitioned at empty source gutters; one human-calibrated scale per footprint tier, never per-silhouette fit."
+}

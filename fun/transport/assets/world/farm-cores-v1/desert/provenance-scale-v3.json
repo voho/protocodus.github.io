@@ -3,9 +3,10 @@
   "source": "source-scale-v3.png",
   "sourceSha256": "b9b0887e554ae8c781196f8a8096ebfefd1c717cd40a9464df3f8e26c98305d3",
   "generator": "image_gen.imagegen",
-  "sharedPrompt": "generation-prompt.json",
+  "sharedPrompt": "generation-prompt-scale-v3.json",
   "sharedScaleAndStyle": "sprite-art-direction.js",
   "visualFootprint": 2,
   "operation": "Generated at fixed physical scale; registered with one uniform family pixel-to-metre scale; premultiplied mip packing without microdetail sharpening.",
-  "referenceImage": "../taiga/source-scale-v3.png"
+  "referenceImage": "../taiga/source-scale-v3.png",
+  "archivedGenerationJob": "generation-job-scale-v3.json"
 }

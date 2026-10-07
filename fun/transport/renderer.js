@@ -23,6 +23,7 @@ import { paintFoundationStones } from './foundation-stone.js';
 import { houseAssetsRevision, getHouseAssetStats } from './raster-houses.js';
 import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, drawRasterZone, hasRasterNetwork, hasRasterTransport } from './raster-transport.js';
+import { drawRailSurface, RAIL_PALETTE } from './rail-surface-art.js';
 import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
 import { createOverlayGrid, siteShape, insideShape } from './overlay-placement.js';
 import { drawRasterIndustry } from './raster-industries.js';
@@ -617,10 +618,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Only the short exposed approaches belong in the ground layer. Stone
     // mouths are upright objects, depth-sorted with buildings and vehicles.
     for(const [dx,dy]of portalArms(x,y,t,mode)){
+      if(mode==='rail'){drawRailSurface(c,cx,cy,[[dx,dy]],{inner:6,detailLevel});continue;}
       const mouthX=cx+dx*6,mouthY=cy+dy*6;
-      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#b5a587':'#b6b698',mode==='road'?18:11);
-      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],mode==='road'?'#696963':'#79775f',mode==='road'?12:7);
-      if(mode==='rail')for(const o of [-2.4,2.4])line(c,[[mouthX+dy*o,mouthY-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
+      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],'#b5a587',18);
+      line(c,[[mouthX,mouthY],[cx+dx*16,cy+dy*16]],'#696963',12);
     }
   }
   // Road tiles joined into a block (2 × 2, 2 × 3 and larger) are one paved square, like a town square or car park:
@@ -681,26 +682,21 @@ export function createRenderer(canvas, initialGame, options={}) {
         line(c,[[cx-4,cy+5],[cx-4+drop*.3,cy+5+drop]],'#c4bea0',2.5);
         line(c,[[cx-5+drop*.3,cy+5+drop],[cx+5+drop*.3,cy+5+drop]],'#626b5680',3);
       }
-      }stroke('#b7b4a0',17);stroke('#737f73',15);
+      }stroke(mode==='rail'?RAIL_PALETTE.bridgeEdge:'#b7b4a0',17);stroke(mode==='rail'?RAIL_PALETTE.bridgeDeck:'#737f73',15);
     }
     else{
       if(mode==='road'&&townStreet(x,y,t)){
         stroke('#a8a28c',27);stroke('#d3cdb6',25);
         if(detailLevel!=='region')for(const [dx,dy]of arms)for(let k=4;k<16;k+=4)for(const side of [-1,1]){const ox=dy*side*10.5,oy=-dx*side*10.5;line(c,[[cx+dx*k+ox-dy*side*1.5,cy+dy*k+oy+dx*side*1.5],[cx+dx*k+ox+dy*side*1.5,cy+dy*k+oy-dx*side*1.5]],'#b9b29a',.5);}
       }
-      stroke(mode==='road'?'#b5a587':textured?'#796f5c':'#b6b698',mode==='road'?18:10);
+      if(mode==='road')stroke('#b5a587',18);
     }
     if(mode==='road'){
       stroke('#676762',12);stroke('#6c6b67',10);c.lineCap='butt';
       if(!textured&&detailLevel!=='region')for(const p of points){c.setLineDash([3,4]);line(c,[[cx,cy],p],'#d3cfa773',.75);c.setLineDash([]);}
       if(bridge)for(const [dx,dy]of arms){const ox=dy*7,oy=-dx*7;line(c,[[cx+ox,cy+oy],[cx+dx*16+ox,cy+dy*16+oy]],'#dfd9bd',1);line(c,[[cx-ox,cy-oy],[cx+dx*16-ox,cy+dy*16-oy]],'#d6d2b5',1);}
-    }else{
-      stroke('#666f615c',9);
-      if(!textured)for(const [dx,dy]of arms){for(let p=2;p<17;p+=detailLevel==='region'?8:4){const ax=cx+dx*p,ay=cy+dy*p;line(c,[[ax+dy*4,ay-dx*4],[ax-dy*4,ay+dx*4]],'#796c56',2);}
-        for(const o of [-2.4,2.4])line(c,[[cx+dy*o,cy-dx*o],[cx+dx*16+dy*o,cy+dy*16-dx*o]],'#d4d7c6',1.1);
-      }
     }
-    if(!tunnel)drawRasterNetwork(c,mode+(bridge?'-bridge':''),cx,cy,arms,rasterScale);
+    if(!tunnel)drawRasterNetwork(c,mode+(bridge?'-bridge':''),cx,cy,arms,rasterScale,detailLevel);
   }
 
   function drawChunk(cx,cy,scale){
@@ -1745,7 +1741,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     // index is rebuilt only when the transport network changes, never each day.
     const stepX=game.width/width,stepY=game.height/height;
     const packed=hex=>new Uint32Array(new Uint8Array([parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16),255]).buffer)[0];
-    const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed('#655f52'),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
+    const colors={grass:packed(palette.ground),water:packed(palette.deep),forest:packed(palette.forest),mountain:packed(palette.mountain),rock:packed(palette.mountain),sand:packed(palette.sand),snow:packed(palette.ground2),road:packed('#d7cbb0'),rail:packed(RAIL_PALETTE.overview),building:packed('#cfb78b'),zone:packed('#b2b78c'),marsh:packed('#708879'),saltflat:packed('#e3d9bc')};
     const sample=(tx,ty)=>{
       const t=game.tiles[ty*game.width+tx],terrain=t.terrain==='forest'&&!layers.trees?'grass':t.terrain;
       return layers.buildings&&(t.building||buildingAt(game,tx,ty))?colors.building:layers.rails&&t.rail?colors.rail:layers.roads&&t.road?colors.road:layers.zones&&t.zone?colors.zone:terrain==='water'?colors.water:terrain==='forest'?colors.forest:terrainOverviewColor(game,tx,ty);

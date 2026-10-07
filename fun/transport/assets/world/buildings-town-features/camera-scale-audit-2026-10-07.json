@@ -1,0 +1,2394 @@
+{
+  "source": "taiga/source-generated-2026-10-07.png",
+  "canonicalTargetGroundSlope": 0.5,
+  "maximumObservedGroundSlopeError": 0.1095890410958904,
+  "samples": [
+    {
+      "id": "park",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          36,
+          252
+        ],
+        [
+          101,
+          289
+        ]
+      ],
+      "slope": 0.5692307692307692,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.0692307692307692,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "park",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          347,
+          248
+        ],
+        [
+          271,
+          290
+        ]
+      ],
+      "slope": -0.5526315789473685,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.052631578947368474,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "playground",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          387,
+          254
+        ],
+        [
+          449,
+          289
+        ]
+      ],
+      "slope": 0.5645161290322581,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.06451612903225812,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "playground",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          673,
+          269
+        ],
+        [
+          554,
+          336
+        ]
+      ],
+      "slope": -0.5630252100840336,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.06302521008403361,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "swimming-pool",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          744,
+          254
+        ],
+        [
+          889,
+          335
+        ]
+      ],
+      "slope": 0.5586206896551724,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.05862068965517242,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "swimming-pool",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          1040,
+          271
+        ],
+        [
+          930,
+          334
+        ]
+      ],
+      "slope": -0.5727272727272728,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.07272727272727275,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "sports-field",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          1100,
+          250
+        ],
+        [
+          1261,
+          341
+        ]
+      ],
+      "slope": 0.5652173913043478,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.06521739130434778,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "sports-field",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          1399,
+          271
+        ],
+        [
+          1318,
+          318
+        ]
+      ],
+      "slope": -0.5802469135802469,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.08024691358024694,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "tennis-courts",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          87,
+          597
+        ],
+        [
+          146,
+          630
+        ]
+      ],
+      "slope": 0.559322033898305,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.05932203389830504,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "tennis-courts",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          302,
+          597
+        ],
+        [
+          221,
+          643
+        ]
+      ],
+      "slope": -0.5679012345679012,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.0679012345679012,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "ballpark",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          378,
+          548
+        ],
+        [
+          534,
+          640
+        ]
+      ],
+      "slope": 0.5897435897435898,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.08974358974358976,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "ballpark",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          715,
+          548
+        ],
+        [
+          545,
+          645
+        ]
+      ],
+      "slope": -0.5705882352941176,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.07058823529411762,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "sports-hall",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          760,
+          575
+        ],
+        [
+          851,
+          627
+        ]
+      ],
+      "slope": 0.5714285714285714,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.0714285714285714,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "sports-hall",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          1043,
+          581
+        ],
+        [
+          930,
+          646
+        ]
+      ],
+      "slope": -0.5752212389380531,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.0752212389380531,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "town-hall",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          1156,
+          598
+        ],
+        [
+          1258,
+          655
+        ]
+      ],
+      "slope": 0.5588235294117647,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.05882352941176472,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "town-hall",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          1425,
+          573
+        ],
+        [
+          1331,
+          628
+        ]
+      ],
+      "slope": -0.5851063829787234,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.08510638297872342,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-cafe",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          40,
+          920
+        ],
+        [
+          119,
+          966
+        ]
+      ],
+      "slope": 0.5822784810126582,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.08227848101265822,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-cafe",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          302,
+          938
+        ],
+        [
+          223,
+          985
+        ]
+      ],
+      "slope": -0.5949367088607594,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.09493670886075944,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-pharmacy",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          404,
+          920
+        ],
+        [
+          542,
+          999
+        ]
+      ],
+      "slope": 0.572463768115942,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.07246376811594202,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-pharmacy",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          692,
+          920
+        ],
+        [
+          610,
+          969
+        ]
+      ],
+      "slope": -0.5975609756097561,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.09756097560975607,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-bookshop",
+      "axis": "positive",
+      "endpointsSource": [
+        [
+          758,
+          919
+        ],
+        [
+          823,
+          956
+        ]
+      ],
+      "slope": 0.5692307692307692,
+      "targetSlope": 0.5,
+      "absoluteSlopeError": 0.0692307692307692,
+      "endpointUncertaintyPixels": 2
+    },
+    {
+      "id": "shop-bookshop",
+      "axis": "negative",
+      "endpointsSource": [
+        [
+          1073,
+          914
+        ],
+        [
+          980,
+          969
+        ]
+      ],
+      "slope": -0.5913978494623656,
+      "targetSlope": -0.5,
+      "absoluteSlopeError": 0.09139784946236562,
+      "endpointUncertaintyPixels": 2
+    }
+  ],
+  "registrationDatum": "Actual physical ground-plane vertices, not alpha bottom. Back vertex inferred from parallel axes where occluded. Each cell is uniformly calibrated by footprint tier then translated to normalized ground centre (128,192).",
+  "limitations": [
+    "Generated painted source is approximately 2:1; some foreground slopes are close to 0.60 rather than exact 0.50. No vertical compression or per-silhouette fit was applied.",
+    "Shop door headers are partly hidden by awnings; outer frame measurements have \u00b13 source-pixel uncertainty.",
+    "Ballpark has no observable ordinary personnel doorway; its full inset field/garden was measured and uniformly calibrated to 28m square.",
+    "Shared filtering-clearance reductions apply to complete footprint tiers. Observed personnel frames render at1.72\u20131.98m and the ballpark field at26.04m; original calibration targets remain in the packing metadata."
+  ],
+  "acceptedPaintedSlopeTolerance": 0.11,
+  "groundDatumMethod": "Midpoint of observed opposite right/left ground vertices. Hidden back vertices remain uncertain inference and do not affect registration. No silhouette/alpha-bottom datum.",
+  "climates": [
+    {
+      "biome": "taiga",
+      "cells": [
+        {
+          "id": "civic:park:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  354,
+                  241
+                ],
+                [
+                  187,
+                  334
+                ]
+              ],
+              "slope": -0.5568862275449101,
+              "absoluteSlopeError": 0.05688622754491013,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  187,
+                  334
+                ],
+                [
+                  20,
+                  241
+                ]
+              ],
+              "slope": 0.5568862275449101,
+              "absoluteSlopeError": 0.05688622754491013,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            187.0,
+            241.0
+          ],
+          "groundCenterPacked": [
+            128.2688,
+            191.6576
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.49279999999999996,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            44,
+            134,
+            213,
+            240
+          ]
+        },
+        {
+          "id": "civic:playground:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  710,
+                  243
+                ],
+                [
+                  542,
+                  338
+                ]
+              ],
+              "slope": -0.5654761904761905,
+              "absoluteSlopeError": 0.06547619047619047,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  542,
+                  338
+                ],
+                [
+                  374,
+                  243
+                ]
+              ],
+              "slope": 0.5654761904761905,
+              "absoluteSlopeError": 0.06547619047619047,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            542.0,
+            243.0
+          ],
+          "groundCenterPacked": [
+            128.01231858407078,
+            192.28608849557523
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5233274336283186,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            38,
+            141,
+            218,
+            246
+          ]
+        },
+        {
+          "id": "civic:swimming-pool:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1085,
+                  243
+                ],
+                [
+                  907,
+                  344
+                ]
+              ],
+              "slope": -0.5674157303370787,
+              "absoluteSlopeError": 0.0674157303370787,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  907,
+                  344
+                ],
+                [
+                  729,
+                  243
+                ]
+              ],
+              "slope": 0.5674157303370787,
+              "absoluteSlopeError": 0.0674157303370787,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            907.0,
+            243.0
+          ],
+          "groundCenterPacked": [
+            127.6896,
+            191.6576
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.49279999999999996,
+          "masterDoorFramePixels": 9.856,
+          "doorFrameMetres": 1.8479999999999999,
+          "doorMeasurementKind": "visible personnel-door opening",
+          "masterAlphaBounds": [
+            38,
+            134,
+            217,
+            243
+          ]
+        },
+        {
+          "id": "civic:sports-field:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1442,
+                  244
+                ],
+                [
+                  1267,
+                  344
+                ]
+              ],
+              "slope": -0.5714285714285714,
+              "absoluteSlopeError": 0.0714285714285714,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1267,
+                  344
+                ],
+                [
+                  1091,
+                  244
+                ]
+              ],
+              "slope": 0.5681818181818182,
+              "absoluteSlopeError": 0.06818181818181823,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1266.5,
+            244.0
+          ],
+          "groundCenterPacked": [
+            128.4576,
+            192.17919999999998
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.49279999999999996,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            40,
+            136,
+            217,
+            243
+          ]
+        },
+        {
+          "id": "civic:tennis-courts:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  357,
+                  559
+                ],
+                [
+                  188,
+                  654
+                ]
+              ],
+              "slope": -0.5621301775147929,
+              "absoluteSlopeError": 0.062130177514792884,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  188,
+                  654
+                ],
+                [
+                  19,
+                  559
+                ]
+              ],
+              "slope": 0.5621301775147929,
+              "absoluteSlopeError": 0.062130177514792884,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            188.0,
+            559.0
+          ],
+          "groundCenterPacked": [
+            127.53564601769911,
+            191.94938053097346
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5233274336283186,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            37,
+            137,
+            219,
+            245
+          ]
+        },
+        {
+          "id": "civic:ballpark:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  727,
+                  540
+                ],
+                [
+                  544,
+                  645
+                ]
+              ],
+              "slope": -0.5737704918032787,
+              "absoluteSlopeError": 0.07377049180327866,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  544,
+                  645
+                ],
+                [
+                  361,
+                  540
+                ]
+              ],
+              "slope": 0.5737704918032787,
+              "absoluteSlopeError": 0.07377049180327866,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            544.0,
+            540.0
+          ],
+          "groundCenterPacked": [
+            128.10448087431695,
+            191.72444444444446
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5059380692167578,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            34,
+            130,
+            223,
+            246
+          ]
+        },
+        {
+          "id": "civic:sports-hall:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1084,
+                  555
+                ],
+                [
+                  907,
+                  655
+                ]
+              ],
+              "slope": -0.5649717514124294,
+              "absoluteSlopeError": 0.06497175141242939,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  907,
+                  655
+                ],
+                [
+                  730,
+                  555
+                ]
+              ],
+              "slope": 0.5649717514124294,
+              "absoluteSlopeError": 0.06497175141242939,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            907.0,
+            555.0
+          ],
+          "groundCenterPacked": [
+            127.6896,
+            192.0208
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.49279999999999996,
+          "masterDoorFramePixels": 9.856,
+          "doorFrameMetres": 1.8479999999999999,
+          "doorMeasurementKind": "visible entrance-annex personnel-door opening",
+          "masterAlphaBounds": [
+            38,
+            125,
+            218,
+            244
+          ]
+        },
+        {
+          "id": "civic:town-hall:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1443,
+                  556
+                ],
+                [
+                  1266,
+                  660
+                ]
+              ],
+              "slope": -0.5875706214689266,
+              "absoluteSlopeError": 0.08757062146892658,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1266,
+                  660
+                ],
+                [
+                  1090,
+                  556
+                ]
+              ],
+              "slope": 0.5909090909090909,
+              "absoluteSlopeError": 0.09090909090909094,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1266.5,
+            556.0
+          ],
+          "groundCenterPacked": [
+            127.95039999999999,
+            191.9776
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.49279999999999996,
+          "masterDoorFramePixels": 10.348799999999999,
+          "doorFrameMetres": 1.9404,
+          "doorMeasurementKind": "portico personnel door; partly shadowed",
+          "masterAlphaBounds": [
+            39,
+            122,
+            217,
+            246
+          ]
+        },
+        {
+          "id": "civic:shop-cafe:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  363,
+                  903
+                ],
+                [
+                  193,
+                  1003
+                ]
+              ],
+              "slope": -0.5882352941176471,
+              "absoluteSlopeError": 0.08823529411764708,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  193,
+                  1003
+                ],
+                [
+                  20,
+                  905
+                ]
+              ],
+              "slope": 0.5664739884393064,
+              "absoluteSlopeError": 0.06647398843930641,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            191.5,
+            904.0
+          ],
+          "groundCenterPacked": [
+            128.3206371681416,
+            191.95553982300885
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5233274336283186,
+          "masterDoorFramePixels": 19.363115044247788,
+          "doorFrameMetres": 1.81529203539823,
+          "doorMeasurementKind": "outer personnel-door frame from inferred header under awning to threshold; visible opening shorter",
+          "masterAlphaBounds": [
+            37,
+            92,
+            220,
+            246
+          ]
+        },
+        {
+          "id": "civic:shop-pharmacy:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  722,
+                  902
+                ],
+                [
+                  552,
+                  1002
+                ]
+              ],
+              "slope": -0.5882352941176471,
+              "absoluteSlopeError": 0.08823529411764708,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  552,
+                  1002
+                ],
+                [
+                  381,
+                  902
+                ]
+              ],
+              "slope": 0.5847953216374269,
+              "absoluteSlopeError": 0.08479532163742687,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            551.5,
+            902.0
+          ],
+          "groundCenterPacked": [
+            128.3206371681416,
+            192.47886725663716
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5233274336283186,
+          "masterDoorFramePixels": 19.363115044247788,
+          "doorFrameMetres": 1.81529203539823,
+          "doorMeasurementKind": "outer personnel-door frame; header partly occluded by canopy",
+          "masterAlphaBounds": [
+            37,
+            92,
+            220,
+            247
+          ]
+        },
+        {
+          "id": "civic:shop-bookshop:taiga",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1088,
+                  905
+                ],
+                [
+                  914,
+                  1005
+                ]
+              ],
+              "slope": -0.5747126436781609,
+              "absoluteSlopeError": 0.07471264367816088,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  914,
+                  1005
+                ],
+                [
+                  741,
+                  905
+                ]
+              ],
+              "slope": 0.5780346820809249,
+              "absoluteSlopeError": 0.0780346820809249,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            914.5,
+            905.0
+          ],
+          "groundCenterPacked": [
+            127.89061946902655,
+            192.04884955752212
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5233274336283186,
+          "masterDoorFramePixels": 20.409769911504423,
+          "doorFrameMetres": 1.9134159292035395,
+          "doorMeasurementKind": "outer personnel-door frame; header partly occluded by canopy",
+          "masterAlphaBounds": [
+            35,
+            90,
+            222,
+            247
+          ]
+        }
+      ],
+      "fieldInsetMetres": 26.040000000000003,
+      "filteringGutterTierScales": {
+        "1": 0.88,
+        "2": 0.88,
+        "3": 0.93
+      }
+    },
+    {
+      "biome": "tundra",
+      "cells": [
+        {
+          "id": "civic:park:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  325,
+                  273
+                ],
+                [
+                  179,
+                  357
+                ]
+              ],
+              "slope": -0.5753424657534246,
+              "absoluteSlopeError": 0.07534246575342463,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  179,
+                  357
+                ],
+                [
+                  38,
+                  273
+                ]
+              ],
+              "slope": 0.5957446808510638,
+              "absoluteSlopeError": 0.0957446808510638,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            181.5,
+            273.0
+          ],
+          "groundCenterPacked": [
+            127.9019718309859,
+            191.96630985915493
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            46,
+            127,
+            210,
+            241
+          ]
+        },
+        {
+          "id": "civic:playground:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  702,
+                  278
+                ],
+                [
+                  551,
+                  368
+                ]
+              ],
+              "slope": -0.5960264900662252,
+              "absoluteSlopeError": 0.09602649006622521,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  551,
+                  368
+                ],
+                [
+                  399,
+                  279
+                ]
+              ],
+              "slope": 0.5855263157894737,
+              "absoluteSlopeError": 0.08552631578947367,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            550.5,
+            278.5
+          ],
+          "groundCenterPacked": [
+            128.28246153846155,
+            192.00861538461538
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5686153846153846,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            41,
+            136,
+            217,
+            245
+          ]
+        },
+        {
+          "id": "civic:swimming-pool:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1060,
+                  276
+                ],
+                [
+                  910,
+                  363
+                ]
+              ],
+              "slope": -0.58,
+              "absoluteSlopeError": 0.07999999999999996,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  910,
+                  363
+                ],
+                [
+                  761,
+                  276
+                ]
+              ],
+              "slope": 0.5838926174496645,
+              "absoluteSlopeError": 0.08389261744966447,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            910.5,
+            276.0
+          ],
+          "groundCenterPacked": [
+            128.2335774647887,
+            192.08202816901408
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": 9.439549295774647,
+          "doorFrameMetres": 1.7699154929577463,
+          "doorMeasurementKind": "visible personnel-door vertical opening",
+          "masterAlphaBounds": [
+            43,
+            136,
+            214,
+            243
+          ]
+        },
+        {
+          "id": "civic:sports-field:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1424,
+                  276
+                ],
+                [
+                  1278,
+                  365
+                ]
+              ],
+              "slope": -0.6095890410958904,
+              "absoluteSlopeError": 0.1095890410958904,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1278,
+                  365
+                ],
+                [
+                  1123,
+                  279
+                ]
+              ],
+              "slope": 0.5548387096774193,
+              "absoluteSlopeError": 0.05483870967741933,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1273.5,
+            277.5
+          ],
+          "groundCenterPacked": [
+            127.78884507042252,
+            192.2465352112676
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            42,
+            132,
+            212,
+            242
+          ]
+        },
+        {
+          "id": "civic:tennis-courts:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  347,
+                  639
+                ],
+                [
+                  184,
+                  730
+                ]
+              ],
+              "slope": -0.558282208588957,
+              "absoluteSlopeError": 0.05828220858895705,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  184,
+                  730
+                ],
+                [
+                  24,
+                  640
+                ]
+              ],
+              "slope": 0.5625,
+              "absoluteSlopeError": 0.0625,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            185.5,
+            639.5
+          ],
+          "groundCenterPacked": [
+            127.53723076923077,
+            192.4203076923077
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5686153846153846,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            34,
+            133,
+            221,
+            247
+          ]
+        },
+        {
+          "id": "civic:ballpark:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  707,
+                  638
+                ],
+                [
+                  550,
+                  726
+                ]
+              ],
+              "slope": -0.5605095541401274,
+              "absoluteSlopeError": 0.060509554140127375,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  550,
+                  726
+                ],
+                [
+                  394,
+                  638
+                ]
+              ],
+              "slope": 0.5641025641025641,
+              "absoluteSlopeError": 0.0641025641025641,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            550.5,
+            638.0
+          ],
+          "groundCenterPacked": [
+            127.95309904153353,
+            192.30206602768902
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5916080937167199,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            33,
+            129,
+            223,
+            247
+          ]
+        },
+        {
+          "id": "civic:sports-hall:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1065,
+                  642
+                ],
+                [
+                  910,
+                  730
+                ]
+              ],
+              "slope": -0.567741935483871,
+              "absoluteSlopeError": 0.06774193548387097,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  910,
+                  730
+                ],
+                [
+                  753,
+                  642
+                ]
+              ],
+              "slope": 0.5605095541401274,
+              "absoluteSlopeError": 0.060509554140127375,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            909.0,
+            642.0
+          ],
+          "groundCenterPacked": [
+            128.39808450704226,
+            192.18738028169014
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": 10.272450704225351,
+          "doorFrameMetres": 1.9260845070422534,
+          "doorMeasurementKind": "visible personnel-door vertical opening",
+          "masterAlphaBounds": [
+            39,
+            125,
+            217,
+            243
+          ]
+        },
+        {
+          "id": "civic:town-hall:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1424,
+                  642
+                ],
+                [
+                  1273,
+                  732
+                ]
+              ],
+              "slope": -0.5960264900662252,
+              "absoluteSlopeError": 0.09602649006622521,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1273,
+                  732
+                ],
+                [
+                  1119,
+                  642
+                ]
+              ],
+              "slope": 0.5844155844155844,
+              "absoluteSlopeError": 0.08441558441558439,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1271.5,
+            642.0
+          ],
+          "groundCenterPacked": [
+            128.45464788732392,
+            191.85318309859156
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            41,
+            123,
+            215,
+            245
+          ]
+        },
+        {
+          "id": "civic:shop-cafe:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  337,
+                  974
+                ],
+                [
+                  181,
+                  1060
+                ]
+              ],
+              "slope": -0.5512820512820513,
+              "absoluteSlopeError": 0.05128205128205132,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  181,
+                  1060
+                ],
+                [
+                  35,
+                  976
+                ]
+              ],
+              "slope": 0.5753424657534246,
+              "absoluteSlopeError": 0.07534246575342463,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            186.0,
+            975.0
+          ],
+          "groundCenterPacked": [
+            128.13538461538462,
+            192.1156923076923
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5686153846153846,
+          "masterDoorFramePixels": 19.332923076923077,
+          "doorFrameMetres": 1.8124615384615383,
+          "doorMeasurementKind": "outer personnel-door frame, header partly occluded by awning",
+          "masterAlphaBounds": [
+            40,
+            100,
+            216,
+            243
+          ]
+        },
+        {
+          "id": "civic:shop-pharmacy:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  703,
+                  977
+                ],
+                [
+                  551,
+                  1060
+                ]
+              ],
+              "slope": -0.5460526315789473,
+              "absoluteSlopeError": 0.046052631578947345,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  551,
+                  1060
+                ],
+                [
+                  404,
+                  976
+                ]
+              ],
+              "slope": 0.5714285714285714,
+              "absoluteSlopeError": 0.0714285714285714,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            553.5,
+            976.5
+          ],
+          "groundCenterPacked": [
+            128.28246153846155,
+            192.4
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5686153846153846,
+          "masterDoorFramePixels": 19.332923076923077,
+          "doorFrameMetres": 1.8124615384615383,
+          "doorMeasurementKind": "outer personnel-door frame, header partly occluded by awning",
+          "masterAlphaBounds": [
+            41,
+            100,
+            216,
+            243
+          ]
+        },
+        {
+          "id": "civic:shop-bookshop:tundra",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1065,
+                  976
+                ],
+                [
+                  913,
+                  1061
+                ]
+              ],
+              "slope": -0.5592105263157895,
+              "absoluteSlopeError": 0.05921052631578949,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  913,
+                  1061
+                ],
+                [
+                  759,
+                  975
+                ]
+              ],
+              "slope": 0.5584415584415584,
+              "absoluteSlopeError": 0.058441558441558406,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            912.0,
+            975.5
+          ],
+          "groundCenterPacked": [
+            127.70400000000001,
+            191.9686153846154
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5686153846153846,
+          "masterDoorFramePixels": 20.470153846153845,
+          "doorFrameMetres": 1.919076923076923,
+          "doorMeasurementKind": "outer personnel-door frame, header partly occluded by awning",
+          "masterAlphaBounds": [
+            39,
+            99,
+            217,
+            245
+          ]
+        }
+      ],
+      "fieldInsetMetres": 26.040000000000003,
+      "filteringGutterTierScales": {
+        "1": 0.88,
+        "2": 0.88,
+        "3": 0.93
+      }
+    },
+    {
+      "biome": "desert",
+      "cells": [
+        {
+          "id": "civic:park:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  336,
+                  283
+                ],
+                [
+                  186,
+                  369
+                ]
+              ],
+              "slope": -0.5733333333333334,
+              "absoluteSlopeError": 0.07333333333333336,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  186,
+                  369
+                ],
+                [
+                  35,
+                  283
+                ]
+              ],
+              "slope": 0.5695364238410596,
+              "absoluteSlopeError": 0.06953642384105962,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            185.5,
+            283.0
+          ],
+          "groundCenterPacked": [
+            128.2335774647887,
+            192.0794366197183
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            43,
+            131,
+            213,
+            242
+          ]
+        },
+        {
+          "id": "civic:playground:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  700,
+                  284
+                ],
+                [
+                  544,
+                  373
+                ]
+              ],
+              "slope": -0.5705128205128205,
+              "absoluteSlopeError": 0.07051282051282048,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  544,
+                  373
+                ],
+                [
+                  384,
+                  284
+                ]
+              ],
+              "slope": 0.55625,
+              "absoluteSlopeError": 0.05625000000000002,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            542.0,
+            284.0
+          ],
+          "groundCenterPacked": [
+            128.34211764705884,
+            191.6574117647059
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.579764705882353,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            35,
+            136,
+            222,
+            246
+          ]
+        },
+        {
+          "id": "civic:swimming-pool:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1062,
+                  280
+                ],
+                [
+                  906,
+                  371
+                ]
+              ],
+              "slope": -0.5833333333333334,
+              "absoluteSlopeError": 0.08333333333333337,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  906,
+                  371
+                ],
+                [
+                  748,
+                  283
+                ]
+              ],
+              "slope": 0.5569620253164557,
+              "absoluteSlopeError": 0.05696202531645567,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            905.0,
+            281.5
+          ],
+          "groundCenterPacked": [
+            127.84281690140844,
+            192.136
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": 9.161915492957744,
+          "doorFrameMetres": 1.717859154929577,
+          "doorMeasurementKind": "visible personnel-door vertical opening",
+          "masterAlphaBounds": [
+            39,
+            133,
+            217,
+            244
+          ]
+        },
+        {
+          "id": "civic:sports-field:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1427,
+                  286
+                ],
+                [
+                  1266,
+                  374
+                ]
+              ],
+              "slope": -0.546583850931677,
+              "absoluteSlopeError": 0.04658385093167705,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1266,
+                  374
+                ],
+                [
+                  1106,
+                  286
+                ]
+              ],
+              "slope": 0.55,
+              "absoluteSlopeError": 0.050000000000000044,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1266.5,
+            286.0
+          ],
+          "groundCenterPacked": [
+            128.34152112676054,
+            191.9689014084507
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            37,
+            132,
+            219,
+            244
+          ]
+        },
+        {
+          "id": "civic:tennis-courts:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  338,
+                  637
+                ],
+                [
+                  187,
+                  726
+                ]
+              ],
+              "slope": -0.5894039735099338,
+              "absoluteSlopeError": 0.08940397350993379,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  187,
+                  726
+                ],
+                [
+                  31,
+                  637
+                ]
+              ],
+              "slope": 0.5705128205128205,
+              "absoluteSlopeError": 0.07051282051282048,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            184.5,
+            637.0
+          ],
+          "groundCenterPacked": [
+            128.3129411764706,
+            192.2955294117647
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.579764705882353,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            37,
+            133,
+            220,
+            246
+          ]
+        },
+        {
+          "id": "civic:ballpark:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  721,
+                  632
+                ],
+                [
+                  542,
+                  731
+                ]
+              ],
+              "slope": -0.553072625698324,
+              "absoluteSlopeError": 0.05307262569832405,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  542,
+                  731
+                ],
+                [
+                  367,
+                  632
+                ]
+              ],
+              "slope": 0.5657142857142857,
+              "absoluteSlopeError": 0.06571428571428573,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            544.0,
+            632.0
+          ],
+          "groundCenterPacked": [
+            127.67902071563088,
+            191.77062146892655
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5230885122410546,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            34,
+            129,
+            222,
+            246
+          ]
+        },
+        {
+          "id": "civic:sports-hall:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1065,
+                  640
+                ],
+                [
+                  908,
+                  728
+                ]
+              ],
+              "slope": -0.5605095541401274,
+              "absoluteSlopeError": 0.060509554140127375,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  908,
+                  728
+                ],
+                [
+                  750,
+                  639
+                ]
+              ],
+              "slope": 0.5632911392405063,
+              "absoluteSlopeError": 0.06329113924050633,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            907.5,
+            639.5
+          ],
+          "groundCenterPacked": [
+            128.23098591549294,
+            191.90715492957747
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": 10.550084507042252,
+          "doorFrameMetres": 1.9781408450704223,
+          "doorMeasurementKind": "visible personnel-door vertical opening",
+          "masterAlphaBounds": [
+            38,
+            120,
+            217,
+            243
+          ]
+        },
+        {
+          "id": "civic:town-hall:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1427,
+                  642
+                ],
+                [
+                  1267,
+                  735
+                ]
+              ],
+              "slope": -0.58125,
+              "absoluteSlopeError": 0.08125000000000004,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  1267,
+                  735
+                ],
+                [
+                  1105,
+                  642
+                ]
+              ],
+              "slope": 0.5740740740740741,
+              "absoluteSlopeError": 0.07407407407407407,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            1266.0,
+            642.0
+          ],
+          "groundCenterPacked": [
+            127.61915492957745,
+            192.40585915492957
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.5552676056338027,
+          "masterDoorFramePixels": null,
+          "doorFrameMetres": null,
+          "doorMeasurementKind": null,
+          "masterAlphaBounds": [
+            36,
+            118,
+            219,
+            246
+          ]
+        },
+        {
+          "id": "civic:shop-cafe:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  327,
+                  963
+                ],
+                [
+                  185,
+                  1049
+                ]
+              ],
+              "slope": -0.6056338028169014,
+              "absoluteSlopeError": 0.10563380281690138,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  185,
+                  1049
+                ],
+                [
+                  37,
+                  963
+                ]
+              ],
+              "slope": 0.581081081081081,
+              "absoluteSlopeError": 0.08108108108108103,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            182.0,
+            963.0
+          ],
+          "groundCenterPacked": [
+            128.3849411764706,
+            192.34211764705884
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.579764705882353,
+          "masterDoorFramePixels": 19.13223529411765,
+          "doorFrameMetres": 1.7936470588235296,
+          "doorMeasurementKind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "masterAlphaBounds": [
+            42,
+            99,
+            215,
+            244
+          ]
+        },
+        {
+          "id": "civic:shop-pharmacy:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  691,
+                  963
+                ],
+                [
+                  547,
+                  1049
+                ]
+              ],
+              "slope": -0.5972222222222222,
+              "absoluteSlopeError": 0.09722222222222221,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  547,
+                  1049
+                ],
+                [
+                  398,
+                  963
+                ]
+              ],
+              "slope": 0.5771812080536913,
+              "absoluteSlopeError": 0.07718120805369133,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            544.5,
+            963.0
+          ],
+          "groundCenterPacked": [
+            128.25458823529414,
+            192.34211764705884
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.579764705882353,
+          "masterDoorFramePixels": 19.712,
+          "doorFrameMetres": 1.8479999999999999,
+          "doorMeasurementKind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "masterAlphaBounds": [
+            41,
+            99,
+            216,
+            245
+          ]
+        },
+        {
+          "id": "civic:shop-bookshop:desert",
+          "observedForegroundEdges": [
+            {
+              "endpointsSource": [
+                [
+                  1058,
+                  963
+                ],
+                [
+                  909,
+                  1052
+                ]
+              ],
+              "slope": -0.5973154362416108,
+              "absoluteSlopeError": 0.09731543624161076,
+              "endpointUncertaintySourcePixels": 3
+            },
+            {
+              "endpointsSource": [
+                [
+                  909,
+                  1052
+                ],
+                [
+                  758,
+                  965
+                ]
+              ],
+              "slope": 0.5761589403973509,
+              "absoluteSlopeError": 0.07615894039735094,
+              "endpointUncertaintySourcePixels": 3
+            }
+          ],
+          "groundCenterSource": [
+            908.0,
+            964.0
+          ],
+          "groundCenterPacked": [
+            128.28376470588236,
+            192.08141176470588
+          ],
+          "groundVertexMeasured": [
+            false,
+            true,
+            true,
+            true
+          ],
+          "uniformScale": 0.579764705882353,
+          "masterDoorFramePixels": 20.291764705882354,
+          "doorFrameMetres": 1.9023529411764706,
+          "doorMeasurementKind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "masterAlphaBounds": [
+            39,
+            97,
+            218,
+            245
+          ]
+        }
+      ],
+      "fieldInsetMetres": 26.040000000000003,
+      "filteringGutterTierScales": {
+        "1": 0.88,
+        "2": 0.88,
+        "3": 0.93
+      }
+    }
+  ]
+}

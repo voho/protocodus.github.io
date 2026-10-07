@@ -73,10 +73,29 @@ try {
           c.save(); c.translate(24 + i * 250, 370); q.industries.drawRasterFarmCore(c, kind, biome); c.restore();
           c.fillText('64px core source', 24 + i * 250, 480);
         });
-        return { profiles, alpha };
+        const metadata = await fetch(`./assets/world/farm-cores-v1/${biome}/atlas.json`).then(response => response.json());
+        const densityCanvas = document.createElement('canvas'); densityCanvas.width = densityCanvas.height = 512;
+        const dc = densityCanvas.getContext('2d'), draws = [], drawImage = dc.drawImage.bind(dc);
+        dc.drawImage = (image, ...args) => { draws.push({ src: image.src, cell: args[2] }); return drawImage(image, ...args); };
+        q.industries.drawRasterFarmCore(dc, 'farm', biome, 6);
+        await q.art.preloadWorldArt({ biome, cells: [512], waitMs: 8000 });
+        draws.length = 0; q.industries.drawRasterFarmCore(dc, 'farm', biome, 6);
+        return { profiles, alpha, calibration: metadata.physicalCalibration.cells.filter(cell => cell.id), denseDraws: draws };
       }, biome);
       for (const p of checks.profiles) { assert.equal(p.generated, true); assert.equal(p.compact, false, 'compact saved farms use calibrated native art instead of shrinking the five-tile parcel'); assert.equal(p.same, true, 'core atlas draws the exact isolated source density'); }
-      for (const cell of checks.alpha) { assert.equal(cell.border, 0); if (cell.index < 5) assert.ok(cell.ink > 10000); else assert.equal(cell.ink, 0); }
+      // Physically calibrated architecture can occupy less of its cell than
+      // the old silhouette-fitted compounds. Verify visibility and real scale.
+      for (const cell of checks.alpha) { assert.equal(cell.border, 0); if (cell.index < 5) assert.ok(cell.ink > 1000); else assert.equal(cell.ink, 0); }
+      assert.equal(checks.calibration.length, 5);
+      for (const cell of checks.calibration) {
+        const door = cell.sourceDoorMeasurement;
+        assert.ok(Math.abs(door.sillSource[1] - door.headSource[1] - door.heightPixels) < .01, 'recorded door heights follow actual vertical source landmarks');
+        assert.ok(Math.abs(door.heightPixels * cell.uniformScale - cell.masterDoorHeightPixels) < .001, 'packing preserves the measured personnel scale');
+        const worldDoor = cell.masterDoorHeightPixels * 48 * cell.footprint / 256;
+        assert.ok(worldDoor >= 3.4 && worldDoor <= 5, `${cell.id}: human-sized personnel opening`);
+        assert.ok(cell.groundCenterAfterPackingMaster.every((value, axis) => Math.abs(value - [128, 192][axis]) <= .5), 'physical ground datum remains registered independently of silhouette bounds');
+      }
+      assert.ok(checks.denseDraws.some(draw => draw.src.endsWith('atlas-512.png') && draw.cell === 512), 'upright Detail on a dense display samples the direct 512px source');
       assert.equal(new Set(checks.profiles.filter(p => p.zoom === 1).map(p => p.hash)).size, 5);
       await page.locator('#cores').screenshot({ path: `${output}/${biome}-cores-dpr${dpr}.png` });
       results.push({ biome, dpr, profiles: checks.profiles.length });

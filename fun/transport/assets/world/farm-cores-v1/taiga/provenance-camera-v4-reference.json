@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-07",
+  "generator": "image_gen.imagegen",
+  "sharedPromptFunction": "buildingGenerationPrompt()",
+  "source": "source-camera-v4-reference.png",
+  "sourceSha256": "5a0f07548e1c012e6edac8db7ff3783a2f830ff89b28b149e16a75c34180d880",
+  "exactPrompt": "generation-prompt-construction.json",
+  "exactPromptSha256": "0bb65d955d314c7f37f2c9902b70670ab57b9394ce25dc9a02753134991e3239",
+  "transparent_background": true,
+  "referenceImages": [
+    {
+      "path": "camera-scale-reference-2026-10-07.png",
+      "sha256": "ec0bef6c421ab3c8f4cb58b028efdb3d6422a0fd78ef0db50056eef5740f8263"
+    },
+    {
+      "path": "farm-construction-reference-2026-10-07.png",
+      "sha256": "e97c68be7c5574e14e341d6b95fc8397bdfdc147b3993b31aa478067acbffe83"
+    }
+  ],
+  "purpose": "Untouched painted source reference used by the accepted Desert climate edit. The shipping Taiga climate is source-camera-v4.png."
+}

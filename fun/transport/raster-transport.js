@@ -2,23 +2,27 @@ import { registerAtlas, drawAtlas, atlasAvailable, worldArtRevision } from './at
 import { drawDirectionalVehicle, vehicleHeadingIndex, vehicleFrameAngle, VEHICLE_HEADINGS } from './vehicle-directions.js';
 import { projectedGroundBasis } from './isometric.js';
 import { createSpriteCache } from './sprite-cache.js';
+import { drawRailSurface, drawRailPortrait } from './rail-surface-art.js';
 
 registerAtlas({id:'vehicles',path:'./assets/world/vehicles-dimetric-v2/atlas',entries:['bus','truck','locomotive','coach','wagon','express-bus','ferry','cargo-ship','tanker'].map(id=>'vehicle:'+id)});
 registerAtlas({id:'infrastructure',path:'./assets/world/infrastructure/atlas',entries:['bus-stop','train-stop','port','road','rail','road-bridge','rail-bridge','road-tunnel','rail-tunnel'].map(id=>'infra:'+id)});
 registerAtlas({id:'city-ground-v3',path:'./assets/world/city-ground-v3/atlas',entries:['ground:road','ground:rail','ground:road-bridge','ground:rail-bridge','ground:road-junction','ground:rail-junction','zone:residential','zone:commercial','zone:industrial']});
 registerAtlas({id:'cargo',path:'./assets/world/cargo/atlas',entries:['coal','ore','timber','grain','crates','steel','barrels','glass','fish'].map(id=>'cargo:'+id)});
 export const hasRasterTransport=kind=>atlasAvailable(kind);
-export const hasRasterNetwork=kind=>atlasAvailable('ground:'+kind)||atlasAvailable('infra:'+kind);
-export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>drawAtlas(c,'infra:'+kind,x,y,w,h,{pixelScale});
+export const hasRasterNetwork=kind=>kind==='rail'||kind==='rail-bridge'||atlasAvailable('ground:'+kind)||atlasAvailable('infra:'+kind);
+export const drawRasterInfrastructure=(c,kind,x,y,w,h,pixelScale=1)=>kind==='rail'||kind==='rail-bridge'?drawRailPortrait(c,kind,x,y,w,h):drawAtlas(c,'infra:'+kind,x,y,w,h,{pixelScale});
 export const drawRasterZone=(c,zone,x,y,size,pixelScale=1)=>drawAtlas(c,'zone:'+zone,x,y,size,size,{pixelScale});
 
-// The authored network tiles run north/south. Compose their textured arms for
+// The authored road tiles run north/south. Compose their textured arms for
 // bends and junctions too, retaining the renderer's connected bed beneath the
 // transparent edges. Wedges meet at the tile center without painting a road
 // into a direction that is not connected.
-export function drawRasterNetwork(c,kind,cx,cy,arms,pixelScale=1){
+export function drawRasterNetwork(c,kind,cx,cy,arms,pixelScale=1,detailLevel='town'){
   if(!arms.length)return false;
-  const bridge=kind.endsWith('-bridge'),fresh=atlasAvailable('ground:'+kind),width=fresh?(kind==='road-bridge'?40:kind==='rail-bridge'?32:kind==='rail'?26:44):bridge?32:kind==='rail'?22:44;
+  // Network geometry and the gray material stay identical before/after the
+  // legacy infrastructure atlases load, including prepared ground and decks.
+  if(kind==='rail'||kind==='rail-bridge')return drawRailSurface(c,cx,cy,arms,{detailLevel});
+  const bridge=kind.endsWith('-bridge'),fresh=atlasAvailable('ground:'+kind),width=fresh?(bridge?40:44):bridge?32:44;
   const straight=arms.length<=2&&arms.every(([dx,dy])=>arms[0][0]===0?dx===0:dy===0);
   c.save();c.beginPath();c.rect(cx-16,cy-16,32,32);c.clip();c.translate(cx,cy);
   const drawStrip=()=>drawAtlas(c,'ground:'+kind,-width/2,-18,width,36,{pixelScale})||drawRasterInfrastructure(c,kind,-width/2,-18,width,36,pixelScale);

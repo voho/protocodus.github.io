@@ -1,0 +1,1241 @@
+{
+  "source": "/workspace/generated_images/exec-4e0e4135-2b0b-4310-aba1-aceb0b5114c2.png",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          168,
+          298
+        ],
+        "sourceBottom": [
+          168,
+          330
+        ],
+        "sourceHeightGeometric": 32,
+        "sourceHeightInclusive": 33,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 32,
+        "note": "Inner dark personnel door leaf at one vertical source x; dark frame and beige casing excluded.",
+        "cellLocalTop": [
+          168,
+          298
+        ],
+        "cellLocalBottom": [
+          168,
+          330
+        ],
+        "nominalCellLocalTop": [
+          168,
+          298
+        ],
+        "nominalCellLocalBottom": [
+          168,
+          330
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap1",
+        "sourceCutout": [
+          0,
+          0,
+          419,
+          483
+        ],
+        "sourceCenter": [
+          210.0,
+          317.39
+        ],
+        "sourceCorners": {
+          "left": [
+            37.0,
+            316.65
+          ],
+          "front": [
+            207.43,
+            408.69
+          ],
+          "right": [
+            383.0,
+            318.14
+          ]
+        },
+        "sourceSlopes": [
+          0.5401,
+          -0.51575
+        ],
+        "postFeetOffsetFromRailPixels": [
+          7.986,
+          13.7
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        0,
+        0,
+        419,
+        483
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.633,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              84,
+              332
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              166,
+              350
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              182,
+              364
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 3179,
+        "foregroundTriangleTransparentFraction": 0.3724
+      }
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          584,
+          300
+        ],
+        "sourceBottom": [
+          584,
+          333
+        ],
+        "sourceHeightGeometric": 33,
+        "sourceHeightInclusive": 34,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 33,
+        "note": "Inner dark personnel door leaf at one vertical source x; dark frame and beige casing excluded.",
+        "cellLocalTop": [
+          165,
+          300
+        ],
+        "cellLocalBottom": [
+          165,
+          333
+        ],
+        "nominalCellLocalTop": [
+          166,
+          300
+        ],
+        "nominalCellLocalBottom": [
+          166,
+          333
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap2",
+        "sourceCutout": [
+          419,
+          0,
+          837,
+          483
+        ],
+        "sourceCenter": [
+          627.5,
+          317.39
+        ],
+        "sourceCorners": {
+          "left": [
+            454.0,
+            317.15
+          ],
+          "front": [
+            622.54,
+            406.68
+          ],
+          "right": [
+            801.0,
+            317.64
+          ]
+        },
+        "sourceSlopes": [
+          0.53123,
+          -0.49893
+        ],
+        "postFeetOffsetFromRailPixels": [
+          7.919,
+          13.272
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        419,
+        0,
+        837,
+        483
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.6451,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              532,
+              332
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              588,
+              348
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              589,
+              362
+            ],
+            "rgba": [
+              127,
+              127,
+              127,
+              4
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 3238,
+        "foregroundTriangleTransparentFraction": 0.3927
+      }
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1010,
+          296
+        ],
+        "sourceBottom": [
+          1010,
+          330
+        ],
+        "sourceHeightGeometric": 34,
+        "sourceHeightInclusive": 35,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 34,
+        "note": "Inner dark personnel door leaf at one vertical source x; dark frame and beige casing excluded.",
+        "cellLocalTop": [
+          173,
+          296
+        ],
+        "cellLocalBottom": [
+          173,
+          330
+        ],
+        "nominalCellLocalTop": [
+          174,
+          296
+        ],
+        "nominalCellLocalBottom": [
+          174,
+          330
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap3",
+        "sourceCutout": [
+          837,
+          0,
+          1254,
+          483
+        ],
+        "sourceCenter": [
+          1045.0,
+          316.94
+        ],
+        "sourceCorners": {
+          "left": [
+            872.0,
+            315.05
+          ],
+          "front": [
+            1039.08,
+            411.3
+          ],
+          "right": [
+            1218.0,
+            318.83
+          ]
+        },
+        "sourceSlopes": [
+          0.57603,
+          -0.51682
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.326,
+          6.463
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        837,
+        0,
+        1254,
+        483
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.6364,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              940,
+              331
+            ],
+            "rgba": [
+              102,
+              51,
+              102,
+              5
+            ]
+          },
+          {
+            "sourcePosition": [
+              954,
+              351
+            ],
+            "rgba": [
+              1,
+              1,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              1054,
+              364
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 2966,
+        "foregroundTriangleTransparentFraction": 0.3228
+      }
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          162,
+          720
+        ],
+        "sourceBottom": [
+          162,
+          751
+        ],
+        "sourceHeightGeometric": 31,
+        "sourceHeightInclusive": 32,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 31,
+        "note": "Inner dark personnel door leaf at one vertical source x; dark frame and beige casing excluded.",
+        "cellLocalTop": [
+          162,
+          237
+        ],
+        "cellLocalBottom": [
+          162,
+          268
+        ],
+        "nominalCellLocalTop": [
+          162,
+          302
+        ],
+        "nominalCellLocalBottom": [
+          162,
+          333
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal1",
+        "sourceCutout": [
+          0,
+          483,
+          419,
+          875
+        ],
+        "sourceCenter": [
+          209.5,
+          730.86
+        ],
+        "sourceCorners": {
+          "left": [
+            33.0,
+            730.79
+          ],
+          "front": [
+            206.09,
+            826.47
+          ],
+          "right": [
+            386.0,
+            730.94
+          ]
+        },
+        "sourceSlopes": [
+          0.5528,
+          -0.53101
+        ],
+        "postFeetOffsetFromRailPixels": [
+          7.5,
+          13.322
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        0,
+        483,
+        419,
+        875
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.0888,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              108,
+              745
+            ],
+            "rgba": [
+              63,
+              63,
+              0,
+              4
+            ]
+          },
+          {
+            "sourcePosition": [
+              272,
+              758
+            ],
+            "rgba": [
+              170,
+              85,
+              85,
+              3
+            ]
+          },
+          {
+            "sourcePosition": [
+              245,
+              773
+            ],
+            "rgba": [
+              153,
+              153,
+              102,
+              5
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 2106,
+        "foregroundTriangleTransparentFraction": 0.2206
+      }
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          581,
+          713
+        ],
+        "sourceBottom": [
+          581,
+          746
+        ],
+        "sourceHeightGeometric": 33,
+        "sourceHeightInclusive": 34,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 33,
+        "note": "Inner dark personnel door leaf at one vertical source x; dark frame and beige casing excluded.",
+        "cellLocalTop": [
+          162,
+          230
+        ],
+        "cellLocalBottom": [
+          162,
+          263
+        ],
+        "nominalCellLocalTop": [
+          163,
+          295
+        ],
+        "nominalCellLocalBottom": [
+          163,
+          328
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal2",
+        "sourceCutout": [
+          419,
+          483,
+          836,
+          875
+        ],
+        "sourceCenter": [
+          627.5,
+          730.64
+        ],
+        "sourceCorners": {
+          "left": [
+            452.0,
+            731.07
+          ],
+          "front": [
+            625.05,
+            824.99
+          ],
+          "right": [
+            803.0,
+            730.21
+          ]
+        },
+        "sourceSlopes": [
+          0.54275,
+          -0.53264
+        ],
+        "postFeetOffsetFromRailPixels": [
+          7.291,
+          5.971
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        419,
+        483,
+        836,
+        875
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.0736,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              518,
+              745
+            ],
+            "rgba": [
+              2,
+              1,
+              1,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              703,
+              757
+            ],
+            "rgba": [
+              153,
+              102,
+              102,
+              5
+            ]
+          },
+          {
+            "sourcePosition": [
+              588,
+              771
+            ],
+            "rgba": [
+              127,
+              127,
+              127,
+              2
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 1729,
+        "foregroundTriangleTransparentFraction": 0.1875
+      }
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1000,
+          721
+        ],
+        "sourceBottom": [
+          1000,
+          745
+        ],
+        "sourceHeightGeometric": 24,
+        "sourceHeightInclusive": 25,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": false,
+        "calibrationExcluded": true,
+        "chosenVerticalSliceOccluded": true,
+        "topOccluded": true,
+        "bottomOccluded": false,
+        "fullHeightGeometric": null,
+        "note": "Porch roof obscures the original entrance header. First/last visible inner leaf pixels shown; sourceHeightGeometric is visible-only, full height is unknown and excluded from calibration.",
+        "cellLocalTop": [
+          164,
+          238
+        ],
+        "cellLocalBottom": [
+          164,
+          262
+        ],
+        "nominalCellLocalTop": [
+          164,
+          303
+        ],
+        "nominalCellLocalBottom": [
+          164,
+          327
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal3",
+        "sourceCutout": [
+          836,
+          483,
+          1254,
+          875
+        ],
+        "sourceCenter": [
+          1045.0,
+          731.04
+        ],
+        "sourceCorners": {
+          "left": [
+            869.0,
+            731.69
+          ],
+          "front": [
+            1044.82,
+            824.64
+          ],
+          "right": [
+            1221.0,
+            730.39
+          ]
+        },
+        "sourceSlopes": [
+          0.52867,
+          -0.53498
+        ],
+        "postFeetOffsetFromRailPixels": [
+          12.997,
+          13.756
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        836,
+        483,
+        1254,
+        875
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1319,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              916,
+              746
+            ],
+            "rgba": [
+              145,
+              109,
+              72,
+              7
+            ]
+          },
+          {
+            "sourcePosition": [
+              1012,
+              760
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              1083,
+              774
+            ],
+            "rgba": [
+              102,
+              102,
+              51,
+              5
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 1717,
+        "foregroundTriangleTransparentFraction": 0.1914
+      }
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          173,
+          1087
+        ],
+        "sourceBottom": [
+          173,
+          1108
+        ],
+        "sourceHeightGeometric": 21,
+        "sourceHeightInclusive": 22,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 21,
+        "note": "Arched personnel door. Vertical slice near arch crest; arched diagonal polygon bounding height is not used.",
+        "cellLocalTop": [
+          173,
+          212
+        ],
+        "cellLocalBottom": [
+          173,
+          233
+        ],
+        "nominalCellLocalTop": [
+          173,
+          251
+        ],
+        "nominalCellLocalBottom": [
+          173,
+          272
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive1",
+        "sourceCutout": [
+          0,
+          875,
+          427,
+          1254
+        ],
+        "sourceCenter": [
+          212.5,
+          1100.21
+        ],
+        "sourceCorners": {
+          "left": [
+            15.0,
+            1100.12
+          ],
+          "front": [
+            211.28,
+            1210.17
+          ],
+          "right": [
+            410.0,
+            1100.3
+          ]
+        },
+        "sourceSlopes": [
+          0.56068,
+          -0.55288
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.948,
+          7.105
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        0,
+        875,
+        427,
+        1254
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.3893,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              70,
+              1115
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              302,
+              1133
+            ],
+            "rgba": [
+              255,
+              255,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              286,
+              1152
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 5671,
+        "foregroundTriangleTransparentFraction": 0.4306
+      }
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          585,
+          1094
+        ],
+        "sourceBottom": [
+          585,
+          1114
+        ],
+        "sourceHeightGeometric": 20,
+        "sourceHeightInclusive": 21,
+        "uncertaintyPixels": 3,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 20,
+        "note": "Original approved clear-lawn source, not rejected enlarged-door correction. Per root instruction measure full outer entrance frame, including beige top casing at sourcey1094 and lower frame/threshold transition at1114 at fixedx585. Geometric frame height20px; bottom boundary blends with tan threshold, explicit3px interpretation uncertainty. Inner dark leaf14px and dark rim17px retained separately. No obstruction is inferred; doorway fully observable.",
+        "outerFrameSourceTop": [
+          585,
+          1094
+        ],
+        "outerFrameSourceBottom": [
+          585,
+          1114
+        ],
+        "outerFrameHeightGeometric": 20,
+        "interpretationRangeGeometric": [
+          17,
+          23
+        ],
+        "outerFrameInterpretationUncertaintyPixels": 3,
+        "cellLocalTop": [
+          158,
+          219
+        ],
+        "cellLocalBottom": [
+          158,
+          239
+        ],
+        "nominalCellLocalTop": [
+          167,
+          258
+        ],
+        "nominalCellLocalBottom": [
+          167,
+          278
+        ],
+        "measurementStyle": "full-outer-entrance-frame",
+        "personnelDoorObservable": true,
+        "fullFrameHeightSource": 20,
+        "innerLeafSourceTop": [
+          585,
+          1098
+        ],
+        "innerLeafSourceBottom": [
+          585,
+          1112
+        ],
+        "innerLeafHeightGeometric": 14,
+        "darkFrameSourceTop": [
+          585,
+          1096
+        ],
+        "darkFrameSourceBottom": [
+          585,
+          1113
+        ],
+        "darkFrameHeightGeometric": 17
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive2",
+        "sourceCutout": [
+          427,
+          875,
+          825,
+          1254
+        ],
+        "sourceCenter": [
+          626.5,
+          1100.41
+        ],
+        "sourceCorners": {
+          "left": [
+            443.0,
+            1099.93
+          ],
+          "front": [
+            626.34,
+            1203.48
+          ],
+          "right": [
+            810.0,
+            1100.9
+          ]
+        },
+        "sourceSlopes": [
+          0.56482,
+          -0.55855
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.92,
+          5.282
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        427,
+        875,
+        825,
+        1254
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.399,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              501,
+              1115
+            ],
+            "rgba": [
+              255,
+              255,
+              255,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              608,
+              1131
+            ],
+            "rgba": [
+              255,
+              255,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              566,
+              1149
+            ],
+            "rgba": [
+              85,
+              85,
+              85,
+              3
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 4492,
+        "foregroundTriangleTransparentFraction": 0.405
+      }
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          1054,
+          1054
+        ],
+        "sourceBottom": [
+          1054,
+          1074
+        ],
+        "sourceHeightGeometric": 20,
+        "sourceHeightInclusive": 21,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "fullHeightGeometric": 20,
+        "note": "Courtyard personnel entrance. Selected centre leaf slice is fully visible: leaf ends1074, dark bottom frame1075, tan threshold1076..1077, and near red annex roof begins1078. Other lower-left/right doorway sections are roof-occluded, but chosen column is full.",
+        "otherOpeningSectionsOccluded": true,
+        "observedThresholdSourceY": [
+          1076,
+          1077
+        ],
+        "chosenColumnRoofStartsSourceY": 1078,
+        "cellLocalTop": [
+          229,
+          179
+        ],
+        "cellLocalBottom": [
+          229,
+          199
+        ],
+        "nominalCellLocalTop": [
+          218,
+          218
+        ],
+        "nominalCellLocalBottom": [
+          218,
+          238
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive3",
+        "sourceCutout": [
+          825,
+          875,
+          1254,
+          1254
+        ],
+        "sourceCenter": [
+          1039.5,
+          1099.68
+        ],
+        "sourceCorners": {
+          "left": [
+            840.0,
+            1101.54
+          ],
+          "front": [
+            1036.32,
+            1210.91
+          ],
+          "right": [
+            1239.0,
+            1097.82
+          ]
+        },
+        "sourceSlopes": [
+          0.5571,
+          -0.55797
+        ],
+        "postFeetOffsetFromRailPixels": [
+          10.085,
+          8.536
+        ],
+        "uncertaintyPixels": 3,
+        "longPostFootResidualsIncluded": true
+      },
+      "sourceRegion": [
+        825,
+        875,
+        1254,
+        1254
+      ],
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.289,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              900,
+              1114
+            ],
+            "rgba": [
+              182,
+              145,
+              109,
+              7
+            ]
+          },
+          {
+            "sourcePosition": [
+              996,
+              1130
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              971,
+              1151
+            ],
+            "rgba": [
+              255,
+              255,
+              0,
+              1
+            ]
+          }
+        ],
+        "foregroundTriangleTransparentPixelCount": 4031,
+        "foregroundTriangleTransparentFraction": 0.2946
+      }
+    }
+  ],
+  "sourceImageSize": [
+    1254,
+    1254
+  ],
+  "biome": "taiga",
+  "design": 0,
+  "rotation": 0,
+  "coordinateConvention": "Zero-based absolute source pixel centres; geometric height=bottomY-topY; inclusive count=difference+1. Frame/leaf style and uncertainty explicitly recorded.",
+  "groundMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+  "adaptiveRowCuts": [
+    0,
+    483,
+    875,
+    1254
+  ],
+  "tierCalibrationReview": {
+    "1": {
+      "usableKinds": [
+        "cheap1",
+        "cheap2",
+        "cheap3",
+        "normal1",
+        "normal2"
+      ],
+      "sourceMedianDoorHeightGeometric": 33.0,
+      "minimumGeometric": 31,
+      "maximumGeometric": 34,
+      "ratioMaximumToMinimum": 1.0968,
+      "above20PercentAtCentralEstimate": false
+    },
+    "2": {
+      "usableKinds": [
+        "expensive1",
+        "expensive2",
+        "expensive3"
+      ],
+      "sourceMedianDoorHeightGeometric": 20.0,
+      "minimumGeometric": 20,
+      "maximumGeometric": 21,
+      "ratioMaximumToMinimum": 1.05,
+      "above20PercentAtCentralEstimate": false
+    }
+  },
+  "measurementFlags": [
+    "Required clear garden alpha observed in all9 actual source slots.",
+    "Raw actual fence axes recorded without artwork warping.",
+    "Final source is ORIGINAL4e; enlarged-door56 correction rejected.",
+    "Townhouse full outer entrance frame20px with3px uncertainty per root instruction; inner14px/rim17px retained separately.",
+    "Normal3 porch hides original entrance header; source visible24px excluded from full human-height calibration."
+  ],
+  "passesRequiredTransparentBareGround": true,
+  "sourceCameraPassAbsoluteCap064": true
+}

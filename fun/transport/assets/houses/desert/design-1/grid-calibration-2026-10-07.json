@@ -1,0 +1,649 @@
+{
+  "source": "exec-9511603e-1c69-4b78-a0fd-c86e9e5cd355.png",
+  "biome": "desert",
+  "design": 1,
+  "rotation": 0,
+  "tierSourceScales": {
+    "1": 0.506568980154691,
+    "2": 0.38620689655172413
+  },
+  "tierCalibration": {
+    "1": {
+      "sourceMedianGeometricDoor": 42.0,
+      "targetMasterDoor": 22.4,
+      "uniformCalibratedScale": 0.5333333333333333,
+      "uniformSourceScaleWithGutter": 0.506568980154691
+    },
+    "2": {
+      "sourceMedianGeometricDoor": 29.0,
+      "targetMasterDoor": 11.2,
+      "uniformCalibratedScale": 0.38620689655172413,
+      "uniformSourceScaleWithGutter": 0.38620689655172413
+    }
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceRegion": [
+        0,
+        0,
+        419,
+        439
+      ],
+      "groundCenterSource": [
+        205.5,
+        337.311
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          28.0,
+          336.241
+        ],
+        "front": [
+          208.598,
+          437.264
+        ],
+        "right": [
+          383.0,
+          338.381
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5593805025526308,
+        -0.5669831767984315
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 43,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            168,
+            311
+          ],
+          [
+            168,
+            354
+          ]
+        ],
+        "boundsSource": [
+          167,
+          311,
+          170,
+          355
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1805,
+      "sourceMeaningfulBounds": [
+        28,
+        199,
+        385,
+        438
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceRegion": [
+        419,
+        0,
+        836,
+        439
+      ],
+      "groundCenterSource": [
+        208.5,
+        333.07849999999996
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          334.423
+        ],
+        "front": [
+          207.063,
+          437.156
+        ],
+        "right": [
+          394.0,
+          331.734
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5581404193129527,
+        -0.563944002524915
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 42,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            169,
+            312
+          ],
+          [
+            169,
+            354
+          ]
+        ],
+        "boundsSource": [
+          168,
+          312,
+          171,
+          355
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1259,
+      "sourceMeaningfulBounds": [
+        23,
+        197,
+        396,
+        439
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceRegion": [
+        836,
+        0,
+        1254,
+        439
+      ],
+      "groundCenterSource": [
+        211.0,
+        335.802
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          33.0,
+          334.764
+        ],
+        "front": [
+          212.904,
+          436.693
+        ],
+        "right": [
+          389.0,
+          336.84
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.566574395233013,
+        -0.5670372978375432
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 44,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            169,
+            313
+          ],
+          [
+            169,
+            357
+          ]
+        ],
+        "boundsSource": [
+          168,
+          313,
+          171,
+          358
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1087,
+      "sourceMeaningfulBounds": [
+        32,
+        198,
+        391,
+        439
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceRegion": [
+        0,
+        439,
+        419,
+        836
+      ],
+      "groundCenterSource": [
+        207.0,
+        283.454
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          28.0,
+          283.419
+        ],
+        "front": [
+          207.983,
+          385.98
+        ],
+        "right": [
+          386.0,
+          283.48900000000003
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5698371512865106,
+        -0.5757371486992815
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 42,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            164,
+            260
+          ],
+          [
+            164,
+            302
+          ]
+        ],
+        "boundsSource": [
+          163,
+          260,
+          166,
+          303
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2024,
+      "sourceMeaningfulBounds": [
+        28,
+        87,
+        387,
+        387
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceRegion": [
+        419,
+        439,
+        836,
+        836
+      ],
+      "groundCenterSource": [
+        208.0,
+        281.777
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          27.0,
+          283.481
+        ],
+        "front": [
+          206.63300000000004,
+          385.39700000000005
+        ],
+        "right": [
+          389.0,
+          280.073
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.567356777429537,
+        -0.5775386994357536
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 42,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            167,
+            261
+          ],
+          [
+            167,
+            303
+          ]
+        ],
+        "boundsSource": [
+          166,
+          261,
+          169,
+          304
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1291,
+      "sourceMeaningfulBounds": [
+        27,
+        86,
+        391,
+        388
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceRegion": [
+        836,
+        439,
+        1254,
+        836
+      ],
+      "groundCenterSource": [
+        207.0,
+        284.40049999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          26.0,
+          282.991
+        ],
+        "front": [
+          212.00900000000001,
+          390.84400000000005
+        ],
+        "right": [
+          388.0,
+          285.80999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.579826782575037,
+        -0.5968146098380037
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 39,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            168,
+            267
+          ],
+          [
+            168,
+            306
+          ]
+        ],
+        "boundsSource": [
+          167,
+          267,
+          170,
+          307
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1591,
+      "sourceMeaningfulBounds": [
+        25,
+        157,
+        390,
+        391
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceRegion": [
+        0,
+        836,
+        419,
+        1254
+      ],
+      "groundCenterSource": [
+        220.0,
+        250.74350000000004
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          250.98900000000003
+        ],
+        "front": [
+          223.302,
+          366.903
+        ],
+        "right": [
+          417.0,
+          250.49800000000005
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5786961687851344,
+        -0.6009612902559653
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 31,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            184,
+            237
+          ],
+          [
+            184,
+            268
+          ]
+        ],
+        "boundsSource": [
+          183,
+          237,
+          186,
+          269
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2685,
+      "sourceMeaningfulBounds": [
+        22,
+        87,
+        419,
+        368
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceRegion": [
+        419,
+        836,
+        836,
+        1254
+      ],
+      "groundCenterSource": [
+        210.0,
+        251.34800000000007
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          18.0,
+          251.35400000000004
+        ],
+        "front": [
+          213.48900000000003,
+          364.56600000000003
+        ],
+        "right": [
+          402.0,
+          251.3420000000001
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5791220989416282,
+        -0.6006227753287604
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+      "doorHeightSourceMeasured": 29,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            163,
+            224
+          ],
+          [
+            163,
+            253
+          ]
+        ],
+        "boundsSource": [
+          162,
+          224,
+          165,
+          254
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.3,
+      "sourceMeaningfulBounds": [
+        17,
+        87,
+        404,
+        366
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceRegion": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "groundCenterSource": [
+        204.0,
+        255.5
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          15.0,
+          256.0
+        ],
+        "front": [
+          216.0,
+          365.0
+        ],
+        "right": [
+          393.0,
+          255.0
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5422885572139303,
+        -0.6214689265536724
+      ],
+      "groundLandmarkUncertaintySourcePixels": 2,
+      "groundMeasurementMethod": "Manual visible fence post-base centre columns, median alpha>128 bottom from x\u00b12px. Actual grounded post feet, not raised rails or global silhouette bottom. Corners and feet remain painted measurements with \u00b12px endpoint ambiguity.",
+      "doorHeightSourceMeasured": 26,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            168,
+            209
+          ],
+          [
+            168,
+            235
+          ]
+        ],
+        "boundsSource": [
+          167,
+          209,
+          170,
+          236
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Actual glazed courtyard personnel entrance: selected vertical glass column has visible inner head and sill. The helper selected a raised left-annex window at x=972; exclude that window from personnel calibration. Glass/sill boundary has \u00b12px ambiguity.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1988,
+      "sourceMeaningfulBounds": [
+        11,
+        104,
+        399,
+        368
+      ]
+    }
+  ],
+  "landmarkReview": "review-desert-d1-r0-landmarks.json",
+  "measurementMethod": "Independent manual source endpoints and actual fence-post feet. Two-point door endpoints use geometric bottom-top height. Full cutouts partitioned at empty source gutters; one human-calibrated scale per footprint tier, never per-silhouette fit."
+}

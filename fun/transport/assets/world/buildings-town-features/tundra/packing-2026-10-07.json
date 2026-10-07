@@ -1,0 +1,918 @@
+{
+  "source": "source-generated-2026-10-07.png",
+  "sourceSha256": "589fa168bfb92d4a772990427243e1ff6ef4ef6217eb94ae36136a9d03fce293",
+  "operation": "Complete original RGBA cutouts; one measured scale and one shared filtering-clearance correction per footprint tier; observed opposite-ground-corner midpoint registration; uniform resampling; aligned full-cell packing without sharpening",
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "expectedGroundEdgeSlope": 0.5,
+    "paintedGroundSlopeTolerance": 0.11,
+    "groundEndpointUncertaintySourcePixels": 3,
+    "architecturalEnvelopeMetresPerTile": 10,
+    "tiers": {
+      "1": {
+        "referenceDoorSourcePixels": 34.666666666666664,
+        "targetDoorMasterPixels": 22.4,
+        "method": "One shared mean measured personnel-door/frame scale for this climate footprint tier; awning-hidden headers use outer-frame estimates with stated uncertainty.",
+        "measurements": [
+          {
+            "heightPixels": 34,
+            "edgeEndpointsSource": [
+              [
+                190,
+                992
+              ],
+              [
+                190,
+                1026
+              ]
+            ],
+            "kind": "outer personnel-door frame, header partly occluded by awning",
+            "uncertaintyPixels": 3
+          },
+          {
+            "heightPixels": 34,
+            "edgeEndpointsSource": [
+              [
+                557,
+                994
+              ],
+              [
+                557,
+                1028
+              ]
+            ],
+            "kind": "outer personnel-door frame, header partly occluded by awning",
+            "uncertaintyPixels": 3
+          },
+          {
+            "heightPixels": 36,
+            "edgeEndpointsSource": [
+              [
+                920,
+                997
+              ],
+              [
+                920,
+                1033
+              ]
+            ],
+            "kind": "outer personnel-door frame, header partly occluded by awning",
+            "uncertaintyPixels": 3
+          }
+        ],
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+      },
+      "2": {
+        "referenceDoorSourcePixels": 17.75,
+        "targetDoorMasterPixels": 11.2,
+        "method": "One shared mean measured personnel-door/frame scale for this climate footprint tier; awning-hidden headers use outer-frame estimates with stated uncertainty.",
+        "measurements": [
+          {
+            "heightPixels": 17,
+            "edgeEndpointsSource": [
+              [
+                984,
+                261
+              ],
+              [
+                984,
+                278
+              ]
+            ],
+            "kind": "visible personnel-door vertical opening",
+            "uncertaintyPixels": 2
+          },
+          {
+            "heightPixels": 18.5,
+            "edgeEndpointsSource": [
+              [
+                849,
+                668
+              ],
+              [
+                849,
+                686.5
+              ]
+            ],
+            "kind": "visible personnel-door vertical opening",
+            "uncertaintyPixels": 2
+          }
+        ],
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+      },
+      "3": {
+        "referenceDoorSourcePixels": 313,
+        "targetDoorMasterPixels": 199.1111111111111,
+        "method": "No observable personnel-door opening. Complete ballpark uniformly calibrated from measured 313px ground width to a credible 28m inset field/garden square on its 48m full parcel. The ratio fields name the shared scalar API; this is field geometry, not a doorway measurement.",
+        "groundWidthSourcePixels": 313,
+        "groundWidthMasterPixels": 185.17333333333332,
+        "insetGroundSquareMetres": 26.040000000000003,
+        "personnelDoorObservable": false,
+        "filteringGutterScale": 0.93,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged.",
+        "renderedInsetGroundSquareMetres": 26.040000000000003,
+        "originalRequestedInsetGroundSquareMetres": 28,
+        "calibratedBeforeFilteringGroundWidthMasterPixels": 199.1111111111111
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          34,
+          156,
+          329,
+          361
+        ],
+        "groundVerticesSource": [
+          [
+            182,
+            188
+          ],
+          [
+            325,
+            273
+          ],
+          [
+            179,
+            357
+          ],
+          [
+            38,
+            273
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 28124,
+        "groundCenterSource": [
+          181.5,
+          273.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.594406,
+          -0.575342,
+          0.595745,
+          -0.590278
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          46,
+          127
+        ],
+        "normalizedBounds": [
+          46,
+          127,
+          210,
+          241
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 1,
+        "id": "civic:playground:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          397,
+          180,
+          706,
+          372
+        ],
+        "groundVerticesSource": [
+          [
+            551,
+            190
+          ],
+          [
+            702,
+            278
+          ],
+          [
+            551,
+            368
+          ],
+          [
+            399,
+            279
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 29189,
+        "groundCenterSource": [
+          550.5,
+          278.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.582781,
+          -0.596026,
+          0.585526,
+          -0.585526
+        ],
+        "uniformScale": 0.5686153846153846,
+        "translationMaster": [
+          41,
+          136
+        ],
+        "normalizedBounds": [
+          41,
+          136,
+          217,
+          245
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 2,
+        "id": "civic:swimming-pool:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          757,
+          175,
+          1065,
+          368
+        ],
+        "groundVerticesSource": [
+          [
+            910,
+            190
+          ],
+          [
+            1060,
+            276
+          ],
+          [
+            910,
+            363
+          ],
+          [
+            761,
+            276
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 30581,
+        "groundCenterSource": [
+          910.5,
+          276.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.573333,
+          -0.58,
+          0.583893,
+          -0.577181
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          43,
+          136
+        ],
+        "normalizedBounds": [
+          43,
+          136,
+          214,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 17,
+          "edgeEndpointsSource": [
+            [
+              984,
+              261
+            ],
+            [
+              984,
+              278
+            ]
+          ],
+          "kind": "visible personnel-door vertical opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 9.439549295774647
+      },
+      {
+        "cell": 3,
+        "id": "civic:sports-field:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          1119,
+          169,
+          1427,
+          368
+        ],
+        "groundVerticesSource": [
+          [
+            1274,
+            190
+          ],
+          [
+            1424,
+            276
+          ],
+          [
+            1278,
+            365
+          ],
+          [
+            1123,
+            279
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 31642,
+        "groundCenterSource": [
+          1273.5,
+          277.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.573333,
+          -0.609589,
+          0.554839,
+          -0.589404
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          42,
+          132
+        ],
+        "normalizedBounds": [
+          42,
+          132,
+          212,
+          242
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 4,
+        "id": "civic:tennis-courts:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          21,
+          535,
+          350,
+          735
+        ],
+        "groundVerticesSource": [
+          [
+            180,
+            548
+          ],
+          [
+            347,
+            639
+          ],
+          [
+            184,
+            730
+          ],
+          [
+            24,
+            640
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 33474,
+        "groundCenterSource": [
+          185.5,
+          639.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.54491,
+          -0.558282,
+          0.5625,
+          -0.589744
+        ],
+        "uniformScale": 0.5686153846153846,
+        "translationMaster": [
+          34,
+          133
+        ],
+        "normalizedBounds": [
+          34,
+          133,
+          221,
+          247
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 5,
+        "id": "civic:ballpark:tundra",
+        "footprint": 3,
+        "sourceBounds": [
+          390,
+          531,
+          711,
+          730
+        ],
+        "groundVerticesSource": [
+          [
+            549,
+            550
+          ],
+          [
+            707,
+            638
+          ],
+          [
+            550,
+            726
+          ],
+          [
+            394,
+            638
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 34213,
+        "groundCenterSource": [
+          550.5,
+          638.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.556962,
+          -0.56051,
+          0.564103,
+          -0.567742
+        ],
+        "uniformScale": 0.5916080937167199,
+        "translationMaster": [
+          33,
+          129
+        ],
+        "normalizedBounds": [
+          33,
+          129,
+          223,
+          247
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 6,
+        "id": "civic:sports-hall:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          748,
+          521,
+          1069,
+          734
+        ],
+        "groundVerticesSource": [
+          [
+            909,
+            554
+          ],
+          [
+            1065,
+            642
+          ],
+          [
+            910,
+            730
+          ],
+          [
+            753,
+            642
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 38926,
+        "groundCenterSource": [
+          909.0,
+          642.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.564103,
+          -0.567742,
+          0.56051,
+          -0.564103
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          39,
+          125
+        ],
+        "normalizedBounds": [
+          39,
+          125,
+          217,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 18.5,
+          "edgeEndpointsSource": [
+            [
+              849,
+              668
+            ],
+            [
+              849,
+              686.5
+            ]
+          ],
+          "kind": "visible personnel-door vertical opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 10.272450704225351
+      },
+      {
+        "cell": 7,
+        "id": "civic:town-hall:tundra",
+        "footprint": 2,
+        "sourceBounds": [
+          1114,
+          518,
+          1427,
+          737
+        ],
+        "groundVerticesSource": [
+          [
+            1271,
+            550
+          ],
+          [
+            1424,
+            642
+          ],
+          [
+            1273,
+            732
+          ],
+          [
+            1119,
+            642
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 37639,
+        "groundCenterSource": [
+          1271.5,
+          642.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.601307,
+          -0.596026,
+          0.584416,
+          -0.605263
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          41,
+          123
+        ],
+        "normalizedBounds": [
+          41,
+          123,
+          215,
+          245
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-cafe:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          31,
+          813,
+          340,
+          1064
+        ],
+        "groundVerticesSource": [
+          [
+            185,
+            893
+          ],
+          [
+            337,
+            974
+          ],
+          [
+            181,
+            1060
+          ],
+          [
+            35,
+            976
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 45334,
+        "groundCenterSource": [
+          186.0,
+          975.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.532895,
+          -0.551282,
+          0.575342,
+          -0.553333
+        ],
+        "uniformScale": 0.5686153846153846,
+        "translationMaster": [
+          40,
+          100
+        ],
+        "normalizedBounds": [
+          40,
+          100,
+          216,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 34,
+          "edgeEndpointsSource": [
+            [
+              190,
+              992
+            ],
+            [
+              190,
+              1026
+            ]
+          ],
+          "kind": "outer personnel-door frame, header partly occluded by awning",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.332923076923077
+      },
+      {
+        "cell": 9,
+        "id": "civic:shop-pharmacy:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          400,
+          814,
+          707,
+          1065
+        ],
+        "groundVerticesSource": [
+          [
+            555,
+            892
+          ],
+          [
+            703,
+            977
+          ],
+          [
+            551,
+            1060
+          ],
+          [
+            404,
+            976
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 44599,
+        "groundCenterSource": [
+          553.5,
+          976.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.574324,
+          -0.546053,
+          0.571429,
+          -0.556291
+        ],
+        "uniformScale": 0.5686153846153846,
+        "translationMaster": [
+          41,
+          100
+        ],
+        "normalizedBounds": [
+          41,
+          100,
+          216,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 34,
+          "edgeEndpointsSource": [
+            [
+              557,
+              994
+            ],
+            [
+              557,
+              1028
+            ]
+          ],
+          "kind": "outer personnel-door frame, header partly occluded by awning",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.332923076923077
+      },
+      {
+        "cell": 10,
+        "id": "civic:shop-bookshop:tundra",
+        "footprint": 1,
+        "sourceBounds": [
+          756,
+          812,
+          1069,
+          1068
+        ],
+        "groundVerticesSource": [
+          [
+            913,
+            890
+          ],
+          [
+            1065,
+            976
+          ],
+          [
+            913,
+            1061
+          ],
+          [
+            759,
+            975
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 46359,
+        "groundCenterSource": [
+          912.0,
+          975.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.565789,
+          -0.559211,
+          0.558442,
+          -0.551948
+        ],
+        "uniformScale": 0.5686153846153846,
+        "translationMaster": [
+          39,
+          99
+        ],
+        "normalizedBounds": [
+          39,
+          99,
+          217,
+          245
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 36,
+          "edgeEndpointsSource": [
+            [
+              920,
+              997
+            ],
+            [
+              920,
+              1033
+            ]
+          ],
+          "kind": "outer personnel-door frame, header partly occluded by awning",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 20.470153846153845
+      },
+      {
+        "cell": 11,
+        "empty": true
+      }
+    ],
+    "minimumMasterFilteringGutterPixels": 8
+  }
+}

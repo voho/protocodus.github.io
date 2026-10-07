@@ -1,0 +1,2915 @@
+{
+  "source": "/workspace/generated_images/exec-c008cea6-1817-46e1-a83e-844d4ff72c83.png",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          270,
+          294
+        ],
+        "sourceBottom": [
+          270,
+          331
+        ],
+        "sourceHeightGeometric": 37,
+        "sourceHeightInclusive": 38,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          270,
+          294
+        ],
+        "cellLocalBottom": [
+          270,
+          331
+        ],
+        "nominalCellLocalTop": [
+          270,
+          294
+        ],
+        "nominalCellLocalBottom": [
+          270,
+          331
+        ]
+      },
+      "sourceRegion": [
+        0,
+        0,
+        432,
+        471
+      ],
+      "groundPlaneEstimate": {
+        "kind": "cheap1",
+        "sourceCutout": [
+          0,
+          0,
+          432,
+          471
+        ],
+        "sourceCenter": [
+          218.0,
+          312.91
+        ],
+        "sourceCorners": {
+          "left": [
+            24.0,
+            313.12
+          ],
+          "front": [
+            210.24,
+            411.6
+          ],
+          "right": [
+            412.0,
+            312.69
+          ]
+        },
+        "sourceSlopes": [
+          0.52878,
+          -0.49022
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.373,
+          8.737
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          5.373,
+          15.984
+        ],
+        "postFootCandidateCounts": [
+          79,
+          52
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                64,
+                334
+              ],
+              "rgba": [
+                107,
+                69,
+                29,
+                157
+              ],
+              "positiveResidual": 5.104
+            },
+            {
+              "source": [
+                65,
+                334
+              ],
+              "rgba": [
+                126,
+                83,
+                40,
+                223
+              ],
+              "positiveResidual": 4.576
+            },
+            {
+              "source": [
+                66,
+                335
+              ],
+              "rgba": [
+                112,
+                73,
+                34,
+                184
+              ],
+              "positiveResidual": 5.047
+            },
+            {
+              "source": [
+                67,
+                335
+              ],
+              "rgba": [
+                129,
+                84,
+                42,
+                238
+              ],
+              "positiveResidual": 4.518
+            },
+            {
+              "source": [
+                68,
+                336
+              ],
+              "rgba": [
+                130,
+                87,
+                45,
+                178
+              ],
+              "positiveResidual": 4.989
+            },
+            {
+              "source": [
+                69,
+                336
+              ],
+              "rgba": [
+                115,
+                76,
+                35,
+                223
+              ],
+              "positiveResidual": 4.46
+            },
+            {
+              "source": [
+                70,
+                336
+              ],
+              "rgba": [
+                91,
+                56,
+                22,
+                233
+              ],
+              "positiveResidual": 3.932
+            }
+          ],
+          [
+            {
+              "source": [
+                337,
+                348
+              ],
+              "rgba": [
+                75,
+                43,
+                18,
+                224
+              ],
+              "positiveResidual": 7.277
+            },
+            {
+              "source": [
+                338,
+                349
+              ],
+              "rgba": [
+                83,
+                49,
+                21,
+                140
+              ],
+              "positiveResidual": 8.768
+            },
+            {
+              "source": [
+                339,
+                349
+              ],
+              "rgba": [
+                80,
+                45,
+                21,
+                140
+              ],
+              "positiveResidual": 9.258
+            },
+            {
+              "source": [
+                340,
+                348
+              ],
+              "rgba": [
+                82,
+                49,
+                19,
+                197
+              ],
+              "positiveResidual": 8.748
+            },
+            {
+              "source": [
+                341,
+                347
+              ],
+              "rgba": [
+                83,
+                50,
+                21,
+                226
+              ],
+              "positiveResidual": 8.238
+            },
+            {
+              "source": [
+                342,
+                347
+              ],
+              "rgba": [
+                96,
+                63,
+                33,
+                145
+              ],
+              "positiveResidual": 8.729
+            },
+            {
+              "source": [
+                343,
+                346
+              ],
+              "rgba": [
+                91,
+                58,
+                27,
+                170
+              ],
+              "positiveResidual": 8.219
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          288,
+          335
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1494,
+        "foregroundTriangleTransparentPixelCount": 1653,
+        "foregroundTriangleTransparentFraction": 0.1494,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              116,
+              327
+            ],
+            "rgba": [
+              170,
+              85,
+              0,
+              3
+            ]
+          },
+          {
+            "sourcePosition": [
+              254,
+              347
+            ],
+            "rgba": [
+              127,
+              127,
+              63,
+              4
+            ]
+          },
+          {
+            "sourcePosition": [
+              196,
+              388
+            ],
+            "rgba": [
+              170,
+              127,
+              85,
+              6
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          683,
+          294
+        ],
+        "sourceBottom": [
+          683,
+          333
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          251,
+          294
+        ],
+        "cellLocalBottom": [
+          251,
+          333
+        ],
+        "nominalCellLocalTop": [
+          265,
+          294
+        ],
+        "nominalCellLocalBottom": [
+          265,
+          333
+        ]
+      },
+      "sourceRegion": [
+        432,
+        0,
+        851,
+        471
+      ],
+      "groundPlaneEstimate": {
+        "kind": "cheap2",
+        "sourceCutout": [
+          432,
+          0,
+          851,
+          471
+        ],
+        "sourceCenter": [
+          639.0,
+          316.92
+        ],
+        "sourceCorners": {
+          "left": [
+            452.0,
+            319.98
+          ],
+          "front": [
+            631.49,
+            418.3
+          ],
+          "right": [
+            826.0,
+            313.86
+          ]
+        },
+        "sourceSlopes": [
+          0.54779,
+          -0.53694
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.784,
+          1.669
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          0.784,
+          7.503
+        ],
+        "postFootCandidateCounts": [
+          66,
+          27
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                467,
+                328
+              ],
+              "rgba": [
+                143,
+                118,
+                79,
+                164
+              ],
+              "positiveResidual": 0.591
+            },
+            {
+              "source": [
+                468,
+                328
+              ],
+              "rgba": [
+                170,
+                144,
+                107,
+                215
+              ],
+              "positiveResidual": 0.043
+            },
+            {
+              "source": [
+                469,
+                329
+              ],
+              "rgba": [
+                158,
+                133,
+                98,
+                174
+              ],
+              "positiveResidual": 0.495
+            },
+            {
+              "source": [
+                471,
+                330
+              ],
+              "rgba": [
+                173,
+                150,
+                112,
+                193
+              ],
+              "positiveResidual": 0.4
+            },
+            {
+              "source": [
+                473,
+                331
+              ],
+              "rgba": [
+                137,
+                110,
+                79,
+                171
+              ],
+              "positiveResidual": 0.304
+            },
+            {
+              "source": [
+                474,
+                332
+              ],
+              "rgba": [
+                144,
+                122,
+                86,
+                129
+              ],
+              "positiveResidual": 0.756
+            },
+            {
+              "source": [
+                475,
+                332
+              ],
+              "rgba": [
+                157,
+                131,
+                100,
+                186
+              ],
+              "positiveResidual": 0.209
+            }
+          ],
+          [
+            {
+              "source": [
+                749,
+                355
+              ],
+              "rgba": [
+                120,
+                93,
+                65,
+                155
+              ],
+              "positiveResidual": 1.469
+            },
+            {
+              "source": [
+                750,
+                354
+              ],
+              "rgba": [
+                137,
+                113,
+                81,
+                240
+              ],
+              "positiveResidual": 1.006
+            },
+            {
+              "source": [
+                751,
+                354
+              ],
+              "rgba": [
+                116,
+                92,
+                65,
+                201
+              ],
+              "positiveResidual": 1.543
+            },
+            {
+              "source": [
+                752,
+                354
+              ],
+              "rgba": [
+                106,
+                83,
+                55,
+                137
+              ],
+              "positiveResidual": 2.08
+            },
+            {
+              "source": [
+                753,
+                353
+              ],
+              "rgba": [
+                118,
+                94,
+                66,
+                207
+              ],
+              "positiveResidual": 1.617
+            },
+            {
+              "source": [
+                754,
+                352
+              ],
+              "rgba": [
+                131,
+                109,
+                79,
+                235
+              ],
+              "positiveResidual": 1.154
+            },
+            {
+              "source": [
+                755,
+                352
+              ],
+              "rgba": [
+                118,
+                97,
+                67,
+                133
+              ],
+              "positiveResidual": 1.691
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          701,
+          748
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1005,
+        "foregroundTriangleTransparentPixelCount": 1120,
+        "foregroundTriangleTransparentFraction": 0.1005,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              530,
+              331
+            ],
+            "rgba": [
+              170,
+              170,
+              127,
+              6
+            ]
+          },
+          {
+            "sourcePosition": [
+              668,
+              349
+            ],
+            "rgba": [
+              191,
+              127,
+              127,
+              4
+            ]
+          },
+          {
+            "sourcePosition": [
+              618,
+              379
+            ],
+            "rgba": [
+              127,
+              127,
+              85,
+              6
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1106,
+          294
+        ],
+        "sourceBottom": [
+          1106,
+          332
+        ],
+        "sourceHeightGeometric": 38,
+        "sourceHeightInclusive": 39,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          255,
+          294
+        ],
+        "cellLocalBottom": [
+          255,
+          332
+        ],
+        "nominalCellLocalTop": [
+          270,
+          294
+        ],
+        "nominalCellLocalBottom": [
+          270,
+          332
+        ]
+      },
+      "sourceRegion": [
+        851,
+        0,
+        1254,
+        471
+      ],
+      "groundPlaneEstimate": {
+        "kind": "cheap3",
+        "sourceCutout": [
+          851,
+          0,
+          1254,
+          471
+        ],
+        "sourceCenter": [
+          1056.0,
+          319.58
+        ],
+        "sourceCorners": {
+          "left": [
+            876.0,
+            320.6
+          ],
+          "front": [
+            1048.06,
+            412.22
+          ],
+          "right": [
+            1236.0,
+            318.56
+          ]
+        },
+        "sourceSlopes": [
+          0.53248,
+          -0.49835
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.121,
+          3.789
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          5.121,
+          10.884
+        ],
+        "postFootCandidateCounts": [
+          71,
+          35
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                918,
+                342
+              ],
+              "rgba": [
+                56,
+                57,
+                55,
+                207
+              ],
+              "positiveResidual": 4.154
+            },
+            {
+              "source": [
+                919,
+                343
+              ],
+              "rgba": [
+                54,
+                58,
+                58,
+                224
+              ],
+              "positiveResidual": 4.622
+            },
+            {
+              "source": [
+                920,
+                344
+              ],
+              "rgba": [
+                42,
+                45,
+                45,
+                186
+              ],
+              "positiveResidual": 5.089
+            },
+            {
+              "source": [
+                921,
+                344
+              ],
+              "rgba": [
+                58,
+                62,
+                62,
+                232
+              ],
+              "positiveResidual": 4.557
+            },
+            {
+              "source": [
+                922,
+                345
+              ],
+              "rgba": [
+                42,
+                46,
+                42,
+                175
+              ],
+              "positiveResidual": 5.024
+            },
+            {
+              "source": [
+                923,
+                345
+              ],
+              "rgba": [
+                32,
+                34,
+                32,
+                210
+              ],
+              "positiveResidual": 4.492
+            },
+            {
+              "source": [
+                924,
+                345
+              ],
+              "rgba": [
+                24,
+                26,
+                23,
+                186
+              ],
+              "positiveResidual": 3.959
+            }
+          ],
+          [
+            {
+              "source": [
+                1120,
+                375
+              ],
+              "rgba": [
+                48,
+                51,
+                51,
+                180
+              ],
+              "positiveResidual": 2.419
+            },
+            {
+              "source": [
+                1121,
+                375
+              ],
+              "rgba": [
+                59,
+                60,
+                62,
+                215
+              ],
+              "positiveResidual": 2.917
+            },
+            {
+              "source": [
+                1122,
+                375
+              ],
+              "rgba": [
+                48,
+                53,
+                53,
+                219
+              ],
+              "positiveResidual": 3.415
+            },
+            {
+              "source": [
+                1123,
+                375
+              ],
+              "rgba": [
+                35,
+                37,
+                39,
+                179
+              ],
+              "positiveResidual": 3.914
+            },
+            {
+              "source": [
+                1194,
+                338
+              ],
+              "rgba": [
+                46,
+                51,
+                46,
+                164
+              ],
+              "positiveResidual": 2.296
+            },
+            {
+              "source": [
+                1195,
+                338
+              ],
+              "rgba": [
+                37,
+                42,
+                41,
+                198
+              ],
+              "positiveResidual": 2.795
+            },
+            {
+              "source": [
+                1196,
+                338
+              ],
+              "rgba": [
+                29,
+                33,
+                34,
+                192
+              ],
+              "positiveResidual": 3.293
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          1124,
+          1171
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.2139,
+        "foregroundTriangleTransparentPixelCount": 1956,
+        "foregroundTriangleTransparentFraction": 0.2139,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              967,
+              334
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              1078,
+              358
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              1057,
+              383
+            ],
+            "rgba": [
+              102,
+              102,
+              102,
+              5
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          270,
+          704
+        ],
+        "sourceBottom": [
+          270,
+          743
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          270,
+          233
+        ],
+        "cellLocalBottom": [
+          270,
+          272
+        ],
+        "nominalCellLocalTop": [
+          270,
+          286
+        ],
+        "nominalCellLocalBottom": [
+          270,
+          325
+        ]
+      },
+      "sourceRegion": [
+        0,
+        471,
+        431,
+        876
+      ],
+      "groundPlaneEstimate": {
+        "kind": "normal1",
+        "sourceCutout": [
+          0,
+          471,
+          431,
+          876
+        ],
+        "sourceCenter": [
+          219.0,
+          724.13
+        ],
+        "sourceCorners": {
+          "left": [
+            28.0,
+            724.29
+          ],
+          "front": [
+            212.69,
+            825.05
+          ],
+          "right": [
+            410.0,
+            723.97
+          ]
+        },
+        "sourceSlopes": [
+          0.54555,
+          -0.51229
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.528,
+          5.404
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          5.528,
+          12.246
+        ],
+        "postFootCandidateCounts": [
+          78,
+          47
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                69,
+                746
+              ],
+              "rgba": [
+                123,
+                79,
+                36,
+                219
+              ],
+              "positiveResidual": 4.869
+            },
+            {
+              "source": [
+                70,
+                747
+              ],
+              "rgba": [
+                118,
+                73,
+                33,
+                190
+              ],
+              "positiveResidual": 5.323
+            },
+            {
+              "source": [
+                71,
+                748
+              ],
+              "rgba": [
+                100,
+                59,
+                24,
+                145
+              ],
+              "positiveResidual": 5.778
+            },
+            {
+              "source": [
+                72,
+                748
+              ],
+              "rgba": [
+                110,
+                67,
+                27,
+                226
+              ],
+              "positiveResidual": 5.232
+            },
+            {
+              "source": [
+                73,
+                749
+              ],
+              "rgba": [
+                114,
+                75,
+                35,
+                185
+              ],
+              "positiveResidual": 5.687
+            },
+            {
+              "source": [
+                74,
+                749
+              ],
+              "rgba": [
+                92,
+                59,
+                26,
+                235
+              ],
+              "positiveResidual": 5.141
+            },
+            {
+              "source": [
+                75,
+                749
+              ],
+              "rgba": [
+                66,
+                38,
+                13,
+                211
+              ],
+              "positiveResidual": 4.596
+            }
+          ],
+          [
+            {
+              "source": [
+                285,
+                787
+              ],
+              "rgba": [
+                85,
+                52,
+                20,
+                184
+              ],
+              "positiveResidual": 4.4
+            },
+            {
+              "source": [
+                286,
+                787
+              ],
+              "rgba": [
+                89,
+                56,
+                21,
+                233
+              ],
+              "positiveResidual": 4.912
+            },
+            {
+              "source": [
+                287,
+                787
+              ],
+              "rgba": [
+                90,
+                58,
+                23,
+                245
+              ],
+              "positiveResidual": 5.424
+            },
+            {
+              "source": [
+                336,
+                763
+              ],
+              "rgba": [
+                85,
+                51,
+                21,
+                187
+              ],
+              "positiveResidual": 6.527
+            },
+            {
+              "source": [
+                337,
+                762
+              ],
+              "rgba": [
+                87,
+                53,
+                22,
+                213
+              ],
+              "positiveResidual": 6.039
+            },
+            {
+              "source": [
+                362,
+                748
+              ],
+              "rgba": [
+                80,
+                47,
+                15,
+                178
+              ],
+              "positiveResidual": 4.846
+            },
+            {
+              "source": [
+                363,
+                748
+              ],
+              "rgba": [
+                78,
+                45,
+                14,
+                139
+              ],
+              "positiveResidual": 5.359
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          288,
+          335
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1712,
+        "foregroundTriangleTransparentPixelCount": 1897,
+        "foregroundTriangleTransparentFraction": 0.1712,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              108,
+              739
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              5
+            ]
+          },
+          {
+            "sourcePosition": [
+              248,
+              764
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              223,
+              791
+            ],
+            "rgba": [
+              127,
+              127,
+              0,
+              2
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          679,
+          702
+        ],
+        "sourceBottom": [
+          679,
+          741
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          248,
+          231
+        ],
+        "cellLocalBottom": [
+          248,
+          270
+        ],
+        "nominalCellLocalTop": [
+          261,
+          284
+        ],
+        "nominalCellLocalBottom": [
+          261,
+          323
+        ]
+      },
+      "sourceRegion": [
+        431,
+        471,
+        843,
+        876
+      ],
+      "groundPlaneEstimate": {
+        "kind": "normal2",
+        "sourceCutout": [
+          431,
+          471,
+          843,
+          876
+        ],
+        "sourceCenter": [
+          634.5,
+          720.98
+        ],
+        "sourceCorners": {
+          "left": [
+            451.0,
+            718.86
+          ],
+          "front": [
+            630.27,
+            820.48
+          ],
+          "right": [
+            818.0,
+            723.1
+          ]
+        },
+        "sourceSlopes": [
+          0.56682,
+          -0.51874
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.519,
+          4.191
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          5.519,
+          10.692
+        ],
+        "postFootCandidateCounts": [
+          72,
+          43
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                500,
+                746
+              ],
+              "rgba": [
+                51,
+                54,
+                54,
+                195
+              ],
+              "positiveResidual": 4.885
+            },
+            {
+              "source": [
+                501,
+                747
+              ],
+              "rgba": [
+                52,
+                54,
+                60,
+                219
+              ],
+              "positiveResidual": 5.319
+            },
+            {
+              "source": [
+                502,
+                748
+              ],
+              "rgba": [
+                47,
+                49,
+                52,
+                165
+              ],
+              "positiveResidual": 5.752
+            },
+            {
+              "source": [
+                503,
+                748
+              ],
+              "rgba": [
+                62,
+                64,
+                70,
+                234
+              ],
+              "positiveResidual": 5.185
+            },
+            {
+              "source": [
+                504,
+                749
+              ],
+              "rgba": [
+                58,
+                58,
+                60,
+                202
+              ],
+              "positiveResidual": 5.618
+            },
+            {
+              "source": [
+                505,
+                749
+              ],
+              "rgba": [
+                41,
+                40,
+                44,
+                222
+              ],
+              "positiveResidual": 5.051
+            },
+            {
+              "source": [
+                506,
+                749
+              ],
+              "rgba": [
+                31,
+                30,
+                34,
+                187
+              ],
+              "positiveResidual": 4.484
+            }
+          ],
+          [
+            {
+              "source": [
+                692,
+                787
+              ],
+              "rgba": [
+                41,
+                43,
+                43,
+                148
+              ],
+              "positiveResidual": 2.735
+            },
+            {
+              "source": [
+                693,
+                787
+              ],
+              "rgba": [
+                47,
+                50,
+                53,
+                214
+              ],
+              "positiveResidual": 3.253
+            },
+            {
+              "source": [
+                694,
+                787
+              ],
+              "rgba": [
+                52,
+                53,
+                55,
+                230
+              ],
+              "positiveResidual": 3.772
+            },
+            {
+              "source": [
+                695,
+                787
+              ],
+              "rgba": [
+                42,
+                43,
+                43,
+                182
+              ],
+              "positiveResidual": 4.291
+            },
+            {
+              "source": [
+                696,
+                786
+              ],
+              "rgba": [
+                41,
+                42,
+                44,
+                241
+              ],
+              "positiveResidual": 3.81
+            },
+            {
+              "source": [
+                770,
+                747
+              ],
+              "rgba": [
+                44,
+                42,
+                47,
+                184
+              ],
+              "positiveResidual": 3.196
+            },
+            {
+              "source": [
+                771,
+                747
+              ],
+              "rgba": [
+                44,
+                41,
+                48,
+                219
+              ],
+              "positiveResidual": 3.715
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          697,
+          744
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.0675,
+        "foregroundTriangleTransparentPixelCount": 718,
+        "foregroundTriangleTransparentFraction": 0.0675,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              708,
+              735
+            ],
+            "rgba": [
+              153,
+              153,
+              102,
+              5
+            ]
+          },
+          {
+            "sourcePosition": [
+              657,
+              757
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              663,
+              777
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1098,
+          705
+        ],
+        "sourceBottom": [
+          1098,
+          741
+        ],
+        "sourceHeightGeometric": 36,
+        "sourceHeightInclusive": 37,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          255,
+          234
+        ],
+        "cellLocalBottom": [
+          255,
+          270
+        ],
+        "nominalCellLocalTop": [
+          262,
+          287
+        ],
+        "nominalCellLocalBottom": [
+          262,
+          323
+        ]
+      },
+      "sourceRegion": [
+        843,
+        471,
+        1254,
+        876
+      ],
+      "groundPlaneEstimate": {
+        "kind": "normal3",
+        "sourceCutout": [
+          843,
+          471,
+          1254,
+          876
+        ],
+        "sourceCenter": [
+          1050.0,
+          726.62
+        ],
+        "sourceCorners": {
+          "left": [
+            868.0,
+            734.5
+          ],
+          "front": [
+            1035.18,
+            829.25
+          ],
+          "right": [
+            1232.0,
+            718.74
+          ]
+        },
+        "sourceSlopes": [
+          0.56676,
+          -0.5615
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.157,
+          6.414
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          6.157,
+          13.856
+        ],
+        "postFootCandidateCounts": [
+          70,
+          42
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                912,
+                758
+              ],
+              "rgba": [
+                129,
+                82,
+                41,
+                160
+              ],
+              "positiveResidual": 4.722
+            },
+            {
+              "source": [
+                913,
+                759
+              ],
+              "rgba": [
+                124,
+                80,
+                40,
+                187
+              ],
+              "positiveResidual": 5.155
+            },
+            {
+              "source": [
+                915,
+                760
+              ],
+              "rgba": [
+                130,
+                85,
+                41,
+                207
+              ],
+              "positiveResidual": 5.021
+            },
+            {
+              "source": [
+                916,
+                761
+              ],
+              "rgba": [
+                118,
+                76,
+                36,
+                176
+              ],
+              "positiveResidual": 5.455
+            },
+            {
+              "source": [
+                917,
+                761
+              ],
+              "rgba": [
+                136,
+                91,
+                45,
+                237
+              ],
+              "positiveResidual": 4.888
+            },
+            {
+              "source": [
+                918,
+                762
+              ],
+              "rgba": [
+                99,
+                63,
+                26,
+                180
+              ],
+              "positiveResidual": 5.321
+            },
+            {
+              "source": [
+                919,
+                762
+              ],
+              "rgba": [
+                84,
+                54,
+                20,
+                172
+              ],
+              "positiveResidual": 4.754
+            }
+          ],
+          [
+            {
+              "source": [
+                1111,
+                786
+              ],
+              "rgba": [
+                74,
+                48,
+                17,
+                164
+              ],
+              "positiveResidual": 5.736
+            },
+            {
+              "source": [
+                1112,
+                786
+              ],
+              "rgba": [
+                72,
+                38,
+                12,
+                177
+              ],
+              "positiveResidual": 6.297
+            },
+            {
+              "source": [
+                1113,
+                786
+              ],
+              "rgba": [
+                81,
+                53,
+                22,
+                134
+              ],
+              "positiveResidual": 6.859
+            },
+            {
+              "source": [
+                1114,
+                785
+              ],
+              "rgba": [
+                66,
+                38,
+                13,
+                207
+              ],
+              "positiveResidual": 6.42
+            },
+            {
+              "source": [
+                1115,
+                784
+              ],
+              "rgba": [
+                63,
+                36,
+                10,
+                225
+              ],
+              "positiveResidual": 5.982
+            },
+            {
+              "source": [
+                1164,
+                757
+              ],
+              "rgba": [
+                86,
+                54,
+                21,
+                188
+              ],
+              "positiveResidual": 6.495
+            },
+            {
+              "source": [
+                1194,
+                739
+              ],
+              "rgba": [
+                86,
+                56,
+                23,
+                132
+              ],
+              "positiveResidual": 5.34
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          1116,
+          1163
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1616,
+        "foregroundTriangleTransparentPixelCount": 1774,
+        "foregroundTriangleTransparentFraction": 0.1616,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              936,
+              741
+            ],
+            "rgba": [
+              0,
+              0,
+              1,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              1081,
+              762
+            ],
+            "rgba": [
+              255,
+              0,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              1029,
+              791
+            ],
+            "rgba": [
+              145,
+              109,
+              72,
+              7
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          269,
+          1078
+        ],
+        "sourceBottom": [
+          269,
+          1110
+        ],
+        "sourceHeightGeometric": 32,
+        "sourceHeightInclusive": 33,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source: same-column opening including its dark entrance rim, bounded by visible header and threshold; entrance fully visible.",
+        "cellLocalTop": [
+          269,
+          202
+        ],
+        "cellLocalBottom": [
+          269,
+          234
+        ],
+        "nominalCellLocalTop": [
+          269,
+          242
+        ],
+        "nominalCellLocalBottom": [
+          269,
+          274
+        ]
+      },
+      "sourceRegion": [
+        0,
+        876,
+        431,
+        1254
+      ],
+      "groundPlaneEstimate": {
+        "kind": "expensive1",
+        "sourceCutout": [
+          0,
+          876,
+          431,
+          1254
+        ],
+        "sourceCenter": [
+          221.0,
+          1093.41
+        ],
+        "sourceCorners": {
+          "left": [
+            16.0,
+            1088.78
+          ],
+          "front": [
+            219.33,
+            1207.3
+          ],
+          "right": [
+            426.0,
+            1098.03
+          ]
+        },
+        "sourceSlopes": [
+          0.58287,
+          -0.52871
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.599,
+          4.764
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          0.599,
+          7.46
+        ],
+        "postFootCandidateCounts": [
+          72,
+          50
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                36,
+                1100
+              ],
+              "rgba": [
+                158,
+                135,
+                97,
+                164
+              ],
+              "positiveResidual": 0.16
+            },
+            {
+              "source": [
+                41,
+                1103
+              ],
+              "rgba": [
+                169,
+                148,
+                112,
+                143
+              ],
+              "positiveResidual": 0.246
+            },
+            {
+              "source": [
+                43,
+                1104
+              ],
+              "rgba": [
+                153,
+                133,
+                96,
+                161
+              ],
+              "positiveResidual": 0.08
+            },
+            {
+              "source": [
+                46,
+                1106
+              ],
+              "rgba": [
+                165,
+                146,
+                106,
+                136
+              ],
+              "positiveResidual": 0.331
+            },
+            {
+              "source": [
+                48,
+                1107
+              ],
+              "rgba": [
+                159,
+                141,
+                102,
+                189
+              ],
+              "positiveResidual": 0.165
+            },
+            {
+              "source": [
+                49,
+                1108
+              ],
+              "rgba": [
+                155,
+                133,
+                101,
+                141
+              ],
+              "positiveResidual": 0.583
+            },
+            {
+              "source": [
+                51,
+                1109
+              ],
+              "rgba": [
+                164,
+                142,
+                107,
+                157
+              ],
+              "positiveResidual": 0.417
+            }
+          ],
+          []
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          287,
+          334
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1166,
+        "foregroundTriangleTransparentPixelCount": 1694,
+        "foregroundTriangleTransparentFraction": 0.1166,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              105,
+              1108
+            ],
+            "rgba": [
+              255,
+              255,
+              255,
+              2
+            ]
+          },
+          {
+            "sourcePosition": [
+              264,
+              1133
+            ],
+            "rgba": [
+              255,
+              255,
+              0,
+              1
+            ]
+          },
+          {
+            "sourcePosition": [
+              221,
+              1175
+            ],
+            "rgba": [
+              255,
+              255,
+              255,
+              2
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          730,
+          1068
+        ],
+        "sourceBottom": [
+          730,
+          1102
+        ],
+        "sourceHeightGeometric": 34,
+        "sourceHeightInclusive": 35,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final source at x730 inside the actual entrance, not the wall/vertical trim at the older guide x720. Header starts1068, dark threshold ends1102, then pale paving begins1103. Entrance fully visible.",
+        "cellLocalTop": [
+          299,
+          192
+        ],
+        "cellLocalBottom": [
+          299,
+          226
+        ],
+        "nominalCellLocalTop": [
+          312,
+          232
+        ],
+        "nominalCellLocalBottom": [
+          312,
+          266
+        ]
+      },
+      "sourceRegion": [
+        431,
+        876,
+        847,
+        1254
+      ],
+      "groundPlaneEstimate": {
+        "kind": "expensive2",
+        "sourceCutout": [
+          431,
+          876,
+          847,
+          1254
+        ],
+        "sourceCenter": [
+          639.0,
+          1095.44
+        ],
+        "sourceCorners": {
+          "left": [
+            436.0,
+            1090.68
+          ],
+          "front": [
+            640.43,
+            1209.81
+          ],
+          "right": [
+            842.0,
+            1100.21
+          ]
+        },
+        "sourceSlopes": [
+          0.58278,
+          -0.54371
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.676,
+          1.095
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          0.676,
+          8.979
+        ],
+        "postFootCandidateCounts": [
+          71,
+          33
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                453,
+                1100
+              ],
+              "rgba": [
+                148,
+                126,
+                91,
+                192
+              ],
+              "positiveResidual": 0.093
+            },
+            {
+              "source": [
+                454,
+                1101
+              ],
+              "rgba": [
+                152,
+                130,
+                96,
+                129
+              ],
+              "positiveResidual": 0.51
+            },
+            {
+              "source": [
+                456,
+                1102
+              ],
+              "rgba": [
+                159,
+                138,
+                102,
+                157
+              ],
+              "positiveResidual": 0.345
+            },
+            {
+              "source": [
+                458,
+                1103
+              ],
+              "rgba": [
+                144,
+                124,
+                89,
+                168
+              ],
+              "positiveResidual": 0.179
+            },
+            {
+              "source": [
+                460,
+                1104
+              ],
+              "rgba": [
+                148,
+                129,
+                93,
+                189
+              ],
+              "positiveResidual": 0.014
+            },
+            {
+              "source": [
+                461,
+                1105
+              ],
+              "rgba": [
+                147,
+                124,
+                93,
+                145
+              ],
+              "positiveResidual": 0.431
+            },
+            {
+              "source": [
+                463,
+                1106
+              ],
+              "rgba": [
+                150,
+                128,
+                94,
+                176
+              ],
+              "positiveResidual": 0.265
+            }
+          ],
+          [
+            {
+              "source": [
+                684,
+                1186
+              ],
+              "rgba": [
+                113,
+                100,
+                71,
+                142
+              ],
+              "positiveResidual": 0.975
+            },
+            {
+              "source": [
+                685,
+                1185
+              ],
+              "rgba": [
+                119,
+                103,
+                76,
+                203
+              ],
+              "positiveResidual": 0.519
+            },
+            {
+              "source": [
+                686,
+                1185
+              ],
+              "rgba": [
+                119,
+                103,
+                75,
+                135
+              ],
+              "positiveResidual": 1.063
+            },
+            {
+              "source": [
+                687,
+                1184
+              ],
+              "rgba": [
+                115,
+                99,
+                71,
+                175
+              ],
+              "positiveResidual": 0.607
+            },
+            {
+              "source": [
+                688,
+                1183
+              ],
+              "rgba": [
+                111,
+                94,
+                68,
+                208
+              ],
+              "positiveResidual": 0.15
+            },
+            {
+              "source": [
+                690,
+                1182
+              ],
+              "rgba": [
+                104,
+                90,
+                62,
+                175
+              ],
+              "positiveResidual": 0.238
+            },
+            {
+              "source": [
+                692,
+                1181
+              ],
+              "rgba": [
+                114,
+                99,
+                70,
+                176
+              ],
+              "positiveResidual": 0.325
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          748,
+          795
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.095,
+        "foregroundTriangleTransparentPixelCount": 1375,
+        "foregroundTriangleTransparentFraction": 0.095,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              762,
+              1110
+            ],
+            "rgba": [
+              182,
+              145,
+              145,
+              7
+            ]
+          },
+          {
+            "sourcePosition": [
+              687,
+              1138
+            ],
+            "rgba": [
+              127,
+              127,
+              127,
+              2
+            ]
+          },
+          {
+            "sourcePosition": [
+              622,
+              1163
+            ],
+            "rgba": [
+              102,
+              102,
+              51,
+              5
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          1079,
+          1065
+        ],
+        "sourceBottom": [
+          1079,
+          1099
+        ],
+        "sourceHeightGeometric": 34,
+        "sourceHeightInclusive": 35,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "topOccluded": false,
+        "bottomOccluded": false,
+        "note": "Fresh final timber courtyard entrance at x1079: visible dark header1065 and dark threshold1099; pale paving begins1100. Selected column is clear of projecting terrace wings; entrance fully visible.",
+        "cellLocalTop": [
+          232,
+          189
+        ],
+        "cellLocalBottom": [
+          232,
+          223
+        ],
+        "nominalCellLocalTop": [
+          243,
+          229
+        ],
+        "nominalCellLocalBottom": [
+          243,
+          263
+        ]
+      },
+      "sourceRegion": [
+        847,
+        876,
+        1254,
+        1254
+      ],
+      "groundPlaneEstimate": {
+        "kind": "expensive3",
+        "sourceCutout": [
+          847,
+          876,
+          1254,
+          1254
+        ],
+        "sourceCenter": [
+          1049.0,
+          1094.28
+        ],
+        "sourceCorners": {
+          "left": [
+            851.0,
+            1095.35
+          ],
+          "front": [
+            1031.9,
+            1203.96
+          ],
+          "right": [
+            1247.0,
+            1093.22
+          ]
+        },
+        "sourceSlopes": [
+          0.60037,
+          -0.51482
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.47,
+          6.009
+        ],
+        "allPositiveContourQ95IncludingPath": [
+          5.47,
+          11.804
+        ],
+        "postFootCandidateCounts": [
+          82,
+          55
+        ],
+        "postFootSampleEvidence": [
+          [
+            {
+              "source": [
+                883,
+                1114
+              ],
+              "rgba": [
+                112,
+                72,
+                33,
+                131
+              ],
+              "positiveResidual": 4.906
+            },
+            {
+              "source": [
+                884,
+                1115
+              ],
+              "rgba": [
+                114,
+                73,
+                34,
+                180
+              ],
+              "positiveResidual": 5.306
+            },
+            {
+              "source": [
+                885,
+                1115
+              ],
+              "rgba": [
+                125,
+                81,
+                39,
+                232
+              ],
+              "positiveResidual": 4.705
+            },
+            {
+              "source": [
+                886,
+                1116
+              ],
+              "rgba": [
+                115,
+                72,
+                32,
+                204
+              ],
+              "positiveResidual": 5.105
+            },
+            {
+              "source": [
+                887,
+                1117
+              ],
+              "rgba": [
+                116,
+                73,
+                34,
+                169
+              ],
+              "positiveResidual": 5.504
+            },
+            {
+              "source": [
+                888,
+                1117
+              ],
+              "rgba": [
+                117,
+                75,
+                34,
+                207
+              ],
+              "positiveResidual": 4.904
+            },
+            {
+              "source": [
+                889,
+                1117
+              ],
+              "rgba": [
+                94,
+                58,
+                23,
+                208
+              ],
+              "positiveResidual": 4.304
+            }
+          ],
+          [
+            {
+              "source": [
+                1158,
+                1139
+              ],
+              "rgba": [
+                78,
+                47,
+                17,
+                238
+              ],
+              "positiveResidual": 5.971
+            },
+            {
+              "source": [
+                1159,
+                1139
+              ],
+              "rgba": [
+                78,
+                47,
+                18,
+                182
+              ],
+              "positiveResidual": 6.486
+            },
+            {
+              "source": [
+                1160,
+                1138
+              ],
+              "rgba": [
+                71,
+                40,
+                11,
+                248
+              ],
+              "positiveResidual": 6.001
+            },
+            {
+              "source": [
+                1161,
+                1138
+              ],
+              "rgba": [
+                75,
+                44,
+                15,
+                197
+              ],
+              "positiveResidual": 6.515
+            },
+            {
+              "source": [
+                1162,
+                1137
+              ],
+              "rgba": [
+                74,
+                41,
+                11,
+                229
+              ],
+              "positiveResidual": 6.03
+            },
+            {
+              "source": [
+                1186,
+                1124
+              ],
+              "rgba": [
+                90,
+                58,
+                23,
+                149
+              ],
+              "positiveResidual": 5.386
+            },
+            {
+              "source": [
+                1187,
+                1124
+              ],
+              "rgba": [
+                88,
+                53,
+                21,
+                152
+              ],
+              "positiveResidual": 5.901
+            }
+          ]
+        ],
+        "protrudingPaverPathExclusionSourceX": [
+          1119,
+          1157
+        ],
+        "uncertaintyPixels": 3,
+        "sourceCameraPassAbsoluteCap064": true,
+        "sourceCameraPassAbsoluteCap066": true,
+        "paverExclusionReview": "Fresh actual source contour x1119..1157 is pale paver, whereas x1158 onward returns to brown wooden gate/post feet. This measured corridor replaces the earlier door-relative heuristic so the ground offset excludes stone steps."
+      },
+      "gardenTransparencyReview": {
+        "observedClearBareGardenAlpha": true,
+        "foregroundSampleTransparentFraction": 0.1666,
+        "foregroundTriangleTransparentPixelCount": 2191,
+        "foregroundTriangleTransparentFraction": 0.1666,
+        "transparentSamples": [
+          {
+            "sourcePosition": [
+              927,
+              1109
+            ],
+            "rgba": [
+              153,
+              102,
+              51,
+              5
+            ]
+          },
+          {
+            "sourcePosition": [
+              1084,
+              1135
+            ],
+            "rgba": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "sourcePosition": [
+              1054,
+              1176
+            ],
+            "rgba": [
+              191,
+              191,
+              191,
+              4
+            ]
+          }
+        ],
+        "method": "Visual source review plus transparent alpha<8 pixels inside the physical foreground fence triangle, with a10px fence-border exclusion."
+      }
+    }
+  ],
+  "sourceImageSize": [
+    1254,
+    1254
+  ],
+  "biome": "taiga",
+  "design": 1,
+  "rotation": 1,
+  "coordinateConvention": "Zero-based absolute source pixel centres; geometric vertical height = bottomY-topY; inclusive count = difference+1. Both endpoints share the same x coordinate.",
+  "groundMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+  "adaptiveRowCuts": [
+    0,
+    471,
+    876,
+    1254
+  ],
+  "sourceCameraAbsoluteCap": 0.66,
+  "sourceCameraPassAbsoluteCap066": true,
+  "passesRequiredTransparentBareGround": true,
+  "tierCalibrationReview": {
+    "1": {
+      "usableKinds": [
+        "cheap1",
+        "cheap2",
+        "cheap3",
+        "normal1",
+        "normal2",
+        "normal3"
+      ],
+      "sourceMedianDoorHeightGeometric": 38.5,
+      "min": 36,
+      "max": 39,
+      "ratioMaximumToMinimum": 1.0833,
+      "above20PercentAtCentralEstimate": false
+    },
+    "2": {
+      "usableKinds": [
+        "expensive1",
+        "expensive2",
+        "expensive3"
+      ],
+      "sourceMedianDoorHeightGeometric": 34.0,
+      "min": 32,
+      "max": 34,
+      "ratioMaximumToMinimum": 1.0625,
+      "above20PercentAtCentralEstimate": false
+    }
+  },
+  "measurementFlags": [],
+  "sourceCameraMaximumAbsoluteAxisSlope": 0.60037
+}

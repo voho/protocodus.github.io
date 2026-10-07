@@ -29,7 +29,7 @@ const art = await import('../atlas-runtime.js');
 const industries = await import('../raster-industries.js');
 const identities = industries.RASTER_INDUSTRY_IDS.map(id => { const [, kind, biome] = id.split(':'); return { kind, biome }; });
 
-test('large industries load calibrated 512px art on demand for dense Town views; compact farm cores retain their cap', async () => {
+test('industries and separately calibrated farm cores load 512px artwork only when a dense view needs it', async () => {
   const startup = art.preloadWorldArt({ cells: art.startupArtCells(2), waitMs: 1000 });
   assert.ok(requests.length > 0);
   assert.ok(requests.every(image => !/atlas-(256|512)\.png$/.test(image.url)), 'startup does not fetch large industry artwork');
@@ -46,7 +46,7 @@ test('large industries load calibrated 512px art on demand for dense Town views;
   const denseRequests = requests.filter(image => /atlas-512\.png$/.test(image.url));
   assert.equal(denseRequests.length, 8, 'each industry family shares a single 512px request');
   assert.equal(new Set(denseRequests.map(image => image.url)).size, 8);
-  assert.ok(denseRequests.every(image => !image.url.includes('farm-cores-v1')), 'compact farm cores do not opt into large plot artwork');
+  assert.ok(denseRequests.every(image => !image.url.includes('farm-cores-v1')), 'drawing whole industries does not fetch separate farm-core artwork');
   await finish();
   assert.ok(art.worldArtRevision() > baseline, 'late dense artwork refreshes prepared sprite and scene caches');
   for (const [density, expected] of [[1.5, 256], [1.875, 512], [2.25, 512], [3, 512], [6, 512]]) {
@@ -60,6 +60,8 @@ test('large industries load calibrated 512px art on demand for dense Town views;
   await finish();
   c.draws.length = 0;
   for (const biome of ['taiga', 'desert']) assert.equal(industries.drawRasterFarmCore(c, 'farm', biome, 9), true);
-  assert.ok(c.draws.every(draw => draw.cell === 256 && draw.width === 64), 'the two-tile core remains separately calibrated and capped');
-  assert.ok(requests.filter(image => image.url.includes('farm-cores-v1')).every(image => !/atlas-512\.png$/.test(image.url)));
+  assert.ok(c.draws.every(draw => draw.cell === 512 && draw.width === 64 && draw.height === 64), 'a sharper two-tile core retains its calibrated world envelope');
+  const coreRequests = requests.filter(image => image.url.includes('farm-cores-v1') && /atlas-512\.png$/.test(image.url));
+  assert.equal(coreRequests.length, 2, 'each eligible climate shares one dense core sheet');
+  assert.equal(new Set(coreRequests.map(image => image.url)).size, 2, 'repeated core draws reuse the decoded dense sheet');
 });

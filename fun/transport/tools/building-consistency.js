@@ -116,7 +116,7 @@ must(new Set(entries.filter(entry => entry.type === 'town').map(entry => entry.k
 must(new Set(industryEntries.map(entry => entry.kind)).size === Object.keys(INDUSTRIES).length, 'Every industry kind is present');
 must(game.tiles.every(tile => tile.elevation === 0), 'All ground and water are flat at height zero');
 const fixtureBefore = JSON.stringify(game);
-let renderer, zoom = 1, submissions = [];
+let renderer, zoom = 1, submissions = [], grid = false;
 const drawImage = context.drawImage.bind(context);
 context.drawImage = (image, ...args) => {
   if (args.length === 4) {
@@ -159,7 +159,7 @@ function annotate() {
 function show(nextZoom = 1) {
   must(nextZoom === 1 || nextZoom === 2, 'Use native Town or Detail zoom');
   zoom = nextZoom; canvas.style.width = `${WIDTH * zoom}px`; canvas.style.height = `${HEIGHT * zoom}px`;
-  if (!renderer) renderer = createRenderer(canvas, game, { zoom, heightStep: 0, sceneryBatching: false, layers: { grid: false, weather: false, names: false, routes: false, industryIcons: false, trees: false, vehicleLoads: false } });
+  if (!renderer) renderer = createRenderer(canvas, game, { zoom, heightStep: 0, sceneryBatching: false, layers: { grid, weather: false, names: false, routes: false, industryIcons: false, trees: false, vehicleLoads: false } });
   else { renderer.resize(); renderer.setZoom(zoom); }
   renderer.focus(48 + HEIGHT / (2 * TILE) - .5, 48 + HEIGHT / (2 * TILE) - .5);
   // settle finishes lazy terrain work synchronously; fixed time freezes water.
@@ -202,7 +202,9 @@ window.buildingConsistencyReady = (async () => {
       must(atlasAvailable(id), `${entry.kind}: exact artwork ${id} loaded`);
     }
   }
-  window.buildingConsistency = { show, report, game, canvas };
+  const setGrid = value => { grid = Boolean(value); document.querySelector('#show-grid').checked = grid; renderer.setLayers({ grid }); return show(zoom); };
+  window.buildingConsistency = { show, report, setGrid, game, canvas };
   document.querySelectorAll('[data-zoom]').forEach(button => button.addEventListener('click', () => show(Number(button.dataset.zoom))));
+  document.querySelector('#show-grid').addEventListener('change', event => setGrid(event.target.checked));
   show(); return true;
 })().catch(error => { document.querySelector('#status').textContent = error.message; throw error; });

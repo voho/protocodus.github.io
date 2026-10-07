@@ -1,0 +1,771 @@
+{
+  "source": "/workspace/generated_images/exec-9511603e-1c69-4b78-a0fd-c86e9e5cd355.png",
+  "coordinateConvention": "Zero-based absolute source pixels. Geometric height is bottomY-topY; inclusive raster occupancy additionally counts the endpoint pixel. Cell-local coordinates use recorded adaptive sourceRegion, not an assumed 418px grid. Source image pixels are unchanged.",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        0,
+        419,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          168,
+          311
+        ],
+        "sourceBottom": [
+          168,
+          354
+        ],
+        "sourceHeightGeometric": 43,
+        "sourceHeightInclusive": 44,
+        "cellLocalTop": [
+          168,
+          311
+        ],
+        "cellLocalBottom": [
+          168,
+          354
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          205.5,
+          337.311
+        ],
+        "sourceCorners": {
+          "left": [
+            28.0,
+            336.241
+          ],
+          "front": [
+            208.598,
+            437.264
+          ],
+          "right": [
+            383.0,
+            338.381
+          ]
+        },
+        "sourceSlopes": [
+          0.5594,
+          -0.567
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.204,
+          4.527
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            105,
+            130
+          ],
+          [
+            105,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1274
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "sourceRegion": [
+        419,
+        0,
+        836,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          588,
+          312
+        ],
+        "sourceBottom": [
+          588,
+          354
+        ],
+        "sourceHeightGeometric": 42,
+        "sourceHeightInclusive": 43,
+        "cellLocalTop": [
+          169,
+          312
+        ],
+        "cellLocalBottom": [
+          169,
+          354
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          627.5,
+          333.079
+        ],
+        "sourceCorners": {
+          "left": [
+            442.0,
+            334.423
+          ],
+          "front": [
+            626.063,
+            437.156
+          ],
+          "right": [
+            813.0,
+            331.734
+          ]
+        },
+        "sourceSlopes": [
+          0.5581,
+          -0.5639
+        ],
+        "postFeetOffsetFromRailPixels": [
+          2.597,
+          0.477
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            122,
+            130
+          ],
+          [
+            130,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.0815
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "sourceRegion": [
+        836,
+        0,
+        1254,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1005,
+          313
+        ],
+        "sourceBottom": [
+          1005,
+          357
+        ],
+        "sourceHeightGeometric": 44,
+        "sourceHeightInclusive": 45,
+        "cellLocalTop": [
+          169,
+          313
+        ],
+        "cellLocalBottom": [
+          169,
+          357
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          1047.0,
+          335.802
+        ],
+        "sourceCorners": {
+          "left": [
+            869.0,
+            334.764
+          ],
+          "front": [
+            1048.904,
+            436.693
+          ],
+          "right": [
+            1225.0,
+            336.84
+          ]
+        },
+        "sourceSlopes": [
+          0.5666,
+          -0.567
+        ],
+        "postFeetOffsetFromRailPixels": [
+          2.931,
+          0.607
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            120,
+            130
+          ],
+          [
+            130,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.0763
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        439,
+        419,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          164,
+          699
+        ],
+        "sourceBottom": [
+          164,
+          741
+        ],
+        "sourceHeightGeometric": 42,
+        "sourceHeightInclusive": 43,
+        "cellLocalTop": [
+          164,
+          260
+        ],
+        "cellLocalBottom": [
+          164,
+          302
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          207.0,
+          722.454
+        ],
+        "sourceCorners": {
+          "left": [
+            28.0,
+            722.419
+          ],
+          "front": [
+            207.983,
+            824.98
+          ],
+          "right": [
+            386.0,
+            722.489
+          ]
+        },
+        "sourceSlopes": [
+          0.5698,
+          -0.5757
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.449,
+          4.543
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            105,
+            130
+          ],
+          [
+            106,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1481
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "sourceRegion": [
+        419,
+        439,
+        836,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          586,
+          700
+        ],
+        "sourceBottom": [
+          586,
+          742
+        ],
+        "sourceHeightGeometric": 42,
+        "sourceHeightInclusive": 43,
+        "cellLocalTop": [
+          167,
+          261
+        ],
+        "cellLocalBottom": [
+          167,
+          303
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          627.0,
+          720.777
+        ],
+        "sourceCorners": {
+          "left": [
+            446.0,
+            722.481
+          ],
+          "front": [
+            625.633,
+            824.397
+          ],
+          "right": [
+            808.0,
+            719.073
+          ]
+        },
+        "sourceSlopes": [
+          0.5674,
+          -0.5775
+        ],
+        "postFeetOffsetFromRailPixels": [
+          2.904,
+          0.543
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            120,
+            130
+          ],
+          [
+            130,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "sourceRegion": [
+        836,
+        439,
+        1254,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1004,
+          706
+        ],
+        "sourceBottom": [
+          1004,
+          745
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "cellLocalTop": [
+          168,
+          267
+        ],
+        "cellLocalBottom": [
+          168,
+          306
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          1043.0,
+          723.4
+        ],
+        "sourceCorners": {
+          "left": [
+            862.0,
+            721.991
+          ],
+          "front": [
+            1048.009,
+            829.844
+          ],
+          "right": [
+            1224.0,
+            724.81
+          ]
+        },
+        "sourceSlopes": [
+          0.5798,
+          -0.5968
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.197,
+          4.514
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            106,
+            130
+          ],
+          [
+            107,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1279
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "sourceRegion": [
+        0,
+        836,
+        419,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          184,
+          1073
+        ],
+        "sourceBottom": [
+          184,
+          1104
+        ],
+        "sourceHeightGeometric": 31,
+        "sourceHeightInclusive": 32,
+        "cellLocalTop": [
+          184,
+          237
+        ],
+        "cellLocalBottom": [
+          184,
+          268
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          220.0,
+          1086.744
+        ],
+        "sourceCorners": {
+          "left": [
+            23.0,
+            1086.989
+          ],
+          "front": [
+            223.302,
+            1202.903
+          ],
+          "right": [
+            417.0,
+            1086.498
+          ]
+        },
+        "sourceSlopes": [
+          0.5787,
+          -0.601
+        ],
+        "postFeetOffsetFromRailPixels": [
+          3.081,
+          0.549
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            118,
+            130
+          ],
+          [
+            130,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.2582
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "sourceRegion": [
+        419,
+        836,
+        836,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          582,
+          1060
+        ],
+        "sourceBottom": [
+          582,
+          1089
+        ],
+        "sourceHeightGeometric": 29,
+        "sourceHeightInclusive": 30,
+        "cellLocalTop": [
+          163,
+          224
+        ],
+        "cellLocalBottom": [
+          163,
+          253
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Dark personnel entrance; actual same-x vertical opening column. Both selected endpoints are visible; outer trim is excluded."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour line fit on each ground axis; the 95th-percentile positive residual adds the physical fence post feet below raised rails. Visually checked against the lower post tips or stone-wall base. Side corners are projected foot-line estimates near the outer corner posts, with \u00b13px painted/post-width uncertainty; the hidden rear corner is not observed. Registration uses opposite-side foot-line midpoint, never silhouette-bottom alignment.",
+        "sourceCenter": [
+          629.0,
+          1087.348
+        ],
+        "sourceCorners": {
+          "left": [
+            437.0,
+            1087.354
+          ],
+          "front": [
+            632.489,
+            1200.566
+          ],
+          "right": [
+            821.0,
+            1087.342
+          ]
+        },
+        "sourceSlopes": [
+          0.5791,
+          -0.6006
+        ],
+        "postFeetOffsetFromRailPixels": [
+          2.827,
+          0.485
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            118,
+            130
+          ],
+          [
+            130,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.3015
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "sourceRegion": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1004,
+          1045
+        ],
+        "sourceBottom": [
+          1004,
+          1071
+        ],
+        "sourceHeightGeometric": 26,
+        "sourceHeightInclusive": 27,
+        "cellLocalTop": [
+          168,
+          209
+        ],
+        "cellLocalBottom": [
+          168,
+          235
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual glazed courtyard personnel entrance: selected vertical glass column has visible inner head and sill. The helper selected a raised left-annex window at x=972; exclude that window from personnel calibration. Glass/sill boundary has \u00b12px ambiguity."
+      },
+      "groundPlaneEstimate": {
+        "method": "Manual visible fence post-base centre columns, median alpha>128 bottom from x\u00b12px. Actual grounded post feet, not raised rails or global silhouette bottom. Corners and feet remain painted measurements with \u00b12px endpoint ambiguity.",
+        "sourceCenter": [
+          1040,
+          1091.5
+        ],
+        "sourceCorners": {
+          "left": [
+            851,
+            1092
+          ],
+          "front": [
+            1052,
+            1201
+          ],
+          "right": [
+            1229,
+            1091
+          ]
+        },
+        "sourceSlopes": [
+          0.5422885572139303,
+          -0.6214689265536724
+        ],
+        "postFeetOffsetFromRailPixels": [
+          3.937,
+          4.395
+        ],
+        "postFootContourRobustFitPointCounts": [
+          [
+            107,
+            130
+          ],
+          [
+            100,
+            130
+          ]
+        ],
+        "uncertaintyPixels": 2,
+        "previousContourEstimate": {
+          "sourceCenter": [
+            1040.5,
+            1090.108
+          ],
+          "sourceCorners": {
+            "left": [
+              848.0,
+              1090.655
+            ],
+            "front": [
+              1050.185,
+              1203.456
+            ],
+            "right": [
+              1233.0,
+              1089.561
+            ]
+          },
+          "sourceSlopes": [
+            0.5579,
+            -0.623
+          ]
+        },
+        "observedPostFeetSource": {
+          "foregroundLeftAxis": [
+            [
+              851,
+              1092
+            ],
+            [
+              897,
+              1117
+            ],
+            [
+              932,
+              1137
+            ],
+            [
+              968,
+              1157
+            ],
+            [
+              1052,
+              1201
+            ]
+          ],
+          "foregroundRightAxis": [
+            [
+              1052,
+              1201
+            ],
+            [
+              1091,
+              1178
+            ],
+            [
+              1128,
+              1155
+            ],
+            [
+              1163,
+              1133
+            ],
+            [
+              1195,
+              1112
+            ],
+            [
+              1229,
+              1091
+            ]
+          ]
+        },
+        "multiPostAxisFitSlopes": [
+          0.5436922545548746,
+          -0.6246890833717159
+        ]
+      },
+      "foregroundGroundTransparentFraction": 0.1412
+    }
+  ],
+  "flags": [
+    "cheap1 narrow central sample transparent fraction 0.1274; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "cheap2 narrow central sample transparent fraction 0.0815; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "cheap3 narrow central sample transparent fraction 0.0763; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "normal1 narrow central sample transparent fraction 0.1481; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "normal2 narrow central sample transparent fraction 0.1; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "normal3 narrow central sample transparent fraction 0.1279; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "Automatic expensive3 dark blob is a raised left-annex window. Actual courtyard glazing is measured separately.",
+    "expensive3 observed foreground foot-line slope -0.6230 exceeds the earlier nominal \u00b1.11 around \u00b1.5. Independently confirmed from actual feet; accepted under root\u2019s final authored |slope|\u2264.64 cap. Raw source slopes are unchanged.",
+    "expensive3 narrow central sample transparent fraction 0.1412; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn."
+  ],
+  "authoredPaintedCameraMaximumAbsoluteSlope": 0.64
+}

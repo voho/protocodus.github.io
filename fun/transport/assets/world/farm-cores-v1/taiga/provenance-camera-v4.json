@@ -1,0 +1,57 @@
+{
+  "version": 4,
+  "date": "2026-10-07",
+  "generator": "image_gen.imagegen",
+  "sharedPromptFunction": "buildingGenerationPrompt()",
+  "sharedScaleAndStyle": "../../../../sprite-art-direction.js",
+  "generationJob": "generation-job.json",
+  "canonicalGenerationPrompt": "generation-prompt.json",
+  "exactFinalGenerationPrompt": "generation-prompt-camera-v4.json",
+  "exactFinalGenerationPromptSha256": "03cef3136d56cf8ba230370d87340db334d4202bd6103091699233f96705f894",
+  "transparent_background": true,
+  "source": "source-camera-v4.png",
+  "sourceSha256": "1387113c778c978576b7f2cee6849d900822af6c0f9538277202b17d776560a5",
+  "sourceDimensions": [
+    1536,
+    1024
+  ],
+  "generationReferenceImages": [
+    {
+      "path": "../desert/source-camera-v4.png",
+      "sha256": "4641860c0919c37dff1217c42b671bfe278e2cce986f69d5f881e63dbcaec5fb"
+    },
+    {
+      "path": "camera-scale-reference-2026-10-07.png",
+      "sha256": "ec0bef6c421ab3c8f4cb58b028efdb3d6422a0fd78ef0db50056eef5740f8263"
+    }
+  ],
+  "registeredSource": "source-camera-v4-registered.png",
+  "registration": "registration-camera-v4.json",
+  "packing": "packing-v4.json",
+  "visualFootprint": 2,
+  "nativeFarmFieldFootprint": 5,
+  "coreMetres": 32,
+  "architecturalEnvelopeMetres": 20,
+  "groundCenterMaster": [
+    128,
+    192
+  ],
+  "targetPersonnelDoorMasterPixels": 11.2,
+  "measuredJointFamilyOpeningFrameMeanSourcePixels": 36.4,
+  "uniformFamilyScaleTo256": 0.3076923076923077,
+  "operation": "Generated new broad muted farm structures from canonical mathematical construction references; climate edit retains identities. Whole-family measured physical scale, actual ground-centre registration, full-cell 16\u2013512 density exports with premultiplied-alpha filtering. No independent silhouette fit, camera shear, artwork recolour or microdetail sharpening during packing.",
+  "cameraReview": "Expected ground edge slope \u00b10.5; actual painted source edge fits are recorded numerically per cell and remain approximate (largest deviation from .5: .049425 in Taiga vegetable shed).",
+  "doorReview": "Ten measured personnel-opening frame heights share one scale; normalized mean11.2px and measured range9.8462\u201312.9231px. Actual endpoints and bounds are in atlas.json physicalCalibration.cells.",
+  "groundReview": "Opposite planar structure-floor corners are visible measurements; covered front corners and hidden rear corners are marked inferred. Known metre offsets from canonical reference recover farmyard centre; resampled centres stay within0.206masterpx of(128,192).",
+  "qa": "qa-region-town-2026-10-07.png (48pxRegion/96pxTown); static checks cover identity/order, empty cell, source-to-master pixel equality, all densities, filtering gutters, complete registered cells and measured anchor error.",
+  "rejectionNotes": [
+    {
+      "stage": "Legacy-source edit and shared flat guide",
+      "reason": "Retained asymmetric camera and noisy planting; superseded by canonical farm construction guide."
+    },
+    {
+      "stage": "Single-cell orchard corrections",
+      "reason": "Different framing and residual camera variation; superseded by accepted whole-family climate edit."
+    }
+  ]
+}

@@ -1,0 +1,568 @@
+{
+  "date": "2026-10-07",
+  "purpose": "Exact generation input references, distinct from active registered runtime artwork. Accepted architecture edit parents preserve provenance only; their lawn fills are not used by the renderer.",
+  "references": [
+    {
+      "file": "exec-3c920336-2c8b-411a-ad4b-696aa5eb69ff.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "fa666019e7a0202ac18aead74fb06bb308e35f75858b082a74fd29d5b8bebe99",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-05027697-c350-4178-bdfd-53ace7228bed.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "1394f3b5e474ff29b820ce0998f9519ad9a1365235cd430e40b200d57d5c69bb",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-5354aebd-f83d-4adf-94a2-bdbfc0d3c7ff.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "ad4d04012813359e092d10856d16a2578223f3aa798373c4a57637b9e9ee4add",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-063f88ce-0705-4302-ac1b-1ea6d7e3d7f5.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "9c3198b419d3ead503996f5ae6c9f3f1ebc303335e5d84be6ceef08ea679c3ac",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-31c16d10-7c6d-4f80-8184-f40cc5fb5af3.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "186ed4f256b15aaf2e12ee90d1369fd9bf248207fcc6d31b5554271bdc318d88",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-5aad552a-41d0-4d64-b67a-d7dc4b7a78f0.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "f05076248137a546c7a462747158eb59aec33246027401e37fb5193fe5491741",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-3e1c83f9-6063-46ac-a3fd-3cbeaab177e7.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "b69035de5a3b6c93ba78a08dcdd694a8cdabf451f050328a8a1e18de409dd181",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "exec-31b55f7a-6fa2-4d18-a01a-9f5499df7952.png",
+      "type": "accepted-architecture-edit-parent",
+      "sha256": "e208f8372d03acf48ce09d33fe4c0f9fb4029015288b8f227f28e36582dc81ae",
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-taiga-rotation-0.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "d1c3867ce65c320dfe0c21c5fdd44750d08a597b98de0122bc13661f26b6a8f1",
+      "biome": "taiga",
+      "rotation": 0,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-taiga-rotation-1.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "8efa4e83ddbb5aa13b0b414554284ba59261162fb760edc44e79a98e59409f77",
+      "biome": "taiga",
+      "rotation": 1,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-tundra-rotation-0.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "fbaf12ffe29d75edcc555ba8e84f9493a9c8998c0b9b6585170c97378de2b526",
+      "biome": "tundra",
+      "rotation": 0,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-tundra-rotation-1.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "809c168a83d72ea31a6187bb53a4c2d37e6af9dea683f082fe5158d4de2f306b",
+      "biome": "tundra",
+      "rotation": 1,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-desert-rotation-0.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "50ee8dc61c382aa765ea3e412933bb4900a1648571f4f72698d182f973c5c82c",
+      "biome": "desert",
+      "rotation": 0,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-transparent-desert-rotation-1.png",
+      "type": "canonical-transparent-production-guide",
+      "sha256": "352d660d04762a7e22d7dd22a2cfcf0e2a31be90739d16058905579e0e744318",
+      "biome": "desert",
+      "rotation": 1,
+      "runtimeArtwork": false
+    },
+    {
+      "file": "transport-house-grid-taiga-rotation-0.png",
+      "type": "earlier-production-guide-exact-input",
+      "sha256": "3ec7ece2e95c898ea8d64f611977a6b53b881fe611646f2d68fe3f77cc3f5a8f",
+      "biome": "taiga",
+      "rotation": 0,
+      "runtimeArtwork": false,
+      "note": "The garden fill predates the transparent-lawn instruction; numeric metre/camera construction is identical."
+    },
+    {
+      "file": "transport-house-grid-taiga-rotation-1.png",
+      "type": "earlier-production-guide-exact-input",
+      "sha256": "a10aa81a1e81597dd74bd6761da47df990fc460c684229a0cb255fbb321dcfc1",
+      "biome": "taiga",
+      "rotation": 1,
+      "runtimeArtwork": false,
+      "note": "The garden fill predates the transparent-lawn instruction; numeric metre/camera construction is identical."
+    }
+  ],
+  "families": [
+    {
+      "biome": "desert",
+      "design": 0,
+      "rotation": 0,
+      "folder": "desert",
+      "acceptedSource": "exec-9cafe036-7a6e-4c9d-a22a-798f45e3c377.png",
+      "sourceSha256": "9f458b3bd75ab48f417cb01884a1fe7a430cc6655654bed8380a1ff348ad0e21",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5022205875087151,
+        "maximum": 0.5780997507600443
+      },
+      "references": [
+        {
+          "file": "taiga/exec-4e0e4135-2b0b-4310-aba1-aceb0b5114c2.png",
+          "sha256": "2bd910e01616775dde7eef5fe9d123a1c4a5a7adbaffd96f70024ad3ac2c5492"
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "design": 1,
+      "rotation": 0,
+      "folder": "desert/design-1",
+      "acceptedSource": "exec-9511603e-1c69-4b78-a0fd-c86e9e5cd355.png",
+      "sourceSha256": "f5b634952232e0a494465d905059a2d82a07fa11f22d8b632dbb71e36c7879a8",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5422885572139303,
+        "maximum": 0.6214689265536724
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-5354aebd-f83d-4adf-94a2-bdbfc0d3c7ff.png",
+          "sha256": "ad4d04012813359e092d10856d16a2578223f3aa798373c4a57637b9e9ee4add"
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "design": 1,
+      "rotation": 1,
+      "folder": "desert/design-1/rotation-1",
+      "acceptedSource": "exec-16eeaacd-309b-48ab-8080-0d78bb8026dd.png",
+      "sourceSha256": "26e4e9f6c83870a45aab4ac171ff44e8dce2cca72adebf6cd6938cdb2514f1b1",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.4911297017054632,
+        "maximum": 0.651685393258427
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-31b55f7a-6fa2-4d18-a01a-9f5499df7952.png",
+          "sha256": "e208f8372d03acf48ce09d33fe4c0f9fb4029015288b8f227f28e36582dc81ae"
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "design": 2,
+      "rotation": 0,
+      "folder": "desert/design-2",
+      "acceptedSource": "exec-c1730e80-2a46-48ae-969b-07b5be4d35c9.png",
+      "sourceSha256": "bf40d818889533087b296676c02d6eedf073ca59f2ed19102d3a2c6c4e8c9922",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5305638469753816,
+        "maximum": 0.595085114552668
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-063f88ce-0705-4302-ac1b-1ea6d7e3d7f5.png",
+          "sha256": "9c3198b419d3ead503996f5ae6c9f3f1ebc303335e5d84be6ceef08ea679c3ac"
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "design": 2,
+      "rotation": 1,
+      "folder": "desert/design-2/rotation-1",
+      "acceptedSource": "exec-23d1743a-4e39-4c5b-a5eb-1f706d779b46.png",
+      "sourceSha256": "064463113cc3d8506357c6c1a45f6b74721abc8cd1aa94f2c1c82d88a1cbd454",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.49577735325128097,
+        "maximum": 0.5961250401712521
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/transport-house-transparent-desert-rotation-1.png",
+          "sha256": "352d660d04762a7e22d7dd22a2cfcf0e2a31be90739d16058905579e0e744318"
+        }
+      ]
+    },
+    {
+      "biome": "desert",
+      "design": 0,
+      "rotation": 1,
+      "folder": "desert/rotation-1",
+      "acceptedSource": "exec-8537d912-cf83-42fd-ab1e-d0b6a9cc1fce.png",
+      "sourceSha256": "6e78b0d3d6a2bf4bac806c3943d74494c2713afe5f74a152f68c9042e687e4f0",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5285077119128181,
+        "maximum": 0.6012686686231751
+      },
+      "references": [
+        {
+          "file": "taiga/rotation-1/exec-7d220e22-774a-4ad5-a926-20078289fe95.png",
+          "sha256": "ca328f213ddb228a4031625364e229843dcb153cc1f1a761bbf646e9c7a3469a"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 0,
+      "rotation": 0,
+      "folder": "taiga",
+      "acceptedSource": "exec-4e0e4135-2b0b-4310-aba1-aceb0b5114c2.png",
+      "sourceSha256": "2bd910e01616775dde7eef5fe9d123a1c4a5a7adbaffd96f70024ad3ac2c5492",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.49893533564944526,
+        "maximum": 0.5760713430691886
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-3c920336-2c8b-411a-ad4b-696aa5eb69ff.png",
+          "sha256": "fa666019e7a0202ac18aead74fb06bb308e35f75858b082a74fd29d5b8bebe99"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 1,
+      "rotation": 0,
+      "folder": "taiga/design-1",
+      "acceptedSource": "exec-c95a48f5-12b8-47e9-b275-748e6e6a6f67.png",
+      "sourceSha256": "86b6a54f153a1f3560a174103210777e105e8a5baf5841e956e4e318a24216cf",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.515698407241893,
+        "maximum": 0.6059906470135564
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-5354aebd-f83d-4adf-94a2-bdbfc0d3c7ff.png",
+          "sha256": "ad4d04012813359e092d10856d16a2578223f3aa798373c4a57637b9e9ee4add"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 1,
+      "rotation": 1,
+      "folder": "taiga/design-1/rotation-1",
+      "acceptedSource": "exec-c008cea6-1817-46e1-a83e-844d4ff72c83.png",
+      "sourceSha256": "b6be989722c84d1f5b13ac48280719a5e716cd183ad044fa69ed088dc3fad670",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.49023592386994463,
+        "maximum": 0.6003869541182978
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-31c16d10-7c6d-4f80-8184-f40cc5fb5af3.png",
+          "sha256": "186ed4f256b15aaf2e12ee90d1369fd9bf248207fcc6d31b5554271bdc318d88"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 2,
+      "rotation": 0,
+      "folder": "taiga/design-2",
+      "acceptedSource": "exec-e93ce690-9455-42bd-91a0-f6c2a98c5759.png",
+      "sourceSha256": "68d48f31ef44af07246c529d17193a83c6b771a75864104fc5241a9224245a50",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5309291647319808,
+        "maximum": 0.5770677610044452
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-063f88ce-0705-4302-ac1b-1ea6d7e3d7f5.png",
+          "sha256": "9c3198b419d3ead503996f5ae6c9f3f1ebc303335e5d84be6ceef08ea679c3ac"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 2,
+      "rotation": 1,
+      "folder": "taiga/design-2/rotation-1",
+      "acceptedSource": "exec-10844730-9382-4c09-a707-b2f9a06d244d.png",
+      "sourceSha256": "15c2eef5ad96aaef8ee4dca181b8e1ac548dea0bf2c13e3545e0571653ab5d66",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5341316828130612,
+        "maximum": 0.6489236790606663
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-5aad552a-41d0-4d64-b67a-d7dc4b7a78f0.png",
+          "sha256": "f05076248137a546c7a462747158eb59aec33246027401e37fb5193fe5491741"
+        }
+      ]
+    },
+    {
+      "biome": "taiga",
+      "design": 0,
+      "rotation": 1,
+      "folder": "taiga/rotation-1",
+      "acceptedSource": "exec-7d220e22-774a-4ad5-a926-20078289fe95.png",
+      "sourceSha256": "ca328f213ddb228a4031625364e229843dcb153cc1f1a761bbf646e9c7a3469a",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5135045567522781,
+        "maximum": 0.5995427793180604
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-05027697-c350-4178-bdfd-53ace7228bed.png",
+          "sha256": "1394f3b5e474ff29b820ce0998f9519ad9a1365235cd430e40b200d57d5c69bb"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 0,
+      "rotation": 0,
+      "folder": "tundra",
+      "acceptedSource": "exec-1af5736d-d94e-42eb-a344-e6a6cc863bf8.png",
+      "sourceSha256": "356f165e285cd520913e2a9da925414aaca69d862522f26bb69d6bc212f38ce9",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5033536247924737,
+        "maximum": 0.5639938423312716
+      },
+      "references": [
+        {
+          "file": "taiga/exec-4e0e4135-2b0b-4310-aba1-aceb0b5114c2.png",
+          "sha256": "2bd910e01616775dde7eef5fe9d123a1c4a5a7adbaffd96f70024ad3ac2c5492"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 1,
+      "rotation": 0,
+      "folder": "tundra/design-1",
+      "acceptedSource": "exec-efac9f84-b0f9-4688-944d-5711fded2a75.png",
+      "sourceSha256": "99767c99418a04ca70dfecd69205102c8bc84d58530b923e385243ed1ecd1d4a",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5218297823857813,
+        "maximum": 0.5806634010120074
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-5354aebd-f83d-4adf-94a2-bdbfc0d3c7ff.png",
+          "sha256": "ad4d04012813359e092d10856d16a2578223f3aa798373c4a57637b9e9ee4add"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 1,
+      "rotation": 1,
+      "folder": "tundra/design-1/rotation-1",
+      "acceptedSource": "exec-30fa37af-32c6-43bc-b547-80f3c20d5d34.png",
+      "sourceSha256": "817daf8498a51311009d3e76d9083547772ce57125bba9a2fef8aa0dbb4c180f",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.4440823428125829,
+        "maximum": 0.6117952699171394
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/transport-house-transparent-tundra-rotation-1.png",
+          "sha256": "809c168a83d72ea31a6187bb53a4c2d37e6af9dea683f082fe5158d4de2f306b"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 2,
+      "rotation": 0,
+      "folder": "tundra/design-2",
+      "acceptedSource": "exec-e234cf0c-8c83-4a92-8b03-d3b7ace64bc2.png",
+      "sourceSha256": "429fb69bf919c13a2c1034ef1dbeaa9be45c3864b2304d7ce87bfa81e3564825",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.518536906461978,
+        "maximum": 0.571551707153694
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-063f88ce-0705-4302-ac1b-1ea6d7e3d7f5.png",
+          "sha256": "9c3198b419d3ead503996f5ae6c9f3f1ebc303335e5d84be6ceef08ea679c3ac"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 2,
+      "rotation": 1,
+      "folder": "tundra/design-2/rotation-1",
+      "acceptedSource": "exec-2e18fee9-3b17-409b-a7dc-402a17d03d92.png",
+      "sourceSha256": "6ce4e9bf3cecd67ecac5fbb454b1c1402fbd9336b5ad2f4ef842c1f9922756e3",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.5479539815513583,
+        "maximum": 0.6527735765950778
+      },
+      "references": [
+        {
+          "file": "grid-references-2026-10-07/exec-3e1c83f9-6063-46ac-a3fd-3cbeaab177e7.png",
+          "sha256": "b69035de5a3b6c93ba78a08dcdd694a8cdabf451f050328a8a1e18de409dd181"
+        }
+      ]
+    },
+    {
+      "biome": "tundra",
+      "design": 0,
+      "rotation": 1,
+      "folder": "tundra/rotation-1",
+      "acceptedSource": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "generation": "grid-generation-2026-10-07.json",
+      "calibration": "grid-calibration-2026-10-07.json",
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "sourceGroundSlopes": {
+        "minimum": 0.4991453850794291,
+        "maximum": 0.6353346456692919
+      },
+      "references": [
+        {
+          "file": "taiga/rotation-1/exec-7d220e22-774a-4ad5-a926-20078289fe95.png",
+          "sha256": "ca328f213ddb228a4031625364e229843dcb153cc1f1a761bbf646e9c7a3469a"
+        }
+      ]
+    }
+  ],
+  "registrationPolicy": {
+    "tileMetres": 16,
+    "masterGroundCentre": [
+      128,
+      192
+    ],
+    "targetGroundAxes": [
+      0.5,
+      -0.5
+    ],
+    "authoredHouseMaximumAbsoluteAxis": 0.66,
+    "scale": "one measured source-to-master factor per footprint tier, shared by six one-tile or three two-tile houses",
+    "nativeTerrainProjection": "exact 2:1"
+  }
+}

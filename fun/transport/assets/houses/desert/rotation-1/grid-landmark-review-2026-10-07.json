@@ -1,0 +1,710 @@
+{
+  "source": "/workspace/generated_images/exec-8537d912-cf83-42fd-ab1e-d0b6a9cc1fce.png",
+  "coordinateConvention": "Zero-based absolute source pixels. Geometric height=bottomY-topY; inclusive occupancy adds the endpoint pixel. Adaptive sourceRegion records complete parcels crossing nominal 418px cuts. Source pixels unchanged.",
+  "authoredPaintedCameraMaximumAbsoluteSlope": 0.64,
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        0,
+        421,
+        436
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          248,
+          297
+        ],
+        "sourceBottom": [
+          248,
+          337
+        ],
+        "sourceHeightGeometric": 40,
+        "sourceHeightInclusive": 41,
+        "cellLocalTop": [
+          248,
+          297
+        ],
+        "cellLocalBottom": [
+          248,
+          337
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          211.5,
+          328.311
+        ],
+        "sourceCorners": {
+          "left": [
+            32.0,
+            327.58
+          ],
+          "front": [
+            214.056,
+            423.798
+          ],
+          "right": [
+            391.0,
+            329.042
+          ]
+        },
+        "sourceSlopes": [
+          0.5285,
+          -0.5355
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.102,
+          5.533
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1062,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 11577,
+        "transparentFractionAlphaBelow8": 0.101,
+        "opaqueFractionAlphaAbove240": 0.7983,
+        "transparentInteriorExampleSource": [
+          187,
+          374
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "sourceRegion": [
+        421,
+        0,
+        834,
+        436
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          672,
+          302
+        ],
+        "sourceBottom": [
+          672,
+          340
+        ],
+        "sourceHeightGeometric": 38,
+        "sourceHeightInclusive": 39,
+        "cellLocalTop": [
+          251,
+          302
+        ],
+        "cellLocalBottom": [
+          251,
+          340
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          629.0,
+          327.836
+        ],
+        "sourceCorners": {
+          "left": [
+            450.0,
+            324.67
+          ],
+          "front": [
+            635.771,
+            423.1
+          ],
+          "right": [
+            808.0,
+            331.003
+          ]
+        },
+        "sourceSlopes": [
+          0.5298,
+          -0.5347
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.064,
+          4.754
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1498,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 11469,
+        "transparentFractionAlphaBelow8": 0.1363,
+        "opaqueFractionAlphaAbove240": 0.7806,
+        "transparentInteriorExampleSource": [
+          655,
+          368
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "sourceRegion": [
+        834,
+        0,
+        1254,
+        436
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1091,
+          301
+        ],
+        "sourceBottom": [
+          1091,
+          340
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "cellLocalTop": [
+          257,
+          301
+        ],
+        "cellLocalBottom": [
+          257,
+          340
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          1047.0,
+          332.896
+        ],
+        "sourceCorners": {
+          "left": [
+            863.0,
+            329.658
+          ],
+          "front": [
+            1052.344,
+            435.908
+          ],
+          "right": [
+            1231.0,
+            336.133
+          ]
+        },
+        "sourceSlopes": [
+          0.5611,
+          -0.5585
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.414,
+          4.409
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.113,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 13144,
+        "transparentFractionAlphaBelow8": 0.1133,
+        "opaqueFractionAlphaAbove240": 0.5784,
+        "transparentInteriorExampleSource": [
+          1067,
+          362
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        436,
+        421,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          262,
+          710
+        ],
+        "sourceBottom": [
+          262,
+          747
+        ],
+        "sourceHeightGeometric": 37,
+        "sourceHeightInclusive": 38,
+        "cellLocalTop": [
+          262,
+          274
+        ],
+        "cellLocalBottom": [
+          262,
+          311
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          211.0,
+          735.094
+        ],
+        "sourceCorners": {
+          "left": [
+            29.0,
+            734.189
+          ],
+          "front": [
+            213.844,
+            834.254
+          ],
+          "right": [
+            393.0,
+            735.999
+          ]
+        },
+        "sourceSlopes": [
+          0.5413,
+          -0.5484
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.966,
+          5.257
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1051,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 12365,
+        "transparentFractionAlphaBelow8": 0.1085,
+        "opaqueFractionAlphaAbove240": 0.8121,
+        "transparentInteriorExampleSource": [
+          238,
+          772
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "sourceRegion": [
+        421,
+        436,
+        834,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          679,
+          708
+        ],
+        "sourceBottom": [
+          679,
+          745
+        ],
+        "sourceHeightGeometric": 37,
+        "sourceHeightInclusive": 38,
+        "cellLocalTop": [
+          258,
+          272
+        ],
+        "cellLocalBottom": [
+          258,
+          309
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          629.0,
+          730.444
+        ],
+        "sourceCorners": {
+          "left": [
+            445.0,
+            728.416
+          ],
+          "front": [
+            632.975,
+            835.852
+          ],
+          "right": [
+            813.0,
+            732.472
+          ]
+        },
+        "sourceSlopes": [
+          0.5715,
+          -0.5742
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.796,
+          4.141
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1083,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 13570,
+        "transparentFractionAlphaBelow8": 0.0926,
+        "opaqueFractionAlphaAbove240": 0.6158,
+        "transparentInteriorExampleSource": [
+          652,
+          769
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "sourceRegion": [
+        834,
+        436,
+        1254,
+        836
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1113,
+          712
+        ],
+        "sourceBottom": [
+          1113,
+          741
+        ],
+        "sourceHeightGeometric": 29,
+        "sourceHeightInclusive": 30,
+        "cellLocalTop": [
+          279,
+          276
+        ],
+        "cellLocalBottom": [
+          279,
+          305
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "heightIsLowerBound": true,
+        "note": "Personnel entrance beneath porch hood. The porch beam obscures the upper full frame; visible dark opening is a lower bound on full-frame height."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          1048.0,
+          732.385
+        ],
+        "sourceCorners": {
+          "left": [
+            863.0,
+            730.728
+          ],
+          "front": [
+            1051.514,
+            834.68
+          ],
+          "right": [
+            1233.0,
+            734.043
+          ]
+        },
+        "sourceSlopes": [
+          0.5514,
+          -0.5545
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.41,
+          5.985
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.0876,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 13098,
+        "transparentFractionAlphaBelow8": 0.0873,
+        "opaqueFractionAlphaAbove240": 0.8106,
+        "transparentInteriorExampleSource": [
+          1080,
+          782
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "sourceRegion": [
+        0,
+        836,
+        421,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          247,
+          1052
+        ],
+        "sourceBottom": [
+          247,
+          1076
+        ],
+        "sourceHeightGeometric": 24,
+        "sourceHeightInclusive": 25,
+        "cellLocalTop": [
+          247,
+          216
+        ],
+        "cellLocalBottom": [
+          247,
+          240
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          217.0,
+          1078.685
+        ],
+        "sourceCorners": {
+          "left": [
+            15.0,
+            1078.774
+          ],
+          "front": [
+            206.365,
+            1192.924
+          ],
+          "right": [
+            419.0,
+            1078.596
+          ]
+        },
+        "sourceSlopes": [
+          0.5965,
+          -0.5377
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.954,
+          5.276
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1475,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 16716,
+        "transparentFractionAlphaBelow8": 0.1698,
+        "opaqueFractionAlphaAbove240": 0.7082,
+        "transparentInteriorExampleSource": [
+          191,
+          1155
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "sourceRegion": [
+        421,
+        836,
+        834,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          674,
+          1062
+        ],
+        "sourceBottom": [
+          674,
+          1091
+        ],
+        "sourceHeightGeometric": 29,
+        "sourceHeightInclusive": 30,
+        "cellLocalTop": [
+          253,
+          226
+        ],
+        "cellLocalBottom": [
+          253,
+          255
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "heightIsLowerBound": false,
+        "note": "Actual personnel entrance; both selected same-x dark opening endpoints are visible. Outer architectural trim is excluded."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          627.5,
+          1083.971
+        ],
+        "sourceCorners": {
+          "left": [
+            436.0,
+            1083.389
+          ],
+          "front": [
+            624.312,
+            1195.09
+          ],
+          "right": [
+            819.0,
+            1084.554
+          ]
+        },
+        "sourceSlopes": [
+          0.5932,
+          -0.5678
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.506,
+          4.337
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1719,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 15187,
+        "transparentFractionAlphaBelow8": 0.2108,
+        "opaqueFractionAlphaAbove240": 0.5179,
+        "transparentInteriorExampleSource": [
+          630,
+          1123
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "sourceRegion": [
+        834,
+        836,
+        1254,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1029,
+          1018
+        ],
+        "sourceBottom": [
+          1029,
+          1041
+        ],
+        "sourceHeightGeometric": 23,
+        "sourceHeightInclusive": 24,
+        "cellLocalTop": [
+          195,
+          182
+        ],
+        "cellLocalBottom": [
+          195,
+          205
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "heightIsLowerBound": true,
+        "note": "Actual rear courtyard personnel entry. The nearer annex roof crosses the lower doorway, so this visible same-x height is a lower bound; no full frame is inferred. The helper selected a shrub-obscured front annex entry."
+      },
+      "personnelDoorObservable": true,
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 foreground bottom-contour fits with 95th-percentile positive residual locating post feet below raised rails. Visually checked against lower post tips / stone-wall base. Side corners are projected physical foot-line estimates, not global silhouette extrema; \u00b13px painted/post-width uncertainty. Opposite side midpoint defines ground datum; hidden back vertex is unobserved.",
+        "sourceCenter": [
+          1042.5,
+          1075.269
+        ],
+        "sourceCorners": {
+          "left": [
+            836.0,
+            1077.463
+          ],
+          "front": [
+            1042.169,
+            1197.436
+          ],
+          "right": [
+            1249.0,
+            1073.075
+          ]
+        },
+        "sourceSlopes": [
+          0.5819,
+          -0.6013
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.001,
+          5.072
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.0513,
+      "groundAlphaInspection": {
+        "physicalForegroundTriangleInsetPixels": 8,
+        "sampleCount": 18594,
+        "transparentFractionAlphaBelow8": 0.1057,
+        "opaqueFractionAlphaAbove240": 0.8103,
+        "transparentInteriorExampleSource": [
+          1026,
+          1150
+        ],
+        "opaqueLawnVisible": false,
+        "note": "Visual source inspection shows transparent ground holes between architecture, paths, shrubs and the fence. Alpha samples are confined to the physical foreground triangle."
+      }
+    }
+  ],
+  "flags": []
+}

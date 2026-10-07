@@ -72,7 +72,12 @@ test('competing fleet histories preserve chronological cargo outcomes through re
 });
 
 test('edited routes and fresh vehicles use their live pose while removed vehicles release history',()=>{
-  const game=fixture('road'),motion=createVehicleMotion();motion.captureFinal(game);tick(game,3,{motion});
+  const game=fixture('road');
+  // The shared motion fixture bypasses route launch. This purchase also needs
+  // legitimate passenger endpoints because fleet orders revalidate the service.
+  game.cities=game.stations.map(({id,name,x,y})=>({id:`town-${id}`,name,x,y,population:300,passengers:0,mail:0,activity:0,growth:0,delivered:0,supplies:0,lastServiceDay:null}));
+  game.revision++;
+  const motion=createVehicleMotion();motion.captureFinal(game);tick(game,3,{motion});
   const vehicle=game.vehicles[0],proxy=motion.sample(game,vehicle,1);
   game.routes[0].path=[...game.routes[0].path];vehicle.progress=3.2;placeVehicle(game.routes[0],vehicle);
   motionEquivalent(motion.sample(game,vehicle,1),vehicle,'edited path fallback');
@@ -80,7 +85,7 @@ test('edited routes and fresh vehicles use their live pose while removed vehicle
   motionEquivalent(motion.sample(game,vehicle,1),vehicle,'disconnected fallback');
   game.routes[0].active=true;motion.captureFinal(game);
   assert.equal(motion.sample(game,vehicle,3),proxy);
-  assert.equal(addRouteVehicle(game,game.routes[0].id).ok,true);
+  const purchase=addRouteVehicle(game,game.routes[0].id);assert.equal(purchase.ok,true,purchase.message);
   const added=game.vehicles.at(-1);motionEquivalent(motion.sample(game,added,1),added,'new fleet member');
   game.vehicles=[added];game.revision++;motion.captureFinal(game);
   assert.equal(motion.getStats().vehicles,1);

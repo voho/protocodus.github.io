@@ -24,8 +24,8 @@
     "civic:shop-bookshop:desert",
     null
   ],
-  "source": "source-calibrated-2026-10-06.png",
-  "sourceSha256": "96819b361c3bec1cd6394a81465b3d412eadd4edec5a362d6d7eef673a62e656",
+  "source": "source-registered-2026-10-07.png",
+  "sourceSha256": "3a45f3c8aeb3dc400ec8f64966244b0a059c2b9c316605ac1b49aa61001379ee",
   "sprites": [
     {
       "id": "civic:park:desert",
@@ -42,26 +42,26 @@
           256
         ],
         "sourceBounds": [
-          47,
-          107,
-          208,
-          245
+          42,
+          130,
+          214,
+          243
         ],
         "rawAlphaBounds": [
-          48,
-          108,
-          207,
-          244
+          43,
+          131,
+          213,
+          242
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.812119
+        "transparentFraction": 0.856415
       },
       "bounds": [
-        48,
-        108,
-        207,
-        244
+        43,
+        131,
+        213,
+        242
       ]
     },
     {
@@ -79,26 +79,26 @@
           256
         ],
         "sourceBounds": [
-          75,
-          144,
-          180,
-          245
+          34,
+          135,
+          223,
+          247
         ],
         "rawAlphaBounds": [
-          76,
-          146,
-          179,
-          244
+          35,
+          136,
+          222,
+          246
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.908447
+        "transparentFraction": 0.835617
       },
       "bounds": [
-        76,
-        146,
-        179,
-        244
+        35,
+        136,
+        222,
+        246
       ]
     },
     {
@@ -116,25 +116,25 @@
           256
         ],
         "sourceBounds": [
-          55,
-          114,
-          200,
+          38,
+          132,
+          218,
           245
         ],
         "rawAlphaBounds": [
-          56,
-          115,
-          199,
+          39,
+          133,
+          217,
           244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.82872
+        "transparentFraction": 0.839874
       },
       "bounds": [
-        56,
-        115,
-        199,
+        39,
+        133,
+        217,
         244
       ]
     },
@@ -153,25 +153,25 @@
           256
         ],
         "sourceBounds": [
-          57,
-          112,
-          200,
+          36,
+          131,
+          220,
           245
         ],
         "rawAlphaBounds": [
-          58,
-          113,
-          199,
+          37,
+          132,
+          219,
           244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.833832
+        "transparentFraction": 0.833588
       },
       "bounds": [
-        58,
-        113,
-        199,
+        37,
+        132,
+        219,
         244
       ]
     },
@@ -190,26 +190,26 @@
           256
         ],
         "sourceBounds": [
-          65,
-          138,
-          190,
-          245
+          36,
+          131,
+          221,
+          247
         ],
         "rawAlphaBounds": [
-          66,
-          139,
-          189,
-          244
+          37,
+          133,
+          220,
+          246
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.883133
+        "transparentFraction": 0.833664
       },
       "bounds": [
-        66,
-        139,
-        189,
-        244
+        37,
+        133,
+        220,
+        246
       ]
     },
     {
@@ -227,26 +227,26 @@
           256
         ],
         "sourceBounds": [
-          53,
-          118,
-          203,
-          245
+          32,
+          128,
+          223,
+          247
         ],
         "rawAlphaBounds": [
-          54,
-          119,
-          202,
-          244
+          34,
+          129,
+          222,
+          246
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.812256
+        "transparentFraction": 0.818359
       },
       "bounds": [
-        54,
-        119,
-        202,
-        244
+        34,
+        129,
+        222,
+        246
       ]
     },
     {
@@ -264,26 +264,26 @@
           256
         ],
         "sourceBounds": [
-          56,
-          110,
-          200,
+          37,
+          119,
+          218,
           244
         ],
         "rawAlphaBounds": [
-          57,
-          111,
-          199,
-          244
+          38,
+          120,
+          217,
+          243
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.826248
+        "transparentFraction": 0.80632
       },
       "bounds": [
-        57,
-        111,
-        199,
-        244
+        38,
+        120,
+        217,
+        243
       ]
     },
     {
@@ -301,26 +301,26 @@
           256
         ],
         "sourceBounds": [
-          59,
-          102,
-          196,
-          245
+          35,
+          117,
+          220,
+          247
         ],
         "rawAlphaBounds": [
-          60,
-          103,
-          195,
-          244
+          36,
+          118,
+          219,
+          246
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.828949
+        "transparentFraction": 0.798813
       },
       "bounds": [
-        60,
-        103,
-        195,
-        244
+        36,
+        118,
+        219,
+        246
       ]
     },
     {
@@ -338,25 +338,25 @@
           256
         ],
         "sourceBounds": [
-          63,
-          129,
-          192,
+          41,
+          98,
+          216,
           245
         ],
         "rawAlphaBounds": [
-          64,
-          130,
-          191,
+          42,
+          99,
+          215,
           244
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.849991
+        "transparentFraction": 0.770111
       },
       "bounds": [
-        64,
-        130,
-        191,
+        42,
+        99,
+        215,
         244
       ]
     },
@@ -375,26 +375,26 @@
           256
         ],
         "sourceBounds": [
-          63,
-          127,
-          193,
-          245
+          40,
+          98,
+          217,
+          246
         ],
         "rawAlphaBounds": [
-          64,
-          128,
-          192,
-          244
+          41,
+          99,
+          216,
+          245
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.848312
+        "transparentFraction": 0.767487
       },
       "bounds": [
-        64,
-        128,
-        192,
-        244
+        41,
+        99,
+        216,
+        245
       ]
     },
     {
@@ -412,26 +412,26 @@
           256
         ],
         "sourceBounds": [
-          61,
-          124,
-          195,
-          245
+          38,
+          96,
+          219,
+          246
         ],
         "rawAlphaBounds": [
-          62,
-          125,
-          194,
-          244
+          39,
+          97,
+          218,
+          245
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.847473
+        "transparentFraction": 0.758987
       },
       "bounds": [
-        62,
-        125,
-        194,
-        244
+        39,
+        97,
+        218,
+        245
       ]
     },
     {
@@ -443,57 +443,121 @@
   "physicalCalibration": {
     "contract": "../../../../sprite-art-direction.js",
     "doorHeightMetres": 2.1,
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "expectedGroundEdgeSlope": 0.5,
+    "paintedGroundSlopeTolerance": 0.11,
+    "groundEndpointUncertaintySourcePixels": 3,
+    "architecturalEnvelopeMetresPerTile": 10,
     "tiers": {
       "1": {
-        "referenceDoorSourcePixels": 58,
+        "referenceDoorSourcePixels": 34.0,
+        "targetDoorMasterPixels": 22.4,
+        "method": "One shared mean measured personnel-door/frame scale for this climate footprint tier; awning-hidden headers use outer-frame estimates with stated uncertainty.",
         "measurements": [
           {
-            "id": "shop-cafe",
-            "sourceDoorPixels": 54,
-            "afterCalibrationWorldPixels": 3.910344827586207
+            "heightPixels": 33,
+            "edgeEndpointsSource": [
+              [
+                181,
+                983
+              ],
+              [
+                181,
+                1016
+              ]
+            ],
+            "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+            "uncertaintyPixels": 3
           },
           {
-            "id": "shop-pharmacy",
-            "sourceDoorPixels": 58,
-            "afterCalibrationWorldPixels": 4.2
+            "heightPixels": 34,
+            "edgeEndpointsSource": [
+              [
+                549,
+                983
+              ],
+              [
+                549,
+                1017
+              ]
+            ],
+            "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+            "uncertaintyPixels": 3
           },
           {
-            "id": "shop-bookshop",
-            "sourceDoorPixels": 60,
-            "afterCalibrationWorldPixels": 4.344827586206897
+            "heightPixels": 35,
+            "edgeEndpointsSource": [
+              [
+                911,
+                984
+              ],
+              [
+                911,
+                1019
+              ]
+            ],
+            "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+            "uncertaintyPixels": 3
           }
         ],
-        "targetDoorMasterPixels": 22.400000000000002,
-        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
       },
       "2": {
-        "referenceDoorSourcePixels": 29,
+        "referenceDoorSourcePixels": 17.75,
+        "targetDoorMasterPixels": 11.2,
+        "method": "One shared mean measured personnel-door/frame scale for this climate footprint tier; awning-hidden headers use outer-frame estimates with stated uncertainty.",
         "measurements": [
           {
-            "id": "swimming-pool",
-            "sourceDoorPixels": 28,
-            "afterCalibrationWorldPixels": 4.055172413793104
+            "heightPixels": 16.5,
+            "edgeEndpointsSource": [
+              [
+                979,
+                263
+              ],
+              [
+                979,
+                279.5
+              ]
+            ],
+            "kind": "visible personnel-door vertical opening",
+            "uncertaintyPixels": 2
           },
           {
-            "id": "town-hall",
-            "sourceDoorPixels": 30,
-            "afterCalibrationWorldPixels": 4.344827586206897
+            "heightPixels": 19,
+            "edgeEndpointsSource": [
+              [
+                849,
+                661
+              ],
+              [
+                849,
+                680
+              ]
+            ],
+            "kind": "visible personnel-door vertical opening",
+            "uncertaintyPixels": 2
           }
         ],
-        "targetDoorMasterPixels": 11.200000000000001,
-        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
       },
       "3": {
-        "referenceDoorSourcePixels": 21,
-        "measurements": [
-          {
-            "id": "ballpark",
-            "sourceDoorPixels": 21,
-            "afterCalibrationWorldPixels": 4.2
-          }
-        ],
-        "targetDoorMasterPixels": 7.466666666666667,
-        "method": "Personnel door vertical edge measurements on the accepted generated taiga source (approximately \u00b12px); the median factor is shared by every full parcel in each footprint tier."
+        "referenceDoorSourcePixels": 354,
+        "targetDoorMasterPixels": 199.1111111111111,
+        "method": "No observable personnel-door opening. Complete ballpark uniformly calibrated from measured 354px ground width to a credible 28m inset field/garden square on its 48m full parcel. The ratio fields name the shared scalar API; this is field geometry, not a doorway measurement.",
+        "groundWidthSourcePixels": 354,
+        "groundWidthMasterPixels": 185.17333333333332,
+        "insetGroundSquareMetres": 26.040000000000003,
+        "personnelDoorObservable": false,
+        "filteringGutterScale": 0.93,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged.",
+        "renderedInsetGroundSquareMetres": 26.040000000000003,
+        "originalRequestedInsetGroundSquareMetres": 28,
+        "calibratedBeforeFilteringGroundWidthMasterPixels": 199.1111111111111
       }
     },
     "cells": [
@@ -502,192 +566,791 @@
         "id": "civic:park:desert",
         "footprint": 2,
         "sourceBounds": [
-          11,
-          53,
-          423,
-          405
+          32,
+          173,
+          339,
+          373
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            186,
+            198
+          ],
+          [
+            336,
+            283
+          ],
+          [
+            186,
+            369
+          ],
+          [
+            35,
+            283
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 29834,
+        "groundCenterSource": [
+          185.5,
+          283.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 79772
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.566667,
+          -0.573333,
+          0.569536,
+          -0.562914
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          43,
+          131
+        ],
+        "normalizedBounds": [
+          43,
+          131,
+          213,
+          242
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 1,
         "id": "civic:playground:desert",
         "footprint": 1,
         "sourceBounds": [
-          435,
-          126,
-          701,
-          382
+          381,
+          188,
+          703,
+          377
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            544,
+            197
+          ],
+          [
+            700,
+            284
+          ],
+          [
+            544,
+            373
+          ],
+          [
+            384,
+            284
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 31009,
+        "groundCenterSource": [
+          542.0,
+          284.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 38395
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.557692,
+          -0.570513,
+          0.55625,
+          -0.54375
+        ],
+        "uniformScale": 0.579764705882353,
+        "translationMaster": [
+          35,
+          136
+        ],
+        "normalizedBounds": [
+          35,
+          136,
+          222,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 2,
         "id": "civic:swimming-pool:desert",
         "footprint": 2,
         "sourceBounds": [
-          707,
-          62,
-          1077,
-          396
+          745,
+          175,
+          1066,
+          375
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            905,
+            193
+          ],
+          [
+            1062,
+            280
+          ],
+          [
+            906,
+            371
+          ],
+          [
+            748,
+            283
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 33209,
+        "groundCenterSource": [
+          905.0,
+          281.5
+        ],
+        "groundCenterMaster": [
           128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.55414,
+          -0.583333,
+          0.556962,
+          -0.573248
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          39,
+          133
+        ],
+        "normalizedBounds": [
+          39,
+          133,
+          217,
           244
         ],
-        "preservedSourcePixels": 72889
+        "sourceDoorMeasurement": {
+          "heightPixels": 16.5,
+          "edgeEndpointsSource": [
+            [
+              979,
+              263
+            ],
+            [
+              979,
+              279.5
+            ]
+          ],
+          "kind": "visible personnel-door vertical opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 9.161915492957744
       },
       {
         "cell": 3,
         "id": "civic:sports-field:desert",
         "footprint": 2,
         "sourceBounds": [
-          1084,
-          64,
-          1448,
-          402
+          1102,
+          178,
+          1430,
+          379
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            1266,
+            197
+          ],
+          [
+            1427,
+            286
+          ],
+          [
+            1266,
+            374
+          ],
+          [
+            1106,
+            286
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 34249,
+        "groundCenterSource": [
+          1266.5,
+          286.0
+        ],
+        "groundCenterMaster": [
           128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.552795,
+          -0.546584,
+          0.55,
+          -0.55625
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          37,
+          132
+        ],
+        "normalizedBounds": [
+          37,
+          132,
+          219,
           244
         ],
-        "preservedSourcePixels": 70329
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 4,
         "id": "civic:tennis-courts:desert",
         "footprint": 1,
         "sourceBounds": [
-          21,
-          482,
-          339,
-          754
+          27,
+          533,
+          342,
+          730
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            183,
+            546
+          ],
+          [
+            338,
+            637
+          ],
+          [
+            187,
+            726
+          ],
+          [
+            31,
+            637
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 31631,
+        "groundCenterSource": [
+          184.5,
+          637.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 49591
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.587097,
+          -0.589404,
+          0.570513,
+          -0.598684
+        ],
+        "uniformScale": 0.579764705882353,
+        "translationMaster": [
+          37,
+          132
+        ],
+        "normalizedBounds": [
+          37,
+          133,
+          220,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 5,
         "id": "civic:ballpark:desert",
         "footprint": 3,
         "sourceBounds": [
-          331,
-          394,
-          748,
-          745
+          363,
+          512,
+          724,
+          735
         ],
-        "originalPixelScale": 0.35555555555555557,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            544,
+            534
+          ],
+          [
+            721,
+            632
+          ],
+          [
+            542,
+            731
+          ],
+          [
+            367,
+            632
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 42258,
+        "groundCenterSource": [
+          544.0,
+          632.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 94838
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.553672,
+          -0.553073,
+          0.565714,
+          -0.553672
+        ],
+        "uniformScale": 0.5230885122410546,
+        "translationMaster": [
+          33,
+          129
+        ],
+        "normalizedBounds": [
+          34,
+          129,
+          222,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 6,
         "id": "civic:sports-hall:desert",
         "footprint": 2,
         "sourceBounds": [
-          739,
-          409,
-          1106,
-          753
+          745,
+          510,
+          1068,
+          732
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            907,
+            551
+          ],
+          [
+            1065,
+            640
+          ],
+          [
+            908,
+            728
+          ],
+          [
+            750,
+            639
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Measured visible right[1065,640],front[908,728],left[750,639] top-ground corners. Back corner hidden behind barrel roof; exactly completed as left+right-front=[907,551]. Observed foreground alpha-hull landmark slopes are +0.5521/-0.5949, with approximately \u00b12px endpoint uncertainty.",
+        "preservedSourcePixels": 40341,
+        "groundCenterSource": [
+          907.5,
+          639.5
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 73680
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.563291,
+          -0.56051,
+          0.563291,
+          -0.56051
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          38,
+          120
+        ],
+        "normalizedBounds": [
+          38,
+          120,
+          217,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 19,
+          "edgeEndpointsSource": [
+            [
+              849,
+              661
+            ],
+            [
+              849,
+              680
+            ]
+          ],
+          "kind": "visible personnel-door vertical opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 10.550084507042252
       },
       {
         "cell": 7,
         "id": "civic:town-hall:desert",
         "footprint": 2,
         "sourceBounds": [
-          1098,
-          393,
-          1448,
-          759
+          1101,
+          508,
+          1430,
+          739
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            1266,
+            548
+          ],
+          [
+            1427,
+            642
+          ],
+          [
+            1267,
+            735
+          ],
+          [
+            1105,
+            642
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 41682,
+        "groundCenterSource": [
+          1266.0,
+          642.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 72777
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.583851,
+          -0.58125,
+          0.574074,
+          -0.583851
+        ],
+        "uniformScale": 0.5552676056338027,
+        "translationMaster": [
+          36,
+          118
+        ],
+        "normalizedBounds": [
+          36,
+          118,
+          219,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
       },
       {
         "cell": 8,
         "id": "civic:shop-cafe:desert",
         "footprint": 1,
         "sourceBounds": [
-          46,
-          758,
-          375,
-          1054
+          33,
+          802,
+          331,
+          1052
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            183,
+            880
+          ],
+          [
+            327,
+            963
+          ],
+          [
+            185,
+            1049
+          ],
+          [
+            37,
+            963
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 43760,
+        "groundCenterSource": [
+          182.0,
+          963.0
+        ],
+        "groundCenterMaster": [
           128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.576389,
+          -0.605634,
+          0.581081,
+          -0.568493
+        ],
+        "uniformScale": 0.579764705882353,
+        "translationMaster": [
+          42,
+          99
+        ],
+        "normalizedBounds": [
+          42,
+          99,
+          215,
           244
         ],
-        "preservedSourcePixels": 63993
+        "sourceDoorMeasurement": {
+          "heightPixels": 33,
+          "edgeEndpointsSource": [
+            [
+              181,
+              983
+            ],
+            [
+              181,
+              1016
+            ]
+          ],
+          "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.13223529411765
       },
       {
         "cell": 9,
         "id": "civic:shop-pharmacy:desert",
         "footprint": 1,
         "sourceBounds": [
-          393,
-          754,
-          725,
-          1054
+          394,
+          802,
+          695,
+          1053
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
+        "groundVerticesSource": [
+          [
+            545,
+            880
+          ],
+          [
+            691,
+            963
+          ],
+          [
+            547,
+            1049
+          ],
+          [
+            398,
+            963
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 44055,
+        "groundCenterSource": [
+          544.5,
+          963.0
+        ],
+        "groundCenterMaster": [
           128,
-          244
+          192
         ],
-        "preservedSourcePixels": 64760
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.568493,
+          -0.597222,
+          0.577181,
+          -0.564626
+        ],
+        "uniformScale": 0.579764705882353,
+        "translationMaster": [
+          41,
+          99
+        ],
+        "normalizedBounds": [
+          41,
+          99,
+          216,
+          245
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 34,
+          "edgeEndpointsSource": [
+            [
+              549,
+              983
+            ],
+            [
+              549,
+              1017
+            ]
+          ],
+          "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.712
       },
       {
         "cell": 10,
         "id": "civic:shop-bookshop:desert",
         "footprint": 1,
         "sourceBounds": [
-          725,
-          746,
-          1067,
+          754,
+          800,
+          1062,
           1055
         ],
-        "originalPixelScale": 0.3862068965517242,
-        "contactAnchor": [
-          128,
-          244
+        "groundVerticesSource": [
+          [
+            908,
+            880
+          ],
+          [
+            1058,
+            963
+          ],
+          [
+            909,
+            1052
+          ],
+          [
+            758,
+            965
+          ]
         ],
-        "preservedSourcePixels": 64905
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 45691,
+        "groundCenterSource": [
+          908.0,
+          964.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.553333,
+          -0.597315,
+          0.576159,
+          -0.566667
+        ],
+        "uniformScale": 0.579764705882353,
+        "translationMaster": [
+          39,
+          97
+        ],
+        "normalizedBounds": [
+          39,
+          97,
+          218,
+          245
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 35,
+          "edgeEndpointsSource": [
+            [
+              911,
+              984
+            ],
+            [
+              911,
+              1019
+            ]
+          ],
+          "kind": "outer personnel-door frame; full header inferred 2px behind awning, within \u00b13px measurement uncertainty",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 20.291764705882354
       },
       {
         "cell": 11,
         "empty": true
       }
-    ]
+    ],
+    "minimumMasterFilteringGutterPixels": 8
   }
 }

@@ -1,0 +1,75 @@
+{
+  "columns": 4,
+  "rows": 3,
+  "biome": "tundra",
+  "entries": [
+    {
+      "id": "park",
+      "footprint": 2,
+      "name": "Park",
+      "description": "A 20m by 20m inset municipal garden with two broad rounded tree groups, crossing gravel paths and one large stone fountain. A few low benches. Quiet lawn masses, no speckled leaves, no opaque raised base. Garden boundary locks to the exact grid axes."
+    },
+    {
+      "id": "playground",
+      "footprint": 1,
+      "name": "Playground",
+      "description": "A 10m by 10m inset neighbourhood playground. One unmistakable broad ochre-yellow slide with 2.1m high ladder platform, one simple blue-grey 2.2m high swing frame with two seats, one broad sandy patch, and low 1.2m timber fence. Broad sparse planting; no equipment clutter."
+    },
+    {
+      "id": "swimming-pool",
+      "footprint": 2,
+      "name": "Swimming pool",
+      "description": "A 20m by 20m inset pool garden: large muted turquoise rectangular basin approximately 14m by 10m, two broad lane marks, cream paved edge. Behind it a 16m long by 4m deep one-storey changing pavilion, 3m wall height, muted brick and slate roof, two 2.1m personnel doors, two broad windows. Sparse broad shrubs only."
+    },
+    {
+      "id": "sports-field",
+      "footprint": 2,
+      "name": "Sports field",
+      "description": "A 20m by 20m inset mini community football ground. A broad quiet green rectangular pitch approximately 17m by 15m, readable cream touchlines, centre circle and two goals; one 14m long, 3m high simple covered spectator stand behind. Roof and every ground marking at exact grid axes. Omit tall floodlights and net mesh."
+    },
+    {
+      "id": "tennis-courts",
+      "footprint": 1,
+      "name": "Tennis courts",
+      "description": "A 10m by 10m inset compact tennis practice court: broad muted burgundy-red playing rectangle with dark sage surround, large clean cream court markings and one unmistakable centre net 1m high. Quiet low perimeter fence 1.2m high, no wire mesh or tall posts. No trees crowding corners."
+    },
+    {
+      "id": "ballpark",
+      "footprint": 3,
+      "name": "Ballpark",
+      "description": "A 30m by 30m inset compact baseball park: broad muted green outfield, large warm ochre infield diamond with a small cream home plate, two broad low bleacher wings and simple rear covered stand, 3m high with one 2.1m personnel service door. Only broad sparse shrubs. Ground boundary and stands at exact grid axes."
+    },
+    {
+      "id": "sports-hall",
+      "footprint": 2,
+      "name": "Sports hall",
+      "description": "A 20m by 20m inset sports complex: broad rectangular muted brick sports hall 16m by 12m with 6m eave height and recognizable blue-grey barrel roof, one 3m high pale-plaster entrance annex, two normal 2.1m personnel doors and two broad windows. Huge quiet roof mass, no rib lines or brick texture. Sparse planting."
+    },
+    {
+      "id": "town-hall",
+      "footprint": 2,
+      "name": "Town hall",
+      "description": "A 20m by 20m inset civic garden. Broad 18m facade and 10m deep warm muted stone town hall, exactly two 3m storeys (6m wall height), broad slate hipped roof, central clock turret rising to 10m with one large cream clock disc, short portico and normal 2.1m personnel entrance. Two symmetrical broad wings, sparse shrubs. No tiny railings or texture."
+    },
+    {
+      "id": "shop-cafe",
+      "footprint": 1,
+      "name": "Caf\u00e9",
+      "description": "A 10m by 10m inset cafe parcel. A substantial two-storey corner cafe with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), terracotta hipped roof, cream-plaster broad walls. One clearly visible ordinary 2.1m personnel door, NOT an oversized shop opening. One broad green-and-cream striped awning across 7m of storefront, two broad upper windows per facade and one broad muted glass shop window. One quiet outdoor table, no clutter or tiny chairs. This shop is architectural, not a tiny cottage."
+    },
+    {
+      "id": "shop-pharmacy",
+      "footprint": 1,
+      "name": "Pharmacy",
+      "description": "A 10m by 10m inset pharmacy parcel. A substantial two-storey neighbourhood pharmacy with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, cream-stone broad walls. One normal 2.1m personnel door and broad muted glass storefront, one low muted green canopy. One large recognizable green cross on the front upper facade, at least 1.5m tall. Broad upper windows, no fine panes or lettering. Architecture size equals cafe."
+    },
+    {
+      "id": "shop-bookshop",
+      "footprint": 1,
+      "name": "Bookshop",
+      "description": "A 10m by 10m inset bookshop parcel. A substantial two-storey bookshop with 9m long front facade and 7m deep side facade: exactly 6m wall height (two 3m storeys), slate hipped roof, muted brick broad walls. One normal 2.1m personnel door, one broad burgundy shop awning, broad warm storefront. One LARGE simple cream open-book emblem on upper front facade, at least 1.8m wide. Two broad upper windows, no book-spine grids or lettering. Architecture size equals cafe."
+    },
+    null
+  ],
+  "direction": "Climate derivation edit of the accepted geometry-locked Taiga town sheet. Preserve all eleven identities, every planar ground vertex, exact shallow 2:1 camera, architectural mass, shop awning/sign size, doorway heights and physical ground centres. Only climate ground, planting and restrained snow accents change. Keep the same semantic wall/roof palette family across climates; do not recolour every roof or alter building dimensions. Output genuine transparency, twelve equal square cells, bottom-right empty."
+}

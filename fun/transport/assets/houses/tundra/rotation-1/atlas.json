@@ -1,6 +1,8 @@
 {
-  "version": 2,
+  "version": 3,
   "biome": "tundra",
+  "design": 0,
+  "rotation": 1,
   "columns": 3,
   "rows": 3,
   "cellSizes": [
@@ -10,8 +12,11 @@
     32,
     16
   ],
-  "groundline": 240,
   "masterCellSize": 256,
+  "groundCenterMaster": [
+    128,
+    192
+  ],
   "order": [
     "house-cheap-1",
     "house-cheap-2",
@@ -26,442 +31,1894 @@
   "houses": [
     {
       "id": "house-cheap-1",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        58,
-        133,
-        421,
-        445
+      "sourceRegion": [
+        0,
+        0,
+        420,
+        484
+      ],
+      "groundCenterSource": [
+        209.0,
+        335.73
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          334.3
+        ],
+        "front": [
+          214.0,
+          434.22
+        ],
+        "right": [
+          395.0,
+          337.16
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5231413612565445,
+        -0.5362430939226519
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 38,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            250,
+            303
+          ],
+          [
+            250,
+            341
+          ]
+        ],
+        "boundsSource": [
+          249,
+          303,
+          252,
+          342
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2018,
+      "sourceMeaningfulBounds": [
+        22,
+        192,
+        397,
+        434
       ],
       "originalSize": [
-        1254,
-        1254
+        420,
+        484
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "sourceBounds": [
+        20,
+        190,
+        399,
+        436
+      ],
+      "rawAlphaBounds": [
+        0,
+        9,
+        420,
+        484
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.753232,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 1,
+      "atlasBounds": [
+        0,
+        0,
+        420,
+        484
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 47869,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
       "drawSize": [
-        193,
-        166
+        234,
+        234
       ],
       "offset": [
-        31,
-        74
+        27,
+        30
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        128.04545454545456,
+        192.3157438016529
+      ],
+      "doorHeightMasterMeasured": 18.372,
       "normalizedBounds": [
-        31,
-        74,
-        224,
-        240
+        35,
+        120,
+        221,
+        242
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 61118,
-      "architecturalStyle": "small cream plaster cottage with terracotta gable roof and pale low picket fence",
-      "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "normalizedMeaningfulBounds": [
+        37,
+        123,
+        219,
+        240
+      ]
     },
     {
       "id": "house-cheap-2",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        467,
-        124,
-        820,
-        442
+      "sourceRegion": [
+        420,
+        0,
+        840,
+        484
+      ],
+      "groundCenterSource": [
+        210.0,
+        336.53499999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          24.0,
+          334.08
+        ],
+        "front": [
+          222.91999999999996,
+          433.37
+        ],
+        "right": [
+          396.0,
+          338.99
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.4991453850794291,
+        -0.5452969724982666
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 36,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            257,
+            309
+          ],
+          [
+            257,
+            345
+          ]
+        ],
+        "boundsSource": [
+          256,
+          309,
+          259,
+          346
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2075,
+      "sourceMeaningfulBounds": [
+        23,
+        192,
+        397,
+        433
       ],
       "originalSize": [
-        1254,
-        1254
+        420,
+        484
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "sourceBounds": [
+        21,
+        190,
+        399,
+        435
+      ],
+      "rawAlphaBounds": [
+        1,
+        81,
+        420,
+        484
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.756779,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 1,
+      "atlasBounds": [
+        420,
+        0,
+        840,
+        484
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 47436,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
       "drawSize": [
-        188,
-        169
+        234,
+        234
       ],
       "offset": [
-        34,
-        71
+        26,
+        29
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        127.52892561983471,
+        191.7049380165289
+      ],
+      "doorHeightMasterMeasured": 17.405,
       "normalizedBounds": [
-        34,
-        71,
-        222,
-        240
+        35,
+        120,
+        220,
+        241
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 58574,
-      "architecturalStyle": "small timber cabin with gray slate gable roof and rustic split rail fence",
-      "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "normalizedMeaningfulBounds": [
+        37,
+        122,
+        218,
+        239
+      ]
     },
     {
       "id": "house-cheap-3",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        865,
-        120,
-        1224,
-        449
+      "sourceRegion": [
+        840,
+        0,
+        1254,
+        484
+      ],
+      "groundCenterSource": [
+        211.0,
+        340.025
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          338.95
+        ],
+        "front": [
+          220.24,
+          444.71
+        ],
+        "right": [
+          399.0,
+          341.1
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5361995538430337,
+        -0.579603938241217
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            258,
+            307
+          ],
+          [
+            258,
+            344
+          ]
+        ],
+        "boundsSource": [
+          257,
+          307,
+          260,
+          345
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.166,
+      "sourceMeaningfulBounds": [
+        23,
+        192,
+        400,
+        444
       ],
       "originalSize": [
-        1254,
-        1254
+        414,
+        484
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "sourceBounds": [
+        21,
+        190,
+        402,
+        446
+      ],
+      "rawAlphaBounds": [
+        0,
+        59,
+        403,
+        476
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.732144,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 1,
+      "atlasBounds": [
+        840,
+        0,
+        1254,
+        484
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 51530,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
       "drawSize": [
-        191,
-        175
+        234,
+        234
       ],
       "offset": [
-        32,
-        65
+        26,
+        28
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        128.01239669421489,
+        192.3922520661157
+      ],
+      "doorHeightMasterMeasured": 17.888,
       "normalizedBounds": [
-        32,
-        66,
-        223,
-        240
+        35,
+        118,
+        222,
+        245
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 62420,
-      "architecturalStyle": "small red brick cottage with terracotta gable roof and low iron fence",
-      "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "normalizedMeaningfulBounds": [
+        37,
+        120,
+        220,
+        243
+      ]
     },
     {
       "id": "house-normal-1",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        46,
-        507,
-        430,
-        832
+      "sourceRegion": [
+        0,
+        484,
+        418,
+        858
       ],
-      "originalSize": [
-        1254,
-        1254
+      "groundCenterSource": [
+        209.0,
+        253.235
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
-      "drawSize": [
-        204,
-        173
+      "groundVerticesSourceMeasured": {
+        "left": [
+          20.0,
+          251.33000000000004
+        ],
+        "front": [
+          212.48,
+          359.28999999999996
+        ],
+        "right": [
+          398.0,
+          255.14
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5608894430590188,
+        -0.5613949978438981
       ],
-      "offset": [
-        26,
-        67
-      ],
-      "groundline": 240,
-      "normalizedBounds": [
-        26,
-        67,
-        230,
-        240
-      ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            260,
+            226
+          ],
+          [
+            260,
+            261
+          ]
+        ],
+        "boundsSource": [
+          259,
+          226,
+          262,
+          262
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            260,
+            223
+          ],
+          [
+            260,
+            262
+          ]
         ]
       },
-      "meaningfulSourcePixels": 66243,
-      "architecturalStyle": "two-storey cream gabled family home with slate roof and bay window",
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2336,
+      "sourceMeaningfulBounds": [
+        19,
+        40,
+        400,
+        359
+      ],
+      "originalSize": [
+        418,
+        374
+      ],
+      "sourceBounds": [
+        17,
+        38,
+        402,
+        361
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        418,
+        374
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.557103,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
       "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "atlasBounds": [
+        0,
+        484,
+        418,
+        858
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 66872,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
+      "drawSize": [
+        234,
+        234
+      ],
+      "offset": [
+        27,
+        70
+      ],
+      "registeredGroundCenter": [
+        128.04545454545456,
+        192.43179752066118
+      ],
+      "doorHeightMasterMeasured": 16.921,
+      "normalizedBounds": [
+        34,
+        87,
+        222,
+        246
+      ],
+      "normalizedMeaningfulBounds": [
+        36,
+        89,
+        220,
+        244
+      ]
     },
     {
       "id": "house-normal-2",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        467,
-        508,
-        830,
-        830
+      "sourceRegion": [
+        418,
+        484,
+        843,
+        858
       ],
-      "originalSize": [
-        1254,
-        1254
+      "groundCenterSource": [
+        214.0,
+        247.23499999999996
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
-      "drawSize": [
-        193,
-        171
+      "groundVerticesSourceMeasured": {
+        "left": [
+          20.0,
+          245.53999999999996
+        ],
+        "front": [
+          221.01,
+          360.29999999999995
+        ],
+        "right": [
+          408.0,
+          248.92999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5709168698074722,
+        -0.5955933472378202
       ],
-      "offset": [
-        31,
-        69
-      ],
-      "groundline": 240,
-      "normalizedBounds": [
-        31,
-        69,
-        224,
-        240
-      ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            267,
+            225
+          ],
+          [
+            267,
+            260
+          ]
+        ],
+        "boundsSource": [
+          266,
+          225,
+          269,
+          261
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            267,
+            223
+          ],
+          [
+            267,
+            262
+          ]
         ]
       },
-      "meaningfulSourcePixels": 63878,
-      "architecturalStyle": "two-storey brick family home with muted green gray hipped roof",
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1879,
+      "sourceMeaningfulBounds": [
+        19,
+        55,
+        411,
+        359
+      ],
+      "originalSize": [
+        425,
+        374
+      ],
+      "sourceBounds": [
+        17,
+        53,
+        413,
+        361
+      ],
+      "rawAlphaBounds": [
+        1,
+        0,
+        424,
+        374
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.570569,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
       "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "atlasBounds": [
+        418,
+        484,
+        843,
+        858
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 66008,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
+      "drawSize": [
+        234,
+        234
+      ],
+      "offset": [
+        25,
+        72
+      ],
+      "registeredGroundCenter": [
+        128.46280991735537,
+        191.53097107438015
+      ],
+      "doorHeightMasterMeasured": 16.921,
+      "normalizedBounds": [
+        32,
+        97,
+        226,
+        248
+      ],
+      "normalizedMeaningfulBounds": [
+        34,
+        99,
+        224,
+        246
+      ]
     },
     {
       "id": "house-normal-3",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        863,
-        517,
-        1233,
-        832
+      "sourceRegion": [
+        843,
+        484,
+        1254,
+        858
+      ],
+      "groundCenterSource": [
+        210.5,
+        252.25
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          16.0,
+          252.17999999999995
+        ],
+        "front": [
+          209.4000000000001,
+          361.28
+        ],
+        "right": [
+          405.0,
+          252.32000000000005
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5641158221302998,
+        -0.5570552147239263
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 28,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            276,
+            231
+          ],
+          [
+            276,
+            259
+          ]
+        ],
+        "boundsSource": [
+          275,
+          231,
+          278,
+          260
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Front porch canopy physically overlaps the personnel-door head. At the selected source column x1119 the visible dark opening begins immediately beneath the canopy underside; this boundary is roof occlusion, not an independently visible full head. Source y715\u2013743 endpoints unchanged and retained as a visible lower bound. Hidden full frame is not inferred. Magnified source crop tundra-d0-r1-normal3-porch-detail.png corroborates the obstruction.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2256,
+      "sourceMeaningfulBounds": [
+        15,
+        91,
+        411,
+        360
       ],
       "originalSize": [
-        1254,
-        1254
+        411,
+        374
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "sourceBounds": [
+        13,
+        89,
+        411,
+        362
+      ],
+      "rawAlphaBounds": [
+        0,
+        21,
+        411,
+        374
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.608663,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 1,
+      "atlasBounds": [
+        843,
+        484,
+        1254,
+        858
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 58235,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.48315662327204384,
+      "actualSourceScale": 0.4834710743801653,
       "drawSize": [
-        197,
-        168
+        234,
+        234
       ],
       "offset": [
-        29,
-        72
+        26,
+        70
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        127.77066115702479,
+        191.9555785123967
+      ],
+      "doorHeightMasterMeasured": 13.537,
       "normalizedBounds": [
-        29,
-        72,
-        226,
-        240
+        31,
+        112,
+        225,
+        246
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 62968,
-      "architecturalStyle": "cream single-storey bungalow with terracotta hipped roof and short porch",
-      "footprint": 1,
-      "targetDoorMasterPixels": 22.4,
-      "targetStoreyMasterPixels": 32
+      "normalizedMeaningfulBounds": [
+        33,
+        114,
+        225,
+        244
+      ]
     },
     {
       "id": "house-expensive-1",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        7,
-        849,
-        442,
-        1183
-      ],
-      "originalSize": [
-        1254,
+      "sourceRegion": [
+        0,
+        858,
+        427,
         1254
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "groundCenterSource": [
+        214.5,
+        225.03499999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          8.0,
+          227.20000000000005
+        ],
+        "front": [
+          208.14,
+          345.5899999999999
+        ],
+        "right": [
+          421.0,
+          222.8699999999999
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5915359248526025,
+        -0.5765291741050457
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 22,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            247,
+            196
+          ],
+          [
+            247,
+            218
+          ]
+        ],
+        "boundsSource": [
+          246,
+          196,
+          249,
+          219
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2819,
+      "sourceMeaningfulBounds": [
+        7,
+        66,
+        424,
+        345
+      ],
+      "originalSize": [
+        427,
+        396
+      ],
+      "sourceBounds": [
+        5,
+        64,
+        426,
+        347
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        427,
+        396
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.631118,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 2,
+      "atlasBounds": [
+        0,
+        858,
+        427,
+        1254
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 59480,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.4322939598927268,
+      "actualSourceScale": 0.4318181818181818,
       "drawSize": [
-        232,
-        178
+        209,
+        209
       ],
       "offset": [
-        12,
-        62
+        35,
+        95
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        127.625,
+        192.17420454545453
+      ],
+      "doorHeightMasterMeasured": 9.5,
       "normalizedBounds": [
-        12,
-        62,
-        244,
-        240
+        36,
+        121,
+        220,
+        246
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 75147,
-      "architecturalStyle": "stone country manor with slate roofs and two short side wings",
-      "footprint": 2,
-      "targetDoorMasterPixels": 11.2,
-      "targetStoreyMasterPixels": 16
+      "normalizedMeaningfulBounds": [
+        38,
+        123,
+        218,
+        244
+      ]
     },
     {
       "id": "house-expensive-2",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        443,
-        849,
-        843,
-        1168
-      ],
-      "originalSize": [
-        1254,
+      "sourceRegion": [
+        427,
+        858,
+        826,
         1254
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "groundCenterSource": [
+        198.5,
+        227.81500000000005
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          6.0,
+          227.5
+        ],
+        "front": [
+          201.89,
+          346.27
+        ],
+        "right": [
+          391.0,
+          228.1300000000001
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6063096635867068,
+        -0.6247157738882125
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 28,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            249,
+            201
+          ],
+          [
+            249,
+            229
+          ]
+        ],
+        "boundsSource": [
+          248,
+          201,
+          251,
+          230
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2639,
+      "sourceMeaningfulBounds": [
+        5,
+        14,
+        393,
+        345
+      ],
+      "originalSize": [
+        399,
+        396
+      ],
+      "sourceBounds": [
+        3,
+        12,
+        395,
+        347
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        399,
+        396
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.585821,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 2,
+      "atlasBounds": [
+        427,
+        858,
+        826,
+        1254
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 63195,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.4322939598927268,
+      "actualSourceScale": 0.4318181818181818,
       "drawSize": [
-        213,
-        170
+        209,
+        209
       ],
       "offset": [
-        21,
-        70
+        42,
+        94
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        127.7159090909091,
+        192.37465909090912
+      ],
+      "doorHeightMasterMeasured": 12.091,
       "normalizedBounds": [
-        21,
-        70,
-        234,
-        240
+        42,
+        98,
+        214,
+        245
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 67591,
-      "architecturalStyle": "three-storey narrow brick townhouse with charcoal mansard roof",
-      "footprint": 2,
-      "targetDoorMasterPixels": 11.2,
-      "targetStoreyMasterPixels": 16
+      "normalizedMeaningfulBounds": [
+        44,
+        100,
+        212,
+        243
+      ]
     },
     {
       "id": "house-expensive-3",
-      "source": "source-readable-scale-2026-10-06.png",
-      "sourceSha256": "5e7afc8ef7b0b6034bd179a96dc9650934e2e4c5326f84292b899cab849fb80c",
-      "inputMode": "registered-generated-grid",
-      "sourceBounds": [
-        839,
-        849,
-        1249,
-        1180
-      ],
-      "originalSize": [
+      "sourceRegion": [
+        826,
+        858,
         1254,
         1254
       ],
-      "sourceCellSize": 418.0,
-      "sourceGridPadding": 1.15,
-      "registeredCellSize": 481,
-      "sharedSourceScale": 0.5322245322245323,
+      "groundCenterSource": [
+        216.0,
+        225.08499999999992
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          7.0,
+          225.1099999999999
+        ],
+        "front": [
+          221.79999999999995,
+          354.1600000000001
+        ],
+        "right": [
+          425.0,
+          225.05999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6007914338919935,
+        -0.6353346456692919
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 of all positive physical post-foot residuals. Long wooden post feet are included; no12px cap. Source absolute pixel coordinates.",
+      "doorHeightSourceMeasured": 29,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            212,
+            156
+          ],
+          [
+            212,
+            185
+          ]
+        ],
+        "boundsSource": [
+          211,
+          156,
+          214,
+          186
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "notes": "Main rear courtyard personnel entrance. Near annex roof covers the lower-left leaf and chosen lower endpoint. This is a visible-only interval, not full doorway height; exclude calibration. No fully visible alternative side personnel entrance identified.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": false,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1548,
+      "sourceMeaningfulBounds": [
+        7,
+        17,
+        427,
+        350
+      ],
+      "originalSize": [
+        428,
+        396
+      ],
+      "sourceBounds": [
+        5,
+        15,
+        428,
+        352
+      ],
+      "rawAlphaBounds": [
+        0,
+        0,
+        428,
+        396
+      ],
+      "trimAlphaThreshold": 8,
+      "trimPadding": 2,
+      "transparentFraction": 0.551756,
+      "source": "exec-738436de-b7a9-49fb-9930-bd6383fa2e17.png",
+      "sourceSha256": "6e4ead0c851cd4fdd0865ad8463c7d57f8fa6cc29d79d0f51517aad4f333af37",
+      "footprint": 2,
+      "atlasBounds": [
+        826,
+        858,
+        1254,
+        1254
+      ],
+      "sourceSquareSize": 484,
+      "meaningfulSourcePixels": 72966,
+      "inputMode": "measured-ground-and-human-scale",
+      "tierSourceScale": 0.4322939598927268,
+      "actualSourceScale": 0.4318181818181818,
       "drawSize": [
-        218,
-        176
+        209,
+        209
       ],
       "offset": [
-        19,
-        64
+        35,
+        95
       ],
-      "groundline": 240,
+      "registeredGroundCenter": [
+        128.27272727272728,
+        192.19579545454542
+      ],
+      "doorHeightMasterMeasured": 12.523,
       "normalizedBounds": [
-        19,
-        64,
-        237,
-        240
+        35,
+        100,
+        222,
+        249
       ],
-      "preserveGridScale": true,
-      "atlasCellTransform": {
-        "scale": 1,
-        "translate": [
-          0,
-          0
-        ]
-      },
-      "meaningfulSourcePixels": 71029,
-      "architecturalStyle": "cream two-storey courtyard villa with terracotta roofs",
-      "footprint": 2,
-      "targetDoorMasterPixels": 11.2,
-      "targetStoreyMasterPixels": 16
+      "normalizedMeaningfulBounds": [
+        38,
+        102,
+        220,
+        247
+      ]
     }
   ],
+  "registration": "measured physical garden centre; shared personnel-door calibration per footprint tier",
+  "gardenGround": "transparent",
   "mipFilter": "independent premultiplied-alpha Lanczos; no sharpening",
-  "design": 0,
-  "rotation": 1,
-  "frontEntranceDirection": "lower-right projected street axis",
-  "generator": "built-in image_gen",
-  "generationDate": "2026-10-06",
-  "scaleContract": "sprite-art-direction.js: 16m tile, 2.1m personnel door, 3m storey; doors on two-tile parcels use half the normalized height of one-tile parcels."
+  "measurements": "grid-calibration-2026-10-07.json",
+  "physicalCalibration": {
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "tileMetres": 16,
+    "doorHeightMetres": 2.1,
+    "sourceScalePolicy": "one uniform scale per footprint tier",
+    "cells": [
+      {
+        "id": "house-cheap-1",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          209.0,
+          335.73
+        ],
+        "sourceRegion": [
+          0,
+          0,
+          420,
+          484
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            23.0,
+            334.3
+          ],
+          "front": [
+            214.0,
+            434.22
+          ],
+          "right": [
+            395.0,
+            337.16
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5231413612565445,
+          -0.5362430939226519
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              250,
+              303
+            ],
+            [
+              250,
+              341
+            ]
+          ],
+          "boundsSource": [
+            249,
+            303,
+            252,
+            342
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 38,
+        "doorHeightMasterMeasured": 18.372,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          27,
+          30
+        ],
+        "registeredGroundCenter": [
+          128.04545454545456,
+          192.3157438016529
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2018,
+        "bounds": [
+          37,
+          123,
+          219,
+          240
+        ]
+      },
+      {
+        "id": "house-cheap-2",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          210.0,
+          336.53499999999997
+        ],
+        "sourceRegion": [
+          420,
+          0,
+          840,
+          484
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            24.0,
+            334.08
+          ],
+          "front": [
+            222.91999999999996,
+            433.37
+          ],
+          "right": [
+            396.0,
+            338.99
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.4991453850794291,
+          -0.5452969724982666
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              257,
+              309
+            ],
+            [
+              257,
+              345
+            ]
+          ],
+          "boundsSource": [
+            256,
+            309,
+            259,
+            346
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 36,
+        "doorHeightMasterMeasured": 17.405,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          26,
+          29
+        ],
+        "registeredGroundCenter": [
+          127.52892561983471,
+          191.7049380165289
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2075,
+        "bounds": [
+          37,
+          122,
+          218,
+          239
+        ]
+      },
+      {
+        "id": "house-cheap-3",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          211.0,
+          340.025
+        ],
+        "sourceRegion": [
+          840,
+          0,
+          1254,
+          484
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            23.0,
+            338.95
+          ],
+          "front": [
+            220.24,
+            444.71
+          ],
+          "right": [
+            399.0,
+            341.1
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5361995538430337,
+          -0.579603938241217
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              258,
+              307
+            ],
+            [
+              258,
+              344
+            ]
+          ],
+          "boundsSource": [
+            257,
+            307,
+            260,
+            345
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 37,
+        "doorHeightMasterMeasured": 17.888,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          26,
+          28
+        ],
+        "registeredGroundCenter": [
+          128.01239669421489,
+          192.3922520661157
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.166,
+        "bounds": [
+          37,
+          120,
+          220,
+          243
+        ]
+      },
+      {
+        "id": "house-normal-1",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          209.0,
+          253.235
+        ],
+        "sourceRegion": [
+          0,
+          484,
+          418,
+          858
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            20.0,
+            251.33000000000004
+          ],
+          "front": [
+            212.48,
+            359.28999999999996
+          ],
+          "right": [
+            398.0,
+            255.14
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5608894430590188,
+          -0.5613949978438981
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              260,
+              226
+            ],
+            [
+              260,
+              261
+            ]
+          ],
+          "boundsSource": [
+            259,
+            226,
+            262,
+            262
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+          "fullFrameHeightSource": 39,
+          "personnelDoorObservable": true,
+          "fullFrameEndpointsSource": [
+            [
+              260,
+              223
+            ],
+            [
+              260,
+              262
+            ]
+          ]
+        },
+        "doorHeightSourceMeasured": 35,
+        "doorHeightMasterMeasured": 16.921,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          27,
+          70
+        ],
+        "registeredGroundCenter": [
+          128.04545454545456,
+          192.43179752066118
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2336,
+        "bounds": [
+          36,
+          89,
+          220,
+          244
+        ]
+      },
+      {
+        "id": "house-normal-2",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          214.0,
+          247.23499999999996
+        ],
+        "sourceRegion": [
+          418,
+          484,
+          843,
+          858
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            20.0,
+            245.53999999999996
+          ],
+          "front": [
+            221.01,
+            360.29999999999995
+          ],
+          "right": [
+            408.0,
+            248.92999999999995
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5709168698074722,
+          -0.5955933472378202
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              267,
+              225
+            ],
+            [
+              267,
+              260
+            ]
+          ],
+          "boundsSource": [
+            266,
+            225,
+            269,
+            261
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded. Independent complete outer dark frame review: source head at y707 and source sill/threshold edge at y746 at the same x. Both boundaries visibly contrast with wall/path; includes the narrow jamb/threshold rim excluded by inner-leaf endpoints, no hidden head inferred. Endpoint ambiguity \u00b12px.",
+          "fullFrameHeightSource": 39,
+          "personnelDoorObservable": true,
+          "fullFrameEndpointsSource": [
+            [
+              267,
+              223
+            ],
+            [
+              267,
+              262
+            ]
+          ]
+        },
+        "doorHeightSourceMeasured": 35,
+        "doorHeightMasterMeasured": 16.921,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          25,
+          72
+        ],
+        "registeredGroundCenter": [
+          128.46280991735537,
+          191.53097107438015
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.1879,
+        "bounds": [
+          34,
+          99,
+          224,
+          246
+        ]
+      },
+      {
+        "id": "house-normal-3",
+        "footprint": 1,
+        "sourceGroundCenter": [
+          210.5,
+          252.25
+        ],
+        "sourceRegion": [
+          843,
+          484,
+          1254,
+          858
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            16.0,
+            252.17999999999995
+          ],
+          "front": [
+            209.4000000000001,
+            361.28
+          ],
+          "right": [
+            405.0,
+            252.32000000000005
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5641158221302998,
+          -0.5570552147239263
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              276,
+              231
+            ],
+            [
+              276,
+              259
+            ]
+          ],
+          "boundsSource": [
+            275,
+            231,
+            278,
+            260
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": true,
+          "notes": "Front porch canopy physically overlaps the personnel-door head. At the selected source column x1119 the visible dark opening begins immediately beneath the canopy underside; this boundary is roof occlusion, not an independently visible full head. Source y715\u2013743 endpoints unchanged and retained as a visible lower bound. Hidden full frame is not inferred. Magnified source crop tundra-d0-r1-normal3-porch-detail.png corroborates the obstruction.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 28,
+        "doorHeightMasterMeasured": 13.537,
+        "uniformScale": 0.4834710743801653,
+        "translationMaster": [
+          26,
+          70
+        ],
+        "registeredGroundCenter": [
+          127.77066115702479,
+          191.9555785123967
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2256,
+        "bounds": [
+          33,
+          114,
+          225,
+          244
+        ]
+      },
+      {
+        "id": "house-expensive-1",
+        "footprint": 2,
+        "sourceGroundCenter": [
+          214.5,
+          225.03499999999997
+        ],
+        "sourceRegion": [
+          0,
+          858,
+          427,
+          1254
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            8.0,
+            227.20000000000005
+          ],
+          "front": [
+            208.14,
+            345.5899999999999
+          ],
+          "right": [
+            421.0,
+            222.8699999999999
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.5915359248526025,
+          -0.5765291741050457
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              247,
+              196
+            ],
+            [
+              247,
+              218
+            ]
+          ],
+          "boundsSource": [
+            246,
+            196,
+            249,
+            219
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 22,
+        "doorHeightMasterMeasured": 9.5,
+        "uniformScale": 0.4318181818181818,
+        "translationMaster": [
+          35,
+          95
+        ],
+        "registeredGroundCenter": [
+          127.625,
+          192.17420454545453
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2819,
+        "bounds": [
+          38,
+          123,
+          218,
+          244
+        ]
+      },
+      {
+        "id": "house-expensive-2",
+        "footprint": 2,
+        "sourceGroundCenter": [
+          198.5,
+          227.81500000000005
+        ],
+        "sourceRegion": [
+          427,
+          858,
+          826,
+          1254
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            6.0,
+            227.5
+          ],
+          "front": [
+            201.89,
+            346.27
+          ],
+          "right": [
+            391.0,
+            228.1300000000001
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.6063096635867068,
+          -0.6247157738882125
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              249,
+              201
+            ],
+            [
+              249,
+              229
+            ]
+          ],
+          "boundsSource": [
+            248,
+            201,
+            251,
+            230
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": false,
+          "notes": "Dark personnel entrance, inner leaf endpoints; frame excluded.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 28,
+        "doorHeightMasterMeasured": 12.091,
+        "uniformScale": 0.4318181818181818,
+        "translationMaster": [
+          42,
+          94
+        ],
+        "registeredGroundCenter": [
+          127.7159090909091,
+          192.37465909090912
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.2639,
+        "bounds": [
+          44,
+          100,
+          212,
+          243
+        ]
+      },
+      {
+        "id": "house-expensive-3",
+        "footprint": 2,
+        "sourceGroundCenter": [
+          216.0,
+          225.08499999999992
+        ],
+        "sourceRegion": [
+          826,
+          858,
+          1254,
+          1254
+        ],
+        "sourceGroundVertices": {
+          "left": [
+            7.0,
+            225.1099999999999
+          ],
+          "front": [
+            221.79999999999995,
+            354.1600000000001
+          ],
+          "right": [
+            425.0,
+            225.05999999999995
+          ],
+          "back": null
+        },
+        "groundEdgeSlopesMeasured": [
+          0.6007914338919935,
+          -0.6353346456692919
+        ],
+        "sourceDoorMeasurement": {
+          "kind": "visible-opening-geometric-vertical",
+          "verticalEndpointsSource": [
+            [
+              212,
+              156
+            ],
+            [
+              212,
+              185
+            ]
+          ],
+          "boundsSource": [
+            211,
+            156,
+            214,
+            186
+          ],
+          "uncertaintyPixels": 2,
+          "partiallyOccluded": true,
+          "notes": "Main rear courtyard personnel entrance. Near annex roof covers the lower-left leaf and chosen lower endpoint. This is a visible-only interval, not full doorway height; exclude calibration. No fully visible alternative side personnel entrance identified.",
+          "fullFrameHeightSource": null,
+          "personnelDoorObservable": true
+        },
+        "doorHeightSourceMeasured": 29,
+        "doorHeightMasterMeasured": 12.523,
+        "uniformScale": 0.4318181818181818,
+        "translationMaster": [
+          35,
+          95
+        ],
+        "registeredGroundCenter": [
+          128.27272727272728,
+          192.19579545454542
+        ],
+        "bareGroundTransparent": true,
+        "gardenGround": "transparent",
+        "foregroundGroundTransparentFraction": 0.1548,
+        "bounds": [
+          38,
+          102,
+          220,
+          247
+        ]
+      }
+    ]
+  }
 }

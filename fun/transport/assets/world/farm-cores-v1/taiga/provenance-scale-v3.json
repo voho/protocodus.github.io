@@ -3,9 +3,10 @@
   "source": "source-scale-v3.png",
   "sourceSha256": "b93df8c0776e9ad2b8371ca19e43eb44f9ec20b030a009cb92daadfc706190b5",
   "generator": "image_gen.imagegen",
-  "sharedPrompt": "generation-prompt.json",
+  "sharedPrompt": "generation-prompt-scale-v3.json",
   "sharedScaleAndStyle": "sprite-art-direction.js",
   "visualFootprint": 2,
   "operation": "Generated at fixed physical scale; registered with one uniform family pixel-to-metre scale; premultiplied mip packing without microdetail sharpening.",
-  "referenceImage": "source-scale-v3-reference.png"
+  "referenceImage": "source-scale-v3-reference.png",
+  "archivedGenerationJob": "generation-job-scale-v3.json"
 }

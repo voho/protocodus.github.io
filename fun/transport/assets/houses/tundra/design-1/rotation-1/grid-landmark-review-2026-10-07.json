@@ -1,0 +1,665 @@
+{
+  "source": "/workspace/generated_images/exec-30fa37af-32c6-43bc-b547-80f3c20d5d34.png",
+  "biome": "tundra",
+  "design": 1,
+  "rotation": 1,
+  "coordinateConvention": "Zero-based absolute source pixel centres, adaptive sourceRegion. Geometric door height is bottomY-topY; inclusive occupancy is separately reported. Physical ground centres derive from opposite ground-plane side vertices, not global alpha extent.",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        0,
+        432,
+        434
+      ],
+      "visibleOpening": {
+        "kind": "cheap1",
+        "sourceX": 280,
+        "sourceTop": [
+          280,
+          311
+        ],
+        "sourceBottom": [
+          280,
+          350
+        ],
+        "geometricHeightPixels": 39,
+        "inclusiveHeightPixels": 40,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark personnel-door leaf with visible hardware at the walkway endpoint; both top and threshold are visible. Adjacent smaller blue panes are windows.",
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "cellLocalTop": [
+          280,
+          311
+        ],
+        "cellLocalBottom": [
+          280,
+          350
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          211.0,
+          340.509
+        ],
+        "sourceCorners": {
+          "left": [
+            27.0,
+            337.492
+          ],
+          "front": [
+            215.826,
+            434.246
+          ],
+          "right": [
+            395.0,
+            343.527
+          ]
+        },
+        "sourceSlopes": [
+          0.5124,
+          -0.5063
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.818,
+          11.756
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.5258
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "sourceRegion": [
+        432,
+        0,
+        845,
+        434
+      ],
+      "visibleOpening": {
+        "kind": "cheap2",
+        "sourceX": 687,
+        "sourceTop": [
+          687,
+          312
+        ],
+        "sourceBottom": [
+          687,
+          350
+        ],
+        "geometricHeightPixels": 38,
+        "inclusiveHeightPixels": 39,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark personnel-door leaf with hardware and a ground-level threshold at the path endpoint; pale outer masonry frame is excluded.",
+        "sourceHeightGeometric": 38,
+        "sourceHeightInclusive": 39,
+        "cellLocalTop": [
+          255,
+          312
+        ],
+        "cellLocalBottom": [
+          255,
+          350
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          632.5,
+          338.872
+        ],
+        "sourceCorners": {
+          "left": [
+            448.0,
+            336.501
+          ],
+          "front": [
+            631.775,
+            433.928
+          ],
+          "right": [
+            817.0,
+            341.243
+          ]
+        },
+        "sourceSlopes": [
+          0.5301,
+          -0.5004
+        ],
+        "postFeetOffsetFromRailPixels": [
+          2.7,
+          6.75
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.4088
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "sourceRegion": [
+        845,
+        0,
+        1254,
+        434
+      ],
+      "visibleOpening": {
+        "kind": "cheap3",
+        "sourceX": 1107,
+        "sourceTop": [
+          1107,
+          317
+        ],
+        "sourceBottom": [
+          1107,
+          353
+        ],
+        "geometricHeightPixels": 36,
+        "inclusiveHeightPixels": 37,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark ground-connected personnel door with hardware; separate blue window to its right is excluded.",
+        "sourceHeightGeometric": 36,
+        "sourceHeightInclusive": 37,
+        "cellLocalTop": [
+          262,
+          317
+        ],
+        "cellLocalBottom": [
+          262,
+          353
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          1048.5,
+          342.399
+        ],
+        "sourceCorners": {
+          "left": [
+            868.0,
+            339.121
+          ],
+          "front": [
+            1048.886,
+            434.193
+          ],
+          "right": [
+            1229.0,
+            345.677
+          ]
+        },
+        "sourceSlopes": [
+          0.5256,
+          -0.4914
+        ],
+        "postFeetOffsetFromRailPixels": [
+          8.291,
+          12.271
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.4189
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        434,
+        432,
+        836
+      ],
+      "visibleOpening": {
+        "kind": "normal1",
+        "sourceX": 276,
+        "sourceTop": [
+          276,
+          703
+        ],
+        "sourceBottom": [
+          276,
+          742
+        ],
+        "geometricHeightPixels": 39,
+        "inclusiveHeightPixels": 40,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark ground-floor personnel door with visible hardware and threshold at the cream entry path; nearby blue panes are windows.",
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "cellLocalTop": [
+          276,
+          269
+        ],
+        "cellLocalBottom": [
+          276,
+          308
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          215.5,
+          727.979
+        ],
+        "sourceCorners": {
+          "left": [
+            31.0,
+            725.361
+          ],
+          "front": [
+            223.327,
+            825.402
+          ],
+          "right": [
+            400.0,
+            730.596
+          ]
+        },
+        "sourceSlopes": [
+          0.5202,
+          -0.5366
+        ],
+        "postFeetOffsetFromRailPixels": [
+          7.426,
+          13.508
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.4005
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "sourceRegion": [
+        432,
+        434,
+        845,
+        836
+      ],
+      "visibleOpening": {
+        "kind": "normal2",
+        "sourceX": 689,
+        "sourceTop": [
+          689,
+          704
+        ],
+        "sourceBottom": [
+          689,
+          742
+        ],
+        "geometricHeightPixels": 38,
+        "inclusiveHeightPixels": 39,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark ground-floor entry door at the walkway endpoint, with visible hardware; blue facade panes are separate windows.",
+        "sourceHeightGeometric": 38,
+        "sourceHeightInclusive": 39,
+        "cellLocalTop": [
+          257,
+          270
+        ],
+        "cellLocalBottom": [
+          257,
+          308
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          633.0,
+          726.515
+        ],
+        "sourceCorners": {
+          "left": [
+            449.0,
+            723.9
+          ],
+          "front": [
+            634.577,
+            825.0219999999999
+          ],
+          "right": [
+            817.0,
+            729.129
+          ]
+        },
+        "sourceSlopes": [
+          0.5449,
+          -0.5257
+        ],
+        "postFeetOffsetFromRailPixels": [
+          8.143,
+          12.757
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.3851
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "sourceRegion": [
+        845,
+        434,
+        1254,
+        836
+      ],
+      "visibleOpening": {
+        "kind": "normal3",
+        "sourceX": 1109,
+        "sourceTop": [
+          1109,
+          706
+        ],
+        "sourceBottom": [
+          1109,
+          741
+        ],
+        "geometricHeightPixels": 35,
+        "inclusiveHeightPixels": 36,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark personnel door with visible hardware and threshold on the right-facing ground-floor wall; blue panes and solar panels excluded.",
+        "sourceHeightGeometric": 35,
+        "sourceHeightInclusive": 36,
+        "cellLocalTop": [
+          264,
+          272
+        ],
+        "cellLocalBottom": [
+          264,
+          307
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          1050.0,
+          728.52
+        ],
+        "sourceCorners": {
+          "left": [
+            868.0,
+            724.374
+          ],
+          "front": [
+            1053.627,
+            824.8679999999999
+          ],
+          "right": [
+            1232.0,
+            732.6659999999999
+          ]
+        },
+        "sourceSlopes": [
+          0.5414,
+          -0.5169
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.463,
+          14.426
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.4662
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "sourceRegion": [
+        0,
+        836,
+        432,
+        1254
+      ],
+      "visibleOpening": {
+        "kind": "expensive1",
+        "sourceX": 294,
+        "sourceTop": [
+          294,
+          1053
+        ],
+        "sourceBottom": [
+          294,
+          1083
+        ],
+        "geometricHeightPixels": 30,
+        "inclusiveHeightPixels": 31,
+        "uncertaintyPixels": 1,
+        "partiallyOccluded": false,
+        "topIsOcclusionBoundary": false,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": true,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Dark personnel door with hardware and visible threshold at the entry path; nearby blue panes are windows.",
+        "sourceHeightGeometric": 30,
+        "sourceHeightInclusive": 31,
+        "cellLocalTop": [
+          294,
+          217
+        ],
+        "cellLocalBottom": [
+          294,
+          247
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          225.0,
+          1075.458
+        ],
+        "sourceCorners": {
+          "left": [
+            20.0,
+            1071.55
+          ],
+          "front": [
+            208.147,
+            1177.888
+          ],
+          "right": [
+            430.0,
+            1079.367
+          ]
+        },
+        "sourceSlopes": [
+          0.5652,
+          -0.4441
+        ],
+        "postFeetOffsetFromRailPixels": [
+          6.061,
+          4.728
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.4662
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "sourceRegion": [
+        432,
+        836,
+        845,
+        1254
+      ],
+      "visibleOpening": {
+        "kind": "expensive2",
+        "sourceX": 694,
+        "sourceTop": [
+          694,
+          1077
+        ],
+        "sourceBottom": [
+          694,
+          1096
+        ],
+        "geometricHeightPixels": 19,
+        "inclusiveHeightPixels": 20,
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "topIsOcclusionBoundary": true,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": false,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Actual recessed personnel entry at the path endpoint under the porch canopy, immediately right of broad facade glazing. The canopy cuts across the upper dark leaf at the sampled column; only the visible interval is measured. The beige porch wall/column and broad glazing are excluded. No hidden complete frame is inferred.",
+        "sourceHeightGeometric": 19,
+        "sourceHeightInclusive": 20,
+        "cellLocalTop": [
+          262,
+          241
+        ],
+        "cellLocalBottom": [
+          262,
+          260
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          641.5,
+          1078.815
+        ],
+        "sourceCorners": {
+          "left": [
+            440.0,
+            1066.045
+          ],
+          "front": [
+            637.079,
+            1186.617
+          ],
+          "right": [
+            843.0,
+            1091.585
+          ]
+        },
+        "sourceSlopes": [
+          0.6118,
+          -0.4615
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.524,
+          3.35
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.3864
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "sourceRegion": [
+        845,
+        836,
+        1254,
+        1254
+      ],
+      "visibleOpening": {
+        "kind": "expensive3",
+        "sourceX": 1111,
+        "sourceTop": [
+          1111,
+          1079
+        ],
+        "sourceBottom": [
+          1111,
+          1097
+        ],
+        "geometricHeightPixels": 18,
+        "inclusiveHeightPixels": 19,
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "topIsOcclusionBoundary": true,
+        "bottomIsOcclusionBoundary": false,
+        "calibrationUsable": false,
+        "automaticCandidateConfirmedAsPersonnelDoor": true,
+        "note": "Actual dark personnel entry with faint hardware at the path endpoint beneath the projecting canopy; surrounding blue panes are windows. The canopy underside meets and covers the upper leaf/lintel boundary at the sampled column, so the value is a visible interval only. No complete hidden upper frame or full height is inferred.",
+        "sourceHeightGeometric": 18,
+        "sourceHeightInclusive": 19,
+        "cellLocalTop": [
+          266,
+          243
+        ],
+        "cellLocalBottom": [
+          266,
+          261
+        ]
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust foreground alpha>128 bottom contour in both independent axes plus per-axis 95th-percentile positive post-foot residual. Source fence-ground plane, not silhouette-bottom anchor or raised rail. Corner positions are painted estimates with endpoint uncertainty.",
+        "sourceCenter": [
+          1053.0,
+          1077.1390000000001
+        ],
+        "sourceCorners": {
+          "left": [
+            856.0,
+            1075.559
+          ],
+          "front": [
+            1046.249,
+            1188.373
+          ],
+          "right": [
+            1250.0,
+            1078.718
+          ]
+        },
+        "sourceSlopes": [
+          0.593,
+          -0.5382
+        ],
+        "postFeetOffsetFromRailPixels": [
+          5.985,
+          9.46
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.2799
+    }
+  ],
+  "flags": [
+    "expensive2: actual painted source slopes [0.6118, -0.4615]; retain honest near-grid variation within final house-only .66 cap, not exact-grid geometry.",
+    "expensive2: doorway is an observed visible lower bound; excluded from complete human-frame calibration.",
+    "expensive3: doorway is an observed visible lower bound; excluded from complete human-frame calibration."
+  ],
+  "paintedHouseGroundSlopeTolerance": 0.16,
+  "groundAlphaSamples": [],
+  "groundReview": "Manual foreground open-ground samples alpha0\u20132; rooftop planted roof remains opaque. No lawn regrowth seen."
+}

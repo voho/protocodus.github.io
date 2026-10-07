@@ -1,0 +1,947 @@
+{
+  "source": "source-generated-2026-10-07.png",
+  "sourceSha256": "11e8aed31b43b3a8df96e576de2fd2bf919925e8a0276c4a937e633309d095f4",
+  "operation": "Complete original RGBA cutouts; one measured scale and one shared filtering-clearance correction per footprint tier; observed opposite-ground-corner midpoint registration; uniform resampling; aligned full-cell packing without sharpening",
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "doorHeightMetres": 2.1,
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "expectedGroundEdgeSlope": 0.5,
+    "paintedGroundSlopeTolerance": 0.11,
+    "groundEndpointUncertaintySourcePixels": 3,
+    "architecturalEnvelopeMetresPerTile": 10,
+    "tiers": {
+      "1": {
+        "referenceDoorSourcePixels": 37.666666666666664,
+        "targetDoorMasterPixels": 22.4,
+        "method": "Shared mean outer personnel-door frame height; headers partly hidden behind awnings. Source uncertainty \u00b13px. This is an approximate full-door datum, not a directly observed unobscured opening.",
+        "measurements": [
+          {
+            "heightPixels": 37,
+            "edgeEndpointsSource": [
+              [
+                198,
+                930
+              ],
+              [
+                198,
+                967
+              ]
+            ],
+            "kind": "outer personnel-door frame from inferred header under awning to threshold; visible opening shorter",
+            "uncertaintyPixels": 3
+          },
+          {
+            "heightPixels": 37,
+            "edgeEndpointsSource": [
+              [
+                549,
+                930
+              ],
+              [
+                549,
+                967
+              ]
+            ],
+            "kind": "outer personnel-door frame; header partly occluded by canopy",
+            "uncertaintyPixels": 3
+          },
+          {
+            "heightPixels": 39,
+            "edgeEndpointsSource": [
+              [
+                910,
+                935
+              ],
+              [
+                910,
+                974
+              ]
+            ],
+            "kind": "outer personnel-door frame; header partly occluded by canopy",
+            "uncertaintyPixels": 3
+          }
+        ],
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+      },
+      "2": {
+        "referenceDoorSourcePixels": 20,
+        "targetDoorMasterPixels": 11.2,
+        "method": "Shared measured visible personnel-door vertical opening in changing pavilion and entrance annex; about \u00b12px uncertainty.",
+        "measurements": [
+          {
+            "heightPixels": 20,
+            "edgeEndpointsSource": [
+              [
+                993,
+                226
+              ],
+              [
+                993,
+                246
+              ]
+            ],
+            "kind": "visible personnel-door opening",
+            "uncertaintyPixels": 2
+          },
+          {
+            "heightPixels": 20,
+            "edgeEndpointsSource": [
+              [
+                839,
+                586
+              ],
+              [
+                839,
+                606
+              ]
+            ],
+            "kind": "visible entrance-annex personnel-door opening",
+            "uncertaintyPixels": 2
+          },
+          {
+            "heightPixels": 21,
+            "edgeEndpointsSource": [
+              [
+                1228,
+                558
+              ],
+              [
+                1228,
+                579
+              ]
+            ],
+            "kind": "portico personnel door; partly shadowed",
+            "uncertaintyPixels": 3
+          }
+        ],
+        "filteringGutterScale": 0.88,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+      },
+      "3": {
+        "referenceDoorSourcePixels": 366,
+        "targetDoorMasterPixels": 199.1111111111111,
+        "method": "No observable personnel-door opening. Complete ballpark uniformly calibrated from measured 366px ground width to a credible 28m inset field/garden square on its 48m full parcel. The ratio fields name the shared scalar API; this is field geometry, not a doorway measurement.",
+        "groundWidthSourcePixels": 366,
+        "groundWidthMasterPixels": 185.17333333333332,
+        "insetGroundSquareMetres": 26.040000000000003,
+        "personnelDoorObservable": false,
+        "filteringGutterScale": 0.93,
+        "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged.",
+        "renderedInsetGroundSquareMetres": 26.040000000000003,
+        "originalRequestedInsetGroundSquareMetres": 28,
+        "calibratedBeforeFilteringGroundWidthMasterPixels": 199.1111111111111
+      }
+    },
+    "cells": [
+      {
+        "cell": 0,
+        "id": "civic:park:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          16,
+          124,
+          359,
+          339
+        ],
+        "groundVerticesSource": [
+          [
+            187,
+            148
+          ],
+          [
+            354,
+            241
+          ],
+          [
+            187,
+            334
+          ],
+          [
+            20,
+            241
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 35712,
+        "groundCenterSource": [
+          187.0,
+          241.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.556886,
+          -0.556886,
+          0.556886,
+          -0.556886
+        ],
+        "uniformScale": 0.49279999999999996,
+        "translationMaster": [
+          44,
+          134
+        ],
+        "normalizedBounds": [
+          44,
+          134,
+          213,
+          240
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 1,
+        "id": "civic:playground:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          370,
+          145,
+          714,
+          345
+        ],
+        "groundVerticesSource": [
+          [
+            542,
+            148
+          ],
+          [
+            710,
+            243
+          ],
+          [
+            542,
+            338
+          ],
+          [
+            374,
+            243
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 34567,
+        "groundCenterSource": [
+          542.0,
+          243.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.565476,
+          -0.565476,
+          0.565476,
+          -0.565476
+        ],
+        "uniformScale": 0.5233274336283186,
+        "translationMaster": [
+          38,
+          141
+        ],
+        "normalizedBounds": [
+          38,
+          141,
+          218,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 2,
+        "id": "civic:swimming-pool:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          725,
+          126,
+          1089,
+          348
+        ],
+        "groundVerticesSource": [
+          [
+            907,
+            142
+          ],
+          [
+            1085,
+            243
+          ],
+          [
+            907,
+            344
+          ],
+          [
+            729,
+            243
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 41719,
+        "groundCenterSource": [
+          907.0,
+          243.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.567416,
+          -0.567416,
+          0.567416,
+          -0.567416
+        ],
+        "uniformScale": 0.49279999999999996,
+        "translationMaster": [
+          38,
+          134
+        ],
+        "normalizedBounds": [
+          38,
+          134,
+          217,
+          243
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 20,
+          "edgeEndpointsSource": [
+            [
+              993,
+              226
+            ],
+            [
+              993,
+              246
+            ]
+          ],
+          "kind": "visible personnel-door opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 9.856
+      },
+      {
+        "cell": 3,
+        "id": "civic:sports-field:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          1087,
+          130,
+          1446,
+          348
+        ],
+        "groundVerticesSource": [
+          [
+            1266,
+            144
+          ],
+          [
+            1442,
+            244
+          ],
+          [
+            1267,
+            344
+          ],
+          [
+            1091,
+            244
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 40867,
+        "groundCenterSource": [
+          1266.5,
+          244.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.568182,
+          -0.571429,
+          0.568182,
+          -0.571429
+        ],
+        "uniformScale": 0.49279999999999996,
+        "translationMaster": [
+          40,
+          136
+        ],
+        "normalizedBounds": [
+          40,
+          136,
+          217,
+          243
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 4,
+        "id": "civic:tennis-courts:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          15,
+          454,
+          363,
+          660
+        ],
+        "groundVerticesSource": [
+          [
+            188,
+            464
+          ],
+          [
+            357,
+            559
+          ],
+          [
+            188,
+            654
+          ],
+          [
+            19,
+            559
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 36387,
+        "groundCenterSource": [
+          188.0,
+          559.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.56213,
+          -0.56213,
+          0.56213,
+          -0.56213
+        ],
+        "uniformScale": 0.5233274336283186,
+        "translationMaster": [
+          37,
+          137
+        ],
+        "normalizedBounds": [
+          37,
+          137,
+          219,
+          245
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 5,
+        "id": "civic:ballpark:taiga",
+        "footprint": 3,
+        "sourceBounds": [
+          358,
+          418,
+          731,
+          648
+        ],
+        "groundVerticesSource": [
+          [
+            544,
+            435
+          ],
+          [
+            727,
+            540
+          ],
+          [
+            544,
+            645
+          ],
+          [
+            361,
+            540
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 45187,
+        "groundCenterSource": [
+          544.0,
+          540.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.57377,
+          -0.57377,
+          0.57377,
+          -0.57377
+        ],
+        "uniformScale": 0.5059380692167578,
+        "translationMaster": [
+          34,
+          130
+        ],
+        "normalizedBounds": [
+          34,
+          130,
+          223,
+          246
+        ],
+        "sourceDoorMeasurement": null,
+        "masterDoorHeightPixels": null
+      },
+      {
+        "cell": 6,
+        "id": "civic:sports-hall:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          725,
+          419,
+          1090,
+          661
+        ],
+        "groundVerticesSource": [
+          [
+            907,
+            455
+          ],
+          [
+            1084,
+            555
+          ],
+          [
+            907,
+            655
+          ],
+          [
+            730,
+            555
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 49997,
+        "groundCenterSource": [
+          907.0,
+          555.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.564972,
+          -0.564972,
+          0.564972,
+          -0.564972
+        ],
+        "uniformScale": 0.49279999999999996,
+        "translationMaster": [
+          38,
+          125
+        ],
+        "normalizedBounds": [
+          38,
+          125,
+          218,
+          244
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 20,
+          "edgeEndpointsSource": [
+            [
+              839,
+              586
+            ],
+            [
+              839,
+              606
+            ]
+          ],
+          "kind": "visible entrance-annex personnel-door opening",
+          "uncertaintyPixels": 2
+        },
+        "masterDoorHeightPixels": 9.856
+      },
+      {
+        "cell": 7,
+        "id": "civic:town-hall:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          1086,
+          414,
+          1448,
+          665
+        ],
+        "groundVerticesSource": [
+          [
+            1267,
+            452
+          ],
+          [
+            1443,
+            556
+          ],
+          [
+            1266,
+            660
+          ],
+          [
+            1090,
+            556
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 49769,
+        "groundCenterSource": [
+          1266.5,
+          556.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.590909,
+          -0.587571,
+          0.590909,
+          -0.587571
+        ],
+        "uniformScale": 0.49279999999999996,
+        "translationMaster": [
+          39,
+          122
+        ],
+        "normalizedBounds": [
+          39,
+          122,
+          217,
+          246
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 21,
+          "edgeEndpointsSource": [
+            [
+              1228,
+              558
+            ],
+            [
+              1228,
+              579
+            ]
+          ],
+          "kind": "portico personnel door; partly shadowed",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 10.348799999999999
+      },
+      {
+        "cell": 8,
+        "id": "civic:shop-cafe:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          17,
+          713,
+          367,
+          1008
+        ],
+        "groundVerticesSource": [
+          [
+            190,
+            805
+          ],
+          [
+            363,
+            903
+          ],
+          [
+            193,
+            1003
+          ],
+          [
+            20,
+            905
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 60930,
+        "groundCenterSource": [
+          191.5,
+          904.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.566474,
+          -0.588235,
+          0.566474,
+          -0.588235
+        ],
+        "uniformScale": 0.5233274336283186,
+        "translationMaster": [
+          37,
+          92
+        ],
+        "normalizedBounds": [
+          37,
+          92,
+          220,
+          246
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 37,
+          "edgeEndpointsSource": [
+            [
+              198,
+              930
+            ],
+            [
+              198,
+              967
+            ]
+          ],
+          "kind": "outer personnel-door frame from inferred header under awning to threshold; visible opening shorter",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.363115044247788
+      },
+      {
+        "cell": 9,
+        "id": "civic:shop-pharmacy:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          377,
+          710,
+          727,
+          1006
+        ],
+        "groundVerticesSource": [
+          [
+            551,
+            802
+          ],
+          [
+            722,
+            902
+          ],
+          [
+            552,
+            1002
+          ],
+          [
+            381,
+            902
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 60576,
+        "groundCenterSource": [
+          551.5,
+          902.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.584795,
+          -0.588235,
+          0.584795,
+          -0.588235
+        ],
+        "uniformScale": 0.5233274336283186,
+        "translationMaster": [
+          37,
+          92
+        ],
+        "normalizedBounds": [
+          37,
+          92,
+          220,
+          247
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 37,
+          "edgeEndpointsSource": [
+            [
+              549,
+              930
+            ],
+            [
+              549,
+              967
+            ]
+          ],
+          "kind": "outer personnel-door frame; header partly occluded by canopy",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 19.363115044247788
+      },
+      {
+        "cell": 10,
+        "id": "civic:shop-bookshop:taiga",
+        "footprint": 1,
+        "sourceBounds": [
+          737,
+          710,
+          1094,
+          1010
+        ],
+        "groundVerticesSource": [
+          [
+            915,
+            805
+          ],
+          [
+            1088,
+            905
+          ],
+          [
+            914,
+            1005
+          ],
+          [
+            741,
+            905
+          ]
+        ],
+        "groundVertexMeasured": [
+          false,
+          true,
+          true,
+          true
+        ],
+        "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+        "preservedSourcePixels": 62766,
+        "groundCenterSource": [
+          914.5,
+          905.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterMethod": "Midpoint of observed opposite right/left ground-plane vertices (indices1,3); inferred back excluded; independent of alpha/shadow bounds",
+        "measuredGroundEdgeSlopes": [
+          0.578035,
+          -0.574713,
+          0.578035,
+          -0.574713
+        ],
+        "uniformScale": 0.5233274336283186,
+        "translationMaster": [
+          35,
+          90
+        ],
+        "normalizedBounds": [
+          35,
+          90,
+          222,
+          247
+        ],
+        "sourceDoorMeasurement": {
+          "heightPixels": 39,
+          "edgeEndpointsSource": [
+            [
+              910,
+              935
+            ],
+            [
+              910,
+              974
+            ]
+          ],
+          "kind": "outer personnel-door frame; header partly occluded by canopy",
+          "uncertaintyPixels": 3
+        },
+        "masterDoorHeightPixels": 20.409769911504423
+      },
+      {
+        "cell": 11,
+        "empty": true
+      }
+    ],
+    "minimumMasterFilteringGutterPixels": 8
+  }
+}

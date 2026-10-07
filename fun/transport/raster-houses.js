@@ -20,6 +20,10 @@ export const HOUSE_ROTATION_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_
 // Keep the original public primary URLs for callers and saved art provenance.
 export const HOUSE_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.map(biome => [biome, HOUSE_ROTATION_ATLAS_URLS[biome][0]])));
 const SOURCE_CELL = 256;
+// Every registered climate/design/orientation source authors transparent lawn;
+// the atlas browser QA verifies actual clear patches against measured gardens.
+// Keep the conservative colour mask available for legacy/synthetic sources.
+const AUTHORED_TRANSPARENT_GARDENS = true;
 const LOD_CELLS = Object.freeze([16, 32, 64, 128, 256]);
 const indices = new Map(HOUSE_KINDS.map((kind, index) => [kind, index]));
 const sheets = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map(), awaited = new Set();
@@ -166,7 +170,7 @@ export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga', rota
   if (active.biome !== home || active.rotation !== rotation || active.design !== design) requestDensity(active.biome, active.rotation, active.design, desired);
   const sheet = sheetKey(active.biome, active.rotation, active.design), levels = sheets.get(sheet), available = orderedLevels.get(sheet);
   const cell = available.find(size => size >= desired) || available.at(-1);
-  const source = levels.get(cell), atlas = gardenGround === 'terrain' ? houseTerrainCutout(source, cell, active.biome) : source;
+  const source = levels.get(cell), atlas = gardenGround === 'terrain' ? houseTerrainCutout(source, cell, active.biome, {authoredTransparent:AUTHORED_TRANSPARENT_GARDENS}) : source;
   c.save();
   c.imageSmoothingEnabled = desired !== cell; c.imageSmoothingQuality = 'high';
   // createSprites has already translated its context down by eight pixels.

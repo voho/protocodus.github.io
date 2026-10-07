@@ -1,0 +1,59 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "job": {
+    "entries": [
+      {
+        "id": "farm-core:farm:desert",
+        "name": "farm",
+        "footprint": 2,
+        "description": "A grain farm with a low barn cluster and one tall silo. For a five-tile site, broad grain fields surround a small central two-tile farmyard; for a two-tile core, ONLY the barn, silo and simple farmyard are shown."
+      },
+      {
+        "id": "farm-core:dairy-farm:desert",
+        "name": "dairy farm",
+        "footprint": 2,
+        "description": "Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard."
+      },
+      {
+        "id": "farm-core:vegetable-farm:desert",
+        "name": "vegetable farm",
+        "footprint": 2,
+        "description": "Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard."
+      },
+      {
+        "id": "farm-core:orchard:desert",
+        "name": "orchard",
+        "footprint": 2,
+        "description": "Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins."
+      },
+      {
+        "id": "farm-core:livestock-farm:desert",
+        "name": "livestock farm",
+        "footprint": 2,
+        "description": "Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard."
+      },
+      null
+    ],
+    "columns": 3,
+    "rows": 2,
+    "biome": "desert",
+    "cellPixels": 256,
+    "direction": "Every sprite represents a32m square TWO TILE farmyard, with ordinary personnel doors11.2px high in256cell and4.2m loading bays22.4px high. Barns are low agricultural buildings about6m high, occupying a modest part of the32m yard. No fields, crop rows, perimeter fencing or people: game terrain will surround the yard. Broad roof and wall masses; no roof tiles, individual bricks or scratches. Same2:1ground diamond and framing in all five occupied slots; sixthslot EMPTY.",
+    "family": "farm-cores-v1/desert"
+  },
+  "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. Gardens blend with the climate terrain.\nProduction 3x2 atlas, exactly 6 slots in row-major order; each cell represents the stated full parcel, not a close-up of the building. Keep the same pixel-to-metre calibration across all slots. Do not independently fit each building's bounding box.\nWarm dusty sand, pale stone and plaster, terracotta and sparse dry planting; preserve every physical dimension.\nEvery sprite represents a32m square TWO TILE farmyard, with ordinary personnel doors11.2px high in256cell and4.2m loading bays22.4px high. Barns are low agricultural buildings about6m high, occupying a modest part of the32m yard. No fields, crop rows, perimeter fencing or people: game terrain will surround the yard. Broad roof and wall masses; no roof tiles, individual bricks or scratches. Same2:1ground diamond and framing in all five occupied slots; sixthslot EMPTY.\nSlot 1: farm; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. A grain farm with a low barn cluster and one tall silo. For a five-tile site, broad grain fields surround a small central two-tile farmyard; for a two-tile core, ONLY the barn, silo and simple farmyard are shown.\nSlot 2: dairy farm; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard.\nSlot 3: vegetable farm; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard.\nSlot 4: orchard; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins.\nSlot 5: livestock farm; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard.\nSlot 6: EMPTY transparent cell.\nClimate edit of the referenced CORRECTED image: preserve every pixel-to-metre dimension, exact building sizes, all small personnel doors, full quiet yard, camera, five identities and empty sixthslot. Only replace green ground with warm pale sandy hardstanding, trees with sparse dry shrubs, slightly warm plaster and roofs. Do not enlarge any structure or fill the quiet yard. Normal personnel doors remain20\u201328rawpx high per512sourcecell; loading bays visibly separate. No landscaping texture speckle.",
+  "transparent_background": true,
+  "referenceImage": "../taiga/source-scale-v3.png"
+}

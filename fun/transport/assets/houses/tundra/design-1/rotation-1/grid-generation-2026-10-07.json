@@ -1,0 +1,134 @@
+{
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 48,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "registration": {
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "groundEdgeSlope": 0.5,
+    "architecturalEnvelopeMetresPerTile": 10,
+    "eastWorldPixelsPerMetre": [
+      2,
+      1
+    ],
+    "northWorldPixelsPerMetre": [
+      -2,
+      1
+    ],
+    "upWorldPixelsPerMetre": [
+      0,
+      -2
+    ]
+  },
+  "palette": {
+    "plaster": "#e3d7b7",
+    "stone": "#c7bca5",
+    "brick": "#b1846c",
+    "timber": "#997a5b",
+    "slate": "#697780",
+    "terracotta": "#a76f51",
+    "glass": "#769493",
+    "metal": "#6c7878",
+    "ink": "#4b5954",
+    "cream": "#f0e9d6",
+    "ochre": "#c2a269",
+    "burgundy": "#996b63",
+    "paving": "#cdc6ae",
+    "path": "#d8cfb2",
+    "water": "#658f9c",
+    "ground": "#cbd4c5",
+    "foliage": "#799588",
+    "snow": "#edf0e6"
+  },
+  "job": {
+    "entries": [
+      {
+        "id": "house-cheap-1",
+        "name": "Weathered timber cottage",
+        "footprint": 1,
+        "description": "Old weathered warm timber cottage, broad slate gable roof, rustic low timber fence,6m\u00d76m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-cheap-2",
+        "name": "Old stone cottage",
+        "footprint": 1,
+        "description": "Old rough-stone cottage, broad weathered brown slate gable, low pale stone boundary,6m\u00d76m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-cheap-3",
+        "name": "Brick workers cottage",
+        "footprint": 1,
+        "description": "Classic muted brick workers cottage, simple terracotta gable roof, low dark metal fence,6m\u00d77m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-normal-1",
+        "name": "New family home",
+        "footprint": 1,
+        "description": "New cream plaster family home, dark slate gable, low timber fence,7m\u00d77m core and two3m floors. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-normal-2",
+        "name": "Classic brick townhouse",
+        "footprint": 1,
+        "description": "Classic muted brick family townhouse, broad gray slate gable, low metal fence,7m\u00d77m core and two3m floors. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-normal-3",
+        "name": "Ecological timber home",
+        "footprint": 1,
+        "description": "Modern ecological warm timber family home, one broad muted blue solar panel group on a simple slate roof, low timber fence,7m\u00d77m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-expensive-1",
+        "name": "Stone country villa",
+        "footprint": 2,
+        "description": "Compact stone country villa, broad slate roof with one large dormer, modest side wings,12m\u00d710m two-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-expensive-2",
+        "name": "Modern white villa",
+        "footprint": 2,
+        "description": "Modern cream plaster flat-roof villa, wide shaded glazing openings and modest wings,12m\u00d712m core, two3m floors, pale low masonry boundary. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      },
+      {
+        "id": "house-expensive-3",
+        "name": "Ecological timber villa",
+        "footprint": 2,
+        "description": "Ecological warm timber villa, one broad living-green roof mass and one grouped blue solar panel, modest wings,12m\u00d710m two-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees."
+      }
+    ],
+    "columns": 3,
+    "rows": 3,
+    "biome": "tundra",
+    "cellPixels": 256,
+    "direction": "Paint the supplied exact transparent nine-cell house construction guide in the shared quiet miniature style. This guide is the only geometry reference. Preserve its same two fixed ground axes +/-0.5, low fence-foot projections, per-slot personnel door heights and ground centre. All doors, paths and gates face the LOWER-RIGHT facade as in the guide. Apply each slot's architectural identity: differing roof types and materials are welcome, with the same room/storey metre scale. Keep the first six 2.1m personnel doors22.4px tall per normalized256cell; bottom three11.2px, matching the guide exactly. Preserve large upper empty space of each cell, actual garden centre128,192 and exact9.6m*footprint inset fence-foot diamond. Never tilt or rotate the camera, yaw the plots, change house scale or enlarge windows/doors to fill cells. Roofs and walls are broad quiet painted masses with soft light/shade variation, without shingles, roof-tile lines, brick/stone grids, woodgrain or tiny foliage details. Garden soil/lawn is EMPTY transparent alpha0 everywhere between house, path, fence and broad shrubs. No opaque or partly faded green/snow/sand plate. Preserve all transparent garden holes in this supplied guide. No ground card/plinth, no people, lettering, swatches, calibration ticks or gridlines. Genuine transparent gutters around complete sprites. Cool muted materials with broad sparse snowy roof and shrub patches; no snow groundfill."
+  },
+  "prompt": "Fixed orthographic 2:1 dimetric camera: ground edges at +26.565 and -26.565 degrees, vertical walls, two visible facades, no perspective convergence.\nLock every building, roof ridge, garden boundary, fence, court and yard to the same two ground axes. No in-plot yaw, diagonal rotation, camera tilt or camera rotation. An alternate entrance orientation swaps the two grid axes; it never rotates a building off-grid.\nQuiet hand-painted miniature architecture with clean silhouettes, broad roof and wall colour masses, restrained warm materials, northwest daylight and soft contact shadows.\nA consistent world scale: one tile is 16 metres square. A person is 1.75m tall; ordinary personnel doors are 2.1m high and 0.95m wide; storeys are 3m; windows are about 1.2m high; low fences are 1.2m. Vehicle loading bays are 4.2m high and visibly distinct from personnel doors.\nBigger buildings gain additional rooms, wings, floors and repeated bays at the SAME human scale. Never enlarge doors, windows, people, garden fences or benches to fill a bigger parcel.\nDesigned to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.\nPreserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.\nUse the supplied semantic muted material swatches across all families; maintain broad light and shaded facades within those hues. Give each identity a distinct roofline or one large identifying mass, with restrained slate, terracotta, foliage, ochre or burgundy accents. Recognition at Town size must come from silhouette and broad colour blocks, not tiny ornaments or texture.\nGenuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. In house gardens leave every unpaved lawn area transparent so native world terrain shows through; retain paths, fences and individual shrubs. Courts, pools and other necessary built surfaces retain their material.\nProduction 3x3 atlas, exactly 9 slots in row-major order; each cell is a registered architectural cutout at the stated parcel scale, not a close-up of the building. Follow each slot's parcel-to-cell calibration: equal footprints share one pixel-to-metre scale; larger footprints have proportionally smaller doors in the normalized cell so they render at the same world height. Do not give different footprint tiers equal door pixel heights. Do not independently fit each building's bounding box.\nPhysical ground registration in every 256px square cell: parcel centre is (128.0,192.0), independent of alpha bounds, shadows, roof height and planting. Around that centre project east/north/up metres with x=(east-north)*2 and y=(east+north)-height*2 in world pixels, then multiply by 256/(48*footprint). The inset architectural/garden envelope is at most 10m*footprint square; its exact 2:1 ground vertices are (128.0,138.7), (234.7,192.0), (128.0,245.3), (21.3,192.0). The full 16m*footprint parcel is native world terrain and extends beyond this cutout cell; do not shrink its physical metre scale or paint a full-parcel opaque diamond to fit the cell. Register the actual ground centre, never the silhouette bottom or contact-shadow extremity. Keep all complete architecture and planting inside the transparent cell with filtering gutters.\nCool pale grass, restrained snow caps and evergreen planting; preserve every physical dimension.\nCanonical tundra material swatches: plaster #e3d7b7; stone #c7bca5; brick #b1846c; timber #997a5b; slate #697780; terracotta #a76f51; glass #769493; metal #6c7878; ink #4b5954; cream #f0e9d6; ochre #c2a269; burgundy #996b63; paving #cdc6ae; path #d8cfb2; water #658f9c; ground #cbd4c5; foliage #799588; snow #edf0e6. These are restrained painted colour targets, with soft light/shade variation, not saturated replacements.\nPaint the supplied exact transparent nine-cell house construction guide in the shared quiet miniature style. This guide is the only geometry reference. Preserve its same two fixed ground axes +/-0.5, low fence-foot projections, per-slot personnel door heights and ground centre. All doors, paths and gates face the LOWER-RIGHT facade as in the guide. Apply each slot's architectural identity: differing roof types and materials are welcome, with the same room/storey metre scale. Keep the first six 2.1m personnel doors22.4px tall per normalized256cell; bottom three11.2px, matching the guide exactly. Preserve large upper empty space of each cell, actual garden centre128,192 and exact9.6m*footprint inset fence-foot diamond. Never tilt or rotate the camera, yaw the plots, change house scale or enlarge windows/doors to fill cells. Roofs and walls are broad quiet painted masses with soft light/shade variation, without shingles, roof-tile lines, brick/stone grids, woodgrain or tiny foliage details. Garden soil/lawn is EMPTY transparent alpha0 everywhere between house, path, fence and broad shrubs. No opaque or partly faded green/snow/sand plate. Preserve all transparent garden holes in this supplied guide. No ground card/plinth, no people, lettering, swatches, calibration ticks or gridlines. Genuine transparent gutters around complete sprites. Cool muted materials with broad sparse snowy roof and shrub patches; no snow groundfill.\nSlot 1: Weathered timber cottage; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Old weathered warm timber cottage, broad slate gable roof, rustic low timber fence,6m\u00d76m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 2: Old stone cottage; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Old rough-stone cottage, broad weathered brown slate gable, low pale stone boundary,6m\u00d76m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 3: Brick workers cottage; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Classic muted brick workers cottage, simple terracotta gable roof, low dark metal fence,6m\u00d77m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 4: New family home; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. New cream plaster family home, dark slate gable, low timber fence,7m\u00d77m core and two3m floors. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 5: Classic brick townhouse; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Classic muted brick family townhouse, broad gray slate gable, low metal fence,7m\u00d77m core and two3m floors. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 6: Ecological timber home; 1x1 tile parcel (16m square). At a 256px normalized cell, personnel door height is 22.4px, a storey 32.0px and a low fence 12.8px. Modern ecological warm timber family home, one broad muted blue solar panel group on a simple slate roof, low timber fence,7m\u00d77m one-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 7: Stone country villa; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Compact stone country villa, broad slate roof with one large dormer, modest side wings,12m\u00d710m two-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 8: Modern white villa; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Modern cream plaster flat-roof villa, wide shaded glazing openings and modest wings,12m\u00d712m core, two3m floors, pale low masonry boundary. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.\nSlot 9: Ecological timber villa; 2x2 tile parcel (32m square). At a 256px normalized cell, personnel door height is 11.2px, a storey 16.0px and a low fence 6.4px. Ecological warm timber villa, one broad living-green roof mass and one grouped blue solar panel, modest wings,12m\u00d710m two-storey core. Ordinary2.1m personnel entrance with clearly bounded muted dark ink door on the LOWER-RIGHT facade, not a giant garage door. Preserve shared physical metre scale. One simple straight path from that entrance to an open gate on the same LOWER-RIGHT garden edge. Garden: open climate-coloured ground, low1.2m perimeter fence, only two or three broad quiet shrub masses. No decorative people, tiny texture, flower dots, dense fence slats or extra trees.",
+  "transparent_background": true,
+  "tool": "image_gen",
+  "source": "exec-30fa37af-32c6-43bc-b547-80f3c20d5d34.png",
+  "accepted": true,
+  "date": "2026-10-07",
+  "biome": "tundra",
+  "design": 1,
+  "rotation": 1,
+  "references": [
+    {
+      "file": "../../../grid-references-2026-10-07/transport-house-transparent-tundra-rotation-1.png",
+      "sha256": "809c168a83d72ea31a6187bb53a4c2d37e6af9dea683f082fe5158d4de2f306b",
+      "role": "direct-imagegen-input"
+    }
+  ]
+}

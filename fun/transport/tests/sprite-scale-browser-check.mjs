@@ -170,7 +170,7 @@ try {
   const summary = { spriteProfiles: rows.length, catalogKinds: new Set(rows.filter(row => row.family === 'catalog' && !row.auxiliary).map(row => row.kind)).size, workshopProfiles: rows.filter(row => row.auxiliary).length, houseVariants: rows.filter(row => row.family === 'houses').length, industryKinds: new Set(rows.filter(row => row.family === 'industries').map(row => row.kind)).size, atlasDensities: manifests.length * 5, populatedAtlasCells: integrity.filter(row => row.kind).length, rendererProfiles: worlds.length, errors };
   if (families.includes('catalog')) assert.equal(summary.catalogKinds, 43, 'every building catalog identity appears');
   if (families.includes('industries')) assert.equal(summary.industryKinds, 28, 'every industry identity appears');
-  if (families.includes('features')) assert.equal(new Set(rows.map(row => row.kind)).size, 11, 'every recent town-feature identity appears');
+  if (families.includes('features')) assert.equal(new Set(rows.filter(row => row.family === 'features').map(row => row.kind)).size, 11, 'every recent town-feature identity appears');
   await writeFile(`${output}/results.json`, JSON.stringify({ summary, rows, integrity, worlds }, null, 2));
   console.log(JSON.stringify(summary, null, 2));
 } finally { await browser.close(); }

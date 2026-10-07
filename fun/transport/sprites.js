@@ -153,7 +153,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
         ctx.restore();
       }
     }
-    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign})&&!drawTownFeature(ctx,kind,biome,profile))drawTownBuilding(ctx,kind,biome,profile,variant);ctx.restore();}
+    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign})&&!drawTownFeature(ctx,kind,biome,profile))drawTownBuilding(ctx,kind,biome,profile,variant,{gardenGround});ctx.restore();}
     else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       let cityArt=false;

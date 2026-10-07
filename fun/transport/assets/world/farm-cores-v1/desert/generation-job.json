@@ -1,1 +1,41 @@
-{"entries": [{"id": "farm-core:farm:desert", "name": "farm", "footprint": 2, "description": "A grain farm with a low barn cluster and one tall silo. For a five-tile site, broad grain fields surround a small central two-tile farmyard; for a two-tile core, ONLY the barn, silo and simple farmyard are shown."}, {"id": "farm-core:dairy-farm:desert", "name": "dairy farm", "footprint": 2, "description": "Low red-roofed dairy barn, silver milk tank and modest milking shed. Five-tile parcel: broad green pastures surrounding a small two-tile central yard; two-tile core: ONLY the compact barn, milk tank and plain yard."}, {"id": "farm-core:vegetable-farm:desert", "name": "vegetable farm", "footprint": 2, "description": "Small low timber produce shed and one broad greenhouse. Five-tile parcel: broad vegetable crop strips around a small two-tile yard; two-tile core: ONLY the shed, greenhouse and quiet loading yard."}, {"id": "farm-core:orchard:desert", "name": "orchard", "footprint": 2, "description": "Small pale packing shed and open produce shelter. Five-tile parcel: broad orchard rows around a small two-tile yard; two-tile core: ONLY the packing shed, shelter and three large produce bins."}, {"id": "farm-core:livestock-farm:desert", "name": "livestock farm", "footprint": 2, "description": "Low timber stable complex and a small feeding shelter. Five-tile parcel: broad fenced pasture around a small two-tile yard; two-tile core: ONLY the stable, feeding shelter and simple yard."}, null], "columns": 3, "rows": 2, "biome": "desert", "cellPixels": 256, "direction": "Every sprite represents a32m square TWO TILE farmyard, with ordinary personnel doors11.2px high in256cell and4.2m loading bays22.4px high. Barns are low agricultural buildings about6m high, occupying a modest part of the32m yard. No fields, crop rows, perimeter fencing or people: game terrain will surround the yard. Broad roof and wall masses; no roof tiles, individual bricks or scratches. Same2:1ground diamond and framing in all five occupied slots; sixthslot EMPTY.", "family": "farm-cores-v1/desert"}
+{
+  "entries": [
+    {
+      "id": "farm-core:farm:desert",
+      "name": "Grain farm barn and silo",
+      "footprint": 2,
+      "description": "Low muted-burgundy timber grain barn, one separate broad slate-blue cylindrical grain silo, and a small open lean-to. The barn footprint is approximately 12m by 8m and its eaves 4m high, ridge 6m; the silo is 9m high. One clearly measured 2.1m personnel door and one broad 4.2m loading opening. Quiet grass around a simple worn farmyard patch. No grain fields."
+    },
+    {
+      "id": "farm-core:dairy-farm:desert",
+      "name": "Dairy barn and milk tank",
+      "footprint": 2,
+      "description": "Long pale-plaster dairy barn approximately 15m by 7m, 4m eaves, 6m ridge, muted terracotta roof, and one broad low cylindrical silver milk tank beside a small milking shelter. One ordinary 2.1m personnel door and two broad 4.2m agricultural openings. Quiet grass and compact worn farmyard patch. No pasture fields."
+    },
+    {
+      "id": "farm-core:vegetable-farm:desert",
+      "name": "Produce shed and broad greenhouse",
+      "footprint": 2,
+      "description": "One low muted-timber produce shed approximately 7m by 6m and one unmistakable broad glazed greenhouse approximately 10m by 8m. The greenhouse has only a few thick simple structural divisions and soft muted-glass panes. Shed eaves 3m, ridge 4.5m, with one 2.1m personnel door and one broad loading opening. Quiet worn yard grass. No vegetable rows or produce-dot textures."
+    },
+    {
+      "id": "farm-core:orchard:desert",
+      "name": "Orchard packing barn and produce shelter",
+      "footprint": 2,
+      "description": "Low pale-plaster packing shed approximately 11m by 7m, 3m eaves, 5m ridge, muted terracotta broad pitched roof, a small open packing shelter and three large simple produce bins in restrained ochre/foliage masses. One ordinary 2.1m personnel door. Quiet grass and worn loading patch. No orchard trees, fruit dots, planting rows or fine crate grids."
+    },
+    {
+      "id": "farm-core:livestock-farm:desert",
+      "name": "Livestock stable and feeding shelter",
+      "footprint": 2,
+      "description": "Broad low L-shaped timber stable approximately 14m by 10m at its extent, 3.5m eaves, 5.5m ridge, subdued slate roof and one small open feeding shelter with broad ochre hay mass. One ordinary 2.1m personnel door and broad agricultural opening. Quiet farmyard grass. No paddock field, surrounding fence or animals."
+    },
+    null
+  ],
+  "columns": 3,
+  "rows": 2,
+  "biome": "desert",
+  "cellPixels": 256,
+  "direction": "FARM BUILDING CORE CAMERA CORRECTION. Create a COMPLETELY NEW clean farm core family from the supplied exact 2:1 construction guide and current canonical painted style. Use the guide middle panel for the 2\u00d72 tier. Copy its exact shallow dimetric angle, ground axes, human proportions and muted semantic colours into the new painted barns. The guide is the only image reference; do not copy its flat reference cuboid, its diagram labels or its person. Five occupied cells only in 3 columns by 2 rows, row-major order, slot 6 empty. Each square cell is one registered 2\u00d72 tile 32m farm core cutout inside an independently rendered 5\u00d75 tile farm field plot. Do not duplicate fields or build a full 5 tile farm in these sprites. All architecture lies in a maximum 20m square envelope, whose ground projection is 213.33px wide by 106.67px high in normalized 256 cell: exact vertices (128,138.667),(234.667,192),(128,245.333),(21.333,192). Actual farmyard ground centre stays (128,192). Every wall baseline, barn roof eave, ridge, greenhouse base and canopy beam follows slope +0.500 or -0.500 precisely; vertical edges stay vertical. Every ground line must be visibly twice as wide as it is tall, with a shallow slope of 0.500, not a steep isometric angle. Preserve true world scale: 2.1m door 11.2px high, 0.95m door 5.07px wide, 3m storey 16px, 4.2m loading bay 22.4px in normalized 256 cell. At a 512px source cell these values double. Center grass worn patches around measured farmyard centre, never around alpha extent. Keep ground patches quiet and light with irregular soft grassy edges and NO thick diamond platform, no soil walls, no opaque full parcel card. Preserve generous transparency and gutters. Reduce noise drastically: broad readable barn masses and silos/greenhouses are identity; no tiny roof ribbing, fine window mullions, wood scratches, exposed hay dots, railings, bush fringes or gravel texture. Every family uses the same semantic muted palette and same upright physical scale. Render five farmyards on a genuinely transparent sheet, no labels, gridlines, guide strokes or palette cards in final output. Clean broad flat brush shapes only. Tiny textures and bright saturated greens or bright red roofs are prohibited. NO trees and NO bushes. Barely visible simple grass patch under each barn group, feathered irregular perimeter, no garden border or crisp full-square diamond. The barns, silo, greenhouse and packing shelter must remain broad and recognizable at thumbnail size. Sheet width-to-height 3:2, square cells, ample separation.",
+  "family": "farm-cores-v1/desert"
+}

@@ -1,0 +1,550 @@
+{
+  "source": "source-generated-2026-10-07.png",
+  "columns": 4,
+  "rows": 3,
+  "entries": [
+    {
+      "id": "park",
+      "footprint": 2,
+      "groundVerticesSource": [
+        [
+          187,
+          148
+        ],
+        [
+          354,
+          241
+        ],
+        [
+          187,
+          334
+        ],
+        [
+          20,
+          241
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": null,
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "playground",
+      "footprint": 1,
+      "groundVerticesSource": [
+        [
+          542,
+          148
+        ],
+        [
+          710,
+          243
+        ],
+        [
+          542,
+          338
+        ],
+        [
+          374,
+          243
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": null,
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "swimming-pool",
+      "footprint": 2,
+      "groundVerticesSource": [
+        [
+          907,
+          142
+        ],
+        [
+          1085,
+          243
+        ],
+        [
+          907,
+          344
+        ],
+        [
+          729,
+          243
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 20,
+        "edgeEndpointsSource": [
+          [
+            993,
+            226
+          ],
+          [
+            993,
+            246
+          ]
+        ],
+        "kind": "visible personnel-door opening",
+        "uncertaintyPixels": 2
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "sports-field",
+      "footprint": 2,
+      "groundVerticesSource": [
+        [
+          1266,
+          144
+        ],
+        [
+          1442,
+          244
+        ],
+        [
+          1267,
+          344
+        ],
+        [
+          1091,
+          244
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": null,
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "tennis-courts",
+      "footprint": 1,
+      "groundVerticesSource": [
+        [
+          188,
+          464
+        ],
+        [
+          357,
+          559
+        ],
+        [
+          188,
+          654
+        ],
+        [
+          19,
+          559
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": null,
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "ballpark",
+      "footprint": 3,
+      "groundVerticesSource": [
+        [
+          544,
+          435
+        ],
+        [
+          727,
+          540
+        ],
+        [
+          544,
+          645
+        ],
+        [
+          361,
+          540
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": null,
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "sports-hall",
+      "footprint": 2,
+      "groundVerticesSource": [
+        [
+          907,
+          455
+        ],
+        [
+          1084,
+          555
+        ],
+        [
+          907,
+          655
+        ],
+        [
+          730,
+          555
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 20,
+        "edgeEndpointsSource": [
+          [
+            839,
+            586
+          ],
+          [
+            839,
+            606
+          ]
+        ],
+        "kind": "visible entrance-annex personnel-door opening",
+        "uncertaintyPixels": 2
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "town-hall",
+      "footprint": 2,
+      "groundVerticesSource": [
+        [
+          1267,
+          452
+        ],
+        [
+          1443,
+          556
+        ],
+        [
+          1266,
+          660
+        ],
+        [
+          1090,
+          556
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 21,
+        "edgeEndpointsSource": [
+          [
+            1228,
+            558
+          ],
+          [
+            1228,
+            579
+          ]
+        ],
+        "kind": "portico personnel door; partly shadowed",
+        "uncertaintyPixels": 3
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "shop-cafe",
+      "footprint": 1,
+      "groundVerticesSource": [
+        [
+          190,
+          805
+        ],
+        [
+          363,
+          903
+        ],
+        [
+          193,
+          1003
+        ],
+        [
+          20,
+          905
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 37,
+        "edgeEndpointsSource": [
+          [
+            198,
+            930
+          ],
+          [
+            198,
+            967
+          ]
+        ],
+        "kind": "outer personnel-door frame from inferred header under awning to threshold; visible opening shorter",
+        "uncertaintyPixels": 3
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "shop-pharmacy",
+      "footprint": 1,
+      "groundVerticesSource": [
+        [
+          551,
+          802
+        ],
+        [
+          722,
+          902
+        ],
+        [
+          552,
+          1002
+        ],
+        [
+          381,
+          902
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 37,
+        "edgeEndpointsSource": [
+          [
+            549,
+            930
+          ],
+          [
+            549,
+            967
+          ]
+        ],
+        "kind": "outer personnel-door frame; header partly occluded by canopy",
+        "uncertaintyPixels": 3
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "shop-bookshop",
+      "footprint": 1,
+      "groundVerticesSource": [
+        [
+          915,
+          805
+        ],
+        [
+          1088,
+          905
+        ],
+        [
+          914,
+          1005
+        ],
+        [
+          741,
+          905
+        ]
+      ],
+      "groundVerticesMethod": "Right, front and left ground-plane top-edge corners measured from the source (approximately \u00b13px); back corner occluded by architecture/planting, completed approximately along the parallel axes. No alpha-bottom datum.",
+      "sourceDoorMeasurement": {
+        "heightPixels": 39,
+        "edgeEndpointsSource": [
+          [
+            910,
+            935
+          ],
+          [
+            910,
+            974
+          ]
+        ],
+        "kind": "outer personnel-door frame; header partly occluded by canopy",
+        "uncertaintyPixels": 3
+      },
+      "groundVertexMeasured": [
+        false,
+        true,
+        true,
+        true
+      ]
+    },
+    null
+  ],
+  "tiers": {
+    "1": {
+      "referenceDoorSourcePixels": 37.666666666666664,
+      "targetDoorMasterPixels": 22.4,
+      "method": "Shared mean outer personnel-door frame height; headers partly hidden behind awnings. Source uncertainty \u00b13px. This is an approximate full-door datum, not a directly observed unobscured opening.",
+      "measurements": [
+        {
+          "heightPixels": 37,
+          "edgeEndpointsSource": [
+            [
+              198,
+              930
+            ],
+            [
+              198,
+              967
+            ]
+          ],
+          "kind": "outer personnel-door frame from inferred header under awning to threshold; visible opening shorter",
+          "uncertaintyPixels": 3
+        },
+        {
+          "heightPixels": 37,
+          "edgeEndpointsSource": [
+            [
+              549,
+              930
+            ],
+            [
+              549,
+              967
+            ]
+          ],
+          "kind": "outer personnel-door frame; header partly occluded by canopy",
+          "uncertaintyPixels": 3
+        },
+        {
+          "heightPixels": 39,
+          "edgeEndpointsSource": [
+            [
+              910,
+              935
+            ],
+            [
+              910,
+              974
+            ]
+          ],
+          "kind": "outer personnel-door frame; header partly occluded by canopy",
+          "uncertaintyPixels": 3
+        }
+      ],
+      "filteringGutterScale": 0.88,
+      "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+    },
+    "2": {
+      "referenceDoorSourcePixels": 20,
+      "targetDoorMasterPixels": 11.2,
+      "method": "Shared measured visible personnel-door vertical opening in changing pavilion and entrance annex; about \u00b12px uncertainty.",
+      "measurements": [
+        {
+          "heightPixels": 20,
+          "edgeEndpointsSource": [
+            [
+              993,
+              226
+            ],
+            [
+              993,
+              246
+            ]
+          ],
+          "kind": "visible personnel-door opening",
+          "uncertaintyPixels": 2
+        },
+        {
+          "heightPixels": 20,
+          "edgeEndpointsSource": [
+            [
+              839,
+              586
+            ],
+            [
+              839,
+              606
+            ]
+          ],
+          "kind": "visible entrance-annex personnel-door opening",
+          "uncertaintyPixels": 2
+        },
+        {
+          "heightPixels": 21,
+          "edgeEndpointsSource": [
+            [
+              1228,
+              558
+            ],
+            [
+              1228,
+              579
+            ]
+          ],
+          "kind": "portico personnel door; partly shadowed",
+          "uncertaintyPixels": 3
+        }
+      ],
+      "filteringGutterScale": 0.88,
+      "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged."
+    },
+    "3": {
+      "referenceDoorSourcePixels": 366,
+      "targetDoorMasterPixels": 199.1111111111111,
+      "method": "No observable personnel-door opening. Complete ballpark uniformly calibrated from measured 366px ground width to a credible 28m inset field/garden square on its 48m full parcel. The ratio fields name the shared scalar API; this is field geometry, not a doorway measurement.",
+      "groundWidthSourcePixels": 366,
+      "groundWidthMasterPixels": 185.17333333333332,
+      "insetGroundSquareMetres": 26.040000000000003,
+      "personnelDoorObservable": false,
+      "filteringGutterScale": 0.93,
+      "filteringGutterReason": "One shared12% reduction for every complete footprint1/2 cutout across the family, and7% for footprint3, to preserve at least8px master filtering gutters at RegionLOD. This is a whole-tier correction, not a per-silhouette fit; raw doorway measurements and canonical target remain unchanged.",
+      "renderedInsetGroundSquareMetres": 26.040000000000003,
+      "originalRequestedInsetGroundSquareMetres": 28,
+      "calibratedBeforeFilteringGroundWidthMasterPixels": 199.1111111111111
+    }
+  },
+  "cameraTargetSlope": 0.5,
+  "cameraTolerance": "Painted line endpoints are recorded honestly; observed foreground ground slopes reach approximately0.60, so these are near-2:1 painted sources rather than pixel-exact2:1geometry.",
+  "minimumMasterFilteringGutterPixels": 8,
+  "inferredBackVertexUncertaintySourcePixels": 8
+}

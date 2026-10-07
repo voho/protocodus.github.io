@@ -1,0 +1,588 @@
+{
+  "source": "exec-e234cf0c-8c83-4a92-8b03-d3b7ace64bc2.png",
+  "coordinateConvention": "Zero-based absolute source pixels. Geometric height is bottomY-topY; inclusive raster occupancy additionally counts the endpoint pixel. Cell-local coordinates use recorded adaptive sourceRegion, not an assumed 418px grid.",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        0,
+        425,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          179,
+          309
+        ],
+        "sourceBottom": [
+          179,
+          352
+        ],
+        "sourceHeightGeometric": 43,
+        "sourceHeightInclusive": 44,
+        "cellLocalTop": [
+          179,
+          309
+        ],
+        "cellLocalBottom": [
+          179,
+          352
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          214.0,
+          340.346
+        ],
+        "sourceCorners": {
+          "left": [
+            34.0,
+            342.277
+          ],
+          "front": [
+            213.264,
+            435.232
+          ],
+          "right": [
+            394.0,
+            338.414
+          ]
+        },
+        "sourceSlopes": [
+          0.5185,
+          -0.5357
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.961,
+          1.52
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1808
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "sourceRegion": [
+        425,
+        0,
+        836,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          589,
+          316
+        ],
+        "sourceBottom": [
+          589,
+          355
+        ],
+        "sourceHeightGeometric": 39,
+        "sourceHeightInclusive": 40,
+        "cellLocalTop": [
+          164,
+          316
+        ],
+        "cellLocalBottom": [
+          164,
+          355
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          635.0,
+          338.652
+        ],
+        "sourceCorners": {
+          "left": [
+            451.0,
+            339.507
+          ],
+          "front": [
+            635.124,
+            438.466
+          ],
+          "right": [
+            819.0,
+            337.796
+          ]
+        },
+        "sourceSlopes": [
+          0.5375,
+          -0.5475
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.184,
+          0.769
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.2188
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "sourceRegion": [
+        836,
+        0,
+        1254,
+        439
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1020,
+          314
+        ],
+        "sourceBottom": [
+          1020,
+          355
+        ],
+        "sourceHeightGeometric": 41,
+        "sourceHeightInclusive": 42,
+        "cellLocalTop": [
+          184,
+          314
+        ],
+        "cellLocalBottom": [
+          184,
+          355
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          1059.5,
+          339.302
+        ],
+        "sourceCorners": {
+          "left": [
+            877.0,
+            339.979
+          ],
+          "front": [
+            1058.193,
+            436.159
+          ],
+          "right": [
+            1242.0,
+            338.624
+          ]
+        },
+        "sourceSlopes": [
+          0.5308,
+          -0.5306
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.278,
+          1.323
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1517
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "sourceRegion": [
+        0,
+        439,
+        425,
+        842
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          165,
+          714
+        ],
+        "sourceBottom": [
+          165,
+          754
+        ],
+        "sourceHeightGeometric": 40,
+        "sourceHeightInclusive": 41,
+        "cellLocalTop": [
+          165,
+          275
+        ],
+        "cellLocalBottom": [
+          165,
+          315
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          213.0,
+          738.8
+        ],
+        "sourceCorners": {
+          "left": [
+            33.0,
+            739.691
+          ],
+          "front": [
+            211.659,
+            835.633
+          ],
+          "right": [
+            393.0,
+            737.908
+          ]
+        },
+        "sourceSlopes": [
+          0.537,
+          -0.5389
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.271,
+          1.315
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1828
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "sourceRegion": [
+        425,
+        439,
+        836,
+        842
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          591,
+          716
+        ],
+        "sourceBottom": [
+          591,
+          754
+        ],
+        "sourceHeightGeometric": 38,
+        "sourceHeightInclusive": 39,
+        "cellLocalTop": [
+          166,
+          277
+        ],
+        "cellLocalBottom": [
+          166,
+          315
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          636.0,
+          738.74
+        ],
+        "sourceCorners": {
+          "left": [
+            450.0,
+            737.326
+          ],
+          "front": [
+            638.646,
+            840.8620000000001
+          ],
+          "right": [
+            822.0,
+            740.154
+          ]
+        },
+        "sourceSlopes": [
+          0.5488,
+          -0.5492
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.136,
+          1.397
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1869
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "sourceRegion": [
+        836,
+        439,
+        1254,
+        842
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1011,
+          716
+        ],
+        "sourceBottom": [
+          1011,
+          753
+        ],
+        "sourceHeightGeometric": 37,
+        "sourceHeightInclusive": 38,
+        "cellLocalTop": [
+          175,
+          277
+        ],
+        "cellLocalBottom": [
+          175,
+          314
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "note": "Personnel entrance under porch beam. Porch structure crosses the upper doorway; this visible opening is a lower bound, not a complete frame."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          1057.5,
+          739.054
+        ],
+        "sourceCorners": {
+          "left": [
+            876.0,
+            737.947
+          ],
+          "front": [
+            1057.665,
+            838.355
+          ],
+          "right": [
+            1239.0,
+            740.1610000000001
+          ]
+        },
+        "sourceSlopes": [
+          0.5527,
+          -0.5415
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.297,
+          1.506
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1079
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "sourceRegion": [
+        0,
+        842,
+        425,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          173,
+          1070
+        ],
+        "sourceBottom": [
+          173,
+          1097
+        ],
+        "sourceHeightGeometric": 27,
+        "sourceHeightInclusive": 28,
+        "cellLocalTop": [
+          173,
+          228
+        ],
+        "cellLocalBottom": [
+          173,
+          255
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          227.0,
+          1080.167
+        ],
+        "sourceCorners": {
+          "left": [
+            32.0,
+            1074.994
+          ],
+          "front": [
+            235.028,
+            1191.035
+          ],
+          "right": [
+            422.0,
+            1085.34
+          ]
+        },
+        "sourceSlopes": [
+          0.5716,
+          -0.5653
+        ],
+        "postFeetOffsetFromRailPixels": [
+          0.915,
+          0.559
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.2237
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "sourceRegion": [
+        425,
+        842,
+        836,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          557,
+          1064
+        ],
+        "sourceBottom": [
+          557,
+          1092
+        ],
+        "sourceHeightGeometric": 28,
+        "sourceHeightInclusive": 29,
+        "cellLocalTop": [
+          132,
+          222
+        ],
+        "cellLocalBottom": [
+          132,
+          250
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "note": "Dark personnel entrance; actual vertical opening column. No observed occlusion."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          637.5,
+          1086.449
+        ],
+        "sourceCorners": {
+          "left": [
+            444.0,
+            1086.191
+          ],
+          "front": [
+            638.35,
+            1192.454
+          ],
+          "right": [
+            831.0,
+            1086.706
+          ]
+        },
+        "sourceSlopes": [
+          0.5468,
+          -0.5489
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.235,
+          1.258
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.2153
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "sourceRegion": [
+        836,
+        842,
+        1254,
+        1254
+      ],
+      "visibleOpening": {
+        "sourceTop": [
+          1050,
+          1051
+        ],
+        "sourceBottom": [
+          1050,
+          1063
+        ],
+        "sourceHeightGeometric": 12,
+        "sourceHeightInclusive": 13,
+        "cellLocalTop": [
+          214,
+          209
+        ],
+        "cellLocalBottom": [
+          214,
+          221
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": true,
+        "note": "Actual rear-wing courtyard personnel entrance, visible glazing at absolute x=1050. Its lower portion and sill are physically hidden by the foreground wing roof. The measured 12px geometric segment is only an occluded visible lower bound; no complete-frame height can be inferred. Helper-selected 20px left-annex blob is a window."
+      },
+      "groundPlaneEstimate": {
+        "method": "Robust alpha>128 bottom-contour line fit on each foreground axis, then 95th-percentile positive residual adds fence post feet below raised rails. Corners remain estimated because alpha extrema may include post width; hidden rear corner not observed. Independent from silhouette-bottom anchor.",
+        "sourceCenter": [
+          1055.0,
+          1088.233
+        ],
+        "sourceCorners": {
+          "left": [
+            865.0,
+            1084.955
+          ],
+          "front": [
+            1059.29,
+            1194.672
+          ],
+          "right": [
+            1245.0,
+            1091.511
+          ]
+        },
+        "sourceSlopes": [
+          0.5647,
+          -0.5555
+        ],
+        "postFeetOffsetFromRailPixels": [
+          1.056,
+          1.086
+        ],
+        "uncertaintyPixels": 3
+      },
+      "foregroundGroundTransparentFraction": 0.1301
+    }
+  ],
+  "flags": [
+    "normal3: narrow central sample transparent fraction 0.1079; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn.",
+    "expensive3 actual courtyard door is partly hidden by the foreground wing; do not use the helper-selected raised window or invent a full door measurement.",
+    "expensive3: narrow central sample transparent fraction 0.1301; visually the sample intersects path/shrubs, so it does not establish an opaque filled lawn."
+  ],
+  "sourceOrigin": "/workspace/generated_images/exec-e234cf0c-8c83-4a92-8b03-d3b7ace64bc2.png"
+}

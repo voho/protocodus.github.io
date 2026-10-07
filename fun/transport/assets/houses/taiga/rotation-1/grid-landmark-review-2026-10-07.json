@@ -1,0 +1,830 @@
+{
+  "source": "exec-7d220e22-774a-4ad5-a926-20078289fe95.png",
+  "entries": [
+    {
+      "kind": "cheap1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          248,
+          298
+        ],
+        "sourceBottom": [
+          248,
+          335
+        ],
+        "sourceHeightGeometric": 37,
+        "sourceHeightInclusive": 38,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 37,
+        "cellLocalTop": [
+          248,
+          298
+        ],
+        "cellLocalBottom": [
+          248,
+          335
+        ],
+        "nominalCellLocalTop": [
+          248,
+          298
+        ],
+        "nominalCellLocalBottom": [
+          248,
+          335
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap1",
+        "sourceCutout": [
+          0,
+          0,
+          420,
+          485
+        ],
+        "sourceCenter": [
+          211.5,
+          327.76
+        ],
+        "sourceCorners": {
+          "left": [
+            33.0,
+            327.61
+          ],
+          "front": [
+            214.05,
+            420.58
+          ],
+          "right": [
+            390.0,
+            327.92
+          ]
+        },
+        "sourceSlopes": [
+          0.51352,
+          -0.52665
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.777,
+          5.741
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        0,
+        0,
+        420,
+        485
+      ]
+    },
+    {
+      "kind": "cheap2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          670,
+          305
+        ],
+        "sourceBottom": [
+          670,
+          340
+        ],
+        "sourceHeightGeometric": 35,
+        "sourceHeightInclusive": 36,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 35,
+        "cellLocalTop": [
+          250,
+          305
+        ],
+        "cellLocalBottom": [
+          250,
+          340
+        ],
+        "nominalCellLocalTop": [
+          252,
+          305
+        ],
+        "nominalCellLocalBottom": [
+          252,
+          340
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap2",
+        "sourceCutout": [
+          420,
+          0,
+          835,
+          485
+        ],
+        "sourceCenter": [
+          628.5,
+          327.58
+        ],
+        "sourceCorners": {
+          "left": [
+            450.0,
+            324.55
+          ],
+          "front": [
+            635.63,
+            421.2
+          ],
+          "right": [
+            807.0,
+            330.61
+          ]
+        },
+        "sourceSlopes": [
+          0.52067,
+          -0.52863
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.721,
+          3.628
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        420,
+        0,
+        835,
+        485
+      ]
+    },
+    {
+      "kind": "cheap3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1090,
+          303
+        ],
+        "sourceBottom": [
+          1090,
+          339
+        ],
+        "sourceHeightGeometric": 36,
+        "sourceHeightInclusive": 37,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 36,
+        "cellLocalTop": [
+          255,
+          303
+        ],
+        "cellLocalBottom": [
+          255,
+          339
+        ],
+        "nominalCellLocalTop": [
+          254,
+          303
+        ],
+        "nominalCellLocalBottom": [
+          254,
+          339
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "cheap3",
+        "sourceCutout": [
+          835,
+          0,
+          1254,
+          485
+        ],
+        "sourceCenter": [
+          1047.0,
+          332.26
+        ],
+        "sourceCorners": {
+          "left": [
+            863.0,
+            330.1
+          ],
+          "front": [
+            1052.49,
+            434.18
+          ],
+          "right": [
+            1231.0,
+            334.42
+          ]
+        },
+        "sourceSlopes": [
+          0.54929,
+          -0.55884
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.236,
+          3.972
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        835,
+        0,
+        1254,
+        485
+      ]
+    },
+    {
+      "kind": "normal1",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          263,
+          712
+        ],
+        "sourceBottom": [
+          263,
+          746
+        ],
+        "sourceHeightGeometric": 34,
+        "sourceHeightInclusive": 35,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 34,
+        "cellLocalTop": [
+          263,
+          227
+        ],
+        "cellLocalBottom": [
+          263,
+          261
+        ],
+        "nominalCellLocalTop": [
+          263,
+          294
+        ],
+        "nominalCellLocalBottom": [
+          263,
+          328
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal1",
+        "sourceCutout": [
+          0,
+          485,
+          419,
+          865
+        ],
+        "sourceCenter": [
+          210.0,
+          734.32
+        ],
+        "sourceCorners": {
+          "left": [
+            29.0,
+            733.01
+          ],
+          "front": [
+            213.59,
+            832.04
+          ],
+          "right": [
+            391.0,
+            735.63
+          ]
+        },
+        "sourceSlopes": [
+          0.53645,
+          -0.54339
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.632,
+          6.017
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        0,
+        485,
+        419,
+        865
+      ]
+    },
+    {
+      "kind": "normal2",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          682,
+          709
+        ],
+        "sourceBottom": [
+          682,
+          743
+        ],
+        "sourceHeightGeometric": 34,
+        "sourceHeightInclusive": 35,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 34,
+        "cellLocalTop": [
+          263,
+          224
+        ],
+        "cellLocalBottom": [
+          263,
+          258
+        ],
+        "nominalCellLocalTop": [
+          264,
+          291
+        ],
+        "nominalCellLocalBottom": [
+          264,
+          325
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal2",
+        "sourceCutout": [
+          419,
+          485,
+          837,
+          865
+        ],
+        "sourceCenter": [
+          628.5,
+          729.22
+        ],
+        "sourceCorners": {
+          "left": [
+            447.0,
+            727.77
+          ],
+          "front": [
+            631.29,
+            832.65
+          ],
+          "right": [
+            810.0,
+            730.67
+          ]
+        },
+        "sourceSlopes": [
+          0.56911,
+          -0.57062
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.078,
+          4.376
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        419,
+        485,
+        837,
+        865
+      ]
+    },
+    {
+      "kind": "normal3",
+      "footprint": 1,
+      "visibleOpening": {
+        "sourceTop": [
+          1110,
+          714
+        ],
+        "sourceBottom": [
+          1110,
+          741
+        ],
+        "sourceHeightGeometric": 27,
+        "sourceHeightInclusive": 28,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": false,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 27,
+        "cellLocalTop": [
+          273,
+          229
+        ],
+        "cellLocalBottom": [
+          273,
+          256
+        ],
+        "nominalCellLocalTop": [
+          274,
+          296
+        ],
+        "nominalCellLocalBottom": [
+          274,
+          323
+        ],
+        "partiallyOccluded": true,
+        "notes": "Root visual review confirms the porch roof/beam hides the personnel opening head. The unchanged geometric endpoints measure the visible leaf as a lower bound, not the full frame."
+      },
+      "groundPlaneEstimate": {
+        "kind": "normal3",
+        "sourceCutout": [
+          837,
+          485,
+          1254,
+          865
+        ],
+        "sourceCenter": [
+          1048.5,
+          730.18
+        ],
+        "sourceCorners": {
+          "left": [
+            864.0,
+            729.19
+          ],
+          "front": [
+            1052.28,
+            833.13
+          ],
+          "right": [
+            1233.0,
+            731.16
+          ]
+        },
+        "sourceSlopes": [
+          0.55207,
+          -0.56423
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.634,
+          4.749
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        837,
+        485,
+        1254,
+        865
+      ]
+    },
+    {
+      "kind": "expensive1",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          242,
+          1056
+        ],
+        "sourceBottom": [
+          242,
+          1077
+        ],
+        "sourceHeightGeometric": 21,
+        "sourceHeightInclusive": 22,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 21,
+        "cellLocalTop": [
+          242,
+          191
+        ],
+        "cellLocalBottom": [
+          242,
+          212
+        ],
+        "nominalCellLocalTop": [
+          242,
+          220
+        ],
+        "nominalCellLocalBottom": [
+          242,
+          241
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive1",
+        "sourceCutout": [
+          0,
+          865,
+          428,
+          1254
+        ],
+        "sourceCenter": [
+          217.0,
+          1077.02
+        ],
+        "sourceCorners": {
+          "left": [
+            15.0,
+            1076.96
+          ],
+          "front": [
+            206.8,
+            1190.28
+          ],
+          "right": [
+            419.0,
+            1077.07
+          ]
+        },
+        "sourceSlopes": [
+          0.5908,
+          -0.53348
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.268,
+          5.847
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        0,
+        865,
+        428,
+        1254
+      ]
+    },
+    {
+      "kind": "expensive2",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          674,
+          1064
+        ],
+        "sourceBottom": [
+          674,
+          1090
+        ],
+        "sourceHeightGeometric": 26,
+        "sourceHeightInclusive": 27,
+        "uncertaintyPixels": 2,
+        "calibrationUsable": true,
+        "calibrationExcluded": false,
+        "chosenVerticalSliceOccluded": false,
+        "bottomOccluded": false,
+        "bottomIsOcclusionBoundary": false,
+        "note": "Dark personnel entrance. Same vertical column endpoints through the inner leaf; outer dark frame and threshold excluded.",
+        "fullHeightGeometric": 26,
+        "cellLocalTop": [
+          246,
+          199
+        ],
+        "cellLocalBottom": [
+          246,
+          225
+        ],
+        "nominalCellLocalTop": [
+          256,
+          228
+        ],
+        "nominalCellLocalBottom": [
+          256,
+          254
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive2",
+        "sourceCutout": [
+          428,
+          865,
+          829,
+          1254
+        ],
+        "sourceCenter": [
+          627.5,
+          1081.38
+        ],
+        "sourceCorners": {
+          "left": [
+            436.0,
+            1081.47
+          ],
+          "front": [
+            623.37,
+            1191.75
+          ],
+          "right": [
+            819.0,
+            1081.28
+          ]
+        },
+        "sourceSlopes": [
+          0.58856,
+          -0.56471
+        ],
+        "postFeetOffsetFromRailPixels": [
+          3.959,
+          3.744
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        428,
+        865,
+        829,
+        1254
+      ]
+    },
+    {
+      "kind": "expensive3",
+      "footprint": 2,
+      "visibleOpening": {
+        "sourceTop": [
+          1032,
+          1017
+        ],
+        "sourceBottom": [
+          1032,
+          1043
+        ],
+        "sourceHeightGeometric": 26,
+        "sourceHeightInclusive": 27,
+        "uncertaintyPixels": 3,
+        "calibrationUsable": false,
+        "calibrationExcluded": true,
+        "chosenVerticalSliceOccluded": true,
+        "bottomOccluded": true,
+        "bottomIsOcclusionBoundary": true,
+        "note": "Courtyard doorway lower part is hidden by the near red annex roof. Reported bottom is last visible leaf pixel, not the threshold; full height unobservable, exclude from tier median.",
+        "fullHeightGeometric": null,
+        "cellLocalTop": [
+          203,
+          152
+        ],
+        "cellLocalBottom": [
+          203,
+          178
+        ],
+        "nominalCellLocalTop": [
+          196,
+          181
+        ],
+        "nominalCellLocalBottom": [
+          196,
+          207
+        ]
+      },
+      "groundPlaneEstimate": {
+        "kind": "expensive3",
+        "sourceCutout": [
+          829,
+          865,
+          1254,
+          1254
+        ],
+        "sourceCenter": [
+          1042.5,
+          1073.79
+        ],
+        "sourceCorners": {
+          "left": [
+            838.0,
+            1075.74
+          ],
+          "front": [
+            1041.41,
+            1195.1
+          ],
+          "right": [
+            1247.0,
+            1071.84
+          ]
+        },
+        "sourceSlopes": [
+          0.58682,
+          -0.59955
+        ],
+        "postFeetOffsetFromRailPixels": [
+          4.047,
+          5.23
+        ],
+        "uncertaintyPixels": 3,
+        "unrelatedContourOutliersRejected": [
+          0,
+          0
+        ]
+      },
+      "sourceRegion": [
+        829,
+        865,
+        1254,
+        1254
+      ]
+    }
+  ],
+  "sourceImageSize": [
+    1254,
+    1254
+  ],
+  "biome": "taiga",
+  "design": 0,
+  "rotation": 1,
+  "coordinateConvention": "Zero-based absolute source pixel centers. Primary door height is GEOMETRIC endpoint difference, bottom_y-top_y; inclusive raster count is separately recorded as difference+1. Outer frame excluded.",
+  "groundMethod": "Full source split at adaptive empty row/column gutters. Robust bottom-alpha rail fit translated by q95 positive fence-foot residual; isolated residuals12px or larger excluded as unrelated scattered artifacts. Source absolute pixel coordinates.",
+  "adaptiveRowCuts": [
+    0,
+    485,
+    865,
+    1254
+  ],
+  "tierCalibrationReview": {
+    "1": {
+      "usableKinds": [
+        "cheap1",
+        "cheap2",
+        "cheap3",
+        "normal1",
+        "normal2",
+        "normal3"
+      ],
+      "sourceMedianDoorHeightGeometric": 34.5,
+      "minimumGeometric": 27,
+      "maximumGeometric": 37,
+      "ratioMaximumToMinimum": 1.3704,
+      "above20PercentAtCentralEstimate": true
+    },
+    "2": {
+      "usableKinds": [
+        "expensive1",
+        "expensive2"
+      ],
+      "sourceMedianDoorHeightGeometric": 23.5,
+      "minimumGeometric": 21,
+      "maximumGeometric": 26,
+      "ratioMaximumToMinimum": 1.2381,
+      "above20PercentAtCentralEstimate": true
+    }
+  },
+  "measurementFlags": [
+    "Footprint1 source door geometric extrema37/27=1.3704, nominally above20%; compare stated pixel uncertainties.",
+    "Footprint2 source door geometric extrema26/21=1.2381, nominally above20%; compare stated pixel uncertainties.",
+    "expensive3 courtyard lower edge is roof-occluded; visible geometric26px is not a full door height and is excluded from tier2 median."
+  ],
+  "sourceOrigin": "/workspace/generated_images/exec-7d220e22-774a-4ad5-a926-20078289fe95.png"
+}

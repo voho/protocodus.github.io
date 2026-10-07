@@ -1,0 +1,679 @@
+{
+  "source": "exec-10844730-9382-4c09-a707-b2f9a06d244d.png",
+  "biome": "taiga",
+  "design": 2,
+  "rotation": 1,
+  "tierSourceScales": {
+    "1": 0.4858299595141699,
+    "2": 0.36129032258064514
+  },
+  "tierCalibration": {
+    "1": {
+      "sourceMedianGeometricDoor": 35.5,
+      "targetMasterDoor": 22.4,
+      "uniformCalibratedScale": 0.6309859154929577,
+      "uniformSourceScaleWithGutter": 0.4858299595141699
+    },
+    "2": {
+      "sourceMedianGeometricDoor": 31.0,
+      "targetMasterDoor": 11.2,
+      "uniformCalibratedScale": 0.36129032258064514,
+      "uniformSourceScaleWithGutter": 0.36129032258064514
+    }
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceRegion": [
+        0,
+        0,
+        423,
+        491
+      ],
+      "groundCenterSource": [
+        215.5,
+        333.625
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          31.0,
+          333.05
+        ],
+        "front": [
+          208.78,
+          438.35
+        ],
+        "right": [
+          400.0,
+          334.2
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5923050961862978,
+        -0.5446606003556115
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 41,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            280,
+            297
+          ],
+          [
+            280,
+            338
+          ]
+        ],
+        "boundsSource": [
+          279,
+          297,
+          282,
+          339
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall door; dark opening boundaries are visible inside the wooden trim and above the pale threshold.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2701,
+      "sourceMeaningfulBounds": [
+        30,
+        197,
+        402,
+        439
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceRegion": [
+        423,
+        0,
+        836,
+        491
+      ],
+      "groundCenterSource": [
+        205.5,
+        332.015
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          23.0,
+          330.17
+        ],
+        "front": [
+          209.49,
+          435.6
+        ],
+        "right": [
+          388.0,
+          333.86
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5653386240549091,
+        -0.5699400593804269
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 36,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            265,
+            309
+          ],
+          [
+            265,
+            345
+          ]
+        ],
+        "boundsSource": [
+          264,
+          309,
+          267,
+          346
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall door; header and threshold are fully visible at this slice.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1895,
+      "sourceMeaningfulBounds": [
+        22,
+        189,
+        389,
+        437
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceRegion": [
+        836,
+        0,
+        1254,
+        491
+      ],
+      "groundCenterSource": [
+        208.0,
+        335.26
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          24.0,
+          334.87
+        ],
+        "front": [
+          209.07999999999993,
+          440.61
+        ],
+        "right": [
+          392.0,
+          335.65
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5713205100497085,
+        -0.5738027553028646
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            279,
+            306
+          ],
+          [
+            279,
+            341
+          ]
+        ],
+        "boundsSource": [
+          278,
+          306,
+          281,
+          342
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall door; slice lies to the right of the vertical timber above the lintel, with both opening boundaries visible. Independently observed pale outer personnel-frame head and threshold on the same source column; dark inner opening is retained separately. Paint/antialias boundary ambiguity +/-2 source pixels. Entire entrance is observable; no obstruction inferred.",
+        "fullFrameHeightSource": 40,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            279,
+            303
+          ],
+          [
+            279,
+            343
+          ]
+        ]
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.207,
+      "sourceMeaningfulBounds": [
+        22,
+        188,
+        394,
+        442
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceRegion": [
+        0,
+        491,
+        430,
+        888
+      ],
+      "groundCenterSource": [
+        223.5,
+        238.90000000000003
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          32.0,
+          236.70000000000005
+        ],
+        "front": [
+          221.41,
+          348.5
+        ],
+        "right": [
+          415.0,
+          241.10000000000002
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5902539464653395,
+        -0.5547807221447387
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 37,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            284,
+            218
+          ],
+          [
+            284,
+            255
+          ]
+        ],
+        "boundsSource": [
+          283,
+          218,
+          286,
+          256
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall ground-floor door; visible header and threshold, with no fence or shrub crossing the slice.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.227,
+      "sourceMeaningfulBounds": [
+        31,
+        49,
+        417,
+        349
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceRegion": [
+        430,
+        491,
+        843,
+        888
+      ],
+      "groundCenterSource": [
+        203.5,
+        244.98499999999996
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          15.0,
+          242.53999999999996
+        ],
+        "front": [
+          205.88,
+          353.11
+        ],
+        "right": [
+          392.0,
+          247.42999999999995
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5792644593461863,
+        -0.5678057167418873
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 35,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            260,
+            226
+          ],
+          [
+            260,
+            261
+          ]
+        ],
+        "boundsSource": [
+          259,
+          226,
+          262,
+          262
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall ground-floor door; header and threshold are visible below the raised-sill upper window. Independently observed pale outer personnel-frame head and threshold on the same source column; dark inner opening is retained separately. Paint/antialias boundary ambiguity +/-2 source pixels. Entire entrance is observable; no obstruction inferred.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            260,
+            224
+          ],
+          [
+            260,
+            263
+          ]
+        ]
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1957,
+      "sourceMeaningfulBounds": [
+        14,
+        57,
+        393,
+        354
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceRegion": [
+        843,
+        491,
+        1254,
+        888
+      ],
+      "groundCenterSource": [
+        204.0,
+        249.84999999999997
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          20.0,
+          253.91999999999996
+        ],
+        "front": [
+          195.91000000000008,
+          361.03999999999996
+        ],
+        "right": [
+          388.0,
+          245.77999999999997
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6089477573759307,
+        -0.600031235358426
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 34,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            271,
+            230
+          ],
+          [
+            271,
+            264
+          ]
+        ],
+        "boundsSource": [
+          270,
+          230,
+          273,
+          265
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Front right-wall door; both dark opening boundaries are visible below the roof overhang. Independently observed pale outer personnel-frame head and threshold on the same source column; dark inner opening is retained separately. Paint/antialias boundary ambiguity +/-2 source pixels. Entire entrance is observable; no obstruction inferred.",
+        "fullFrameHeightSource": 39,
+        "personnelDoorObservable": true,
+        "fullFrameEndpointsSource": [
+          [
+            271,
+            227
+          ],
+          [
+            271,
+            266
+          ]
+        ]
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2063,
+      "sourceMeaningfulBounds": [
+        17,
+        119,
+        391,
+        361
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceRegion": [
+        0,
+        888,
+        448,
+        1254
+      ],
+      "groundCenterSource": [
+        229.5,
+        214.68999999999994
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          17.0,
+          217.04999999999995
+        ],
+        "front": [
+          219.04,
+          331.4200000000001
+        ],
+        "right": [
+          442.0,
+          212.32999999999993
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.5660760245495947,
+        -0.5341316828130612
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 33,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            296,
+            193
+          ],
+          [
+            296,
+            226
+          ]
+        ],
+        "boundsSource": [
+          295,
+          193,
+          298,
+          227
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Main front door in the long right-facing facade; header and threshold are visible, clear of the side extension.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.196,
+      "sourceMeaningfulBounds": [
+        16,
+        40,
+        444,
+        334
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceRegion": [
+        448,
+        888,
+        843,
+        1254
+      ],
+      "groundCenterSource": [
+        198.5,
+        202.82499999999993
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          6.0,
+          210.1099999999999
+        ],
+        "front": [
+          184.85000000000002,
+          326.1700000000001
+        ],
+        "right": [
+          391.0,
+          195.53999999999996
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6489236790606663,
+        -0.633664807179239
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 28,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            248,
+            200
+          ],
+          [
+            248,
+            228
+          ]
+        ],
+        "boundsSource": [
+          247,
+          200,
+          250,
+          229
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Main right-facing ground-floor door; pale lintel and threshold are fully visible below the upper window.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.2296,
+      "sourceMeaningfulBounds": [
+        3,
+        35,
+        395,
+        326
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceRegion": [
+        843,
+        888,
+        1254,
+        1254
+      ],
+      "groundCenterSource": [
+        201.5,
+        211.375
+      ],
+      "groundVerticesSourceMeasured": {
+        "left": [
+          3.0,
+          213.05999999999995
+        ],
+        "front": [
+          191.8800000000001,
+          333.01
+        ],
+        "right": [
+          400.0,
+          209.69000000000005
+        ],
+        "back": null
+      },
+      "groundEdgeSlopesMeasured": [
+        0.6350592969080897,
+        -0.592542763790121
+      ],
+      "groundLandmarkUncertaintySourcePixels": 3,
+      "groundMeasurementMethod": "Full actual alpha>128 source cutouts with adaptive empty gutters; robust foreground rail contour slopes; physical post feet recovered by 95th-percentile positive residual after excluding right-facing paver corridor. Opposite-side ground corner midpoint sets registration; no silhouette-bottom anchor.",
+      "doorHeightSourceMeasured": 31,
+      "doorMeasurement": {
+        "kind": "visible-opening-geometric-vertical",
+        "verticalEndpointsSource": [
+          [
+            237,
+            186
+          ],
+          [
+            237,
+            217
+          ]
+        ],
+        "boundsSource": [
+          236,
+          186,
+          239,
+          218
+        ],
+        "uncertaintyPixels": 2,
+        "partiallyOccluded": false,
+        "notes": "Courtyard main door; this vertical slice has a fully visible header and threshold, clear of the projecting terrace wing.",
+        "fullFrameHeightSource": null,
+        "personnelDoorObservable": true
+      },
+      "doorCalibrationUsable": true,
+      "bareGroundTransparent": true,
+      "gardenGround": "transparent",
+      "foregroundGroundTransparentFraction": 0.1932,
+      "sourceMeaningfulBounds": [
+        0,
+        40,
+        403,
+        334
+      ]
+    }
+  ],
+  "landmarkReview": "review-taiga-d2-r1-final-landmarks.json",
+  "measurementMethod": "Independent manual source endpoints and actual fence-post feet. Two-point door endpoints use geometric bottom-top height. Full cutouts partitioned at empty source gutters; one human-calibrated scale per footprint tier, never per-silhouette fit."
+}

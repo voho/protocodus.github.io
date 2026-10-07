@@ -6,7 +6,8 @@
     32,
     64,
     128,
-    256
+    256,
+    512
   ],
   "masterCell": 256,
   "vehicleLengthNormalized": false,
@@ -18,8 +19,8 @@
     "farm-core:livestock-farm:taiga",
     null
   ],
-  "source": "source-scale-v3-registered.png",
-  "sourceSha256": "5fd146c6d6cf8eb2ba4190f1cbcb919f268244fd37d4ff381b21e26d762954f9",
+  "source": "source-camera-v4-registered.png",
+  "sourceSha256": "00075eaa99bbb79bcca37524a6fc9f417e407533af34102d4bac08938b7deb86",
   "sprites": [
     {
       "id": "farm-core:farm:taiga",
@@ -27,109 +28,109 @@
       "sourceBounds": [
         0,
         0,
-        576,
-        576
+        512,
+        512
       ],
       "normalization": {
         "originalSize": [
-          576,
-          576
+          512,
+          512
         ],
         "sourceBounds": [
-          32,
-          184,
-          544,
-          547
+          117,
+          253,
+          428,
+          483
         ],
         "rawAlphaBounds": [
-          31,
-          183,
-          545,
-          548
+          117,
+          254,
+          426,
+          482
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.715085
+        "transparentFraction": 0.830929
       },
       "bounds": [
-        13,
-        81,
-        243,
-        244
+        58,
+        125,
+        214,
+        242
       ]
     },
     {
       "id": "farm-core:dairy-farm:taiga",
       "cell": 1,
       "sourceBounds": [
-        576,
+        512,
         0,
-        1152,
-        576
+        1024,
+        512
       ],
       "normalization": {
         "originalSize": [
-          576,
-          576
+          512,
+          512
         ],
         "sourceBounds": [
-          32,
-          221,
-          544,
-          547
+          100,
+          263,
+          418,
+          482
         ],
         "rawAlphaBounds": [
-          32,
-          220,
-          545,
-          548
+          102,
+          264,
+          417,
+          481
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.733317
+        "transparentFraction": 0.829151
       },
       "bounds": [
-        13,
-        97,
-        243,
-        244
+        50,
+        130,
+        209,
+        242
       ]
     },
     {
       "id": "farm-core:vegetable-farm:taiga",
       "cell": 2,
       "sourceBounds": [
-        1152,
+        1024,
         0,
-        1728,
-        576
+        1536,
+        512
       ],
       "normalization": {
         "originalSize": [
-          576,
-          576
+          512,
+          512
         ],
         "sourceBounds": [
-          33,
-          223,
-          545,
-          547
+          86,
+          304,
+          401,
+          483
         ],
         "rawAlphaBounds": [
-          33,
-          222,
-          544,
-          548
+          87,
+          305,
+          400,
+          482
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.738833
+        "transparentFraction": 0.855553
       },
       "bounds": [
-        14,
-        98,
-        243,
-        244
+        43,
+        151,
+        200,
+        242
       ]
     },
     {
@@ -137,35 +138,35 @@
       "cell": 3,
       "sourceBounds": [
         0,
-        576,
-        576,
-        1152
+        512,
+        512,
+        1024
       ],
       "normalization": {
         "originalSize": [
-          576,
-          576
+          512,
+          512
         ],
         "sourceBounds": [
-          32,
-          213,
-          544,
-          547
+          89,
+          268,
+          397,
+          486
         ],
         "rawAlphaBounds": [
-          31,
-          212,
-          545,
-          548
+          90,
+          269,
+          395,
+          485
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.736485
+        "transparentFraction": 0.839478
       },
       "bounds": [
-        13,
-        93,
-        243,
+        45,
+        133,
+        200,
         244
       ]
     },
@@ -173,37 +174,37 @@
       "id": "farm-core:livestock-farm:taiga",
       "cell": 4,
       "sourceBounds": [
-        576,
-        576,
-        1152,
-        1152
+        512,
+        512,
+        1024,
+        1024
       ],
       "normalization": {
         "originalSize": [
-          576,
-          576
+          512,
+          512
         ],
         "sourceBounds": [
-          32,
-          229,
-          544,
-          547
+          85,
+          249,
+          404,
+          485
         ],
         "rawAlphaBounds": [
-          32,
-          228,
-          545,
-          547
+          87,
+          250,
+          402,
+          484
         ],
         "trimAlphaThreshold": 8,
         "trimPadding": 2,
-        "transparentFraction": 0.735819
+        "transparentFraction": 0.812962
       },
       "bounds": [
-        13,
-        101,
-        243,
-        244
+        41,
+        123,
+        204,
+        243
       ]
     },
     {
@@ -213,6 +214,672 @@
   "registration": "Full parcel grid preserved; one source-cell scale, no per-silhouette fitting",
   "mipSharpening": false,
   "visualFootprint": 2,
-  "scaleContract": "../../../../sprite-art-direction.js",
-  "styleVersion": 3
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "visualFootprint": 2,
+    "tileMetres": 16,
+    "coreMetres": 32,
+    "architecturalEnvelopeMetres": 20,
+    "architecturalGroundEnvelopeMasterPixels": [
+      213.333333,
+      106.666667
+    ],
+    "doorHeightMetres": 2.1,
+    "targetDoorMasterPixels": 11.2,
+    "referenceDoorSourcePixels": 36.4,
+    "referenceDoorMethod": "Joint arithmetic mean of ten measured personnel-opening frame head-to-sill heights across both generated climate families; one common pixel-to-metre scale",
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "expectedGroundEdgeSlope": 0.5,
+    "uniformScale": 0.3076923076923077,
+    "cells": [
+      {
+        "cell": 0,
+        "id": "farm-core:farm:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          0,
+          0,
+          512,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          10,
+          128,
+          512,
+          498
+        ],
+        "groundVerticesSource": [
+          [
+            73,
+            297
+          ],
+          [
+            248.67,
+            389.05
+          ],
+          [
+            364,
+            329
+          ],
+          [
+            188.33,
+            236.95
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "inferred intersection from measured ground-axis edge directions; may be hidden by shelter",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          false,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            73,
+            297
+          ],
+          [
+            364,
+            329
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -2,
+          -1
+        ],
+        "groundCenterSource": [
+          235.83333333333334,
+          339.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.987179,
+          191.923077
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              80,
+              228.9
+            ],
+            [
+              245,
+              315.3
+            ]
+          ],
+          [
+            [
+              310,
+              354.3
+            ],
+            [
+              358,
+              329.3
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.523636,
+          -0.520833
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          117,
+          254
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            110,
+            280.5
+          ],
+          "sillSource": [
+            110,
+            315.5
+          ],
+          "heightPixels": 35.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 10.7692,
+        "normalizedBounds": [
+          58,
+          125,
+          214,
+          242
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "farm-core:dairy-farm:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          512,
+          0,
+          1024,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          149,
+          512,
+          501
+        ],
+        "groundVerticesSource": [
+          [
+            592,
+            279
+          ],
+          [
+            856,
+            412
+          ],
+          [
+            966,
+            357
+          ],
+          [
+            702,
+            224
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            592,
+            279
+          ],
+          [
+            966,
+            357
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -1,
+          -2
+        ],
+        "groundCenterSource": [
+          761.6666666666666,
+          344.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.820513,
+          192.0
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              600,
+              226.0
+            ],
+            [
+              844,
+              352.2
+            ]
+          ],
+          [
+            [
+              861,
+              409.7
+            ],
+            [
+              959,
+              357.6
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.517213,
+          -0.531633
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          102,
+          264
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            881,
+            365.5
+          ],
+          "sillSource": [
+            881,
+            399.5
+          ],
+          "heightPixels": 34.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 10.4615,
+        "normalizedBounds": [
+          50,
+          130,
+          209,
+          242
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "farm-core:vegetable-farm:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          1024,
+          0,
+          1536,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          217,
+          508,
+          504
+        ],
+        "groundVerticesSource": [
+          [
+            1073,
+            339
+          ],
+          [
+            1173,
+            393
+          ],
+          [
+            1246,
+            353
+          ],
+          [
+            1146,
+            299
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            1073,
+            339
+          ],
+          [
+            1246,
+            353
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -4,
+          4
+        ],
+        "groundCenterSource": [
+          1298.1666666666667,
+          346.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.858974,
+          192.192308
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              1078,
+              287.1
+            ],
+            [
+              1165,
+              334.9
+            ]
+          ],
+          [
+            [
+              1183,
+              384.8
+            ],
+            [
+              1242,
+              355.5
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.549425,
+          -0.49661
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          87,
+          305
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            1098,
+            320.5
+          ],
+          "sillSource": [
+            1098,
+            353.5
+          ],
+          "heightPixels": 33.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 10.1538,
+        "normalizedBounds": [
+          43,
+          151,
+          200,
+          242
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "farm-core:orchard:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          0,
+          512,
+          512,
+          1024
+        ],
+        "copyBoundsWithinSourceCell": [
+          16,
+          65,
+          512,
+          416
+        ],
+        "groundVerticesSource": [
+          [
+            100,
+            711
+          ],
+          [
+            279.56,
+            806.17
+          ],
+          [
+            403,
+            747
+          ],
+          [
+            223.44,
+            651.83
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "inferred intersection from measured ground-axis edge directions; may be hidden by shelter",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          false,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            100,
+            711
+          ],
+          [
+            403,
+            747
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -3,
+          -1
+        ],
+        "groundCenterSource": [
+          286.1666666666667,
+          763.6666666666666
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          128.128205,
+          191.935897
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              104,
+              652.5
+            ],
+            [
+              250,
+              729.9
+            ]
+          ],
+          [
+            [
+              368,
+              763.4
+            ],
+            [
+              396,
+              749.9
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.530137,
+          -0.482143
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          90,
+          269
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            140,
+            688.5
+          ],
+          "sillSource": [
+            140,
+            730.5
+          ],
+          "heightPixels": 42.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 12.9231,
+        "normalizedBounds": [
+          45,
+          133,
+          200,
+          244
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "farm-core:livestock-farm:taiga",
+        "footprint": 2,
+        "sourceBounds": [
+          512,
+          512,
+          1024,
+          1024
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          46,
+          512,
+          427
+        ],
+        "groundVerticesSource": [
+          [
+            759,
+            830
+          ],
+          [
+            852,
+            876
+          ],
+          [
+            987,
+            807
+          ],
+          [
+            894,
+            761
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            759,
+            830
+          ],
+          [
+            987,
+            807
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          5,
+          0
+        ],
+        "groundCenterSource": [
+          786.3333333333334,
+          775.1666666666666
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.910256,
+          191.820513
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              602,
+              633.1
+            ],
+            [
+              776,
+              722.7
+            ]
+          ],
+          [
+            [
+              859,
+              869.0
+            ],
+            [
+              982,
+              811.1
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.514943,
+          -0.470732
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          87,
+          250
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            796,
+            807.5
+          ],
+          "sillSource": [
+            796,
+            846.5
+          ],
+          "heightPixels": 39.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 12.0,
+        "normalizedBounds": [
+          41,
+          123,
+          204,
+          243
+        ]
+      },
+      {
+        "cell": 5,
+        "empty": true
+      }
+    ]
+  },
+  "highDensityCells": {
+    "512": {
+      "source": "source-camera-v4-registered.png",
+      "sourceSha256": "00075eaa99bbb79bcca37524a6fc9f417e407533af34102d4bac08938b7deb86",
+      "registeredSourceCellPixels": [
+        512
+      ],
+      "operation": "Direct complete physically registered 512px cell; original source uniformly downsampled once from measured physical scale; no thumbnail enlargement, independent silhouette fitting or sharpening",
+      "tool": "repack-farm-cores-registered.py"
+    }
+  }
 }

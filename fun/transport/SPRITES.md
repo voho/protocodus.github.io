@@ -34,13 +34,25 @@ JSON
 node fun/transport/tools/generate-building-prompt.mjs /tmp/transport-building-job.json /tmp/transport-building-prompt.json
 ```
 
-The output contains the canonical scale snapshot, original job, complete prompt and `transparent_background: true`. Use that prompt for image generation, retain the job and prompt with the asset source records, and preserve existing source artwork when replacing a family. Climate changes materials and planting while physical dimensions and the fixed orthographic 2:1 dimetric camera remain consistent.
+The output contains the canonical scale, registration and palette snapshots, original job, complete prompt and `transparent_background: true`. Use that prompt for image generation, retain the job and prompt with the asset source records, and preserve existing source artwork when replacing a family. Climate changes ground and planting while buildings share the same muted plaster, stone, brick, timber, slate and terracotta materials.
+
+[tools/generate-building-reference.mjs](tools/generate-building-reference.mjs) produces a measured SVG guide with the exact camera, material swatches and physical doorway sizes for one-, two- and five-tile buildings:
+
+```sh
+node fun/transport/tools/generate-building-reference.mjs /tmp/transport-building-reference.svg taiga
+```
+
+Use this as a construction reference alongside an approved painted source. Ground edges follow slopes **+0.5 and -0.5** with vertical walls. Building, roof, fence, yard and court axes all follow those directions; a second house rotation swaps the two world axes. Measure both directions on the actual generated ground edges before accepting art. A descriptive prompt or metadata declaration does not prove the painted camera is correct.
+
+Add `--houses --rotation=0` or `--houses --rotation=1` to produce a label-free 3 × 3 house construction sheet. These guides include calibrated houses, paths, shrubs and fences while leaving lawns transparent; the world supplies their ground surface.
 
 ## Preserve scale while packing
 
-Keep each complete parcel in its original cell, including transparent margins and disconnected architectural parts. A small building should occupy less of its parcel than a large building. Do not normalize by independently fitting each building's bounding box into the cell: that changes door, floor and fence sizes between families.
+Keep each complete architectural cutout in its registered cell, including transparent margins and disconnected architectural parts. A small building should occupy less of its parcel than a large building. Do not normalize by independently fitting each building's bounding box into the cell: that changes door, floor and fence sizes between families.
 
-For calibrated aligned sheets, [tools/build-world-atlases.py](tools/build-world-atlases.py) supports `--aligned --preserve-grid-scale`. Preserve the registered ground anchor and the full parcel grid through preparation and packing. The `--shared-scale` mode serves fixed-camera turnarounds where all frames need one family scale; it is a separate registration mode. Regenerate the master and display densities after replacing a source, and keep the prompt and registration metadata with them.
+The 256px building master maps to a 48px billboard per footprint tile. The physical ground centre is **(128,192)**. One full 16m world tile projects to 64×32px and therefore extends outside that master frame. `buildingGroundEnvelope()` supplies an inset yard of at most 10m per footprint tile: about 213.33×106.67px, centred on the registered point. Native terrain supplies the rest of the plot. Do not squeeze a whole opaque parcel into the cutout or alter the metre scale to fill it. Store measured ground vertices/centre and vertical doorway edges; shadows, foliage and silhouette bottoms are not registration datums.
+
+For calibrated aligned sheets, [tools/build-world-atlases.py](tools/build-world-atlases.py) supports `--aligned --preserve-grid-scale`. Preserve the physical ground anchor and calibrated frame through preparation and packing. The `--shared-scale` mode serves fixed-camera turnarounds where all frames need one family scale; it is a separate registration mode. Regenerate the master and display densities after replacing a source, and keep the prompt and registration metadata with them.
 
 Large industries also ship 512-pixel display cells for Town view on high-density displays. [tools/build-industry-high-density.py](tools/build-industry-high-density.py) builds these from the full calibrated registered sources, verifies the existing 256-pixel master, and preserves the lower-density sheets. Export the complete registered cell at every density; do not enlarge a low-resolution thumbnail or independently fit each building.
 
@@ -50,7 +62,11 @@ Use a clean silhouette, broad roof and wall colours, readable facade shading and
 
 Inspect every family at its actual **Region (0.5×)** and **Town (1×)** size, then check Detail (2×) and standard and Retina displays. Compare several building kinds side by side with a truck or bus. Door heights, storey heights and fences should agree; buildings should remain identifiable from their roof, mass and large features when small. Display density can sharpen an image, but it must not reintroduce detail that makes the Region view noisy.
 
-Gardens blend into the climate's world ground. Stone foundations support buildings on slopes without an opaque sprite backdrop. Farm ground follows its site, and fences and field objects remain aligned with the world grid. Review loaded artwork and native fallbacks so that delayed assets do not change physical scale.
+[building-registration.test.mjs](tests/building-registration.test.mjs) checks recorded source landmarks against uniform packing transforms, actual doorway measurements, source hashes and transparent gutters. Painted edge measurements retain their documented camera variation; native geometry uses the exact projection. Town features and farm cores retain a maximum 0.11 slope error from the 0.50 target; house paintings allow 0.16, with their actual measured edges recorded per cell. The metadata checks supplement the real-canvas zoom review.
+
+House lawns remain transparent so the climate's world grass shows through, while paths, fences and individual plants stay in the sprite. A conservative ground mask handles older opaque lawns without removing architecture or enclosed foliage. Stone foundations support buildings on slopes without an opaque sprite backdrop. Farm ground follows its site, and fences and field objects remain aligned with the world grid. Review loaded artwork and native fallbacks so that delayed assets do not change physical scale.
+
+Railway surfaces use [rail-surface-art.js](rail-surface-art.js) in the horizontal terrain plane: gray ballast, darker sleepers and pale steel with a 1.435m gauge. That connected geometry serves loaded and unavailable-art paths, slopes, bridge decks, tunnel approaches and Gallery portraits. Historical brown rail atlas slots remain source records; they no longer overlay the runtime tracks. [network-art-browser-check.mjs](tests/network-art-browser-check.mjs) checks all connectivity masks at the three game zooms and both display densities.
 
 ## Tree variety and registration
 

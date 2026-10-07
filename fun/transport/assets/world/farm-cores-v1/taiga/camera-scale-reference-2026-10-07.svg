@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="668" viewBox="0 0 1040 668">
+    <rect width="1040" height="668" fill="#f6f4ed"/>
+    <g fill="#4b5954" font-family="Arial, sans-serif">
+      <text x="36" y="36" font-size="23" font-weight="600">Transport · exact building geometry and shared materials</text>
+      <text x="36" y="62" font-size="14" >Construction guide: retain the painted style; never copy guide labels, grid lines or reference people.</text>
+      <text x="36" y="87" font-size="14" >Ground edges ±26.565° / slopes ±0.5 · upright walls · no off-grid yaw or camera rotation.</text>
+      <g transform="translate(36,164)">
+      <text x="128" y="-42" font-size="17" text-anchor="middle" font-weight="600">1 × 1 tiles · 16m parcel</text>
+      <text x="128" y="-18" font-size="14" text-anchor="middle">10m inset · 256px master</text>
+      <rect width="256" height="256" fill="#fff" stroke="#adb4ae" stroke-dasharray="4 4"/>
+      <polygon points="128.000,138.667 234.667,192.000 128.000,245.333 21.333,192.000" fill="#91a77a" fill-opacity=".18" stroke="#4b5954" stroke-width="1.5"/>
+      <polyline points="74.667,165.333 181.333,218.667" fill="none" stroke="#b48369" stroke-width="1" stroke-dasharray="4 3"/>
+      <polyline points="181.333,165.333 74.667,218.667" fill="none" stroke="#769493" stroke-width="1" stroke-dasharray="4 3"/>
+      <polygon points="69.333,189.333 133.333,221.333 133.333,157.333 69.333,125.333" fill="#e3d7b7" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="186.667,194.667 133.333,221.333 133.333,157.333 186.667,130.667" fill="#c7bca5" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="122.667,98.667 186.667,130.667 133.333,157.333 69.333,125.333" fill="#697780" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="80.267,194.800 90.400,199.867 90.400,177.467 80.267,172.400" fill="#4b5954"/>
+      <polyline points="49.600,192.800 49.600,174.133" fill="none" stroke="#c2a269" stroke-width="1.8"/>
+      <circle cx="49.60000000000001" cy="174.13333333333335" r="1.3" fill="#c2a269"/>
+      <circle cx="128" cy="192" r="3" fill="#fff" stroke="#4b5954"/>
+      <path d="M121 192h14M128 185v14" fill="none" stroke="#4b5954" stroke-width=".7"/>
+      <text x="128" y="281" font-size="14" text-anchor="middle">Ground centre (128,192)</text>
+      <text x="128" y="302" font-size="13" text-anchor="middle">Door 22.40px · person 18.67px</text>
+      <text x="128" y="322" font-size="13" text-anchor="middle">3m storey 32.00px</text>
+    </g>
+<g transform="translate(364,164)">
+      <text x="128" y="-42" font-size="17" text-anchor="middle" font-weight="600">2 × 2 tiles · 32m parcel</text>
+      <text x="128" y="-18" font-size="14" text-anchor="middle">20m inset · 256px master</text>
+      <rect width="256" height="256" fill="#fff" stroke="#adb4ae" stroke-dasharray="4 4"/>
+      <polygon points="128.000,138.667 234.667,192.000 128.000,245.333 21.333,192.000" fill="#91a77a" fill-opacity=".18" stroke="#4b5954" stroke-width="1.5"/>
+      <polyline points="74.667,165.333 181.333,218.667" fill="none" stroke="#b48369" stroke-width="1" stroke-dasharray="4 3"/>
+      <polyline points="181.333,165.333 74.667,218.667" fill="none" stroke="#769493" stroke-width="1" stroke-dasharray="4 3"/>
+      <polygon points="69.333,184.000 144.000,221.333 144.000,189.333 69.333,152.000" fill="#e3d7b7" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="186.667,200.000 144.000,221.333 144.000,189.333 186.667,168.000" fill="#c7bca5" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="112.000,130.667 186.667,168.000 144.000,189.333 69.333,152.000" fill="#697780" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="85.467,192.067 90.533,194.600 90.533,183.400 85.467,180.867" fill="#4b5954"/>
+      <polyline points="49.600,192.800 49.600,183.467" fill="none" stroke="#c2a269" stroke-width="1.8"/>
+      <circle cx="49.60000000000001" cy="183.46666666666667" r="1.3" fill="#c2a269"/>
+      <circle cx="128" cy="192" r="3" fill="#fff" stroke="#4b5954"/>
+      <path d="M121 192h14M128 185v14" fill="none" stroke="#4b5954" stroke-width=".7"/>
+      <text x="128" y="281" font-size="14" text-anchor="middle">Ground centre (128,192)</text>
+      <text x="128" y="302" font-size="13" text-anchor="middle">Door 11.20px · person 9.33px</text>
+      <text x="128" y="322" font-size="13" text-anchor="middle">3m storey 16.00px</text>
+    </g>
+<g transform="translate(692,164)">
+      <text x="128" y="-42" font-size="17" text-anchor="middle" font-weight="600">5 × 5 tiles · 80m parcel</text>
+      <text x="128" y="-18" font-size="14" text-anchor="middle">50m inset · 256px master</text>
+      <rect width="256" height="256" fill="#fff" stroke="#adb4ae" stroke-dasharray="4 4"/>
+      <polygon points="128.000,138.667 234.667,192.000 128.000,245.333 21.333,192.000" fill="#91a77a" fill-opacity=".18" stroke="#4b5954" stroke-width="1.5"/>
+      <polyline points="74.667,165.333 181.333,218.667" fill="none" stroke="#b48369" stroke-width="1" stroke-dasharray="4 3"/>
+      <polyline points="181.333,165.333 74.667,218.667" fill="none" stroke="#769493" stroke-width="1" stroke-dasharray="4 3"/>
+      <polygon points="78.933,182.400 147.200,216.533 147.200,203.733 78.933,169.600" fill="#e3d7b7" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="177.067,201.600 147.200,216.533 147.200,203.733 177.067,188.800" fill="#c7bca5" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="108.800,154.667 177.067,188.800 147.200,203.733 78.933,169.600" fill="#697780" stroke="#4b5954" stroke-width=".7"/>
+      <polygon points="94.987,190.427 97.013,191.440 97.013,186.960 94.987,185.947" fill="#4b5954"/>
+      <polyline points="49.600,192.800 49.600,189.067" fill="none" stroke="#c2a269" stroke-width="1.8"/>
+      <circle cx="49.599999999999994" cy="189.0666666666667" r="1.3" fill="#c2a269"/>
+      <circle cx="128" cy="192" r="3" fill="#fff" stroke="#4b5954"/>
+      <path d="M121 192h14M128 185v14" fill="none" stroke="#4b5954" stroke-width=".7"/>
+      <text x="128" y="281" font-size="14" text-anchor="middle">Ground centre (128,192)</text>
+      <text x="128" y="302" font-size="13" text-anchor="middle">Door 4.48px · person 3.73px</text>
+      <text x="128" y="322" font-size="13" text-anchor="middle">3m storey 6.40px</text>
+    </g>
+      <text x="36" y="526" font-size="16" font-weight="600">Canonical taiga swatches · broad painted masses and northwest light</text>
+      <rect x="36" y="546" width="20" height="20" fill="#e3d7b7" stroke="#69766e" stroke-width=".5"/><text x="62" y="560" font-size="12" >plaster</text><text x="62" y="576" font-size="10" >#e3d7b7</text>
+<rect x="158" y="546" width="20" height="20" fill="#c7bca5" stroke="#69766e" stroke-width=".5"/><text x="184" y="560" font-size="12" >stone</text><text x="184" y="576" font-size="10" >#c7bca5</text>
+<rect x="280" y="546" width="20" height="20" fill="#b1846c" stroke="#69766e" stroke-width=".5"/><text x="306" y="560" font-size="12" >brick</text><text x="306" y="576" font-size="10" >#b1846c</text>
+<rect x="402" y="546" width="20" height="20" fill="#997a5b" stroke="#69766e" stroke-width=".5"/><text x="428" y="560" font-size="12" >timber</text><text x="428" y="576" font-size="10" >#997a5b</text>
+<rect x="524" y="546" width="20" height="20" fill="#697780" stroke="#69766e" stroke-width=".5"/><text x="550" y="560" font-size="12" >slate</text><text x="550" y="576" font-size="10" >#697780</text>
+<rect x="646" y="546" width="20" height="20" fill="#a76f51" stroke="#69766e" stroke-width=".5"/><text x="672" y="560" font-size="12" >terracotta</text><text x="672" y="576" font-size="10" >#a76f51</text>
+<rect x="768" y="546" width="20" height="20" fill="#769493" stroke="#69766e" stroke-width=".5"/><text x="794" y="560" font-size="12" >glass</text><text x="794" y="576" font-size="10" >#769493</text>
+<rect x="890" y="546" width="20" height="20" fill="#6c7878" stroke="#69766e" stroke-width=".5"/><text x="916" y="560" font-size="12" >metal</text><text x="916" y="576" font-size="10" >#6c7878</text>
+<rect x="36" y="601" width="20" height="20" fill="#4b5954" stroke="#69766e" stroke-width=".5"/><text x="62" y="615" font-size="12" >ink</text><text x="62" y="631" font-size="10" >#4b5954</text>
+<rect x="158" y="601" width="20" height="20" fill="#f0e9d6" stroke="#69766e" stroke-width=".5"/><text x="184" y="615" font-size="12" >cream</text><text x="184" y="631" font-size="10" >#f0e9d6</text>
+<rect x="280" y="601" width="20" height="20" fill="#c2a269" stroke="#69766e" stroke-width=".5"/><text x="306" y="615" font-size="12" >ochre</text><text x="306" y="631" font-size="10" >#c2a269</text>
+<rect x="402" y="601" width="20" height="20" fill="#996b63" stroke="#69766e" stroke-width=".5"/><text x="428" y="615" font-size="12" >burgundy</text><text x="428" y="631" font-size="10" >#996b63</text>
+<rect x="524" y="601" width="20" height="20" fill="#cdc6ae" stroke="#69766e" stroke-width=".5"/><text x="550" y="615" font-size="12" >paving</text><text x="550" y="631" font-size="10" >#cdc6ae</text>
+<rect x="646" y="601" width="20" height="20" fill="#d8cfb2" stroke="#69766e" stroke-width=".5"/><text x="672" y="615" font-size="12" >path</text><text x="672" y="631" font-size="10" >#d8cfb2</text>
+<rect x="768" y="601" width="20" height="20" fill="#658f9c" stroke="#69766e" stroke-width=".5"/><text x="794" y="615" font-size="12" >water</text><text x="794" y="631" font-size="10" >#658f9c</text>
+<rect x="890" y="601" width="20" height="20" fill="#91a77a" stroke="#69766e" stroke-width=".5"/><text x="916" y="615" font-size="12" >ground</text><text x="916" y="631" font-size="10" >#91a77a</text>
+<rect x="36" y="656" width="20" height="20" fill="#758f63" stroke="#69766e" stroke-width=".5"/><text x="62" y="670" font-size="12" >foliage</text><text x="62" y="686" font-size="10" >#758f63</text>
+      <text x="36" y="650" font-size="13" >Native terrain supplies the full 16m parcel. Alpha bounds and shadow tips never define the physical ground centre.</text>
+    </g>
+  </svg>

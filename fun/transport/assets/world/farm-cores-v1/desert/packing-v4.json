@@ -1,0 +1,664 @@
+{
+  "source": "source-camera-v4.png",
+  "sourceSha256": "4641860c0919c37dff1217c42b671bfe278e2cce986f69d5f881e63dbcaec5fb",
+  "registered": "source-camera-v4-registered.png",
+  "registeredSha256": "7c4ce5ae857ae8e7800fd0f4efc71cc8ce5c1193377a0d335aaa4a140d8d9b16",
+  "operation": "Complete RGBA cutouts, one measured personnel-door scale for the whole biome family, uniform downsampling, actual planar-ground-centre translation, aligned full-cell density packing; no camera shear, painting, recoloring or sharpening",
+  "physicalCalibration": {
+    "contract": "../../../../sprite-art-direction.js",
+    "visualFootprint": 2,
+    "tileMetres": 16,
+    "coreMetres": 32,
+    "architecturalEnvelopeMetres": 20,
+    "architecturalGroundEnvelopeMasterPixels": [
+      213.333333,
+      106.666667
+    ],
+    "doorHeightMetres": 2.1,
+    "targetDoorMasterPixels": 11.2,
+    "referenceDoorSourcePixels": 36.4,
+    "referenceDoorMethod": "Joint arithmetic mean of ten measured personnel-opening frame head-to-sill heights across both generated climate families; one common pixel-to-metre scale",
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "expectedGroundEdgeSlope": 0.5,
+    "uniformScale": 0.3076923076923077,
+    "cells": [
+      {
+        "cell": 0,
+        "id": "farm-core:farm:desert",
+        "footprint": 2,
+        "sourceBounds": [
+          0,
+          0,
+          512,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          5,
+          152,
+          499,
+          493
+        ],
+        "groundVerticesSource": [
+          [
+            77,
+            302
+          ],
+          [
+            244.21,
+            390.87
+          ],
+          [
+            352,
+            337
+          ],
+          [
+            184.79,
+            248.13
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "inferred intersection from measured ground-axis edge directions; may be hidden by shelter",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          false,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            77,
+            302
+          ],
+          [
+            352,
+            337
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -2,
+          -1
+        ],
+        "groundCenterSource": [
+          231.83333333333334,
+          345.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.794872,
+          192.038462
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              80,
+              233.8
+            ],
+            [
+              241,
+              319.3
+            ]
+          ],
+          [
+            [
+              302,
+              357.6
+            ],
+            [
+              348,
+              334.6
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.531056,
+          -0.5
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          116,
+          265
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            115,
+            287.5
+          ],
+          "sillSource": [
+            115,
+            321.5
+          ],
+          "heightPixels": 34.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 10.4615,
+        "normalizedBounds": [
+          58,
+          131,
+          210,
+          239
+        ]
+      },
+      {
+        "cell": 1,
+        "id": "farm-core:dairy-farm:desert",
+        "footprint": 2,
+        "sourceBounds": [
+          512,
+          0,
+          1024,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          161,
+          512,
+          493
+        ],
+        "groundVerticesSource": [
+          [
+            608,
+            284
+          ],
+          [
+            850,
+            411
+          ],
+          [
+            951,
+            357
+          ],
+          [
+            709,
+            230
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            608,
+            284
+          ],
+          [
+            951,
+            357
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -1,
+          -2
+        ],
+        "groundCenterSource": [
+          762.1666666666666,
+          346.5
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.974359,
+          192.076923
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              611,
+              231.0
+            ],
+            [
+              840,
+              349.4
+            ]
+          ],
+          [
+            [
+              855,
+              408.1
+            ],
+            [
+              947,
+              360.9
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.517031,
+          -0.513043
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          102,
+          270
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            873,
+            364.5
+          ],
+          "sillSource": [
+            873,
+            399.5
+          ],
+          "heightPixels": 35.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 10.7692,
+        "normalizedBounds": [
+          51,
+          133,
+          209,
+          239
+        ]
+      },
+      {
+        "cell": 2,
+        "id": "farm-core:vegetable-farm:desert",
+        "footprint": 2,
+        "sourceBounds": [
+          1024,
+          0,
+          1536,
+          512
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          230,
+          510,
+          495
+        ],
+        "groundVerticesSource": [
+          [
+            1075,
+            340
+          ],
+          [
+            1175,
+            391
+          ],
+          [
+            1252,
+            350
+          ],
+          [
+            1152,
+            299
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            1075,
+            340
+          ],
+          [
+            1252,
+            350
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -4,
+          4
+        ],
+        "groundCenterSource": [
+          1302.1666666666667,
+          345.0
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          128.089744,
+          191.884615
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              1078,
+              289.8
+            ],
+            [
+              1168,
+              337.5
+            ]
+          ],
+          [
+            [
+              1181,
+              386.9
+            ],
+            [
+              1246,
+              352.7
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.53,
+          -0.526154
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          85,
+          313
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            1101,
+            320.5
+          ],
+          "sillSource": [
+            1101,
+            352.5
+          ],
+          "heightPixels": 32.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 9.8462,
+        "normalizedBounds": [
+          42,
+          155,
+          200,
+          240
+        ]
+      },
+      {
+        "cell": 3,
+        "id": "farm-core:orchard:desert",
+        "footprint": 2,
+        "sourceBounds": [
+          0,
+          512,
+          512,
+          1024
+        ],
+        "copyBoundsWithinSourceCell": [
+          15,
+          73,
+          512,
+          404
+        ],
+        "groundVerticesSource": [
+          [
+            104,
+            714
+          ],
+          [
+            279.89,
+            804.11
+          ],
+          [
+            394,
+            747
+          ],
+          [
+            218.11,
+            656.89
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "inferred intersection from measured ground-axis edge directions; may be hidden by shelter",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          false,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            104,
+            714
+          ],
+          [
+            394,
+            747
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          -3,
+          -1
+        ],
+        "groundCenterSource": [
+          283.6666666666667,
+          765.1666666666666
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          128.166667,
+          191.935897
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              110,
+              656.3
+            ],
+            [
+              250,
+              728.0
+            ]
+          ],
+          [
+            [
+              355,
+              765.7
+            ],
+            [
+              390,
+              748.2
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.512143,
+          -0.5
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          91,
+          273
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            140,
+            689.5
+          ],
+          "sillSource": [
+            140,
+            730.5
+          ],
+          "heightPixels": 41.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 12.6154,
+        "normalizedBounds": [
+          45,
+          135,
+          199,
+          240
+        ]
+      },
+      {
+        "cell": 4,
+        "id": "farm-core:livestock-farm:desert",
+        "footprint": 2,
+        "sourceBounds": [
+          512,
+          512,
+          1024,
+          1024
+        ],
+        "copyBoundsWithinSourceCell": [
+          0,
+          53,
+          512,
+          417
+        ],
+        "groundVerticesSource": [
+          [
+            756,
+            826
+          ],
+          [
+            842,
+            871
+          ],
+          [
+            974,
+            797
+          ],
+          [
+            888,
+            752
+          ]
+        ],
+        "groundVertexVisibility": [
+          "measured visible corner",
+          "measured visible front floor corner",
+          "measured visible opposite corner",
+          "inferred hidden rear corner from planar parallelogram"
+        ],
+        "groundVertexMeasured": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "oppositeGroundCornersSource": [
+          [
+            756,
+            826
+          ],
+          [
+            974,
+            797
+          ]
+        ],
+        "measuredStructureCenterMetres": [
+          5,
+          0
+        ],
+        "groundCenterSource": [
+          778.3333333333334,
+          768.1666666666666
+        ],
+        "groundCenterMaster": [
+          128,
+          192
+        ],
+        "groundCenterAfterPackingMaster": [
+          127.948718,
+          192.012821
+        ],
+        "groundCenterMethod": "Measured opposite planar barn-floor corners, then inverse projection of the known physical barn centre from the canonical construction guide; never alpha/shadow extent",
+        "cameraLinesSource": [
+          [
+            [
+              612,
+              636.3
+            ],
+            [
+              778,
+              720.6
+            ]
+          ],
+          [
+            [
+              850,
+              864.4
+            ],
+            [
+              970,
+              801.8
+            ]
+          ]
+        ],
+        "measuredGroundEdgeSlopes": [
+          0.507831,
+          -0.521667
+        ],
+        "uniformScale": 0.3076923076923077,
+        "uniformScaleToRegistered512": 0.6153846153846154,
+        "translationRegistered512": [
+          92,
+          259
+        ],
+        "sourceDoorMeasurement": {
+          "method": "Personnel-opening frame head-to-sill strongest vertical contrast, measured at the source centre column. Excludes thin soft painted jamb fringe.",
+          "headSource": [
+            792,
+            805.5
+          ],
+          "sillSource": [
+            792,
+            844.5
+          ],
+          "heightPixels": 39.0,
+          "landmarkUncertaintySourcePixels": 1
+        },
+        "masterDoorHeightPixels": 12.0,
+        "normalizedBounds": [
+          46,
+          128,
+          206,
+          243
+        ]
+      },
+      {
+        "cell": 5,
+        "empty": true
+      }
+    ]
+  }
+}
