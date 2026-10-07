@@ -678,6 +678,8 @@ The strip shows a route's state at a glance, left to right from the first stop t
 | Floaters | Paper pill: cargo tile and "+$1,356" in ok | Income from a delivery (world label) |
 | Break | Dashed error segment with the cut glyph | A route's missing link |
 
+Footprint marks follow the visible site surface: a building's level foundation, or the terrain for fields and nature. Selection and hover sit beneath upright artwork; a raised foundation is painted before its selection tint and border. Hover and selection use the same parcel edge so clicking does not shift or kink the outline.
+
 Map ink tags and pointers are DOM overlays in `#map-overlays`, positioned with `renderer.worldToScreen`. They are recomputed only when the camera or the target changes.
 
 ### 9.1 World sprite scale and recognition

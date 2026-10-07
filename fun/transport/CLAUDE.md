@@ -12,6 +12,8 @@ Use [generate-building-reference.mjs](tools/generate-building-reference.mjs) and
 
 The flat comparison does not exercise raised foundation tops. [foundation-ground-browser-check.mjs](tests/foundation-ground-browser-check.mjs) checks textured ground beneath houses, civic buildings, industries and farm cores on slopes, including warm draws and panning.
 
+[selection-underlay-browser-check.mjs](tests/selection-underlay-browser-check.mjs) checks selection and hover against the visible foundation plane on slopes, sprite occlusion, full farm fields, and reusable scenery caches at each zoom and display density.
+
 Regenerate from the repository root with a local HTTP server and Playwright plus Chrome installed:
 
 ```sh

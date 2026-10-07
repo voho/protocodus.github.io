@@ -139,6 +139,9 @@ export function createRenderer(canvas, initialGame, options={}) {
   const sceneryPrepareBudgetMs=3,sceneryCameraMotionMs=90;
   let lastSceneCamera=null,lastCameraMotion=-Infinity,sceneryCameraMoving=false;
   const foundations=new Map();
+  // Ground marks on a raised parcel belong between its foundation and its
+  // upright sprite. Only the marked scenery run needs direct playback.
+  const foundationMarks=new Map();let staticCachePass=false;
   let sceneBuilds=0,scenePatches=0,foundationBuilds=0,projectedOrigin=null,lazyChunkBudget=LAZY_CHUNKS_PER_FRAME,lazyChunksWaiting=0;
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
@@ -285,6 +288,24 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   const inspectSiteAt=(x,y)=>siteAt(x,y)||terrainSiteAt(x,y);
   const siteSize=site=>site?.mode==='air'?stationSpan(site):site?.object?terrainObjectSize(site.object):site?.building?buildingSize(site.building):industrySize(site);
+  const foundationKey=(x,y,span)=>(y*game.width+x)*8+span;
+  const foundationSite=site=>layers.buildings&&(site?.building||INDUSTRIES[site?.kind]&&!isLargeFarm(site));
+  function foundationProjection(x,y,span){
+    const height=foundationHeight(x,y,span);
+    return(u,v)=>projectTerrainPoint(u,v,height);
+  }
+  function raisedFoundation(x,y,span){
+    return foundationHeight(x,y,span)-Math.min(...[[x,y],[x+span,y],[x+span,y+span],[x,y+span]].map(([u,v])=>surfaceHeight(game,u,v)))>=.06;
+  }
+  function deferFoundationMark(x,y,span,draw){
+    const p=screenPoint(foundationPoint(x,y,span)),halfWidth=TILE*span*camera.zoom,halfHeight=halfWidth/2;
+    if(p.x+halfWidth<-8||p.x-halfWidth>W+8||p.y+halfHeight<-8||p.y-halfHeight>H+8)return;
+    const key=foundationKey(x,y,span),marks=foundationMarks.get(key);
+    if(marks)marks.push(draw);else foundationMarks.set(key,[draw]);
+  }
+  function drawFoundationMarks(x,y,span){
+    if(!staticCachePass&&foundationMarks.size)for(const draw of foundationMarks.get(foundationKey(x,y,span))||[])draw();
+  }
   function selectionUnderlay(selected,tileOnly=false){
     if(!selected||!Number.isInteger(selected.x)||!Number.isInteger(selected.y)||!tile(selected.x,selected.y))return;
     // A logical terrain parcel still owns its whole area on a slope, where
@@ -292,23 +313,37 @@ export function createRenderer(canvas, initialGame, options={}) {
     // than the flat-only billboard lookup used by pointer previews.
     const site=tileOnly?selected:siteAt(selected.x,selected.y)||terrainObjectAt(game,selected.x,selected.y)||selected,span=siteSize(site);
     const {w,h}=typeof span==='number'?{w:span,h:span}:span,mark=MAP.selection,z=camera.zoom;
-    const point=(u,v,first=false)=>{const p=projectGround(game,u,v);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);};
-    ctx.save();ctx.beginPath();
-    // Project each tile so an uneven parcel follows the same ground faces as
-    // the terrain. This is a transient overlay, never part of a cached chunk.
-    for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){
-      const x=site.x+dx,y=site.y+dy;
-      point(x,y,true);point(x+1,y);point(x+1,y+1);point(x,y+1);ctx.closePath();
+    const flat=foundationSite(site),project=flat?foundationProjection(site.x,site.y,w):(u,v)=>projectGround(game,u,v);
+    const point=(u,v,first=false)=>{const p=project(u,v);first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);};
+    const draw=()=>{
+      ctx.save();ctx.beginPath();
+      // Buildings use their level foundation; fields and nature follow the
+      // terrain. These marks never enter the cached scenery images.
+      for(let dy=0;dy<h;dy++)for(let dx=0;dx<w;dx++){
+        const x=site.x+dx,y=site.y+dy;
+        point(x,y,true);point(x+1,y);point(x+1,y+1);point(x,y+1);ctx.closePath();
+      }
+      ctx.fillStyle=alpha(mark.color,.18);ctx.fill();
+      ctx.beginPath();point(site.x,site.y,true);
+      for(let dx=1;dx<=w;dx++)point(site.x+dx,site.y);
+      for(let dy=1;dy<=h;dy++)point(site.x+w,site.y+dy);
+      for(let dx=w-1;dx>=0;dx--)point(site.x+dx,site.y+h);
+      for(let dy=h-1;dy>0;dy--)point(site.x,site.y+dy);
+      ctx.closePath();ctx.lineJoin='round';
+      ctx.strokeStyle=mark.casing;ctx.lineWidth=mark.casingWidth/z;ctx.stroke();
+      ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width/z;ctx.stroke();ctx.restore();
+    };
+    if(flat&&raisedFoundation(site.x,site.y,w))deferFoundationMark(site.x,site.y,w,draw);else draw();
+    if(layers.buildings&&isLargeFarm(site)){
+      const core=farmCore(site);
+      if(raisedFoundation(core.x,core.y,core.span))deferFoundationMark(core.x,core.y,core.span,()=>{
+        const project=foundationProjection(core.x,core.y,core.span);ctx.save();ctx.beginPath();
+        for(let dy=0;dy<core.span;dy++)for(let dx=0;dx<core.span;dx++){
+          [[core.x+dx,core.y+dy],[core.x+dx+1,core.y+dy],[core.x+dx+1,core.y+dy+1],[core.x+dx,core.y+dy+1]].forEach(([u,v],i)=>{const p=project(u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();
+        }
+        ctx.fillStyle=alpha(mark.color,.18);ctx.fill();ctx.restore();
+      });
     }
-    ctx.fillStyle=alpha(mark.color,.18);ctx.fill();
-    ctx.beginPath();point(site.x,site.y,true);
-    for(let dx=1;dx<=w;dx++)point(site.x+dx,site.y);
-    for(let dy=1;dy<=h;dy++)point(site.x+w,site.y+dy);
-    for(let dx=w-1;dx>=0;dx--)point(site.x+dx,site.y+h);
-    for(let dy=h-1;dy>0;dy--)point(site.x,site.y+dy);
-    ctx.closePath();ctx.lineJoin='round';
-    ctx.strokeStyle=mark.casing;ctx.lineWidth=mark.casingWidth/z;ctx.stroke();
-    ctx.strokeStyle=mark.color;ctx.lineWidth=mark.width/z;ctx.stroke();ctx.restore();
     return {x:site.x,y:site.y,w,h};
   }
   function portLandDirection(x,y){return[[-1,0],[0,-1],[1,0],[0,1]].find(([dx,dy])=>tile(x+dx,y+dy)&&tile(x+dx,y+dy).terrain!=='water')||[-1,0];}
@@ -938,7 +973,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const key=`${camera.zoom},${W},${H},${dpr},${sceneCache?.visualRevision||0}`;
     const sourceDraws=sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers?sceneryView.sourceDraws:sceneryBatchDraws+sceneryDirectDraws;
     const sparse=sourceDraws<sceneryViewMinimumDraws(bytes);
-    const allowed=!stopPickingActive&&sceneryBatching&&options.sceneryViewCaching!==false&&!traffic&&!sparse&&bytes<=sceneryViewLimit&&sceneCache?.key===sceneKey&&!sceneCache.dirty;
+    const allowed=!foundationMarks.size&&!stopPickingActive&&sceneryBatching&&options.sceneryViewCaching!==false&&!traffic&&!sparse&&bytes<=sceneryViewLimit&&sceneCache?.key===sceneKey&&!sceneCache.dirty;
     const viewLeft=Math.round((origin.x-W/(2*camera.zoom))*rasterScale)/rasterScale,viewTop=Math.round((origin.y-H/(2*camera.zoom))*rasterScale)/rasterScale;
     const viewBounds={left:viewLeft,right:viewLeft+canvas.width/rasterScale,top:viewTop,bottom:viewTop+canvas.height/rasterScale};
     const valid=allowed&&sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers&&viewBounds.left>=sceneryView.bounds.left&&viewBounds.right<=sceneryView.bounds.right&&viewBounds.top>=sceneryView.bounds.top&&viewBounds.bottom<=sceneryView.bounds.bottom;
@@ -981,7 +1016,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     let objects=reused?sceneCache.objects:[],shadows=reused?sceneCache.shadows:[],cullPoint=null;
     // Static objects and shadows carry the tile that made them (-1 for none), so an ecology day can replace just its tiles.
     let sceneTile=-1,dimEligible=false;
-    const add=(x,y,draw,priority=0,bounds=null)=>objects.push({depth:x+y,x,priority,draw,point:cullPoint,bounds,tile:sceneTile,dimEligible});
+    const add=(x,y,draw,priority=0,bounds=null,foundation=null)=>objects.push({depth:x+y,x,priority,draw,point:cullPoint,bounds,tile:sceneTile,dimEligible,foundation});
     const spriteBounds=(x,y,w,h)=>({left:x,top:y,right:x+w,bottom:y+h});
     const siteBounds=(x,y,span,center)=>{const b=spriteBounds(center.x-24*span,center.y-36*span-12,48*span,48*span+12);for(let n=0;n<=span;n++)for(const [u,v]of [[x+n,y],[x+n,y+span],[x,y+n],[x+span,y+n]]){const p=projectGround(game,u,v);b.left=Math.min(b.left,p.x);b.right=Math.max(b.right,p.x);b.top=Math.min(b.top,p.y);b.bottom=Math.max(b.bottom,p.y);}return b;};
     const addShadow=draw=>shadows.push({draw,point:cullPoint,tile:sceneTile});
@@ -1021,11 +1056,11 @@ export function createRenderer(canvas, initialGame, options={}) {
         // them upright; baking stones into ground would project them twice.
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;billboard(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
-      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&isLargeFarm(ind)){
         const core=farmCore(ind);
-        if(x===core.x&&y===core.y){const center=foundationPoint(x,y,core.span);add(x+1,y+1,()=>{drawFoundation(x,y,2);billboard(farmCoreSprite(ind.kind),center.x-48,center.y-84,96,108,ind.x,ind.y);},0,()=>siteBounds(x,y,2,center));}
+        if(x===core.x&&y===core.y){const center=foundationPoint(x,y,core.span);add(x+1,y+1,()=>{drawFoundation(x,y,2);drawFoundationMarks(x,y,2);billboard(farmCoreSprite(ind.kind),center.x-48,center.y-84,96,108,ind.x,ind.y);},0,()=>siteBounds(x,y,2,center),foundationKey(x,y,2));}
         for(const section of farmFenceSections(ind,x,y)){
           const a=projectGround(game,...section.a),z=projectGround(game,...section.b),u=(section.a[0]+section.b[0])/2,v=(section.a[1]+section.b[1])/2;
           add(u-.5,v-.5,()=>drawFarmFence(a,z),1,spriteBounds(Math.min(a.x,z.x)-2,Math.min(a.y,z.y)-7,Math.abs(a.x-z.x)+4,Math.abs(a.y-z.y)+9));
@@ -1034,7 +1069,7 @@ export function createRenderer(canvas, initialGame, options={}) {
           const point=projectGround(game,object.x,object.y);
           add(object.x-.5,object.y-.5,()=>paintFarmFieldObject(ctx,object,point,game.biome),0,spriteBounds(point.x-8,point.y-17,16,20));
         }
-      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center));}
+      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.roads&&detailLevel!=='region'&&townStreet(x,y,t)&&!pavedSquare(x,y))for(const [kind,[px,py]] of streetFurniture(x,y)){
         const u=x+px/TILE,v=y+py/TILE,q=projectGround(game,u,v);add(u,v,()=>{if(visibleRectangle(q.x-3,q.y-17,8,18))(kind==='lamp'?drawLamp:drawBin)(q);});
       }
@@ -1124,7 +1159,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(!first)continue;
       while(moving<objects.length&&compare(objects[moving],first)<0)objects[moving++].draw();
       if(group.image&&!visibleRectangle(group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale))continue;
-      if(!group.image||(moving<objects.length&&compare(objects[moving],last)<0)||!group.objects.every(object=>inView(object)||!visibleRectangle(object.bounds.left,object.bounds.top,object.bounds.right-object.bounds.left,object.bounds.bottom-object.bounds.top))){for(const object of group.objects)drawOriginal(object);continue;}
+      if(!group.image||(foundationMarks.size&&group.objects.some(object=>foundationMarks.has(object.foundation)))||(moving<objects.length&&compare(objects[moving],last)<0)||!group.objects.every(object=>inView(object)||!visibleRectangle(object.bounds.left,object.bounds.top,object.bounds.right-object.bounds.left,object.bounds.bottom-object.bounds.top))){for(const object of group.objects)drawOriginal(object);continue;}
       ctx.save();ctx.imageSmoothingEnabled=false;if(stopPickingActive&&first.dimEligible)ctx.globalAlpha*=.28;
       ctx.drawImage(group.image,group.x,group.y,group.image.width/rasterScale,group.image.height/rasterScale);ctx.restore();
       sceneryBatchDraws++;
@@ -1204,6 +1239,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const context=image.getContext('2d');context.setTransform(rasterScale,0,0,rasterScale,-left,-top);context.imageSmoothingEnabled=smooth;context.imageSmoothingQuality=quality;
       return{image,context,x:left/rasterScale,y:top/rasterScale,hits:[]};
     };
+    staticCachePass=true;
     try{
       const shadow=scene.shadowPreparation;
       if(shadow){
@@ -1225,7 +1261,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         for(const object of group.objects)object.draw();
         capturedBillboards=null;Object.assign(group,surface);scene.readyGroups++;sceneryBatchBuilds++;
       }
-    }finally{capturedBillboards=null;ctx=target;sceneViewBounds=view;objectHits=hits;sceneryPreparationMs=performance.now()-start;}
+    }finally{staticCachePass=false;capturedBillboards=null;ctx=target;sceneViewBounds=view;objectHits=hits;sceneryPreparationMs=performance.now()-start;}
   }
   function validPreview(tool,p,preferredMode='road'){
     tool=resolveBuildTool(game,tool,p.x,p.y,{preferredMode});
@@ -1430,6 +1466,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   function render(now,view={}){
     lastTime=now||0;const {tool='inspect',hover=null,preview=[],selected=null,routeStops=[],preferredMode='road'}=view;
+    foundationMarks.clear();
     stopPickingActive=Boolean(view.stopPicking);stopPickingMode=['road','rail','water','air'].includes(view.stopPicking?.mode)?view.stopPicking.mode:null;
     // A hovered reference (DESIGN.md 7.3): a route lights as highlightRoute does and wears its bullet at both ends; a town, industry,
     // stop or vehicle gets the orange locator ring, fading in over 120 ms (at once under reduced motion).
@@ -1545,6 +1582,12 @@ export function createRenderer(canvas, initialGame, options={}) {
     const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v)));
     const carrierTile=chosenVehicle&&!selected?vehicleWorldPoint(chosenVehicle):null;
     const selectionArea=selectionUnderlay(selected||(carrierTile&&{x:Math.floor(carrierTile.x+.5),y:Math.floor(carrierTile.y+.5)}),Boolean(carrierTile));
+    // Hover is a ground mark too. A selected parcel already has its stronger
+    // border, including when the pointer rests on a reserved footprint tile.
+    if(tool==='inspect'&&hover&&!preview?.area?.capped&&(!selectionArea||hover.x<selectionArea.x||hover.y<selectionArea.y||hover.x>=selectionArea.x+selectionArea.w||hover.y>=selectionArea.y+selectionArea.h)){
+      const site=inspectSiteAt(hover.x,hover.y)||hover,span=siteSize(site),draw=()=>outline(site,span,MAP.hover);
+      if(foundationSite(site)&&raisedFoundation(site.x,site.y,span))deferFoundationMark(site.x,site.y,span,draw);else draw();
+    }
     if(chosenVehicle){
       const route=routesById.get(chosenVehicle.routeId),p=route?carrierPoint(chosenVehicle,route):vehicleToScreen(chosenVehicle.x,chosenVehicle.y),r=route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom);
       ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);
@@ -1583,12 +1626,15 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     // A span is a square side or, for an airport, its {w, h}.
     function footprintPath(p,span=1,fresh=true){
-      const {w,h}=typeof span==='number'?{w:span,h:span}:span,points=[],inset=.035,across=w-inset*2,down=h-inset*2;
-      for(let n=0;n<=w;n++)points.push([p.x+inset+across*n/w,p.y+inset]);
-      for(let n=1;n<=h;n++)points.push([p.x+w-inset,p.y+inset+down*n/h]);
-      for(let n=1;n<=w;n++)points.push([p.x+w-inset-across*n/w,p.y+h-inset]);
-      for(let n=1;n<h;n++)points.push([p.x+inset,p.y+h-inset-down*n/h]);
-      surfacePath(points,fresh);
+      const {w,h}=typeof span==='number'?{w:span,h:span}:span,site=siteAt(p.x,p.y),flat=foundationSite(site)&&site.x===p.x&&site.y===p.y&&siteSize(site)===w&&w===h,project=flat?foundationProjection(p.x,p.y,w):(u,v)=>projectGround(game,u,v);
+      if(fresh)ctx.beginPath();
+      const point=(u,v,first=false)=>{const q=project(u,v);first?ctx.moveTo(q.x,q.y):ctx.lineTo(q.x,q.y);};
+      point(p.x,p.y,true);
+      for(let n=1;n<=w;n++)point(p.x+n,p.y);
+      for(let n=1;n<=h;n++)point(p.x+w,p.y+n);
+      for(let n=w-1;n>=0;n--)point(p.x+n,p.y+h);
+      for(let n=h-1;n>0;n--)point(p.x,p.y+n);
+      ctx.closePath();
     }
     function highlight(p,color,filled=true,span=1){
       if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
@@ -1597,9 +1643,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     // Cased footprint marks in screen px (DESIGN.md 9): the selection (signal over 5 px paper) and the pointer hover (paper at 85%).
     function outline(p,span,{color,width,casing=null,casingWidth=0,alpha:shade=1}){
       if(!p||p.x<0||p.y<0||p.x>=game.width||p.y>=game.height)return;
+      ctx.save();
       footprintPath(p,span);const z=camera.zoom;ctx.lineJoin='round';
       if(casing){ctx.strokeStyle=casing;ctx.lineWidth=casingWidth/z;ctx.stroke();}
-      ctx.globalAlpha=shade;ctx.strokeStyle=color;ctx.lineWidth=width/z;ctx.stroke();ctx.globalAlpha=1;
+      ctx.globalAlpha*=shade;ctx.strokeStyle=color;ctx.lineWidth=width/z;ctx.stroke();ctx.restore();
     }
     // A stop's catchment: a dashed paper ring over an ink casing at 35%.
     // An airport's reach: a rounded rectangle AIRPORT_REACH tiles around its tiles' centres, in the same dashed paper, with the towns it serves.
@@ -1661,7 +1708,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const previewColor=(p,valid)=>{const site=previewSite(p),key=site.y*game.width+site.x,state=states?.get(key);if(!state)return previewValid(p)?valid:'#d7725f';return ['blocked','slope','funds'].includes(state)?'#d7725f':refused?'#cdbfa6':routeTiles?.has(key)?'#e3aa6d':roadless?.has(key)?'#c29a5b':valid;};
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
     for(const p of preview||[])if(planned(p))highlightPreview(p,previewColor(p,'#f2d88d'));
-    if(hover&&!airportSite&&planned(hover)&&!preview?.area?.capped){if(tool==='inspect'){if(!selectionArea||hover.x<selectionArea.x||hover.y<selectionArea.y||hover.x>=selectionArea.x+selectionArea.w||hover.y>=selectionArea.y+selectionArea.h)outline(previewSite(hover),previewSpan(hover),MAP.hover);}else highlightPreview(hover,previewColor(hover,'#f4d090'));}
+    if(hover&&tool!=='inspect'&&!airportSite&&planned(hover)&&!preview?.area?.capped)highlightPreview(hover,previewColor(hover,'#f4d090'));
     // The keyboard cursor frames its own tile, or grid point for earthworks, in dashed signal orange over paper;
     // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
     if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.setLineDash(MAP.cursor.dash.map(n=>n/camera.zoom));ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=2.25/camera.zoom;ctx.stroke();ctx.setLineDash([]);}
