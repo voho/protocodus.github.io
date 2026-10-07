@@ -13,6 +13,7 @@ import { PART_BOXES } from '../airport-art.js';
 
 // Layout is expressed in projected world pixels, never fitted to silhouettes.
 // A renderer zoom changes every building, parcel and scale reference together.
+const FRAME = SPRITE_SCALE.billboardPixelsPerTile;
 const WIDTH = 2048, MARGIN = 64, TILE = 32, BIOME = 'taiga', SEED = 1847, DPR = Math.min(devicePixelRatio || 1, 2);
 const canvas = document.querySelector('#world'), context = canvas.getContext('2d');
 const must = (condition, message) => { if (!condition) throw new Error(message); };
@@ -52,7 +53,7 @@ for (const section of sections) {
   let row = [], used = 0;
   const finishRow = () => {
     if (!row.length) return;
-    const above = Math.max(...row.map(entry => entry.type === 'station' ? 100 : 36 * entry.width + 12));
+    const above = Math.max(...row.map(entry => entry.type === 'station' ? 100 : FRAME * .75 * entry.width + FRAME / 4));
     const below = Math.max(...row.map(entry => TILE * (entry.width + entry.height) / 4));
     const baseline = bottom + above + 8;
     let left = MARGIN;
@@ -175,7 +176,7 @@ function report() {
     const isFarm = entry.type === 'industry' && FARM_CORE_KINDS.includes(entry.kind);
     const span = isFarm ? 2 : entry.width;
     const centre = isFarm ? renderer.gridPointToScreen(entry.x + 2, entry.y + 2) : p;
-    let envelopes = [{ x: centre.x - 24 * span * zoom, y: centre.y - (36 * span + 12) * zoom, width: 48 * span * zoom, height: (48 * span + 12) * zoom }];
+    let envelopes = [{ x: centre.x - FRAME / 2 * span * zoom, y: centre.y - (FRAME * .75 * span + FRAME / 4) * zoom, width: FRAME * span * zoom, height: (FRAME * span + FRAME / 4) * zoom }];
     if (entry.type === 'station') {
       if (entry.mode === 'air') {
         const origin = renderer.gridPointToScreen(entry.station.x, entry.station.y);

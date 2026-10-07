@@ -1,0 +1,3 @@
+Run from repository root. This preserves the exact original source, measured source ownership and whole-sheet density.
+
+python3 fun/transport/tools/pack-plot-cutouts.py fun/transport/assets/world/plot-buildings-v2/houses-design-0-rotation-1/generated-source.png fun/transport/assets/world/plot-buildings-v2/houses-design-0-rotation-1/generation-job.json fun/transport/assets/world/plot-buildings-v2/houses-design-0-rotation-1 --measurements fun/transport/assets/world/plot-buildings-v2/houses-design-0-rotation-1/source-measurements.json --register-ground --sheet-scale 0.5625077935884841

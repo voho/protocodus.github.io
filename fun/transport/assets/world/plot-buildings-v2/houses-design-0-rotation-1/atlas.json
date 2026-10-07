@@ -1,0 +1,3757 @@
+{
+  "version": 2,
+  "jobId": "houses-design-0-rotation-1",
+  "type": "house",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "masterCell": 256,
+  "order": [
+    "house-cheap-1",
+    "house-cheap-2",
+    "house-cheap-3",
+    "house-normal-1",
+    "house-normal-2",
+    "house-normal-3",
+    "house-expensive-1",
+    "house-expensive-2",
+    "house-expensive-3"
+  ],
+  "sprites": [
+    {
+      "id": "house-cheap-1",
+      "kind": "house-cheap-1",
+      "cell": 0,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-cheap-1:taiga:design-0:rotation-1",
+        "house:house-cheap-1:tundra:design-0:rotation-1",
+        "house:house-cheap-1:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        450
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          9,
+          418,
+          450
+        ],
+        "meaningfulAlphaBounds": [
+          35,
+          193,
+          386,
+          436
+        ],
+        "transparentFraction": 0.7651196172248804,
+        "nontransparentPixels": 48162,
+        "meaningfulPixels": 43242,
+        "fractionalAlphaPixels": 48104,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 14
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          28,
+          0,
+          247,
+          244
+        ],
+        "meaningfulAlphaBounds": [
+          31,
+          103,
+          229,
+          239
+        ],
+        "transparentFraction": 0.7855072021484375,
+        "nontransparentPixels": 15193,
+        "meaningfulPixels": 13759,
+        "fractionalAlphaPixels": 14940,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 17
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.07893592975745457,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.1507321274763135,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-cheap-1",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                34,
+                352
+              ],
+              [
+                193,
+                431
+              ]
+            ],
+            [
+              [
+                193,
+                431
+              ],
+              [
+                380,
+                352
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              34,
+              352
+            ],
+            [
+              380,
+              352
+            ]
+          ],
+          "sourceBoundsSheet": [
+            0,
+            0,
+            418,
+            450
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              239,
+              321
+            ],
+            [
+              239,
+              352
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              30.686151709192245,
+              192.0
+            ],
+            [
+              120.12489088976122,
+              236.43811569349023
+            ]
+          ],
+          [
+            [
+              120.12489088976122,
+              236.43811569349023
+            ],
+            [
+              225.31384829080775,
+              192.0
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4968553459119497,
+          -0.42245989304812837
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.07754010695187163,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 17.437741601243008,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            146.00024939483149,
+            174.562258398757
+          ],
+          [
+            146.00024939483149,
+            192.0
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.16770591079752284
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          207.0,
+          352.0
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          11.560886727183785,
+          -6.00274334314642
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          31.24865950278073,
+          102.56126081943101,
+          228.68889505233864,
+          239.25065466143266
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 16.749345338567338,
+        "clipping": {
+          "clippedSourcePixels": 7,
+          "clippedSourceAlphaEnergy": 7,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          11.560886727183785,
+          0,
+          0.5625077935884841,
+          -6.00274334314642
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          11.560886727183785,
+          0,
+          0.5625077935884841,
+          -6.00274334314642
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          11.560886727183785,
+          0,
+          0.5625077935884841,
+          -6.00274334314642
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-cheap-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              34,
+              352
+            ],
+            [
+              193,
+              431
+            ]
+          ],
+          [
+            [
+              193,
+              431
+            ],
+            [
+              380,
+              352
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            34,
+            352
+          ],
+          [
+            380,
+            352
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          0,
+          418,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            239,
+            321
+          ],
+          [
+            239,
+            352
+          ]
+        ]
+      },
+      "masterSha256": "2f4aa18e694b67af149bc2ea7884d2b066eaa08a22d62a8b6432c06aef42be4b"
+    },
+    {
+      "id": "house-cheap-2",
+      "kind": "house-cheap-2",
+      "cell": 1,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-cheap-2:taiga:design-0:rotation-1",
+        "house:house-cheap-2:tundra:design-0:rotation-1",
+        "house:house-cheap-2:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        450
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          80,
+          418,
+          450
+        ],
+        "meaningfulAlphaBounds": [
+          42,
+          215,
+          380,
+          432
+        ],
+        "transparentFraction": 0.7649122807017544,
+        "nontransparentPixels": 47250,
+        "meaningfulPixels": 43229,
+        "fractionalAlphaPixels": 47161,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          12,
+          48,
+          242,
+          254
+        ],
+        "meaningfulAlphaBounds": [
+          35,
+          122,
+          224,
+          244
+        ],
+        "transparentFraction": 0.7855377197265625,
+        "nontransparentPixels": 14848,
+        "meaningfulPixels": 13731,
+        "fractionalAlphaPixels": 14594,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 12
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.03920716334869165,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.06907838070628769,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-cheap-2",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                43,
+                350
+              ],
+              [
+                203,
+                425
+              ]
+            ],
+            [
+              [
+                203,
+                425
+              ],
+              [
+                372,
+                330
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              43,
+              350
+            ],
+            [
+              372,
+              330
+            ]
+          ],
+          "sourceBoundsSheet": [
+            418,
+            0,
+            836,
+            450
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              260,
+              325
+            ],
+            [
+              260,
+              352
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              35.467467954694364,
+              197.62507793588483
+            ],
+            [
+              125.46871492885182,
+              239.81316245502114
+            ]
+          ],
+          [
+            [
+              125.46871492885182,
+              239.81316245502114
+            ],
+            [
+              220.53253204530563,
+              186.37492206411517
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.46875,
+          -0.5621301775147929
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.062130177514792884,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 15.18771042688907,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            157.53165916339543,
+            183.56238309617274
+          ],
+          [
+            157.53165916339543,
+            198.75009352306182
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.017034180372035974
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          207.5,
+          340.0
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          11.279632830389545,
+          0.7473501799154008
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          34.904960161105876,
+          121.68652580143949,
+          225.0325943940135,
+          243.75071701014053
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 12.249282989859466,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          11.279632830389545,
+          0,
+          0.5625077935884841,
+          0.7473501799154008
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -223.84862488959683,
+          0,
+          0.5625077935884841,
+          0.7473501799154008
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          11.279632830389545,
+          0,
+          0.5625077935884841,
+          0.7473501799154008
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-cheap-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              350
+            ],
+            [
+              203,
+              425
+            ]
+          ],
+          [
+            [
+              203,
+              425
+            ],
+            [
+              372,
+              330
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            350
+          ],
+          [
+            372,
+            330
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          0,
+          836,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            260,
+            325
+          ],
+          [
+            260,
+            352
+          ]
+        ]
+      },
+      "masterSha256": "dc3efe5cec65a4d7a5945ac053d1cea8d403aa4aca7f241b49d6168e7c20c53a"
+    },
+    {
+      "id": "house-cheap-3",
+      "kind": "house-cheap-3",
+      "cell": 2,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-cheap-3:taiga:design-0:rotation-1",
+        "house:house-cheap-3:tundra:design-0:rotation-1",
+        "house:house-cheap-3:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        450
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          21,
+          400,
+          450
+        ],
+        "meaningfulAlphaBounds": [
+          28,
+          194,
+          392,
+          441
+        ],
+        "transparentFraction": 0.7309197235513025,
+        "nontransparentPixels": 54299,
+        "meaningfulPixels": 49594,
+        "fractionalAlphaPixels": 54240,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          8,
+          21,
+          227,
+          244
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          100,
+          223,
+          239
+        ],
+        "transparentFraction": 0.75457763671875,
+        "nontransparentPixels": 17098,
+        "meaningfulPixels": 15764,
+        "fractionalAlphaPixels": 16836,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 17
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.13335651569155874,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.25254091300602927,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-cheap-3",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                43,
+                360
+              ],
+              [
+                212,
+                436
+              ]
+            ],
+            [
+              [
+                212,
+                436
+              ],
+              [
+                404,
+                355
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              43,
+              360
+            ],
+            [
+              404,
+              355
+            ]
+          ],
+          "sourceBoundsSheet": [
+            836,
+            0,
+            1254,
+            450
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              283,
+              318
+            ],
+            [
+              283,
+              346
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              26.46734325727862,
+              193.40626948397122
+            ],
+            [
+              121.53116037373243,
+              236.156861796696
+            ]
+          ],
+          [
+            [
+              121.53116037373243,
+              236.156861796696
+            ],
+            [
+              229.5326567427214,
+              190.59373051602878
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.44970414201183434,
+          -0.421875
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.078125,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 15.750218220477556,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            161.46921371851482,
+            169.78094215325487
+          ],
+          [
+            161.46921371851482,
+            185.53116037373243
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.05470211297840778
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          223.5,
+          357.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          2.2795081329738025,
+          -9.096536207883076
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          18.02972635345136,
+          100.02997574828285,
+          222.78256321965958,
+          238.96940076463844
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 17.030599235361564,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          2.2795081329738025,
+          0,
+          0.5625077935884841,
+          -9.096536207883076
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -467.977007306999,
+          0,
+          0.5625077935884841,
+          -9.096536207883076
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          2.2795081329738025,
+          0,
+          0.5625077935884841,
+          -9.096536207883076
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-cheap-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              360
+            ],
+            [
+              212,
+              436
+            ]
+          ],
+          [
+            [
+              212,
+              436
+            ],
+            [
+              404,
+              355
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            360
+          ],
+          [
+            404,
+            355
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          0,
+          1254,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            283,
+            318
+          ],
+          [
+            283,
+            346
+          ]
+        ]
+      },
+      "masterSha256": "6e63c080ae2529ae5cad082a5778b5dd5e7bd9483fcfdb41591b5eef041ed70f"
+    },
+    {
+      "id": "house-normal-1",
+      "kind": "house-normal-1",
+      "cell": 3,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-normal-1:taiga:design-0:rotation-1",
+        "house:house-normal-1:tundra:design-0:rotation-1",
+        "house:house-normal-1:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "sourceBoundsSheet": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        410
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          0,
+          418,
+          402
+        ],
+        "meaningfulAlphaBounds": [
+          35,
+          81,
+          401,
+          328
+        ],
+        "transparentFraction": 0.6776053215077605,
+        "nontransparentPixels": 58802,
+        "meaningfulPixels": 54342,
+        "fractionalAlphaPixels": 58679,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 17
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          59,
+          243,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          28,
+          105,
+          235,
+          244
+        ],
+        "transparentFraction": 0.7316436767578125,
+        "nontransparentPixels": 18557,
+        "meaningfulPixels": 17249,
+        "fractionalAlphaPixels": 18325,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 12
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.009128053551247501,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.016709732988802756,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-normal-1",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                34,
+                266
+              ],
+              [
+                211,
+                355
+              ]
+            ],
+            [
+              [
+                211,
+                355
+              ],
+              [
+                389,
+                270
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              34,
+              266
+            ],
+            [
+              389,
+              270
+            ]
+          ],
+          "sourceBoundsSheet": [
+            0,
+            450,
+            418,
+            860
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              247,
+              259
+            ],
+            [
+              247,
+              286
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              28.15486663804407,
+              190.874984412823
+            ],
+            [
+              127.71874610320576,
+              240.9381780421981
+            ]
+          ],
+          [
+            [
+              127.71874610320576,
+              240.9381780421981
+            ],
+            [
+              227.84513336195596,
+              193.12501558717696
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5028248587570622,
+          -0.47752808988764045
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.02247191011235955,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 15.18771042688907,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            147.96902667239118,
+            186.93742985770362
+          ],
+          [
+            147.96902667239118,
+            202.1251402845927
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.017034180372035974
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          211.5,
+          268.0
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          9.02960165603561,
+          41.24791131828624
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          28.717374431632553,
+          104.81129199378495,
+          234.59522688501772,
+          243.75071701014053
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 12.249282989859466,
+        "clipping": {
+          "clippedSourcePixels": 182,
+          "clippedSourceAlphaEnergy": 182,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          59.248160713117734
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          -193.88034640170014
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          41.24791131828624
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-normal-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              34,
+              266
+            ],
+            [
+              211,
+              355
+            ]
+          ],
+          [
+            [
+              211,
+              355
+            ],
+            [
+              389,
+              270
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            34,
+            266
+          ],
+          [
+            389,
+            270
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          450,
+          418,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            247,
+            259
+          ],
+          [
+            247,
+            286
+          ]
+        ]
+      },
+      "masterSha256": "a53f184a5676cd998733f1e808bb92e6af18c4f20788b8068a492d0316009ff9"
+    },
+    {
+      "id": "house-normal-2",
+      "kind": "house-normal-2",
+      "cell": 4,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-normal-2:taiga:design-0:rotation-1",
+        "house:house-normal-2:tundra:design-0:rotation-1",
+        "house:house-normal-2:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "sourceBoundsSheet": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        410
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          0,
+          418,
+          410
+        ],
+        "meaningfulAlphaBounds": [
+          43,
+          97,
+          400,
+          334
+        ],
+        "transparentFraction": 0.6945559575212977,
+        "nontransparentPixels": 56162,
+        "meaningfulPixels": 51422,
+        "fractionalAlphaPixels": 56078,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          7,
+          61,
+          237,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          29,
+          114,
+          230,
+          248
+        ],
+        "transparentFraction": 0.745513916015625,
+        "nontransparentPixels": 17697,
+        "meaningfulPixels": 16332,
+        "fractionalAlphaPixels": 17469,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 8
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.010258193514735286,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.017915590008613265,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-normal-2",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                43,
+                266
+              ],
+              [
+                203,
+                360
+              ]
+            ],
+            [
+              [
+                203,
+                360
+              ],
+              [
+                393,
+                268
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              43,
+              266
+            ],
+            [
+              393,
+              268
+            ]
+          ],
+          "sourceBoundsSheet": [
+            418,
+            450,
+            836,
+            860
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              275,
+              258
+            ],
+            [
+              275,
+              288
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              29.561136122015277,
+              191.43749220641152
+            ],
+            [
+              119.56238309617274,
+              244.31322480372904
+            ]
+          ],
+          [
+            [
+              119.56238309617274,
+              244.31322480372904
+            ],
+            [
+              226.43886387798472,
+              192.5625077935885
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5875,
+          -0.4842105263157895
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.08750000000000002,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 16.875233807654524,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            160.0629442345436,
+            186.93742985770365
+          ],
+          [
+            160.0629442345436,
+            203.81266366535817
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.13003797819115115
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          218.0,
+          267.0
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          5.373300997710459,
+          41.81041911187475
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          29.561136122015277,
+          114.3739244847892,
+          230.3764184331041,
+          247.68827156525992
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 8.311728434740075,
+        "clipping": {
+          "clippedSourcePixels": 35,
+          "clippedSourceAlphaEnergy": 35,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          5.373300997710459,
+          0,
+          0.5625077935884841,
+          59.81066850670624
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -229.75495672227592,
+          0,
+          0.5625077935884841,
+          -193.31783860811163
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          5.373300997710459,
+          0,
+          0.5625077935884841,
+          41.81041911187475
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-normal-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              266
+            ],
+            [
+              203,
+              360
+            ]
+          ],
+          [
+            [
+              203,
+              360
+            ],
+            [
+              393,
+              268
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            266
+          ],
+          [
+            393,
+            268
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          450,
+          836,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            275,
+            258
+          ],
+          [
+            275,
+            288
+          ]
+        ]
+      },
+      "masterSha256": "5ae93ea052c85f1ac9f07d1e7ef88ff950a7af6a6a81c3a4f048bf20c249efd7"
+    },
+    {
+      "id": "house-normal-3",
+      "kind": "house-normal-3",
+      "cell": 5,
+      "footprint": 1,
+      "runtimeIds": [
+        "house:house-normal-3:taiga:design-0:rotation-1",
+        "house:house-normal-3:tundra:design-0:rotation-1",
+        "house:house-normal-3:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "sourceBoundsSheet": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        410
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          1,
+          418,
+          400
+        ],
+        "meaningfulAlphaBounds": [
+          34,
+          111,
+          408,
+          356
+        ],
+        "transparentFraction": 0.6749679075738125,
+        "nontransparentPixels": 60128,
+        "meaningfulPixels": 54661,
+        "fractionalAlphaPixels": 60072,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 10
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          1,
+          51,
+          236,
+          252
+        ],
+        "meaningfulAlphaBounds": [
+          20,
+          112,
+          231,
+          250
+        ],
+        "transparentFraction": 0.7296142578125,
+        "nontransparentPixels": 18952,
+        "meaningfulPixels": 17361,
+        "fractionalAlphaPixels": 18733,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 6
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.024863079196731287,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.046511627906976744,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-normal-3",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                48,
+                288
+              ],
+              [
+                233,
+                384
+              ]
+            ],
+            [
+              [
+                233,
+                384
+              ],
+              [
+                404,
+                283
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              48,
+              288
+            ],
+            [
+              404,
+              283
+            ]
+          ],
+          "sourceBoundsSheet": [
+            836,
+            450,
+            1254,
+            860
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              285,
+              263
+            ],
+            [
+              285,
+              292
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              27.873612741249826,
+              193.40626948397122
+            ],
+            [
+              131.9375545551194,
+              247.4070176684657
+            ]
+          ],
+          [
+            [
+              131.9375545551194,
+              247.4070176684657
+            ],
+            [
+              228.12638725875019,
+              190.5937305160288
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.518918918918919,
+          -0.5906432748538012
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.09064327485380119,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 16.31272601406604,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            161.18795982172057,
+            179.34357464425912
+          ],
+          [
+            161.18795982172057,
+            195.65630065832516
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.09237004558477947
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          226.0,
+          285.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          0.8732386490025874,
+          31.404024930487793
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.998503631011047,
+          111.84263941364102,
+          230.3764184331041,
+          249.65704884281962
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 6.34295115718038,
+        "clipping": {
+          "clippedSourcePixels": 100,
+          "clippedSourceAlphaEnergy": 100,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          0.8732386490025874,
+          0,
+          0.5625077935884841,
+          49.404274325319285
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -469.38327679097017,
+          0,
+          0.5625077935884841,
+          -203.7242327894986
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          0.8732386490025874,
+          0,
+          0.5625077935884841,
+          31.404024930487793
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-normal-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              48,
+              288
+            ],
+            [
+              233,
+              384
+            ]
+          ],
+          [
+            [
+              233,
+              384
+            ],
+            [
+              404,
+              283
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            48,
+            288
+          ],
+          [
+            404,
+            283
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          450,
+          1254,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            285,
+            263
+          ],
+          [
+            285,
+            292
+          ]
+        ]
+      },
+      "masterSha256": "7fc4a85ba3c83cca9e391fa5f9e255148d125083808c359f4e485c46d5357b43"
+    },
+    {
+      "id": "house-expensive-1",
+      "kind": "house-expensive-1",
+      "cell": 6,
+      "footprint": 2,
+      "runtimeIds": [
+        "house:house-expensive-1:taiga:design-0:rotation-1",
+        "house:house-expensive-1:tundra:design-0:rotation-1",
+        "house:house-expensive-1:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        860,
+        418,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        0,
+        860,
+        418,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        394
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          12,
+          418,
+          394
+        ],
+        "meaningfulAlphaBounds": [
+          14,
+          63,
+          410,
+          299
+        ],
+        "transparentFraction": 0.6855827848347218,
+        "nontransparentPixels": 56247,
+        "meaningfulPixels": 50802,
+        "fractionalAlphaPixels": 56139,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 8
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          92,
+          244,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          17,
+          121,
+          240,
+          254
+        ],
+        "transparentFraction": 0.7482757568359375,
+        "nontransparentPixels": 17674,
+        "meaningfulPixels": 16130,
+        "fractionalAlphaPixels": 17475,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 2
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.0008693384334521429,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.0017226528854435831,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-expensive-1",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                14,
+                217
+              ],
+              [
+                202,
+                315
+              ]
+            ],
+            [
+              [
+                202,
+                315
+              ],
+              [
+                409,
+                210
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              14,
+              217
+            ],
+            [
+              409,
+              210
+            ]
+          ],
+          "sourceBoundsSheet": [
+            0,
+            860,
+            418,
+            1254
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              235,
+              212
+            ],
+            [
+              235,
+              228
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              16.904710766274388,
+              193.9687772775597
+            ],
+            [
+              122.65617596090941,
+              249.09454104923114
+            ]
+          ],
+          [
+            [
+              122.65617596090941,
+              249.09454104923114
+            ],
+            [
+              239.09528923372562,
+              190.0312227224403
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5212765957446809,
+          -0.5072463768115942
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.021276595744680882,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 9.000124697415746,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            141.21893314932936,
+            191.15623830961727
+          ],
+          [
+            141.21893314932936,
+            200.156363007033
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.20537384340389453
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          211.5,
+          213.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          9.02960165603561,
+          71.90458606885863
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          16.904710766274388,
+          120.84276411105674,
+          239.65779702731407,
+          253.594603397939
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 2.405396602060989,
+        "clipping": {
+          "clippedSourcePixels": 183,
+          "clippedSourceAlphaEnergy": 183,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          85.40477311498225
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          -398.3519293711141
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          9.02960165603561,
+          0,
+          0.5625077935884841,
+          71.90458606885863
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-expensive-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              14,
+              217
+            ],
+            [
+              202,
+              315
+            ]
+          ],
+          [
+            [
+              202,
+              315
+            ],
+            [
+              409,
+              210
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            14,
+            217
+          ],
+          [
+            409,
+            210
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          860,
+          418,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            235,
+            212
+          ],
+          [
+            235,
+            228
+          ]
+        ]
+      },
+      "masterSha256": "a13ecf590e956591934e7e0bec57cdab2df892dea4fd15a3d98651977c9e545b"
+    },
+    {
+      "id": "house-expensive-2",
+      "kind": "house-expensive-2",
+      "cell": 7,
+      "footprint": 2,
+      "runtimeIds": [
+        "house:house-expensive-2:taiga:design-0:rotation-1",
+        "house:house-expensive-2:tundra:design-0:rotation-1",
+        "house:house-expensive-2:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        860,
+        836,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        418,
+        860,
+        836,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        394
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          13,
+          418,
+          376
+        ],
+        "meaningfulAlphaBounds": [
+          23,
+          47,
+          401,
+          293
+        ],
+        "transparentFraction": 0.6750722560901562,
+        "nontransparentPixels": 57690,
+        "meaningfulPixels": 52540,
+        "fractionalAlphaPixels": 57618,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 17
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          13,
+          95,
+          243,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          21,
+          113,
+          234,
+          251
+        ],
+        "transparentFraction": 0.7400665283203125,
+        "nontransparentPixels": 18188,
+        "meaningfulPixels": 16688,
+        "fractionalAlphaPixels": 18018,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 5
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.001477875336868643,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.0029285099052540915,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-expensive-2",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                22,
+                214
+              ],
+              [
+                190,
+                309
+              ]
+            ],
+            [
+              [
+                190,
+                309
+              ],
+              [
+                404,
+                209
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              22,
+              214
+            ],
+            [
+              404,
+              209
+            ]
+          ],
+          "sourceBoundsSheet": [
+            418,
+            860,
+            836,
+            1254
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorEndpointsSource": [
+            [
+              270,
+              218
+            ],
+            [
+              270,
+              233
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              20.561011424599528,
+              193.40626948397122
+            ],
+            [
+              115.06232074746485,
+              246.8445098748772
+            ]
+          ],
+          [
+            [
+              115.06232074746485,
+              246.8445098748772
+            ],
+            [
+              235.43898857540046,
+              190.5937305160288
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5654761904761905,
+          -0.4672897196261682
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.06547619047619047,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 8.437616903827262,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            160.06294423454358,
+            195.65630065832516
+          ],
+          [
+            160.06294423454358,
+            204.0939175621524
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.13003797819115115
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          213.0,
+          211.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          8.185839965652875,
+          73.02960165603561
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          21.123519218188008,
+          112.96765500081798,
+          233.751465194635,
+          251.3445722235851
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 4.655427776414911,
+        "clipping": {
+          "clippedSourcePixels": 87,
+          "clippedSourceAlphaEnergy": 87,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          8.185839965652875,
+          0,
+          0.5625077935884841,
+          86.52978870215922
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -226.94241775433352,
+          0,
+          0.5625077935884841,
+          -397.22691378393716
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          8.185839965652875,
+          0,
+          0.5625077935884841,
+          73.02960165603561
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-expensive-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              22,
+              214
+            ],
+            [
+              190,
+              309
+            ]
+          ],
+          [
+            [
+              190,
+              309
+            ],
+            [
+              404,
+              209
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            22,
+            214
+          ],
+          [
+            404,
+            209
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          860,
+          836,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            270,
+            218
+          ],
+          [
+            270,
+            233
+          ]
+        ]
+      },
+      "masterSha256": "6bc78cba2d93512924272ccf1659e1ab2f5fd9095b17dade3796752a3f1869d2"
+    },
+    {
+      "id": "house-expensive-3",
+      "kind": "house-expensive-3",
+      "cell": 8,
+      "footprint": 2,
+      "runtimeIds": [
+        "house:house-expensive-3:taiga:design-0:rotation-1",
+        "house:house-expensive-3:tundra:design-0:rotation-1",
+        "house:house-expensive-3:desert:design-0:rotation-1"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        860,
+        1254,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        836,
+        860,
+        1254,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        394
+      ],
+      "sourceScale": 0.5625077935884841,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          13,
+          418,
+          362
+        ],
+        "meaningfulAlphaBounds": [
+          14,
+          59,
+          413,
+          300
+        ],
+        "transparentFraction": 0.6556602627935784,
+        "nontransparentPixels": 60098,
+        "meaningfulPixels": 55861,
+        "fractionalAlphaPixels": 59994,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 5
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          94,
+          243,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          16,
+          117,
+          241,
+          253
+        ],
+        "transparentFraction": 0.7242279052734375,
+        "nontransparentPixels": 18961,
+        "meaningfulPixels": 17737,
+        "fractionalAlphaPixels": 18741,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 3
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.00034773537338085716,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.0006890611541774332,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "house-expensive-3",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                22,
+                218
+              ],
+              [
+                195,
+                316
+              ]
+            ],
+            [
+              [
+                195,
+                316
+              ],
+              [
+                404,
+                213
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              22,
+              218
+            ],
+            [
+              404,
+              213
+            ]
+          ],
+          "sourceBoundsSheet": [
+            836,
+            860,
+            1254,
+            1254
+          ],
+          "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+          "personnelDoorObservable": false,
+          "doorVisibilityNote": "Courtyard personnel entrances obscured by the roof/foreground plants; no leaf threshold observable."
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              20.561011424599528,
+              193.40626948397122
+            ],
+            [
+              117.87485971540728,
+              248.53203325564266
+            ]
+          ],
+          [
+            [
+              117.87485971540728,
+              248.53203325564266
+            ],
+            [
+              235.43898857540046,
+              190.5937305160288
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5664739884393064,
+          -0.49282296650717705
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.06647398843930641,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          213.0,
+          215.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.5625077935884841,
+        "translationMaster": [
+          8.185839965652875,
+          70.77957048168167
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          16.060949075891653,
+          117.46771734952586,
+          240.5015587176968,
+          253.03209560435053
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 2.9679043956494695,
+        "clipping": {
+          "clippedSourcePixels": 47,
+          "clippedSourceAlphaEnergy": 47,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5625077935884841,
+          0,
+          8.185839965652875,
+          0,
+          0.5625077935884841,
+          84.27975752780529
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5625077935884841,
+          0,
+          -462.0706754743199,
+          0,
+          0.5625077935884841,
+          -399.4769449582911
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5625077935884841,
+          0,
+          8.185839965652875,
+          0,
+          0.5625077935884841,
+          70.77957048168167
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "house-expensive-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              22,
+              218
+            ],
+            [
+              195,
+              316
+            ]
+          ],
+          [
+            [
+              195,
+              316
+            ],
+            [
+              404,
+              213
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            22,
+            218
+          ],
+          [
+            404,
+            213
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          860,
+          1254,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorObservable": false,
+        "doorVisibilityNote": "Courtyard personnel entrances obscured by the roof/foreground plants; no leaf threshold observable."
+      },
+      "masterSha256": "e917c883e191b3f44c3e857b6623228b13b90df6ded76685edd0b40c8c476b24"
+    }
+  ],
+  "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
+  "groundRegistrationApplied": true,
+  "source": "generated-source.png",
+  "sourceSha256": "6c725c3f4438476d7c5195e1e84c6278b754c4a6952eb58cab1b8926a764a5a2",
+  "generationJobSha256": "ee81c9d2daa0ad3c3b870d6bbe04f4031efadb857ad12110c3e5237962244a52",
+  "measurements": "registration-measurements.json",
+  "measurementsSha256": "34f90ac5ddc7fc02e524ab2302adc7884080e7093c0244e595a97f1f53508c3e",
+  "originalSourceResolution": {
+    "sheetPixels": [
+      1254,
+      1254
+    ],
+    "squareCellPixels": 418,
+    "columns": 3,
+    "rows": 3
+  },
+  "originalMeasurements": {
+    "source": "/workspace/generated_images/exec-45a978ed-39c6-4e45-8504-af82fbe4f330.png",
+    "sheetScaleCalibration": {
+      "observations": [
+        {
+          "sourceEdgeEndpoints": [
+            [
+              14,
+              1053
+            ],
+            [
+              202,
+              1151
+            ]
+          ],
+          "physicalSpanMetres": 30,
+          "footprint": 2,
+          "note": "Observed full lower-left perimeter hedge ground-contact axis of the 30m-wide two-tile country-manor estate; calibration fixes one density for the entire sheet, independent of individual alpha bounds."
+        }
+      ]
+    },
+    "entries": [
+      {
+        "id": "house-cheap-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              34,
+              352
+            ],
+            [
+              193,
+              431
+            ]
+          ],
+          [
+            [
+              193,
+              431
+            ],
+            [
+              380,
+              352
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            34,
+            352
+          ],
+          [
+            380,
+            352
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          0,
+          418,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            239,
+            321
+          ],
+          [
+            239,
+            352
+          ]
+        ]
+      },
+      {
+        "id": "house-cheap-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              350
+            ],
+            [
+              203,
+              425
+            ]
+          ],
+          [
+            [
+              203,
+              425
+            ],
+            [
+              372,
+              330
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            350
+          ],
+          [
+            372,
+            330
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          0,
+          836,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            260,
+            325
+          ],
+          [
+            260,
+            352
+          ]
+        ]
+      },
+      {
+        "id": "house-cheap-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              360
+            ],
+            [
+              212,
+              436
+            ]
+          ],
+          [
+            [
+              212,
+              436
+            ],
+            [
+              404,
+              355
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            360
+          ],
+          [
+            404,
+            355
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          0,
+          1254,
+          450
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            283,
+            318
+          ],
+          [
+            283,
+            346
+          ]
+        ]
+      },
+      {
+        "id": "house-normal-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              34,
+              266
+            ],
+            [
+              211,
+              355
+            ]
+          ],
+          [
+            [
+              211,
+              355
+            ],
+            [
+              389,
+              270
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            34,
+            266
+          ],
+          [
+            389,
+            270
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          450,
+          418,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            247,
+            259
+          ],
+          [
+            247,
+            286
+          ]
+        ]
+      },
+      {
+        "id": "house-normal-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              43,
+              266
+            ],
+            [
+              203,
+              360
+            ]
+          ],
+          [
+            [
+              203,
+              360
+            ],
+            [
+              393,
+              268
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            43,
+            266
+          ],
+          [
+            393,
+            268
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          450,
+          836,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            275,
+            258
+          ],
+          [
+            275,
+            288
+          ]
+        ]
+      },
+      {
+        "id": "house-normal-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              48,
+              288
+            ],
+            [
+              233,
+              384
+            ]
+          ],
+          [
+            [
+              233,
+              384
+            ],
+            [
+              404,
+              283
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            48,
+            288
+          ],
+          [
+            404,
+            283
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          450,
+          1254,
+          860
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            285,
+            263
+          ],
+          [
+            285,
+            292
+          ]
+        ]
+      },
+      {
+        "id": "house-expensive-1",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              14,
+              217
+            ],
+            [
+              202,
+              315
+            ]
+          ],
+          [
+            [
+              202,
+              315
+            ],
+            [
+              409,
+              210
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            14,
+            217
+          ],
+          [
+            409,
+            210
+          ]
+        ],
+        "sourceBoundsSheet": [
+          0,
+          860,
+          418,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            235,
+            212
+          ],
+          [
+            235,
+            228
+          ]
+        ]
+      },
+      {
+        "id": "house-expensive-2",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              22,
+              214
+            ],
+            [
+              190,
+              309
+            ]
+          ],
+          [
+            [
+              190,
+              309
+            ],
+            [
+              404,
+              209
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            22,
+            214
+          ],
+          [
+            404,
+            209
+          ]
+        ],
+        "sourceBoundsSheet": [
+          418,
+          860,
+          836,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorEndpointsSource": [
+          [
+            270,
+            218
+          ],
+          [
+            270,
+            233
+          ]
+        ]
+      },
+      {
+        "id": "house-expensive-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              22,
+              218
+            ],
+            [
+              195,
+              316
+            ]
+          ],
+          [
+            [
+              195,
+              316
+            ],
+            [
+              404,
+              213
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            22,
+            218
+          ],
+          [
+            404,
+            213
+          ]
+        ],
+        "sourceBoundsSheet": [
+          836,
+          860,
+          1254,
+          1254
+        ],
+        "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+        "personnelDoorObservable": false,
+        "doorVisibilityNote": "Courtyard personnel entrances obscured by the roof/foreground plants; no leaf threshold observable."
+      }
+    ]
+  },
+  "sheetScaleCalibration": {
+    "status": "observed-whole-sheet-density",
+    "requestedSourceToMasterScale": 0.5625077935884841,
+    "defaultNominalSourceToMasterScale": 0.6124401913875598,
+    "relativeScaleToNominal": 0.9184697567186968,
+    "observations": [
+      {
+        "observation": {
+          "sourceEdgeEndpoints": [
+            [
+              14,
+              1053
+            ],
+            [
+              202,
+              1151
+            ]
+          ],
+          "physicalSpanMetres": 30,
+          "footprint": 2,
+          "note": "Observed full lower-left perimeter hedge ground-contact axis of the 30m-wide two-tile country-manor estate; calibration fixes one density for the entire sheet, independent of individual alpha bounds."
+        },
+        "sourceSpanPixels": 212.00943375236866,
+        "targetMasterSpanPixels": 119.2569587999888,
+        "observedSourceToMasterScale": 0.5625077935884841,
+        "requestedScaleRelativeError": 0.0,
+        "observedGroundEdgeSlope": 0.5212765957446809
+      }
+    ],
+    "originalEvidence": {
+      "observations": [
+        {
+          "sourceEdgeEndpoints": [
+            [
+              14,
+              1053
+            ],
+            [
+              202,
+              1151
+            ]
+          ],
+          "physicalSpanMetres": 30,
+          "footprint": 2,
+          "note": "Observed full lower-left perimeter hedge ground-contact axis of the 30m-wide two-tile country-manor estate; calibration fixes one density for the entire sheet, independent of individual alpha bounds."
+        }
+      ]
+    },
+    "validationToleranceRelative": 0.02,
+    "policy": "One explicitly measured source-pixel density for the whole sheet; no automatic alpha/silhouette fitting and no per-entry scale"
+  },
+  "sheetScaleCalibrationFile": null,
+  "sheetScaleCalibrationSha256": null,
+  "physicalCalibration": {
+    "scale": {
+      "tileMetres": 16,
+      "worldPixelsPerMetre": 2,
+      "billboardPixelsPerTile": 72,
+      "masterCellPixels": 256,
+      "humanHeightMetres": 1.75,
+      "doorHeightMetres": 2.1,
+      "doorWidthMetres": 0.95,
+      "storeyHeightMetres": 3,
+      "windowHeightMetres": 1.2,
+      "fenceHeightMetres": 1.2,
+      "loadingBayHeightMetres": 4.2
+    },
+    "registration": {
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "groundEdgeSlope": 0.5,
+      "architecturalEnvelopeMetresPerTile": 15,
+      "eastWorldPixelsPerMetre": [
+        2,
+        1
+      ],
+      "northWorldPixelsPerMetre": [
+        -2,
+        1
+      ],
+      "upWorldPixelsPerMetre": [
+        0,
+        -2
+      ]
+    },
+    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "sourceCellPixels": 418,
+    "sourceToMasterScale": 0.5625077935884841,
+    "meaningfulSourcePixelsRetained": 455693,
+    "sourceIsolationNoise": {
+      "omittedSourcePixels": 0,
+      "omittedSourceAlphaEnergy": 0,
+      "maximumAllowedOmittedAlpha": 2,
+      "method": "Original sheet alpha outside the union of explicit occupied-slot crop rectangles"
+    },
+    "measuredGeometryVerified": true,
+    "measurementTolerances": {
+      "groundSlopeAbsoluteError": 0.11,
+      "groundCenterMasterPixels": 3,
+      "personnelDoorRelativeError": 0.25
+    }
+  },
+  "mipFilter": "Independent original-cutout premultiplied-alpha Lanczos affine; no sharpening",
+  "mipSharpening": false,
+  "groundKey": "RGBA alpha, bare ground must be authored transparent; no colour keying",
+  "outputs": {
+    "16": {
+      "path": "atlas-16.png",
+      "sha256": "a35b57c64e9e5af564537e82ecaa2b58b1638fa655d3775394bbb75be4537eb0",
+      "dimensions": [
+        48,
+        48
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.03515673709928026,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "32": {
+      "path": "atlas-32.png",
+      "sha256": "fd68cf3decd9a732598b5fe3c74b1d8f47613f1d5f37da6e988245bd87b4e018",
+      "dimensions": [
+        96,
+        96
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.07031347419856052,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "64": {
+      "path": "atlas-64.png",
+      "sha256": "298c6cdaf3da3d7d3239d39f746d52e3c2c6eb5836591752fb4cd794988c5308",
+      "dimensions": [
+        192,
+        192
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.14062694839712103,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "128": {
+      "path": "atlas-128.png",
+      "sha256": "9795c29cfd5ca721702e96b3fde56738bf1df7c28676b600bb43bd26e86f6686",
+      "dimensions": [
+        384,
+        384
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.28125389679424206,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "256": {
+      "path": "atlas-256.png",
+      "sha256": "5b2a5d1c036e90dc0065f58b68719e517581b58dab8a8b3bdfe38c106eb4b4b1",
+      "dimensions": [
+        768,
+        768
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.5625077935884841,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "512": {
+      "path": "atlas-512.png",
+      "sha256": "96cde6c2cade0d5d806bee84742394ce0415139f7294601b8e7c18314c3e22da",
+      "dimensions": [
+        1536,
+        1536
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 1.1250155871769683,
+      "upsampledFromGeneratedSource": true,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    }
+  },
+  "provenance": {
+    "operation": "Uniform source pixel density and measured registration only; generator output preserved verbatim",
+    "generator": "image_gen",
+    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/houses/taiga/rotation-1/house-atlas.png",
+    "sourceReview": "Measured ground axes, registration and observable entrances reviewed; genuine bare-ground alpha checked on contrasting textures and actual world gallery. Obscured personnel entrances and public/service openings retain their explicit source classifications."
+  }
+}

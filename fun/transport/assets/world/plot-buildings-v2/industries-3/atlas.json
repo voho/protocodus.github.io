@@ -1,0 +1,3709 @@
+{
+  "version": 2,
+  "jobId": "industries-3",
+  "type": "industry",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:wire-mill:taiga",
+    "industry:goods-factory:taiga",
+    "industry:equipment-factory:taiga",
+    "industry:dairy-farm:taiga",
+    "industry:vegetable-farm:taiga",
+    "industry:orchard:taiga",
+    "industry:livestock-farm:taiga",
+    "industry:dairy-plant:taiga",
+    "industry:cannery:taiga"
+  ],
+  "sprites": [
+    {
+      "id": "industry:wire-mill:taiga",
+      "kind": "wire-mill",
+      "cell": 0,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:wire-mill:desert"
+      ],
+      "eligibleBiomes": [
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          19,
+          39,
+          491,
+          512
+        ],
+        "meaningfulAlphaBounds": [
+          41,
+          256,
+          468,
+          480
+        ],
+        "transparentFraction": 0.7715339660644531,
+        "nontransparentPixels": 64006,
+        "meaningfulPixels": 58628,
+        "fractionalAlphaPixels": 63718,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 32
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          19,
+          246,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          20,
+          128,
+          234,
+          240
+        ],
+        "transparentFraction": 0.7700042724609375,
+        "nontransparentPixels": 15973,
+        "meaningfulPixels": 14720,
+        "fractionalAlphaPixels": 15752,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 16
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.07258975919325393,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.10060292850990525,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:wire-mill:taiga",
+          "groundCenterSource": [
+            256.0,
+            384.0
+          ],
+          "groundVerticesSource": [
+            [
+              114.00933097415225,
+              315.25848563034356
+            ],
+            [
+              252.61926978509888,
+              377.2385395701977
+            ],
+            [
+              190.6392158452447,
+              411.0458417192091
+            ],
+            [
+              52.029277034298076,
+              349.06578777935493
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "entranceReview": "No exposed ordinary personnel entrance",
+          "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            57.004665487076124,
+            157.62924281517178
+          ],
+          [
+            126.30963489254944,
+            188.61926978509885
+          ],
+          [
+            95.31960792262235,
+            205.52292085960454
+          ],
+          [
+            26.014638517149038,
+            174.53289388967747
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.44715447154471516,
+          -0.5454545454545456,
+          0.44715447154471516,
+          -0.5454545454545456
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.05284552845528484,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256.0,
+          384.0
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          20.5,
+          128.0,
+          234.0,
+          240.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 16.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:wire-mill:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            114.00933097415225,
+            315.25848563034356
+          ],
+          [
+            252.61926978509888,
+            377.2385395701977
+          ],
+          [
+            190.6392158452447,
+            411.0458417192091
+          ],
+          [
+            52.029277034298076,
+            349.06578777935493
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      "masterSha256": "a09f82be9ce4053658dbdd2735d1e84815d0eafef62a5c0058b884d913add0b5"
+    },
+    {
+      "id": "industry:goods-factory:taiga",
+      "kind": "goods-factory",
+      "cell": 1,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:goods-factory:desert"
+      ],
+      "eligibleBiomes": [
+        "desert"
+      ],
+      "sourceBounds": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "sourceBoundsSheet": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "sourceNominalCellBoundsSheet": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          19,
+          75,
+          489,
+          512
+        ],
+        "meaningfulAlphaBounds": [
+          37,
+          267,
+          471,
+          475
+        ],
+        "transparentFraction": 0.7848358154296875,
+        "nontransparentPixels": 60294,
+        "meaningfulPixels": 55273,
+        "fractionalAlphaPixels": 60000,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 37
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          14,
+          45,
+          242,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          19,
+          133,
+          236,
+          238
+        ],
+        "transparentFraction": 0.7829742431640625,
+        "nontransparentPixels": 15055,
+        "meaningfulPixels": 13885,
+        "fractionalAlphaPixels": 14802,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.12605407285056072,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.1533161068044789,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:goods-factory:taiga",
+          "groundCenterSource": [
+            256.0,
+            384.0
+          ],
+          "groundVerticesSource": [
+            [
+              117.39006118905338,
+              320.8930359885121
+            ],
+            [
+              252.61926978509888,
+              384.0
+            ],
+            [
+              188.38539570197727,
+              418.93421222064507
+            ],
+            [
+              52.02927703429807,
+              356.95415828079086
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "entranceReview": "No exposed ordinary personnel entrance",
+          "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            58.69503059452669,
+            160.44651799425606
+          ],
+          [
+            126.30963489254944,
+            192.0
+          ],
+          [
+            94.19269785098864,
+            209.46710611032253
+          ],
+          [
+            26.014638517149034,
+            178.47707914039543
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.46666666666666656,
+          -0.5438596491228067,
+          0.4545454545454547,
+          -0.5517241379310338
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.05172413793103381,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256.0,
+          384.0
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          18.5,
+          133.5,
+          235.5,
+          237.5
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 18.5,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -256.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:goods-factory:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            117.39006118905338,
+            320.8930359885121
+          ],
+          [
+            252.61926978509888,
+            384.0
+          ],
+          [
+            188.38539570197727,
+            418.93421222064507
+          ],
+          [
+            52.02927703429807,
+            356.95415828079086
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      "masterSha256": "896d80bb13859729befeb309d171f98236f2207e7134bc4227c7a9a3d00dd01b"
+    },
+    {
+      "id": "industry:equipment-factory:taiga",
+      "kind": "equipment-factory",
+      "cell": 2,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:equipment-factory:tundra"
+      ],
+      "eligibleBiomes": [
+        "tundra"
+      ],
+      "sourceBounds": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "sourceBoundsSheet": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "sourceNominalCellBoundsSheet": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          32,
+          92,
+          472,
+          512
+        ],
+        "meaningfulAlphaBounds": [
+          45,
+          271,
+          470,
+          486
+        ],
+        "transparentFraction": 0.77532958984375,
+        "nontransparentPixels": 62477,
+        "meaningfulPixels": 57663,
+        "fractionalAlphaPixels": 62200,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 26
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          18,
+          46,
+          237,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          23,
+          135,
+          235,
+          243
+        ],
+        "transparentFraction": 0.773529052734375,
+        "nontransparentPixels": 15619,
+        "meaningfulPixels": 14489,
+        "fractionalAlphaPixels": 15413,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 13
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.06598278709901764,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.024806201550387597,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:equipment-factory:taiga",
+          "groundCenterSource": [
+            256.0,
+            384.0
+          ],
+          "groundVerticesSource": [
+            [
+              119.64388133232082,
+              319.76612591687837
+            ],
+            [
+              258.25382014326743,
+              381.74617985673257
+            ],
+            [
+              190.63921584524468,
+              420.0611222922788
+            ],
+            [
+              52.02927703429807,
+              356.9541582807909
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "entranceReview": "No exposed ordinary personnel entrance",
+          "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            59.82194066616041,
+            159.88306295843918
+          ],
+          [
+            129.12691007163372,
+            190.87308992836628
+          ],
+          [
+            95.31960792262234,
+            210.0305611461394
+          ],
+          [
+            26.014638517149034,
+            178.47707914039546
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.44715447154471555,
+          -0.5666666666666669,
+          0.4552845528455285,
+          -0.5500000000000006
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.06666666666666687,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256.0,
+          384.0
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          22.5,
+          135.5,
+          235.0,
+          243.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 13.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -512.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:equipment-factory:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            119.64388133232082,
+            319.76612591687837
+          ],
+          [
+            258.25382014326743,
+            381.74617985673257
+          ],
+          [
+            190.63921584524468,
+            420.0611222922788
+          ],
+          [
+            52.02927703429807,
+            356.9541582807909
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      "masterSha256": "6d81ed44d3ac836aa14d5a0b7fcf9e7c94c540fe2ff31eaec9005ce7f2f336ab"
+    },
+    {
+      "id": "industry:dairy-farm:taiga",
+      "kind": "dairy-farm",
+      "cell": 3,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:dairy-farm:taiga",
+        "industry:dairy-farm:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "sourceBoundsSheet": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "transparentFraction": 0.9435882568359375,
+        "nontransparentPixels": 15092,
+        "meaningfulPixels": 14353,
+        "fractionalAlphaPixels": 14034,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          16,
+          133,
+          240,
+          249
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          135,
+          238,
+          247
+        ],
+        "transparentFraction": 0.9320526123046875,
+        "nontransparentPixels": 5152,
+        "meaningfulPixels": 3975,
+        "fractionalAlphaPixels": 4664,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.6731287490219943,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.7696813092161929,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:dairy-farm:taiga",
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+          "personnelDoorEndpointsSource": [
+            [
+              182.8,
+              340.0444444444445
+            ],
+            [
+              182.8,
+              346.44444444444446
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            128.0,
+            137.8417777777778
+          ],
+          [
+            236.31644444444444,
+            192.0
+          ],
+          [
+            128.0,
+            246.1582222222222
+          ],
+          [
+            19.68355555555556,
+            192.0
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4999999999999999,
+          -0.4999999999999999,
+          0.4999999999999999,
+          -0.4999999999999999
+        ],
+        "groundSlopeMaximumAbsoluteError": 1.1102230246251565e-16,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.1999999999999886,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            91.4,
+            170.02222222222224
+          ],
+          [
+            91.4,
+            173.22222222222223
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.07142857142856757
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256,
+          384
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.0,
+          135.5,
+          237.0,
+          247.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          -256.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:dairy-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            182.8,
+            340.0444444444445
+          ],
+          [
+            182.8,
+            346.44444444444446
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      "masterSha256": "6ed8ff04f06c34264d872c8d784b728d72d3cef34cdef9a4d3609710d7ffa037"
+    },
+    {
+      "id": "industry:vegetable-farm:taiga",
+      "kind": "vegetable-farm",
+      "cell": 4,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:vegetable-farm:taiga",
+        "industry:vegetable-farm:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "sourceBoundsSheet": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "sourceNominalCellBoundsSheet": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "transparentFraction": 0.8659324645996094,
+        "nontransparentPixels": 35355,
+        "meaningfulPixels": 34449,
+        "fractionalAlphaPixels": 34122,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          16,
+          133,
+          240,
+          249
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          135,
+          238,
+          247
+        ],
+        "transparentFraction": 0.8535614013671875,
+        "nontransparentPixels": 10263,
+        "meaningfulPixels": 9129,
+        "fractionalAlphaPixels": 9454,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.23089628792488917,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.12161929371231697,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:vegetable-farm:taiga",
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+          "personnelDoorEndpointsSource": [
+            [
+              182.4,
+              339.64444444444445
+            ],
+            [
+              182.4,
+              345.2444444444444
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            128.0,
+            137.8417777777778
+          ],
+          [
+            236.31644444444444,
+            192.0
+          ],
+          [
+            128.0,
+            246.1582222222222
+          ],
+          [
+            19.68355555555556,
+            192.0
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4999999999999999,
+          -0.4999999999999999,
+          0.4999999999999999,
+          -0.4999999999999999
+        ],
+        "groundSlopeMaximumAbsoluteError": 1.1102230246251565e-16,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.799999999999983,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            91.2,
+            169.82222222222222
+          ],
+          [
+            91.2,
+            172.6222222222222
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.06250000000000576
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256,
+          384
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.0,
+          135.5,
+          237.0,
+          247.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -256.0,
+          0,
+          0.5,
+          -256.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:vegetable-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            182.4,
+            339.64444444444445
+          ],
+          [
+            182.4,
+            345.2444444444444
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      "masterSha256": "1227d1d67f831482023d2a3726b047c5f0ce67457a242ff4d5eba8b043c10164"
+    },
+    {
+      "id": "industry:orchard:taiga",
+      "kind": "orchard",
+      "cell": 5,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:orchard:taiga",
+        "industry:orchard:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "sourceBoundsSheet": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "sourceNominalCellBoundsSheet": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          38,
+          248,
+          474,
+          494
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "transparentFraction": 0.9299049377441406,
+        "nontransparentPixels": 18651,
+        "meaningfulPixels": 17856,
+        "fractionalAlphaPixels": 15473,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          16,
+          133,
+          240,
+          249
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          135,
+          238,
+          247
+        ],
+        "transparentFraction": 0.9158172607421875,
+        "nontransparentPixels": 6443,
+        "meaningfulPixels": 4956,
+        "fractionalAlphaPixels": 5728,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.5639398417804051,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.618260120585702,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:orchard:taiga",
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+          "personnelDoorEndpointsSource": [
+            [
+              179.6,
+              345.64444444444445
+            ],
+            [
+              179.6,
+              351.2444444444444
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            128.0,
+            137.8417777777778
+          ],
+          [
+            236.31644444444444,
+            192.0
+          ],
+          [
+            128.0,
+            246.1582222222222
+          ],
+          [
+            19.68355555555556,
+            192.0
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4999999999999999,
+          -0.4999999999999999,
+          0.4999999999999999,
+          -0.4999999999999999
+        ],
+        "groundSlopeMaximumAbsoluteError": 1.1102230246251565e-16,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 2.799999999999983,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            89.8,
+            172.82222222222222
+          ],
+          [
+            89.8,
+            175.6222222222222
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.06250000000000576
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256,
+          384
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.0,
+          135.5,
+          237.0,
+          247.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -512.0,
+          0,
+          0.5,
+          -256.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:orchard:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            179.6,
+            345.64444444444445
+          ],
+          [
+            179.6,
+            351.2444444444444
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      "masterSha256": "3cb6fe784a455398ce0064e1f6aa6a893ebad5885be09cfcc307464e03597911"
+    },
+    {
+      "id": "industry:livestock-farm:taiga",
+      "kind": "livestock-farm",
+      "cell": 6,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:livestock-farm:taiga",
+        "industry:livestock-farm:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        1024,
+        512,
+        1536
+      ],
+      "sourceBoundsSheet": [
+        0,
+        1024,
+        512,
+        1536
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        1024,
+        512,
+        1536
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          271,
+          474,
+          494
+        ],
+        "transparentFraction": 0.945281982421875,
+        "nontransparentPixels": 14531,
+        "meaningfulPixels": 13916,
+        "fractionalAlphaPixels": 13473,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          16,
+          133,
+          240,
+          249
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          135,
+          238,
+          247
+        ],
+        "transparentFraction": 0.9338531494140625,
+        "nontransparentPixels": 5045,
+        "meaningfulPixels": 3873,
+        "fractionalAlphaPixels": 4573,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.6824306702599322,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.7882859603789837,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:livestock-farm:taiga",
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+          "personnelDoorEndpointsSource": [
+            [
+              183.2,
+              346.0444444444445
+            ],
+            [
+              183.2,
+              352.44444444444446
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            128.0,
+            137.8417777777778
+          ],
+          [
+            236.31644444444444,
+            192.0
+          ],
+          [
+            128.0,
+            246.1582222222222
+          ],
+          [
+            19.68355555555556,
+            192.0
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4999999999999999,
+          -0.4999999999999999,
+          0.4999999999999999,
+          -0.4999999999999999
+        ],
+        "groundSlopeMaximumAbsoluteError": 1.1102230246251565e-16,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 3.1999999999999886,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            91.6,
+            173.02222222222224
+          ],
+          [
+            91.6,
+            176.22222222222223
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.07142857142856757
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256,
+          384
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.0,
+          135.5,
+          237.0,
+          247.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          -512.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:livestock-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            183.2,
+            346.0444444444445
+          ],
+          [
+            183.2,
+            352.44444444444446
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      "masterSha256": "d97cae50b353e39a102d2b121c44d81772f8e452203ad15619a44e4968305a44"
+    },
+    {
+      "id": "industry:dairy-plant:taiga",
+      "kind": "dairy-plant",
+      "cell": 7,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:dairy-plant:taiga",
+        "industry:dairy-plant:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        512,
+        1024,
+        1024,
+        1536
+      ],
+      "sourceBoundsSheet": [
+        512,
+        1024,
+        1024,
+        1536
+      ],
+      "sourceNominalCellBoundsSheet": [
+        512,
+        1024,
+        1024,
+        1536
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          20,
+          159,
+          490,
+          507
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          245,
+          472,
+          480
+        ],
+        "transparentFraction": 0.75518798828125,
+        "nontransparentPixels": 69037,
+        "meaningfulPixels": 62460,
+        "fractionalAlphaPixels": 68767,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 32
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          10,
+          81,
+          242,
+          254
+        ],
+        "meaningfulAlphaBounds": [
+          19,
+          123,
+          236,
+          240
+        ],
+        "transparentFraction": 0.7539520263671875,
+        "nontransparentPixels": 17226,
+        "meaningfulPixels": 15673,
+        "fractionalAlphaPixels": 16976,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 16
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.08110927584108493,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.13074935400516796,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:dairy-plant:taiga",
+          "groundCenterSource": [
+            256.0,
+            384.0
+          ],
+          "groundVerticesSource": [
+            [
+              118.5169712606871,
+              317.512305773611
+            ],
+            [
+              253.7461798567326,
+              373.85780935529664
+            ],
+            [
+              188.38539570197727,
+              411.04584171920914
+            ],
+            [
+              53.156187105931785,
+              349.06578777935493
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "entranceReview": "No exposed ordinary personnel entrance",
+          "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            59.25848563034355,
+            158.7561528868055
+          ],
+          [
+            126.8730899283663,
+            186.92890467764832
+          ],
+          [
+            94.19269785098864,
+            205.52292085960457
+          ],
+          [
+            26.578093552965893,
+            174.53289388967747
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4166666666666668,
+          -0.5689655172413791,
+          0.4583333333333335,
+          -0.48275862068965514
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.0833333333333332,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256.0,
+          384.0
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          19.0,
+          122.5,
+          236.0,
+          240.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 16.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -256.0,
+          0,
+          0.5,
+          -512.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:dairy-plant:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            118.5169712606871,
+            317.512305773611
+          ],
+          [
+            253.7461798567326,
+            373.85780935529664
+          ],
+          [
+            188.38539570197727,
+            411.04584171920914
+          ],
+          [
+            53.156187105931785,
+            349.06578777935493
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      "masterSha256": "7d8dd3ba724898659af9e80f4bc1ea9b5474e09f9aa75a41cf54a5b24dd2eca9"
+    },
+    {
+      "id": "industry:cannery:taiga",
+      "kind": "cannery",
+      "cell": 8,
+      "footprint": 5,
+      "runtimeIds": [
+        "industry:cannery:taiga",
+        "industry:cannery:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "desert"
+      ],
+      "sourceBounds": [
+        1024,
+        1024,
+        1536,
+        1536
+      ],
+      "sourceBoundsSheet": [
+        1024,
+        1024,
+        1536,
+        1536
+      ],
+      "sourceNominalCellBoundsSheet": [
+        1024,
+        1024,
+        1536,
+        1536
+      ],
+      "sourceCellPixels": 512,
+      "observedSourceCropPixels": [
+        512,
+        512
+      ],
+      "sourceScale": 0.5,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          19,
+          160,
+          475,
+          482
+        ],
+        "meaningfulAlphaBounds": [
+          37,
+          245,
+          472,
+          480
+        ],
+        "transparentFraction": 0.7350082397460938,
+        "nontransparentPixels": 73501,
+        "meaningfulPixels": 67900,
+        "fractionalAlphaPixels": 73235,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 32
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          95,
+          238,
+          242
+        ],
+        "meaningfulAlphaBounds": [
+          18,
+          122,
+          236,
+          240
+        ],
+        "transparentFraction": 0.7335968017578125,
+        "nontransparentPixels": 18315,
+        "meaningfulPixels": 17045,
+        "fractionalAlphaPixels": 18083,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 16
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.05146483526036686,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.07993109388458226,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666666
+          ],
+          [
+            234.66666666666669,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333334
+          ],
+          [
+            21.33333333333333,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 2.986666666666667,
+        "personnelDoorMasterWidthPixels": 1.3511111111111112,
+        "storeyMasterPixels": 4.266666666666667,
+        "fenceMasterPixels": 1.7066666666666668,
+        "loadingBayMasterPixels": 5.973333333333334,
+        "worldPixelsPerMasterPixel": 1.40625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:cannery:taiga",
+          "groundCenterSource": [
+            256.0,
+            384.0
+          ],
+          "groundVerticesSource": [
+            [
+              112.88242090251853,
+              318.6392158452447
+            ],
+            [
+              257.1269100716337,
+              388.50764028653487
+            ],
+            [
+              187.25848563034356,
+              417.8073021490114
+            ],
+            [
+              49.77545689103064,
+              353.57342806588974
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "entranceReview": "No exposed ordinary personnel entrance",
+          "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+        },
+        "groundEdgeObservationMethod": "Four supplied ground-plane vertices",
+        "groundVerticesMasterMeasured": [
+          [
+            56.441210451259266,
+            159.31960792262234
+          ],
+          [
+            128.56345503581684,
+            194.25382014326743
+          ],
+          [
+            93.62924281517178,
+            208.9036510745057
+          ],
+          [
+            24.88772844551532,
+            176.78671403294487
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4843750000000002,
+          -0.4193548387096775,
+          0.46721311475409855,
+          -0.5535714285714283
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.08064516129032251,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          256.0,
+          384.0
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.5,
+        "translationMaster": [
+          0.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          18.5,
+          122.5,
+          236.0,
+          240.0
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 16.0,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.5,
+          0,
+          -512.0,
+          0,
+          0.5,
+          -512.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.5,
+          0,
+          0.0,
+          0,
+          0.5,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:cannery:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            112.88242090251853,
+            318.6392158452447
+          ],
+          [
+            257.1269100716337,
+            388.50764028653487
+          ],
+          [
+            187.25848563034356,
+            417.8073021490114
+          ],
+          [
+            49.77545689103064,
+            353.57342806588974
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      "masterSha256": "bb6ee8c21cea7abd28921af114b7a4d9dd9c6977d3c472e653e8b6594f7454ee"
+    }
+  ],
+  "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
+  "groundRegistrationApplied": true,
+  "source": "generated-source.png",
+  "sourceSha256": "904ce536614f94975d8676ee80546c5276f062ea6b2b1f5a40f31893ea0ac06b",
+  "generationJobSha256": "d8b9678ef784e9b6ae0e11ece32f2e13c75cc6395f12b9795cb2557b28a6907e",
+  "measurements": "registration-measurements.json",
+  "measurementsSha256": "b87bee2dbf3a3e976ac0e09d60443521f63bf1604b113c29496114f7192d5a04",
+  "originalSourceResolution": {
+    "sheetPixels": [
+      1536,
+      1536
+    ],
+    "squareCellPixels": 512,
+    "columns": 3,
+    "rows": 3
+  },
+  "originalMeasurements": {
+    "entries": [
+      {
+        "id": "industry:wire-mill:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            114.00933097415225,
+            315.25848563034356
+          ],
+          [
+            252.61926978509888,
+            377.2385395701977
+          ],
+          [
+            190.6392158452447,
+            411.0458417192091
+          ],
+          [
+            52.029277034298076,
+            349.06578777935493
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      {
+        "id": "industry:goods-factory:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            117.39006118905338,
+            320.8930359885121
+          ],
+          [
+            252.61926978509888,
+            384.0
+          ],
+          [
+            188.38539570197727,
+            418.93421222064507
+          ],
+          [
+            52.02927703429807,
+            356.95415828079086
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      {
+        "id": "industry:equipment-factory:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            119.64388133232082,
+            319.76612591687837
+          ],
+          [
+            258.25382014326743,
+            381.74617985673257
+          ],
+          [
+            190.63921584524468,
+            420.0611222922788
+          ],
+          [
+            52.02927703429807,
+            356.9541582807909
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      {
+        "id": "industry:dairy-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            182.8,
+            340.0444444444445
+          ],
+          [
+            182.8,
+            346.44444444444446
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      {
+        "id": "industry:vegetable-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            182.4,
+            339.64444444444445
+          ],
+          [
+            182.4,
+            345.2444444444444
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      {
+        "id": "industry:orchard:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            179.6,
+            345.64444444444445
+          ],
+          [
+            179.6,
+            351.2444444444444
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      {
+        "id": "industry:livestock-farm:taiga",
+        "groundVerticesSource": [
+          [
+            256,
+            275.6835555555556
+          ],
+          [
+            472.6328888888889,
+            384
+          ],
+          [
+            256,
+            492.3164444444444
+          ],
+          [
+            39.36711111111112,
+            384
+          ]
+        ],
+        "groundCenterSource": [
+          256,
+          384
+        ],
+        "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+        "personnelDoorEndpointsSource": [
+          [
+            183.2,
+            346.0444444444445
+          ],
+          [
+            183.2,
+            352.44444444444446
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+      },
+      {
+        "id": "industry:dairy-plant:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            118.5169712606871,
+            317.512305773611
+          ],
+          [
+            253.7461798567326,
+            373.85780935529664
+          ],
+          [
+            188.38539570197727,
+            411.04584171920914
+          ],
+          [
+            53.156187105931785,
+            349.06578777935493
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      },
+      {
+        "id": "industry:cannery:taiga",
+        "groundCenterSource": [
+          256.0,
+          384.0
+        ],
+        "groundVerticesSource": [
+          [
+            112.88242090251853,
+            318.6392158452447
+          ],
+          [
+            257.1269100716337,
+            388.50764028653487
+          ],
+          [
+            187.25848563034356,
+            417.8073021490114
+          ],
+          [
+            49.77545689103064,
+            353.57342806588974
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "entranceReview": "No exposed ordinary personnel entrance",
+        "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+      }
+    ],
+    "observationPolicy": "Game-renderer geometry for farm plots; measured generator observations for unchanged registered processors"
+  },
+  "sheetScaleCalibration": null,
+  "sheetScaleCalibrationFile": null,
+  "sheetScaleCalibrationSha256": null,
+  "physicalCalibration": {
+    "scale": {
+      "tileMetres": 16,
+      "worldPixelsPerMetre": 2,
+      "billboardPixelsPerTile": 72,
+      "masterCellPixels": 256,
+      "humanHeightMetres": 1.75,
+      "doorHeightMetres": 2.1,
+      "doorWidthMetres": 0.95,
+      "storeyHeightMetres": 3,
+      "windowHeightMetres": 1.2,
+      "fenceHeightMetres": 1.2,
+      "loadingBayHeightMetres": 4.2
+    },
+    "registration": {
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "groundEdgeSlope": 0.5,
+      "architecturalEnvelopeMetresPerTile": 15,
+      "eastWorldPixelsPerMetre": [
+        2,
+        1
+      ],
+      "northWorldPixelsPerMetre": [
+        -2,
+        1
+      ],
+      "upWorldPixelsPerMetre": [
+        0,
+        -2
+      ]
+    },
+    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "sourceCellPixels": 512,
+    "sourceToMasterScale": 0.5,
+    "meaningfulSourcePixelsRetained": 382498,
+    "sourceIsolationNoise": {
+      "omittedSourcePixels": 0,
+      "omittedSourceAlphaEnergy": 0,
+      "maximumAllowedOmittedAlpha": 2,
+      "method": "Original sheet alpha outside the union of explicit occupied-slot crop rectangles"
+    },
+    "measuredGeometryVerified": true,
+    "minimumFilteringGutterMasterPixels": 2,
+    "measurementTolerances": {
+      "groundSlopeAbsoluteError": 0.11,
+      "groundCenterMasterPixels": 3,
+      "personnelDoorRelativeError": 0.25
+    }
+  },
+  "mipFilter": "Independent canonical 512px cutout premultiplied-alpha Lanczos; processor 512px samples copied exactly from original source registration",
+  "mipSharpening": false,
+  "groundKey": "RGBA alpha, bare ground must be authored transparent; no colour keying",
+  "outputs": {
+    "16": {
+      "path": "atlas-16.png",
+      "sha256": "6045dbfe19e39ce3a9a8158dc36dd5245d138975b1be926afd65fa5842dd81b5",
+      "dimensions": [
+        48,
+        48
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 0.03125,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    },
+    "32": {
+      "path": "atlas-32.png",
+      "sha256": "0176084f1bc6cdb48543d83c31d7b0088e0572a4c6fd4f84abb5ff8e17b50f1a",
+      "dimensions": [
+        96,
+        96
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 0.0625,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    },
+    "64": {
+      "path": "atlas-64.png",
+      "sha256": "dbbdcc369287682930f7f5599bfe37d7f204fa14368c92151b06f81e8bd32a22",
+      "dimensions": [
+        192,
+        192
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 0.125,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    },
+    "128": {
+      "path": "atlas-128.png",
+      "sha256": "2f3c91a1281cf72e19f89f5b2030355ffbb505c08469105a0498cdf0991de81c",
+      "dimensions": [
+        384,
+        384
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 0.25,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    },
+    "256": {
+      "path": "atlas-256.png",
+      "sha256": "e940788e69dfea074b8a99ef973eab908fa2c95632d8bdac67674633388ce9f0",
+      "dimensions": [
+        768,
+        768
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 0.5,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    },
+    "512": {
+      "path": "atlas-512.png",
+      "sha256": "904ce536614f94975d8676ee80546c5276f062ea6b2b1f5a40f31893ea0ac06b",
+      "dimensions": [
+        1536,
+        1536
+      ],
+      "generatedSourceCellPixels": 512,
+      "sourceToLevelScale": 1.0,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct canonical composition resampling; retained original generator calibration records describe painted source resolution"
+    }
+  },
+  "provenance": {
+    "operation": "Registered 512px atlas assembly, then uniform premultiplied-alpha mip packing; original processor and core sources retained",
+    "generator": "image_gen painted cutouts + game renderer farm geometry",
+    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/world/industries-desert-extra/atlas.png",
+    "sourceReview": "Measured farm field, fence, core entrance and processor source geometry verified"
+  },
+  "farmComposition": {
+    "method": "Actual native field/fence/animal geometry with painted 2-tile cores; unchanged registered processor cells",
+    "canonicalCellPixels": 512,
+    "bareMeadowGround": "RGBA transparent",
+    "farmCells": [
+      {
+        "kind": "dairy-farm",
+        "cell": 3,
+        "compoundSha256": "8c625c298c108373e62dff52254a7a3eabaf334dfe8a69708e45240306f9df7c",
+        "geometry": {
+          "kind": "dairy-farm",
+          "sourceCellPixels": 512,
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "coreSourceOrigin": [
+            153.6,
+            207.64444444444445
+          ],
+          "coreMasterToCompoundSourceScale": 0.8
+        },
+        "coreOriginalSourceSha256": "614883b25be18100706418f4738b32b8b2e896c26f00739a66c99da9e48c5427",
+        "coreRegisteredMasterSha256": "6b800a8106a598ba2ef61f4a7da4a8c0d30155a9622818d920502b8b6c4cae16",
+        "coreOriginalMeasurements": {
+          "id": "farm-core:dairy-farm:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              58,
+              292
+            ],
+            [
+              488,
+              398
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                58,
+                292
+              ],
+              [
+                262,
+                388
+              ]
+            ],
+            [
+              [
+                262,
+                388
+              ],
+              [
+                378,
+                328
+              ]
+            ]
+          ],
+          "personnelDoorEndpointsSource": [
+            [
+              90,
+              292
+            ],
+            [
+              90,
+              308
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "groundCentreNote": "Compound datum is midpoint of observed far-left barn masonry ground contact and far-right equipment/work-structure ground contact. The transparent yard has no painted perimeter. Ground camera is separately measured on both exposed main-barn footing directions; hidden rear corner not declared observed."
+        },
+        "coreSourceRegistration": {
+          "status": "measured-translation-applied",
+          "applied": true,
+          "sourceGroundCenter": [
+            273.0,
+            345.0
+          ],
+          "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+          "uniformSourceToMasterScale": 0.5,
+          "translationMaster": [
+            -8.5,
+            19.5
+          ],
+          "targetGroundCenterMaster": [
+            128.0,
+            192.0
+          ],
+          "transformedMeaningfulAlphaBoundsMaster": [
+            16.5,
+            128.0,
+            233.0,
+            238.0
+          ],
+          "minimumMeaningfulFilteringGutterMasterPixels": 16.5,
+          "requiredMinimumGutterMasterPixels": 2,
+          "clipping": {
+            "clippedSourcePixels": 35,
+            "clippedSourceAlphaEnergy": 35,
+            "clippedNonNoiseSourcePixels": 0,
+            "clippedNonNoiseSourceAlphaEnergy": 0,
+            "maximumAllowedClippedAlpha": 2,
+            "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+          },
+          "sourceCropToMasterAffine": [
+            0.5,
+            0,
+            -8.5,
+            0,
+            0.5,
+            19.5
+          ],
+          "sourceSheetToMasterAffine": [
+            0.5,
+            0,
+            -264.5,
+            0,
+            0.5,
+            19.5
+          ],
+          "sourceNominalCellToMasterAffine": [
+            0.5,
+            0,
+            -8.5,
+            0,
+            0.5,
+            19.5
+          ],
+          "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+        }
+      },
+      {
+        "kind": "vegetable-farm",
+        "cell": 4,
+        "compoundSha256": "399900d3215af5b370a57358cb11b866f502b01a6930f97bccf3569db1f843c1",
+        "geometry": {
+          "kind": "vegetable-farm",
+          "sourceCellPixels": 512,
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "coreSourceOrigin": [
+            153.6,
+            207.64444444444445
+          ],
+          "coreMasterToCompoundSourceScale": 0.8
+        },
+        "coreOriginalSourceSha256": "614883b25be18100706418f4738b32b8b2e896c26f00739a66c99da9e48c5427",
+        "coreRegisteredMasterSha256": "7d5f1f8a59a4c1902725ff0ca59d3d90fe53a6df39f78098ab65c822c3f6691c",
+        "coreOriginalMeasurements": {
+          "id": "farm-core:vegetable-farm:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              54,
+              298
+            ],
+            [
+              490,
+              398
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                54,
+                298
+              ],
+              [
+                254,
+                394
+              ]
+            ],
+            [
+              [
+                254,
+                394
+              ],
+              [
+                372,
+                332
+              ]
+            ]
+          ],
+          "personnelDoorEndpointsSource": [
+            [
+              88,
+              294
+            ],
+            [
+              88,
+              308
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "groundCentreNote": "Compound datum is midpoint of observed far-left barn masonry ground contact and far-right equipment/work-structure ground contact. The transparent yard has no painted perimeter. Ground camera is separately measured on both exposed main-barn footing directions; hidden rear corner not declared observed."
+        },
+        "coreSourceRegistration": {
+          "status": "measured-translation-applied",
+          "applied": true,
+          "sourceGroundCenter": [
+            272.0,
+            348.0
+          ],
+          "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+          "uniformSourceToMasterScale": 0.5,
+          "translationMaster": [
+            -8.0,
+            18.0
+          ],
+          "targetGroundCenterMaster": [
+            128.0,
+            192.0
+          ],
+          "transformedMeaningfulAlphaBoundsMaster": [
+            11.0,
+            132.0,
+            237.5,
+            226.5
+          ],
+          "minimumMeaningfulFilteringGutterMasterPixels": 11.0,
+          "requiredMinimumGutterMasterPixels": 2,
+          "clipping": {
+            "clippedSourcePixels": 105,
+            "clippedSourceAlphaEnergy": 105,
+            "clippedNonNoiseSourcePixels": 0,
+            "clippedNonNoiseSourceAlphaEnergy": 0,
+            "maximumAllowedClippedAlpha": 2,
+            "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+          },
+          "sourceCropToMasterAffine": [
+            0.5,
+            0,
+            -8.0,
+            0,
+            0.5,
+            18.0
+          ],
+          "sourceSheetToMasterAffine": [
+            0.5,
+            0,
+            -520.0,
+            0,
+            0.5,
+            18.0
+          ],
+          "sourceNominalCellToMasterAffine": [
+            0.5,
+            0,
+            -8.0,
+            0,
+            0.5,
+            18.0
+          ],
+          "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+        }
+      },
+      {
+        "kind": "orchard",
+        "cell": 5,
+        "compoundSha256": "c60c1dd1ba464a133cd7cec38670b739194dc7494c314ec8fd5e2bfa4ca7fbea",
+        "geometry": {
+          "kind": "orchard",
+          "sourceCellPixels": 512,
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "coreSourceOrigin": [
+            153.6,
+            207.64444444444445
+          ],
+          "coreMasterToCompoundSourceScale": 0.8
+        },
+        "coreOriginalSourceSha256": "614883b25be18100706418f4738b32b8b2e896c26f00739a66c99da9e48c5427",
+        "coreRegisteredMasterSha256": "97a2b7358bd5143fb4e77375109672597821e77d40c19c92fcdd4093b7faac20",
+        "coreOriginalMeasurements": {
+          "id": "farm-core:orchard:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              62,
+              246
+            ],
+            [
+              496,
+              332
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                62,
+                246
+              ],
+              [
+                238,
+                324
+              ]
+            ],
+            [
+              [
+                238,
+                324
+              ],
+              [
+                330,
+                276
+              ]
+            ]
+          ],
+          "personnelDoorEndpointsSource": [
+            [
+              88,
+              250
+            ],
+            [
+              88,
+              264
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "groundCentreNote": "Compound datum is midpoint of observed far-left barn masonry ground contact and far-right equipment/work-structure ground contact. The transparent yard has no painted perimeter. Ground camera is separately measured on both exposed main-barn footing directions; hidden rear corner not declared observed.",
+          "sourceBoundsSheet": [
+            0,
+            512,
+            538,
+            1024
+          ]
+        },
+        "coreSourceRegistration": {
+          "status": "measured-translation-applied",
+          "applied": true,
+          "sourceGroundCenter": [
+            279.0,
+            289.0
+          ],
+          "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+          "uniformSourceToMasterScale": 0.5,
+          "translationMaster": [
+            -11.5,
+            47.5
+          ],
+          "targetGroundCenterMaster": [
+            128.0,
+            192.0
+          ],
+          "transformedMeaningfulAlphaBoundsMaster": [
+            17.5,
+            135.0,
+            245.0,
+            231.0
+          ],
+          "minimumMeaningfulFilteringGutterMasterPixels": 11.0,
+          "requiredMinimumGutterMasterPixels": 2,
+          "clipping": {
+            "clippedSourcePixels": 182,
+            "clippedSourceAlphaEnergy": 182,
+            "clippedNonNoiseSourcePixels": 0,
+            "clippedNonNoiseSourceAlphaEnergy": 0,
+            "maximumAllowedClippedAlpha": 2,
+            "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+          },
+          "sourceCropToMasterAffine": [
+            0.5,
+            0,
+            -11.5,
+            0,
+            0.5,
+            47.5
+          ],
+          "sourceSheetToMasterAffine": [
+            0.5,
+            0,
+            -11.5,
+            0,
+            0.5,
+            -208.5
+          ],
+          "sourceNominalCellToMasterAffine": [
+            0.5,
+            0,
+            -11.5,
+            0,
+            0.5,
+            47.5
+          ],
+          "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+        }
+      },
+      {
+        "kind": "livestock-farm",
+        "cell": 6,
+        "compoundSha256": "adbb1f83b398a42a659a98d44c37798fe2ab7bb1a966787a8419cbd4408791e3",
+        "geometry": {
+          "kind": "livestock-farm",
+          "sourceCellPixels": 512,
+          "groundVerticesSource": [
+            [
+              256,
+              275.6835555555556
+            ],
+            [
+              472.6328888888889,
+              384
+            ],
+            [
+              256,
+              492.3164444444444
+            ],
+            [
+              39.36711111111112,
+              384
+            ]
+          ],
+          "groundCenterSource": [
+            256,
+            384
+          ],
+          "coreSourceOrigin": [
+            153.6,
+            207.64444444444445
+          ],
+          "coreMasterToCompoundSourceScale": 0.8
+        },
+        "coreOriginalSourceSha256": "614883b25be18100706418f4738b32b8b2e896c26f00739a66c99da9e48c5427",
+        "coreRegisteredMasterSha256": "ee538043790076f18f6a73e986712c0ca878dda464a57775f66201fde465743c",
+        "coreOriginalMeasurements": {
+          "id": "farm-core:livestock-farm:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              60,
+              248
+            ],
+            [
+              488,
+              328
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                60,
+                248
+              ],
+              [
+                232,
+                328
+              ]
+            ],
+            [
+              [
+                232,
+                328
+              ],
+              [
+                330,
+                276
+              ]
+            ]
+          ],
+          "personnelDoorEndpointsSource": [
+            [
+              92,
+              250
+            ],
+            [
+              92,
+              266
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "groundCentreNote": "Compound datum is midpoint of observed far-left barn masonry ground contact and far-right equipment/work-structure ground contact. The transparent yard has no painted perimeter. Ground camera is separately measured on both exposed main-barn footing directions; hidden rear corner not declared observed.",
+          "sourceBoundsSheet": [
+            538,
+            512,
+            1024,
+            1024
+          ]
+        },
+        "coreSourceRegistration": {
+          "status": "measured-translation-applied",
+          "applied": true,
+          "sourceGroundCenter": [
+            274.0,
+            288.0
+          ],
+          "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+          "uniformSourceToMasterScale": 0.5,
+          "translationMaster": [
+            -9.0,
+            48.0
+          ],
+          "targetGroundCenterMaster": [
+            128.0,
+            192.0
+          ],
+          "transformedMeaningfulAlphaBoundsMaster": [
+            14.5,
+            131.0,
+            234.0,
+            229.5
+          ],
+          "minimumMeaningfulFilteringGutterMasterPixels": 14.5,
+          "requiredMinimumGutterMasterPixels": 2,
+          "clipping": {
+            "clippedSourcePixels": 77,
+            "clippedSourceAlphaEnergy": 77,
+            "clippedNonNoiseSourcePixels": 0,
+            "clippedNonNoiseSourceAlphaEnergy": 0,
+            "maximumAllowedClippedAlpha": 2,
+            "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+          },
+          "sourceCropToMasterAffine": [
+            0.5,
+            0,
+            4.0,
+            0,
+            0.5,
+            48.0
+          ],
+          "sourceSheetToMasterAffine": [
+            0.5,
+            0,
+            -265.0,
+            0,
+            0.5,
+            -208.0
+          ],
+          "sourceNominalCellToMasterAffine": [
+            0.5,
+            0,
+            -9.0,
+            0,
+            0.5,
+            48.0
+          ],
+          "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+        }
+      }
+    ],
+    "paintedSource": "painted-source.png",
+    "paintedSourceSha256": "993e7a1425a92a0b5bea9490978b7abb646e1ae4bc2fe8b1ee6926cc7343c0a9",
+    "paintedSourceMetadata": "painted-source-atlas.json",
+    "paintedSourceMeasurements": "painted-source-measurements.json",
+    "coreAtlasMetadata": "../farm-cores/atlas.json",
+    "coreAtlas512Sha256": "ae6708078bdeaca58b6e5d493ba9331adac8e43b2e8fdc2427251bdd2649910b"
+  }
+}

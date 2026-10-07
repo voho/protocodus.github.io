@@ -12,7 +12,7 @@ export const APP_PRELOAD = Object.freeze([
   './headlines.js',
   './air-flight.js', './airport-art.js',
   './compact-play.js', './construction-plan.js', './route-tiles.js', './structure-visibility.js', './atlas-runtime.js',
-  './raster-industries.js', './raster-buildings.js', './tree-sprites.js', './tree-shadows.js', './raster-nature.js',
+  './plot-building-catalog.js', './raster-industries.js', './raster-buildings.js', './tree-sprites.js', './tree-shadows.js', './raster-nature.js',
   './building-sprites.js', './town-feature-sprites.js', './processing-sprites.js', './relief-sprites.js', './sprite-cache.js', './house-ground.js', './raster-houses.js',
   './sprites.js', './zoom.js', './cargo-icons.js', './gameplay-insights.js', './landscape-scenery.js', './visibility.js',
   './vehicle-directions.js', './isometric.js', './rail-surface-art.js', './raster-transport.js', './marine-sprites.js',

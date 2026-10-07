@@ -1,0 +1,13 @@
+{
+  "generator": "image_gen",
+  "finalGeneratedPath": "/workspace/generated_images/exec-87fa67dc-9836-4899-a6ee-d756926addb3.png",
+  "transparent_background": true,
+  "job": "city-retail-variety",
+  "passes": [
+    "Native geometry guide painted with canonical buildingGenerationPrompt",
+    "Targeted ordinary wall, door and window height correction at fixed ground width/depth",
+    "Source-only zero-alpha bare-ground cleanup (houses and retail parks)"
+  ],
+  "normalization": "Original generated PNG preserved verbatim. Packing uses one observed physical ground-axis density for all entries in the sheet, explicit complete source crops and observed ground-contact registration only.",
+  "bareGroundReview": "Composited over contrasting purple terrain. House lawns and park bare ground are alpha holes; roofs, isolated planting and deliberate paving remain."
+}

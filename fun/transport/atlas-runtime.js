@@ -5,7 +5,9 @@ export function registerAtlas({id,path,columns=3,rows=3,entries:ids,maxCell=128,
   if(atlases.has(id))return;
   const atlas={id,path,columns,rows,ids,maxCell,biome,levels:new Map(),orderedLevels:[],failures:new Map(),status:'idle',error:null,pending:new Map(),awaited:new Set()};
   atlases.set(id,atlas);
-  ids.forEach((key,index)=>{if(key)entries.set(key,{atlas,index});});
+  // A neutral architectural cell has several climate identities, all sharing
+  // one decoded image and density request. Existing one-key cells are unchanged.
+  ids.forEach((keys,index)=>{for(const key of Array.isArray(keys)?keys:[keys])if(key)entries.set(key,{atlas,index});});
 }
 export const worldArtRevision=()=>revision;
 export const onWorldArtChange=fn=>{listeners.add(fn);return()=>listeners.delete(fn);};

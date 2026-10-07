@@ -1,0 +1,480 @@
+{
+  "entries": [
+    {
+      "id": "civic:park-village:taiga",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        430,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          28,
+          332
+        ],
+        [
+          411,
+          331
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            28,
+            332
+          ],
+          [
+            211,
+            424
+          ]
+        ],
+        [
+          [
+            211,
+            424
+          ],
+          [
+            411,
+            331
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorObservable": false,
+      "doorVisibility": "Park has no personnel door.",
+      "groundCenterSource": [
+        223,
+        323
+      ],
+      "groundCenterObservation": "Observed path-axis intersection beneath central stone monument."
+    },
+    {
+      "id": "civic:park-formal:taiga",
+      "sourceBoundsSheet": [
+        430,
+        0,
+        838,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          47,
+          332
+        ],
+        [
+          396,
+          332
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            47,
+            332
+          ],
+          [
+            218,
+            423
+          ]
+        ],
+        [
+          [
+            218,
+            423
+          ],
+          [
+            396,
+            332
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorObservable": false,
+      "doorVisibility": "Park has no personnel door.",
+      "groundCenterSource": [
+        214,
+        323
+      ],
+      "groundCenterObservation": "Observed central fountain ground contact at crossing path axes."
+    },
+    {
+      "id": "civic:park-woodland:taiga",
+      "sourceBoundsSheet": [
+        838,
+        0,
+        1254,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          64,
+          328
+        ],
+        [
+          383,
+          332
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            111,
+            309
+          ],
+          [
+            138,
+            323
+          ]
+        ],
+        [
+          [
+            299,
+            286
+          ],
+          [
+            314,
+            278
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorObservable": false,
+      "doorVisibility": "Park has no personnel door.",
+      "groundCenterObservation": "Midpoint of observed extreme opposite root ground contacts; woodland has no fence/rectangular parcel boundary."
+    },
+    {
+      "id": "civic:mall-neighborhood:taiga",
+      "sourceBoundsSheet": [
+        0,
+        500,
+        430,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          11,
+          278
+        ],
+        [
+          402,
+          288
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            11,
+            278
+          ],
+          [
+            220,
+            392
+          ]
+        ],
+        [
+          [
+            220,
+            392
+          ],
+          [
+            402,
+            288
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          155,
+          240
+        ],
+        [
+          155,
+          256
+        ]
+      ]
+    },
+    {
+      "id": "civic:mall-shopping:taiga",
+      "sourceBoundsSheet": [
+        430,
+        500,
+        838,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          7,
+          280
+        ],
+        [
+          414,
+          280
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            7,
+            280
+          ],
+          [
+            212,
+            392
+          ]
+        ],
+        [
+          [
+            212,
+            392
+          ],
+          [
+            414,
+            280
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          234,
+          323
+        ],
+        [
+          234,
+          334
+        ]
+      ]
+    },
+    {
+      "id": "civic:mall-modern:taiga",
+      "sourceBoundsSheet": [
+        838,
+        500,
+        1254,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          4,
+          279
+        ],
+        [
+          415,
+          281
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            4,
+            279
+          ],
+          [
+            219,
+            392
+          ]
+        ],
+        [
+          [
+            219,
+            392
+          ],
+          [
+            415,
+            281
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          226,
+          298
+        ],
+        [
+          226,
+          309
+        ]
+      ]
+    },
+    {
+      "id": "civic:shop-grocery:taiga:design-1",
+      "sourceBoundsSheet": [
+        0,
+        900,
+        430,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          27,
+          271
+        ],
+        [
+          391,
+          271
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            27,
+            271
+          ],
+          [
+            206,
+            365
+          ]
+        ],
+        [
+          [
+            206,
+            365
+          ],
+          [
+            391,
+            271
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          214,
+          268
+        ],
+        [
+          214,
+          295
+        ]
+      ]
+    },
+    {
+      "id": "civic:shop-bakery:taiga:design-1",
+      "sourceBoundsSheet": [
+        430,
+        900,
+        838,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          37,
+          272
+        ],
+        [
+          391,
+          271
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            37,
+            272
+          ],
+          [
+            215,
+            365
+          ]
+        ],
+        [
+          [
+            215,
+            365
+          ],
+          [
+            391,
+            271
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          208,
+          268
+        ],
+        [
+          208,
+          295
+        ]
+      ]
+    },
+    {
+      "id": "civic:shop-butcher:taiga:design-1",
+      "sourceBoundsSheet": [
+        838,
+        900,
+        1254,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          39,
+          272
+        ],
+        [
+          391,
+          271
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            39,
+            272
+          ],
+          [
+            213,
+            365
+          ]
+        ],
+        [
+          [
+            213,
+            365
+          ],
+          [
+            391,
+            271
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          210,
+          268
+        ],
+        [
+          210,
+          295
+        ]
+      ]
+    }
+  ],
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            11,
+            696
+          ],
+          [
+            220,
+            810
+          ]
+        ],
+        "physicalSpanMetres": 30,
+        "footprint": 2,
+        "note": "Observed front ground-contact fence/courtyard axis of the 2-tile, 30 metre architectural envelope specified in the generator brief; physical axis endpoints, not an alpha bounding box."
+      }
+    ]
+  },
+  "sourceCellPixels": 418,
+  "review": "Source pixel-grid observations. Retention and door/camera gates run during packing; an out-of-contract result remains explicitly unverified."
+}

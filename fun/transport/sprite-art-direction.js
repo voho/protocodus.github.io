@@ -3,7 +3,7 @@
 export const SPRITE_SCALE = Object.freeze({
   tileMetres: 16,
   worldPixelsPerMetre: 2,
-  billboardPixelsPerTile: 48,
+  billboardPixelsPerTile: 72,
   masterCellPixels: 256,
   humanHeightMetres: 1.75,
   doorHeightMetres: 2.1,
@@ -16,7 +16,7 @@ export const SPRITE_SCALE = Object.freeze({
 
 export function featureWorldPixels(metres) { return metres * SPRITE_SCALE.worldPixelsPerMetre; }
 export function featureSpriteUnits(metres, footprint = 1) {
-  return featureWorldPixels(metres) / (1.5 * footprint);
+  return featureWorldPixels(metres) / (SPRITE_SCALE.billboardPixelsPerTile / 32 * footprint);
 }
 export function featureMasterPixels(metres, footprint = 1, cellPixels = SPRITE_SCALE.masterCellPixels) {
   return featureWorldPixels(metres) * cellPixels / (SPRITE_SCALE.billboardPixelsPerTile * footprint);
@@ -24,12 +24,12 @@ export function featureMasterPixels(metres, footprint = 1, cellPixels = SPRITE_S
 
 // The registered point is the centre of the architectural ground, not the
 // lowest opaque pixel: shadows, gardens and overhanging roofs can change bounds.
-// A whole 16m tile projects to 64x32 world pixels. The 48px billboard therefore
-// contains an inset cutout; the full parcel is supplied by the native terrain.
+// A whole 16m tile projects to 64x32 world pixels. The 72px frame provides
+// filtering gutters around a cutout occupying almost the whole parcel.
 export const BUILDING_REGISTRATION = Object.freeze({
   groundCenterMaster: Object.freeze([128, 192]),
   groundEdgeSlope: .5,
-  architecturalEnvelopeMetresPerTile: 10,
+  architecturalEnvelopeMetresPerTile: 15,
   eastWorldPixelsPerMetre: Object.freeze([SPRITE_SCALE.worldPixelsPerMetre, SPRITE_SCALE.worldPixelsPerMetre / 2]),
   northWorldPixelsPerMetre: Object.freeze([-SPRITE_SCALE.worldPixelsPerMetre, SPRITE_SCALE.worldPixelsPerMetre / 2]),
   upWorldPixelsPerMetre: Object.freeze([0, -SPRITE_SCALE.worldPixelsPerMetre]),
@@ -70,7 +70,8 @@ export const BUILDING_STYLE = Object.freeze([
   'Designed to remain recognizable at Region 0.5x and Town 1x: distinctive roofline, clear facade shading, a few large openings and broad planted clusters. No individual bricks, roof tiles, woodgrain scratches, tiny lettering, tiny flower dots, dense crate grids, fine handrails, thin window mullions or decorative speckle.',
   'Preserve useful large identifiers such as loading sheds, silos, greenhouses, chimneys, awnings and sports surfaces. No people as decorative scale filler, no text or logos.',
   'Use the supplied semantic muted material swatches across all families; maintain broad light and shaded facades within those hues. Give each identity a distinct roofline or one large identifying mass, with restrained slate, terracotta, foliage, ochre or burgundy accents. Recognition at Town size must come from silhouette and broad colour blocks, not tiny ornaments or texture.',
-  'Genuine transparent background, isolated complete sprites with generous transparent gutters. No scenery outside the parcel, no backdrop cards or opaque plinth. In house gardens leave every unpaved lawn area transparent so native world terrain shows through; retain paths, fences and individual shrubs. Courts, pools and other necessary built surfaces retain their material.',
+  'Use almost the whole occupied plot: distribute architecture, wings, working equipment, fences, paths and planted groups across a 15m envelope per 16m tile. Leave only a narrow setback. Houses retain a usable garden and low fence; farms retain their surrounding fields. Extend layouts with more rooms and bays at the shared human scale.',
+  'Genuine RGBA transparency is the ground key for EVERY family. Leave ALL bare grass, snow, sand and generic earth transparent, including enclosed gardens and industry yards. Preserve isolated plants, contact shadows, paths, paving, courts, pools, crop beds and mineral heaps. No coloured ground diamond, lawn rim, backdrop card, raised plinth or scenery outside the plot. A sprite must composite over any world texture without a ground-colour patch.',
 ]);
 
 export function buildingGenerationPrompt({ entries, columns = 3, rows = 3, biome = 'taiga', direction = '', cellPixels = 256 }) {
@@ -80,7 +81,7 @@ export function buildingGenerationPrompt({ entries, columns = 3, rows = 3, biome
   if (!climate) throw new Error('Unknown building climate.');
   const swatches = `Canonical ${biome} material swatches: ${Object.entries(BUILDING_PALETTES[biome]).map(([material, color]) => `${material} ${color}`).join('; ')}. These are restrained painted colour targets, with soft light/shade variation, not saturated replacements.`;
   const envelope = buildingGroundEnvelope(1, cellPixels).map(([x, y]) => `(${x.toFixed(1)},${y.toFixed(1)})`).join(', ');
-  const registration = `Physical ground registration in every ${cellPixels}px square cell: parcel centre is (${(cellPixels / 2).toFixed(1)},${(cellPixels * .75).toFixed(1)}), independent of alpha bounds, shadows, roof height and planting. Around that centre project east/north/up metres with x=(east-north)*2 and y=(east+north)-height*2 in world pixels, then multiply by ${cellPixels}/(48*footprint). The inset architectural/garden envelope is at most 10m*footprint square; its exact 2:1 ground vertices are ${envelope}. The full 16m*footprint parcel is native world terrain and extends beyond this cutout cell; do not shrink its physical metre scale or paint a full-parcel opaque diamond to fit the cell. Register the actual ground centre, never the silhouette bottom or contact-shadow extremity. Keep all complete architecture and planting inside the transparent cell with filtering gutters.`;
+  const registration = `Physical ground registration in every ${cellPixels}px square cell: parcel centre is (${(cellPixels / 2).toFixed(1)},${(cellPixels * .75).toFixed(1)}), independent of alpha bounds, shadows, roof height and planting. Around that centre project east/north/up metres with x=(east-north)*2 and y=(east+north)-height*2 in world pixels, then multiply by ${cellPixels}/(${SPRITE_SCALE.billboardPixelsPerTile}*footprint). The architectural/garden envelope spans ${BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile}m*footprint square; its exact 2:1 ground vertices are ${envelope}. Use the available plot width while keeping physical metre scale and transparent bare ground. Register the actual ground centre, never the silhouette bottom or contact-shadow extremity. Keep all complete architecture and planting inside the transparent cell with filtering gutters.`;
   const slots = entries.map((entry, index) => {
     if (!entry) return `Slot ${index + 1}: EMPTY transparent cell.`;
     const footprint = entry.footprint ?? 1;

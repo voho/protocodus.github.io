@@ -22,7 +22,10 @@ const pointNear = (actual, expected, tolerance, label) => {
 };
 const slope = ([a, b]) => (b[1] - a[1]) / (b[0] - a[0]);
 const meanPoint = points => points[0].map((_, axis) => points.reduce((sum, point) => sum + point[axis], 0) / points.length);
-const masterMetres = (height, footprint) => height * SPRITE_SCALE.billboardPixelsPerTile * footprint / (256 * SPRITE_SCALE.worldPixelsPerMetre);
+// These retained source sheets predate the full-plot 72px frame. Their recorded
+// landmarks and measured door heights keep their original 48px calibration.
+const ARCHIVED_BILLBOARD_PIXELS_PER_TILE = 48;
+const masterMetres = (height, footprint) => height * ARCHIVED_BILLBOARD_PIXELS_PER_TILE * footprint / (256 * SPRITE_SCALE.worldPixelsPerMetre);
 // The visually accepted house paintings retain measured camera variation up
 // to .16 from the ideal .5 slope, including measured drift in a few final
 // lawn-only edits. Stable Town/core keep their .11 limit;
@@ -235,7 +238,7 @@ for (const biome of ['taiga', 'desert']) {
       assert.deepEqual(observed.cameraLinesSource, cell.cameraLinesSource, `${label}: independent camera measurements retain their original source endpoints`);
       assert.deepEqual(observed.sourceDoorMeasurement, cell.sourceDoorMeasurement, `${label}: personnel doorway retains its original source endpoints`);
       const centre = meanPoint(cell.oppositeGroundCornersSource), projected = projectPoint(...cell.measuredStructureCenterMetres.map(value => value * SPRITE_SCALE.worldPixelsPerMetre));
-      const masterToWorld = SPRITE_SCALE.billboardPixelsPerTile * 2 / 256;
+      const masterToWorld = ARCHIVED_BILLBOARD_PIXELS_PER_TILE * 2 / 256;
       const groundCenter = centre.map((value, axis) => value - (axis ? projected.y : projected.x) / (masterToWorld * cell.uniformScale));
       pointNear(cell.groundCenterSource, groundCenter, .01, `${label}: observed opposite floor corners and physical building position determine the parcel centre`);
       camera(cell.cameraLinesSource, cell.measuredGroundEdgeSlopes, label);

@@ -1,0 +1,81 @@
+{
+  "entries": [
+    {
+      "id": "industry:meat-packer:taiga",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            694,
+            772
+          ],
+          [
+            1030,
+            944
+          ]
+        ],
+        [
+          [
+            1030,
+            944
+          ],
+          [
+            1168,
+            875
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        650,
+        916.5
+      ],
+      "groundCenterObservation": "Midpoint of observed opposing inner ground-contact corners of the two long refrigeration blocks: [484,996] and[816,837]. This registers the central compound circulation ground; the irregular compound has no painted square parcel border. Source uncertainty approximately8pixels; not based on alpha/silhouette bounds.",
+      "personnelDoorEndpointsSource": [
+        [
+          713,
+          756
+        ],
+        [
+          713,
+          774
+        ]
+      ],
+      "personnelDoorObservation": "Actual narrow green entrance opening on left end of the rear refrigeration hall, inner vertical jamb observed by8x pixel inspection; door leaf18source pixels (frame exterior approximately20).",
+      "loadingBayEndpointsSource": [
+        [
+          312,
+          891
+        ],
+        [
+          312,
+          923
+        ]
+      ],
+      "reviewNote": "Tall tanks and refrigeration equipment retained. Ground is zeroalpha except explicitly paved loading strips."
+    }
+  ],
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            205,
+            869
+          ],
+          [
+            486,
+            998
+          ]
+        ],
+        "physicalSpanMetres": 36,
+        "footprint": 5,
+        "note": "Actual long front ground-contact edge of the first refrigeration wing. Designed physical length36m for this wing (the paired wing extends the long packing block to about72m within the75m compound envelope); this explicit architectural extent assumption calibrates ONE complete source density, preserving all horizontal layout proportions. No alpha/bounding-box fitting."
+      }
+    ]
+  }
+}

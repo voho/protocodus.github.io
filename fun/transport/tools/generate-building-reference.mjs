@@ -45,10 +45,9 @@ export function houseReferenceSvg(biome = 'taiga', rotation = 0) {
       faces.push(frontOpening((u0 + u1) / 2, v1, SPRITE_SCALE.doorWidthMetres, 0, SPRITE_SCALE.doorHeightMetres, palette.ink));
       return faces.join('\n');
     }
-    // 9.6m per tile leaves at least12.8px around the cell while preserving the
-    // exact metre scale. The garden's ground centre is master(128,192), but
-    // lawn pixels stay transparent so the world's grass supplies the surface.
-    const half = 4.8 * footprint;
+    // The canonical envelope fills the available parcel at the shared metre
+    // scale. Garden ground remains transparent for any underlying texture.
+    const half = BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile * footprint / 2;
     const fenceHeight = SPRITE_SCALE.fenceHeightMetres, fenceWidth = featureMasterPixels(.12, footprint);
     const farFence = line([p(-half, half, fenceHeight), p(-half, -half, fenceHeight), p(half, -half, fenceHeight)], palette.cream, fenceWidth);
     const nearFence = line([p(-half, half, fenceHeight), p(-footprint * .7, half, fenceHeight)], palette.cream, fenceWidth) + line([p(footprint * .7, half, fenceHeight), p(half, half, fenceHeight), p(half, -half, fenceHeight)], palette.cream, fenceWidth);
@@ -87,7 +86,7 @@ export function buildingReferenceSvg(biome = 'taiga') {
     const eastAxis = [p(-half, 0), p(half, 0)], northAxis = [p(0, -half), p(0, half)];
     return `<g transform="translate(${36 + index * 328},164)">
       ${label(128, -42, `${footprint} × ${footprint} tiles · ${footprint * 16}m parcel`, 17, 'text-anchor="middle" font-weight="600"')}
-      ${label(128, -18, `${10 * footprint}m inset · 256px master`, 14, 'text-anchor="middle"')}
+      ${label(128, -18, `${BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile * footprint}m envelope · 256px master`, 14, 'text-anchor="middle"')}
       <rect width="256" height="256" fill="#fff" stroke="#adb4ae" stroke-dasharray="4 4"/>
       <polygon points="${points(buildingGroundEnvelope(footprint))}" fill="${palette.ground}" fill-opacity=".18" stroke="${palette.ink}" stroke-width="1.5"/>
       <polyline points="${points(eastAxis)}" fill="none" stroke="#b48369" stroke-width="1" stroke-dasharray="4 3"/>

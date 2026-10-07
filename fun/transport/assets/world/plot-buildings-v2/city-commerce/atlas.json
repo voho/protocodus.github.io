@@ -1,0 +1,3633 @@
+{
+  "version": 2,
+  "jobId": "city-commerce",
+  "type": "city",
+  "columns": 3,
+  "rows": 3,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "masterCell": 256,
+  "order": [
+    "civic:shop-butcher:taiga",
+    "civic:shop-hardware:taiga",
+    "civic:shop-florist:taiga",
+    "civic:service-post-office:taiga",
+    "civic:service-bank:taiga",
+    "civic:service-hotel:taiga",
+    "civic:service-garage:taiga",
+    "civic:service-barber:taiga",
+    "civic:factory:taiga"
+  ],
+  "sprites": [
+    {
+      "id": "civic:shop-butcher:taiga",
+      "kind": "shop-butcher",
+      "cell": 0,
+      "footprint": 1,
+      "runtimeIds": [
+        "civic:shop-butcher:taiga",
+        "civic:shop-butcher:tundra",
+        "civic:shop-butcher:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        0,
+        418,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          13,
+          9,
+          418,
+          417
+        ],
+        "meaningfulAlphaBounds": [
+          110,
+          184,
+          361,
+          372
+        ],
+        "transparentFraction": 0.8246777775234083,
+        "nontransparentPixels": 34034,
+        "meaningfulPixels": 29978,
+        "fractionalAlphaPixels": 33997,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 46
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          0,
+          5,
+          248,
+          255
+        ],
+        "meaningfulAlphaBounds": [
+          59,
+          112,
+          213,
+          228
+        ],
+        "transparentFraction": 0.8243560791015625,
+        "nontransparentPixels": 12748,
+        "meaningfulPixels": 11279,
+        "fractionalAlphaPixels": 12636,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 28
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.24428409980005217,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.3855297157622739,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:shop-butcher:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              124.0938,
+              311.8672
+            ],
+            [
+              320.0312,
+              315.1328
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                124.0938,
+                311.8672
+              ],
+              [
+                228.5938,
+                355.9531
+              ]
+            ],
+            [
+              [
+                228.5938,
+                355.9531
+              ],
+              [
+                320.0312,
+                315.1328
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              205.7344,
+              318.3984
+            ],
+            [
+              205.7344,
+              347.7891
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              68.00003062200956,
+              191.0000076555024
+            ],
+            [
+              132.00003062200955,
+              217.9999846889952
+            ]
+          ],
+          [
+            [
+              132.00003062200955,
+              217.9999846889952
+            ],
+            [
+              187.99996937799042,
+              192.99999234449757
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.42187464114832524,
+          -0.44642892295712716
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.07812535885167476,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 18.000045933014377,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            118.00001531100477,
+            194.9999770334928
+          ],
+          [
+            118.00001531100477,
+            213.00002296650717
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.2053602187286413
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          222.0625,
+          313.5
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -8.0,
+          0.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          59.368421052631575,
+          112.688995215311,
+          213.0909090909091,
+          227.82775119617224
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 28.172248803827756,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 0,
+          "clippedSourceAlphaEnergy": 0,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -8.0,
+          0,
+          0.6124401913875598,
+          0.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -8.0,
+          0,
+          0.6124401913875598,
+          0.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -8.0,
+          0,
+          0.6124401913875598,
+          0.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:shop-butcher:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            124.0938,
+            311.8672
+          ],
+          [
+            320.0312,
+            315.1328
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              124.0938,
+              311.8672
+            ],
+            [
+              228.5938,
+              355.9531
+            ]
+          ],
+          [
+            [
+              228.5938,
+              355.9531
+            ],
+            [
+              320.0312,
+              315.1328
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            205.7344,
+            318.3984
+          ],
+          [
+            205.7344,
+            347.7891
+          ]
+        ]
+      },
+      "masterSha256": "a8379a0393a079f4cdcdfa181090b0857482bf51edbd8b9e8b3e756245f6de1b"
+    },
+    {
+      "id": "civic:shop-hardware:taiga",
+      "kind": "shop-hardware",
+      "cell": 1,
+      "footprint": 1,
+      "runtimeIds": [
+        "civic:shop-hardware:taiga",
+        "civic:shop-hardware:tundra",
+        "civic:shop-hardware:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        0,
+        836,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          50,
+          418,
+          412
+        ],
+        "meaningfulAlphaBounds": [
+          57,
+          210,
+          384,
+          382
+        ],
+        "transparentFraction": 0.8064204116206131,
+        "nontransparentPixels": 37880,
+        "meaningfulPixels": 32868,
+        "fractionalAlphaPixels": 37840,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 34
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          2,
+          52,
+          249,
+          243
+        ],
+        "meaningfulAlphaBounds": [
+          36,
+          119,
+          237,
+          224
+        ],
+        "transparentFraction": 0.8058319091796875,
+        "nontransparentPixels": 14117,
+        "meaningfulPixels": 12364,
+        "fractionalAlphaPixels": 13972,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 19
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.19742675823698166,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.3820844099913867,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:shop-hardware:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              57.1484,
+              347.7891
+            ],
+            [
+              355.9531,
+              310.2344
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                120.8281,
+                311.8672
+              ],
+              [
+                253.0859,
+                364.1172
+              ]
+            ],
+            [
+              [
+                253.0859,
+                364.1172
+              ],
+              [
+                355.9531,
+                310.2344
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              215.5312,
+              328.1953
+            ],
+            [
+              215.5312,
+              352.6875
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              75.5000038277512,
+              181.4999885167464
+            ],
+            [
+              156.4999961722488,
+              213.4999885167464
+            ]
+          ],
+          [
+            [
+              156.4999961722488,
+              213.4999885167464
+            ],
+            [
+              219.5000038277512,
+              180.49999617224879
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.39506176573328755,
+          -0.5238093386424442
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.10493823426671245,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 15.000007655502408,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            133.4999885167464,
+            191.49997320574158
+          ],
+          [
+            133.4999885167464,
+            206.499980861244
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.004464798359536234
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          206.55075,
+          329.01175
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          1.500019138755988,
+          -9.500019138755988
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          36.409110047846895,
+          119.11242105263156,
+          236.67705263157893,
+          224.45213397129186
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 19.32294736842107,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 2,
+          "clippedSourceAlphaEnergy": 2,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          1.500019138755988,
+          0,
+          0.6124401913875598,
+          -9.500019138755988
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -254.499980861244,
+          0,
+          0.6124401913875598,
+          -9.500019138755988
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          1.500019138755988,
+          0,
+          0.6124401913875598,
+          -9.500019138755988
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:shop-hardware:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            57.1484,
+            347.7891
+          ],
+          [
+            355.9531,
+            310.2344
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              120.8281,
+              311.8672
+            ],
+            [
+              253.0859,
+              364.1172
+            ]
+          ],
+          [
+            [
+              253.0859,
+              364.1172
+            ],
+            [
+              355.9531,
+              310.2344
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            215.5312,
+            328.1953
+          ],
+          [
+            215.5312,
+            352.6875
+          ]
+        ]
+      },
+      "masterSha256": "4d71721a0bdb6478c331062a1f109af92b78443099e1afca7ae481e3f076c30a"
+    },
+    {
+      "id": "civic:shop-florist:taiga",
+      "kind": "shop-florist",
+      "cell": 2,
+      "footprint": 1,
+      "runtimeIds": [
+        "civic:shop-florist:taiga",
+        "civic:shop-florist:tundra",
+        "civic:shop-florist:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        0,
+        1254,
+        418
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          79,
+          388,
+          410
+        ],
+        "meaningfulAlphaBounds": [
+          64,
+          212,
+          380,
+          397
+        ],
+        "transparentFraction": 0.788557954259289,
+        "nontransparentPixels": 40248,
+        "meaningfulPixels": 35825,
+        "fractionalAlphaPixels": 40190,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 21
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          15,
+          26,
+          228,
+          229
+        ],
+        "meaningfulAlphaBounds": [
+          29,
+          107,
+          223,
+          221
+        ],
+        "transparentFraction": 0.7885284423828125,
+        "nontransparentPixels": 15007,
+        "meaningfulPixels": 13479,
+        "fractionalAlphaPixels": 14877,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 29
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.26723463444318873,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.4992248062015504,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:shop-florist:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              68.5781,
+              339.625
+            ],
+            [
+              382.0781,
+              360.8516
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                168.1797,
+                344.5234
+              ],
+              [
+                215.5312,
+                365.75
+              ]
+            ],
+            [
+              [
+                215.5312,
+                365.75
+              ],
+              [
+                290.6406,
+                326.5625
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              182.875,
+              313.5
+            ],
+            [
+              182.875,
+              341.2578
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              93.00002296650716,
+              188.49996555023924
+            ],
+            [
+              121.9999846889952,
+              201.49998851674644
+            ]
+          ],
+          [
+            [
+              121.9999846889952,
+              201.49998851674644
+            ],
+            [
+              167.99999999999997,
+              177.49998851674644
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4482772457049938,
+          -0.5217389567750509
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.051722754295006224,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 16.999992344497592,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            102.00001531100477,
+            169.49998851674644
+          ],
+          [
+            102.00001531100477,
+            186.499980861244
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.1383923444976066
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          225.3281,
+          350.2383
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -9.999984688995227,
+          -22.50001148325356
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          29.1961875598086,
+          107.33730909090912,
+          222.7272880382775,
+          220.6387444976077
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 29.1961875598086,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 11,
+          "clippedSourceAlphaEnergy": 11,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.999984688995227,
+          0,
+          0.6124401913875598,
+          -22.50001148325356
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -521.9999846889953,
+          0,
+          0.6124401913875598,
+          -22.50001148325356
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.999984688995227,
+          0,
+          0.6124401913875598,
+          -22.50001148325356
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:shop-florist:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            68.5781,
+            339.625
+          ],
+          [
+            382.0781,
+            360.8516
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              168.1797,
+              344.5234
+            ],
+            [
+              215.5312,
+              365.75
+            ]
+          ],
+          [
+            [
+              215.5312,
+              365.75
+            ],
+            [
+              290.6406,
+              326.5625
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            182.875,
+            313.5
+          ],
+          [
+            182.875,
+            341.2578
+          ]
+        ]
+      },
+      "masterSha256": "52d56a9894944ebbaa8ca3ec6519970a9d4c816d15251e0b0439da901499ed0b"
+    },
+    {
+      "id": "civic:service-post-office:taiga",
+      "kind": "service-post-office",
+      "cell": 3,
+      "footprint": 1,
+      "runtimeIds": [
+        "civic:service-post-office:taiga",
+        "civic:service-post-office:tundra",
+        "civic:service-post-office:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceBoundsSheet": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        418,
+        418,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          7,
+          418,
+          416
+        ],
+        "meaningfulAlphaBounds": [
+          53,
+          165,
+          398,
+          376
+        ],
+        "transparentFraction": 0.7356173164533779,
+        "nontransparentPixels": 49933,
+        "meaningfulPixels": 45141,
+        "fractionalAlphaPixels": 49881,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 20
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          9,
+          16,
+          247,
+          234
+        ],
+        "meaningfulAlphaBounds": [
+          24,
+          83,
+          234,
+          212
+        ],
+        "transparentFraction": 0.735198974609375,
+        "nontransparentPixels": 18655,
+        "meaningfulPixels": 16977,
+        "fractionalAlphaPixels": 18465,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 22
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.30635486394853517,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.5707149009474591,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:service-post-office:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              80.0078,
+              341.2578
+            ],
+            [
+              369.0156,
+              346.1562
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                166.5469,
+                346.1562
+              ],
+              [
+                233.4922,
+                373.9141
+              ]
+            ],
+            [
+              [
+                233.4922,
+                373.9141
+              ],
+              [
+                318.3984,
+                333.0938
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              137.1562,
+              339.625
+            ],
+            [
+              137.1562,
+              362.4844
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              92.50002679425836,
+              193.4999885167464
+            ],
+            [
+              133.50001913875596,
+              210.50004210526316
+            ]
+          ],
+          [
+            [
+              133.50001913875596,
+              210.50004210526316
+            ],
+            [
+              185.49998851674638,
+              185.50004976076553
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.41463553079902554,
+          -0.48076936666580344
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.08536446920097446,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 14.00001531100478,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            74.49998086124403,
+            189.500019138756
+          ],
+          [
+            74.49998086124403,
+            203.50003444976076
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.062498974709501325
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          224.51170000000002,
+          343.707
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -9.499988516746413,
+          -18.499980861244012
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          22.959341626794256,
+          82.55265071770336,
+          234.25120765550238,
+          211.77753110047846
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 21.748792344497616,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 30,
+          "clippedSourceAlphaEnergy": 30,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.499988516746413,
+          0,
+          0.6124401913875598,
+          -18.499980861244012
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.499988516746413,
+          0,
+          0.6124401913875598,
+          -274.499980861244
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.499988516746413,
+          0,
+          0.6124401913875598,
+          -18.499980861244012
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:service-post-office:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            80.0078,
+            341.2578
+          ],
+          [
+            369.0156,
+            346.1562
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              166.5469,
+              346.1562
+            ],
+            [
+              233.4922,
+              373.9141
+            ]
+          ],
+          [
+            [
+              233.4922,
+              373.9141
+            ],
+            [
+              318.3984,
+              333.0938
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            137.1562,
+            339.625
+          ],
+          [
+            137.1562,
+            362.4844
+          ]
+        ]
+      },
+      "masterSha256": "21144a56ce41acc6da70bf695aaf14de3644df0c2092c8639409ba628436b7e1"
+    },
+    {
+      "id": "civic:service-bank:taiga",
+      "kind": "service-bank",
+      "cell": 4,
+      "footprint": 2,
+      "runtimeIds": [
+        "civic:service-bank:taiga",
+        "civic:service-bank:tundra",
+        "civic:service-bank:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceBoundsSheet": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        418,
+        836,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          1,
+          3,
+          418,
+          418
+        ],
+        "meaningfulAlphaBounds": [
+          75,
+          204,
+          398,
+          382
+        ],
+        "transparentFraction": 0.7885007211373366,
+        "nontransparentPixels": 44141,
+        "meaningfulPixels": 36112,
+        "fractionalAlphaPixels": 44036,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 20
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          0,
+          4,
+          247,
+          256
+        ],
+        "meaningfulAlphaBounds": [
+          36,
+          127,
+          234,
+          236
+        ],
+        "transparentFraction": 0.788299560546875,
+        "nontransparentPixels": 16518,
+        "meaningfulPixels": 13570,
+        "fractionalAlphaPixels": 16333,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 20
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.0699817438928975,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.12799310938845823,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:service-bank:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              78.375,
+              300.4375
+            ],
+            [
+              370.6484,
+              318.3984
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                78.375,
+                300.4375
+              ],
+              [
+                257.9844,
+                373.9141
+              ]
+            ],
+            [
+              [
+                257.9844,
+                373.9141
+              ],
+              [
+                370.6484,
+                318.3984
+              ]
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "observedEntrance": {
+            "type": "public-bank-portico-entry",
+            "expectedHeightMetres": 4.0,
+            "endpointsSource": [
+              [
+                168.1797,
+                313.5
+              ],
+              [
+                168.1797,
+                336.3594
+              ]
+            ]
+          },
+          "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              38.50001148325359,
+              186.5000114832536
+            ],
+            [
+              148.50002679425836,
+              231.50003444976076
+            ]
+          ],
+          [
+            [
+              148.50002679425836,
+              231.50003444976076
+            ],
+            [
+              217.49998851674638,
+              197.49998851674638
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.40909106093556363,
+          -0.4927545622381599
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.09090893906443637,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          224.5117,
+          309.41795
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -9.499988516746413,
+          2.500011483253587
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          36.43302583732057,
+          127.43781052631579,
+          234.25120765550238,
+          236.45216459330143
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 19.547835406698567,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 21,
+          "clippedSourceAlphaEnergy": 21,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.499988516746413,
+          0,
+          0.6124401913875598,
+          2.500011483253587
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -265.4999885167464,
+          0,
+          0.6124401913875598,
+          -253.4999885167464
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -9.499988516746413,
+          0,
+          0.6124401913875598,
+          2.500011483253587
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:service-bank:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            78.375,
+            300.4375
+          ],
+          [
+            370.6484,
+            318.3984
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              78.375,
+              300.4375
+            ],
+            [
+              257.9844,
+              373.9141
+            ]
+          ],
+          [
+            [
+              257.9844,
+              373.9141
+            ],
+            [
+              370.6484,
+              318.3984
+            ]
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "observedEntrance": {
+          "type": "public-bank-portico-entry",
+          "expectedHeightMetres": 4.0,
+          "endpointsSource": [
+            [
+              168.1797,
+              313.5
+            ],
+            [
+              168.1797,
+              336.3594
+            ]
+          ]
+        },
+        "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+      },
+      "masterSha256": "fc247c8b82e4325ca74cb07ec8d3def8413fa5be167bd11f31caeea7e7674a72"
+    },
+    {
+      "id": "civic:service-hotel:taiga",
+      "kind": "service-hotel",
+      "cell": 5,
+      "footprint": 2,
+      "runtimeIds": [
+        "civic:service-hotel:taiga",
+        "civic:service-hotel:tundra",
+        "civic:service-hotel:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceBoundsSheet": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        418,
+        1254,
+        836
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          1,
+          418,
+          418
+        ],
+        "meaningfulAlphaBounds": [
+          46,
+          172,
+          418,
+          407
+        ],
+        "transparentFraction": 0.7068176094869623,
+        "nontransparentPixels": 56055,
+        "meaningfulPixels": 50037,
+        "fractionalAlphaPixels": 56024,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.009569377990430622
+        ],
+        "minimumFilteringGutterPixels": 0
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          0,
+          0,
+          250,
+          233
+        ],
+        "meaningfulAlphaBounds": [
+          21,
+          83,
+          249,
+          227
+        ],
+        "transparentFraction": 0.7066802978515625,
+        "nontransparentPixels": 20795,
+        "meaningfulPixels": 18800,
+        "fractionalAlphaPixels": 20652,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 7
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.2434147613666,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.4585701981050818,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:service-hotel:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              45.7188,
+              341.2578
+            ],
+            [
+              395.1406,
+              360.8516
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                104.5,
+                336.3594
+              ],
+              [
+                246.5547,
+                403.3047
+              ]
+            ],
+            [
+              [
+                246.5547,
+                403.3047
+              ],
+              [
+                367.3828,
+                346.1562
+              ]
+            ]
+          ],
+          "personnelDoorObservable": false,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "observedEntrance": {
+            "type": "public-hotel-double-entry",
+            "expectedHeightMetres": 4.0,
+            "endpointsSource": [
+              [
+                148.5859,
+                320.0312
+              ],
+              [
+                148.5859,
+                339.625
+              ]
+            ]
+          },
+          "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              56.99999234449763,
+              183.00000765550237
+            ],
+            [
+              144.0,
+              224.0
+            ]
+          ],
+          [
+            [
+              144.0,
+              224.0
+            ],
+            [
+              217.9999846889952,
+              188.99996172248802
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4712642383532543,
+          -0.4729735880974709
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.028735761646745683,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          220.4297,
+          351.0547
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -7.0000076555023725,
+          -23.0000076555024
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          21.172241148325377,
+          82.33970526315788,
+          248.99999234449763,
+          226.26315023923442
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 7.0000076555023725,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 268,
+          "clippedSourceAlphaEnergy": 268,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -7.0000076555023725,
+          0,
+          0.6124401913875598,
+          -23.0000076555024
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -519.0000076555024,
+          0,
+          0.6124401913875598,
+          -279.0000076555024
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -7.0000076555023725,
+          0,
+          0.6124401913875598,
+          -23.0000076555024
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:service-hotel:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            45.7188,
+            341.2578
+          ],
+          [
+            395.1406,
+            360.8516
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              104.5,
+              336.3594
+            ],
+            [
+              246.5547,
+              403.3047
+            ]
+          ],
+          [
+            [
+              246.5547,
+              403.3047
+            ],
+            [
+              367.3828,
+              346.1562
+            ]
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "observedEntrance": {
+          "type": "public-hotel-double-entry",
+          "expectedHeightMetres": 4.0,
+          "endpointsSource": [
+            [
+              148.5859,
+              320.0312
+            ],
+            [
+              148.5859,
+              339.625
+            ]
+          ]
+        },
+        "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+      },
+      "masterSha256": "926611da38e0217dd6cbd5ea752ffaa8c4da82e897fa9d1c2c1be673c053b634"
+    },
+    {
+      "id": "civic:service-garage:taiga",
+      "kind": "service-garage",
+      "cell": 6,
+      "footprint": 2,
+      "runtimeIds": [
+        "civic:service-garage:taiga",
+        "civic:service-garage:tundra",
+        "civic:service-garage:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        836,
+        418,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          1,
+          418,
+          418
+        ],
+        "meaningfulAlphaBounds": [
+          38,
+          204,
+          400,
+          366
+        ],
+        "transparentFraction": 0.8058938668986516,
+        "nontransparentPixels": 39117,
+        "meaningfulPixels": 32822,
+        "fractionalAlphaPixels": 39066,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 18
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          2,
+          0,
+          252,
+          244
+        ],
+        "meaningfulAlphaBounds": [
+          25,
+          113,
+          247,
+          212
+        ],
+        "transparentFraction": 0.805633544921875,
+        "nontransparentPixels": 14624,
+        "meaningfulPixels": 12344,
+        "fractionalAlphaPixels": 14460,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.3798139615752412,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.6654608096468562,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:service-garage:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              24.4922,
+              318.3984
+            ],
+            [
+              386.9766,
+              347.7891
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                148.5859,
+                313.5
+              ],
+              [
+                212.2656,
+                344.5234
+              ]
+            ],
+            [
+              [
+                212.2656,
+                344.5234
+              ],
+              [
+                298.8047,
+                298.8047
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              215.5312,
+              316.7656
+            ],
+            [
+              215.5312,
+              329.8281
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              92.99996172248804,
+              180.0
+            ],
+            [
+              131.99996937799045,
+              198.9999770334928
+            ]
+          ],
+          [
+            [
+              131.99996937799045,
+              198.9999770334928
+            ],
+            [
+              184.99999234449763,
+              171.0000076555024
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.487178802663957,
+          -0.5283010800898085
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.028301080089808472,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 8.0,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            133.99995406698565,
+            181.9999846889952
+          ],
+          [
+            133.99995406698565,
+            189.9999846889952
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.07142857142857141
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          205.73440000000002,
+          333.09375
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          1.9999846889952124,
+          -12.0
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          25.272711961722486,
+          112.9377990430622,
+          246.97606124401915,
+          212.1531100478469
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.02393875598085,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 13,
+          "clippedSourceAlphaEnergy": 13,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          1.9999846889952124,
+          0,
+          0.6124401913875598,
+          -12.0
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          1.9999846889952124,
+          0,
+          0.6124401913875598,
+          -524.0
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          1.9999846889952124,
+          0,
+          0.6124401913875598,
+          -12.0
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:service-garage:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            24.4922,
+            318.3984
+          ],
+          [
+            386.9766,
+            347.7891
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              148.5859,
+              313.5
+            ],
+            [
+              212.2656,
+              344.5234
+            ]
+          ],
+          [
+            [
+              212.2656,
+              344.5234
+            ],
+            [
+              298.8047,
+              298.8047
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            215.5312,
+            316.7656
+          ],
+          [
+            215.5312,
+            329.8281
+          ]
+        ]
+      },
+      "masterSha256": "b464eb5937088842699083ddbd0c63de43fbbf93faa6a9736244363ce6badbb8"
+    },
+    {
+      "id": "civic:service-barber:taiga",
+      "kind": "service-barber",
+      "cell": 7,
+      "footprint": 1,
+      "runtimeIds": [
+        "civic:service-barber:taiga",
+        "civic:service-barber:tundra",
+        "civic:service-barber:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        418,
+        836,
+        836,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          9,
+          0,
+          418,
+          418
+        ],
+        "meaningfulAlphaBounds": [
+          108,
+          164,
+          360,
+          363
+        ],
+        "transparentFraction": 0.8013667269522218,
+        "nontransparentPixels": 39581,
+        "meaningfulPixels": 33983,
+        "fractionalAlphaPixels": 39549,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 55
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          2,
+          1,
+          250,
+          252
+        ],
+        "meaningfulAlphaBounds": [
+          60,
+          102,
+          214,
+          224
+        ],
+        "transparentFraction": 0.8009185791015625,
+        "nontransparentPixels": 14731,
+        "meaningfulPixels": 12772,
+        "fractionalAlphaPixels": 14644,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 32
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.26010605928888114,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.43583118001722654,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 14.933333333333334,
+        "personnelDoorMasterWidthPixels": 6.755555555555555,
+        "storeyMasterPixels": 21.333333333333332,
+        "fenceMasterPixels": 8.533333333333333,
+        "loadingBayMasterPixels": 29.866666666666667,
+        "worldPixelsPerMasterPixel": 0.28125
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:service-barber:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              119.1953,
+              318.3984
+            ],
+            [
+              318.3984,
+              303.7031
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                119.1953,
+                318.3984
+              ],
+              [
+                212.2656,
+                357.5859
+              ]
+            ],
+            [
+              [
+                212.2656,
+                357.5859
+              ],
+              [
+                318.3984,
+                303.7031
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              192.6719,
+              321.6641
+            ],
+            [
+              192.6719,
+              347.7891
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              67.00000765550239,
+              196.49999617224879
+            ],
+            [
+              124.0,
+              220.49999617224879
+            ]
+          ],
+          [
+            [
+              124.0,
+              220.49999617224879
+            ],
+            [
+              188.99999234449757,
+              187.5000038277512
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.4210526881292958,
+          -0.5076922497097974
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.0789473118707042,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 16.0,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            112.00003062200955,
+            198.50004210526316
+          ],
+          [
+            112.00003062200955,
+            214.50004210526316
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.07142857142857141
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          218.79685,
+          311.05075
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -5.999984688995227,
+          1.500019138755988
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          60.14355598086124,
+          101.9402105263158,
+          214.4784842105263,
+          223.81580861244018
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 32.18419138755982,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 100,
+          "clippedSourceAlphaEnergy": 100,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -5.999984688995227,
+          0,
+          0.6124401913875598,
+          1.500019138755988
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -261.99998468899526,
+          0,
+          0.6124401913875598,
+          -510.499980861244
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -5.999984688995227,
+          0,
+          0.6124401913875598,
+          1.500019138755988
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:service-barber:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            119.1953,
+            318.3984
+          ],
+          [
+            318.3984,
+            303.7031
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              119.1953,
+              318.3984
+            ],
+            [
+              212.2656,
+              357.5859
+            ]
+          ],
+          [
+            [
+              212.2656,
+              357.5859
+            ],
+            [
+              318.3984,
+              303.7031
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            192.6719,
+            321.6641
+          ],
+          [
+            192.6719,
+            347.7891
+          ]
+        ]
+      },
+      "masterSha256": "9139d9bb2a61ea34fadaef0c55e83c31b5d521cd29b31248b51d1bc47698b4a8"
+    },
+    {
+      "id": "civic:factory:taiga",
+      "kind": "factory",
+      "cell": 8,
+      "footprint": 2,
+      "runtimeIds": [
+        "civic:factory:taiga",
+        "civic:factory:tundra",
+        "civic:factory:desert"
+      ],
+      "eligibleBiomes": [
+        "taiga",
+        "tundra",
+        "desert"
+      ],
+      "sourceBounds": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "sourceCellPixels": 418,
+      "observedSourceCropPixels": [
+        418,
+        418
+      ],
+      "sourceScale": 0.6124401913875598,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          0,
+          410,
+          392
+        ],
+        "meaningfulAlphaBounds": [
+          20,
+          190,
+          409,
+          383
+        ],
+        "transparentFraction": 0.78233671390307,
+        "nontransparentPixels": 43243,
+        "meaningfulPixels": 36759,
+        "fractionalAlphaPixels": 43134,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          0,
+          1,
+          250,
+          240
+        ],
+        "meaningfulAlphaBounds": [
+          11,
+          117,
+          249,
+          236
+        ],
+        "transparentFraction": 0.781707763671875,
+        "nontransparentPixels": 16131,
+        "meaningfulPixels": 13818,
+        "fractionalAlphaPixels": 15855,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 7
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.1976875597670173,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.2854435831180017,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 7.466666666666667,
+        "personnelDoorMasterWidthPixels": 3.3777777777777773,
+        "storeyMasterPixels": 10.666666666666666,
+        "fenceMasterPixels": 4.266666666666667,
+        "loadingBayMasterPixels": 14.933333333333334,
+        "worldPixelsPerMasterPixel": 0.5625
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "civic:factory:taiga",
+          "visibleOppositeGroundVerticesSource": [
+            [
+              32.6562,
+              306.9688
+            ],
+            [
+              388.6094,
+              316.7656
+            ]
+          ],
+          "visibleGroundEdgesSource": [
+            [
+              [
+                146.9531,
+                313.5
+              ],
+              [
+                254.7188,
+                369.0156
+              ]
+            ],
+            [
+              [
+                254.7188,
+                369.0156
+              ],
+              [
+                347.7891,
+                323.2969
+              ]
+            ]
+          ],
+          "personnelDoorObservable": true,
+          "measurementUncertaintyMasterPixels": 2,
+          "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+          "personnelDoorEndpointsSource": [
+            [
+              60.4141,
+              267.7812
+            ],
+            [
+              60.4141,
+              282.4766
+            ]
+          ]
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              88.99999234449761,
+              192.9999923444976
+            ],
+            [
+              155.00003827751195,
+              226.9999770334928
+            ]
+          ],
+          [
+            [
+              155.00003827751195,
+              226.9999770334928
+            ],
+            [
+              212.00003062200958,
+              199.00000765550237
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5151509246448547,
+          -0.49122759892253487
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.01515092464485468,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 9.00005358851675,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            36.000030622009575,
+            164.99996172248802
+          ],
+          [
+            36.000030622009575,
+            174.00001531100477
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.20536431989063605
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          210.6328,
+          311.8672
+        ],
+        "sourceGroundCenterMethod": "Midpoint of two observed opposite ground-plane vertices; independent of shadow and silhouette",
+        "uniformSourceToMasterScale": 0.6124401913875598,
+        "translationMaster": [
+          -0.9999923444975991,
+          0.9999923444975991
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "transformedMeaningfulAlphaBoundsMaster": [
+          11.248811483253597,
+          117.36362870813396,
+          249.48804593301435,
+          235.564585645933
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 6.511954066985652,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 44,
+          "clippedSourceAlphaEnergy": 44,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -0.9999923444975991,
+          0,
+          0.6124401913875598,
+          0.9999923444975991
+        ],
+        "sourceSheetToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -512.9999923444976,
+          0,
+          0.6124401913875598,
+          -511.0000076555024
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.6124401913875598,
+          0,
+          -0.9999923444975991,
+          0,
+          0.6124401913875598,
+          0.9999923444975991
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "civic:factory:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            32.6562,
+            306.9688
+          ],
+          [
+            388.6094,
+            316.7656
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              146.9531,
+              313.5
+            ],
+            [
+              254.7188,
+              369.0156
+            ]
+          ],
+          [
+            [
+              254.7188,
+              369.0156
+            ],
+            [
+              347.7891,
+              323.2969
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            60.4141,
+            267.7812
+          ],
+          [
+            60.4141,
+            282.4766
+          ]
+        ]
+      },
+      "masterSha256": "1138a50e5aa5574ebe16454cdf45c8e0d644a453cc0976620025cf6ccb3d45db"
+    }
+  ],
+  "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
+  "groundRegistrationApplied": true,
+  "source": "generated-source.png",
+  "sourceSha256": "5e0f103ea9a2e93ca04506f3575eaf40beff36577be6db783354db9ff543b1ef",
+  "generationJobSha256": "63c9cf014fe933b3041e65d1cb5e34a78e7cd6ea471bccd2d96ae18a9af51067",
+  "measurements": "registration-measurements.json",
+  "measurementsSha256": "98ddbe8dcc77e9d62e572f51575738fcfd3810b19279bb705cd0bc027b90e8d4",
+  "originalSourceResolution": {
+    "sheetPixels": [
+      1254,
+      1254
+    ],
+    "squareCellPixels": 418,
+    "columns": 3,
+    "rows": 3
+  },
+  "originalMeasurements": {
+    "jobId": "city-commerce",
+    "entries": [
+      {
+        "id": "civic:shop-butcher:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            124.0938,
+            311.8672
+          ],
+          [
+            320.0312,
+            315.1328
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              124.0938,
+              311.8672
+            ],
+            [
+              228.5938,
+              355.9531
+            ]
+          ],
+          [
+            [
+              228.5938,
+              355.9531
+            ],
+            [
+              320.0312,
+              315.1328
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            205.7344,
+            318.3984
+          ],
+          [
+            205.7344,
+            347.7891
+          ]
+        ]
+      },
+      {
+        "id": "civic:shop-hardware:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            57.1484,
+            347.7891
+          ],
+          [
+            355.9531,
+            310.2344
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              120.8281,
+              311.8672
+            ],
+            [
+              253.0859,
+              364.1172
+            ]
+          ],
+          [
+            [
+              253.0859,
+              364.1172
+            ],
+            [
+              355.9531,
+              310.2344
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            215.5312,
+            328.1953
+          ],
+          [
+            215.5312,
+            352.6875
+          ]
+        ]
+      },
+      {
+        "id": "civic:shop-florist:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            68.5781,
+            339.625
+          ],
+          [
+            382.0781,
+            360.8516
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              168.1797,
+              344.5234
+            ],
+            [
+              215.5312,
+              365.75
+            ]
+          ],
+          [
+            [
+              215.5312,
+              365.75
+            ],
+            [
+              290.6406,
+              326.5625
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            182.875,
+            313.5
+          ],
+          [
+            182.875,
+            341.2578
+          ]
+        ]
+      },
+      {
+        "id": "civic:service-post-office:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            80.0078,
+            341.2578
+          ],
+          [
+            369.0156,
+            346.1562
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              166.5469,
+              346.1562
+            ],
+            [
+              233.4922,
+              373.9141
+            ]
+          ],
+          [
+            [
+              233.4922,
+              373.9141
+            ],
+            [
+              318.3984,
+              333.0938
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            137.1562,
+            339.625
+          ],
+          [
+            137.1562,
+            362.4844
+          ]
+        ]
+      },
+      {
+        "id": "civic:service-bank:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            78.375,
+            300.4375
+          ],
+          [
+            370.6484,
+            318.3984
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              78.375,
+              300.4375
+            ],
+            [
+              257.9844,
+              373.9141
+            ]
+          ],
+          [
+            [
+              257.9844,
+              373.9141
+            ],
+            [
+              370.6484,
+              318.3984
+            ]
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "observedEntrance": {
+          "type": "public-bank-portico-entry",
+          "expectedHeightMetres": 4.0,
+          "endpointsSource": [
+            [
+              168.1797,
+              313.5
+            ],
+            [
+              168.1797,
+              336.3594
+            ]
+          ]
+        },
+        "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+      },
+      {
+        "id": "civic:service-hotel:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            45.7188,
+            341.2578
+          ],
+          [
+            395.1406,
+            360.8516
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              104.5,
+              336.3594
+            ],
+            [
+              246.5547,
+              403.3047
+            ]
+          ],
+          [
+            [
+              246.5547,
+              403.3047
+            ],
+            [
+              367.3828,
+              346.1562
+            ]
+          ]
+        ],
+        "personnelDoorObservable": false,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "observedEntrance": {
+          "type": "public-hotel-double-entry",
+          "expectedHeightMetres": 4.0,
+          "endpointsSource": [
+            [
+              148.5859,
+              320.0312
+            ],
+            [
+              148.5859,
+              339.625
+            ]
+          ]
+        },
+        "ordinaryPersonnelEntranceNote": "Observed larger public double entry; no separate ordinary staff entrance is independently visible."
+      },
+      {
+        "id": "civic:service-garage:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            24.4922,
+            318.3984
+          ],
+          [
+            386.9766,
+            347.7891
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              148.5859,
+              313.5
+            ],
+            [
+              212.2656,
+              344.5234
+            ]
+          ],
+          [
+            [
+              212.2656,
+              344.5234
+            ],
+            [
+              298.8047,
+              298.8047
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            215.5312,
+            316.7656
+          ],
+          [
+            215.5312,
+            329.8281
+          ]
+        ]
+      },
+      {
+        "id": "civic:service-barber:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            119.1953,
+            318.3984
+          ],
+          [
+            318.3984,
+            303.7031
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              119.1953,
+              318.3984
+            ],
+            [
+              212.2656,
+              357.5859
+            ]
+          ],
+          [
+            [
+              212.2656,
+              357.5859
+            ],
+            [
+              318.3984,
+              303.7031
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            192.6719,
+            321.6641
+          ],
+          [
+            192.6719,
+            347.7891
+          ]
+        ]
+      },
+      {
+        "id": "civic:factory:taiga",
+        "visibleOppositeGroundVerticesSource": [
+          [
+            32.6562,
+            306.9688
+          ],
+          [
+            388.6094,
+            316.7656
+          ]
+        ],
+        "visibleGroundEdgesSource": [
+          [
+            [
+              146.9531,
+              313.5
+            ],
+            [
+              254.7188,
+              369.0156
+            ]
+          ],
+          [
+            [
+              254.7188,
+              369.0156
+            ],
+            [
+              347.7891,
+              323.2969
+            ]
+          ]
+        ],
+        "personnelDoorObservable": true,
+        "measurementUncertaintyMasterPixels": 2,
+        "landmarkNote": "Observed compound ground-contact datum and two exposed main-wall masonry/stone-base segments. Ground-contact segments exclude planter rims, entrance stairs and shadows. Hidden back corners are not reconstructed.",
+        "personnelDoorEndpointsSource": [
+          [
+            60.4141,
+            267.7812
+          ],
+          [
+            60.4141,
+            282.4766
+          ]
+        ]
+      }
+    ],
+    "method": "Observed visible ground contacts and door leaf endpoints on independently resampled 256pixel full-cell QA grids; local coordinates convert to418pixel original source withonecommonfactor. Actual metre scale comes from canonical sheet density, not individual silhouette fitting."
+  },
+  "sheetScaleCalibration": null,
+  "sheetScaleCalibrationFile": null,
+  "sheetScaleCalibrationSha256": null,
+  "physicalCalibration": {
+    "scale": {
+      "tileMetres": 16,
+      "worldPixelsPerMetre": 2,
+      "billboardPixelsPerTile": 72,
+      "masterCellPixels": 256,
+      "humanHeightMetres": 1.75,
+      "doorHeightMetres": 2.1,
+      "doorWidthMetres": 0.95,
+      "storeyHeightMetres": 3,
+      "windowHeightMetres": 1.2,
+      "fenceHeightMetres": 1.2,
+      "loadingBayHeightMetres": 4.2
+    },
+    "registration": {
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "groundEdgeSlope": 0.5,
+      "architecturalEnvelopeMetresPerTile": 15,
+      "eastWorldPixelsPerMetre": [
+        2,
+        1
+      ],
+      "northWorldPixelsPerMetre": [
+        -2,
+        1
+      ],
+      "upWorldPixelsPerMetre": [
+        0,
+        -2
+      ]
+    },
+    "contractSha256": "fd54d2324a25a7c56ab48d4d6e76da744cb7596ff166c3c3d9ce7d2577f520a2",
+    "sourceCellPixels": 418,
+    "sourceToMasterScale": 0.6124401913875598,
+    "meaningfulSourcePixelsRetained": 333525,
+    "sourceIsolationNoise": {
+      "omittedSourcePixels": 0,
+      "omittedSourceAlphaEnergy": 0,
+      "maximumAllowedOmittedAlpha": 2,
+      "method": "Original sheet alpha outside the union of explicit occupied-slot crop rectangles"
+    },
+    "measuredGeometryVerified": true,
+    "minimumFilteringGutterMasterPixels": 2,
+    "measurementTolerances": {
+      "groundSlopeAbsoluteError": 0.11,
+      "groundCenterMasterPixels": 3,
+      "personnelDoorRelativeError": 0.25
+    }
+  },
+  "mipFilter": "Independent original-cutout premultiplied-alpha Lanczos affine; no sharpening",
+  "mipSharpening": false,
+  "groundKey": "RGBA alpha, bare ground must be authored transparent; no colour keying",
+  "outputs": {
+    "16": {
+      "path": "atlas-16.png",
+      "sha256": "0d407dabfcb2ea5af781ef62a964e63d11d9eeaac5c485f0c834577992017b58",
+      "dimensions": [
+        48,
+        48
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.03827751196172249,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "32": {
+      "path": "atlas-32.png",
+      "sha256": "11634849f0e60d2ddf9d7a1d87a8bdb66b4d86191cbeee05e3402f2dc88f71db",
+      "dimensions": [
+        96,
+        96
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.07655502392344497,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "64": {
+      "path": "atlas-64.png",
+      "sha256": "9baa1272a20c21ada43d0b1f24215ff7f9b9ae751a5fae97d6412dd36bb202d3",
+      "dimensions": [
+        192,
+        192
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.15311004784688995,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "128": {
+      "path": "atlas-128.png",
+      "sha256": "85e4018f3ec3a4c628b91ed9ddc915b1e2dd0162aa6f810a28849d5e9dc2fa49",
+      "dimensions": [
+        384,
+        384
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.3062200956937799,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "256": {
+      "path": "atlas-256.png",
+      "sha256": "4285251e4eb5f1ed087a391aecde621116cc59dd2b26cb9d518e6dc7b2f18f7b",
+      "dimensions": [
+        768,
+        768
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 0.6124401913875598,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "512": {
+      "path": "atlas-512.png",
+      "sha256": "83e0bd755026fa361629f0c25755662d8aeb1bd7e2d16e4754c844388b51cc5a",
+      "dimensions": [
+        1536,
+        1536
+      ],
+      "generatedSourceCellPixels": 418,
+      "sourceToLevelScale": 1.2248803827751196,
+      "upsampledFromGeneratedSource": true,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    }
+  },
+  "provenance": {
+    "operation": "Uniform source pixel density and measured registration only; generator output preserved verbatim",
+    "generator": "image_gen",
+    "styleReference": "/workspace/protocodus.github.io/fun/transport/assets/world/buildings-commerce-camera-v2/taiga/atlas.png",
+    "sourceReview": "Measured geometry, registered ground datum and classified openings reviewed; bare grass, earth, snow and sand transparent in checkerboard composites."
+  }
+}

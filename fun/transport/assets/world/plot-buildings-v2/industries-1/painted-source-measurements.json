@@ -1,0 +1,384 @@
+{
+  "entries": [
+    {
+      "id": "industry:logging-camp:taiga",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        493
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            60,
+            344
+          ],
+          [
+            210,
+            427
+          ]
+        ],
+        [
+          [
+            210,
+            427
+          ],
+          [
+            375,
+            339
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        206,
+        339
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:sawmill:taiga",
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        493
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            60,
+            347
+          ],
+          [
+            214,
+            431
+          ]
+        ],
+        [
+          [
+            214,
+            431
+          ],
+          [
+            387,
+            341
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        214,
+        345
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:coal-mine:taiga",
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        493
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            48,
+            338
+          ],
+          [
+            176,
+            399
+          ]
+        ],
+        [
+          [
+            176,
+            399
+          ],
+          [
+            281,
+            347
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        215,
+        354
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:iron-mine:taiga",
+      "sourceBoundsSheet": [
+        0,
+        488,
+        418,
+        911
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            28,
+            313
+          ],
+          [
+            163,
+            383
+          ]
+        ],
+        [
+          [
+            163,
+            383
+          ],
+          [
+            289,
+            320
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        202,
+        326
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:steel-mill:taiga",
+      "sourceBoundsSheet": [
+        418,
+        488,
+        836,
+        911
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            42,
+            316
+          ],
+          [
+            145,
+            370
+          ]
+        ],
+        [
+          [
+            145,
+            370
+          ],
+          [
+            195,
+            345
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        215,
+        330
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:farm:taiga",
+      "sourceBoundsSheet": [
+        836,
+        488,
+        1254,
+        911
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            35,
+            321
+          ],
+          [
+            222,
+            424
+          ]
+        ],
+        [
+          [
+            222,
+            424
+          ],
+          [
+            309,
+            380
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        217.5,
+        331
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Farm whole-plot source unapproved: ROOT will replace this cell with native fields plus separately calibrated painted2tile core."
+    },
+    {
+      "id": "industry:food-plant:taiga",
+      "sourceBoundsSheet": [
+        0,
+        906,
+        418,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            42,
+            275
+          ],
+          [
+            156,
+            337
+          ]
+        ],
+        [
+          [
+            156,
+            337
+          ],
+          [
+            208,
+            310
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        211,
+        281
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:furniture-factory:taiga",
+      "sourceBoundsSheet": [
+        418,
+        906,
+        836,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            49,
+            282
+          ],
+          [
+            163,
+            342
+          ]
+        ],
+        [
+          [
+            163,
+            342
+          ],
+          [
+            212,
+            316
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        215,
+        290
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    },
+    {
+      "id": "industry:machine-works:taiga",
+      "sourceBoundsSheet": [
+        836,
+        906,
+        1254,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            52,
+            278
+          ],
+          [
+            154,
+            329
+          ]
+        ],
+        [
+          [
+            154,
+            329
+          ],
+          [
+            215,
+            300
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        214,
+        291
+      ],
+      "groundCenterObservation": "Observed working-yard centre from opposing ground-contact boundary vertices and circulation layout; independent of roofs, shadows and alpha bounds. Hand-painted irregular compound; source-coordinate uncertainty approximately8pixels.",
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "loadingBayObservation": "Broad facade service openings visible; these are distinct from personnel doors. Typical raw opening heights10\u201312source pixels; at the common calibrated density5.6\u20136.7master pixels, near4.2m loading bay scale.",
+      "reviewNote": "Processor source measured at actual yard landmarks; one uniform physical sheet calibration."
+    }
+  ],
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            35,
+            739
+          ],
+          [
+            222,
+            842
+          ]
+        ],
+        "physicalSpanMetres": 75,
+        "footprint": 5,
+        "note": "Actual visible grain-field front ground axis from left corner to front corner in slot6. Planned full working field side is75m from the canonical5tile plot envelope. Density based on this explicit designed physical extent assumption and observed endpoints; same density applies to the complete sheet, never per-entry fitting. Wholefarm artwork will separately be replaced by native field/core composition."
+      }
+    ]
+  },
+  "review": "Observed hand-painted ground axes and working-yard registration. Narrow personnel entrances are not reliably identifiable. Fullfarm cell not approved."
+}

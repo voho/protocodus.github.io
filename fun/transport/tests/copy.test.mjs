@@ -71,7 +71,7 @@ test('DOM-free modules use the glossary in every string', () => {
   assert.ok(['model.js', 'gameplay-insights.js', 'route-planner.js', 'settlements.js', 'industry-simulation.js', 'ui-notices.js', 'milestones.js', 'contracts.js', 'construction-undo.js', 'copy.js'].every(name => modules.includes(name)), modules.join());
   const found = [];
   for (const name of modules) for (const { text, line } of strings(read(name))) {
-    if (IDENTIFIER.test(text) || AMENITIES.has(text)) continue;
+    if (IDENTIFIER.test(text) || AMENITIES.has(text) || /^\.\/assets\//.test(text)) continue;
     for (const [word, pattern] of Object.entries(BANNED)) if (pattern.test(text)) found.push(`${name}:${line} ${word}: ${JSON.stringify(text)}`);
   }
   assert.deepEqual(found, []);

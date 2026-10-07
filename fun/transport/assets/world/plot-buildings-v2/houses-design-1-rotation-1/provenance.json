@@ -1,0 +1,31 @@
+{
+  "tool": "image_gen.imagegen",
+  "transparent_background": true,
+  "stages": [
+    {
+      "operation": "Native registered guide material repaint",
+      "source": "/workspace/generated_images/exec-907d867b-6a21-4736-93f4-7ea0ae12e306.png",
+      "references": [
+        "/tmp/transport-wide-art/houses-design-1-rotation-1/guide.png"
+      ],
+      "prompt": "generation-prompt.txt"
+    },
+    {
+      "operation": "Bottom-row architectural height correction",
+      "source": "/workspace/generated_images/exec-01d67e88-e4df-4c54-bd4d-dec9563735b8.png",
+      "references": [
+        "/workspace/generated_images/exec-907d867b-6a21-4736-93f4-7ea0ae12e306.png"
+      ],
+      "prompt": "height-correction-prompt.txt"
+    },
+    {
+      "operation": "Bare garden ground alpha cleanup",
+      "source": "/workspace/generated_images/exec-691c153b-b026-4265-9ab1-c8424acd35ef.png",
+      "references": [
+        "/workspace/generated_images/exec-01d67e88-e4df-4c54-bd4d-dec9563735b8.png"
+      ],
+      "prompt": "alpha-cleanup-prompt.txt"
+    }
+  ],
+  "packing": "Uniform sheet-density resampling plus observed ground translation; no silhouette fitting, colour keying, warping or pixel painting"
+}

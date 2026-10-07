@@ -33,61 +33,59 @@ const finish = async (matches, fail = false) => {
   }
   for (let n = 0; n < 4; n++) await new Promise(resolve => setImmediate(resolve));
 };
-const cells = [16, 32, 64, 128, 256];
+const cells = [16, 32, 64, 128, 256, 512];
 
 test('a cached alternate fallback sharpens when its primary density arrives', async () => {
   void houses.preloadHouses({ biome: 'taiga', rotations: [0], designs: [0], cells: [16], waitMs: 0 });
-  await finish(url => /\/taiga\/house-atlas-16\.png$/.test(url));
+  await finish(url => /\/houses-design-0-rotation-0\/atlas-16\.png$/.test(url));
   void houses.preloadHouses({ biome: 'taiga', rotations: [1], designs: [0], cells, waitMs: 0 });
-  await finish(url => url.includes('/taiga/rotation-1/'), true);
+  await finish(url => url.includes('/houses-design-0-rotation-1/'), true);
   const sprite = createSprites('taiga', { pixelScale: 1 });
-  await finish(url => url.includes('/assets/world/') || /\/houses\/[^/]+\/design-/.test(url), true);
+  await finish(url => url.includes('/assets/world/') && !url.includes('/houses-design-0-rotation-0/'), true);
   const before = sprite('house-cheap-2', 1), revision = houses.houseAssetsRevision();
   assert.equal(before.draw.cell, 16);
-  assert.match(before.draw.source, /\/taiga\/house-atlas-16\.png$/);
+  assert.match(before.draw.source, /\/houses-design-0-rotation-0\/atlas-16\.png$/);
   assert.equal(before, sprite('house-cheap-2', 19), 'the same requested rotation shares its cached fallback');
-  assert.equal(requests.filter(image => /\/taiga\/house-atlas-32\.png$/.test(image.url)).length, 1, 'the fallback shares the pending primary request');
-  await finish(url => /\/taiga\/house-atlas-32\.png$/.test(url));
-  await finish(url => /\/taiga\/house-atlas-64\.png$/.test(url), true);
+  assert.equal(requests.filter(image => /\/houses-design-0-rotation-0\/atlas-32\.png$/.test(image.url)).length, 1, 'the fallback shares the pending primary request');
+  await finish(url => /\/houses-design-0-rotation-0\/atlas-32\.png$/.test(url));
+  await finish(url => /\/houses-design-0-rotation-0\/atlas-64\.png$/.test(url), true);
   assert.ok(houses.houseAssetsRevision() > revision, 'the drawn fallback density arrival publishes a cache revision');
   const after = sprite('house-cheap-2', 1);
   assert.notEqual(after, before, 'the existing sprite closure replaces its cached low-density fallback');
   assert.equal(after.draw.cell, 32);
-  assert.match(after.draw.source, /\/taiga\/house-atlas-32\.png$/);
+  assert.match(after.draw.source, /\/houses-design-0-rotation-0\/atlas-32\.png$/);
   assert.equal(after, sprite('house-cheap-2', 19));
 });
 
-test('a missing climate requests its fallback climate density and refreshes cached sprites', async () => {
-  void houses.preloadHouses({ biome: 'desert', rotations: [0, 1], designs: [0], cells, waitMs: 0 });
-  await finish(url => url.includes('/houses/desert/'), true);
+test('a second climate shares neutral density requests and refreshes cached sprites', async () => {
   const sprite = createSprites('desert', { pixelScale: 4 });
-  await finish(url => url.includes('/assets/world/') || /\/houses\/[^/]+\/design-/.test(url), true);
+  await finish(url => url.includes('/assets/world/') && !url.includes('/houses-design-0-rotation-0/'), true);
   const before = sprite('house-normal-3', 0), revision = houses.houseAssetsRevision();
   assert.equal(before.draw.cell, 32);
-  assert.match(before.draw.source, /\/taiga\/house-atlas-32\.png$/);
-  assert.equal(requests.filter(image => /\/taiga\/house-atlas-128\.png$/.test(image.url)).length, 1, 'Detail fetches the selected fallback climate density');
-  await finish(url => /\/taiga\/house-atlas-128\.png$/.test(url));
+  assert.match(before.draw.source, /\/houses-design-0-rotation-0\/atlas-32\.png$/);
+  assert.equal(requests.filter(image => /\/houses-design-0-rotation-0\/atlas-128\.png$/.test(image.url)).length, 1, 'Detail fetches the neutral sheet density');
+  await finish(url => /\/houses-design-0-rotation-0\/atlas-128\.png$/.test(url));
   assert.ok(houses.houseAssetsRevision() > revision);
   const after = sprite('house-normal-3', 0);
   assert.notEqual(after, before);
   assert.equal(after.draw.cell, 128);
-  assert.match(after.draw.source, /\/taiga\/house-atlas-128\.png$/);
+  assert.match(after.draw.source, /\/houses-design-0-rotation-0\/atlas-128\.png$/);
 });
 
 test('architectural variants retain separate identities and replace a cached base-design fallback', async () => {
   const sprite = createSprites('taiga', { pixelScale: 1 });
   const before = sprite('house-normal-1', 6), base = sprite('house-normal-1', 0);
-  assert.match(before.draw.source, /\/taiga\/house-atlas-32\.png$/);
+  assert.match(before.draw.source, /\/houses-design-0-rotation-0\/atlas-32\.png$/);
   assert.notEqual(before, base, 'requested designs keep separate identities while a base sheet stands in');
   assert.equal(before, sprite('house-normal-1', 24), 'eighteen saved variants repeat the same design and rotation');
   const revision = houses.houseAssetsRevision();
   void houses.preloadHouses({ biome: 'taiga', designs: [1], rotations: [0], cells: [32], retry: true, waitMs: 0 });
-  await finish(url => url.includes('/taiga/design-1/') && !url.includes('/rotation-1/'));
+  await finish(url => url.includes('/houses-design-1-rotation-0/'));
   await new Promise(resolve => setTimeout(resolve, 175));
   assert.ok(houses.houseAssetsRevision() > revision);
   const after = sprite('house-normal-1', 6);
   assert.notEqual(after, before, 'the first decoded design refreshes an existing sprite closure');
-  assert.match(after.draw.source, /\/taiga\/design-1\/house-atlas-32\.png$/);
+  assert.match(after.draw.source, /\/houses-design-1-rotation-0\/atlas-32\.png$/);
   assert.equal(after, sprite('house-normal-1', 24));
   assert.equal(houses.getHouseAssetStats('taiga', 0, 1).activeDesign, 1);
   assert.deepEqual(houses.HOUSE_DESIGNS, [0, 1, 2]);

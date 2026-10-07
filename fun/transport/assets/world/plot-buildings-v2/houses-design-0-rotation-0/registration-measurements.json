@@ -1,0 +1,465 @@
+{
+  "source": "/workspace/generated_images/exec-1feba582-3313-4692-9b15-68d631c5abed.png",
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            50,
+            326
+          ],
+          [
+            222,
+            410
+          ]
+        ],
+        [
+          [
+            222,
+            410
+          ],
+          [
+            394,
+            332
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          50,
+          326
+        ],
+        [
+          394,
+          332
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          169,
+          326
+        ],
+        [
+          169,
+          347
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            46,
+            325
+          ],
+          [
+            224,
+            410
+          ]
+        ],
+        [
+          [
+            224,
+            410
+          ],
+          [
+            399,
+            327
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          46,
+          325
+        ],
+        [
+          399,
+          327
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          175,
+          321
+        ],
+        [
+          175,
+          344
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            46,
+            328
+          ],
+          [
+            232,
+            420
+          ]
+        ],
+        [
+          [
+            232,
+            420
+          ],
+          [
+            400,
+            344
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          46,
+          328
+        ],
+        [
+          400,
+          344
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          152,
+          313
+        ],
+        [
+          152,
+          337
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            45,
+            324
+          ],
+          [
+            213,
+            411
+          ]
+        ],
+        [
+          [
+            213,
+            411
+          ],
+          [
+            386,
+            329
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          45,
+          324
+        ],
+        [
+          386,
+          329
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          146,
+          315
+        ],
+        [
+          146,
+          338
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            47,
+            326
+          ],
+          [
+            224,
+            414
+          ]
+        ],
+        [
+          [
+            224,
+            414
+          ],
+          [
+            399,
+            340
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          47,
+          326
+        ],
+        [
+          399,
+          340
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          174,
+          319
+        ],
+        [
+          174,
+          342
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            47,
+            326
+          ],
+          [
+            225,
+            416
+          ]
+        ],
+        [
+          [
+            225,
+            416
+          ],
+          [
+            396,
+            331
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          47,
+          326
+        ],
+        [
+          396,
+          331
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          152,
+          308
+        ],
+        [
+          152,
+          329
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            28,
+            276
+          ],
+          [
+            232,
+            372
+          ]
+        ],
+        [
+          [
+            232,
+            372
+          ],
+          [
+            399,
+            282
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          28,
+          276
+        ],
+        [
+          399,
+          282
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        860,
+        418,
+        1254
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          167,
+          277
+        ],
+        [
+          167,
+          291
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            33,
+            281
+          ],
+          [
+            224,
+            372
+          ]
+        ],
+        [
+          [
+            224,
+            372
+          ],
+          [
+            405,
+            280
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          33,
+          281
+        ],
+        [
+          405,
+          280
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        860,
+        836,
+        1254
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorEndpointsSource": [
+        [
+          172,
+          275
+        ],
+        [
+          172,
+          289
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            38,
+            276
+          ],
+          [
+            224,
+            371
+          ]
+        ],
+        [
+          [
+            224,
+            371
+          ],
+          [
+            409,
+            285
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          38,
+          276
+        ],
+        [
+          409,
+          285
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        860,
+        1254,
+        1254
+      ],
+      "measurementMethod": "Visual source review of ground-contact corners at the bottoms of the left/right upright hedges, and their front edges. Coordinates use original nominal source-cell origin, not alpha bounds. Personnel leaf measured at one vertical interior edge, excluding canopy/frame/columns.",
+      "personnelDoorObservable": false,
+      "doorVisibilityNote": "Inner-courtyard personnel entry is obscured by planted groups; visible blue openings lack an observable leaf/threshold, so no door-height assertion is made."
+    }
+  ]
+}

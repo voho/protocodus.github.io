@@ -2,7 +2,7 @@ import { BUILDINGS, LEGACY_BUILDING_KINDS } from './buildings.js';
 import { SPRITE_SCALE, featureSpriteUnits, BUILDING_PALETTES, BUILDING_REGISTRATION } from './sprite-art-direction.js';
 
 // Native emergency artwork shares the authored cells' ground registration.
-// u and v follow the two ground axes across the 10m-per-tile architectural
+// u and v follow the two ground axes across the shared architectural
 // envelope; z is always metres. Parcel growth never enlarges human features.
 const HALF_ENVELOPE_METRES = BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile / 2;
 const HALF_GROUND = featureSpriteUnits(HALF_ENVELOPE_METRES);
@@ -83,7 +83,7 @@ function chimney(c,b,u,v,height=1.8,width=.65) {
   box(c,u-d,v-d,u+d,v+d,b.height+.8,b.height+.8+height,p.brick);
 }
 function plot(c,paved=false) {
-  if(!paved&&profile(c).kind.startsWith('house-')&&profile(c).gardenGround==='terrain')return;
+  if(!paved&&profile(c).gardenGround==='terrain')return;
   const p=palette(c);flat(c,-.95,-.95,.95,.95,paved?p.paving:p.ground);
 }
 function path(c,u0,v0,u1,v1) { flat(c,u0,v0,u1,v1,palette(c).path); }
@@ -141,9 +141,13 @@ function home(c,kind) {
   }
 }
 function civic(c,kind) {
-  const p=palette(c);plot(c,kind!=='church');
+  const p=palette(c);
+  if(kind==='school'&&profile(c).gardenGround==='terrain') {
+    // Leave the planted play area open to the underlying world texture.
+    flat(c,-.95,-.95,.95,.12,p.paving);flat(c,-.95,.12,.28,.95,p.paving);flat(c,.28,.8,.95,.95,p.paving);
+  } else plot(c,kind!=='church');
   if(kind==='school') {
-    flat(c,.28,.12,.84,.8,p.ground);const wing=block(c,-.78,-.56,.72,-.12,1,{roofColor:p.terracotta});windows(c,wing,{count:5,sideCount:0});
+    if(profile(c).gardenGround!=='terrain')flat(c,.28,.12,.84,.8,p.ground);const wing=block(c,-.78,-.56,.72,-.12,1,{roofColor:p.terracotta});windows(c,wing,{count:5,sideCount:0});
     const b=block(c,-.78,-.56,-.26,.55,2,{style:'gable',roofColor:p.terracotta,rise:2.5});windows(c,b,{count:2});door(c,b,-.5,2);path(c,-.65,.55,-.37,.95);
     // One broad play structure, rather than many miniature swing bars.
     box(c,.46,.37,.73,.57,0,1.5,p.ochre,p.burgundy);
@@ -227,12 +231,15 @@ function service(c,kind) {
     const u=.55,d=planSize(c,.35)/2;box(c,u-d,.35,u+d,.43,0,2.4,p.cream);box(c,u-d,.35,u+d,.43,.6,1.2,p.burgundy);box(c,u-d,.35,u+d,.43,1.8,2.4,p.burgundy);chimney(c,b,.3,-.42);
   }
 }
-export function drawTownBuilding(ctx,kind,biome,detailLevel='town',variant=0,{gardenGround='art'}={}) {
+export function drawTownBuilding(ctx,kind,biome,detailLevel='town',variant=0,{gardenGround='art',footprint:requestedFootprint}={}) {
   if(!NATIVE_TOWN_BUILDING_KINDS.includes(kind))return false;
   const p=BUILDING_PALETTES[biome]||BUILDING_PALETTES.taiga;
+  // A blocked saved parcel can retain its original span after catalog growth.
+  // Convert physical features against the span the caller actually renders.
+  const span=Number.isInteger(requestedFootprint)&&requestedFootprint>0?requestedFootprint:BUILDINGS[kind].footprint;
   // These derived colours stay within the canonical muted materials, including
   // climate ground and planting; families do not invent independent palettes.
-  profiles.set(ctx,{kind,biome,detail:detailLevel,gardenGround,variant:Math.abs(Math.floor(variant))%15,footprint:BUILDINGS[kind].footprint,palette:{...p,paving:p.paving||p.stone,path:p.path||shade(p.stone,1.08),water:p.water||p.glass,snow:p.snow||p.cream}});
+  profiles.set(ctx,{kind,biome,detail:detailLevel,gardenGround,variant:Math.abs(Math.floor(variant))%15,footprint:span,palette:{...p,paving:p.paving||p.stone,path:p.path||shade(p.stone,1.08),water:p.water||p.glass,snow:p.snow||p.cream}});
   try {
     if(kind.startsWith('house-'))home(ctx,kind);
     else if(kind.startsWith('shop-'))shop(ctx,kind);

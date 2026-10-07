@@ -1,0 +1,430 @@
+{
+  "sourceImage": "/workspace/generated_images/exec-837a0b44-ba81-4327-b54c-13a6eb9741e5.png",
+  "sourceCellPixels": 418,
+  "reviewStatus": "Observed measurements; do not treat uncertain or outside-contract findings as an approval",
+  "entries": [
+    {
+      "id": "industry:fishery:taiga",
+      "groundVerticesSource": [
+        [
+          213,
+          260
+        ],
+        [
+          405,
+          365
+        ],
+        [
+          245,
+          455
+        ],
+        [
+          37,
+          342
+        ]
+      ],
+      "groundCenterSource": [
+        225,
+        355.5
+      ],
+      "groundCenterMethod": "Mean of the four observed deck ground corners; posts, boat hulls and roof edges excluded; opposite-side midpoint checks give about 4px source uncertainty",
+      "groundVertexLandmarks": "Actual full wharf/deck surface corners of the regenerated fishery",
+      "groundCenterUncertaintySourcePixels": 4,
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        530
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Broad shed bays are visible; no unobscured narrow ground-reaching personnel entrance can be distinguished",
+      "reviewNotes": "Remeasured shortened-post fishery with boats alongside the deck; long deck edge is visibly about 2:1 dimetric. Complete source crop retained at a single physically calibrated sheet density."
+    },
+    {
+      "id": "industry:fish-processor:taiga",
+      "groundVerticesSource": [
+        [
+          213,
+          346
+        ],
+        [
+          345,
+          412
+        ],
+        [
+          293,
+          436
+        ],
+        [
+          161,
+          374
+        ]
+      ],
+      "groundCenterSource": [
+        215,
+        367.5
+      ],
+      "groundCenterMethod": "Observed top/front working-pavement limits bracket the physical ground layout; x from visible left/right ground extrema",
+      "groundVertexLandmarks": "Ground footprint of the front-right processing-hall wing; rear ground corner inferred from the two visible foundation-edge directions",
+      "groundCenterUncertaintySourcePixels": 6,
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        530
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": true,
+      "personnelDoorNotes": "Small narrow dark entrance on the right-hand hall facade; endpoints have about 1px uncertainty, broad front bays excluded",
+      "personnelDoorEndpointsSource": [
+        [
+          304,
+          421
+        ],
+        [
+          304,
+          427
+        ]
+      ],
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5
+    },
+    {
+      "id": "industry:oil-well:taiga",
+      "groundVerticesSource": [
+        [
+          113,
+          382
+        ],
+        [
+          179,
+          418
+        ],
+        [
+          141,
+          438
+        ],
+        [
+          70,
+          404
+        ]
+      ],
+      "groundCenterSource": [
+        239,
+        350
+      ],
+      "groundCenterMethod": "Midpoint of observed opposite compound hardstanding side vertices; storage-tank height and pumpjack arms excluded",
+      "groundVertexLandmarks": "Low front maintenance-shed ground footprint; hidden rear corner inferred from visible facade baselines",
+      "groundCenterUncertaintySourcePixels": 4,
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        530
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "The small front marks are raised windows; the larger ground-reaching opening is a bay. No unambiguous personnel door is visible"
+    },
+    {
+      "id": "industry:refinery:taiga",
+      "groundVerticesSource": [
+        [
+          89,
+          352
+        ],
+        [
+          174,
+          392
+        ],
+        [
+          135,
+          415
+        ],
+        [
+          50,
+          375
+        ]
+      ],
+      "groundCenterSource": [
+        207,
+        326
+      ],
+      "groundCenterMethod": "Centre of observed compound ground-plane perimeter, including the front office footprint, excluding tower silhouettes and contact-shadow extremities",
+      "groundVertexLandmarks": "Low front office ground footprint; far corner is inferred from visible facade baselines",
+      "groundCenterUncertaintySourcePixels": 8,
+      "sourceBoundsSheet": [
+        0,
+        530,
+        406,
+        890
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Office facade has several short windows and one wider loading/service opening; no narrow personnel entrance has clear ground and lintel endpoints"
+    },
+    {
+      "id": "industry:quarry:taiga",
+      "groundVerticesSource": [
+        [
+          346,
+          347
+        ],
+        [
+          392,
+          371
+        ],
+        [
+          351,
+          393
+        ],
+        [
+          305,
+          369
+        ]
+      ],
+      "groundCenterSource": [
+        204,
+        306
+      ],
+      "groundCenterMethod": "Midpoint of observed excavation back/front outer plateau boundary, x cross-checked against outer side plateau extrema",
+      "groundVertexLandmarks": "Front maintenance-shed ground footprint; excavation perimeter is deliberately irregular and is not used as a camera rectangle",
+      "groundCenterUncertaintySourcePixels": 8,
+      "sourceBoundsSheet": [
+        406,
+        530,
+        839,
+        890
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": true,
+      "personnelDoorNotes": "Small narrow ground-reaching entrance near the front-left shed face; approximately 1px endpoint uncertainty",
+      "personnelDoorEndpointsSource": [
+        [
+          327,
+          378
+        ],
+        [
+          327,
+          384
+        ]
+      ],
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5,
+      "reviewNotes": "Observed physical excavation registration does not retain the full lower cutout at the current [128,192] master target; source needs correction, not an invented lower centre."
+    },
+    {
+      "id": "industry:cement-works:taiga",
+      "groundVerticesSource": [
+        [
+          218,
+          341
+        ],
+        [
+          328,
+          390
+        ],
+        [
+          280,
+          414
+        ],
+        [
+          170,
+          365
+        ]
+      ],
+      "groundCenterSource": [
+        208,
+        331
+      ],
+      "groundCenterMethod": "Observed compound working-ground perimeter midpoint, excluding silo tops and conveyor structure",
+      "groundVertexLandmarks": "Front-right hall ground footprint; rear corner inferred from the two visible hall foundation axes",
+      "groundCenterUncertaintySourcePixels": 8,
+      "sourceBoundsSheet": [
+        839,
+        530,
+        1254,
+        890
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": true,
+      "personnelDoorNotes": "Narrow dark front-hall entrance next to, rather than inside, the broad loading bays; 1px endpoint uncertainty",
+      "personnelDoorEndpointsSource": [
+        [
+          260,
+          397
+        ],
+        [
+          260,
+          403
+        ]
+      ],
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5
+    },
+    {
+      "id": "industry:sand-pit:taiga",
+      "groundVerticesSource": [
+        [
+          340,
+          303
+        ],
+        [
+          389,
+          329
+        ],
+        [
+          354,
+          348
+        ],
+        [
+          302,
+          322
+        ]
+      ],
+      "groundCenterSource": [
+        210,
+        258.5
+      ],
+      "groundCenterMethod": "Midpoint of observed left/right outer sand-working-ground vertices, with the forward maintenance-shed footprint included",
+      "groundVertexLandmarks": "Maintenance-shed ground footprint; excavation benches are excluded from camera-axis measurement",
+      "groundCenterUncertaintySourcePixels": 5,
+      "sourceBoundsSheet": [
+        0,
+        890,
+        418,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Visible shed openings are a broad equipment bay and short raised windows; no identifiable narrow personnel entrance"
+    },
+    {
+      "id": "industry:glassworks:taiga",
+      "groundVerticesSource": [
+        [
+          118,
+          282
+        ],
+        [
+          273,
+          346
+        ],
+        [
+          229,
+          368
+        ],
+        [
+          74,
+          304
+        ]
+      ],
+      "groundCenterSource": [
+        215,
+        284
+      ],
+      "groundCenterMethod": "Midpoint of compound physical ground limits from rear processing hall to front glazed hall, with x checked against left/right ground limits",
+      "groundVertexLandmarks": "Front glazed production-hall ground footprint; hidden rear corner inferred from visible foundation baselines",
+      "groundCenterUncertaintySourcePixels": 8,
+      "sourceBoundsSheet": [
+        418,
+        890,
+        836,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Latest source2 fishery-only edit resynthesized small facade marks. 16x crop of local224..248,y344..372 shows the formerly assigned brown rectangle raised above the visible wall baseline, not an unobscured ground-reaching personnel entrance. The dark green opening at crop edge is broad/partly occluded. Actual ordinary entrance is not identifiable; no height certified from a window or partial opening.",
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5,
+      "reviewNotes": "Earlier approximate8px personnel inference was withdrawn after full-resolution latest-source review. Cropped evidence glass-door-review.png records the raised brown wall mark and occlusion."
+    },
+    {
+      "id": "industry:copper-mine:taiga",
+      "groundVerticesSource": [
+        [
+          350,
+          294
+        ],
+        [
+          392,
+          315
+        ],
+        [
+          360,
+          333
+        ],
+        [
+          317,
+          312
+        ]
+      ],
+      "groundCenterSource": [
+        209,
+        257
+      ],
+      "groundCenterMethod": "Midpoint of observed outer red excavation opposite side vertices; front maintenance-shed foundation included, winding-tower height excluded",
+      "groundVertexLandmarks": "Front maintenance-shed ground footprint; excavation perimeter is irregular",
+      "groundCenterUncertaintySourcePixels": 5,
+      "sourceBoundsSheet": [
+        836,
+        890,
+        1254,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "The shed has one broad equipment entrance and short raised windows; no distinct narrow personnel door",
+      "reviewNotes": "Registration is close to the lower filtering-gutter limit; do not shift centre merely to manufacture a passing crop."
+    }
+  ],
+  "observations": {
+    "physicalSheetDensity": {
+      "sourceEdgeEndpoints": [
+        [
+          37,
+          342
+        ],
+        [
+          245,
+          455
+        ]
+      ],
+      "entryId": "industry:fishery:taiga",
+      "physicalSpanMetres": 75,
+      "footprint": 5,
+      "sourceCoordinateSystem": "local nominal 418px cell",
+      "sourceHorizontalSpanPixels": 208,
+      "masterHorizontalSpanAtContractPixels": 106.66666666666667,
+      "calibratedMasterPixelsPerSourcePixel": 0.5128205128205129,
+      "proposedUniformMasterPixelsPerSourcePixel": 0.52,
+      "note": "Actual observed wharf/deck working-plot side endpoints. Assigning that edge 75m is explicitly the planned architectural-envelope design assumption, not independently known survey scale. One 0.52 density differs 1.4 percent from the measured-edge calibration and applies to the entire sheet; no per-sprite fitting."
+    }
+  },
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            37,
+            342
+          ],
+          [
+            245,
+            455
+          ]
+        ],
+        "physicalSpanMetres": 75,
+        "footprint": 5,
+        "note": "Actual observed wharf/deck working-plot side endpoints. Assigning that edge 75m is explicitly the planned architectural-envelope design assumption, not independently known survey scale. One 0.52 density differs 1.4 percent from the measured-edge calibration and applies to the entire sheet; no per-sprite fitting. Coordinates converted to original fullsheet pixels where necessary; Euclidean projected ground-axis length calibrates the density."
+      }
+    ]
+  },
+  "packingSheetScale": 0.5038042102293194
+}

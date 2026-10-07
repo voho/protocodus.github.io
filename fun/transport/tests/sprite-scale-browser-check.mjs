@@ -1,7 +1,8 @@
 // The complete catalog at native game sizes. Screenshots deliberately preserve
 // parcel scale so a door or vehicle can be compared across every building.
 import assert from 'node:assert/strict';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { PLOT_BUILDING_ATLASES } from '../plot-building-catalog.js';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -13,26 +14,33 @@ const allFamilies = [...defaultFamilies, 'features'];
 const families = process.env.TRANSPORT_SCALE_FAMILIES ? process.env.TRANSPORT_SCALE_FAMILIES.split(',') : defaultFamilies;
 assert.ok(families.length && families.every(family => allFamilies.includes(family)), 'select known sprite families');
 const biomes = ['taiga', 'tundra', 'desert'];
-const folders = [
-  ...biomes.flatMap(biome => ['buildings-civic', 'buildings-commerce-camera-v2', 'buildings-town-features', 'town-variety-v1/civic-retail', 'town-variety-v1/shop-alternates'].map(family => `assets/world/${family}/${biome}`)),
-  ...['taiga', 'taiga-extra', 'tundra', 'tundra-extra', 'desert', 'desert-extra'].map(family => `assets/world/industries-${family}`),
-  ...['taiga', 'desert'].flatMap(biome => [`assets/world/food-industry-v1/${biome}`, `assets/world/farm-cores-v1/${biome}`]),
-];
-async function houseFolders(directory = new URL('../assets/houses/', import.meta.url), relative = 'assets/houses') {
-  const children = await readdir(directory, { withFileTypes: true });
-  if (children.some(child => child.name === 'atlas.json')) folders.push(relative);
-  for (const child of children.filter(child => child.isDirectory())) await houseFolders(new URL(`${child.name}/`, directory), `${relative}/${child.name}`);
-}
-await houseFolders();
-const activeFolders = folders.filter(folder => folder.startsWith('assets/houses/') ? families.includes('catalog') || families.includes('houses') : folder.includes('/buildings-town-features/') ? families.includes('catalog') || families.includes('features') : folder.includes('/buildings-') || folder.includes('/town-variety-') ? families.includes('catalog') : families.some(family => ['industries', 'cores', 'legacy'].includes(family)));
-const manifests = await Promise.all(activeFolders.map(async folder => {
-  let metadata;
-  try { metadata = JSON.parse(await readFile(new URL(`../${folder}/atlas.json`, import.meta.url), 'utf8')); }
-  catch (error) {
-    if (!folder.includes('buildings-town-features') || error.code !== 'ENOENT') throw error;
-    metadata = { columns: 4, rows: 3, order: ['park', 'playground', 'swimming-pool', 'sports-field', 'tennis-courts', 'ballpark', 'sports-hall', 'town-hall', 'shop-cafe', 'shop-pharmacy', 'shop-bookshop', null] };
-  }
-  return { folder, columns: metadata.columns, rows: metadata.rows, order: metadata.order, house: folder.startsWith('assets/houses/') };
+const densityCells = [16, 32, 64, 128, 256, 512];
+assert.equal(PLOT_BUILDING_ATLASES.length, 16, 'all current neutral architectural sheets are registered');
+assert.equal(PLOT_BUILDING_ATLASES.reduce((count, atlas) => count + atlas.entries.filter(Boolean).length, 0), 132, 'current sheets preserve every identity, design and rotation');
+const activeAtlases = PLOT_BUILDING_ATLASES.filter(atlas =>
+  families.includes('catalog') && ['house', 'city'].includes(atlas.type) ||
+  families.includes('houses') && atlas.type === 'house' ||
+  families.includes('features') && atlas.id === 'city-town-features' ||
+  families.includes('industries') && ['industry', 'farm-core'].includes(atlas.type) ||
+  families.includes('cores') && atlas.type === 'farm-core'
+);
+// Historical saved footprints remain in the separate legacy gallery profiles
+// and their native-art assertions below. Current integrity checks load only the
+// active neutral sheets, without using retained historical climate folders.
+const manifests = await Promise.all(activeAtlases.map(async atlas => {
+  const folder = atlas.path.replace(/^\.\//, '').replace(/\/atlas$/, '');
+  const metadata = JSON.parse(await readFile(new URL(`../${folder}/atlas.json`, import.meta.url), 'utf8'));
+  const order = atlas.entries.map(entry => {
+    if (!entry) return null;
+    if (atlas.type === 'house') return entry.kind;
+    const prefix = atlas.type === 'city' ? 'civic' : atlas.type === 'farm-core' ? 'farm-core' : 'industry';
+    return `${prefix}:${entry.kind}:taiga${entry.design ? `:design-${entry.design}` : ''}`;
+  });
+  assert.equal(metadata.columns, atlas.columns, `${atlas.id} retains its registered columns`);
+  assert.equal(metadata.rows, atlas.rows, `${atlas.id} retains its registered rows`);
+  assert.deepEqual(metadata.order, order, `${atlas.id} retains every occupied and empty slot identity`);
+  assert.deepEqual(metadata.cellSizes, densityCells, `${atlas.id} provides every current display density`);
+  return { id: atlas.id, folder, columns: atlas.columns, rows: atlas.rows, order, cellSizes: densityCells };
 }));
 
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -57,7 +65,11 @@ try {
         assert.equal(row.width, row.expectedWidth, `${label} retains its full parcel width`);
         assert.equal(row.height, row.expectedHeight, `${label} retains its full sprite envelope`);
         assert.ok(row.ink > 0, `${label} remains visible at this zoom`);
-        assert.equal(row.edge, 0, `${label} remains isolated from neighboring sprite cells`);
+        // At Region size a measured two-master-pixel gutter becomes less
+        // than one display pixel. Its own filtered shadow can reach the
+        // boundary; reject visible opaque clipping, rather than fractional AA.
+        if (row.width < 128) assert.ok(row.edgeAlphaMax <= 64, `${label} retains only a faint subpixel filtering fringe`);
+        else assert.equal(row.edge, 0, `${label} remains isolated from neighboring sprite cells`);
         if (family === 'industries') assert.equal(row.span, 5, `${label} uses a 5×5 parcel`);
       }
       if (family === 'houses') for (const kind of new Set(profile.map(row => row.kind))) assert.equal(new Set(profile.filter(row => row.kind === kind).map(row => row.hash)).size, 6, `${kind}/${biome}/${zoom}/DPR${dpr} preserves three recognizable designs in both rotations`);
@@ -69,8 +81,8 @@ try {
 
     if (dpr === 1) integrity.push(...await page.evaluate(async manifests => {
       const results = [];
-      for (const manifest of manifests) for (const cell of [16, 32, 64, 128, 256]) {
-        const file = manifest.house ? `house-atlas${cell === 256 ? '' : `-${cell}`}.png` : `atlas-${cell}.png`;
+      for (const manifest of manifests) for (const cell of manifest.cellSizes) {
+        const file = `atlas-${cell}.png`;
         const image = new Image(); image.src = new URL(`../${manifest.folder}/${file}`, location.href).href; await image.decode();
         if (image.naturalWidth !== manifest.columns * cell || image.naturalHeight !== manifest.rows * cell) throw new Error(`Invalid density dimensions: ${manifest.folder}/${file}`);
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = cell; const c = canvas.getContext('2d', { willReadFrequently: true });
@@ -92,7 +104,10 @@ try {
     // separate 2×2 barn, fields and fences. Flat isolated plots make every field
     // cell inspectable, including cells that contain no barn pixels.
     if (families.some(family => ['industries', 'cores', 'legacy'].includes(family))) worlds.push(...await page.evaluate(async () => {
-      const [{ createRenderer }, model, { INDUSTRIES }, fields] = await Promise.all([import('../renderer.js'), import('../model.js'), import('../data.js'), import('../farm-fields-art.js')]);
+      const [{ createRenderer }, model, { INDUSTRIES }, fields, { SPRITE_SCALE }] = await Promise.all([
+        import('../renderer.js'), import('../model.js'), import('../data.js'), import('../farm-fields-art.js'), import('../sprite-art-direction.js'),
+      ]);
+      const buildingFrame = SPRITE_SCALE.billboardPixelsPerTile, buildingGutter = buildingFrame / 4;
       const canvas = document.createElement('canvas'); canvas.style.width = '900px'; canvas.style.height = '650px'; document.querySelector('main').replaceChildren(canvas);
       const c = canvas.getContext('2d'), original = c.drawImage.bind(c), draws = [];
       c.drawImage = (image, ...args) => { if (args.length === 4) draws.push({ width: args[2], height: args[3], sourceWidth: image.width, sourceHeight: image.height }); return original(image, ...args); };
@@ -114,7 +129,9 @@ try {
           renderer.setGame(game);
           for (const zoom of [.5, 1, 2]) {
             draws.length = 0; renderer.setZoom(zoom); renderer.focus(42, 42); renderer.render(0);
-            const stats = renderer.getStats(), farm = fields.isLargeFarm(site), projection = draws.filter(draw => draw.width === (farm ? 96 : 240) && draw.height === (farm ? 108 : 252));
+            const stats = renderer.getStats(), farm = fields.isLargeFarm(site), buildingSpan = farm ? 2 : 5;
+            const expectedWidth = buildingFrame * buildingSpan, expectedHeight = expectedWidth + buildingGutter;
+            const projection = draws.filter(draw => draw.width === expectedWidth && draw.height === expectedHeight);
             const perimeter = [], picked = [];
             for (let dy = 0; dy < 5; dy++) for (let dx = 0; dx < 5; dx++) {
               const point = renderer.worldToScreen(site.x + dx, site.y + dy), rect = canvas.getBoundingClientRect(), hit = renderer.screenToInspectTile(point.x + rect.left, point.y + rect.top);
@@ -132,7 +149,7 @@ try {
               markerGateTile = renderer.screenToTile(marker.x + rect.left, marker.y + rect.top - 5 - (marker.size + 6) / 2);
               renderer.setLayers({ industryIcons: false });
             }
-            result.push({ biome, kind, zoom, dpr: devicePixelRatio, generated, farm, picked, projection, markerPick, markerGateTile, portOpened: Boolean(port.ok), portCovered, rasterScale: stats.rasterScale, fenceSections: perimeter.length, fenceWithinParcel: perimeter.every(section => [...section.a, ...section.b].every(Number.isFinite) && [section.a, section.b].every(([x, y]) => x >= site.x && x <= site.x + 5 && y >= site.y && y <= site.y + 5)), edgeCovered: coverage.industries.some(industry => industry.id === site.id) });
+            result.push({ biome, kind, zoom, dpr: devicePixelRatio, generated, farm, picked, projection, expectedWidth, expectedHeight, markerPick, markerGateTile, portOpened: Boolean(port.ok), portCovered, rasterScale: stats.rasterScale, fenceSections: perimeter.length, fenceWithinParcel: perimeter.every(section => [...section.a, ...section.b].every(Number.isFinite) && [section.a, section.b].every(([x, y]) => x >= site.x && x <= site.x + 5 && y >= site.y && y <= site.y + 5)), edgeCovered: coverage.industries.some(industry => industry.id === site.id) });
           }
         }
       }
@@ -144,11 +161,12 @@ try {
     const label = `${row.folder}/${row.kind || 'empty'}/${row.cell}`;
     if (row.kind) assert.ok(row.ink > 0, `${label} contains its complete cutout`);
     else assert.equal(row.ink, 0, `${label} unused atlas cells remain empty`);
-    // Eight transparent master pixels become half a pixel at the emergency
-    // 16px density. Its antialiasing can leave a faint fractional fringe; the
-    // actual game-size profiles above still reject meaningful body pixels at
-    // the output boundary, while recording fractional fringe opacity.
-    if (row.cell === 16) assert.ok(row.edgeAlphaMax <= 64, `${label} has no opaque body pixels on its cell boundary`);
+    // A two-master-pixel gutter is only1/8 pixel at16px and1/4 at32px.
+    // Those emergency mips can include the cutout's own fractional coverage
+    // in their outer pixel. Actual Region/Town/Detail submissions are checked
+    // above, and128px/master/dense cells retain fully isolated body pixels.
+    if (row.cell <= 32) assert.ok(row.edgeAlphaMax <= 192, `${label} retains fractional coverage rather than an opaque clipped edge`);
+    else if (row.cell === 64) assert.ok(row.edgeAlphaMax <= 64, `${label} has only a faint half-pixel-gutter fringe`);
     else assert.equal(row.edge, 0, `${label} has transparent isolation gutters`);
   }
   for (const row of worlds) {
@@ -167,7 +185,7 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  const summary = { spriteProfiles: rows.length, catalogKinds: new Set(rows.filter(row => row.family === 'catalog' && !row.auxiliary).map(row => row.kind)).size, workshopProfiles: rows.filter(row => row.auxiliary).length, houseVariants: rows.filter(row => row.family === 'houses').length, industryKinds: new Set(rows.filter(row => row.family === 'industries').map(row => row.kind)).size, atlasDensities: manifests.length * 5, populatedAtlasCells: integrity.filter(row => row.kind).length, rendererProfiles: worlds.length, errors };
+  const summary = { spriteProfiles: rows.length, catalogKinds: new Set(rows.filter(row => row.family === 'catalog' && !row.auxiliary).map(row => row.kind)).size, workshopProfiles: rows.filter(row => row.auxiliary).length, houseVariants: rows.filter(row => row.family === 'houses').length, industryKinds: new Set(rows.filter(row => row.family === 'industries').map(row => row.kind)).size, atlasDensities: manifests.length * densityCells.length, populatedAtlasCells: integrity.filter(row => row.kind).length, rendererProfiles: worlds.length, errors };
   if (families.includes('catalog')) assert.equal(summary.catalogKinds, 43, 'every building catalog identity appears');
   if (families.includes('industries')) assert.equal(summary.industryKinds, 28, 'every industry identity appears');
   if (families.includes('features')) assert.equal(new Set(rows.filter(row => row.family === 'features').map(row => row.kind)).size, 11, 'every recent town-feature identity appears');

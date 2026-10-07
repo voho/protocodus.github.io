@@ -77,7 +77,7 @@ function texture(crop, biome) {
 
 // This runs only while a terrain chunk is composed. The mesh projects the
 // fields together with roads and world grass, so every row follows slopes.
-export function paintFarmFields(c, bounds, industryAt, biome, seed = 0) {
+export function paintFarmFields(c, bounds, industryAt, biome, seed = 0, { transparentGround = false } = {}) {
   const p=PALETTES[biome]||PALETTES.taiga,plots=new Map();
   for(let y=bounds.y0;y<bounds.y1;y++)for(let x=bounds.x0;x<bounds.x1;x++){
     const site=industryAt(x,y);if(!isLargeFarm(site))continue;
@@ -97,9 +97,12 @@ export function paintFarmFields(c, bounds, industryAt, biome, seed = 0) {
   }
   c.save();
   for(const [site,plot]of plots){
-    const pattern=c.createPattern(texture(farmCrop(site,seed),biome),'repeat');pattern.setTransform({a:.5,d:.5});
-    c.fillStyle=pattern;c.fill(plot.field);
-    c.fillStyle=p.soil;c.globalAlpha=.19;c.fill(plot.yard);c.globalAlpha=.48;c.fill(plot.lane);
+    const crop=farmCrop(site,seed);
+    if(!transparentGround||!['pasture','orchard'].includes(crop)){
+      const pattern=c.createPattern(texture(crop,biome),'repeat');pattern.setTransform({a:.5,d:.5});
+      c.fillStyle=pattern;c.fill(plot.field);
+    }
+    c.fillStyle=p.soil;if(!transparentGround){c.globalAlpha=.19;c.fill(plot.yard);}c.globalAlpha=.48;c.fill(plot.lane);
     c.globalAlpha=1;
   }
   c.restore();
@@ -179,8 +182,9 @@ export function drawFarmPortrait(c, kind, biome = 'taiga', { x=0, y=0, width=96,
     for(const object of farmFieldObjects(site,u,v))objects.push({depth:object.x+object.y,draw:()=>{const p=project(object.x,object.y);c.save();c.translate(p.x,p.y);c.scale(scale,scale);paintFarmFieldObject(c,object,{x:0,y:0},biome);c.restore();}});
   }
   objects.push({depth:5,draw:()=>{
-    const p=project(2,2);c.save();c.translate(p.x-48*scale,p.y-84*scale);c.scale(1.5*scale,1.5*scale);c.translate(0,8);
-    if(!drawRasterFarmCore(c,kind,biome,pixelScale*1.5*scale,{size:64})){c.scale(2,2);drawNativeFarmCore(c,kind,randomSource(1937+kind.length*787),biome,'detail');}
+    const frame=SPRITE_SCALE.billboardPixelsPerTile,density=frame/TILE,p=project(2,2);
+    c.save();c.translate(p.x-frame*scale,p.y-(frame*1.5+frame/4)*scale);c.scale(density*scale,density*scale);c.translate(0,8);
+    if(!drawRasterFarmCore(c,kind,biome,pixelScale*density*scale,{size:64})){c.scale(2,2);drawNativeFarmCore(c,kind,randomSource(1937+kind.length*787),biome,'detail',2,{gardenGround:'terrain'});}
     c.restore();
   }});
   objects.sort((a,b)=>a.depth-b.depth);for(const object of objects)object.draw();

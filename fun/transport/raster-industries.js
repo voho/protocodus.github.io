@@ -1,6 +1,8 @@
 import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
+import { INDUSTRY_PLOT_ATLASES, FARM_CORE_PLOT_ATLASES } from './plot-building-catalog.js';
 
-// Each biome has its own complete set of eligible industries. A site is drawn
+// Eligible climate identities share neutral transparent architectural sheets.
+// A site is drawn
 // as a square inside the caller's +8px sprite envelope. Five-tile compounds
 // use 160px; blocked legacy sites use the native drawings at their original
 // footprint, so their human-sized features retain the common metre scale.
@@ -8,34 +10,28 @@ import { registerAtlas, drawAtlas, atlasAvailable } from './atlas-runtime.js';
 // from the calibrated originals rather than enlarged from the 256px atlases.
 // Farm plots have separate fixed-scale 2×2 building-core atlases below.
 export const FOOD_INDUSTRY_KINDS = Object.freeze(['dairy-farm', 'vegetable-farm', 'orchard', 'livestock-farm', 'dairy-plant', 'cannery', 'meat-packer']);
-const sheets = [
-  { family: 'taiga', biome: 'taiga', columns: 3, rows: 3, kinds: ['logging-camp', 'sawmill', 'coal-mine', 'iron-mine', 'steel-mill', 'farm', 'food-plant', 'furniture-factory', 'machine-works'] },
-  { family: 'taiga-extra', biome: 'taiga', columns: 3, rows: 1, kinds: ['oil-well', 'refinery', 'quarry'] },
-  { family: 'tundra', biome: 'tundra', columns: 3, rows: 3, kinds: ['coal-mine', 'iron-mine', 'steel-mill', 'machine-works', 'fishery', 'fish-processor', 'oil-well', 'refinery', 'quarry'] },
-  { family: 'tundra-extra', biome: 'tundra', columns: 1, rows: 1, kinds: ['equipment-factory'] },
-  { family: 'desert', biome: 'desert', columns: 3, rows: 3, kinds: ['farm', 'food-plant', 'oil-well', 'refinery', 'quarry', 'cement-works', 'sand-pit', 'glassworks', 'copper-mine'] },
-  { family: 'desert-extra', biome: 'desert', columns: 2, rows: 1, kinds: ['wire-mill', 'goods-factory'] },
-  ...['taiga', 'desert'].map(biome => ({ family: `food-${biome}`, biome, path: `./assets/world/food-industry-v1/${biome}/atlas`, columns: 3, rows: 3, kinds: FOOD_INDUSTRY_KINDS })),
-];
 const byKind = new Map(), ids = new Set();
-for (const sheet of sheets) {
-  const entries = sheet.kinds.map(kind => {
-    const id = `industry:${kind}:${sheet.biome}`;
-    ids.add(id);
-    if (!byKind.has(kind)) byKind.set(kind, []);
-    byKind.get(kind).push(id);
-    return id;
+for (const sheet of INDUSTRY_PLOT_ATLASES) {
+  const entries = sheet.entries.map(entry => {
+    if (!entry) return null;
+    for (const id of entry.runtimeIds) ids.add(id);
+    byKind.set(entry.kind, [...entry.runtimeIds]);
+    return entry.runtimeIds;
   });
-  registerAtlas({ id: `industries-${sheet.family}`, path: sheet.path || `./assets/world/industries-${sheet.family}/atlas`, biome:sheet.biome, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 512 });
+  registerAtlas({ id: `plot-building:${sheet.id}`, path: sheet.path, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 512 });
 }
 export const RASTER_INDUSTRY_IDS = Object.freeze([...ids]);
 // Large farms keep their surrounding ground fields separate from their 2×2
 // building core. Compact saved farms continue to use the industry atlases above.
 export const FARM_CORE_KINDS = Object.freeze(['farm', 'dairy-farm', 'vegetable-farm', 'orchard', 'livestock-farm']);
 const coreIds = new Set();
-for (const biome of ['taiga', 'desert']) {
-  const entries = FARM_CORE_KINDS.map(kind => { const id = `farm-core:${kind}:${biome}`; coreIds.add(id); return id; });
-  registerAtlas({ id: `farm-cores-${biome}`, path: `./assets/world/farm-cores-v1/${biome}/atlas`, biome, columns: 3, rows: 2, entries, maxCell: 512 });
+for (const sheet of FARM_CORE_PLOT_ATLASES) {
+  const entries = sheet.entries.map(entry => {
+    if (!entry) return null;
+    for (const id of entry.runtimeIds) coreIds.add(id);
+    return entry.runtimeIds;
+  });
+  registerAtlas({ id: `plot-building:${sheet.id}`, path: sheet.path, columns: sheet.columns, rows: sheet.rows, entries, maxCell: 512 });
 }
 export const RASTER_FARM_CORE_IDS = Object.freeze([...coreIds]);
 const coreCandidates = (kind, biome) => [...new Set([`farm-core:${kind}:${biome}`, `farm-core:${kind}:taiga`, `farm-core:${kind}:desert`])].filter(id => coreIds.has(id));

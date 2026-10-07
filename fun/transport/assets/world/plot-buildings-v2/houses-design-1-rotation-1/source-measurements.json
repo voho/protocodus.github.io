@@ -1,0 +1,484 @@
+{
+  "source": "/workspace/generated_images/exec-691c153b-b026-4265-9ab1-c8424acd35ef.png",
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            17,
+            1084
+          ],
+          [
+            214,
+            1195
+          ]
+        ],
+        "physicalSpanMetres": 30,
+        "footprint": 2,
+        "note": "Actual lower-left 30m estate ground-contact perimeter span from first country-manor stone-post base (17,1084) to front corner (214,1195). One density shared by all nine slots."
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            40,
+            341
+          ],
+          [
+            199,
+            425
+          ]
+        ],
+        [
+          [
+            199,
+            425
+          ],
+          [
+            380,
+            344
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          40,
+          341
+        ],
+        [
+          380,
+          344
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          239,
+          319
+        ],
+        [
+          239,
+          342
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            56,
+            342
+          ],
+          [
+            205,
+            423
+          ]
+        ],
+        [
+          [
+            205,
+            423
+          ],
+          [
+            398,
+            344
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          56,
+          342
+        ],
+        [
+          398,
+          344
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          259,
+          313
+        ],
+        [
+          259,
+          339
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            53,
+            345
+          ],
+          [
+            224,
+            430
+          ]
+        ],
+        [
+          [
+            224,
+            430
+          ],
+          [
+            400,
+            347
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          53,
+          345
+        ],
+        [
+          400,
+          347
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          282,
+          313
+        ],
+        [
+          282,
+          338
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            33,
+            326
+          ],
+          [
+            184,
+            416
+          ]
+        ],
+        [
+          [
+            184,
+            416
+          ],
+          [
+            406,
+            326
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          33,
+          326
+        ],
+        [
+          406,
+          326
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          252,
+          306
+        ],
+        [
+          252,
+          329
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            45,
+            329
+          ],
+          [
+            218,
+            418
+          ]
+        ],
+        [
+          [
+            218,
+            418
+          ],
+          [
+            405,
+            330
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          45,
+          329
+        ],
+        [
+          405,
+          330
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          272,
+          312
+        ],
+        [
+          272,
+          338
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            48,
+            344
+          ],
+          [
+            228,
+            430
+          ]
+        ],
+        [
+          [
+            228,
+            430
+          ],
+          [
+            405,
+            339
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          48,
+          344
+        ],
+        [
+          405,
+          339
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "measurementMethod": "Visual final source review of stone-post/fence ground-contact corners and front boundary segments. Personnel leaf measured along one interior vertical edge, excluding frame/canopy. Nominal-cell original source coordinates.",
+      "personnelDoorEndpointsSource": [
+        [
+          259,
+          318
+        ],
+        [
+          259,
+          344
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            17,
+            248
+          ],
+          [
+            214,
+            359
+          ]
+        ],
+        [
+          [
+            214,
+            359
+          ],
+          [
+            436,
+            253
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          17,
+          248
+        ],
+        [
+          436,
+          253
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        860,
+        455,
+        1254
+      ],
+      "measurementMethod": "Observed final full country-manor/courtyard fence bases with full cutout ownership beyond nominal column boundaries; source-box crop only isolates the original pixels. No silhouette scaling. All landmark coordinates remain relative to original nominal cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          239,
+          230
+        ],
+        [
+          239,
+          244
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            51,
+            253
+          ],
+          [
+            214,
+            345
+          ]
+        ],
+        [
+          [
+            214,
+            345
+          ],
+          [
+            427,
+            249
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          51,
+          253
+        ],
+        [
+          427,
+          249
+        ]
+      ],
+      "sourceBoundsSheet": [
+        455,
+        860,
+        860,
+        1254
+      ],
+      "measurementMethod": "Observed final full country-manor/courtyard fence bases with full cutout ownership beyond nominal column boundaries; source-box crop only isolates the original pixels. No silhouette scaling. All landmark coordinates remain relative to original nominal cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          269,
+          232
+        ],
+        [
+          269,
+          246
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            34,
+            252
+          ],
+          [
+            201,
+            350
+          ]
+        ],
+        [
+          [
+            201,
+            350
+          ],
+          [
+            408,
+            253
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          34,
+          252
+        ],
+        [
+          408,
+          253
+        ]
+      ],
+      "sourceBoundsSheet": [
+        860,
+        860,
+        1254,
+        1254
+      ],
+      "measurementMethod": "Observed final full country-manor/courtyard fence bases with full cutout ownership beyond nominal column boundaries; source-box crop only isolates the original pixels. No silhouette scaling. All landmark coordinates remain relative to original nominal cell origin.",
+      "personnelDoorObservable": false,
+      "doorVisibilityNote": "Courtyard personnel entrance hidden by rear facade roof/planting; no reliable personnel leaf observable."
+    }
+  ]
+}

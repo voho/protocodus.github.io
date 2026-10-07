@@ -1,0 +1,299 @@
+{
+  "entries": [
+    {
+      "id": "industry:logging-camp:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            92.88685948999232,
+            389.5860664558222
+          ],
+          [
+            260.46885316465773,
+            482.3147696224704
+          ]
+        ],
+        [
+          [
+            260.46885316465773,
+            482.3147696224704
+          ],
+          [
+            444.8090462067897,
+            384.0
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:sawmill:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            83.94915316067683,
+            386.23442658232887
+          ],
+          [
+            256.0,
+            480.0803430401415
+          ]
+        ],
+        [
+          [
+            256.0,
+            480.0803430401415
+          ],
+          [
+            449.27789937144746,
+            379.5311468353422
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:coal-mine:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            69.42538037553916,
+            366.124587341369
+          ],
+          [
+            212.428681644587,
+            434.27459810239964
+          ]
+        ],
+        [
+          [
+            212.428681644587,
+            434.27459810239964
+          ],
+          [
+            329.7360772168528,
+            376.179506961849
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:iron-mine:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            61.60488733738812,
+            369.4762272148624
+          ],
+          [
+            212.428681644587,
+            447.6811575963729
+          ]
+        ],
+        [
+          [
+            212.428681644587,
+            447.6811575963729
+          ],
+          [
+            353.1975563313059,
+            377.2967202530134
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:steel-mill:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            62.722100628552546,
+            368.3590139236979
+          ],
+          [
+            177.79506961848946,
+            428.6885316465774
+          ]
+        ],
+        [
+          [
+            177.79506961848946,
+            428.6885316465774
+          ],
+          [
+            233.65573417671126,
+            400.75819936746655
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:farm:taiga",
+      "groundVerticesSource": [
+        [
+          256,
+          275.6835555555556
+        ],
+        [
+          472.6328888888889,
+          384
+        ],
+        [
+          256,
+          492.3164444444444
+        ],
+        [
+          39.36711111111112,
+          384
+        ]
+      ],
+      "groundCenterSource": [
+        256,
+        384
+      ],
+      "groundObservationMethod": "Actual game-renderer fence ground contacts on the 5-tile plot; 16m tiles and 1.2m fence height",
+      "personnelDoorEndpointsSource": [
+        [
+          186.4,
+          343.64444444444445
+        ],
+        [
+          186.4,
+          350.0444444444445
+        ]
+      ],
+      "personnelDoorObservable": true,
+      "doorObservationMethod": "Observed painted core door endpoints transformed by its actual game-renderer placement"
+    },
+    {
+      "id": "industry:food-plant:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            67.1909537932103,
+            377.29672025301335
+          ],
+          [
+            194.55326898595604,
+            446.5639443052084
+          ]
+        ],
+        [
+          [
+            194.55326898595604,
+            446.5639443052084
+          ],
+          [
+            252.6483601265067,
+            416.3991854437686
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:furniture-factory:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            70.5425936667036,
+            375.06229367068454
+          ],
+          [
+            197.9049088594493,
+            442.09509114055066
+          ]
+        ],
+        [
+          [
+            197.9049088594493,
+            442.09509114055066
+          ],
+          [
+            252.64836012650667,
+            413.04754557027536
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    },
+    {
+      "id": "industry:machine-works:taiga",
+      "groundCenterSource": [
+        256.0,
+        384.0
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            75.01144683136134,
+            369.4762272148623
+          ],
+          [
+            188.96720253013382,
+            426.4541050642486
+          ]
+        ],
+        [
+          [
+            188.96720253013382,
+            426.4541050642486
+          ],
+          [
+            257.11721329116443,
+            394.05491962047995
+          ]
+        ]
+      ],
+      "personnelDoorObservable": false,
+      "entranceReview": "Broad black openings are loading/service bays or open sheds. Small gray facade rectangles cannot be certified as unobscured narrow personnel entrances: raised sill/wall is visible beneath some; others are broad service hatches. No personnel dimensions are declared from these ambiguous rectangles.",
+      "observationProvenance": "Actual generator pixel observations transformed through the archived registration affine; exact registered 512px processor samples retained"
+    }
+  ],
+  "observationPolicy": "Game-renderer geometry for farm plots; measured generator observations for unchanged registered processors"
+}

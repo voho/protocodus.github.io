@@ -1,9 +1,15 @@
-import { SPRITE_SCALE, featureSpriteUnits } from './sprite-art-direction.js';
+import { SPRITE_SCALE, featureSpriteUnits, BUILDING_REGISTRATION } from './sprite-art-direction.js';
 
 // Doors, floors and loading bays retain their metre dimensions as parcels grow.
 // Multiple low halls replace the oversized one-tile toy factory fallback.
 const farms=new Set(['farm','dairy-farm','vegetable-farm','orchard','livestock-farm']);
 const kinds=new Set([...farms,'logging-camp','coal-mine','iron-mine','copper-mine','quarry','oil-well','refinery','fishery','dairy-plant','cannery','meat-packer','sawmill','steel-mill','food-plant','fish-processor','furniture-factory','machine-works','cement-works','sand-pit','glassworks','wire-mill','goods-factory','equipment-factory']);
+// Existing working-yard layouts use ground centre (16,18) and 7-unit half
+// edges. Register them at the shared (16,24) centre and full plot envelope.
+// Compensate physical features so additional plot coverage never enlarges doors.
+const LAYOUT_SCALE=featureSpriteUnits(BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile/2)/7;
+function layout(c,draw){c.save();c.lineJoin='round';c.translate(16,24);c.scale(LAYOUT_SCALE,LAYOUT_SCALE);c.translate(-16,-18);try{return draw();}finally{c.restore();}}
+const physicalUnits=(metres,footprint)=>featureSpriteUnits(metres,footprint)/LAYOUT_SCALE;
 function poly(c,points,color){c.fillStyle=color;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.fill();}
 function line(c,points,color,width=.3){c.strokeStyle=color;c.lineWidth=width;c.beginPath();points.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.stroke();}
 function rect(c,x,y,w,h,color){c.fillStyle=color;c.fillRect(x,y,w,h);}
@@ -29,15 +35,18 @@ function core(c,kind,biome,u){
   else if(kind==='farm'||kind==='dairy-farm')silo(c,23,19,3.2,kind==='farm'?10:7,u);
   else hall(c,20,20,5,3,u,{wall:'#b5a284',roof,height:SPRITE_SCALE.storeyHeightMetres,bays:0,windows:0});
 }
-export function drawNativeFarmCore(c,kind,r,biome,detail='town',footprint=2){
+export function drawNativeFarmCore(c,kind,r,biome,detail='town',footprint=2,{gardenGround='art'}={}){
   if(!farms.has(kind))return false;
-  yard(c,biome);core(c,kind,biome,metres=>featureSpriteUnits(metres,footprint));return true;
+  return layout(c,()=>{if(gardenGround!=='terrain')yard(c,biome);core(c,kind,biome,metres=>physicalUnits(metres,footprint));return true;});
 }
-export function drawProcessingPlant(c,kind,r,biome,detail='town',footprint=5){
+export function drawProcessingPlant(c,kind,r,biome,detail='town',footprint=5,{gardenGround='art'}={}){
   if(!kinds.has(kind))return false;
-  const u=metres=>featureSpriteUnits(metres,footprint),p=palette(biome);yard(c,biome);
+  return layout(c,()=>drawProcessingLayout(c,kind,biome,footprint,gardenGround));
+}
+function drawProcessingLayout(c,kind,biome,footprint,gardenGround){
+  const u=metres=>physicalUnits(metres,footprint),p=palette(biome);if(gardenGround!=='terrain')yard(c,biome);
   if(farms.has(kind)){
-    poly(c,[[3,19],[11,15],[24,21.5],[16,25.5]],kind==='farm'?'#bfaf70':kind==='livestock-farm'?'#91a172':'#849b6b');
+    if(kind!=='livestock-farm'||gardenGround!=='terrain')poly(c,[[3,19],[11,15],[24,21.5],[16,25.5]],kind==='farm'?'#bfaf70':kind==='livestock-farm'?'#91a172':'#849b6b');
     if(kind==='farm'||kind==='vegetable-farm')for(let i=0;i<4;i++)line(c,[[4+i*3,19+i*1.5],[11+i*3,15+i*1.5]],kind==='farm'?'#d1bd79':'#aabc83',.5);
     hall(c,12,14,kind==='livestock-farm'?9:6,4,u,{wall:kind==='dairy-farm'?'#d5d3b7':kind==='livestock-farm'?'#b69b72':p.wall,roof:kind==='vegetable-farm'?'#758479':kind==='livestock-farm'?'#81755f':'#9e7052',height:5,bays:1,windows:1});
     if(kind==='vegetable-farm')hall(c,20,21,5,4,u,{wall:'#adc5b6',roof:'#95b4a8',height:3.6,bays:0,windows:2});
@@ -56,7 +65,7 @@ export function drawProcessingPlant(c,kind,r,biome,detail='town',footprint=5){
   if(kind==='logging-camp'||kind==='sawmill'){
     hall(c,4,18,10,4,u,{wall:'#b4a282',roof:kind==='sawmill'?'#a47754':'#7e7c63',height:5,bays:3,windows:1});
     hall(c,15,16,7,4,u,{wall:'#a89b7c',roof:'#85745e',height:4.5,bays:2,windows:0});
-    for(let i=0;i<3;i++)line(c,[[8,21+i],[18,26+i]],'#aa8759',.9);return true;
+    for(let i=0;i<3;i++)line(c,[[6,19+i*.6],[16,24+i*.6]],'#aa8759',.9);return true;
   }
   if(kind==='oil-well'||kind==='refinery'){
     for(const [x,y]of [[7,18],[16,21],[24,18]])silo(c,x,y,kind==='oil-well'?5:8,kind==='oil-well'?4:8,u);
@@ -65,7 +74,10 @@ export function drawProcessingPlant(c,kind,r,biome,detail='town',footprint=5){
     hall(c,4,23,5,3,u,{wall:p.wall,roof:p.roof,height:SPRITE_SCALE.storeyHeightMetres,bays:0,windows:1});return true;
   }
   if(kind==='fishery'){
-    poly(c,[[3,19],[17,26],[30,19],[17,12]],'#779ca0');for(const x of [7,15,23])line(c,[[x,16],[x,24]],'#b79f75',1.2);
+    // Water belongs to the terrain just like grass or sand. The detached art
+    // preview may show an inset pool; runtime docks reveal the world beneath.
+    if(gardenGround!=='terrain')poly(c,[[3,18],[16,11.5],[29,18],[16,24.5]],'#779ca0');
+    for(const x of [7,15,23])line(c,[[x,16],[x,24]],'#b79f75',1.2);
     hall(c,5,17,12,5,u,{wall:p.wall,roof:'#627f88',height:5,bays:3,windows:2});return true;
   }
   const blue=['machine-works','equipment-factory','goods-factory','dairy-plant','fish-processor'].includes(kind),brick=['steel-mill','furniture-factory','wire-mill','cannery'].includes(kind),roof=blue?'#67838a':kind==='meat-packer'?'#a37964':'#768b71',wall=brick?'#b38c71':p.wall;
@@ -74,6 +86,6 @@ export function drawProcessingPlant(c,kind,r,biome,detail='town',footprint=5){
   // keep their dimensions. Tall silos must fit its original sprite envelope.
   if(['food-plant','dairy-plant','cement-works','cannery','steel-mill'].includes(kind))for(const [x,y]of [[6,13],[11,15]])silo(c,x,y,kind==='cement-works'?5:4,Math.min(kind==='cement-works'?19:11,footprint*13.5),u);
   if(brick||kind==='glassworks')chimney(c,22,15,u,Math.min(kind==='steel-mill'?25:17,footprint*15));
-  if(kind==='glassworks')hall(c,6,22,11,4,u,{wall:'#a8c2b5',roof:'#84a89b',height:6,bays:2,windows:4});
+  if(kind==='glassworks')hall(c,6,19.5,11,4,u,{wall:'#a8c2b5',roof:'#84a89b',height:6,bays:2,windows:4});
   return true;
 }

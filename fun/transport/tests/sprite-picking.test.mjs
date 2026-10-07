@@ -25,13 +25,21 @@ test('points beyond the sprite are clear, as a one-pixel read outside a canvas i
   for(const [x,y] of [[3,0],[0,2],[-1,1],[2,-1]])assert.equal(opaqueAt(image,x,y),false,`${x},${y}`);
   assert.equal(opaqueAt(image,2,1),true);
 });
-test('sprites beyond a megapixel keep one-pixel reads instead of a full mask',()=>{
-  const image=sprite(1025,1024,(x,y)=>x>y?255:0);
+test('full five-tile Retina Detail sprites retain one cached readback while hovering',()=>{
+  const image=sprite(1440,1512,(x,y)=>x>y?255:0);
+  for(let n=0;n<20;n++){
+    assert.equal(opaqueAt(image,1100+n,1000),true);
+    assert.equal(opaqueAt(image,1000,1100+n),false);
+  }
+  assert.deepEqual(image.reads,[[0,0,1440,1512]],'large building masks avoid repeated GPU reads');
+});
+test('sprites beyond the half-megabyte bitmask budget keep one-pixel reads',()=>{
+  const image=sprite(2049,2048,(x,y)=>x>y?255:0);
   assert.equal(opaqueAt(image,5,2),true);
   assert.equal(opaqueAt(image,2,5),false);
   assert.deepEqual(image.reads,[[5,2,1,1],[2,5,1,1]]);
-  const edge=sprite(1024,1024,()=>255);opaqueAt(edge,0,0);opaqueAt(edge,1023,1023);
-  assert.deepEqual(edge.reads,[[0,0,1024,1024]],'exactly one megapixel still gets a mask');
+  const edge=sprite(2048,2048,()=>255);opaqueAt(edge,0,0);opaqueAt(edge,2047,2047);
+  assert.deepEqual(edge.reads,[[0,0,2048,2048]],'exactly512KiB of mask bits stays cached');
 });
 test('a failing full readback falls back to the one-pixel read',()=>{
   const image=sprite(8,8,(x,y)=>x===3&&y===4?200:0,{fail:true});

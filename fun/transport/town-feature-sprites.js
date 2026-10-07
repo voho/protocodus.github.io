@@ -1,16 +1,18 @@
 import { BUILDINGS } from './buildings.js';
-import { SPRITE_SCALE, featureSpriteUnits, BUILDING_PALETTES, BUILDING_MATERIAL_PALETTE as M } from './sprite-art-direction.js';
+import { SPRITE_SCALE, featureSpriteUnits, BUILDING_REGISTRATION, BUILDING_PALETTES, BUILDING_MATERIAL_PALETTE as M } from './sprite-art-direction.js';
 
 // Native fallbacks for generated town features: parks, play and sport, the town hall and newer shops. Each stands on
-// the same plate as its authored atlas, a 2:1 diamond centred at (16, 24) of the
-// 32-unit sprite box; the sprite scales the box by the footprint. Plate coordinates u (down-right) and v (down-left) run
-// from -1 to 1 across the plate and z rises from it; anything nearer the camera (larger u + v) is drawn later.
-const H = 7.25;
+// the same ground registration as its authored atlas, centred at (16, 24) of
+// the 32-unit sprite box. Ground coordinates run from -1 to 1 across the shared
+// envelope; complete architecture and planting replace coloured ground cards.
+const H = featureSpriteUnits(BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile / 2);
+const HEIGHT_METRES_PER_UNIT = 4.5;
+const ACCESSORY_METRES_PER_UNIT = .75;
 const profiles = new WeakMap();
 const footprint = c => profiles.get(c)?.footprint || 1;
 // Parcels grow horizontally; vertical architectural dimensions stay in metres.
-const at = (c, u, v, z = 0) => [16 + (u - v) * H, 24 + (u + v) * H / 2 - z * H * .82 / footprint(c)];
-const heightZ = metres => metres * SPRITE_SCALE.worldPixelsPerMetre / (1.5 * H * .82);
+const at = (c, u, v, z = 0) => [16 + (u - v) * H, 24 + (u + v) * H / 2 - featureSpriteUnits(z * HEIGHT_METRES_PER_UNIT, footprint(c))];
+const heightZ = metres => metres / HEIGHT_METRES_PER_UNIT;
 const humanSize = (c, metres) => featureSpriteUnits(metres, footprint(c));
 
 // Material hues are shared with generated artwork and every native family.
@@ -21,6 +23,7 @@ const PALETTES = Object.fromEntries(Object.entries(BUILDING_PALETTES).map(([biom
   wall: p.plaster, roof: p.slate, court: biome === 'desert' ? p.terracotta : p.foliage,
 }]));
 const materials = c => profiles.get(c)?.palette || PALETTES.taiga;
+const terrainGround = c => profiles.get(c)?.gardenGround === 'terrain';
 
 // Scales a '#rrggbb' or 'rgb(…)' colour, so shaded colours can be shaded again.
 function shade(color, k) {
@@ -69,12 +72,12 @@ function personnelDoor(c, u, v, z = 0, color = shade(M.timber, .72), leaves = 1)
 // Draw trees and street furniture at a fixed world size, wherever their parcel anchor lies.
 function accessory(c, u, v, draw) {
   const [x, y] = at(c, u, v);
-  c.save(); c.translate(x, y); c.scale(1 / footprint(c), 1 / footprint(c));
+  const scale = humanSize(c, ACCESSORY_METRES_PER_UNIT);
+  c.save(); c.translate(x, y); c.scale(scale, scale);
   draw(); c.restore();
 }
 function plate(c, p, color = p.lawn) {
-  poly(c, [at(c, -1, 1), at(c, 1, 1), at(c, 1, 1, -.18), at(c, -1, 1, -.18)], shade(p.edge, 1.05));
-  poly(c, [at(c, 1, -1), at(c, 1, 1), at(c, 1, 1, -.18), at(c, 1, -1, -.18)], shade(p.edge, .85));
+  if (terrainGround(c) && color === p.lawn) return;
   flat(c, -1, -1, 1, 1, color);
 }
 function tree(c, biome, p, u, v, size = 1) {
@@ -117,7 +120,7 @@ function car(c, u, v, color) {
 
 function park(c, p, biome, fine) {
   plate(c, p);
-  if (fine) for (let i = -1; i < 1; i += .5) flat(c, i, -1, i + .25, 1, p.stripe);
+  if (fine && !terrainGround(c)) for (let i = -1; i < 1; i += .5) flat(c, i, -1, i + .25, 1, p.stripe);
   flat(c, -1, -.09, 1, .09, p.path); flat(c, -.09, -1, .09, 1, p.path); ring(c, 0, 0, .52, p.path, 1.1);
   tree(c, biome, p, -.72, -.74, 1.15); tree(c, biome, p, .2, -.8, .9); tree(c, biome, p, -.8, .18, .95);
   flowers(c, -.42, -.36, [M.burgundy, M.ochre, M.burgundy], fine); flowers(c, .42, -.42, [M.ochre, M.burgundy, M.cream], fine);
@@ -166,6 +169,7 @@ function swimmingPool(c, p, biome, fine) {
 
 function sportsField(c, p, biome, fine) {
   plate(c, p);
+  if (terrainGround(c)) flat(c, -.9, -.9, .9, .62, p.lawn);
   for (let i = -.9; i < .9; i += .36) flat(c, i, -.9, i + .18, .62, p.stripe);
   const line = M.cream;
   outline(c, -.86, -.62, .86, .58, line, .5); stroke(c, [at(c, 0, -.62), at(c, 0, .58)], line, .45); ring(c, 0, -.02, .16, line, .45);
@@ -195,6 +199,7 @@ function tennisCourts(c, p, biome, fine) {
 
 function ballpark(c, p, biome, fine) {
   plate(c, p);
+  if (terrainGround(c)) flat(c, -.85, -.85, .95, .95, p.lawn);
   for (let i = -.4; i < 1; i += .3) flat(c, i, -.4, i + .15, .95, p.stripe);
   // Home plate sits at the back corner; the stands curl round behind it and the field opens towards the camera.
   flat(c, -.62, -.62, .12, .12, M.brick); flat(c, -.5, -.5, .0, .0, p.lawn);
@@ -228,8 +233,12 @@ function sportsHall(c, p, biome, fine) {
 }
 
 function townHall(c, p, biome, fine) {
-  plate(c, p, p.paving);
-  flat(c, -.95, .55, -.35, .95, p.lawn); flat(c, .35, .55, .95, .95, p.lawn);
+  if (terrainGround(c)) {
+    flat(c, -1, -1, 1, .55, p.paving); flat(c, -.35, .55, .35, 1, p.paving);
+  } else {
+    plate(c, p, p.paving);
+    flat(c, -.95, .55, -.35, .95, p.lawn); flat(c, .35, .55, .95, .95, p.lawn);
+  }
   box(c, -.78, -.62, .78, .36, 0, 1.4, p.wall);
   for (const [z0, z1] of [[.22, .55], [.85, 1.18]]) { windowsLeft(c, .36, -.72, -.24, z0, z1, 3); windowsLeft(c, .36, .24, .72, z0, z1, 3); windowsRight(c, .78, -.55, .3, z0, z1, 3); }
   stroke(c, [at(c, -.78, .36, .7), at(c, .78, .36, .7)], shade(p.wall, .85), .4);
@@ -295,10 +304,11 @@ const FEATURES = { park, playground, 'swimming-pool': swimmingPool, 'sports-fiel
 export const TOWN_FEATURE_KINDS = Object.freeze(Object.keys(FEATURES));
 
 /** Draws a town feature into the sprite box; false for any other kind. */
-export function drawTownFeature(c, kind, biome, detail = 'town') {
+export function drawTownFeature(c, kind, biome, detail = 'town', { gardenGround = 'art', footprint: requestedFootprint } = {}) {
   const draw = FEATURES[kind];
   if (!draw) return false;
-  profiles.set(c, { footprint: BUILDINGS[kind]?.footprint || 1, detail, palette: PALETTES[biome] || PALETTES.taiga });
+  const span = Number.isInteger(requestedFootprint) && requestedFootprint > 0 ? requestedFootprint : BUILDINGS[kind]?.footprint || 1;
+  profiles.set(c, { footprint: span, detail, gardenGround, palette: PALETTES[biome] || PALETTES.taiga });
   c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
   try { draw(c, PALETTES[biome] || PALETTES.taiga, biome, detail !== 'region'); }
   finally { c.restore(); profiles.delete(c); }

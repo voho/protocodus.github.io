@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { PLOT_BUILDING_ATLASES, CITY_PLOT_ATLASES } from '../plot-building-catalog.js';
 // A stand-in Image whose loads finish only when a test says so, sized like the atlas density it asks for.
 const requests=[];
-globalThis.Image=class{set src(url){this.url=url;const cell=Number(url.match(/-(\d+)\.png$/)?.[1]||256),columns=/house-atlas/.test(url)?3:Number(new URL(url).searchParams.get('c')||3);this.naturalWidth=this.naturalHeight=columns*cell;requests.push(this);}get src(){return this.url;}decode(){return Promise.resolve();}};
+globalThis.Image=class{set src(url){this.url=url;const cell=Number(url.match(/-(\d+)\.png$/)?.[1]||256),catalog=PLOT_BUILDING_ATLASES.find(atlas=>url.includes(`/${atlas.id}/`)),columns=catalog?.columns||Number(new URL(url).searchParams.get('c')||3);this.naturalWidth=columns*cell;this.naturalHeight=(catalog?.rows||columns)*cell;requests.push(this);}get src(){return this.url;}decode(){return Promise.resolve();}};
 globalThis.document??={};
 const tick=()=>new Promise(resolve=>setImmediate(resolve)),wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const cellsOf=path=>requests.filter(image=>image.url.includes(path)).map(image=>Number(image.url.match(/-(\d+)\.png$/)?.[1]||256)).sort((a,b)=>a-b);
@@ -105,37 +106,6 @@ test('a density no draw stood in for joins without a publication; a failed or re
   art.drawAtlas(c,'qa-quiet:a',0,0,32,32);
   assert.deepEqual(c.drawn,[16,64,32]);
 });
-test('houses preload the requested densities and fetch the master only when a draw needs it',async()=>{
-  const ready=houses.preloadHouses({designs:[0],biome:'tundra',cells:[16,32,64],rotations:[0],waitMs:1000});
-  assert.deepEqual(cellsOf('/houses/tundra/'),[16,32,64]);
-  await finish('/houses/tundra/');assert.equal(await ready,true);
-  const revision=houses.houseAssetsRevision(),c=context();
-  assert.equal(houses.drawRasterHouse(c,'house-cheap-1',{pixelScale:3,biome:'tundra'}),true);
-  assert.equal(houses.drawRasterHouse(c,'house-cheap-2',{pixelScale:3,biome:'tundra'}),true);
-  assert.deepEqual(c.drawn,[64,64]);
-  assert.deepEqual(cellsOf('/houses/tundra/'),[16,32,64,128]);
-  houses.drawRasterHouse(c,'house-cheap-1',{pixelScale:1.5,biome:'tundra'});
-  assert.deepEqual(cellsOf('/houses/tundra/'),[16,32,64,128]);
-  await finish('/houses/tundra/');
-  assert.equal(houses.houseAssetsRevision(),revision+1);
-  houses.drawRasterHouse(c,'house-cheap-1',{pixelScale:6,biome:'tundra'});
-  assert.deepEqual(cellsOf('/houses/tundra/'),[16,32,64,128,256]);
-  assert.equal(requests.filter(image=>/houses\/tundra\/house-atlas\.png$/.test(image.url)).length,1,'the 256 master loads on demand');
-  await finish('/houses/tundra/');
-  assert.deepEqual(houses.getHouseAssetStats('tundra').lodCellSizes,[16,32,64,128,256]);
-  assert.equal(await houses.preloadHouses({designs:[0],biome:'tundra',rotations:[0]}),true);
-  assert.equal(requests.filter(image=>image.url.includes('/houses/tundra/')).length,5,'a loaded climate needs no further request');
-  assert.deepEqual(cellsOf('/houses/taiga/'),[],'other climates stay unloaded');
-});
-test('a failed house density gives way to the next larger one, as an eager load would draw',async()=>{
-  void houses.preloadHouses({designs:[0],biome:'desert',cells:[32],rotations:[0],waitMs:0});
-  await finish('/houses/desert/',{fail:[32]});
-  const c=context();houses.drawRasterHouse(c,'house-cheap-1',{pixelScale:1,biome:'desert'});
-  assert.deepEqual(cellsOf('/houses/desert/'),[32,64]);
-  await finish('/houses/desert/');houses.drawRasterHouse(c,'house-cheap-1',{pixelScale:1,biome:'desert'});
-  assert.deepEqual(cellsOf('/houses/desert/'),[32,64],'a failed density is not fetched again by drawing');
-  assert.equal(houses.getHouseAssetStats('desert').lastCellSize,64);
-});
 test('without a density list, preloading stays the eager loader that pixel checks compare against',async()=>{
   const ready=art.preloadWorldArt({biome:'qa-eager',waitMs:1000});
   assert.deepEqual(cellsOf('/qa/eager/'),[16,32,64,128],'every density up to the atlas maximum');
@@ -144,95 +114,203 @@ test('without a density list, preloading stays the eager loader that pixel check
 });
 
 
-test('houses preload both physical rotations only for the active climate and startup densities',async()=>{
-  const ready=houses.preloadHouses({designs:[0],biome:'taiga',cells:[16,32,64],waitMs:1000});
-  assert.deepEqual(cellsOf('/houses/taiga/'),[16,16,32,32,64,64]);
-  assert.deepEqual(cellsOf('/houses/taiga/rotation-1/'),[16,32,64]);
-  assert.equal(requests.filter(image=>image.url.includes('/houses/desert/rotation-1/')).length,0,'other climate rotations remain lazy');
-  await finish('/houses/taiga/');assert.equal(await ready,true);
-  const c=context(),stats=houses.getHouseAssetStats('taiga');
-  assert.deepEqual(stats.availableRotations,[0,1]);
-  assert.equal(stats.source,houses.HOUSE_ATLAS_URLS.taiga,'the public primary URL stays unchanged');
-  assert.equal(houses.HOUSE_ROTATION_ATLAS_URLS.taiga[0],houses.HOUSE_ATLAS_URLS.taiga);
-  assert.match(houses.HOUSE_ROTATION_ATLAS_URLS.taiga[1],/\/taiga\/rotation-1\/house-atlas\.png$/);
-  houses.drawRasterHouse(c,'house-cheap-2',{biome:'taiga',rotation:1,pixelScale:3});
-  houses.drawRasterHouse(c,'house-cheap-2',{biome:'taiga',rotation:1,pixelScale:3});
-  assert.deepEqual(c.drawn,[64,64]);assert.ok(c.images.every(url=>url.includes('/rotation-1/')));
-  assert.deepEqual(cellsOf('/houses/taiga/rotation-1/'),[16,32,64,128],'repeated draws share a single alternate-density request');
-  assert.equal(requests.filter(image=>/\/houses\/taiga\/house-atlas-128\.png$/.test(image.url)).length,0,'drawing an alternate density does not fetch an unused primary density');
-  await finish('/houses/taiga/');
-  houses.drawRasterHouse(c,'house-cheap-2',{biome:'taiga',rotation:1,pixelScale:3});
-  assert.equal(c.drawn.at(-1),128);assert.equal(houses.getHouseAssetStats('taiga').lastRotation,1);
+// Each fixture owns fresh decoded state so neutral climate aliases cannot make
+// a later failure/fallback scenario accidentally reuse an earlier ready sheet.
+async function houseFixture(name) {
+  const selected = await import(`../raster-houses.js?${name}`), before = requests.length;
+  const images = () => requests.slice(before);
+  const cells = (design=0,rotation=0) => images().filter(image=>image.url.includes(`/houses-design-${design}-rotation-${rotation}/`)).map(image=>Number(image.url.match(/-(\d+)\.png$/)[1])).sort((a,b)=>a-b);
+  return { selected, images, cells };
+}
+const houseFolder=(design=0,rotation=0)=>`/houses-design-${design}-rotation-${rotation}/`;
+
+test('neutral houses share climate requests, and load 256px and 512px only for views that need them',async()=>{
+  const {selected,images,cells}=await houseFixture('neutral-master'),c=context();
+  const ready=selected.preloadHouses({designs:[0],biome:'tundra',cells:[16,32,64],rotations:[0],waitMs:1000});
+  assert.deepEqual(cells(),[16,32,64]);await finish(houseFolder());assert.equal(await ready,true);
+  const revision=selected.houseAssetsRevision();
+  for(const biome of ['tundra','desert'])assert.equal(selected.drawRasterHouse(c,'house-cheap-1',{pixelScale:3,biome}),true);
+  assert.deepEqual(c.drawn,[64,64]);assert.deepEqual(cells(),[16,32,64,128]);
+  await finish(houseFolder());assert.equal(selected.houseAssetsRevision(),revision+1);
+  selected.drawRasterHouse(c,'house-cheap-1',{pixelScale:6,biome:'taiga'});assert.deepEqual(cells(),[16,32,64,128,256]);
+  await finish(houseFolder());
+  for(const biome of ['taiga','tundra','desert'])selected.drawRasterHouse(c,'house-cheap-1',{pixelScale:12,biome});
+  assert.deepEqual(cells(),[16,32,64,128,256,512],'every climate shares the one dense request');
+  await finish(houseFolder());selected.drawRasterHouse(c,'house-cheap-1',{pixelScale:12,biome:'desert'});
+  assert.equal(c.drawn.at(-1),512,'a dense view draws the authored 512px cell');
+  for(const biome of ['taiga','tundra','desert'])assert.equal(await selected.preloadHouses({designs:[0],biome,rotations:[0]}),true);
+  assert.equal(images().length,6,'climate aliases never decode additional neutral copies');
+  assert.deepEqual(selected.getHouseAssetStats('desert').lodCellSizes,[16,32,64,128,256,512]);
+  assert.equal(selected.getHouseAssetStats('desert').activeBiome,'desert');
+  assert.equal(selected.getHouseAssetStats().decodedBytes,9*4*[16,32,64,128,256,512].reduce((sum,cell)=>sum+cell*cell,0));
+  assert.ok(images().every(image=>image.url.includes('/plot-buildings-v2/')),'current architecture never requests historical sheets');
 });
 
-test('a pending or failed alternate house keeps its climate and identity, then recovers on retry',async()=>{
-  const c=context(),start=houses.houseAssetsRevision();
-  assert.equal(houses.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1}),true);
-  assert.equal(houses.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1}),true);
-  assert.deepEqual(cellsOf('/houses/tundra/rotation-1/'),[32]);
-  assert.ok(c.images.every(url=>/\/tundra\/house-atlas-32\.png$/.test(url)),'same-climate primary artwork stands in ahead of loaded taiga alternates');
-  await finish('/houses/tundra/rotation-1/',{fail:[32]});
-  assert.ok(houses.houseAssetsRevision()>start,'failure republishes the awaited draw');
-  houses.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1});
-  assert.deepEqual(cellsOf('/houses/tundra/rotation-1/'),[32,64]);
-  await finish('/houses/tundra/rotation-1/');
-  houses.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1});
-  assert.match(c.images.at(-1),/\/tundra\/rotation-1\/house-atlas-64\.png$/);
-  const revision=houses.houseAssetsRevision();
-  void houses.preloadHouses({designs:[0],biome:'tundra',cells:[],rotations:[1],retry:true,waitMs:0});
-  assert.deepEqual(cellsOf('/houses/tundra/rotation-1/'),[32,32,64],'retry fetches the failed alternate density without unrelated masters');
-  await finish('/houses/tundra/rotation-1/');
-  assert.equal(houses.houseAssetsRevision(),revision+1,'the recovered ideal refreshes cached house sprites');
-  houses.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1});
-  assert.match(c.images.at(-1),/\/tundra\/rotation-1\/house-atlas-32\.png$/);
-  assert.equal(houses.getHouseAssetStats('tundra').errors['tundra/rotation-1/32'],undefined);
+test('a failed neutral house density falls back to its next larger density and retries once across climates',async()=>{
+  const {selected,cells}=await houseFixture('neutral-failed-density'),c=context();
+  void selected.preloadHouses({designs:[0],biome:'desert',cells:[32],rotations:[0],waitMs:0});
+  await finish(houseFolder(),{fail:[32]});
+  assert.equal(selected.drawRasterHouse(c,'house-cheap-1',{biome:'taiga'}),false);
+  assert.deepEqual(cells(),[32,64]);await finish(houseFolder());
+  assert.equal(selected.drawRasterHouse(c,'house-cheap-1',{biome:'tundra'}),true);
+  assert.equal(c.drawn.at(-1),64);assert.deepEqual(cells(),[32,64],'drawing another climate does not repeat a failed density');
+  const revision=selected.houseAssetsRevision();
+  void selected.preloadHouses({designs:[0],biome:'tundra',cells:[],rotations:[0],retry:true,waitMs:0});
+  assert.deepEqual(cells(),[32,32,64]);await finish(houseFolder());
+  assert.equal(selected.houseAssetsRevision(),revision+1);selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert'});
+  assert.equal(c.drawn.at(-1),32);assert.deepEqual(selected.getHouseAssetStats().errors,{});
 });
 
-test('house fallback choices switch immediately when a requested climate or orientation decodes',async()=>{
-  const selected=await import('../raster-houses.js?selection-cache'),c=context();
-  assert.equal(selected.hasRasterHouse('house-cheap-1','desert',1),false,'an unavailable selection may be cached');
-  void selected.preloadHouses({designs:[0],biome:'taiga',rotations:[0],cells:[32],waitMs:0});
-  await finish('/houses/taiga/');
-  assert.equal(selected.hasRasterHouse('house-cheap-1','desert',1),true);
-  assert.equal(selected.getHouseAssetStats('desert',1).activeBiome,'taiga');
+test('both physical house rotations share all climate aliases and keep density requests independent',async()=>{
+  const {selected,images,cells}=await houseFixture('neutral-both-rotations');
+  const ready=['taiga','tundra','desert'].map(biome=>selected.preloadHouses({designs:[0],biome,cells:[16,32,64],waitMs:1000}));
+  assert.equal(images().length,6,'two orientations × three densities, shared by three climates');
+  assert.deepEqual(cells(0,0),[16,32,64]);assert.deepEqual(cells(0,1),[16,32,64]);
+  await finish('/plot-buildings-v2/');assert.deepEqual(await Promise.all(ready),[true,true,true]);
+  const c=context(),stats=selected.getHouseAssetStats('taiga');assert.deepEqual(stats.availableRotations,[0,1]);
+  for(const biome of ['taiga','tundra','desert']){
+    assert.equal(selected.HOUSE_ATLAS_URLS[biome],selected.HOUSE_ATLAS_URLS.taiga);
+    assert.equal(selected.HOUSE_ROTATION_ATLAS_URLS[biome][1],selected.HOUSE_ROTATION_ATLAS_URLS.taiga[1]);
+    selected.drawRasterHouse(c,'house-cheap-2',{biome,rotation:1,pixelScale:3});
+  }
+  assert.ok(c.images.every(url=>url.includes(houseFolder(0,1))));assert.deepEqual(cells(0,1),[16,32,64,128]);
+  assert.deepEqual(cells(0,0),[16,32,64],'an alternate draw does not request its unused primary density');
+  await finish(houseFolder(0,1));selected.drawRasterHouse(c,'house-cheap-2',{biome:'taiga',rotation:1,pixelScale:3});
+  assert.equal(c.drawn.at(-1),128);assert.equal(selected.getHouseAssetStats('taiga').lastRotation,1);
+});
+
+test('a pending or failed house rotation keeps its identity and recovers on a shared climate retry',async()=>{
+  const {selected,cells}=await houseFixture('neutral-rotation-retry'),c=context();
+  void selected.preloadHouses({designs:[0],biome:'taiga',rotations:[0],cells:[32],waitMs:0});await finish(houseFolder());
+  const start=selected.houseAssetsRevision();
+  for(const biome of ['tundra','desert'])assert.equal(selected.drawRasterHouse(c,'house-normal-3',{biome,rotation:1}),true);
+  assert.deepEqual(cells(0,1),[32]);assert.ok(c.images.every(url=>url.includes(houseFolder())),'ready primary art stands in while rotation loads');
+  await finish(houseFolder(0,1),{fail:[32]});assert.ok(selected.houseAssetsRevision()>start);
+  selected.drawRasterHouse(c,'house-normal-3',{biome:'tundra',rotation:1});assert.deepEqual(cells(0,1),[32,64]);
+  await finish(houseFolder(0,1));selected.drawRasterHouse(c,'house-normal-3',{biome:'desert',rotation:1});
+  assert.match(c.images.at(-1),/houses-design-0-rotation-1\/atlas-64\.png$/);
+  const revision=selected.houseAssetsRevision();
+  void selected.preloadHouses({designs:[0],biome:'tundra',cells:[],rotations:[1],retry:true,waitMs:0});
+  assert.deepEqual(cells(0,1),[32,32,64]);await finish(houseFolder(0,1));assert.equal(selected.houseAssetsRevision(),revision+1);
+  selected.drawRasterHouse(c,'house-normal-3',{biome:'taiga',rotation:1});assert.match(c.images.at(-1),/houses-design-0-rotation-1\/atlas-32\.png$/);
+  assert.equal(selected.getHouseAssetStats().errors['houses-design-0-rotation-1/32'],undefined);
+});
+
+test('cached house fallback choices switch immediately when a requested orientation decodes',async()=>{
+  const {selected,images}=await houseFixture('neutral-selection-cache'),c=context();
+  assert.equal(selected.hasRasterHouse('house-cheap-1','desert',1),false);
+  void selected.preloadHouses({designs:[0],biome:'taiga',rotations:[0],cells:[32],waitMs:0});await finish(houseFolder());
+  assert.equal(selected.hasRasterHouse('house-cheap-1','desert',1),true);assert.equal(selected.getHouseAssetStats('desert',1).activeBiome,'desert');
   void selected.preloadHouses({designs:[0],biome:'desert',rotations:[0,1],cells:[32],waitMs:0});
-  const revision=selected.houseAssetsRevision(),primary=requests.find(image=>!image.done&&/\/desert\/house-atlas-32\.png$/.test(image.url));
-  primary.done=true;primary.onload();await tick();await tick();
-  assert.equal(selected.houseAssetsRevision(),revision,'the alternate remains pending so publication has not happened');
-  selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',rotation:1});
-  assert.match(c.images.at(-1),/\/desert\/house-atlas-32\.png$/,'new same-climate primary art immediately replaces another-climate fallback');
-  const alternate=requests.find(image=>!image.done&&/\/desert\/rotation-1\/house-atlas-32\.png$/.test(image.url));
+  const alternate=images().find(image=>!image.done&&image.url.includes(houseFolder(0,1)));assert.ok(alternate);
+  selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',rotation:1});assert.match(c.images.at(-1),/houses-design-0-rotation-0\/atlas-32\.png$/);
   alternate.done=true;alternate.onload();await tick();await tick();
-  selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',rotation:1});
-  assert.match(c.images.at(-1),/\/desert\/rotation-1\/house-atlas-32\.png$/,'the requested physical orientation replaces its primary fallback');
-  assert.equal(selected.getHouseAssetStats('unknown-climate',1).activeBiome,'taiga','unknown climates preserve the default fallback');
+  selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',rotation:1});assert.match(c.images.at(-1),/houses-design-0-rotation-1\/atlas-32\.png$/);
+  assert.equal(selected.getHouseAssetStats('unknown-climate',1).activeBiome,'taiga');
 });
 
-test('house startup loads all designs and rotations only in the requested climate',async()=>{
-  const selected=await import('../raster-houses.js?design-densities');
-  const before=requests.length;
+test('house startup loads every design and rotation once for all climates and sharpens only the drawn design',async()=>{
+  const {selected,images,cells}=await houseFixture('neutral-design-densities');
   void selected.preloadHouses({biome:'desert',cells:[16,32],waitMs:0});
-  const newRequests=requests.slice(before);
-  assert.equal(newRequests.length,12,'three designs × two rotations × two startup densities');
-  assert.ok(newRequests.every(image=>image.url.includes('/houses/desert/')));
-  assert.ok(newRequests.every(image=>/-16\.png$|-32\.png$/.test(image.url)),'sharper densities stay lazy');
-  await finish('/houses/desert/');
+  void selected.preloadHouses({biome:'tundra',cells:[16,32],waitMs:0});
+  assert.equal(images().length,12,'three designs × two rotations × two startup densities');
+  assert.ok(images().every(image=>/-16\.png$|-32\.png$/.test(image.url)));await finish('/plot-buildings-v2/');
   assert.deepEqual(selected.getHouseAssetStats('desert').availableDesigns,[0,1,2]);
   const c=context();selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',design:2,rotation:1,pixelScale:3});
-  const target='/houses/desert/design-2/rotation-1/';
-  assert.match(c.images.at(-1),/\/desert\/design-2\/rotation-1\/house-atlas-32\.png$/);
-  const request=requests.at(-1);assert.ok(request.url.includes(target));assert.match(request.url,/-128\.png$/);
-  await finish(target);selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',design:2,rotation:1,pixelScale:3});
-  assert.equal(c.drawn.at(-1),128);
-  assert.equal(selected.getHouseAssetStats('desert',1,2).activeDesign,2);
+  assert.match(c.images.at(-1),/houses-design-2-rotation-1\/atlas-32\.png$/);assert.deepEqual(cells(2,1),[16,32,128]);
+  assert.equal(images().filter(image=>image.url.endsWith('-128.png')).length,1);
+  await finish(houseFolder(2,1));selected.drawRasterHouse(c,'house-cheap-1',{biome:'desert',design:2,rotation:1,pixelScale:3});
+  assert.equal(c.drawn.at(-1),128);assert.equal(selected.getHouseAssetStats('desert',1,2).activeDesign,2);
 });
 
-test('loading one alternate design is usable without a base-design sheet',async()=>{
-  const selected=await import('../raster-houses.js?single-design');
-  const ready=selected.preloadHouses({biome:'taiga',designs:[2],rotations:[1],cells:[16],waitMs:1000});
-  await finish('/houses/taiga/design-2/rotation-1/');
-  assert.equal(await ready,true);
-  const stats=selected.getHouseAssetStats('taiga',1,2);
-  assert.equal(stats.activeDesign,2);assert.equal(stats.activeRotation,1);
-  assert.deepEqual(stats.availableDesigns,[2]);
+test('one alternate house design is usable across climates without a base-design sheet',async()=>{
+  const {selected,images}=await houseFixture('neutral-single-design');
+  const ready=selected.preloadHouses({biome:'taiga',designs:[2],rotations:[1],cells:[16],waitMs:1000});await finish(houseFolder(2,1));
+  assert.equal(await ready,true);assert.equal(images().length,1);
+  for(const biome of ['taiga','tundra','desert']){
+    const stats=selected.getHouseAssetStats(biome,1,2);assert.equal(stats.activeDesign,2);assert.equal(stats.activeRotation,1);assert.deepEqual(stats.availableDesigns,[2]);
+    assert.equal(selected.hasRasterHouse('house-normal-3',biome,1,2),true);
+  }
+});
+
+test('world atlas climate aliases share a decoded image, crop and late dense publication',async()=>{
+  const before=requests.length,c=context();
+  art.registerAtlas({id:'qa-neutral-aliases',path:'./qa/neutral/atlas',entries:[null,['qa-neutral:taiga','qa-neutral:tundra','qa-neutral:desert'],null],maxCell:512});
+  for(const biome of ['taiga','tundra','desert'])assert.equal(art.drawAtlas(c,`qa-neutral:${biome}`,0,0,32,32),false);
+  assert.equal(requests.length,before+1);await finish('/qa/neutral/');
+  const draws=[],crop={save(){},restore(){},drawImage(image,...args){draws.push({image,args});}};
+  for(const biome of ['taiga','tundra','desert'])assert.equal(art.drawAtlas(crop,`qa-neutral:${biome}`,0,0,32,32),true);
+  assert.equal(draws[0].image,draws[1].image);assert.equal(draws[0].image,draws[2].image);assert.deepEqual(draws[0].args,draws[2].args);assert.equal(draws[0].args[0],32,'all aliases retain the second-cell column');
+  const revision=art.worldArtRevision();
+  for(const biome of ['taiga','tundra','desert'])art.drawAtlas(c,`qa-neutral:${biome}`,0,0,32,32,{pixelScale:12});
+  assert.deepEqual(cellsOf('/qa/neutral/'),[32,512]);await finish('/qa/neutral/');assert.ok(art.worldArtRevision()>revision);
+  for(const biome of ['taiga','tundra','desert'])art.drawAtlas(c,`qa-neutral:${biome}`,0,0,32,32,{pixelScale:12});
+  assert.deepEqual(c.drawn.slice(-3),[512,512,512]);
+});
+
+test('neutral city sheets retain every design and climate alias while sharing dense decoded artwork',async()=>{
+  const before=art.worldArtStats(),buildings=await import('../raster-buildings.js'),first=requests.length;
+  assert.equal(art.worldArtStats().registered-before.registered,135,'every civic and shop-design climate identity remains registered');
+  const ready=art.preloadWorldArt({biome:'taiga',cells:[32],waitMs:1000});
+  assert.equal(requests.length-first,5,'one request for each neutral city sheet');await finish('/plot-buildings-v2/');assert.equal(await ready,true);
+  const crops=[],c={save(){},restore(){},drawImage(image,...args){crops.push({image,args});}};
+  for(const sheet of CITY_PLOT_ATLASES)for(const entry of sheet.entries.filter(Boolean)){
+    const views=[];
+    for(const biome of entry.eligibleBiomes){
+      assert.equal(buildings.hasRasterBuilding(entry.kind,biome,entry.design),true);
+      assert.equal(buildings.drawRasterBuilding(c,entry.kind,biome,1,{design:entry.design}),true);
+      const draw=crops.at(-1);assert.ok(draw.image.src.includes(`/${sheet.id}/`));views.push(draw);
+    }
+    assert.equal(views[0].image,views[1].image);assert.equal(views[0].image,views[2].image);
+    assert.deepEqual(views[0].args,views[2].args,`${entry.kind} design${entry.design}: all climate identities retain the calibrated cell`);
+  }
+  assert.equal(requests.length-first,5,'alias draws reuse their loaded 32px density');
+  const cells=CITY_PLOT_ATLASES.reduce((sum,atlas)=>sum+atlas.columns*atlas.rows,0);
+  assert.equal(art.worldArtStats().decodedBytes-before.decodedBytes,cells*32*32*4);
+  const revision=art.worldArtRevision();
+  for(const biome of ['taiga','tundra','desert'])for(const sheet of CITY_PLOT_ATLASES)for(const entry of sheet.entries.filter(Boolean))buildings.drawRasterBuilding(c,entry.kind,biome,12,{design:entry.design});
+  const dense=requests.slice(first).filter(image=>image.url.endsWith('atlas-512.png'));
+  assert.equal(dense.length,5,'large city parcels on Retina displays share one sharp request per sheet');
+  await finish('/plot-buildings-v2/');assert.ok(art.worldArtRevision()>revision);
+  assert.equal(art.worldArtStats().decodedBytes-before.decodedBytes,cells*(32*32+512*512)*4);
+  buildings.drawRasterBuilding(c,'stadium','tundra',12);assert.equal(crops.at(-1).args[2],512);
+});
+
+test('runtime plot catalog matches generated slot identities, aliases and footprint calibration',async()=>{
+  const {plotBuildingJobs}=await import('../tools/plot-building-jobs.mjs');
+  const jobs=await plotBuildingJobs();
+  const identity=atlas=>({id:atlas.id,type:atlas.type,columns:atlas.columns,rows:atlas.rows,entries:atlas.entries.map(entry=>entry&&({kind:entry.kind,footprint:entry.footprint,design:entry.design,rotation:entry.rotation,runtimeIds:entry.runtimeIds,eligibleBiomes:entry.eligibleBiomes}))});
+  assert.deepEqual(PLOT_BUILDING_ATLASES.map(identity),jobs.map(identity),'art generation and runtime packing use the same registered cell order and scale');
+  const aliases=PLOT_BUILDING_ATLASES.flatMap(atlas=>atlas.entries.flatMap(entry=>entry?.runtimeIds||[]));
+  assert.equal(aliases.length,354);assert.equal(new Set(aliases).size,aliases.length,'no neutral identity can silently overwrite another atlas slot');
+});
+
+test('house raster availability and drawing reject a changed world footprint without fetching irrelevant densities',async()=>{
+  const {selected,images}=await houseFixture('neutral-footprint-contract'),c=context();
+  const ready=selected.preloadHouses({biome:'taiga',designs:[0],rotations:[0],cells:[32],waitMs:1000});await finish(houseFolder());assert.equal(await ready,true);
+  const first=images().length;
+  for(const entry of PLOT_BUILDING_ATLASES[0].entries){
+    const wrong=entry.footprint===1?2:1,draws=c.drawn.length;
+    assert.equal(selected.hasRasterHouse(entry.kind,'desert',0,0,wrong),false);
+    assert.equal(selected.drawRasterHouse(c,entry.kind,{biome:'desert',footprint:wrong,pixelScale:16}),false);
+    assert.equal(c.drawn.length,draws,`${entry.kind}: mismatched parcel never draws the larger catalog architecture`);
+    assert.equal(selected.hasRasterHouse(entry.kind,'desert',0,0,entry.footprint),true);
+    assert.equal(selected.drawRasterHouse(c,entry.kind,{biome:'desert',footprint:entry.footprint}),true);
+    assert.equal(selected.drawRasterHouse(c,entry.kind,{biome:'desert'}),true,'normalized thumbnails retain their catalog logical footprint');
+  }
+  assert.equal(images().length,first,'a rejected world footprint does not request denser artwork');
+});
+
+test('city raster availability and drawing retain catalog calibration for resized thumbnails but decline compact world parcels',async()=>{
+  const buildings=await import('../raster-buildings.js'),c=context(),first=requests.length;
+  for(const entry of CITY_PLOT_ATLASES.flatMap(atlas=>atlas.entries.filter(Boolean))){
+    const wrong=entry.footprint===1?2:1,draws=c.drawn.length;
+    assert.equal(buildings.hasRasterBuilding(entry.kind,'taiga',entry.design,wrong),false);
+    assert.equal(buildings.drawRasterBuilding(c,entry.kind,'taiga',16,{design:entry.design,footprint:wrong}),false);
+    assert.equal(c.drawn.length,draws,`${entry.kind}: mismatched parcel never draws catalog artwork`);
+    assert.equal(buildings.hasRasterBuilding(entry.kind,'taiga',entry.design,entry.footprint),true);
+    assert.equal(buildings.drawRasterBuilding(c,entry.kind,'taiga',1,{design:entry.design,footprint:entry.footprint}),true);
+    assert.equal(buildings.drawRasterBuilding(c,entry.kind,'taiga',1,{design:entry.design}),true,'a resized portrait still represents the correct logical parcel');
+  }
+  assert.equal(requests.length,first,'mismatched parcels cannot trigger needless high-density downloads');
 });

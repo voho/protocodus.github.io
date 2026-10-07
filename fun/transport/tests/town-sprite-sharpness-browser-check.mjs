@@ -37,7 +37,7 @@ try {
           const [x, y, w, h] = args;
           // Prepared billboards have these calibrated envelopes; full-view
           // shadow caches and projected terrain meshes remain separate passes.
-          if (w >= 20 && w <= 241 && h / w >= .95 && h / w <= 1.4) spriteDraws.push({ canvas: this.canvas.id, x, y, w, h, sourceWidth: image.width, sourceHeight: image.height, a: transform.a, d: transform.d, e: transform.e, f: transform.f, smoothing: this.imageSmoothingEnabled, atlas: image.qaAtlas });
+          if (w >= 20 && w <= 361 && h / w >= .95 && h / w <= 1.4) spriteDraws.push({ canvas: this.canvas.id, x, y, w, h, sourceWidth: image.width, sourceHeight: image.height, a: transform.a, d: transform.d, e: transform.e, f: transform.f, smoothing: this.imageSmoothingEnabled, atlas: image.qaAtlas });
         }
         return original.call(this, image, ...args);
       };

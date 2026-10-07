@@ -1,0 +1,484 @@
+{
+  "source": "/workspace/generated_images/exec-45a978ed-39c6-4e45-8504-af82fbe4f330.png",
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            14,
+            1053
+          ],
+          [
+            202,
+            1151
+          ]
+        ],
+        "physicalSpanMetres": 30,
+        "footprint": 2,
+        "note": "Observed full lower-left perimeter hedge ground-contact axis of the 30m-wide two-tile country-manor estate; calibration fixes one density for the entire sheet, independent of individual alpha bounds."
+      }
+    ]
+  },
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            34,
+            352
+          ],
+          [
+            193,
+            431
+          ]
+        ],
+        [
+          [
+            193,
+            431
+          ],
+          [
+            380,
+            352
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          34,
+          352
+        ],
+        [
+          380,
+          352
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          239,
+          321
+        ],
+        [
+          239,
+          352
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            43,
+            350
+          ],
+          [
+            203,
+            425
+          ]
+        ],
+        [
+          [
+            203,
+            425
+          ],
+          [
+            372,
+            330
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          43,
+          350
+        ],
+        [
+          372,
+          330
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          260,
+          325
+        ],
+        [
+          260,
+          352
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            43,
+            360
+          ],
+          [
+            212,
+            436
+          ]
+        ],
+        [
+          [
+            212,
+            436
+          ],
+          [
+            404,
+            355
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          43,
+          360
+        ],
+        [
+          404,
+          355
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          283,
+          318
+        ],
+        [
+          283,
+          346
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            34,
+            266
+          ],
+          [
+            211,
+            355
+          ]
+        ],
+        [
+          [
+            211,
+            355
+          ],
+          [
+            389,
+            270
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          34,
+          266
+        ],
+        [
+          389,
+          270
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          247,
+          259
+        ],
+        [
+          247,
+          286
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            43,
+            266
+          ],
+          [
+            203,
+            360
+          ]
+        ],
+        [
+          [
+            203,
+            360
+          ],
+          [
+            393,
+            268
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          43,
+          266
+        ],
+        [
+          393,
+          268
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          275,
+          258
+        ],
+        [
+          275,
+          288
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            48,
+            288
+          ],
+          [
+            233,
+            384
+          ]
+        ],
+        [
+          [
+            233,
+            384
+          ],
+          [
+            404,
+            283
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          48,
+          288
+        ],
+        [
+          404,
+          283
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          285,
+          263
+        ],
+        [
+          285,
+          292
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            14,
+            217
+          ],
+          [
+            202,
+            315
+          ]
+        ],
+        [
+          [
+            202,
+            315
+          ],
+          [
+            409,
+            210
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          14,
+          217
+        ],
+        [
+          409,
+          210
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        860,
+        418,
+        1254
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          235,
+          212
+        ],
+        [
+          235,
+          228
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            22,
+            214
+          ],
+          [
+            190,
+            309
+          ]
+        ],
+        [
+          [
+            190,
+            309
+          ],
+          [
+            404,
+            209
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          22,
+          214
+        ],
+        [
+          404,
+          209
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        860,
+        836,
+        1254
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorEndpointsSource": [
+        [
+          270,
+          218
+        ],
+        [
+          270,
+          233
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            22,
+            218
+          ],
+          [
+            195,
+            316
+          ]
+        ],
+        [
+          [
+            195,
+            316
+          ],
+          [
+            404,
+            213
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          22,
+          218
+        ],
+        [
+          404,
+          213
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        860,
+        1254,
+        1254
+      ],
+      "measurementMethod": "Observed hedge ground-contact corner endpoints on final PNG; personnel leaf measured at one vertical interior edge excluding frame/canopy. Coordinates use original nominal source-cell origin.",
+      "personnelDoorObservable": false,
+      "doorVisibilityNote": "Courtyard personnel entrances obscured by the roof/foreground plants; no leaf threshold observable."
+    }
+  ]
+}

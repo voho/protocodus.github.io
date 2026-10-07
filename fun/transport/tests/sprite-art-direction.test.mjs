@@ -34,13 +34,20 @@ test('architectural envelopes share exact grid edges and transparent cell margin
   }
 });
 
-test('the full 16m parcel remains world terrain instead of being squeezed into a billboard', () => {
+test('the frame fits almost the whole parcel while preserving world scale and filtering gutters', () => {
+  assert.equal(SPRITE_SCALE.billboardPixelsPerTile, 72);
+  assert.equal(BUILDING_REGISTRATION.architecturalEnvelopeMetresPerTile, 15);
   const half = SPRITE_SCALE.tileMetres / 2;
   const [left] = projectBuildingMasterPoint(-half, half);
   const [right] = projectBuildingMasterPoint(half, -half);
-  near((right - left) * 48 / 256, 64);
-  assert.ok(left < 0 && right > 256, 'full grid parcel is wider than the calibrated architectural cutout');
-  for (const footprint of [1, 2, 3, 5]) near(featureMasterPixels(SPRITE_SCALE.doorHeightMetres, footprint) * 48 * footprint / 256, 4.2);
+  near((right - left) * SPRITE_SCALE.billboardPixelsPerTile / SPRITE_SCALE.masterCellPixels, 64);
+  assert.ok(left > 8 && right < 248, 'full grid parcel fits with room for filtering');
+  const [back, east, front, west] = buildingGroundEnvelope();
+  const coveredWidth = (east[0] - west[0]) * SPRITE_SCALE.billboardPixelsPerTile / SPRITE_SCALE.masterCellPixels;
+  near(coveredWidth, 60);
+  near((front[1] - back[1]) * SPRITE_SCALE.billboardPixelsPerTile / SPRITE_SCALE.masterCellPixels, 30);
+  assert.ok(coveredWidth / 64 > .9, 'architecture uses more than 90% of both plot axes');
+  for (const footprint of [1, 2, 3, 5]) near(featureMasterPixels(SPRITE_SCALE.doorHeightMetres, footprint) * SPRITE_SCALE.billboardPixelsPerTile * footprint / SPRITE_SCALE.masterCellPixels, 4.2);
 });
 
 test('climates retain shared semantic architecture materials and restrained plant/ground swatches', () => {
@@ -58,11 +65,13 @@ test('generation jobs carry explicit geometry, material swatches and parcel-spec
     assert.match(prompt, /No in-plot yaw/);
     assert.match(prompt, /parcel centre is \(128\.0,192\.0\)/);
     assert.match(prompt, /Register the actual ground centre, never the silhouette bottom/);
-    assert.match(prompt, /full 16m\*footprint parcel is native world terrain/);
+    assert.match(prompt, /15m envelope per 16m tile/);
+    assert.match(prompt, /Genuine RGBA transparency is the ground key for EVERY family/);
+    assert.match(prompt, /Leave ALL bare grass, snow, sand and generic earth transparent/);
+    assert.match(prompt, /Preserve isolated plants, contact shadows, paths, paving, courts, pools, crop beds and mineral heaps/);
+    assert.match(prompt, /Never enlarge doors, windows, people, garden fences or benches/);
     for (const [material, color] of Object.entries(BUILDING_PALETTES[biome])) assert.ok(prompt.includes(`${material} ${color}`));
-    assert.match(prompt, /personnel door height is 22\.4px/);
-    assert.match(prompt, /personnel door height is 11\.2px/);
-    assert.match(prompt, /personnel door height is 4\.5px/);
+    for (const footprint of [1, 2, 5]) assert.ok(prompt.includes(`personnel door height is ${featureMasterPixels(SPRITE_SCALE.doorHeightMetres, footprint).toFixed(1)}px`));
   }
 });
 

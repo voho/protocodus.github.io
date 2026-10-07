@@ -1,0 +1,493 @@
+{
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        430,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          36,
+          363
+        ],
+        [
+          414,
+          362
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            36,
+            363
+          ],
+          [
+            217,
+            446
+          ]
+        ],
+        [
+          [
+            217,
+            446
+          ],
+          [
+            414,
+            362
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          271,
+          343
+        ],
+        [
+          271,
+          368
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "sourceBoundsSheet": [
+        430,
+        0,
+        838,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          34,
+          363
+        ],
+        [
+          406,
+          361
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            34,
+            363
+          ],
+          [
+            207,
+            446
+          ]
+        ],
+        [
+          [
+            207,
+            446
+          ],
+          [
+            406,
+            361
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          251,
+          344
+        ],
+        [
+          251,
+          370
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "sourceBoundsSheet": [
+        838,
+        0,
+        1254,
+        500
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          22,
+          363
+        ],
+        [
+          401,
+          362
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            22,
+            363
+          ],
+          [
+            195,
+            446
+          ]
+        ],
+        [
+          [
+            195,
+            446
+          ],
+          [
+            401,
+            362
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          272,
+          342
+        ],
+        [
+          272,
+          368
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "sourceBoundsSheet": [
+        0,
+        500,
+        430,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          36,
+          298
+        ],
+        [
+          415,
+          297
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            36,
+            298
+          ],
+          [
+            217,
+            378
+          ]
+        ],
+        [
+          [
+            217,
+            378
+          ],
+          [
+            415,
+            297
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          269,
+          278
+        ],
+        [
+          269,
+          304
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "sourceBoundsSheet": [
+        430,
+        500,
+        838,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          34,
+          298
+        ],
+        [
+          407,
+          297
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            34,
+            298
+          ],
+          [
+            207,
+            378
+          ]
+        ],
+        [
+          [
+            207,
+            378
+          ],
+          [
+            407,
+            297
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          251,
+          278
+        ],
+        [
+          251,
+          304
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "sourceBoundsSheet": [
+        838,
+        500,
+        1254,
+        900
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          21,
+          299
+        ],
+        [
+          401,
+          298
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            21,
+            299
+          ],
+          [
+            194,
+            379
+          ]
+        ],
+        [
+          [
+            194,
+            379
+          ],
+          [
+            401,
+            298
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          274,
+          280
+        ],
+        [
+          274,
+          306
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "sourceBoundsSheet": [
+        0,
+        900,
+        458,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          14,
+          244
+        ],
+        [
+          454,
+          252
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            14,
+            244
+          ],
+          [
+            213,
+            357
+          ]
+        ],
+        [
+          [
+            213,
+            357
+          ],
+          [
+            454,
+            252
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          333,
+          237
+        ],
+        [
+          333,
+          252
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "sourceBoundsSheet": [
+        458,
+        900,
+        854,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          44,
+          254
+        ],
+        [
+          435,
+          252
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            44,
+            254
+          ],
+          [
+            210,
+            353
+          ]
+        ],
+        [
+          [
+            210,
+            353
+          ],
+          [
+            435,
+            252
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          251,
+          230
+        ],
+        [
+          251,
+          245
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "sourceBoundsSheet": [
+        854,
+        900,
+        1254,
+        1254
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          20,
+          254
+        ],
+        [
+          408,
+          252
+        ]
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            20,
+            254
+          ],
+          [
+            221,
+            356
+          ]
+        ],
+        [
+          [
+            221,
+            356
+          ],
+          [
+            408,
+            252
+          ]
+        ]
+      ],
+      "measurementMethod": "Manual original-source pixel-grid reading of fence-base/paved-court ground contacts and vertical personnel-door opening at the same source x; decorative portico outline is excluded. Ground edge segments are visible; no hidden rear corner is invented.",
+      "personnelDoorEndpointsSource": [
+        [
+          307,
+          235
+        ],
+        [
+          307,
+          250
+        ]
+      ]
+    }
+  ],
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            14,
+            1080
+          ],
+          [
+            213,
+            1193
+          ]
+        ],
+        "physicalSpanMetres": 30,
+        "footprint": 2,
+        "note": "Observed front ground-contact fence/courtyard axis of the 2-tile, 30 metre architectural envelope specified in the generator brief; physical axis endpoints, not an alpha bounding box."
+      }
+    ]
+  },
+  "sourceCellPixels": 418,
+  "review": "Source pixel-grid observations. Retention and door/camera gates run during packing; an out-of-contract result remains explicitly unverified."
+}

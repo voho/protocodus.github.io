@@ -1,0 +1,465 @@
+{
+  "source": "/workspace/generated_images/exec-4d6f3898-665f-4baa-897f-078070177e0a.png",
+  "entries": [
+    {
+      "id": "house-cheap-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            45,
+            326
+          ],
+          [
+            218,
+            404
+          ]
+        ],
+        [
+          [
+            218,
+            404
+          ],
+          [
+            381,
+            325
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          45,
+          326
+        ],
+        [
+          381,
+          325
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        450
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          171,
+          319
+        ],
+        [
+          171,
+          343
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            45,
+            322
+          ],
+          [
+            220,
+            405
+          ]
+        ],
+        [
+          [
+            220,
+            405
+          ],
+          [
+            382,
+            328
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          45,
+          322
+        ],
+        [
+          382,
+          328
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        450
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          175,
+          313
+        ],
+        [
+          175,
+          340
+        ]
+      ]
+    },
+    {
+      "id": "house-cheap-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            46,
+            326
+          ],
+          [
+            222,
+            410
+          ]
+        ],
+        [
+          [
+            222,
+            410
+          ],
+          [
+            388,
+            330
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          46,
+          326
+        ],
+        [
+          388,
+          330
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        450
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          154,
+          307
+        ],
+        [
+          154,
+          335
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            37,
+            325
+          ],
+          [
+            216,
+            415
+          ]
+        ],
+        [
+          [
+            216,
+            415
+          ],
+          [
+            385,
+            331
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          37,
+          325
+        ],
+        [
+          385,
+          331
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        450,
+        418,
+        860
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          166,
+          301
+        ],
+        [
+          166,
+          326
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            44,
+            326
+          ],
+          [
+            218,
+            414
+          ]
+        ],
+        [
+          [
+            218,
+            414
+          ],
+          [
+            382,
+            331
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          44,
+          326
+        ],
+        [
+          382,
+          331
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        450,
+        836,
+        860
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          175,
+          306
+        ],
+        [
+          175,
+          332
+        ]
+      ]
+    },
+    {
+      "id": "house-normal-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            47,
+            337
+          ],
+          [
+            226,
+            420
+          ]
+        ],
+        [
+          [
+            226,
+            420
+          ],
+          [
+            388,
+            340
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          47,
+          337
+        ],
+        [
+          388,
+          340
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        450,
+        1254,
+        860
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          146,
+          301
+        ],
+        [
+          146,
+          326
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-1",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            24,
+            268
+          ],
+          [
+            227,
+            360
+          ]
+        ],
+        [
+          [
+            227,
+            360
+          ],
+          [
+            404,
+            266
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          24,
+          268
+        ],
+        [
+          404,
+          266
+        ]
+      ],
+      "sourceBoundsSheet": [
+        0,
+        860,
+        418,
+        1254
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          167,
+          271
+        ],
+        [
+          167,
+          284
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-2",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            29,
+            265
+          ],
+          [
+            220,
+            354
+          ]
+        ],
+        [
+          [
+            220,
+            354
+          ],
+          [
+            404,
+            266
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          29,
+          265
+        ],
+        [
+          404,
+          266
+        ]
+      ],
+      "sourceBoundsSheet": [
+        418,
+        860,
+        836,
+        1254
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorEndpointsSource": [
+        [
+          170,
+          261
+        ],
+        [
+          170,
+          274
+        ]
+      ]
+    },
+    {
+      "id": "house-expensive-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            45,
+            272
+          ],
+          [
+            224,
+            356
+          ]
+        ],
+        [
+          [
+            224,
+            356
+          ],
+          [
+            407,
+            273
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          45,
+          272
+        ],
+        [
+          407,
+          273
+        ]
+      ],
+      "sourceBoundsSheet": [
+        836,
+        860,
+        1254,
+        1254
+      ],
+      "measurementMethod": "Observed upright hedge ground-contact corner endpoints on final PNG, and personnel leaf at one vertical interior edge excluding frame/canopy. Nominal original-cell coordinates; no alpha-based registration.",
+      "personnelDoorObservable": false,
+      "doorVisibilityNote": "Courtyard staff doorway partly obscured by roof/planting; no reliable leaf threshold observable."
+    }
+  ]
+}

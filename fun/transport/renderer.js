@@ -3,6 +3,7 @@ import { routeTileIndex } from './route-tiles.js';
 import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './terrain-engineering.js';
 import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
+import { SPRITE_SCALE } from './sprite-art-direction.js';
 import { INDUSTRIES, BUILD_COSTS, VEHICLE_SPEEDS } from './data.js';
 import { isTownTraffic } from './data.js';
 import { STATION_RADIUS, priceFor, buildProblem, routeBreakPoint, shownProgress } from './model.js';
@@ -54,6 +55,7 @@ import { aircraftPose } from './air-flight.js';
 import { paintAirportGround, createAirportSprites, PART_FRONTS, PART_BOXES, localToWorld } from './airport-art.js';
 
 const TAU=Math.PI*2;
+const BUILDING_FRAME=SPRITE_SCALE.billboardPixelsPerTile,BUILDING_FRAME_SCALE=BUILDING_FRAME/TILE,BUILDING_GUTTER=8*BUILDING_FRAME_SCALE;
 const CHUNK_TILES=6, CHUNK_PIXELS=CHUNK_TILES*TILE, CHUNK_GUTTER=8;
 const CACHE_BASE=48*1024*1024, CACHE_MAX=256*1024*1024;
 const MINIMAP_EDGE=512;
@@ -76,7 +78,9 @@ function dot(ctx,x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fillStyle
 const alphaMasks=new WeakMap();
 export function opaqueAt(image,sx,sy){
   let mask=alphaMasks.get(image);
-  if(!mask&&image.width*image.height<=1<<20)try{
+  // One bit per pixel: at most 512KiB per live sprite. The full 5-tile,
+  // 72px frame at Retina Detail needs 2.18M pixels, beyond the old 1M cap.
+  if(!mask&&image.width*image.height<=1<<22)try{
     const w=image.width,h=image.height,data=image.getContext('2d').getImageData(0,0,w,h).data,bits=new Uint8Array(Math.ceil(w*h/8));
     for(let i=0;i<w*h;i++)if(data[i*4+3]>24)bits[i>>3]|=1<<(i&7);
     alphaMasks.set(image,mask={w,h,bits});
@@ -219,7 +223,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(force||rasterScale!==scale||detailLevel!==detail){
       rasterScale=scale;detailLevel=detail;
       let bundle=rasterBundles.get(detail);
-      if(!bundle){bundle={sprite:createSprites(game.biome,{pixelScale:scale,detailLevel:detail,cache:preparedSprites,gardenGround:'terrain'}),uprightSprite:createSprites(game.biome,{pixelScale:scale*1.5,detailLevel:detail,cache:preparedSprites,gardenGround:'terrain'}),marine:createMarineSprites({pixelScale:scale,detailLevel:detail,cache:preparedTransport}),vehicleSprites:createVehicleSprites({pixelScale:scale,cache:preparedTransport}),infrastructureSprites:createIsometricInfrastructureSprites({pixelScale:scale,cache:preparedTransport}),airportSprites:createAirportSprites({pixelScale:scale,detailLevel:detail,biome:game.biome,cache:preparedTransport})};rasterBundles.set(detail,bundle);}
+      if(!bundle){bundle={sprite:createSprites(game.biome,{pixelScale:scale,detailLevel:detail,cache:preparedSprites,gardenGround:'terrain'}),uprightSprite:createSprites(game.biome,{pixelScale:scale*BUILDING_FRAME_SCALE,detailLevel:detail,cache:preparedSprites,gardenGround:'terrain'}),marine:createMarineSprites({pixelScale:scale,detailLevel:detail,cache:preparedTransport}),vehicleSprites:createVehicleSprites({pixelScale:scale,cache:preparedTransport}),infrastructureSprites:createIsometricInfrastructureSprites({pixelScale:scale,cache:preparedTransport}),airportSprites:createAirportSprites({pixelScale:scale,detailLevel:detail,biome:game.biome,cache:preparedTransport})};rasterBundles.set(detail,bundle);}
       ({sprite,uprightSprite,marine,vehicleSprites,infrastructureSprites,airportSprites}=bundle);
     }
   }
@@ -523,8 +527,8 @@ export function createRenderer(canvas, initialGame, options={}) {
       const c=foundationPoint(ind.x,ind.y,span);return{ind,span,cx:c.x*z,cy:c.y*z,height:foundationHeight(ind.x,ind.y,span)};
     });
     if(layers.buildings)for(const s of sites){
-      if(s.barn){grid.add(siteShape(s.cx,s.cy,32*s.span*z,16*s.span*z,16*s.span*z,s.ind));grid.add(siteShape(s.barn.x,s.barn.y,64*z,32*z,2*(36-48*artTop(s.ind.kind,true))*z,s.ind));}
-      else grid.add(siteShape(s.cx,s.cy,32*s.span*z,16*s.span*z,s.span*(36-48*artTop(s.ind.kind))*z,s.ind));
+      if(s.barn){grid.add(siteShape(s.cx,s.cy,32*s.span*z,16*s.span*z,16*s.span*z,s.ind));grid.add(siteShape(s.barn.x,s.barn.y,64*z,32*z,2*BUILDING_FRAME*(.75-artTop(s.ind.kind,true))*z,s.ind));}
+      else grid.add(siteShape(s.cx,s.cy,32*s.span*z,16*s.span*z,s.span*BUILDING_FRAME*(.75-artTop(s.ind.kind))*z,s.ind));
     }
     for(const {ind,span,cx,cy,height,barn,gate} of sites){
       // Taken: the box meets another overlay, or the centre stands on another site's outline, footprint or a large building.
@@ -935,11 +939,11 @@ export function createRenderer(canvas, initialGame, options={}) {
     objectHits.push({image,x:(x-origin.x)*camera.zoom+W/2,y:(y-origin.y)*camera.zoom+H/2,w:w*camera.zoom,h:h*camera.zoom,tx,ty});
   }
   function farmCoreSprite(kind){
-    const density=rasterScale*1.5,key=`farm-core:${game.biome}:${detailLevel}:${density}:${kind}`,cached=preparedSprites.get(key);
+    const density=rasterScale*BUILDING_FRAME_SCALE,key=`farm-core:${game.biome}:${detailLevel}:${density}:${kind}`,cached=preparedSprites.get(key);
     if(cached)return cached;
     const image=document.createElement('canvas');image.width=Math.max(1,Math.round(64*density));image.height=Math.max(1,Math.round(72*density));
     const c=image.getContext('2d');c.scale(image.width/64,image.height/72);c.translate(0,8);
-    if(!drawRasterFarmCore(c,kind,game.biome,density,{size:64})){c.scale(2,2);drawNativeFarmCore(c,kind,rng(1937+kind.length*787),game.biome,detailLevel);}
+    if(!drawRasterFarmCore(c,kind,game.biome,density,{size:64})){c.scale(2,2);drawNativeFarmCore(c,kind,rng(1937+kind.length*787),game.biome,detailLevel,2,{gardenGround:'terrain'});}
     preparedSprites.set(key,image);return image;
   }
   function drawFarmFence(a,b){
@@ -1018,7 +1022,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     let sceneTile=-1,dimEligible=false;
     const add=(x,y,draw,priority=0,bounds=null,foundation=null)=>objects.push({depth:x+y,x,priority,draw,point:cullPoint,bounds,tile:sceneTile,dimEligible,foundation});
     const spriteBounds=(x,y,w,h)=>({left:x,top:y,right:x+w,bottom:y+h});
-    const siteBounds=(x,y,span,center)=>{const b=spriteBounds(center.x-24*span,center.y-36*span-12,48*span,48*span+12);for(let n=0;n<=span;n++)for(const [u,v]of [[x+n,y],[x+n,y+span],[x,y+n],[x+span,y+n]]){const p=projectGround(game,u,v);b.left=Math.min(b.left,p.x);b.right=Math.max(b.right,p.x);b.top=Math.min(b.top,p.y);b.bottom=Math.max(b.bottom,p.y);}return b;};
+    const siteBounds=(x,y,span,center)=>{const b=spriteBounds(center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER);for(let n=0;n<=span;n++)for(const [u,v]of [[x+n,y],[x+n,y+span],[x,y+n],[x+span,y+n]]){const p=projectGround(game,u,v);b.left=Math.min(b.left,p.x);b.right=Math.max(b.right,p.x);b.top=Math.min(b.top,p.y);b.bottom=Math.max(b.bottom,p.y);}return b;};
     const addShadow=draw=>shadows.push({draw,point:cullPoint,tile:sceneTile});
     const compare=(a,b)=>a.depth-b.depth||a.x-b.x||a.priority-b.priority;
     // Equal keys keep the build's row-major order, which a patch must reproduce.
@@ -1056,11 +1060,11 @@ export function createRenderer(canvas, initialGame, options={}) {
         // them upright; baking stones into ground would project them twice.
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;billboard(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
-      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
+      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
       if(layers.buildings&&isLargeFarm(ind)){
         const core=farmCore(ind);
-        if(x===core.x&&y===core.y){const center=foundationPoint(x,y,core.span);add(x+1,y+1,()=>{drawFoundation(x,y,2);drawFoundationMarks(x,y,2);billboard(farmCoreSprite(ind.kind),center.x-48,center.y-84,96,108,ind.x,ind.y);},0,()=>siteBounds(x,y,2,center),foundationKey(x,y,2));}
+        if(x===core.x&&y===core.y){const center=foundationPoint(x,y,core.span);add(x+1,y+1,()=>{drawFoundation(x,y,2);drawFoundationMarks(x,y,2);billboard(farmCoreSprite(ind.kind),center.x-BUILDING_FRAME,center.y-BUILDING_FRAME*1.5-BUILDING_GUTTER,BUILDING_FRAME*2,BUILDING_FRAME*2+BUILDING_GUTTER,ind.x,ind.y);},0,()=>siteBounds(x,y,2,center),foundationKey(x,y,2));}
         for(const section of farmFenceSections(ind,x,y)){
           const a=projectGround(game,...section.a),z=projectGround(game,...section.b),u=(section.a[0]+section.b[0])/2,v=(section.a[1]+section.b[1])/2;
           add(u-.5,v-.5,()=>drawFarmFence(a,z),1,spriteBounds(Math.min(a.x,z.x)-2,Math.min(a.y,z.y)-7,Math.abs(a.x-z.x)+4,Math.abs(a.y-z.y)+9));
@@ -1069,7 +1073,7 @@ export function createRenderer(canvas, initialGame, options={}) {
           const point=projectGround(game,object.x,object.y);
           add(object.x-.5,object.y-.5,()=>paintFarmFieldObject(ctx,object,point,game.biome),0,spriteBounds(point.x-8,point.y-17,16,20));
         }
-      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-24*span,center.y-36*span-12,48*span,48*span+12,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
+      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.roads&&detailLevel!=='region'&&townStreet(x,y,t)&&!pavedSquare(x,y))for(const [kind,[px,py]] of streetFurniture(x,y)){
         const u=x+px/TILE,v=y+py/TILE,q=projectGround(game,u,v);add(u,v,()=>{if(visibleRectangle(q.x-3,q.y-17,8,18))(kind==='lamp'?drawLamp:drawBin)(q);});
       }
@@ -1138,7 +1142,14 @@ export function createRenderer(canvas, initialGame, options={}) {
       add(v.x,v.y,()=>drawCar(v,route,v.x,v.y,Number.isFinite(v.angle)?v.angle:0,route?.mode==='rail'),1);
     }
     const left=sceneViewBounds.left-180,right=sceneViewBounds.right+180,top=sceneViewBounds.top-180,bottom=sceneViewBounds.bottom+180;
-    const inView=object=>object.point.x>left&&object.point.x<right&&object.point.y>top&&object.point.y<bottom;
+    const inView=object=>{
+      if(object.point.x>left&&object.point.x<right&&object.point.y>top&&object.point.y<bottom)return true;
+      // A wide or tall compound can still cross the viewport after its anchor
+      // leaves the quick margin. Reuse its sprite/foundation bounds so direct
+      // drawing and cached strips retain the same visible building pixels.
+      const b=typeof object.bounds==='function'?object.bounds():object.bounds;
+      return Boolean(b&&visibleRectangle(b.left,b.top,b.right-b.left,b.bottom-b.top));
+    };
     ctx.save();ctx.imageSmoothingEnabled=true;
     // Prepared shadows already contain the high-quality bake at this exact
     // display density. Replaying them needs only native-pixel sampling.

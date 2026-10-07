@@ -1,4 +1,5 @@
-import { houseTerrainCutout, houseGroundStats } from './house-ground.js';
+import { houseGroundStats } from './house-ground.js';
+import { HOUSE_PLOT_ATLASES } from './plot-building-catalog.js';
 
 // Each of the three designs holds nine 256² transparent house cells in two
 // physical orientations. This module owns
@@ -11,28 +12,28 @@ export const HOUSE_KINDS = Object.freeze([
 export const HOUSE_BIOMES = Object.freeze(['taiga', 'tundra', 'desert']);
 export const HOUSE_ROTATIONS = Object.freeze([0, 1]);
 export const HOUSE_DESIGNS = Object.freeze([0, 1, 2]);
-const directory = (biome, rotation, design) => `${biome}/${design ? `design-${design}/` : ''}${rotation ? 'rotation-1/' : ''}`;
+const atlasFor = (rotation, design) => HOUSE_PLOT_ATLASES.find(atlas => atlas.entries[0].rotation === rotation && atlas.entries[0].design === design);
+const directory = (biome, rotation, design) => atlasFor(rotation, design).id + '/';
 export const HOUSE_DESIGN_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.map(biome => [
   biome, Object.freeze(HOUSE_DESIGNS.map(design => Object.freeze(HOUSE_ROTATIONS.map(rotation =>
-    new URL(`./assets/houses/${directory(biome, rotation, design)}house-atlas.png`, import.meta.url).href)))),
+    new URL(`${atlasFor(rotation, design).path}-256.png`, import.meta.url).href)))),
 ])));
 export const HOUSE_ROTATION_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.map(biome => [biome, HOUSE_DESIGN_ATLAS_URLS[biome][0]])));
-// Keep the original public primary URLs for callers and saved art provenance.
+// Keep the public URL maps; every climate now shares the same neutral RGBA art.
 export const HOUSE_ATLAS_URLS = Object.freeze(Object.fromEntries(HOUSE_BIOMES.map(biome => [biome, HOUSE_ROTATION_ATLAS_URLS[biome][0]])));
 const SOURCE_CELL = 256;
-// Every registered climate/design/orientation source authors transparent lawn;
-// the atlas browser QA verifies actual clear patches against measured gardens.
-// Keep the conservative colour mask available for legacy/synthetic sources.
-const AUTHORED_TRANSPARENT_GARDENS = true;
-const LOD_CELLS = Object.freeze([16, 32, 64, 128, 256]);
+const MAX_CELL = 512;
+const LOD_CELLS = Object.freeze([16, 32, 64, 128, 256, 512]);
 const indices = new Map(HOUSE_KINDS.map((kind, index) => [kind, index]));
+const footprints = new Map(HOUSE_PLOT_ATLASES[0].entries.map(entry => [entry.kind, entry.footprint]));
 const sheets = new Map(), listeners = new Set(), draws = new Map(), errors = new Map(), pending = new Map(), orderedLevels = new Map(), awaited = new Set();
-const resolvedSheets = new Map(), candidateBiomes = new Map(HOUSE_BIOMES.map(biome => [biome, [...new Set([biome, 'taiga', ...HOUSE_BIOMES])]]));
+const resolvedSheets = new Map();
 const candidateDesigns = new Map(HOUSE_DESIGNS.map(design => [design, [...new Set([design, 0, ...HOUSE_DESIGNS])]]));
 let status = 'idle', revision = 0, lastCellSize = 0, lastBiome = null, lastRotation = null, lastDesign = null, unpublished = false, quiet = 0, latest = 0;
 const normalizeRotation = rotation => rotation === 1 ? 1 : 0;
 const normalizeDesign = design => HOUSE_DESIGNS.includes(design) ? design : 0;
-const sheetKey = (biome, rotation, design) => `${biome}/${design}/${rotation}`;
+// Climate is an API identity, never an additional decoded sheet.
+const sheetKey = (biome, rotation, design) => `${design}/${rotation}`;
 const loadKey = (biome, rotation, design, cell) => `${directory(biome, rotation, design)}${cell}`;
 const levelsFor = (biome, rotation, design = 0) => sheets.get(sheetKey(biome, rotation, design));
 const availableBiomes = (rotation, design) => HOUSE_BIOMES.filter(biome => (design === undefined ? HOUSE_DESIGNS : [design]).some(d => (rotation === undefined ? HOUSE_ROTATIONS : [rotation]).some(r => levelsFor(biome, r, d)?.size)));
@@ -52,17 +53,17 @@ function resolveSheet(biome, rotation, design) {
   if (!resolved) { resolved = []; resolvedSheets.set(biome, resolved); }
   const identity = design * 2 + rotation;
   if (resolved[identity] !== undefined) return resolved[identity];
-  // Keep a house in its climate while its second orientation loads. A missing
-  // climate still uses complete artwork from another climate before native art.
+  // An available neutral design/orientation stands in while the requested one
+  // loads. It composites over the requested climate's actual world ground.
   // Availability changes only when a sheet first decodes. Reuse its selection
   // on sprite-cache hits rather than allocating candidates for every house.
-  for(const candidate of candidateBiomes.get(biome))for(const d of candidateDesigns.get(design))for(let choice = 0; choice < 2; choice++) {
+  for(const d of candidateDesigns.get(design))for(let choice = 0; choice < 2; choice++) {
     const r = choice ? 1-rotation : rotation;
-    if(levelsFor(candidate, r, d)?.size)return resolved[identity] = { biome: candidate, rotation: r, design: d };
+    if(levelsFor(biome, r, d)?.size)return resolved[identity] = { biome, rotation: r, design: d };
   }
   return resolved[identity] = null;
 }
-export const hasRasterHouse = (kind, biome = 'taiga', rotation = 0, design = 0) => indices.has(kind) && resolveSheet(biome, normalizeRotation(rotation), normalizeDesign(design)) !== null;
+export const hasRasterHouse = (kind, biome = 'taiga', rotation = 0, design = 0, footprint = footprints.get(kind)) => indices.has(kind) && footprint === footprints.get(kind) && resolveSheet(biome, normalizeRotation(rotation), normalizeDesign(design)) !== null;
 
 export function getHouseAssetStats(biome = 'taiga', rotation = 0, design = 0) {
   const active = resolveSheet(biome, normalizeRotation(rotation), normalizeDesign(design)), activeBiome = active?.biome || null, levels = active && levelsFor(active.biome, active.rotation, active.design);
@@ -94,7 +95,7 @@ async function decodeAtlas(biome, rotation, design, cell) {
   await new Promise((resolve, reject) => {
     image.onload = resolve;
     image.onerror = () => reject(new Error(`${biome} house artwork (design ${design}, rotation ${rotation}, ${cell}px) could not be loaded.`));
-    image.src = new URL(`./assets/houses/${directory(biome, rotation, design)}house-atlas${cell === 256 ? '' : '-'+cell}.png`, import.meta.url).href;
+    image.src = new URL(`${atlasFor(rotation, design).path}-${cell}.png`, import.meta.url).href;
   });
   if (image.decode) await image.decode();
   if (image.naturalWidth !== cell * 3 || image.naturalHeight !== cell * 3) {
@@ -114,9 +115,10 @@ export function preloadHouses({ waitMs = 4000, retry = false, biome = null, cell
   if (!retry && requested.every(name => architecture.every(d => orientations.every(r => cells.every(cell => levelsFor(name, r, d)?.has(cell)))))) return Promise.resolve(true);
   if (typeof Image === 'undefined' || typeof document === 'undefined') return Promise.resolve(false);
   const work=[];
-  // Every requested climate/orientation gets usable art before a sharper level.
+  // Every requested neutral orientation gets usable art before a sharper level.
   // A retry also fetches failed densities, not only the requested startup ones.
-  for(const cell of LOD_CELLS)for(const biome of requested)for(const design of architecture)for(const rotation of orientations){
+  for(const cell of LOD_CELLS)for(const design of architecture)for(const rotation of orientations){
+      const biome = requested[0];
       const key = loadKey(biome, rotation, design, cell), sheet = sheetKey(biome, rotation, design);
       if(!cells.includes(cell)&&!(retry&&errors.has(key)))continue;
       if(levelsFor(biome, rotation, design)?.has(cell)||errors.has(key)&&!retry)continue;
@@ -142,7 +144,7 @@ export function preloadHouses({ waitMs = 4000, retry = false, biome = null, cell
 }
 
 function requestDensity(biome, rotation, design, desired) {
-  const has = size => levelsFor(biome, rotation, design)?.has(size), ideal = LOD_CELLS.find(size => size >= desired) || SOURCE_CELL;
+  const has = size => levelsFor(biome, rotation, design)?.has(size), ideal = LOD_CELLS.find(size => size >= desired) || MAX_CELL;
   if (has(ideal)) return;
   const failed = size => errors.has(loadKey(biome, rotation, design, size));
   const wanted = failed(ideal) ? LOD_CELLS.find(size => size > ideal && !failed(size)) ?? LOD_CELLS.findLast(size => size < ideal && !failed(size)) : ideal;
@@ -153,13 +155,15 @@ function requestDensity(biome, rotation, design, desired) {
   }
 }
 
-export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga', rotation = 0, design = 0, gardenGround = 'art' } = {}) {
+export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga', rotation = 0, design = 0, gardenGround = 'art', footprint = footprints.get(kind) } = {}) {
   const index = indices.get(kind);
-  if (index === undefined) return false;
+  // A compact saved site needs native architecture at its actual metre scale.
+  // UI thumbnails omit footprint and may resize the correct logical parcel.
+  if (index === undefined || footprint !== footprints.get(kind)) return false;
   rotation = normalizeRotation(rotation);
   design = normalizeDesign(design);
   const desired = 32 * (Number.isFinite(pixelScale) && pixelScale > 0 ? pixelScale : 1);
-  // Request only this climate/orientation's ideal density, sharing in-flight
+  // Request only this neutral orientation's ideal density, sharing in-flight
   // requests. Loaded primary art stands in for the same house until it arrives.
   const home = HOUSE_BIOMES.includes(biome) ? biome : 'taiga';
   requestDensity(home, rotation, design, desired);
@@ -170,7 +174,9 @@ export function drawRasterHouse(c, kind, { pixelScale = 1, biome = 'taiga', rota
   if (active.biome !== home || active.rotation !== rotation || active.design !== design) requestDensity(active.biome, active.rotation, active.design, desired);
   const sheet = sheetKey(active.biome, active.rotation, active.design), levels = sheets.get(sheet), available = orderedLevels.get(sheet);
   const cell = available.find(size => size >= desired) || available.at(-1);
-  const source = levels.get(cell), atlas = gardenGround === 'terrain' ? houseTerrainCutout(source, cell, active.biome, {authoredTransparent:AUTHORED_TRANSPARENT_GARDENS}) : source;
+  // Authored alpha is the terrain key for every climate. Use it directly:
+  // colour scanning could remove green roofs, shrubs or painted shadows.
+  const atlas = levels.get(cell);
   c.save();
   c.imageSmoothingEnabled = desired !== cell; c.imageSmoothingQuality = 'high';
   // createSprites has already translated its context down by eight pixels.

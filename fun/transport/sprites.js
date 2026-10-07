@@ -1,5 +1,5 @@
 import { BUILDINGS, SHOP_KINDS, residentialKind, commercialKind } from './buildings.js';
-import { INDUSTRIES } from './data.js';
+import { INDUSTRIES, WORKSHOP } from './data.js';
 import { worldArtRevision, preloadWorldArt, startupArtCells } from './atlas-runtime.js';
 import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding, hasRasterBuilding, buildingArtworkDesign } from './raster-buildings.js';
@@ -67,10 +67,12 @@ function building(ctx,kind,r,level,biome) {
   if(kind==='shop') {ctx.fillStyle='#5b7d6d';ctx.fillRect(x,y+9,17,3);ctx.fillStyle='#e9d9b2';for(let i=0;i<4;i++)ctx.fillRect(x+i*4,y+9,2,3);ctx.fillStyle='#3e5657';ctx.fillRect(x+3,23,6,3);}
   if(kind==='factory'){ctx.fillStyle='#8d715c';ctx.fillRect(22,2,4,12);ctx.fillStyle='#67534a';ctx.fillRect(21,2,6,2);}
 }
-function industry(ctx,kind,r,biome,detailLevel='town',footprint=5) {
-  if(drawProcessingPlant(ctx,kind,r,biome,detailLevel,footprint))return;
-  ctx.fillStyle=biome==='desert'?'#b6a787':'#a1a68e';ctx.fillRect(2,12,28,17);
-  ctx.fillStyle='#65766355';ctx.fillRect(1,29,30,1);ctx.fillStyle='#d0c3a0';ctx.fillRect(2,27,28,2);
+function industry(ctx,kind,r,biome,detailLevel='town',footprint=5,{gardenGround='art'}={}) {
+  if(drawProcessingPlant(ctx,kind,r,biome,detailLevel,footprint,{gardenGround}))return;
+  if(gardenGround!=='terrain') {
+    ctx.fillStyle=biome==='desert'?'#b6a787':'#a1a68e';ctx.fillRect(2,12,28,17);
+    ctx.fillStyle='#65766355';ctx.fillRect(1,29,30,1);ctx.fillStyle='#d0c3a0';ctx.fillRect(2,27,28,2);
+  }
   if(/mine|quarry|coal|iron|copper|ore|salt/.test(kind)) {
     ellipse(ctx,14,21,11,7,'#6c7062');ellipse(ctx,14,21,8,5,'#858570');ellipse(ctx,14,21,5,3,'#515a50');
     ctx.strokeStyle='#8b785b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(20,25);ctx.lineTo(24,7);ctx.lineTo(28,25);ctx.moveTo(21,18);ctx.lineTo(27,18);ctx.moveTo(23,11);ctx.lineTo(26,11);ctx.stroke();
@@ -126,7 +128,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
   cache.syncRevision(`${assetRevision}:${worldRevision}`);
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
   const shopKinds=new Set(SHOP_KINDS);
-  function sprite(kind,variant=0,level=INDUSTRIES[kind]?.footprint||1,detail='',footprint=1) {
+  function sprite(kind,variant=0,level=INDUSTRIES[kind]?.footprint||1,detail='',footprint=undefined) {
     // Saved companies and external previews can still use the original names.
     // Resolve before caching so these share the exact current artwork identity.
     if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
@@ -137,9 +139,14 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     const houseRotation=house?variant%2:0,houseDesign=house?Math.floor(variant/6)%3:0;
     const shopDesign=shop?buildingArtworkDesign(variant):0;
     const span=Math.max(1,Math.min(Object.hasOwn(INDUSTRIES,kind)?5:3,Math.floor(Object.hasOwn(INDUSTRIES,kind)?level:footprint)||1));
+    // An explicit footprint is a world site's saved extent. Omitted extents
+    // retain the normalized thumbnail API while drawing the catalog parcel.
+    const logicalFootprint=footprint===undefined?undefined:span;
+    const physicalFootprint=logicalFootprint??BUILDINGS[kind]?.footprint??(kind==='factory'?WORKSHOP.footprint:span);
+    const parcelKey=BUILDINGS[kind]||kind==='factory'?`:parcel-${physicalFootprint}`:'';
     // Share repeated seeds while retaining each house design and orientation.
-    const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign)||hasRasterBuilding(kind,biome,shopDesign))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
-    const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`),cached=cache.get(key);
+    const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign,logicalFootprint)||hasRasterBuilding(kind,biome,shopDesign,logicalFootprint))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
+    const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`)+parcelKey,cached=cache.get(key);
     if(cached){hits++;return cached;}
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
     const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
@@ -153,12 +160,12 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
         ctx.restore();
       }
     }
-    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign})&&!drawTownFeature(ctx,kind,biome,profile))drawTownBuilding(ctx,kind,biome,profile,variant,{gardenGround});ctx.restore();}
+    else if(BUILDINGS[kind]) {ctx.save();ctx.scale(span,span);if(!drawRasterHouse(ctx,kind,{pixelScale:density*span,biome,rotation:houseRotation,design:houseDesign,gardenGround,footprint:logicalFootprint})&&!drawRasterBuilding(ctx,kind,biome,density*span,{design:shopDesign,gardenGround,footprint:logicalFootprint})&&!drawTownFeature(ctx,kind,biome,profile,{gardenGround,footprint:logicalFootprint}))drawTownBuilding(ctx,kind,biome,profile,variant,{gardenGround,footprint:logicalFootprint});ctx.restore();}
     else if(Object.hasOwn(INDUSTRIES,kind)||kind==='factory'){
       const siteKind=kind==='factory'?(biome==='tundra'?'equipment-factory':biome==='desert'?'goods-factory':'furniture-factory'):kind;
       let cityArt=false;
-      if(kind==='factory'){ctx.save();ctx.scale(span,span);cityArt=drawRasterBuilding(ctx,kind,biome,density*span);ctx.restore();}
-      if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span,footprint:span})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile,span);ctx.restore();}
+      if(kind==='factory'){ctx.save();ctx.scale(span,span);cityArt=drawRasterBuilding(ctx,kind,biome,density*span,{gardenGround,footprint:logicalFootprint});ctx.restore();}
+      if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span,footprint:span,gardenGround})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile,span,{gardenGround});ctx.restore();}
     }
     else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,nativeNatureDetail(detail),r,biome,profile);
@@ -174,7 +181,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     }
     else if(kind==='mountain') drawMountain(ctx,detail,r,biome,profile);
     else if(['house','apartment','shop','office','factory'].includes(kind)) building(ctx,kind,r,level,biome);
-    else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile,span);ctx.restore();}
+    else {ctx.save();ctx.scale(span,span);industry(ctx,kind,r,biome,profile,span,{gardenGround});ctx.restore();}
     cache.set(key,canvas);created++;return canvas;
   }
   sprite.getStats=()=>({...cache.getStats(),created,hits,shared:Boolean(sharedCache)});

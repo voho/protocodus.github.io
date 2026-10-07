@@ -1,0 +1,425 @@
+{
+  "sourceImage": "/workspace/generated_images/exec-565dbcc7-e123-4627-a260-dcf7884b4ef7.png",
+  "sourceCellPixels": 418,
+  "reviewStatus": "Observed measurements; do not treat uncertain or outside-contract findings as an approval",
+  "entries": [
+    {
+      "id": "industry:wire-mill:taiga",
+      "groundVerticesSource": [
+        [
+          84,
+          346
+        ],
+        [
+          207,
+          401
+        ],
+        [
+          152,
+          431
+        ],
+        [
+          29,
+          376
+        ]
+      ],
+      "groundCenterSource": [
+        210,
+        407
+      ],
+      "groundCenterMethod": "Centre of observed compound physical ground perimeter, using rear hall base and front paved-working strip, excluding chimney/roof silhouettes",
+      "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
+      "groundCenterUncertaintySourcePixels": 10,
+      "sourceBoundsSheet": [
+        0,
+        0,
+        418,
+        540
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "16x endpoint review: gray mark at x174,y413\u2013420 has brick wall visibly continuing beneath it to the base; gray object at x140 is obscured by forklift/yard equipment. Remaining visible entrances are broad bays. No narrow personnel door has both lintel and physical ground endpoint observable.",
+      "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+    },
+    {
+      "id": "industry:goods-factory:taiga",
+      "groundVerticesSource": [
+        [
+          88,
+          348
+        ],
+        [
+          208,
+          404
+        ],
+        [
+          151,
+          435
+        ],
+        [
+          30,
+          380
+        ]
+      ],
+      "groundCenterSource": [
+        211,
+        404
+      ],
+      "groundCenterMethod": "Centre of observed compound ground-plane extrema and hall footprints; crates/truck roofs excluded",
+      "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
+      "groundCenterUncertaintySourcePixels": 10,
+      "sourceBoundsSheet": [
+        418,
+        0,
+        836,
+        540
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5,
+      "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
+      "industrialWindowEndpointsSource": [
+        [
+          290,
+          464
+        ],
+        [
+          290,
+          473
+        ]
+      ],
+      "industrialWindowHeightMasterObserved": 5.071095322351706
+    },
+    {
+      "id": "industry:equipment-factory:taiga",
+      "groundVerticesSource": [
+        [
+          90,
+          350
+        ],
+        [
+          213,
+          405
+        ],
+        [
+          153,
+          439
+        ],
+        [
+          30,
+          383
+        ]
+      ],
+      "groundCenterSource": [
+        211,
+        407
+      ],
+      "groundCenterMethod": "Centre of observed hall/pavement ground footprint; crane beam, pipe stacks and roof peaks excluded",
+      "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
+      "groundCenterUncertaintySourcePixels": 10,
+      "sourceBoundsSheet": [
+        836,
+        0,
+        1254,
+        540
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Independent complete-facade review: all three dark right-facade rectangles repeat evenly at one sill height. An uninterrupted shaded basal strip remains underneath each dark opening; no unique threshold or steps distinguish a personnel entrance. These read as low ground-floor industrial windows. The former isolated-crop personnel inference is withdrawn; actual ordinary entrance unobservable.",
+      "personnelDoorEndpointUncertaintySourcePixels": 1.5,
+      "reviewNotes": "Observed window/service-opening height remains 8\u20139 source pixels (4.5\u20135.1 master, about 3.2\u20133.6m industrial glazing); this is NOT a measured 2.1m personnel-door pass. Front cargo bay openings are broader 10\u201312 source pixels, approximately 4.0\u20134.8m physical height at the common sheet density. Source sampling uncertainty about 1.5pixels.",
+      "industrialWindowEndpointsSource": [
+        [
+          289,
+          474
+        ],
+        [
+          289,
+          482
+        ]
+      ],
+      "industrialWindowHeightMasterObserved": 4.5076402865348495
+    },
+    {
+      "id": "industry:dairy-farm:taiga",
+      "groundVerticesSource": [
+        [
+          205,
+          241
+        ],
+        [
+          391,
+          336
+        ],
+        [
+          204,
+          444
+        ],
+        [
+          18,
+          343
+        ]
+      ],
+      "groundCenterSource": [
+        204.5,
+        339.5
+      ],
+      "groundCenterMethod": "Midpoint of the observed opposite left/right fence-post feet; front post foot checks the inferred back ground corner; fence tops excluded",
+      "groundVertexLandmarks": "Outer farm fence footprint at post feet; rear corner behind barn inferred from observed fence directions",
+      "groundCenterUncertaintySourcePixels": 3,
+      "sourceBoundsSheet": [
+        0,
+        540,
+        418,
+        935
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Stable entrances are broad animal/service bays; no separate unobscured personnel entrance",
+      "reviewNotes": "Fence posts are approximately 14\u201315 source px tall, versus about 2.79px for a 1.2m fence; lower registered filtering gutter is insufficient at the true measured ground centre."
+    },
+    {
+      "id": "industry:vegetable-farm:taiga",
+      "groundVerticesSource": [
+        [
+          205,
+          253
+        ],
+        [
+          398,
+          355
+        ],
+        [
+          203,
+          445
+        ],
+        [
+          18,
+          350
+        ]
+      ],
+      "groundCenterSource": [
+        208,
+        352.5
+      ],
+      "groundCenterMethod": "Midpoint of observed opposite garden fence/greenhouse ground corners, checked against front crop-bed ground endpoint; fence tops excluded",
+      "groundVertexLandmarks": "Working garden parcel at fence-post feet; right corner partly behind greenhouse",
+      "groundCenterUncertaintySourcePixels": 4,
+      "sourceBoundsSheet": [
+        418,
+        540,
+        836,
+        935
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Only broad barn equipment openings are visible; no separate narrow entrance has observable lintel and ground endpoints",
+      "reviewNotes": "Crop beds and greenhouse extend to the parcel perimeter, unlike the intended narrow-setback envelope."
+    },
+    {
+      "id": "industry:orchard:taiga",
+      "groundVerticesSource": [
+        [
+          214,
+          246
+        ],
+        [
+          397,
+          349
+        ],
+        [
+          212,
+          447
+        ],
+        [
+          21,
+          352
+        ]
+      ],
+      "groundCenterSource": [
+        209,
+        350.5
+      ],
+      "groundCenterMethod": "Midpoint of observed opposite left/right orchard fence-post feet; rear corner inferred from visible fence runs behind barn",
+      "groundVertexLandmarks": "Orchard outer fence footprint at post feet",
+      "groundCenterUncertaintySourcePixels": 3,
+      "sourceBoundsSheet": [
+        836,
+        540,
+        1254,
+        935
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Barn face is mostly occupied by the broad service bay and foliage; no distinct personnel doorway",
+      "reviewNotes": "Observed fence posts are around 12\u201314px tall; source should reduce fence height at fixed sheet density."
+    },
+    {
+      "id": "industry:livestock-farm:taiga",
+      "groundVerticesSource": [
+        [
+          207,
+          186
+        ],
+        [
+          381,
+          292
+        ],
+        [
+          206,
+          387
+        ],
+        [
+          23,
+          286
+        ]
+      ],
+      "groundCenterSource": [
+        202,
+        289
+      ],
+      "groundCenterMethod": "Midpoint of opposite observed pasture fence-post feet, checked against front post foot; roof peaks and cattle silhouettes excluded",
+      "groundVertexLandmarks": "Livestock pasture outer fence ground footprint, hidden back corner inferred from visible runs",
+      "groundCenterUncertaintySourcePixels": 3,
+      "sourceBoundsSheet": [
+        0,
+        935,
+        418,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Barn entrance is a wide animal/service opening; no narrow personnel entrance is separately visible",
+      "reviewNotes": "Visible pasture fence posts are about 11 source px tall, well above the 1.2m fence target."
+    },
+    {
+      "id": "industry:dairy-plant:taiga",
+      "groundVerticesSource": [
+        [
+          88,
+          240
+        ],
+        [
+          208,
+          290
+        ],
+        [
+          150,
+          323
+        ],
+        [
+          30,
+          268
+        ]
+      ],
+      "groundCenterSource": [
+        210,
+        299
+      ],
+      "groundCenterMethod": "Centre of observed paved compound footprint and hall base geometry; silo tops, truck bodies and crate silhouettes excluded",
+      "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
+      "groundCenterUncertaintySourcePixels": 10,
+      "sourceBoundsSheet": [
+        418,
+        935,
+        836,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "16x endpoint review of the edited green mark at x174,y309\u2013321: lower part is blocked by crates and equipment, so its ground endpoint cannot be observed. Broad loading bays are separate and are not measured as personnel doors.",
+      "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+    },
+    {
+      "id": "industry:cannery:taiga",
+      "groundVerticesSource": [
+        [
+          84,
+          242
+        ],
+        [
+          212,
+          304
+        ],
+        [
+          150,
+          330
+        ],
+        [
+          28,
+          273
+        ]
+      ],
+      "groundCenterSource": [
+        211,
+        300
+      ],
+      "groundCenterMethod": "Centre of observed compound hall/paved-working ground footprint; roof/chimney peaks and truck bodies excluded",
+      "groundVertexLandmarks": "First front production-hall wing ground footprint, using the two exposed facade baselines; hidden rear ground corner inferred from those baseline directions. Other wings are not treated as a single rectangle.",
+      "groundCenterUncertaintySourcePixels": 10,
+      "sourceBoundsSheet": [
+        836,
+        935,
+        1254,
+        1254
+      ],
+      "sourceCoordinateSystem": "LOCAL nominal 418px cell coordinates; sourceBoundsSheet uses absolute 1254px sheet coordinates",
+      "measurementMethod": "Manual inspection of generated source, 3x coordinate-grid crops and 8\u201310x endpoint closeups; ground points use facade baseline or fence-post foot, not alpha bounds or expected registration",
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "16x review: edited green mark at x173,y306\u2013315 has visible brick wall continuing down to the facade baseline near y324; it is a raised window rather than an observable ground-reaching door. Remaining visible openings are broad bays.",
+      "reviewNotes": "Door-only edited source reviewed directly; earlier approximate narrow-door interpretation withdrawn because it did not establish a physical ground-reaching doorway."
+    }
+  ],
+  "observations": {
+    "physicalSheetDensity": {
+      "sourceEdgeEndpoints": [
+        [
+          18,
+          343
+        ],
+        [
+          204,
+          444
+        ]
+      ],
+      "entryId": "industry:dairy-farm:taiga",
+      "physicalSpanMetres": 75,
+      "footprint": 5,
+      "sourceCoordinateSystem": "local nominal 418px cell",
+      "sourceHorizontalSpanPixels": 186,
+      "masterHorizontalSpanAtContractPixels": 106.66666666666667,
+      "calibratedMasterPixelsPerSourcePixel": 0.5734767025089605,
+      "proposedUniformMasterPixelsPerSourcePixel": 0.57,
+      "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells."
+    }
+  },
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            18,
+            761
+          ],
+          [
+            204,
+            862
+          ]
+        ],
+        "physicalSpanMetres": 75,
+        "footprint": 5,
+        "note": "Actual observed dairy pasture fence-post feet delimit this clear whole-parcel side. Assigning it75m is explicitly the planned envelope design assumption. The industrial compounds have staggered/irregular pavement boundaries, so no200px whole-plot industrial side has been invented. Oversized fences are excluded from final farm art acceptance; the ground-side pixel density is still observable and can calibrate one common density for all sheet cells. Coordinates converted to original fullsheet pixels where necessary; Euclidean projected ground-axis length calibrates the density."
+      }
+    ]
+  },
+  "packingSheetScale": 0.5634550358168562
+}

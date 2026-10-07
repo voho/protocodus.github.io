@@ -13,7 +13,7 @@ try {
     await page.route('**/selection-underlay-qa',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><style>body{margin:0}canvas{display:block;width:1100px;height:800px}</style><canvas></canvas>'}));
     await page.goto(new URL('selection-underlay-qa',base).href);
     await page.evaluate(async()=>{
-      const [{createRenderer},geometry,{preloadWorldArt},{preloadHouses},{MAP,alpha}]=await Promise.all([import('./renderer.js'),import('./terrain-geometry.js'),import('./atlas-runtime.js'),import('./raster-houses.js'),import('./design-tokens.js')]);
+      const [{createRenderer},geometry,{preloadWorldArt},{preloadHouses},{MAP,alpha},{SPRITE_SCALE}]=await Promise.all([import('./renderer.js'),import('./terrain-geometry.js'),import('./atlas-runtime.js'),import('./raster-houses.js'),import('./design-tokens.js'),import('./sprite-art-direction.js')]);
       await Promise.all([preloadWorldArt({biome:'taiga',waitMs:12000}),preloadHouses({biome:'taiga',waitMs:12000})]);
       const game={biome:'taiga',seed:17,width:64,height:64,day:0,revision:1,networkRevision:1,cities:[],industries:[],stations:[],routes:[],vehicles:[],zones:[]};
       game.tiles=Array.from({length:4096},()=>({terrain:'grass',elevation:.25,detail:'',variant:0,building:null,road:false,rail:false,publicRoad:false}));
@@ -80,7 +80,7 @@ try {
       const tilePoints=(site,step)=>{const points=[];for(let dy=0;dy<site.h;dy++)for(let dx=0;dx<site.w;dx++)for(const[u,v]of[[site.x+dx,site.y+dy],[site.x+dx+1,site.y+dy],[site.x+dx+1,site.y+dy+1],[site.x+dx,site.y+dy+1]])points.push(point(site,u,v,step));return points;};
       const perimeter=(site,step)=>{const points=[point(site,site.x,site.y,step)];for(let dx=1;dx<=site.w;dx++)points.push(point(site,site.x+dx,site.y,step));for(let dy=1;dy<=site.h;dy++)points.push(point(site,site.x+site.w,site.y+dy,step));for(let dx=site.w-1;dx>=0;dx--)points.push(point(site,site.x+dx,site.y+site.h,step));for(let dy=site.h-1;dy>0;dy--)points.push(point(site,site.x,site.y+dy,step));return points;};
       const difference=(path,expected)=>{const actual=path?.filter(p=>p.kind!=='closePath')||[];return actual.length===expected.length?Math.max(...actual.map((p,i)=>Math.hypot(p.x-expected[i].x,p.y-expected[i].y))):Infinity;};
-      const bodySubmission=(site,step)=>{const core=site.farmCore||site,span=core.w,p=point({...core,foundation:true},core.x+span/2,core.y+span/2,step),expected=[p.x-24*span,p.y-36*span-12,48*span,48*span+12],tolerance=1/renderer.getStats().rasterScale;return calls.images.find(image=>image.args.length===4&&image.args.every((n,i)=>Math.abs(n-expected[i])<=tolerance));};
+      const bodySubmission=(site,step)=>{const core=site.farmCore||site,span=core.w,p=point({...core,foundation:true},core.x+span/2,core.y+span/2,step),frame=SPRITE_SCALE.billboardPixelsPerTile,expected=[p.x-frame/2*span,p.y-frame*.75*span-frame/4,frame*span,frame*span+frame/4],tolerance=1/renderer.getStats().rasterScale;return calls.images.find(image=>image.args.length===4&&image.args.every((n,i)=>Math.abs(n-expected[i])<=tolerance));};
       window.selectionQA={game,cases,canvas,renderer,geometry,calls,mask,maskContext,reset,pixels,MAP,foundationHeight,raised,point,tilePoints,perimeter,difference,bodySubmission,stop:()=>{recording=false;}};
     });
     for(const zoom of [.5,1,2])for(const index of await page.evaluate(()=>selectionQA.cases.map((_,index)=>index))){
