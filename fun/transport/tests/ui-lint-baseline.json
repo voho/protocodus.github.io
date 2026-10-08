@@ -1,11 +1,11 @@
 {
-  "middle-dot glue": 123,
+  "middle-dot glue": 119,
   "arrow →": 6,
-  "arrow ↗": 10,
+  "arrow ↗": 4,
   "ellipsis •••": 1,
-  "caret ⌃": 1,
+  "caret ⌃": 0,
   "check ✓": 3,
-  "lone × close label": 11,
+  "lone × close label": 10,
   "behavior:'smooth'": 0,
   "hex colour in an app.js template": 0
 }

@@ -23,6 +23,25 @@ try {
   assert.match(await page.locator('#objective-detail').textContent(), /stone from Stone quarry to Alderbrook/);
   assert.equal(await page.locator('#objective-detail').isVisible(), false, 'during onboarding the checklist speaks; the sentence is the title tooltip');
   assert.match(await page.locator('#objective-title').getAttribute('title'), /stone from Stone quarry to Alderbrook/);
+  assert.match((await page.locator('#objective-summary').innerText()).replace(/\s+/g,' '), /Carry stone from Stone quarry to Alderbrook/);
+  assert.equal(await page.locator('#objective-summary [data-ref]').count(), 3, 'cargo and both ends remain map references');
+  assert.equal(await page.locator('#objective-current').innerText(), 'Stop near Stone quarry');
+  const disclosure=page.locator('#objective-checklist'),summary=disclosure.locator('summary');
+  assert.equal(await disclosure.evaluate(el=>el.open),false,'the next action starts focused');
+  assert.equal(await page.locator('#objective-steps').isVisible(),false,'the full ladder waits for a request');
+  const focusedHeight=(await box(page,'#objective-card')).bottom-(await box(page,'#objective-card')).top;
+  assert.ok(focusedHeight<=220,'onboarding protects the playable map');
+  await page.screenshot({path:`${output}/desktop-focused.png`});
+  await summary.focus();await page.keyboard.press('Enter');
+  assert.equal(await disclosure.evaluate(el=>el.open),true,'keyboard opens the checklist');
+  assert.equal(await page.locator('#objective-steps').isVisible(),true);
+  await page.keyboard.press('Space');
+  assert.equal(await disclosure.evaluate(el=>el.open),false,'Space folds the checklist without pausing the world');
+  assert.equal(await page.evaluate(()=>transport.speed),0);
+  await page.keyboard.press('Enter');
+  await page.setViewportSize({width:1024,height:768});
+  await page.screenshot({path:`${output}/laptop-checklist.png`});
+  await page.setViewportSize({width:1440,height:900});
   let list = await steps(page);
   assert.deepEqual(list.map(step => step.label), ['Stop near Stone quarry', 'Stop near Alderbrook', 'Connect them', 'Launch a stone route', 'First delivery']);
   assert.deepEqual(list.map(step => step.current), [true, false, false, false, false], 'step 1 is the open step');
@@ -39,6 +58,7 @@ try {
   await page.locator('#objective-another').click();
   const other = await page.locator('#objective-detail').textContent();
   assert.notEqual(other, detail);assert.doesNotMatch(other, /Stone quarry/);
+  assert.equal(await disclosure.evaluate(el=>el.open),true,'choosing another route keeps the requested checklist open');
   await page.evaluate(() => transport.setView('build'));
   assert.equal(await page.locator('.project-card').isVisible(), false, 'wide screens leave the goal to its map card');
   await page.locator('#close-management').click();
@@ -58,6 +78,8 @@ try {
   await page.keyboard.press('Escape');
 
   // Build the known connection, then the checklist ticks the first three steps.
+  const supplier=page.locator('#objective-summary [data-ref]').nth(1);
+  const supplierRef=await supplier.getAttribute('data-ref');await supplier.focus();
   await page.evaluate(async () => {
     const { buildPlan } = await import('./construction-plan.js'), { build } = await import('./model.js');
     const points = []; for (let y = 251; y >= 245; y--) points.push({ x: 219, y });
@@ -65,6 +87,7 @@ try {
     if (!build(transport.game, 'bus-stop', 219, 251).ok) throw new Error('stop failed');
   });
   await page.waitForFunction(() => document.querySelectorAll('#objective-steps .objective-step.done').length === 3);
+  assert.equal(await page.evaluate(()=>document.activeElement.dataset.ref),supplierRef,'live step changes preserve focus on an unchanged supplier reference');
   list = await steps(page);
   assert.deepEqual(list.map(step => step.done), [true, true, true, false, false]);
   assert.equal(list[3].current, true);assert.equal(list[3].button, 'Set up route');
@@ -94,8 +117,15 @@ try {
   await page.evaluate(async () => {
     const { addRoute, tick } = await import('./model.js'), stop = transport.game.stations.find(stop => stop.x === 219 && stop.y === 251);
     if (!addRoute(transport.game, { mode: 'road', stops: [stop.id, 'station-1'], cargo: 'stone' }).ok) throw new Error('route failed');
-    const route = transport.game.routes.at(-1);
-    for (let day = 0; day < 60 && !route.delivered; day++) for (let n = 0; n < 4; n++) tick(transport.game, .25);
+  });
+  await page.waitForFunction(()=>document.querySelector('#objective-current').textContent==='Resume time for the first delivery');
+  await page.evaluate(()=>transport.setSpeed(1));
+  await page.waitForFunction(()=>document.querySelector('#objective-current').textContent==='Let the route make its first delivery');
+  await page.evaluate(()=>transport.setSpeed(0));
+  assert.equal(await page.locator('#objective-current').textContent(),'Resume time for the first delivery','pausing refreshes guidance immediately without a simulation tick');
+  await page.evaluate(async()=>{
+    const {tick}=await import('./model.js'),route=transport.game.routes.at(-1);
+    for(let day=0;day<60&&!route.delivered;day++)for(let n=0;n<4;n++)tick(transport.game,.25);
   });
   await page.waitForFunction(() => document.querySelector('#objective-chip-title').textContent === 'First 100 cargo deliveries');
   assert.equal(await page.locator('#objective-body').isVisible(), false, 'a new goal keeps the card folded');

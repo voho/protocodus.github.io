@@ -14,6 +14,15 @@ try{
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base);
   await createWorldFromMenu(page,{size:'square512',generationVersion:10});
+  const openMapOptions=async()=>{
+    if(await page.locator('#map-options').isVisible())return;
+    await page.locator('#game-menu-button').click();
+    await page.locator('#map-options-button').click();
+    await page.locator('#terrain-height').waitFor({state:'visible'});
+  };
+  assert.equal(await page.locator('.topbar #terrain-height').count(),0,'terrain height leaves the persistent instruments');
+  assert.equal(await page.locator('#terrain-height').isVisible(),false,'terrain height appears only on request');
+  await openMapOptions();
   assert.equal(await page.locator('#terrain-height').inputValue(),'12');
   assert.deepEqual(await page.locator('#terrain-height option').allTextContents(),['Flat','Gentle','Normal','Steep']);
   const before=await page.evaluate(()=>JSON.stringify(transport.game));
@@ -21,21 +30,54 @@ try{
     await page.getByLabel('Terrain height',{exact:true}).selectOption(String(step));
     assert.equal(await page.evaluate(()=>transport.renderer.getStats().heightStep),step);
     assert.equal(await page.evaluate(()=>JSON.stringify(transport.game)),before,'relief controls never mutate the world');
+    assert.equal(await page.locator('#map-options').isVisible(),true,'adjusting the terrain keeps its settings open');
   }
   await page.locator('#terrain-height').focus();await page.keyboard.press('Space');await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(()=>transport.speed),0,'a native select key does not change simulation speed');
+  await openMapOptions();
+  await page.locator('#terrain-height').focus();await page.keyboard.press('r');await page.keyboard.press('g');
+  assert.equal(await page.locator('.topbar [data-toolbar-tool="road"]').getAttribute('aria-pressed'),'false','select keys never activate a map tool');
+  assert.equal(await page.evaluate(()=>JSON.stringify(transport.game)),before);
+  await page.keyboard.press('Escape');await page.locator('#map-options').waitFor({state:'hidden'});
+  await page.waitForFunction(()=>document.activeElement?.id==='game-menu-button');
   for(const width of[1440,1280,1024,900,720,640,520]){
     await page.setViewportSize({width,height:900});
+    await openMapOptions();
     const layout=await page.evaluate(()=>{
-      const select=document.querySelector('#terrain-height').getBoundingClientRect(),speed=document.querySelector('.speed-control').getBoundingClientRect(),bar=document.querySelector('.topbar').getBoundingClientRect();
-      return{width:innerWidth,select:{left:select.left,right:select.right,top:select.top,bottom:select.bottom},speed:{left:speed.left,right:speed.right,top:speed.top,bottom:speed.bottom},bar:{top:bar.top,bottom:bar.bottom},overflow:document.documentElement.scrollWidth-innerWidth};
+      const select=document.querySelector('#terrain-height').getBoundingClientRect(),menu=document.querySelector('#map-options').getBoundingClientRect(),label=document.querySelector('.terrain-height-control>span:not([data-icon])').getBoundingClientRect();
+      return{width:innerWidth,select:select.toJSON(),menu:menu.toJSON(),label:label.toJSON(),overflow:document.documentElement.scrollWidth-innerWidth};
     });layouts.push(layout);
-    assert.ok(layout.select.left>=0&&layout.select.right<=width+1,`${width}px desktop keeps the terrain control visible`);
-    assert.ok(layout.select.top>=layout.bar.top&&layout.select.bottom<=layout.bar.bottom+1);
-    assert.ok(layout.select.left>=layout.speed.right,'terrain selector sits next to speed buttons');
-    assert.ok(layout.overflow<=1,`${width}px desktop has no horizontal overflow`);
+    assert.ok(layout.select.left>=layout.menu.left&&layout.select.right<=layout.menu.right,`${width}px desktop keeps terrain height inside Map options`);
+    assert.ok(layout.select.top>=layout.menu.top&&layout.select.bottom<=layout.menu.bottom);
+    assert.ok(layout.label.width>0&&layout.label.right<layout.select.left,'Terrain height has a readable visible label');
+    assert.ok(layout.select.width>=75&&layout.select.height>=32,'the native field remains readable and easy to target');
+    assert.ok(layout.menu.left>=0&&layout.menu.right<=width+1&&layout.overflow<=1,`${width}px desktop has no horizontal overflow`);
+    if([1440,1024].includes(width))await page.screenshot({path:`${output}/map-options-${width}.png`});
+    await page.keyboard.press('Escape');await page.locator('#map-options').waitFor({state:'hidden'});
+    await page.waitForFunction(()=>document.activeElement?.id==='game-menu-button');
+    if([1440,1024].includes(width))await page.screenshot({path:`${output}/instruments-${width}.png`});
   }
-  await page.setViewportSize({width:1280,height:900});await page.screenshot({path:`${output}/desktop-control.png`});
+  for(const height of [280,320]){
+    await page.setViewportSize({width:640,height});await openMapOptions();
+    await page.locator('#terrain-height').focus();
+    const field=await page.locator('#terrain-height').boundingBox(),menu=await page.locator('#map-options').boundingBox();
+    assert.ok(menu.y+menu.height<=height,'short computer windows contain the settings sheet');
+    assert.ok(field.y>=menu.y&&field.y+field.height<=menu.y+menu.height,'focusing the terrain field scrolls it into the sheet');
+    assert.equal(await page.locator('#map-options').evaluate(node=>getComputedStyle(node).overflowY),'auto');
+    await page.locator('#terrain-height').selectOption('14');
+    assert.equal(await page.evaluate(()=>transport.renderer.getTerrainHeight()),14,'terrain height remains usable in a short window');
+    await page.keyboard.press('Escape');await page.locator('#map-options').waitFor({state:'hidden'});
+  }
+  await page.setViewportSize({width:1280,height:900});
+  await page.locator('.topbar [data-toolbar-tool="road"]').click();
+  await openMapOptions();
+  const beforeDismiss=await page.evaluate(()=>JSON.stringify(transport.game)),camera=await page.evaluate(()=>transport.renderer.getCamera());
+  await page.locator('#world').click({position:{x:750,y:350}});
+  await page.locator('#map-options').waitFor({state:'hidden'});
+  assert.equal(await page.evaluate(()=>JSON.stringify(transport.game)),beforeDismiss,'dismissing options does not place the active road tool');
+  assert.deepEqual(await page.evaluate(()=>transport.renderer.getCamera()),camera,'dismissing options does not move the map');
+  await page.keyboard.press('Escape');
+  await openMapOptions();await page.locator('#terrain-height').selectOption('14');await page.keyboard.press('Escape');
   await page.evaluate(()=>transport.persist());
   await page.reload();await loadAutosaveFromMenu(page);
   assert.equal(await page.locator('#terrain-height').inputValue(),'14','the chosen view survives a reload');

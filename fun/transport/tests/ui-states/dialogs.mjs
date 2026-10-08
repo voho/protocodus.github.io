@@ -7,6 +7,17 @@ export const states = [
   { name: 'dialogs-start-new', async setup(page) {
     await page.locator('#start-new').click();
     await page.locator('#start-world-form').waitFor({ state: 'visible' });
+    await page.locator('#start-landscape').evaluate(img => img.decode());
+    await settle(page);
+  } },
+  ...['tundra', 'desert'].map(biome => ({ name: `dialogs-start-${biome}`, async setup(page) {
+    await page.locator(`#start-world-form [name=biome][value=${biome}]`).check();
+    await page.locator('#start-landscape').evaluate(img => img.decode());
+    await settle(page);
+  } })),
+  { name: 'dialogs-start-options', async setup(page) {
+    await page.locator('.start-advanced summary').click();
+    await page.locator('#start-landscape').evaluate(img => img.decode());
     await settle(page);
   } },
   { name: 'dialogs-start-load', async setup(page) {

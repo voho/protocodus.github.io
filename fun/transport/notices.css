@@ -187,3 +187,19 @@
 #objective-card .objective-heading h2{margin:0 0 var(--s-2)}
 #objective-card .tiny-button svg{width:16px;height:16px}
 #objective-detail[hidden]{display:none}
+
+/* Onboarding starts with the route and one next step. The complete checklist
+   remains a native keyboard disclosure, preserving its open state on refresh. */
+#objective-card #objective-summary{margin:0 0 var(--s-3);font-size:var(--fs-small);line-height:var(--lh-body)}
+#objective-summary .ref{font-size:inherit;line-height:inherit}
+#objective-checklist{margin-bottom:var(--s-3)}
+#objective-checklist>summary{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3);min-height:var(--control);list-style:none;cursor:pointer;border-radius:var(--r-2);font-size:var(--fs-small);line-height:var(--lh-small)}
+#objective-checklist>summary::-webkit-details-marker{display:none}
+#objective-checklist>summary:hover{background:var(--well)}
+#objective-current{color:var(--ink);font-weight:var(--fw-medium);min-width:0}
+.objective-checklist-label{display:flex;align-items:center;gap:var(--s-1);flex-shrink:0;color:var(--ink-2);font-weight:var(--fw-regular)}
+.objective-checklist-label svg{width:16px;height:16px;transition:transform var(--t-quick) var(--ease)}
+#objective-checklist[open] .objective-checklist-label svg{transform:rotate(180deg)}
+#objective-checklist[open] #objective-current{display:none}
+#objective-checklist[open] .objective-checklist-label{flex:1;justify-content:space-between}
+#objective-checklist .objective-steps{margin:var(--s-2) 0 0}

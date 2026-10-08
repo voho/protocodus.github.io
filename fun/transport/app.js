@@ -182,7 +182,7 @@ let entityFilters = { towns:'', industry:'', kind:'all' };
 let lastRevision = -1;
 let outstandingTowns = new Set();
 let lastNoticeId = game.day<1 ? undefined : game.notifications[0]?.id;
-let goalChoice = null, goalSignature = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
+let goalChoice = null, goalSignature = '', goalSummaryHTML = '', goalOpen = false, goalSeen = null, goalChanged = false, goalFolded = (() => { try { const stored = localStorage.getItem('transport-next-goal-v2'); return stored ? stored === 'folded' : Boolean(localStorage.getItem('transport-next-goal-v1')); } catch { return false; } })();
 let noticeQueue=[],noticeAt=0,pacedNoticeAt=-Infinity,panelPricesStale=false,knownRoutes=new Set(),firstDeliveryPending=new Set(),townPeaks=new Map(),townDay=-1;
 let seenMilestones=new Set(),milestoneMonth=-1;
 let achievementMonth=-1;
@@ -247,7 +247,7 @@ function toast(message, options=false) {
  while(region.children.length>3){const oldest=[...region.children].find(node=>node!==el&&!node.matches(':hover')&&!node.contains(document.activeElement))||region.firstChild;if(oldest.dismissToast)oldest.dismissToast();else oldest.remove();}
  $('#status-message').textContent=message; if(!silent&&type!=='ok')beep(type==='milestone'?'ok':'error');
 }
-function changeSpeed(next) { const now=performance.now();simulation.setSpeed(next,now,{blocked:capturingSave,reserved:preview});simulation.setActive(!document.hidden&&!isLoading()&&!$('#start-menu')?.open,now,{blocked:capturingSave,reserved:preview});renderer.setPresentation(simulation.motion,simulation.getPresentationDay());if(next>0)previousSpeed=next;if(speed===0&&next>0)lastFrame=now;speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); syncPaused();wakeFrame(); }
+function changeSpeed(next) { const now=performance.now();simulation.setSpeed(next,now,{blocked:capturingSave,reserved:preview});simulation.setActive(!document.hidden&&!isLoading()&&!$('#start-menu')?.open,now,{blocked:capturingSave,reserved:preview});renderer.setPresentation(simulation.motion,simulation.getPresentationDay());if(next>0)previousSpeed=next;if(speed===0&&next>0)lastFrame=now;speed=next; $$('.speed-control button').forEach(el=>{el.classList.toggle('active',Number(el.dataset.speed)===speed);el.setAttribute('aria-pressed',String(Number(el.dataset.speed)===speed));}); syncPaused();renderGoal();wakeFrame(); }
 // A frozen world can look hung, so pausing names itself (DESIGN.md 12.1): "Paused" under the date in orange, where the
 // weather word otherwise sits, and a thin orange line along the top of the map. Pausing moves nothing.
 function syncPaused() {
@@ -373,16 +373,23 @@ function runProjectAction(action,target,extra={}) {
 // Folding is a preference, not a title: a folded card only marks a new goal on its chip and reopens from the chip or Show on map.
 function storeGoalFolded(folded) { goalFolded=folded;try{localStorage.setItem('transport-next-goal-v2',folded?'folded':'open');localStorage.removeItem('transport-next-goal-v1');}catch{} }
 function renderGoal() {
- // DESIGN.md 11.4: the ladder is open by itself only during onboarding; after the first route the goal is one line, a flag,
- // its title and its figure, that opens on demand and folds again once its action is taken.
+ // Onboarding keeps the route context and next action visible. The complete
+ // ladder opens only on request; later goals use their existing one-line chip.
  const project=nextProject(game,{source:goalChoice}),steps=project.steps||[],current=steps.findIndex(step=>!step.done),collapsed=goalFolded||(!steps.length&&!goalOpen),visible=mapLayers.goal!==false;
  if(goalSeen===null||visible&&!collapsed){goalSeen=project.title;goalChanged=false;}else if(project.title!==goalSeen)goalChanged=true;
- const signature=[project.title,project.detail,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen,goalChanged,visible].join('|');
+ const currentStep=steps[current],currentLabel=currentStep?.id==='deliver'?(speed===0?'Resume time for the first delivery':'Let the route make its first delivery'):currentStep?.label||'All steps';
+ const signature=[project.title,project.detail,project.summaryTemplate,currentLabel,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen,goalChanged,visible].join('|');
  if(signature===goalSignature)return;goalSignature=signature;
  const card=$('#objective-card');card.hidden=!visible;card.classList.toggle('collapsed',collapsed);card.classList.toggle('open',goalOpen&&!collapsed);card.classList.toggle('changed',goalChanged);
  $('#objective-chip-title').textContent=project.title;$('#objective-title').textContent=project.title;$('#objective-detail').textContent=project.detail;$('#objective-detail').hidden=steps.length>0;$('#objective-title').title=steps.length?project.detail:'';
  const figure=project.figure||'';$('#objective-chip-figure').textContent=figure;$('#objective-chip-figure').hidden=!figure;
  $('#objective-chip-progress').hidden=!project.progress;$('#objective-chip-progress').style.width=(project.progress?Math.min(1,project.progress.value/project.progress.max)*100:0)+'%';
+ $('#objective-summary').hidden=!project.summaryTemplate;
+ const summaryHTML=project.summaryTemplate?renderTemplate(project.summaryTemplate,game):'';
+ // A live step or speed update must not replace a keyboard-focused map reference.
+ if(summaryHTML!==goalSummaryHTML){$('#objective-summary').innerHTML=summaryHTML;goalSummaryHTML=summaryHTML;}
+ $('#objective-current').textContent=currentLabel;
+ const checklist=$('#objective-checklist');checklist.hidden=!steps.length;if(!steps.length)checklist.open=false;
  $('#objective-steps').hidden=!steps.length;
  // One step, one action: the open step's own label runs it (its action names it in the title); the card's single button
  // is Plan road when the game can plan the line, else that step's action, else the goal's own.
@@ -1805,7 +1812,7 @@ function activateGame(next) {
  view='build';category='network';buildingGroup='homes';chainSelection={};gallerySelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',cargoChosen:false,vehicleCount:1,fullLoad:false,optionsOpen:false};draftPreviewMemo=null;draftPreviewState=null;
  routePage=0;routeFilters={query:'',mode:'all',status:'all',cargo:'all'};entityFilters={towns:'',industry:'',kind:'all'};
- goalChoice=null;goalOpen=false;goalSignature='';lastNoticeId=game.day<1?undefined:game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
+ goalChoice=null;goalOpen=false;goalSignature='';$('#objective-checklist').open=false;lastNoticeId=game.day<1?undefined:game.notifications[0]?.id;lastRevision=-1;minimapAt=0;panelAt=0;lastFrame=performance.now();
  resetMoments();
  drainAchievementUnlocks(game);
  canvas.classList.remove('build-mode','dragging','route-picking');$('#placement-tip').hidden=true;
@@ -2421,6 +2428,9 @@ $('#panel-help').onclick=()=>openHelp();$('#panel-save').onclick=openSaves;
 $('#atlas-button').onclick=openAtlas;
 $('#world-button').onclick=openWorld;$('#help-button').onclick=()=>openHelp();$('#guide-button').onclick=()=>openHelp();$('#save-button').onclick=openSaves;
 $('#objective-card').addEventListener('click',goalClick);
+// Native disclosure keeps its state across live checklist updates. Its new
+// bounds also change the map's context-marker avoidance while paused.
+$('#objective-checklist').addEventListener('toggle',()=>invalidateScene());
 $('#grid-button').onclick=()=>setMapLayers({grid:!mapLayers.grid});
 $('#routes-toggle').onclick=()=>setMapLayers({routes:!mapLayers.routes});
 const terrainHeightControl=$('#terrain-height');

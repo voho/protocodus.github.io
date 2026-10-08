@@ -695,7 +695,11 @@ Every new industry occupies **5 × 5 tiles**, including extractors, processors a
 
 At Region and Town views, recognition comes from a clear silhouette, roof and wall colour masses, facade shading and large identifiers such as silos, chimneys, greenhouses, shop awnings or sports surfaces. Omit tiny brick joints, roof tiles, lettering, flower dots, dense crate grids and fine railings or mullions. High display density must sharpen the chosen level of detail without making Region noisy. Compare multiple building kinds with vehicles at actual Region and Town size, then check Detail, standard and Retina displays, and the native fallbacks.
 
+New browsers begin with the grid hidden during exploration. Construction tools temporarily show tile guides and release them when finished, without changing the stored Grid preference. Grid in Map options, Map layers or the G shortcut keeps guides visible during exploration. Existing saved choices remain intact; Show all still enables every layer. Industry cargo art scales from 20 px at Region to 24 px at Town and 28 px at Detail, with the same dimensions used for placement and picking. This reduces map clutter while preserving construction precision.
+
 Gardens blend with their climate's world terrain, and slope foundations use natural stones. Farm fields follow the terrain while fences and objects stay registered to the grid. Artwork QA follows the computer-only policy in section 13.
+
+Terrain illumination joins neighboring slopes smoothly, with upper-left sunlight and strong broad hillside contrast. It uses the existing height field without moving terrain, buildings or construction guides. Flat ground and water retain their authored colours; shore vertices keep water neutral. Texture and material boundaries remain sharp while the illumination crosses tile and chunk boundaries continuously.
 
 ### 9.2 Stop reach and room for transport
 
@@ -819,7 +823,7 @@ Working state (wide):
 - The Balance and "Profit · month" labels.
 - The Paused chip.
 - The weather chip (`.map-topline`). Weather moves into the date line and the menu header.
-- The Map options popover. Grid and Route lines are map layers, and "Back to home town" moves into the zoom menu.
+- Persistent map settings. Terrain height lives in **Game menu → Map options**, beside Grid, Route lines and Scroll to pan. These settings do not consume the speed rail. Map layers remains available separately, and the zoom menu also offers Home town.
 - The "Drag to explore" hint.
 - The status bar footer. `#status-message` stays as an sr-only live region.
 - The sidebar footer. Save status moves into the menu header.
@@ -857,7 +861,7 @@ Working state (wide):
 - One edge pointer.
 - One expanded route row.
 - No permanent hints.
-- The goal ladder is expanded only during onboarding, until the first route is launched. After that the goal is one line, and a new goal tints the line once. The ladder never expands by itself.
+- Onboarding shows the cargo, supplier, buyer and current step, plus one primary action. **All steps** opens the full ladder on request, reducing the default card height and leaving more map visible. After onboarding the goal is one line, and a new goal tints the line once. The ladder never expands by itself.
 - Numbering only for identity (route numbers) and rank (leaderboard).
 
 ## 12. Components
@@ -896,7 +900,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - future steps, hollow.
 
   The footer shows "Part 1 of 4" and "All goals".
-- **Onboarding.** The first-route checklist uses the same ladder.
+- **Onboarding.** The first-route checklist uses the same ladder inside a native **All steps** disclosure, initially closed. Its summary names the current step; the route sentence above it links the cargo and both endpoints to the map. Keep the open state through live updates and alternative suggestions, and reset it when changing companies. The waiting delivery step explains that time must run, including while paused. Folding the entire goal keeps its existing saved preference.
 - **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Build drawer repeats the goal with the Next goal layer off.
 - **With the inspector.** When the inspector opens at wide widths, the inspector starts under the goal line. The line stays one line.
 
@@ -1065,7 +1069,7 @@ Road, railway, bridge and tunnel construction is one action: validate the finish
 
 ### 12.15 Build drawer
 
-- Main-toolbar construction shortcuts retain text labels on normal desktop and laptop widths. Compact the brand first; use icons and horizontal scrolling when the computer window is narrower. Road, Railway, Stop, Bulldozer and Gallery have distinct shared glyphs.
+- Main-toolbar construction shortcuts retain text labels at computer widths of 1024 px and above. Compact the brand first; use icons and horizontal scrolling when the computer window is narrower. Road, Railway, Stop, Bulldozer and Gallery have distinct shared glyphs.
 - Active construction instructions use the shared top-left anchor. The goal card yields that space until construction finishes, keeping its open or folded preference.
 - **Header:** "Build", with a segmented control "Network | Town | Industry".
 - **Network** has two groups:
@@ -1102,7 +1106,9 @@ A selected road or railway offers an immediate, priced **Build road stop** or **
 ### 12.19 Start menu and loading
 
 - Both use the same tokens. Hero type (`--fs-hero`) appears only here.
-- Start tabs are a segmented control, and world options are fields.
+- Start tabs are a segmented control, and world options are fields. The layout uses two aligned columns without an enclosing form card; at narrow computer widths it becomes one column and omits decorative scenery.
+- The hero shows a static capture of the selected landscape from the actual game, replacing the isolated train illustration. Changing landscape updates the preview and generation defaults without generating a world, starting simulation or touching saves. The images are decorative examples, not previews of the entered seed.
+- Landscape choices have shared glyphs, readable field boundaries and a constant border width so selection does not move their content. Actions use the shared chevron glyph.
 - Buttons: New world, Continue, Load a saved game.
 - The loading screen shows "Step 1 of 3" and the train loop (paused under reduced motion). Errors offer "Try again".
 

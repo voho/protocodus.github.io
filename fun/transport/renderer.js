@@ -75,7 +75,7 @@ const LANDMARKS=new Set(['forest','rock']);
 const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zones']);
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
 // Map marks in display pixels (DESIGN.md 8 and 9): roundel radius per view, and one tile step of a route's projected path.
-const ROUNDEL={region:4,town:5,detail:6},PATH_STEP=Math.hypot(TILE,TILE/2);
+const ROUNDEL={region:4,town:5,detail:6},INDUSTRY_MARKER={region:20,town:24,detail:28},PATH_STEP=Math.hypot(TILE,TILE/2);
 const FLOATER_FORMAT=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
 const font=(weight,size)=>`${weight} ${size}px ${FONT.family}`;
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
@@ -509,8 +509,8 @@ export function createRenderer(canvas, initialGame, options={}) {
   function industryMarker(industry,placed=placeOverlays(),s=overlayShift()){
     const marker=placed.markers.get(industry.y*game.width+industry.x);
     if(marker)return {x:marker.x+s.x,y:marker.y+s.y,size:marker.size,stem:marker.stem&&{x:marker.stem.x+s.x,y:marker.stem.y+s.y}};
-    if(isLargeFarm(industry)){const core=farmCore(industry),p=screenPoint(projectGround(game,core.x+1,industry.y+industrySize(industry)-.12)),size=detailLevel==='detail'?28:24;return{x:p.x,y:p.y+5+(size+6)/2,size};}
-    const span=industrySize(industry),p=buildingToScreen(industry.x,industry.y,span),size=detailLevel==='detail'?28:24;
+    if(isLargeFarm(industry)){const core=farmCore(industry),p=screenPoint(projectGround(game,core.x+1,industry.y+industrySize(industry)-.12)),size=INDUSTRY_MARKER[detailLevel];return{x:p.x,y:p.y+5+(size+6)/2,size};}
+    const span=industrySize(industry),p=buildingToScreen(industry.x,industry.y,span),size=INDUSTRY_MARKER[detailLevel];
     return {x:p.x,y:p.y+16*span*camera.zoom+5+(size+6)/2,size};
   }
   // Town labels, then stop signs, then industry markers are placed together on a 64 px grid, in projected display pixels,
@@ -549,7 +549,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       const entry={...placed,kind:'sign',owner:st,size,stem:placed===home?null:{x:p.x,y:p.y-4*z}};signs.set(st.y*game.width+st.x,entry);
       if(layers.stations){grid.add(entry);stats.signs++;if(entry.stem)stats.movedSigns++;}
     }
-    const mark=detailLevel==='detail'?28:24,mw=mark+8,mh=mark+6,sites=(game.industries||[]).filter(ind=>near(ind,industrySize(ind))).map(ind=>{
+    const mark=INDUSTRY_MARKER[detailLevel],mw=mark+8,mh=mark+6,sites=(game.industries||[]).filter(ind=>near(ind,industrySize(ind))).map(ind=>{
       const span=industrySize(ind);
       if(isLargeFarm(ind)){const core=farmCore(ind),c=projectGround(game,ind.x+span/2,ind.y+span/2),barn=foundationPoint(core.x,core.y,2),gate=projectGround(game,core.x+1,ind.y+span-.12);return{ind,span,cx:c.x*z,cy:c.y*z,height:surfaceHeight(game,ind.x+span/2,ind.y+span/2),barn:{x:barn.x*z,y:barn.y*z},gate:{x:gate.x*z,y:gate.y*z}};}
       const c=foundationPoint(ind.x,ind.y,span);return{ind,span,cx:c.x*z,cy:c.y*z,height:foundationHeight(ind.x,ind.y,span)};
@@ -1563,7 +1563,9 @@ export function createRenderer(canvas, initialGame, options={}) {
     // stop or vehicle gets the orange locator ring, fading in over 120 ms (at once under reduced motion).
     stepCamera(now);shownBullets.clear();const hoverRef=typeof view.hoverRef==='string'?view.hoverRef:null,refAt=hoverRef?hoverRef.indexOf(':'):-1,refKind=refAt>0?hoverRef.slice(0,refAt):'',refId=refAt>0?hoverRef.slice(refAt+1):'';
     if(hoverRef!==lastHoverRef){lastHoverRef=hoverRef;hoverRefAt=now;}const locatorFade=motionPreference?.matches?1:Math.max(0,Math.min(1,(now-hoverRefAt)/MAP.locator.fadeMs));
-    const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid,showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
+    // Construction reveals its tile geometry only for the active tool. The
+    // persistent Grid preference still controls exploration and is never changed.
+    const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid||tool!=='inspect',showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
     // A paused game brings no new days, so it finishes every waiting chunk at once (view.settle).
     ensureRevision();lazyChunkBudget=view.settle?Infinity:LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     // A plane may stand beside its chord or high above it, so it keeps a wider margin.
