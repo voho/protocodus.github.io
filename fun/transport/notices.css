@@ -108,9 +108,10 @@
 #objective-action{display:inline-flex;align-items:center;gap:8px;min-height:34px;padding:7px 12px;border-color:var(--ink);border-radius:var(--r-3);background:var(--ink);color:var(--on-ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500}
 #objective-action:hover{border-color:var(--ink-2);background:var(--ink-2)}
 #objective-action svg{width:15px;height:15px}
-.objective-another{min-height:34px;padding:0 2px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);text-decoration:underline;text-decoration-color:var(--edge);text-underline-offset:3px}
-.objective-another:hover{color:var(--ink);text-decoration-color:currentColor}
-#objective-card .text-button{margin-top:12px;padding-top:12px;font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.objective-another{min-height:var(--control);padding:var(--s-2) var(--s-3);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);text-decoration:none}
+.objective-another:hover{color:var(--ink)}
+#objective-card .text-button{margin-top:var(--s-2);padding:var(--s-2) var(--s-3);font-size:var(--fs-small);line-height:var(--lh-small)}
+#objective-card .objective-plan,#objective-action{min-height:var(--control);padding:var(--s-2) var(--s-3);border-radius:var(--r-2)}
 .objective-chip{display:none;align-items:center;gap:8px;width:100%;min-height:38px;padding:8px 16px;border-radius:var(--r-round);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink);white-space:nowrap;text-align:left}
 .objective-chip:hover{background:var(--well)}
 .objective-chip #objective-chip-title{min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:500}

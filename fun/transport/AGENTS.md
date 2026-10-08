@@ -12,6 +12,15 @@ The user decided on 2026-10-06 that Transport is a computer-only game because ph
 
 This decision overrides older phone requirements in feature notes. [DESIGN.md](DESIGN.md), [README.md](README.md), and [ARCHITECTURE.md](ARCHITECTURE.md) describe the current computer interface.
 
+## Interface priorities
+
+The user clarified on 2026-10-08 that the main UI goal is fewer clicks in frequent actions and common workflows, with interconnected small panels and all alternative flows available.
+
+- Keep frequent actions directly available in the current context. Splitting content into panels must not add steps to common actions.
+- Carry selected stops, cargo, routes and draft values into the next activity. Provide a direct way back when a related activity temporarily interrupts a task.
+- Put detailed and infrequent options in focused panels, with short labeled links from relevant activities. Avoid large dialogs containing every option.
+- Use consistent, distinct buttons for actions. Verify real workflow clicks and their alternative paths, alongside layout and keyboard access.
+
 ## Sprite scale and industry plots
 
 The user decided on 2026-10-06 that buildings must share a physical scale, use fewer tiny details, and remain recognizable at smaller zoom levels. Every newly generated, constructed or opened industry uses a **5 × 5 tile plot**, including farms; a farm has a **2 × 2 building core** with fields and fences inside its full plot.

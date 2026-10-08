@@ -175,6 +175,7 @@ try{
  await page.locator('#world').focus();await page.keyboard.press('Control+s');
  await page.locator('.saves-explorer').waitFor({state:'visible'});
  assert.equal(await page.evaluate(()=>transport.speed),0,'opening Save/load pauses the current world');
+ await page.locator('[data-saves-view="load"]').click();
  const autosave=page.locator('[data-save-slot="autosave"]');
  await autosave.locator('[data-save-action="load"]').click();
  await autosave.locator('[data-save-confirm="load"]').click();

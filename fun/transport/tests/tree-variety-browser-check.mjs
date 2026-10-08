@@ -2,7 +2,7 @@
 // must stay stable while every new identity is selectable at normal game sizes.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameMenu } from './browser-start.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -457,7 +457,7 @@ try {
   await gamePage.reload(); await loadAutosaveFromMenu(gamePage);
   const restored = await companyFingerprint(gamePage);
   assert.equal(restored.tileHash, saved.tileHash, 'loading an existing recipe-7 company preserves its geography');
-  await gamePage.locator('#game-menu-button').click(); await gamePage.locator('[data-open-gallery]').click();
+  const gallery = await openGameMenu(gamePage, '#game-menu [data-open-gallery]'); await gallery.click();
   await gamePage.locator('.gallery-explorer').waitFor(); await gamePage.locator('#gallery-category').selectOption('nature');
   const galleryTrees = await gamePage.evaluate(async () => {
     const { EXTRA_TREE_ART, HOLLOW_TREE_ART, CACTUS_ART } = await import('./tree-art-catalog.js');

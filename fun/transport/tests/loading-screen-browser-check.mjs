@@ -2,6 +2,7 @@
 // Request gates and quota injection never touch the player's browser storage.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { openGameAction } from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const url=process.env.TRANSPORT_URL||'http://127.0.0.1:8765/fun/transport/';
@@ -58,14 +59,15 @@ try{
 
   // Actual named-save loading must show the overlay before decode/restore,
   // including when the underlying save manager is itself a modal dialog.
-  await page.locator('#game-menu-button').click();await page.locator('#save-button').click();await page.locator('#save-new-name').fill('Loading check');await page.locator('#save-new-button').click();
+  await openGameAction(page,'save-button');await page.locator('#save-new-name').fill('Loading check');await page.locator('#save-new-button').click();
+  await page.locator('[data-saves-view="load"]').click();
   const card=page.locator('.save-card').filter({has:page.getByRole('heading',{name:'Loading check',exact:true})});
   await card.waitFor();await card.locator('[data-save-action="load"]').click();await reset(page);
   await card.locator('[data-save-confirm="load"]').click();await ready(page);
   await page.locator('#modal').waitFor({state:'hidden'});await completedOperation(page,'named save');
 
   // A failed autosave commit leaves the active company and existing save intact.
-  await page.locator('#game-menu-button').click();await page.locator('#world-button').click();
+  await openGameAction(page,'world-button');
   await page.locator('#start-world-form [name="size"]').selectOption('square512');
   await page.locator('.start-advanced summary').click();await page.locator('#start-world-form [name="seed"]').fill('581234');
   const before=await page.evaluate(()=>{

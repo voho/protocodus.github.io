@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
+import { prepare } from './ui-states/setup.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -13,6 +14,7 @@ const errors = [];
 
 async function open(viewport) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
+  await prepare(page);
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     window.__toasts = [];
@@ -34,7 +36,7 @@ try {
   await page.waitForFunction(() => document.querySelector('#start-menu')?.open);
   await page.locator('.start-advanced summary').click();
   const funds = page.locator('#start-world-form [name="startingFunds"]');
-  assert.deepEqual(await funds.locator('option').allTextContents(), ['Relaxed · $400k (recommended)', 'Standard · $200k', 'Lean · $100k']);
+  assert.deepEqual(await funds.locator('option').allTextContents(), ['Relaxed: $400k', 'Standard: $200k', 'Lean: $100k']);
   assert.equal(await funds.inputValue(), '400000', 'Relaxed is the default');
   await funds.selectOption('100000');
   await page.screenshot({ path: `${output}/start-funds-desktop.png` });
@@ -68,10 +70,11 @@ try {
   assert.equal(report.top, 1, 'the starter service leads the route ranking');
   assert.match(report.borrow, /^Borrow \$[\d,]+ · \$[\d,]+ \/ month interest$/, 'the interest shows before borrowing');
   await page.screenshot({ path: `${output}/company-desktop.png` });
-  await page.locator('#modal').evaluate(modal => { modal.scrollTop = modal.scrollHeight; });
+  await page.locator('[data-company-tab="history"]').click();
   await page.screenshot({ path: `${output}/company-desktop-bottom.png` });
 
   // Borrowing and repaying keep the dialog open and show the loan in the finance card.
+  await page.locator('[data-company-tab="loan"]').click();
   const before = await page.evaluate(() => transport.game.money);
   await page.locator('#company-borrow').click();
   await page.locator('#company-repay').waitFor();
@@ -90,6 +93,7 @@ try {
   await page.locator('#open-report').click();
   await page.locator('#modal .company-report').waitFor();
   assert.equal(await page.locator('#company-stats').getAttribute('aria-expanded'), 'false', 'opening the report folds the finance card');
+  await page.locator('[data-company-tab="loan"]').click();
   await page.locator('#company-repay').click();
   await page.waitForFunction(() => transport.game.loan === undefined);
   assert.equal(await page.locator('#company-repay').count(), 0, 'Repay leaves with the loan');
@@ -128,13 +132,14 @@ try {
   // With nothing left for a bus, retiring the only running service warns; a route below its upkeep is flagged.
   await page.evaluate(() => { const route = transport.game.routes[0]; route.expenses = route.revenue - (route.revenueAtAccountingStart || 0) + 5000; transport.game.money = 1000; transport.game.revision++; });
   await openGameAction(page, 'company-button');
+  await page.locator('[data-company-tab="routes"]').click();
   await page.locator('.company-routes.below').waitFor();
   assert.match(await page.locator('.company-routes.below').innerText(), /Earning less than its upkeep/);
   assert.equal(await page.locator('.company-routes:not(.below)').count(), 0);
   await page.locator('.company-routes.below').screenshot({ path: `${output}/below-upkeep-desktop.png` });
   await page.locator('[data-company-retire]').click();
   await page.locator('#confirm-retire').waitFor();
-  assert.equal(await page.locator('.retire-warning').innerText(), 'This is your last earning service. After retiring it you cannot afford a new vehicle without a loan.');
+  assert.equal(await page.locator('.retire-warning').innerText(), 'Your last earning service. A new vehicle would need a loan.');
   await page.screenshot({ path: `${output}/retire-warning-desktop.png` });
   await page.locator('#modal [data-close]').click();
   assert.equal(await page.evaluate(() => transport.game.routes.length), 1, 'keeping it running retires nothing');

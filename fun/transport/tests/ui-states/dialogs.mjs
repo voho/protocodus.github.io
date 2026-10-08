@@ -1,5 +1,5 @@
 // Dialog states: the start menu, the loading screen and every dialog the game menu opens.
-import { freshWorld, openGameAction, settle, stoneRoute } from './setup.mjs';
+import { freshWorld, openGameAction, openGameMenu, settle, stoneRoute } from './setup.mjs';
 
 const dialog = async page => { await page.locator('#modal[open]').waitFor(); await settle(page); };
 
@@ -37,14 +37,15 @@ export const states = [
   } },
   { name: 'dialogs-chains', async setup(page) {
     await freshWorld(page);
-    await page.locator('#game-menu-button').click();
-    await page.locator('#game-menu [data-open-chains]').click();
+    const chains = await openGameMenu(page, '#game-menu [data-open-chains]');
+    await chains.click();
     await dialog(page);
   } },
   { name: 'dialogs-saves', async setup(page) {
     await freshWorld(page);
     await page.evaluate(() => transport.persist());
     await openGameAction(page, 'save-button');
+    await page.locator('[data-saves-view="load"]').click();
     await page.locator('.save-card').first().waitFor();
     await dialog(page);
   } },
@@ -66,6 +67,7 @@ export const states = [
     await freshWorld(page);
     await page.evaluate(() => transport.persist());
     await openGameAction(page, 'save-button');
+    await page.locator('[data-saves-view="load"]').click();
     await page.locator('[data-save-slot="autosave"] [data-save-action="load"]').click();
     await page.locator('.save-confirmation').waitFor();
     await dialog(page);

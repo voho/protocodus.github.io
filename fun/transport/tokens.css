@@ -16,7 +16,7 @@
 /* Type (4.5): Inter for every word and figure, Space Grotesk for the brand; seven sizes with their line heights, three weights (700 for numerals and the wordmark), two trackings. */
 :root{--font:Inter,system-ui,sans-serif;--font-brand:Space,system-ui,sans-serif;--fs-caption:12px;--lh-caption:16px;--fs-small:13px;--lh-small:18px;--fs-body:14px;--lh-body:20px;--fs-lead:16px;--lh-lead:22px;--fs-title:18px;--lh-title:24px;--fs-display:22px;--lh-display:28px;--fs-hero:32px;--lh-hero:36px;--fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;--tr-tight:-0.01em;--tr-hero:-0.02em}
 /* Space and size (4.6). */
-:root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:32px;--control-dense:28px;--rail-h:48px;--goal-h:40px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px}
+:root{--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:24px;--s-6:32px;--control:36px;--control-dense:32px;--rail-h:48px;--goal-h:40px;--drawer-w:400px;--inspector-w:368px;--toast-max:480px;--gutter:12px;--panel-pad:16px;--row:40px}
 /* Radii (4.7), elevation and stacking (4.8), focus (4.9), motion (4.10). */
 :root{--r-1:4px;--r-2:6px;--r-3:8px;--r-4:12px;--r-5:14px;--r-round:999px}
 :root{--e1:0 1px 2px rgb(20 35 25 / .18),0 0 0 1px rgb(20 35 25 / .08);--e2:0 14px 34px -10px rgb(20 35 25 / .34),0 0 0 1px rgb(20 35 25 / .08);--e3:0 14px 30px -10px rgb(6 16 10 / .55);--e4:0 28px 70px -12px rgb(15 27 21 / .40)}

@@ -155,6 +155,7 @@ try {
 
   // The Company report's towns table adds the past twelve months, with its split in the title.
   await openGameAction(page, 'company-button');
+  await page.locator('[data-company-tab="property"]').click();
   const row = page.locator('#modal .property-towns tbody tr').first();
   await row.waitFor();
   const cells = await row.evaluate(tr => [...tr.cells].map(cell => cell.innerText.trim()));

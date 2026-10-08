@@ -12,16 +12,20 @@ const watch = page => page.on('pageerror', error => errors.push(error.message));
 const currentLayers = page => page.evaluate(() => transport.renderer.getLayers());
 const fits = (page, selector) => page.locator(selector).evaluate(element => element.scrollWidth <= element.clientWidth + 1);
 async function clickMapOption(page, selector) {
-  if (!(await page.locator(selector).isVisible())) await page.locator('#game-menu-button').click();
-  if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
+  if (!(await page.locator(selector).isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator(selector).click();
 }
 async function openLayers(page) {
-  if (!(await page.locator('#layers-panel').isVisible())) await clickMapOption(page, '#layers-button');
+  if (!(await page.locator('#layers-panel').isVisible())) await openGameAction(page, 'layers-button');
   await page.locator('#layers-panel').waitFor({ state: 'visible' });
 }
 async function setLayer(page, key, value) {
-  await page.locator(`[data-layer="${key}"]`).setChecked(value);
+  const input=page.locator(`[data-layer="${key}"]`);
+  if (!await input.isVisible()) {
+    const screen=await input.evaluate(element=>element.closest('[data-layer-screen]')?.dataset.layerScreen);
+    await page.locator(`[data-layer-page="${screen}"]`).click();
+  }
+  await input.setChecked(value);
   await page.waitForFunction(({ key, value }) => transport.renderer.getLayers()[key] === value, { key, value });
 }
 
@@ -75,8 +79,8 @@ try {
   await setLayer(page, 'grid', false);
   await page.locator('[data-layers-close]').click();
   await page.locator('#layers-panel').waitFor({ state: 'hidden' });
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'game-menu-button', 'Close returns focus to the menu that holds Layers');
-  await page.keyboard.press('Enter');await page.locator('#layers-button').focus();await page.keyboard.press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'layers-button', 'Close returns focus to the direct Layers action');
+  await page.keyboard.press('Enter');
   await page.locator('#layers-panel').waitFor({ state: 'visible' });
   await page.locator('[data-layer="trees"]').focus();
   await page.keyboard.press('Space');
@@ -84,7 +88,7 @@ try {
   assert.equal(await page.evaluate(() => transport.speed), 0, 'a switch key does not trigger the global pause shortcut');
   await page.keyboard.press('Escape');
   await page.locator('#layers-panel').waitFor({ state: 'hidden' });
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'game-menu-button', 'Escape restores focus to the menu that holds Layers');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'layers-button', 'Escape restores focus to the direct Layers action');
   await openLayers(page);
   await setLayer(page, 'trees', true);
   await page.locator('#company-stats').click();
@@ -131,7 +135,7 @@ try {
   // Picking closed the Routes drawer; reopen it rather than racing its closing animation.
   await page.keyboard.press('Escape');await page.evaluate(()=>transport.setView('routes'));await resetStops();
   await openLayers(page);await setLayer(page,'stations',false);await page.locator('[data-layers-close]').click();
-  // The game menu that holds Layers closes the Routes drawer.
+  // Opening Layers closes the Routes drawer.
   if(!(await page.locator('[data-pick-route="from"]').isVisible())){await page.evaluate(()=>transport.setView('routes'));await page.locator('#new-route-button').click();}
   await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
@@ -349,6 +353,7 @@ try {
   await createWorldFromMenu(page, { biome: 'desert', seed: 7719 });
   assert.deepEqual(await currentLayers(page),preferences,'new worlds retain browser display preferences');
   await openGameAction(page, 'save-button');
+  await page.locator('[data-saves-view="load"]').click();
   await page.locator(`[data-save-slot="${saved.id}"] [data-save-action="load"]`).click();
   await page.locator(`[data-save-slot="${saved.id}"] [data-save-confirm="load"]`).click();
   await page.locator('.saves-explorer').waitFor({state:'hidden'});

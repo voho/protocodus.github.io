@@ -18,45 +18,54 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
 
   const menuWrap = document.createElement('div');
   menuWrap.className = 'compact-menu-wrap';
-  menuWrap.innerHTML = `<button id="game-menu-button" type="button" class="icon-button" title="Game menu" aria-label="Game menu" aria-expanded="false" aria-controls="game-menu">${icon('menu')}</button><section id="game-menu" aria-label="Game menu" hidden><div class="compact-menu-heading"><strong>Transport</strong><span id="compact-menu-weather"></span></div><div class="compact-menu-actions"></div><div class="compact-menu-status"></div></section>`;
-  topbar.append(menuWrap);
+  const groups = [['game', 'Game'], ['company', 'Company'], ['map', 'Map'], ['help', 'Help']];
+  menuWrap.innerHTML = `<button id="game-menu-button" type="button" class="button button-outline" title="Game menu" aria-label="Game menu" aria-expanded="false" aria-controls="game-menu">${icon('menu')}<span>Menu</span></button><section id="game-menu" aria-label="Game menu" hidden><div class="compact-menu-heading"><strong>Menu</strong><span id="compact-menu-weather"></span></div><nav class="compact-menu-groups segmented" aria-label="Menu sections">${groups.map(([key,label])=>`<button type="button" data-menu-group="${key}" aria-pressed="${key==='game'}" aria-controls="menu-${key}">${label}</button>`).join('')}</nav><div class="compact-menu-actions">${groups.map(([key,label])=>`<section id="menu-${key}" data-menu-panel="${key}" aria-label="${label}" ${key==='game'?'':'hidden'}></section>`).join('')}</div><div class="compact-menu-status"></div></section>`;
+  topbar.insertBefore(menuWrap, $('.main-nav'));
   const menuButton = $('#game-menu-button'), menu = $('#game-menu');
   const actions = menu.querySelector('.compact-menu-actions');
+  let activeGroup = 'game';
+  const groupActions = () => actions.querySelector(`[data-menu-panel="${activeGroup}"]`);
+  const selectGroup = key => {
+    activeGroup = key;
+    for (const button of menu.querySelectorAll('[data-menu-group]')) button.setAttribute('aria-pressed', String(button.dataset.menuGroup === key));
+    for (const panel of actions.querySelectorAll('[data-menu-panel]')) panel.hidden = panel.dataset.menuPanel !== key;
+  };
+  for (const button of menu.querySelectorAll('[data-menu-group]')) button.addEventListener('click', () => selectGroup(button.dataset.menuGroup));
   // Rows carry their shortcut on the right (DESIGN.md 12.10); a rule separates the company, the map, help and the game.
   const keyHint = key => key ? `<span class="kbd" aria-hidden="true">${key}</span>` : '';
   const moveAction = (selector, label, key = '') => {
     const button = $(selector);
     if (!button) return;
-    button.classList.add('compact-menu-action');
+    button.classList.add('compact-menu-action', 'button', 'button-outline');
     // Preserve existing SVG icons and handlers. Dynamic audio icons use ::after.
     if (label) {
       const art = button.querySelector('svg')?.outerHTML || icon('more');
       button.innerHTML = `${art}<span>${label}</span>${keyHint(key)}`;
     }
     if (key) button.setAttribute('aria-keyshortcuts', key.replace('Ctrl+', 'Control+'));
-    actions.append(button);
+    groupActions().append(button);
     // Close before the original action opens a dialog, so native focus return
     // points to the visible menu button rather than this hidden menu item.
     button.addEventListener('click', () => closeMenu(), { capture: true });
   };
   const addAction = (id, label, art, callback, key = '') => {
     const button = document.createElement('button');
-    button.type = 'button'; button.id = id; button.className = 'compact-menu-action';
+    button.type = 'button'; button.id = id; button.className = 'compact-menu-action button button-outline';
     button.innerHTML = `${art}<span>${label}</span>${keyHint(key)}`;
     if (key) button.setAttribute('aria-keyshortcuts', key);
     button.addEventListener('click', () => { closeMenu(); callback(); });
-    actions.append(button);
+    groupActions().append(button);
     return button;
   };
-  const rule = () => { const line = document.createElement('div'); line.className = 'compact-menu-rule'; line.setAttribute('role', 'separator'); actions.append(line); };
+  activeGroup = 'company';
   if (onCompany) addAction('company-button', 'Company', icon('company'), onCompany, shortcuts.company);
   if (onGoals) addAction('goals-button', 'Company goals', icon('flag'), onGoals, shortcuts.goals);
   if (onAchievements) addAction('achievements-button', 'Achievements', icon('achievements'), onAchievements);
   if (onNews) addAction('news-button', 'News', icon('news'), onNews, shortcuts.news);
-  rule();
+  activeGroup = 'map';
   moveAction('.main-nav [data-open-chains]', 'Production chains', 'C');
   moveAction('.main-nav [data-open-gallery]', 'Gallery');
-  moveAction('#layers-button', 'Map layers', 'L');
+  addAction('menu-layers-button', 'Map layers', icon('layers'), () => $('#layers-button').click(), 'L');
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;
     overviewButton.setAttribute('aria-pressed', String(!minimap.hidden));
@@ -65,14 +74,15 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   overviewButton.setAttribute('aria-pressed', 'false');
   overviewButton.setAttribute('aria-controls', 'mini-map-panel');
   moveAction('#map-options-button', 'Map options');
-  rule();
+  activeGroup = 'help';
   moveAction('#audio-button');
   moveAction('#help-button', 'Guide');
   if (onShortcuts) addAction('shortcuts-button', 'Keyboard shortcuts', icon('keyboard'), onShortcuts, '?');
-  rule();
+  activeGroup = 'game';
   moveAction('#save-button', 'Saved games', 'Ctrl+S');
   moveAction('#world-button', 'New world');
   addAction('main-menu-button', 'Main menu', icon('world'), () => { closeManagement(); onMenu?.(); });
+  selectGroup('game');
   // The menu's foot keeps the save status; map coordinates stay out of sight (DESIGN.md 6.1) for the screen reader cursor.
   const weather = $('#weather'), saveStatus = $('#save-status');
   if (weather) $('#compact-menu-weather').append(weather);
@@ -103,7 +113,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
       $('#' + buttonId)?.setAttribute('aria-expanded', 'false');
     }
     menu.hidden = false; menuButton.setAttribute('aria-expanded', 'true');
-    actions.querySelector('button')?.focus({ preventScroll: true });
+    groupActions().querySelector('button')?.focus({ preventScroll: true });
   }
   function syncManagement() {
     const open = sidebar.classList.contains('drawer-open');
@@ -155,7 +165,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
       }
     }
   });
-  for (const selector of ['#layers-panel', '#map-options']) panelObserver.observe($(selector), { attributes: true, attributeFilter: ['hidden'] });
+  for (const selector of ['#map-options']) panelObserver.observe($(selector), { attributes: true, attributeFilter: ['hidden'] });
   syncManagement();
   return { hideMinimap, openManagement, closeManagement, toggleManagement, syncManagement, closeMenu, isMinimapVisible: () => !minimap.hidden };
 }

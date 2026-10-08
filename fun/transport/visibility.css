@@ -29,4 +29,8 @@
 }
 .layer-note{display:block;margin-top:2px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .layer-note span{display:block}
+.layers-pages{display:flex;gap:var(--s-2);padding:var(--s-3) var(--s-3) 0}
+.layers-pages .button{flex:1}
+#layers-panel [data-layer-screen][hidden]{display:none}
+#layers-panel .layers-close{border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper)}
 .compact-play #layers-panel{top:8px;right:8px;max-height:calc(100% - 24px)}

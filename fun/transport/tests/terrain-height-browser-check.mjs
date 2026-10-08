@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { chooseBuildTool } from './browser-build.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -17,8 +17,7 @@ try{
   await createWorldFromMenu(page,{size:'square512',generationVersion:10});
   const openMapOptions=async()=>{
     if(await page.locator('#map-options').isVisible())return;
-    await page.locator('#game-menu-button').click();
-    await page.locator('#map-options-button').click();
+    await openGameAction(page, 'map-options-button');
     await page.locator('#terrain-height').waitFor({state:'visible'});
   };
   assert.equal(await page.locator('.topbar #terrain-height').count(),0,'terrain height leaves the persistent instruments');

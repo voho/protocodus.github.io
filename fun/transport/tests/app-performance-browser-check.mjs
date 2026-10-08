@@ -2,7 +2,7 @@
 // manager, then check the existing desktop menu budgets on a recipe-10 world.
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
-import {createWorldFromMenu} from './browser-start.mjs';
+import {createWorldFromMenu,openGameAction} from './browser-start.mjs';
 const {chromium}=await import(process.env.TRANSPORT_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.TRANSPORT_BROWSER||'chrome',headless:true});
 const result={},errors=[];
@@ -39,7 +39,7 @@ try{
  assert.deepEqual(result.artwork.biomes,['taiga'],'startup decodes only the active climate');
  await page.evaluate(()=>transport.renderer.pan(40,0));
  await page.waitForFunction(()=>perfCounts.renders>0);
- await page.locator('#game-menu-button').click();await page.locator('#overview-button').click();
+ await openGameAction(page,'overview-button');
  await page.waitForFunction(()=>perfCounts.minimaps>0);
  const previous=await page.evaluate(()=>perfCounts.renders);
  await page.evaluate(()=>transport.setSpeed(1));

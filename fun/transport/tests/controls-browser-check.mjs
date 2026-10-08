@@ -2,7 +2,7 @@
 // Serve the repository root before running; the player's browser saves are untouched.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu, openGameAction } from './browser-start.mjs';
+import { createWorldFromMenu, openGameAction, openGameMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://localhost:8765/fun/transport/';
@@ -580,7 +580,7 @@ async function menus(page) {
   await page.locator('#zoom-level').click();
   await page.locator('#date').click();
   assert.equal(await page.locator('#zoom-menu').isVisible(), false, 'outside clicks dismiss zoom choices');
-  await page.locator('#game-menu-button').click(); await page.locator('#map-options-button').focus();
+  await openGameMenu(page, '#map-options-button'); await page.locator('#map-options-button').focus();
   await page.keyboard.press('Space');
   assert.equal(await page.locator('#map-options').isVisible(), true, 'native Space opens Map options');
   assert.equal(await page.evaluate(() => transport.speed), 0);

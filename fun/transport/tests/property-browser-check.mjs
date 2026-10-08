@@ -139,6 +139,7 @@ try {
 
   // The Company report's Property section on desktop.
   await openGameAction(page, 'company-button');
+  await page.locator('[data-company-tab="property"]').click();
   const section = page.locator('#modal .company-property');
   await section.waitFor();
   assert.match(await section.locator('header').innerText(), /^Property\s+\$\d+ a month$/);

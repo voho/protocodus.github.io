@@ -48,7 +48,7 @@ test('achievement tiers, type, weights and tracking match', () => {
 });
 
 test('tokens.css carries every DESIGN.md 4 group: space, sizes, radii, elevation, stacking, focus and motion', () => {
-  const expect = { '--s-1': '4px', '--s-6': '32px', '--control': '32px', '--control-dense': '28px', '--rail-h': '48px', '--goal-h': '40px', '--drawer-w': '400px', '--inspector-w': '368px', '--toast-max': '480px', '--gutter': '12px',
+  const expect = { '--s-1': '4px', '--s-6': '32px', '--control': '36px', '--control-dense': '32px', '--rail-h': '48px', '--goal-h': '40px', '--drawer-w': '400px', '--inspector-w': '368px', '--toast-max': '480px', '--gutter': '12px',
     '--r-1': '4px', '--r-2': '6px', '--r-3': '8px', '--r-4': '12px', '--r-5': '14px', '--r-round': '999px',
     '--e1': '0 1px 2px rgb(20 35 25 / .18),0 0 0 1px rgb(20 35 25 / .08)', '--e4': '0 28px 70px -12px rgb(15 27 21 / .40)',
     '--z-map': '0', '--z-map-overlay': '10', '--z-rail': '20', '--z-goal': '22', '--z-sheet': '30', '--z-toolbar': '34', '--z-toast': '40', '--z-headline': '42', '--z-popover': '50', '--z-tooltip': '55', '--z-dialog': '60', '--z-loading': '70',

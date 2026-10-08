@@ -1,7 +1,7 @@
 // Shared starting points for the UI harness. Every state starts on a fresh page at the start menu,
 // so a state never inherits another state's world, storage or open panels.
-import { createWorldFromMenu, openGameAction } from '../browser-start.mjs';
-export { openGameAction };
+import { createWorldFromMenu, openGameAction, openGameMenu } from '../browser-start.mjs';
+export { openGameAction, openGameMenu };
 
 // Call before the first navigation. The game pauses the moment it starts, so no state depends on how many
 // frames ran before the pause button was reached; a state that wants the clock running starts it itself.
@@ -41,9 +41,11 @@ export async function freshWorld(page) {
 export async function stoneRoute(page) {
   const id = await page.evaluate(async () => {
     const { buildPlan } = await import('./construction-plan.js'), { build, addRoute, tick } = await import('./model.js'), game = transport.game, points = [];
-    for (let y = 251; y >= 245; y--) points.push({ x: 219, y });
-    if (!buildPlan(game, 'road', points, { preferredMode: 'road' }).ok || !build(game, 'bus-stop', 219, 251).ok) throw new Error('the quarry stop could not be built');
-    const stop = game.stations.find(station => station.x === 219 && station.y === 251), result = addRoute(game, { mode: 'road', stops: [stop.id, 'station-1'], cargo: 'stone' });
+    // Recipe 7's quarry uses a two-tile plot. Its physical plot edge is
+    // within the four-tile catchment at y=252; y=251 falls outside it.
+    for (let y = 252; y >= 245; y--) points.push({ x: 219, y });
+    if (!buildPlan(game, 'road', points, { preferredMode: 'road' }).ok || !build(game, 'bus-stop', 219, 252).ok) throw new Error('the quarry stop could not be built');
+    const stop = game.stations.find(station => station.x === 219 && station.y === 252), result = addRoute(game, { mode: 'road', stops: [stop.id, 'station-1'], cargo: 'stone' });
     if (!result.ok) throw new Error(result.message);
     const route = game.routes.at(-1);
     for (let day = 0; day < 120 && !route.delivered; day++) tick(game, 1);

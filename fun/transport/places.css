@@ -237,3 +237,73 @@
 .inspector h3>.bullet{margin-right:var(--s-1)}
 
 .build-time{display:block;font-size:var(--fs-small);font-weight:400;color:var(--ink-2);margin-top:4px}
+
+/* Short inspector tasks: direct actions first, optional facts in familiar disclosures. */
+.inspector{padding:var(--s-4)}
+.inspector .button{white-space:normal;min-width:0;overflow-wrap:anywhere;margin-top:var(--s-3)}
+.inspector .button svg{flex-shrink:0}
+.inspector .town-figures{grid-template-columns:repeat(2,minmax(0,1fr))}
+.inspector :is(.inspector-section,.town-grow,.town-economy,.town-opinion,.town-hall){margin-top:var(--s-2);padding-top:0;border-top:0}
+.inspector :is(.inspector-section,.town-grow,.town-economy,.town-opinion,.town-hall)>summary{min-height:var(--control);padding:var(--s-2) var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);transition:background-color var(--t-quick) var(--ease)}
+.inspector :is(.inspector-section,.town-grow,.town-economy,.town-opinion,.town-hall)>summary:hover{background:var(--well)}
+.inspector-section>summary{display:flex;align-items:center;justify-content:space-between;gap:var(--s-2);list-style:none;cursor:pointer;font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);color:var(--ink)}
+.inspector-section>summary::-webkit-details-marker{display:none}
+.inspector-section>summary svg{flex:none;transition:transform var(--t-quick) var(--ease)}
+.inspector-section[open]>summary svg{transform:rotate(180deg)}
+.inspector-section-body{padding-top:var(--s-2)}
+.inspector-section-body :is(.local-conditions,.industry-suppliers,.industry-destinations,.station-services){margin:0;padding:0;border:0}
+.inspector-section-body .inspector-grid{margin-top:0}
+.inspector-section-body .ledger{gap:var(--s-2)}
+.inspector-section-body p{margin:var(--s-2) 0 0}
+.inspector .inspector-section-body h4{margin:0 0 var(--s-2);padding:0;border:0;font-size:var(--fs-small);line-height:var(--lh-small)}
+.inspector .inspector-section-body .supplier-row{align-items:flex-start;flex-wrap:wrap;margin:0 0 var(--s-3)}
+.inspector .supplier-list{flex:1;min-width:120px}
+.inspector .condition-chip{gap:var(--s-1);padding:var(--s-1) var(--s-2)}
+.inspector .condition-good{color:var(--ok)}
+.inspector-station-overview{display:flex;align-items:center;gap:var(--s-3)}
+.inspector-station-overview .inspector-station-art{flex:none;width:64px;height:56px;margin:0}
+.inspector-station-overview .inspector-grid{flex:1;min-width:0;margin:0;gap:var(--s-2)}
+.inspector .coverage-note{margin:var(--s-3) 0 0}
+.inspector .coverage-note>strong{margin-bottom:var(--s-2)}
+.inspector .coverage-cargo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-1)}
+.inspector .coverage-pick{justify-content:flex-start;padding:var(--s-1) var(--s-2);margin:0;border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);font-size:var(--fs-small);line-height:var(--lh-small);text-align:left}
+.inspector .coverage-pick:hover{background:var(--well)}
+.inspector .coverage-pick .cargo-icon{width:20px;height:20px}
+.inspector .inspector-section-body .coverage-note{margin:0}
+.inspector-action-list{display:grid;gap:var(--s-1);margin-top:var(--s-3)}
+.inspector .inspector-action-list .button{justify-content:flex-start;margin:0}
+.inspector .industry-service .industry-supply{width:100%;padding:var(--s-1) var(--s-3);border:1px solid var(--edge);background:var(--paper);color:var(--ink);font-size:var(--fs-body);line-height:var(--lh-body)}
+.inspector .industry-target{justify-content:flex-start;min-height:48px;padding:var(--s-2);margin:0;background:var(--paper);border-color:var(--edge);color:var(--ink)}
+.inspector .industry-target:hover{background:var(--well);border-color:var(--edge)}
+.inspector .target-plan{width:64px;min-height:48px;margin:0;padding:var(--s-1);background:var(--paper);border-color:var(--edge);color:var(--ink)}
+.inspector .target-plan:hover{background:var(--well);border-color:var(--edge)}
+.inspector-next-step{padding:0;margin:var(--s-3) 0;border:0;border-radius:0;background:none}
+.inspector .inspector-next-step .button{margin:0}
+.inspector .inspector-next-step p{margin:0 0 var(--s-2)}
+.inspector .industry-service{padding-top:0;border:0}
+.inspector .industry-service>.button{margin-top:var(--s-2)}
+.inspector .service-more{padding:var(--s-1) var(--s-3);text-decoration:none}
+.inspector .town-opinion>summary{grid-template-columns:auto minmax(0,1fr) 16px}
+.inspector .opinion-state{grid-column:auto;justify-content:flex-end;gap:var(--s-1)}
+.inspector .opinion-state strong{font-size:var(--fs-small);line-height:var(--lh-small)}
+.inspector .opinion-meter{display:none}
+.inspector .town-action .button{justify-content:space-between}
+.inspector .town-action:first-of-type .button{margin-top:var(--s-2)}
+.inspector .vehicle-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-2);margin-top:var(--s-3)}
+.inspector .vehicle-actions .button{margin:0;font-size:var(--fs-small);line-height:var(--lh-small)}
+.inspector .vehicle-actions [data-vehicle-action=add]{grid-column:1/-1}
+.inspector .vehicle-actions [data-vehicle-action=routes]{grid-column:1/-1}
+.inspector .property-sell-actions .button{flex:1}
+.inspector .inspector-direct{margin:var(--s-3) 0 0;padding:0;border:0}
+.inspector .inspector-direct h4{margin:0 0 var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium)}
+.inspector .service-list .ref--row,.inspector .supplier-choice .ref--row{min-height:var(--control);padding:var(--s-2);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper)}
+.inspector .service-list .ref--row:hover,.inspector .supplier-choice .ref--row:hover{background:var(--well)}
+.supplier-choices{display:grid;gap:var(--s-1)}
+.supplier-choice{display:flex;gap:var(--s-1);min-width:0}
+.supplier-choice>.ref--row{flex:1;min-width:0;display:grid;gap:var(--s-1);grid-template-columns:auto minmax(0,1fr);align-content:center}
+.supplier-choice .ref-label{overflow-wrap:anywhere;font-size:var(--fs-small);line-height:var(--lh-small)}
+.supplier-choice small{grid-column:2;color:var(--ink-2);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.inspector .supplier-choice .supplier-plan{margin:0}
+.inspector .supplier-choice .supplier-plan.button-primary{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.inspector .supplier-choice .supplier-plan.button-primary:hover{background:var(--ink-2);border-color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){.inspector :is(.inspector-section,.town-grow,.town-economy,.town-opinion,.town-hall)>summary,.inspector-section>summary svg{transition:none}}

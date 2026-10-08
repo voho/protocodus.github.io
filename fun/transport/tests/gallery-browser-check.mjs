@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { createWorldFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, openGameMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const base = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
 const output = process.env.TRANSPORT_OUTPUT || '/tmp/transport-gallery';
@@ -99,8 +99,8 @@ try {
   await createWorldFromMenu(page, { biome: 'taiga', size: 'square512', generationVersion: 10 });
   const saved = await page.evaluate(() => JSON.stringify(transport.game));
   async function openGallery() {
-    if (await page.locator('#game-menu-button').getAttribute('aria-expanded') !== 'true') await page.locator('#game-menu-button').click();
-    await page.locator('[data-open-gallery]').click();
+    const gallery = await openGameMenu(page, '#game-menu [data-open-gallery]');
+    await gallery.click();
     await page.locator('.gallery-explorer').waitFor();
   }
   await openGallery();

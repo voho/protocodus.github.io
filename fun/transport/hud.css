@@ -459,3 +459,52 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 @media(max-width:600px){
  .compact-play .topbar .main-nav .nav-button{min-width:32px;padding-left:4px;padding-right:4px}
 }
+/* Shared action geometry: the menu stays short, and the common tools are one click away. */
+.compact-menu-wrap{flex:0 0 auto}
+#game-menu-button{display:inline-flex;width:auto;min-width:36px;gap:var(--s-2);padding:var(--s-2);border:1px solid var(--edge);background:var(--paper);color:var(--ink)}
+#game-menu{width:320px}
+.compact-menu-groups{display:flex;width:100%;margin-bottom:var(--s-3)}
+.compact-menu-groups button{flex:1;min-width:0;padding:var(--s-1) var(--s-2)}
+.compact-menu-actions [data-menu-panel]{display:grid;gap:var(--s-2)}
+.compact-menu-actions [data-menu-panel][hidden]{display:none}
+#game-menu .compact-menu-action{min-height:var(--control);border:1px solid var(--edge);background:var(--paper);color:var(--ink);font-weight:var(--fw-medium)}
+#game-menu .compact-menu-action svg{color:inherit}
+.management-drawer-heading button{border:1px solid var(--edge);border-radius:var(--r-2)}
+.compact-play .map-topline{display:flex;left:auto;right:var(--s-3);top:var(--s-2);width:auto}
+.compact-play .map-display-tools{display:flex;gap:var(--s-2);pointer-events:auto}
+.compact-play #layers-button{min-height:var(--control);padding:var(--s-2) var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink);box-shadow:var(--e1)}
+.compact-play #layers-button[aria-expanded=true]{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.compact-play #route-pick-banner{display:block;width:var(--drawer-width);max-width:calc(100% - 16px)}
+.route-pick-actions{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s-2);margin-top:var(--s-3)}
+.compact-play .main-nav .nav-button{border:1px solid var(--edge);background:var(--paper);color:var(--ink)}
+.compact-play .main-nav .nav-button.active,.compact-play .main-nav .nav-button[aria-expanded=true],.compact-play .main-nav .toolbar-tool[aria-pressed=true]{border:1px solid var(--ink);background:var(--ink);color:var(--on-ink);padding-bottom:8px}
+.main-nav-build-tools{padding-left:0;padding-right:8px;border-left:0;border-right:1px solid var(--rule)}
+.main-nav-clear-tool{display:flex;padding-left:8px;border-left:1px solid var(--rule)}
+.compact-play .main-nav .toolbar-tool[data-toolbar-tool=bulldoze]{border-color:var(--error);color:var(--error)}
+.compact-play .main-nav .toolbar-tool[data-toolbar-tool=bulldoze][aria-pressed=true]{background:var(--error);color:var(--on-ink)}
+.compact-play .topbar .speed-control button{border:1px solid var(--rule);background:var(--paper);min-height:var(--control-dense)}
+.compact-play .topbar .speed-control button.active{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.compact-play .topbar .speed-control button[data-speed="0"].active{border-color:var(--signal);background:var(--signal);color:var(--ink)}
+.compact-play .hud-finances{width:140px;min-width:0}
+.compact-play .hud-profit{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.map-popover button,.hud-report{border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink);padding:var(--s-2) var(--s-3);min-height:var(--control)}
+.compact-play #zoom-menu button[aria-pressed=true]{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.compact-play #zoom-menu button[aria-pressed=true] small{color:var(--on-ink-2)}
+@media(min-width:1280px){
+ .compact-play .main-nav .toolbar-tool .nav-label{display:inline}
+ .compact-play .topbar .main-nav .nav-button{padding-inline:var(--s-2)}
+}
+@media(min-width:1440px){.compact-play .main-nav [data-view] .nav-label{display:inline}}
+@media(max-width:1179px){
+ .compact-play .main-nav .build-area .nav-label{display:none}
+ .compact-play .main-nav .build-area{min-width:36px;justify-content:center}
+}
+@media(max-width:1023px){#game-menu-button>span{display:none}}
+@media(max-width:900px){.compact-play .hud-finances{width:124px}}
+@media(max-width:720px){
+ .compact-play .topbar .main-nav .toolbar-tool[aria-pressed=true]{padding-bottom:6px}
+ .compact-play .topbar .speed-control button{min-height:24px}
+ .compact-play .topbar .compact-menu-wrap{grid-column:1;grid-row:1;margin-left:0}
+ .compact-play .topbar .wordmark{display:none}
+ .compact-play .topbar .main-nav{grid-column:2/-1}
+}

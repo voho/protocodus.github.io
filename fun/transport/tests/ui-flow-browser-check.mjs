@@ -14,7 +14,20 @@ try {
  await page.locator('.main-nav [data-view="routes"]').click();
  assert.equal(await page.locator('#route-form').count(),0,'the service list never includes a creation form');
  assert.ok(await page.locator('#route-list .route-card').count());
- assert.equal(await page.locator('.route-card-details').first().evaluate(el=>el.open),false,'fleet and earnings are disclosed on request');
+ assert.equal(await page.locator('.route-card-details, [data-vehicle-spec], [data-route-stat], [data-route-trip]').count(),0,'detailed fleet and delivery information wait for the dedicated route screen');
+ const routeCount=await page.locator('#route-list .route-card').count();
+ assert.equal(await page.locator('#route-list [data-add-vehicle]').count(),routeCount,'every route offers a direct priced vehicle purchase');
+ assert.equal(await page.locator('#route-list [data-route-revenue]').count(),routeCount,'current-year earnings appear beside each route');
+ assert.equal(await page.locator('#route-list [data-edit-route]').count(),routeCount,'every route can be edited directly');
+ assert.equal(await page.locator('#route-list [data-open-route]').count(),await page.locator('#route-list .route-card').count(),'every service opens its management screen');
+ const add=page.locator('#route-list [data-add-vehicle]').first(),addRouteId=await add.getAttribute('data-add-vehicle');
+ assert.match(await add.innerText(),/\$[\d,.]+k?/,'the purchase price is visible before adding a vehicle');
+ const quoted=Number((await add.getAttribute('title')).match(/for \$([\d,]+)/)[1].replaceAll(',',''));
+ const beforeAdd=await page.evaluate(id=>({money:transport.game.money,vehicles:transport.game.vehicles.filter(vehicle=>String(vehicle.routeId)===id).length,routes:transport.game.routes.length}),addRouteId);
+ await add.click();
+ assert.deepEqual(await page.evaluate(id=>({money:transport.game.money,vehicles:transport.game.vehicles.filter(vehicle=>String(vehicle.routeId)===id).length,routes:transport.game.routes.length}),addRouteId),{money:beforeAdd.money-quoted,vehicles:beforeAdd.vehicles+1,routes:beforeAdd.routes},'one direct purchase adds one vehicle and charges its exact quote');
+ assert.equal(await page.locator('#route-form').count(),0,'adding capacity keeps the player in the route list');
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset.addVehicle),addRouteId,'a live fleet refresh keeps focus on the same purchase action');
  await page.locator('#new-route-button').click();
  assert.equal(await page.locator('#route-list').count(),0,'a new draft has its own screen');
  assert.equal(await page.locator('.panel-heading h2').innerText(),'New route');
@@ -26,6 +39,10 @@ try {
  await page.locator('#route-pick-banner').waitFor({state:'hidden'});
  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','Escape returns to the new route draft');
  assert.equal(await page.evaluate(()=>document.activeElement?.dataset.pickRoute),'from','Escape restores focus to the invoking start picker');
+ await page.locator('[data-pick-route="from"]').click();
+ await page.locator('#cancel-route-pick').click();
+ assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','Cancel returns to the same route draft');
+ assert.equal(await page.evaluate(()=>document.activeElement?.dataset.pickRoute),'from','Cancel keeps the same keyboard return target as Escape');
  await page.waitForTimeout(900);assert.deepEqual(errors,[],'the live HUD also works while the list is absent');
  await page.locator('#route-back').click();
  const routeId=await page.locator('[data-edit-route]').first().getAttribute('data-edit-route');
@@ -46,12 +63,33 @@ try {
  const townStops=await page.evaluate(()=>transport.game.stations.filter(stop=>stop.mode==='road').slice(0,2).map(stop=>stop.id));
  await page.locator('#route-form [name="from"]').selectOption(townStops[0]);
  await page.locator('#route-form [name="to"]').selectOption(townStops[1]);
- await page.locator('[data-cargo-choice="passengers"]').click();
+ await page.locator('[data-cargo-choice="mail"]').click();
+ await page.locator('#route-form [name="name"]').fill('Layers return draft');
+ await page.locator('#route-form [name="vehicleCount"]').fill('3');
+ await page.locator('#route-form [name="vehicleCount"]').blur();
  await page.locator('#change-route-stops').click();
  const draftScroll=await page.evaluate(()=>{const panel=document.querySelector('#panel-content');panel.scrollTop=160;const before=panel.scrollTop,start=document.querySelector('#route-form [name="from"]');start.dispatchEvent(new Event('change',{bubbles:true}));return{before,after:panel.scrollTop};});
  assert.ok(draftScroll.before>0,'the short computer window has a scrollable route draft');
  assert.equal(draftScroll.after,draftScroll.before,'redrawing the same draft preserves its scroll');
  await page.setViewportSize({width:1280,height:900});
+ const draftFields=()=>page.locator('#route-form').evaluate(form=>Object.fromEntries(['mode','from','to','cargo','name','vehicleCount'].map(name=>[name,form.elements[name].value])));
+ const beforeLayers=await draftFields(),gridBefore=await page.locator('#grid-button').getAttribute('aria-pressed');
+ await openGameAction(page,'layers-button');
+ assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'true','Layers temporarily frees space beside the draft');
+ await page.locator('[data-layer="grid"]').setChecked(gridBefore!=='true');
+ await page.locator('[data-layers-close]').click();
+ assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','closing Layers returns to the originating draft');
+ assert.deepEqual(await draftFields(),beforeLayers,'a Layers detour preserves stops, cargo, name and vehicle quantity');
+ assert.equal(await page.evaluate(()=>document.activeElement?.id),'layers-button','closing Layers retains native focus on its direct action');
+ assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'),String(gridBefore!=='true'),'the layer change remains active after returning');
+ await openGameAction(page,'layers-button');
+ await page.locator('.main-nav [data-view="industry"]').click();
+ assert.equal(await page.locator('#layers-panel').isVisible(),false,'choosing another activity dismisses Layers');
+ assert.equal(await page.locator('#route-form').count(),0,'choosing another activity does not reopen the previous draft');
+ assert.equal(await page.locator('.main-nav [data-view="industry"]').getAttribute('aria-expanded'),'true','the deliberately chosen industry activity remains open');
+ assert.match(await page.locator('#panel-content > .panel-heading h2').innerText(),/^Industries \d+/);
+ await page.evaluate(()=>transport.setView('routes',{routeScreen:'new'}));
+ assert.deepEqual(await draftFields(),beforeLayers,'the draft is still available when the player returns deliberately');
 
  const site=await page.evaluate(async()=>{
   const {quoteBuildPlan}=await import('./construction-plan.js'),game=transport.game;
@@ -73,7 +111,10 @@ try {
  assert.equal(await page.locator('.main-nav [data-build-area="network"]').getAttribute('aria-expanded'),'true');
  await page.locator('[data-construction-next="route"]').click();
  assert.equal(await page.locator('#route-form [name="from"]').inputValue(),String(built.station.id),'the next route starts at the newly built stop');
- await page.locator('[data-pick-route="to"]').click();await page.locator('#route-pick-banner').waitFor({state:'visible'});
+ await page.locator('#route-pick-banner').waitFor({state:'visible'});
+ assert.equal(await page.locator('#route-form [data-pick-route="to"]').getAttribute('aria-pressed'),'true','Create route immediately asks for the destination on the map');
+ assert.equal(await page.locator('#route-pick-list').isVisible(),true,'the stop list stays available beside immediate map picking');
+ assert.equal(await page.locator('#cancel-route-pick').isVisible(),true,'the map picker keeps an explicit Cancel alternative');
  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'true');
  assert.match(await page.locator('#route-pick-banner').innerText(),/matching stops highlighted/);
  const stops=await page.evaluate(()=>transport.game.stations.filter(s=>s.mode==='road'&&s.id!==transport.game.stations.at(-1).id));
@@ -86,6 +127,7 @@ try {
  await page.locator('#route-back').click();
  await page.screenshot({path:output+'/route-list.png'});
 
+ await page.locator('[data-open-route]').first().click();
  await page.locator('[data-remove-route]').first().click();await page.locator('#modal [data-close]').click();
  await page.waitForFunction(()=>document.querySelector('.sidebar').classList.contains('drawer-open'));
  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','keeping a service returns to the previous route list');
@@ -131,5 +173,5 @@ try {
   assert.ok(await page.locator('#route-form').evaluate(el=>el.scrollWidth<=el.clientWidth+2),'form fits '+width+' computer window');
   await page.screenshot({path:output+`/new-route-${width}.png`});
  }
- assert.deepEqual(errors,[]);console.log(JSON.stringify({routeScreens:'list/new/edit',automaticRoad:'quoted and atomic',constructionNext:'prefilled route',stopPicking:'matching signs',panelAnchor:'top left',computerWidths:[520,768,1280],errors}));
+ assert.deepEqual(errors,[]);console.log(JSON.stringify({routeScreens:'list/new/edit',directFleetPurchase:'quoted and atomic',layersReturn:'draft retained, other activity respected',automaticRoad:'quoted and atomic',constructionNext:'immediate destination picking',stopPicking:'map/list/Cancel/Escape',panelAnchor:'top left',computerWidths:[520,768,1280],errors}));
 } finally {await browser.close();}

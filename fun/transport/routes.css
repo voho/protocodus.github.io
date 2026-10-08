@@ -278,3 +278,36 @@
 .route-unavailable-cargo>ul{display:grid;gap:var(--s-2);list-style:none;padding:0;margin:var(--s-2) 0}
 .route-unavailable-cargo li>strong,.route-unavailable-cargo li>span{display:block}
 .route-unavailable-cargo li>strong{color:var(--ink);font-weight:var(--fw-medium)}
+/* Route browsing stays brief; one selected service exposes its next decision. */
+.route-card-summary{display:flex;align-items:center;justify-content:space-between;gap:var(--s-2);font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
+.route-card-summary .cargo-badge{padding-left:0;border:0;background:none}
+.route-card--list .route-card-summary{justify-content:flex-start;gap:var(--s-2)}
+.route-card--list .route-card-summary>[data-add-vehicle]{margin-left:auto;flex:0 0 auto}
+.route-card--list .route-card-summary>[data-route-fleet-count]{min-width:0}
+.route-card--list .route-earnings{margin-top:var(--s-1)}
+.route-card--list .route-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s-2)}
+.route-card--list .route-actions>.button{padding:var(--s-1) var(--s-2);white-space:nowrap;gap:var(--s-1)}
+.route-card>.panel-switcher{margin-top:var(--s-2)}
+.route-detail-body .route-stats{border:0;padding:0}
+.route-detail-body .route-earnings{margin:0 0 var(--s-3)}
+.route-detail-body .route-mode-icon{gap:var(--s-2)}
+.route-actions{gap:var(--s-2);margin-top:var(--s-3)}
+.route-actions>.button{flex:1 1 auto;min-width:0;white-space:normal}
+.route-actions>.button svg{width:16px;height:16px;flex-shrink:0}
+.route-actions>.button--danger{flex:0 0 auto}
+.route-repair{margin-top:var(--s-2)}
+.route-connection>div{flex:1;min-width:0}
+.route-connection>div>.button{display:flex;margin-top:var(--s-2)}
+.route-stop-alternatives{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-top:var(--s-2)}
+.route-stop-alternatives>.button{flex:1}
+.panel-back.button{padding:var(--s-1) var(--s-2);min-height:var(--control-dense);margin-bottom:var(--s-3);color:var(--ink)}
+.route-auto-name.button{padding:var(--s-1) var(--s-2);min-height:var(--control-dense);text-decoration:none;color:var(--ink);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper)}
+.route-edit-cancel.button{display:flex;color:var(--ink);text-decoration:none;margin-top:var(--s-2)}
+.route-edit-cancel.button:hover{color:var(--ink);text-decoration:none}
+.route-swap-inline{display:inline-flex;align-items:center;justify-content:center;min-height:var(--control-dense);padding:var(--s-1) var(--s-2);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);text-decoration:none}
+.route-swap-inline:hover{background:var(--well)}
+.fleet-stepper .small-button{min-height:34px;padding:var(--s-1) var(--s-2);font-weight:var(--fw-medium);color:var(--ink)}
+.fleet-stepper [data-sell-vehicle]{min-width:34px}
+.route-vehicle-spec .route-upgrade-button{min-height:32px;padding:var(--s-1) var(--s-2)}
+.route-stop-field{margin:var(--s-3) 0}
+.route-mode-note{font-size:var(--fs-caption);line-height:var(--lh-caption)}

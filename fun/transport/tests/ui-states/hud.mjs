@@ -1,5 +1,5 @@
 // HUD states: the rails around the map, the ledger, the game menu, the zoom menu and the overview panel.
-import { freshWorld, settle } from './setup.mjs';
+import { freshWorld, openGameAction, settle } from './setup.mjs';
 
 async function menu(page) {
   await page.locator('#game-menu-button').click();
@@ -31,8 +31,7 @@ export const states = [
   } },
   { name: 'hud-overview', async setup(page) {
     await freshWorld(page);
-    await menu(page);
-    await page.locator('#overview-button').click();
+    await openGameAction(page, 'overview-button');
     await page.locator('#minimap').waitFor({ state: 'visible' });
   } },
 ];

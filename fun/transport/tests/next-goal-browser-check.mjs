@@ -1,7 +1,7 @@
 // Next goal card: the seed-1847 first route checklist, alternatives, the folded preference and its layer.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
 const url = process.env.TRANSPORT_URL || 'http://127.0.0.1:8765/fun/transport/';
@@ -147,14 +147,14 @@ try {
   await page.locator('#objective-chip').click();
   assert.equal(await page.locator('#objective-body').isVisible(), true);
   // The Next goal layer removes the card entirely and remains the one place to restore it.
-  await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
+  await openGameAction(page,'layers-button');
   await page.locator('[data-layer="goal"]').setChecked(false);
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the layer hides the card');
   await page.locator('[data-layers-close]').click();
   await page.evaluate(() => transport.setView('build'));
   assert.equal(await page.locator('.project-card, [data-goal-show]').count(),0,'construction keeps the goal preference in Layers');
   await page.locator('#close-management').click();
-  await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
+  await openGameAction(page,'layers-button');
   await page.locator('[data-layer="goal"]').setChecked(true);
   await page.locator('[data-layers-close]').click();
   assert.equal(await page.locator('#objective-body').isVisible(), true, 'the layer restores the requested expanded goal');

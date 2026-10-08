@@ -16,6 +16,7 @@ const slotRaw = (page, id) => page.evaluate(id => localStorage.getItem(`transpor
 async function openSaves(page) {
   await openGameAction(page, 'save-button');
   await page.locator('.saves-explorer').waitFor({ state: 'visible' });
+  await page.locator('[data-saves-view="load"]').click();
 }
 async function closeSaves(page) {
   await page.locator('.saves-explorer .close-modal').click();
@@ -38,10 +39,12 @@ async function fingerprint(page, source = 'game') {
 }
 async function createSlot(page, name) {
   const before = await page.locator('[data-save-slot]').evaluateAll(nodes => nodes.map(node => node.dataset.saveSlot));
+  await page.locator('[data-saves-view="save"]').click();
   await page.locator('#save-new-name').fill(name);
   await page.locator('#save-new-button').click();
   await page.waitForFunction(before => [...document.querySelectorAll('[data-save-slot]')].some(node => !before.includes(node.dataset.saveSlot)), before);
   const id = await page.locator('[data-save-slot]').evaluateAll((nodes, before) => nodes.find(node => !before.includes(node.dataset.saveSlot)).dataset.saveSlot, before);
+  await page.locator('[data-saves-view="load"]').click();
   assert.match(await card(page, id).innerText(), new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   return id;
 }
@@ -102,9 +105,12 @@ try {
 
   // Draft form values and inspector selection belong to the old world.
   await page.locator('.main-nav [data-view="routes"]').click();
-  await page.locator('#route-form [name="name"]').fill('Stale desert draft');
   await page.locator('#route-search').fill('Oasis');
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="from"]').selectOption('station-1');
+  await page.locator('#route-form [name="to"]').selectOption('station-2');
+  await page.locator('[data-cargo-choice="mail"]').click();
+  await page.locator('#route-form [name="name"]').fill('Stale desert draft');
   await page.evaluate(() => { const industry = transport.game.industries[0]; transport.inspect(industry.x, industry.y, 'industry'); });
   await openSaves(page);
   await action(page, alphaId, 'load').click();
@@ -117,10 +123,13 @@ try {
   await page.waitForFunction(() => transport.renderer.getStats().minimapWorldWidth === 512);
   assert.equal(await page.evaluate(point => transport.game.tiles[point.y * transport.game.width + point.x].building.kind, alphaBuilding), alphaBuilding.kind);
   await page.locator('.main-nav [data-view="routes"]').click();
-  assert.equal(await page.locator('#route-form [name="name"]').inputValue(), '');
+  assert.equal(await page.locator('#route-search').inputValue(), '', 'route filters reset with the world');
+  await page.locator('#new-route-button').click();
+  const newName = page.locator('#route-form [name="name"]');
+  assert.equal(await newName.inputValue(), await newName.getAttribute('placeholder'), 'loading clears the custom route name and restores automatic naming');
+  assert.equal(await page.locator('#reset-route-name').isHidden(), true, 'the new draft has no custom-name override');
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), '');
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), '');
-  assert.equal(await page.locator('#route-search').inputValue(), '', 'route filters reset with the world');
   await openSaves(page);
   await loadSlot(page, betaId);
   assert.deepEqual(await fingerprint(page), beta, 'the second company also restores without state leakage');

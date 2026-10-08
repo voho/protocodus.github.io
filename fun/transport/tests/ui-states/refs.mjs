@@ -35,6 +35,7 @@ export const states = [
     await page.evaluate(() => { const stop = transport.game.stations[0]; transport.inspect(stop.x, stop.y); });
     await page.locator('#inspector').waitFor({ state: 'visible' });
     // The stop's coverage line names its town.
+    await page.locator('#inspector [data-inspector-section="station-coverage"] > summary').click();
     await page.locator('#inspector [data-ref^="town:"]').first().click();
     await page.locator('#inspector [data-inspector-back]').waitFor();
     await settle(page);

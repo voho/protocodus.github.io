@@ -6,9 +6,24 @@ export async function waitForGameReady(page, { paused = true } = {}) {
   if (paused) await page.locator('[data-speed="0"]').click();
 }
 
-export async function openGameAction(page, id) {
+// Reveal the requested action through the same section buttons a player uses.
+// Returning the locator also lets keyboard checks focus and activate it natively.
+export async function openGameMenu(page, selector) {
   if (await page.locator('#game-menu-button').getAttribute('aria-expanded') !== 'true') await page.locator('#game-menu-button').click();
-  await page.locator('#' + id).click();
+  await page.locator('#game-menu').waitFor({ state: 'visible' });
+  if (!selector) return;
+  const action = page.locator(selector);
+  const group = await action.evaluate(element => element.closest('[data-menu-panel]')?.dataset.menuPanel);
+  if (group && !await action.isVisible()) await page.locator(`[data-menu-group="${group}"]`).click();
+  return action;
+}
+
+export async function openGameAction(page, id) {
+  // Map controls and other shortcuts stay directly available beside the game.
+  const direct = page.locator('#' + id);
+  if (await direct.isVisible()) { await direct.click(); return; }
+  const action = await openGameMenu(page, '#' + id);
+  await action.click();
 }
 
 // Checks name fixed places (Alderbrook, the quarry at 217,255) in recipe-7 worlds, so the menu

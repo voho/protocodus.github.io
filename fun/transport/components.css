@@ -54,11 +54,13 @@ svg.i.i24{stroke-width:1.75px}
 .button--primary:hover:not(:disabled),.button-primary:hover:not(:disabled){border-color:var(--ink-2);background:var(--ink-2)}
 .button--secondary,.button-outline,.small-button{border-color:var(--edge);background:var(--paper);color:var(--ink)}
 .button--secondary:hover:not(:disabled),.button-outline:hover:not(:disabled),.small-button:hover:not(:disabled){background:var(--well)}
+.button-outline[aria-pressed=true]{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.button-outline[aria-pressed=true]:hover:not(:disabled){border-color:var(--ink-2);background:var(--ink-2);color:var(--on-ink)}
 .button--quiet,.text-button{color:var(--ink)}
 .button--quiet:hover:not(:disabled),.text-button:hover:not(:disabled){background:var(--well)}
 .button--signal,.button-orange{border-color:var(--signal);background:var(--signal);color:var(--ink)}
 .button--signal:hover:not(:disabled),.button-orange:hover:not(:disabled){border-color:var(--signal-ink);background:var(--signal-ink);color:var(--on-ink)}
-.button--danger,.small-button.danger{border-color:transparent;background:none;color:var(--error)}
+.button--danger,.button-danger,.small-button.danger{border-color:var(--error);background:var(--paper);color:var(--error)}
 .button--danger:hover:not(:disabled),.small-button.danger:hover:not(:disabled){background:var(--well)}
 /* Disabled: a well fill and ink-3 text, the reason in the tooltip; quiet and danger buttons keep no fill. */
 .button:disabled,.small-button:disabled,.text-button:disabled{border-color:var(--well);background:var(--well);color:var(--ink-3);opacity:1}
@@ -70,11 +72,11 @@ svg.i.i24{stroke-width:1.75px}
 .button.is-pending[data-pending]::after,.small-button.is-pending[data-pending]::after{content:attr(data-pending);position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;-webkit-text-fill-color:currentColor}
 .price{font-weight:var(--fw-medium);font-variant-numeric:tabular-nums;white-space:nowrap}
 /* Legacy geometry the surfaces still lean on: the footer link keeps its full-width row under a hairline, Retire sits at the end of its row, and the header close takes no more height than its text did. */
-.text-button{width:100%;justify-content:space-between;padding:var(--s-1) 0;border-top-color:var(--rule);border-radius:0}
+.text-button{width:100%;justify-content:space-between;padding:var(--s-2) var(--s-3);border-color:var(--edge);border-radius:var(--r-2);background:var(--paper)}
 .small-button.danger{margin-left:auto}
 .tiny-button{margin:calc(var(--s-2) * -1) calc(var(--s-2) * -1) calc(var(--s-2) * -1) 0}
 /* Icon buttons (12.6): 32 px with a 20 px glyph, always with an aria-label and a tooltip. */
-.icon-button,.tiny-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:var(--control);height:var(--control);padding:0;border-radius:var(--r-2);color:var(--ink-2);transition:background-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
+.icon-button,.tiny-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:var(--control);height:var(--control);padding:0;border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink-2);transition:background-color var(--t-quick) var(--ease),color var(--t-quick) var(--ease)}
 .icon-button svg,.tiny-button svg{width:20px;height:20px}
 .icon-button:hover:not(:disabled),.tiny-button:hover:not(:disabled),.icon-button.active,.icon-button[aria-pressed=true],.icon-button[aria-expanded=true]{background:var(--well);color:var(--ink)}
 .icon-button:disabled,.tiny-button:disabled{background:none;color:var(--ink-3);opacity:1}
@@ -146,7 +148,7 @@ svg.i.i24{stroke-width:1.75px}
 .section{padding:var(--s-4);border-top:1px solid var(--rule)}
 .section>:is(h2,h3,h4){margin:0 0 var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold);color:var(--ink)}
 /* Disclosure (12.7): a row button whose closing chevronDown turns 180° when open (aria-expanded, or an open details). Its hover well reaches 8 px past the text. Nothing opens by itself. */
-.disclosure{display:flex;align-items:center;gap:var(--s-2);width:calc(100% + var(--s-4));min-height:var(--row);margin:0 calc(var(--s-2) * -1);padding:0 var(--s-2);border-radius:var(--r-3);color:var(--ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-semibold);text-align:left;list-style:none;cursor:pointer;transition:background-color var(--t-quick) var(--ease)}
+.disclosure{display:flex;align-items:center;gap:var(--s-2);width:100%;min-height:var(--control);margin:0;padding:var(--s-2) var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2);background:var(--paper);color:var(--ink);font-size:var(--fs-small);line-height:var(--lh-small);font-weight:var(--fw-medium);text-align:left;list-style:none;cursor:pointer;transition:background-color var(--t-quick) var(--ease)}
 .disclosure::-webkit-details-marker{display:none}
 .disclosure:hover{background:var(--well)}
 .disclosure>svg:last-child{width:16px;height:16px;margin-left:auto;color:var(--ink-2);transition:transform var(--t-row) var(--ease)}

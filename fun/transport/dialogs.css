@@ -1,12 +1,11 @@
 /* Dialogs: the modal pattern, Guide, Overview map, Company, Company goals and confirmations. */
-.modal-inner{padding:36px}
+.modal-inner{padding:var(--panel-pad)}
 .modal-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
-.modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:500;letter-spacing:var(--tr-tight);margin:12px 0}
+.modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:500;letter-spacing:var(--tr-tight);margin:0}
 .modal-heading p{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);max-width:540px}
 .modal-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--rule);padding-top:20px;margin-top:24px}
 .modal-actions .form-field{margin:0}
 .modal-actions input{width:170px}
-.modal-actions .button{padding:12px 20px}
 .guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
 .guide-item{padding:20px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper)}
 .guide-item>span svg{width:19px;height:19px;color:var(--ink-2)}
@@ -24,7 +23,7 @@
 .panel-description{margin:-4px 0 16px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .modal-heading p,.guide-item p{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .modal-heading h2{font-size:var(--fs-display);line-height:var(--lh-display)}
-.close-modal{flex-shrink:0;background:var(--well);font-size:var(--fs-title);line-height:var(--lh-title);border-radius:50%;width:34px;height:34px;color:var(--ink-2)}
+.close-modal{flex-shrink:0;border:1px solid var(--edge);background:var(--paper);font-size:var(--fs-title);line-height:var(--lh-title);border-radius:var(--r-2);width:var(--control);height:var(--control);color:var(--ink-2)}
 #app #modal{position:fixed;inset:auto;margin:0;left:8px;top:calc(var(--play-header,52px) + 8px);max-height:calc(100dvh - var(--play-header,52px) - 16px);max-width:calc(100vw - 16px)}
 .guide-item>span{display:flex;align-items:center;gap:8px;font-weight:500;font-size:var(--fs-lead);line-height:var(--lh-lead)}
 .keyboard-help,.keyboard-help kbd{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
@@ -81,12 +80,12 @@
 .company-meter span{display:block;height:100%;border-radius:var(--r-1);background:var(--signal)}
 .company-loan p{margin:12px 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .company-loan-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.company-loan-actions .button{margin:0;padding:12px 16px;border-color:var(--rule);font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink)}
+.company-loan-actions .button{margin:0}
 .company-loan-actions .button:disabled{opacity:.55}
 .modal-heading .retire-warning{padding:8px 12px;border-radius:var(--r-3);background:var(--well);color:var(--error)}
 #modal:has(.chains-explorer){width:min(1240px,calc(100vw - 40px));max-height:92dvh}
 .chains-explorer>.close-modal{position:sticky;top:15px;grid-column:2;grid-row:1 / span 5;align-self:start;display:grid;place-items:center;z-index:1}
-#modal:has(.saves-explorer){width:min(760px,calc(100vw - 32px));max-height:92dvh}
+#modal:has(.saves-explorer){width:min(640px,calc(100vw - 32px));max-height:92dvh}
 .saves-explorer>.close-modal{position:sticky;top:15px;grid-column:2;grid-row:1 / span 7;align-self:start;display:grid;place-items:center;z-index:1}
 .atlas-lens-source,.atlas-lens-buyer{width:6px;height:6px;box-shadow:none;outline:1px solid var(--paper);outline-offset:0}
 .atlas-lens-source{background:var(--art-map-source)}
@@ -241,3 +240,24 @@
 .shortcut-group dd{margin:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
 .shortcut-group kbd{display:inline-block;min-width:20px;padding:0 var(--s-1);border:1px solid var(--rule);border-radius:var(--r-1);background:var(--well);font-family:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;text-align:center;color:var(--ink)}
 .shortcut-foot{display:flex;justify-content:flex-end;margin-top:var(--s-5)}
+
+/* Each guide and report topic is a focused screen with immediate next actions. */
+.guide-dialog .modal-tabbar,.company-report .modal-tabbar,.goals-dialog .modal-tabbar{flex-wrap:wrap;gap:var(--s-2);border:0;margin-block:var(--s-3)}
+.guide-dialog .modal-tabbar .button,.company-report .modal-tabbar .button,.goals-dialog .modal-tabbar .button{padding:var(--s-2) var(--s-3);border:1px solid var(--edge);border-radius:var(--r-2)}
+.guide-dialog .modal-tabbar .button.active,.company-report .modal-tabbar .button.active,.goals-dialog .modal-tabbar .button.active{border-color:var(--ink);background:var(--ink);color:var(--on-ink)}
+.guide-dialog .guide-grid{grid-template-columns:minmax(0,1fr);gap:var(--s-3);margin-top:var(--s-3)}
+.guide-dialog .guide-item{padding:var(--s-3)}
+.guide-dialog .guide-item p{margin-block:var(--s-2);font-size:var(--fs-small);line-height:var(--lh-small)}
+.guide-actions{display:flex;flex-wrap:wrap;gap:var(--s-2);margin-top:var(--s-3)}
+.guide-details{margin-top:var(--s-3)}
+.guide-details>summary{display:flex;justify-content:space-between;gap:var(--s-2);list-style:none;cursor:pointer}
+.guide-details>summary::-webkit-details-marker{display:none}
+.guide-details>p{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
+.company-report [data-company-panel]>.company-section:first-child{margin-top:var(--s-3)}
+@media(max-width:600px){.guide-dialog .resource-legend{grid-template-columns:repeat(2,minmax(0,1fr))}.company-route,.company-routes.below .company-route{grid-template-columns:minmax(0,1fr) auto}.company-route .company-rank{display:none}.company-route-actions{grid-column:1 / -1}}
+
+.goals-dialog .goal-chapters{margin-top:var(--s-3)}
+.goals-dialog .goal-row .button{font-size:var(--fs-small);line-height:var(--lh-small);padding-inline:var(--s-2)}
+.goals-dialog .goal-row em{display:inline-block;margin-top:var(--s-2)}
+@media(max-width:600px){.goals-dialog .goal-row{grid-template-columns:20px minmax(0,1fr)}.goals-dialog .goal-row>.button{grid-column:2;justify-self:start}}
+.guide-dialog .modal-actions,.company-report .modal-actions,.goals-dialog .modal-actions{gap:var(--s-2);padding-top:var(--s-3);margin-top:var(--s-3)}

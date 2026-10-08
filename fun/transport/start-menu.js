@@ -2,7 +2,7 @@ import { BIOMES } from './model.js';
 import { createGameAsync } from './background-jobs.js';
 import { savePreparedGame, AUTOSAVE_AT_KEY } from './autosave-storage.js';
 import { DEFAULT_WORLD_SIZE, NEW_WORLD_SIZES, worldGenerationOptions } from './world.js';
-import { listSaveSlots, readSaveSlot, slotDate, slotMoney, slotDetails, savedAgo } from './save-slots.js';
+import { listSaveSlots, readSaveSlot, slotDate, slotDetails, savedAgo } from './save-slots.js';
 import { hideLoading, showLoading, paintLoading, loadingJobProgress } from './loading-screen.js';
 import { APP_PRELOAD } from './app-preload.js';
 import { escapeHTML as escape } from './copy.js';
@@ -22,7 +22,7 @@ export async function chooseStartupGame(){const menu=openStartMenu();requestAnim
 export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
  return new Promise(resolve=>{
   const dialog=document.createElement('dialog');dialog.id='start-menu';dialog.setAttribute('aria-labelledby','start-title');
-  dialog.innerHTML=`<div class="start-shell"><aside class="start-intro"><div class="start-wordmark"><i>t</i>transport<span>.</span></div><h1 id="start-title">Build connections.<br>Grow a world.</h1><div class="start-art" aria-hidden="true"><img id="start-landscape" src="./assets/ui/start-${biome}.webp" alt="" width="1080" height="704" fetchpriority="high"></div></aside><section class="start-content"><nav class="start-tabs" aria-label="Start game"><button id="start-new" aria-pressed="true">New game</button><button id="start-load" aria-pressed="false">Load game</button>${canResume?'<button id="start-resume">Resume</button>':''}</nav><div id="start-new-panel"><h2>Create your world</h2><form id="start-world-form"><fieldset class="start-biomes"><legend>Landscape</legend>${Object.entries(BIOMES).map(([key,b])=>`<label class="start-biome ${key}"><input type="radio" name="biome" value="${key}" ${key===biome?'checked':''}><span><span class="start-biome-heading">${icon(key)}<strong>${escape(b.name)}</strong></span><small>${key==='taiga'?'Forests & rivers':key==='tundra'?'Snow & mountains':'Dunes & oases'}</small></span></label>`).join('')}</fieldset><label class="start-field">Map size<select name="size">${Object.entries(NEW_WORLD_SIZES).map(([key,size])=>`<option value="${key}" ${key===DEFAULT_WORLD_SIZE?'selected':''}>${size.label}</option>`).join('')}</select></label><details class="start-advanced"><summary>More options</summary><div class="start-population"><label class="start-field">Towns<input name="townCount" type="number" required></label><label class="start-field">Industry districts<input name="industryDistricts" type="number" required></label></div><p class="start-count-note" id="start-industry-summary"></p><label class="start-field">Starting funds<select name="startingFunds"><option value="400000" selected>Relaxed · $400k (recommended)</option><option value="200000">Standard · $200k</option><option value="100000">Lean · $100k</option></select></label><label class="start-field">World seed<input name="seed" type="number" min="1" max="999999999" required value="${Math.floor(100000+Math.random()*900000)}"></label></details><button class="start-primary" type="submit" id="start-create" title="Replaces the autosave. Named saves stay safe.">Create world ${icon('chevronRight')}</button></form></div><div id="start-load-panel" hidden><h2>Your worlds</h2><p class="start-load-note">Saved in this browser.</p><div id="start-saves"></div></div><p id="start-message" role="status" aria-live="polite" hidden></p></section></div>`;
+  dialog.innerHTML=`<div class="start-shell"><aside class="start-intro"><div class="start-wordmark"><i>t</i>transport<span>.</span></div><h1 id="start-title">Your next connection.</h1><div class="start-art" aria-hidden="true"><img id="start-landscape" src="./assets/ui/start-${biome}.webp" alt="" width="1080" height="704" fetchpriority="high"></div></aside><section class="start-content">${canResume?`<button class="button button-primary start-primary" id="start-resume">${icon('arrow')} Resume game</button>`:''}<nav class="start-tabs" aria-label="Start game"><button class="button button-outline" id="start-new" aria-pressed="true">New world</button><button class="button button-outline" id="start-load" aria-pressed="false">Load world</button></nav><div id="start-new-panel"><h2>New world</h2><form id="start-world-form"><fieldset class="start-biomes"><legend>Landscape</legend>${Object.entries(BIOMES).map(([key,b])=>`<label class="start-biome ${key}"><input type="radio" name="biome" value="${key}" ${key===biome?'checked':''}><span><span class="start-biome-heading">${icon(key)}<strong>${escape(b.name)}</strong></span><small>${key==='taiga'?'Forests & rivers':key==='tundra'?'Snow & mountains':'Dunes & oases'}</small></span></label>`).join('')}</fieldset><label class="start-field">Map size<select name="size">${Object.entries(NEW_WORLD_SIZES).map(([key,size])=>`<option value="${key}" ${key===DEFAULT_WORLD_SIZE?'selected':''}>${size.label}</option>`).join('')}</select></label><details class="start-advanced"><summary class="button button-outline">World options ${icon('chevronDown')}</summary><div class="start-population"><label class="start-field">Towns<input name="townCount" type="number" required></label><label class="start-field">Industry districts<input name="industryDistricts" type="number" required></label></div><p class="start-count-note" id="start-industry-summary"></p><label class="start-field">Starting funds<select name="startingFunds"><option value="400000" selected>Relaxed: $400k</option><option value="200000">Standard: $200k</option><option value="100000">Lean: $100k</option></select></label><label class="start-field">World seed<input name="seed" type="number" min="1" max="999999999" required value="${Math.floor(100000+Math.random()*900000)}"></label></details><button class="button button-primary start-primary" type="submit" id="start-create" title="Replaces the autosave. Named saves stay safe.">Create world ${icon('chevronRight')}</button><p class="start-load-note">New worlds replace the autosave. Named saves stay safe.</p></form></div><div id="start-load-panel" hidden><h2>Load world</h2><p class="start-load-note">Saved in this browser.</p><div id="start-saves"></div></div><p id="start-message" role="status" aria-live="polite" hidden></p></section></div>`;
   document.body.append(dialog);hideLoading();dialog.showModal();document.querySelector('#app').inert=true;
   let busy=false;
   const $=selector=>dialog.querySelector(selector),form=$('#start-world-form');
@@ -35,7 +35,7 @@ export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
    const towns=form.elements.townCount,districts=form.elements.industryDistricts;
    towns.min=limits.minTowns;towns.max=limits.maxTowns;districts.min=limits.minIndustryDistricts;districts.max=limits.maxIndustryDistricts;
    if(reset){towns.value=limits.townCount;districts.value=limits.industryDistricts;}
-   $('#start-industry-summary').textContent=`${(Number(districts.value)||0)*limits.industriesPerDistrict} industries, every production chain in each district`;
+   $('#start-industry-summary').textContent=`${(Number(districts.value)||0)*limits.industriesPerDistrict} industries; full chains in each district`;
   }
   options();form.elements.size.addEventListener('change',()=>options());
   for(const radio of form.querySelectorAll('[name=biome]'))radio.addEventListener('change',()=>options(false));
@@ -72,23 +72,24 @@ export function openStartMenu({canResume=false,biome='taiga',notice=''}={}){
   }
   function renderSaves(){
    const result=listSaveSlots(),slots=result.slots||[];
-   $('#start-saves').innerHTML=slots.length?slots.map((slot,i)=>`<button class="start-save" data-slot-index="${i}" ${slot.status!=='ready'?'disabled data-unavailable="true"':''}><span><strong>${escape(slot.name)}</strong><small>${slot.status==='ready'?escape(slotDetails(slot)):escape(slot.message||'Unavailable')}</small></span>${icon('chevronRight')}</button>`).join(''):'<div class="start-empty">No saved worlds yet.<br>Start a new game to begin.</div>';
+   $('#start-saves').innerHTML=slots.length?slots.map((slot,i)=>`<button class="button button-outline start-save" data-slot-index="${i}" ${slot.status!=='ready'?'disabled data-unavailable="true"':''}><span><strong>${escape(slot.name)}</strong><small>${slot.status==='ready'?escape(slotDetails(slot)):escape(slot.message||'Unavailable')}</small></span>${icon('chevronRight')}</button>`).join(''):`<div class="start-empty">No saved worlds yet.<button class="button button-primary" data-start-new>Create a world ${icon('chevronRight')}</button></div>`;
    if(!result.ok)message(result.message||'Saved games could not be read.');
+   $('#start-saves [data-start-new]')?.addEventListener('click',()=>{tab(false);$('#start-create').focus();});
    for(const button of $('#start-saves').querySelectorAll('[data-slot-index]'))button.addEventListener('click',()=>loadSlot(slots[Number(button.dataset.slotIndex)]));
   }
   // Summarising the autosave parses all of it, so Continue joins the menu after its first paint.
   function offerContinue(){
    const slot=dialog.isConnected&&listSaveSlots().slots.find(slot=>slot.id==='autosave');if(slot?.status!=='ready')return;
    let at=null;try{at=localStorage.getItem(AUTOSAVE_AT_KEY);}catch{}
-   const ago=savedAgo(at),button=document.createElement('button');button.id='start-continue';button.className='start-primary';button.disabled=busy;
-   button.innerHTML=`<span><strong>Continue</strong><small>${escape(`${BIOMES[slot.biome]?.name} · ${slotDate(slot.day)} · ${slotMoney(slot.money)}${ago?' · saved '+ago:''}`)}</small></span>${icon('chevronRight')}`;
+   const ago=savedAgo(at),button=document.createElement('button');button.id='start-continue';button.className='button button-primary start-primary';button.disabled=busy;
+   button.innerHTML=`<span><strong>Continue</strong><small>${escape(`${BIOMES[slot.biome]?.name}, ${slotDate(slot.day)}${ago?', saved '+ago:''}`)}</small></span>${icon('chevronRight')}`;
    button.onclick=()=>loadSlot(slot);$('.start-tabs').before(button);
    if(document.activeElement===$('#start-new'))button.focus({preventScroll:true});
   }
   $('#start-new').onclick=()=>tab(false);$('#start-load').onclick=()=>tab(true);
   $('#start-resume')?.addEventListener('click',()=>{if(!busy){document.querySelector('#app').inert=false;finish(null);}});
   dialog.addEventListener('cancel',event=>{event.preventDefault();if(canResume&&!busy){document.querySelector('#app').inert=false;finish(null);}});
-  $('#start-new').focus({preventScroll:true});
+  ($('#start-resume')||$('#start-new')).focus({preventScroll:true});
   if(!canResume)requestAnimationFrame(()=>setTimeout(offerContinue,0));
  });
 }

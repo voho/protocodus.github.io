@@ -14,8 +14,7 @@ const watch = page => {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 };
 async function clickMapOption(page, selector) {
-  if (!(await page.locator(selector).isVisible())) await page.locator('#game-menu-button').click();
-  if (!(await page.locator(selector).isVisible())) await page.locator('#map-options-button').click();
+  if (!(await page.locator(selector).isVisible())) await openGameAction(page, 'map-options-button');
   await page.locator(selector).click();
 }
 try {
@@ -129,6 +128,7 @@ try {
 
   // Inspect all 37 architectural choices, build a civic landmark, and navigate a huge map.
   await openBuildArea(page, 'towns');
+  await page.locator('[data-build-page="town:buildings"]').click();
   const expectedGroups={homes:9,community:18,shops:11,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
     await page.locator('#building-group').selectOption(group);
@@ -177,6 +177,7 @@ try {
   assert.equal(await page.evaluate(() => transport.game.vehicles.length), 2);
   assert.equal(await page.evaluate(() => transport.game.money), beforeRoute - 18000);
   const routeId = await page.evaluate(() => transport.game.routes.find(route => route.name === 'QA city shuttle').id);
+  await page.locator(`[data-open-route="${routeId}"]`).click();
   await page.locator(`[data-remove-route="${routeId}"]`).click();
   await page.locator('[data-close]').click();
   assert.equal(await page.evaluate(() => transport.game.routes.length), 2, 'cancel keeps service running');

@@ -1,9 +1,9 @@
 /* Saved games: slots, the autosave and inline confirmations. */
-.saves-explorer{padding:28px 24px 28px 32px;display:grid;grid-template-columns:minmax(0,1fr) 34px;column-gap:12px;align-items:start}
+.saves-explorer{padding:var(--s-4);display:grid;grid-template-columns:minmax(0,1fr) 34px;column-gap:12px;align-items:start}
 .saves-explorer>:not(.close-modal){grid-column:1;min-width:0}
 .saves-heading h2{font-size:var(--fs-display);line-height:var(--lh-display);font-weight:500;letter-spacing:var(--tr-tight);margin:8px 0 8px}
 .saves-heading p{font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2);margin:0}
-.save-current{display:flex;align-items:center;gap:12px;margin:24px 0 20px;padding:12px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);color:var(--ink-2)}
+.save-current{display:flex;align-items:center;gap:12px;margin:var(--s-3) 0;padding:12px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);color:var(--ink-2)}
 .save-current-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;background:var(--well);border-radius:var(--r-3)}
 .save-current-icon svg{width:24px;height:24px}
 .save-current>div{display:flex;flex-direction:column;gap:4px;min-width:0}
@@ -12,15 +12,15 @@
 .save-current>b{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500;font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
 .save-new-form{display:flex;align-items:flex-end;gap:12px;margin:0 0 20px}
 .save-new-form label,.save-inline-form label{display:flex;flex:1;flex-direction:column;gap:8px;min-width:0;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2)}
-.save-new-form input,.save-inline-form input{border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);color:var(--ink-2);min-width:0;width:100%;padding:12px 12px;min-height:43px;font-size:var(--fs-body);line-height:var(--lh-body)}
-.save-new-form>.button{min-height:43px;white-space:nowrap;flex-shrink:0;gap:8px}
+.save-new-form input,.save-inline-form input{border:1px solid var(--rule);border-radius:var(--r-2);background:var(--paper);color:var(--ink-2);min-width:0;width:100%;padding:12px 12px;min-height:var(--control);font-size:var(--fs-body);line-height:var(--lh-body)}
+.save-new-form>.button{min-height:var(--control);white-space:nowrap;flex-shrink:0;gap:8px}
 .saves-message{padding:12px 12px;margin:0 0 20px;background:var(--well);border:1px solid var(--rule);border-radius:var(--r-2);color:var(--ink-2);font-size:var(--fs-small);line-height:var(--lh-small);overflow-wrap:anywhere}
 .saves-message.is-error{background:var(--well);border-color:var(--rule);color:var(--error)}
 .saves-section-title{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .saves-section-title h3{font-size:var(--fs-title);line-height:var(--lh-title);font-weight:500;letter-spacing:var(--tr-tight);margin:0}
 .saves-section-title>span{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);padding:4px 8px;border-radius:var(--r-2);background:var(--well)}
 .save-manual-list{display:grid;gap:12px}
-.save-card{padding:16px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);min-width:0}
+.save-card{padding:var(--s-3);border:1px solid var(--rule);border-radius:var(--r-3);background:var(--paper);min-width:0}
 .save-card-main{display:flex;align-items:center;gap:12px;min-width:0}
 .save-landscape{display:grid;place-items:center;width:43px;height:48px;flex:0 0 43px;border:1px solid var(--rule);border-radius:var(--r-3);background:var(--well);color:var(--ink-2)}
 .save-landscape svg{width:27px;height:27px}
@@ -31,21 +31,14 @@
 .save-world-details{display:flex;align-items:baseline;gap:8px 12px;flex-wrap:wrap;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2)}
 .save-world-details strong{font-size:var(--fs-small);line-height:var(--lh-small);font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
 .save-timestamp{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:8px 0 0}
-.save-card-actions{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
-.save-load{border:1px solid var(--rule);background:var(--well);color:var(--ink-2);min-height:38px;padding:8px 16px;gap:8px}
-.save-load:hover{background:var(--well)}
-.save-edit-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
-.save-icon-action{display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--rule);border-radius:var(--r-2);color:var(--ink-2);background:var(--paper)}
-.save-icon-action svg{width:18px;height:18px}
-.save-icon-action:hover{background:var(--well);border-color:var(--edge);color:var(--ink-2)}
-.save-icon-action.save-delete:hover{background:var(--well);border-color:var(--rule);color:var(--error)}
+.save-card-actions{display:flex;align-items:center;gap:var(--s-2);margin-top:var(--s-3);flex-wrap:wrap}
+.save-edit-actions{display:flex;align-items:center;gap:var(--s-2);flex-wrap:wrap;margin-left:auto}
+.save-card-actions .button{font-size:var(--fs-small);line-height:var(--lh-small);gap:var(--s-1);padding-inline:var(--s-2)}
 .save-confirmation,.save-inline-form{padding:16px 0 0;margin-top:16px;border-top:1px solid var(--rule)}
 .save-confirmation>strong{display:block;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:500;overflow-wrap:anywhere}
 .save-confirmation p{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:8px 0 0}
 .save-confirm-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
-.save-confirm-actions .button{font-size:var(--fs-small);line-height:var(--lh-small);min-height:39px;padding:8px 12px}
-.save-delete-confirm{border:1px solid var(--error);background:var(--error);color:var(--on-ink)}
-.save-delete-confirm:hover{background:var(--error)}
+.save-confirm-actions .button{font-size:var(--fs-small);line-height:var(--lh-small);min-height:var(--control);padding:8px 12px}
 .saves-autosave-title{margin-top:24px}
 .saves-autosave-title>span{background:none;font-size:var(--fs-caption);line-height:var(--lh-caption);padding:0}
 .save-autosave{background:var(--well);border-style:dashed}
@@ -57,3 +50,13 @@
 .saves-empty p{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:8px 0 0}
 .saves-local-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin:20px 0 0}
 .saves-explorer[aria-busy=true] #saves-message{cursor:progress}
+
+.saves-tabs{display:flex;gap:var(--s-2);margin-block:var(--s-4)}
+.saves-tabs .button{flex:1}
+.saves-tabs .button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.saves-storage-note{font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);margin-top:var(--s-4)}
+.saves-storage-note summary{cursor:pointer}
+.saves-storage-note p{margin-bottom:0}
+.save-footer{display:flex;justify-content:flex-end;margin-top:var(--s-4)}
+.saves-empty .button{margin-top:var(--s-3)}
+@media(max-width:600px){.save-new-form{flex-wrap:wrap}.save-new-form label{flex-basis:100%}.save-edit-actions{margin-left:0}.save-confirm-actions{justify-content:flex-start}}

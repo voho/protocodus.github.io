@@ -211,8 +211,8 @@ Both fall back to `system-ui, sans-serif`.
 
   2 px is used only for hairline offsets.
 - Control heights:
-  - `--control` 32 px on desktop;
-  - `--control-dense` 28 px, in desktop lists only.
+  - `--control` 36 px on desktop;
+  - `--control-dense` 32 px, in desktop lists only.
 - Fixed sizes:
   - `--rail-h` 48 px
   - `--goal-h` 40 px
@@ -963,16 +963,18 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 |---|---|---|
 | `.button--primary` | Ink fill, on-ink text | The main action of a surface |
 | `.button--secondary` | Paper, 1 px `--edge`, ink text | Second actions |
-| `.button--quiet` | Icon + text, well on hover | Show on map, Edit, Back |
+| `.button--quiet` | Icon + text, well on hover | Optional low-priority controls |
 | `.button--signal` | Signal fill, ink text | Only the current goal step's action |
-| `.button--danger` | Quiet style in `--error` | Retire, Remove; always confirmed in place |
+| `.button--danger` | Paper, error border and text | Retire, Remove; always confirmed in place |
 
-- **Sizes:** 32 by default, 28 with `.button--dense` (desktop lists).
+- **Sizes:** 36 by default, 32 with `.button--dense` (desktop lists).
 - **Text:** 14/500 label, with a 16 px icon on the left.
 - **Price:** `.price` follows the label, tabular.
 - **Disabled:** well fill and ink-3 text, with the reason in a tooltip. Quiet and danger buttons keep no fill, since a fill would make them louder disabled than at rest.
 - **Pending:** `.is-pending`, with the pending label in `data-pending` ("Saving…"), keeps its width: the label stays in place, hidden, and the pending label shows over it.
-- **Icon buttons:** 32, glyph 20, `--r-2`, always with an `aria-label` and a tooltip.
+- **Icon buttons:** 36, glyph 20, `--r-2`, always with an `aria-label` and a tooltip.
+
+Navigation, related activities, Back, and disclosure summaries use the same rounded, bordered action treatment. Descriptive text stays plain. The Game menu shows one short group at a time: Game, Company, Map, or Help. Road, Railway, and Stop have direct toolbar buttons; each construction area links to its related management activities.
 
 ### 12.7 Facts, sections, disclosure
 

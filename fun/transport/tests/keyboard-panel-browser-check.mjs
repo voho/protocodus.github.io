@@ -2,7 +2,7 @@
 // Start through the real menu in isolated browser storage; serve the repo first.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
-import { createWorldFromMenu } from './browser-start.mjs';
+import { createWorldFromMenu, openGameMenu } from './browser-start.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -133,8 +133,8 @@ try {
   await page.keyboard.press('Escape');
 
   // Modal Escape remains native and closes exactly that surface.
-  await page.locator('#game-menu-button').click();
-  await page.locator('#game-menu [data-open-gallery]').click();
+  const gallery = await openGameMenu(page, '#game-menu [data-open-gallery]');
+  await gallery.click();
   await page.locator('#gallery-search').fill('town');
   await page.keyboard.press('Escape');
   await page.locator('#modal').waitFor({ state: 'hidden' });
