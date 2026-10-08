@@ -274,14 +274,14 @@ function syncToolControls() {
  $('#active-tool-icon').innerHTML=icon(info?.icon||'factory');
  $('#active-tool-name').textContent=info?.name||'Build';
  $('#active-tool-hint').textContent=lineTools.has(tool)?'Drag to build · Done opens Build':'Click to place · Done opens Build';
- if(tool==='road'||tool==='rail')$('#active-tool-hint').textContent='Drag to build · Necessary leveling included in the price';
+ if(tool==='road'||tool==='rail')$('#active-tool-hint').textContent='Drag to build. Necessary leveling included in the price.';
  if(tool==='stop')$('#active-tool-hint').textContent=preferredMode==='road'?'Click land or road within 4 tiles of customers · Missing road included':'Click a railway within 4 tiles of customers';
  if(tool==='port')$('#active-tool-hint').textContent='Click water beside land, near customers';
  if(['residential','commercial','industrial'].includes(tool))$('#active-tool-hint').textContent='Drag an area · Shift for a line';
  if(tool==='bulldoze')$('#active-tool-hint').textContent='Click or drag · Clears whole sites';
  if(BUILDINGS[tool]||INDUSTRIES[tool]||tool==='workshop'){const size=BUILDINGS[tool]?buildingFootprint(tool):INDUSTRIES[tool]?industryFootprint(tool):WORKSHOP.footprint;$('#active-tool-hint').textContent=`${size} × ${size} site · Click to place`;}
  if(terrainTools.has(tool))$('#active-tool-hint').textContent=tool==='level'?'Drag an area · Match the first point':`Click or drag · ${tool==='raise'?'+1':'−1'} level per point`;
- if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight · Necessary leveling included in the price';
+ if(spanTools.has(tool))$('#active-tool-hint').textContent='Drag straight. Necessary leveling included in the price.';
  if(tool==='airport')$('#active-tool-hint').textContent='Click to place. A turns the runway.';
  $('#active-tool-turn').hidden=tool!=='airport';
  $('#map-hint').hidden=tool!=='inspect'||isRoutePicking();
@@ -453,7 +453,7 @@ function framePoints(points,{maxZoom=1,back=true}={}) {
 function showConnectionPlan() {
  const {plan,cargo}=connectionPlan,short=plan.cost>game.money,reused=plan.ends.find(Boolean);
  let banner=$('#connection-plan-banner');if(!banner){banner=document.createElement('div');banner.id='connection-plan-banner';banner.className='route-pick-banner connection-plan-banner';banner.setAttribute('role','status');banner.dataset.band='';$('.map-section').append(banner);}
- const next=[plan.terrainCost?`includes ${money(plan.terrainCost)} leveling`:'',short?`Need ${money(plan.cost)} · balance ${money(game.money)}`:[plan.tiles?'':`The ${plan.mode} is already there`,`then a ${vehicleNoun(plan.mode,cargo)} ${money(plan.vehicleCost)}`,reused?`uses ${reused.name}`:''].filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
+ const next=[plan.terrainCost?`includes ${money(plan.terrainCost)} leveling`:'',short?`Need ${money(plan.cost)} · balance ${money(game.money)}`:[plan.tiles?'':`The ${plan.mode} is already there`,`then a ${vehicleNoun(plan.mode,cargo)} ${money(plan.vehicleCost)}`,reused?`uses ${reused.name}`:''].filter(Boolean).join(' · ')].filter(Boolean).join('. ');
  banner.innerHTML=`<div><strong>${escapeHTML(planSummary(plan))} · ${money(plan.cost)}</strong><span>${escapeHTML(next.charAt(0).toUpperCase()+next.slice(1))}</span></div><button type="button" class="connection-build" id="build-connection-plan">Build</button><button type="button" id="cancel-connection-plan">Cancel</button>`;
  $('#build-connection-plan').onclick=buildConnectionPlan;$('#cancel-connection-plan').onclick=cancelConnectionPlan;
  $('#status-message').textContent=`${planSummary(plan)} planned · ${money(plan.cost)}`;invalidateScene();

@@ -288,19 +288,32 @@ try {
   await page.keyboard.press('Escape');
 
   // 9. The art's weight beside the houses (Detail zoom, DPR 2, on #6e8a57).
+  // The renewed regional turboprop uses cream, sage and muted glass instead
+  // of the old airliner's near-black accents. Check readable internal and
+  // ground contrast, with a complete silhouette, rather than requiring black.
   const art = await page.evaluate(async () => {
     // The map previously needed only its smaller density. Wait for the real
     // Detail/Retina source before measuring this larger standalone portrait.
     const { preloadWorldArt } = await import('./atlas-runtime.js');
     await preloadWorldArt({ cells: [512], waitMs: 12000 });
     const A = await import('./airport-art.js'), scale = 4, grass = [0x6e, 0x8a, 0x57];
+    const linear = value => { const c = value / 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; };
+    const luminance = (r, g, b) => .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b);
     const measure = draw => {
       const c = document.createElement('canvas'); c.width = 900; c.height = 700; const x = c.getContext('2d');
-      x.fillStyle = '#6e8a57'; x.fillRect(0, 0, c.width, c.height); x.save(); x.scale(scale, scale); x.translate(80, 75); draw(x); x.restore();
+      x.save(); x.scale(scale, scale); x.translate(80, 75); draw(x); x.restore();
+      const mask = x.getImageData(0, 0, c.width, c.height).data, tones = [], bounds = { left: c.width, top: c.height, right: 0, bottom: 0 };
+      for (let i = 0; i < mask.length; i += 4) {
+        if (mask[i + 3] > 16) { const px = i / 4 % c.width, py = Math.floor(i / 4 / c.width); bounds.left = Math.min(bounds.left, px); bounds.right = Math.max(bounds.right, px + 1); bounds.top = Math.min(bounds.top, py); bounds.bottom = Math.max(bounds.bottom, py + 1); }
+        if (mask[i + 3] >= 220) tones.push(luminance(mask[i], mask[i + 1], mask[i + 2]));
+      }
+      tones.sort((a, b) => a - b);
+      const detail = tones[Math.floor(tones.length * .05)], body = tones[Math.floor(tones.length * .95)];
+      x.globalCompositeOperation = 'destination-over'; x.fillStyle = '#6e8a57'; x.fillRect(0, 0, c.width, c.height); x.globalCompositeOperation = 'source-over';
       const d = x.getImageData(0, 0, c.width, c.height).data, lum = [];
       for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - grass[0]) + Math.abs(d[i + 1] - grass[1]) + Math.abs(d[i + 2] - grass[2]) > 45) lum.push(.299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2]);
       lum.sort((a, b) => a - b);
-      return { dark: lum.filter(v => v < 60).length / lum.length, p5: lum[Math.floor(lum.length * .05)], n: lum.length, url: c.toDataURL() };
+      return { dark: lum.filter(v => v < 60).length / lum.length, p5: lum[Math.floor(lum.length * .05)], n: lum.length, opaque: tones.length, bounds, uncut: bounds.left > 0 && bounds.top > 0 && bounds.right < c.width && bounds.bottom < c.height, detailContrast: (body + .05) / (detail + .05), groundContrast: (body + .05) / (luminance(...grass) + .05), url: c.toDataURL() };
     };
     const buildings = measure(c => { A.drawTower(c, { axis: 'x', detail: 'detail' }); A.drawTerminal(c, { axis: 'x', detail: 'detail' }); });
     const plane = measure(c => { c.translate(40, 20); A.drawAircraft(c, { heading: Math.PI * .08, detail: 'detail', color: '#3F6FB5' }); });
@@ -311,13 +324,14 @@ try {
     for (const stand of A.LAYOUT.stands) { const p = A.localToProjected('x', stand.u, stand.v); s.save(); s.translate(p.x, p.y); A.drawAircraft(s, { heading: 0, detail: 'detail', color: '#3F6FB5' }); s.restore(); }
     A.drawHangar(s, { axis: 'x', detail: 'detail' }); A.drawDepot(s, { axis: 'x', detail: 'detail' });
     s.restore();
-    return { buildings: { dark: buildings.dark, p5: buildings.p5, n: buildings.n }, plane: { dark: plane.dark, p5: plane.p5, n: plane.n }, crops: [buildings.url, plane.url], scene: scene.toDataURL() };
+    return { buildings: { dark: buildings.dark, p5: buildings.p5, n: buildings.n }, plane: { dark: plane.dark, p5: plane.p5, n: plane.n, opaque: plane.opaque, bounds: plane.bounds, uncut: plane.uncut, detailContrast: plane.detailContrast, groundContrast: plane.groundContrast }, crops: [buildings.url, plane.url], scene: scene.toDataURL() };
   });
   console.log('art weight', JSON.stringify({ buildings: art.buildings, plane: art.plane }));
   for (const [i, name] of ['art-terminal-tower', 'art-plane'].entries()) await writeFile(`${output}/${name}.png`, Buffer.from(art.crops[i].split(',')[1], 'base64'));
   await writeFile(`${output}/art-check.png`, Buffer.from(art.scene.split(',')[1], 'base64'));
   assert.ok(art.buildings.dark >= .03 && art.buildings.p5 <= 70, `terminal and tower hold their weight (${JSON.stringify(art.buildings)})`);
-  assert.ok(art.plane.dark >= .04 && art.plane.p5 <= 65, `the airliner holds its weight (${JSON.stringify(art.plane)})`);
+  assert.ok(art.plane.opaque > 5000 && art.plane.uncut, `the turboprop has a complete, substantial silhouette (${JSON.stringify(art.plane)})`);
+  assert.ok(art.plane.detailContrast >= 3 && art.plane.groundContrast >= 2, `the cream body separates from its muted details and grass (${JSON.stringify(art.plane)})`);
   await page.close();
 
   // 8. Visuals in three biomes, three zooms and two densities; layers by pixels.

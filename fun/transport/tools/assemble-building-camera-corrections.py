@@ -52,8 +52,9 @@ families={
   {'index':7,'source':'door-targets.png','pick':[950,950],'box':[638,695,1254,1254],'ranges':[[40,270],[350,550]],'cornersX':[644,1243],'door':[[904,1049],[904,1095]]}
  ]},
  'houses-design-0-rotation-0':{
- 'sources':{'camera-targets.png':None},
+ 'sources':{'camera-targets.png':None,'manor-alpha-final.png':None},
  'entries':[
+  {'index':6,'source':'manor-alpha-final.png','isolated':True,'box':[0,0,1254,1254],'ranges':[[60,550],[730,1190]],'cornersX':[33,1240],'door':[[610,636],[610,691]],'physicalSpanMetres':30,'footprint':2},
   {'index':8,'source':'camera-targets.png','pick':[1050,1090],'box':[840,850,1254,1254],'ranges':[[25,160],[230,380]],'cornersX':[849,1244],'door':None}
  ]}}
 for family,cfg in families.items():
@@ -69,13 +70,21 @@ for family,cfg in families.items():
   cfg['scaleCalibration']={'source':'garage-door-final.png','sourceEdgeEndpoints':edge,'physicalSpanMetres':30,'footprint':2,'sourceToMasterScale':source_scale,'note':'Observed complete left/front paved garage parcel edge assigned the 30m architectural span. This one camera density is used for ALL four 2x2 repaint slots; no individual silhouette scaling.'}
  evidence=[]
  for e in cfg['entries']:
-  idx=e['index'];record=measure['entries'][idx];old_record=old_meta['sprites'][idx];path=archive/e['source'];raw,iso=isolate(path,e['pick'],9 if family.startswith('houses') else 4);edges=fit(path,e['box'],e['ranges']);corners=[[x,edges[i][0]*x+edges[i][1]] for i,x in enumerate(e['cornersX'])];center=[sum(p[i] for p in corners)/2 for i in (0,1)]
+  idx=e['index'];record=measure['entries'][idx];old_record=old_meta['sprites'][idx];path=archive/e['source']
+  if e.get('isolated'):
+   raw=Image.open(path).convert('RGBA');iso={'method':'Complete original isolated RGBA generator frame; no component extraction, alpha editing, silhouette fitting, rotation or shear.'}
+  else:raw,iso=isolate(path,e['pick'],9 if family.startswith('houses') else 4)
+  edges=fit(path,e['box'],e['ranges']);corners=[[x,edges[i][0]*x+edges[i][1]] for i,x in enumerate(e['cornersX'])];center=[sum(p[i] for p in corners)/2 for i in (0,1)]
   bounds=e.get('sourceBoundsSheet',record['sourceBoundsSheet']);target_center=[record['groundCenterSource'][0]+record['sourceBoundsSheet'][0],record['groundCenterSource'][1]+record['sourceBoundsSheet'][1]]
   if family=='city-commerce':
    if idx in [6,7,8]:bounds=[(idx-6)*418,844,(idx-5)*418,1254];target_center[0]=209+(idx-6)*418
    elif idx==0:target_center[0]=188
   if family.startswith('houses') and idx==6:bounds=[0,837,417,1254];target_center[0]-=4
-  ratio=source_scale/old_scale;translation=[target_center[i]-center[i]*ratio for i in (0,1)]
+  entry_scale=source_scale;entry_calibration=None
+  if e.get('physicalSpanMetres'):
+   frontx=(edges[1][1]-edges[0][1])/(edges[0][0]-edges[1][0]);observed_edge=[corners[0],[frontx,edges[0][0]*frontx+edges[0][1]]];span=e['physicalSpanMetres'];footprint=e['footprint'];entry_scale=math.hypot(span*256/(72*footprint)*2,span*256/(72*footprint))/math.dist(*observed_edge)
+   entry_calibration={'sourceEdgeEndpoints':observed_edge,'physicalSpanMetres':span,'footprint':footprint,'note':'Observed complete front-left garden hedge ground edge, assigned its canonical 30m architectural envelope. One uniform density applies to this entire isolated generated frame; no silhouette fit.'}
+  ratio=entry_scale/old_scale;translation=[target_center[i]-center[i]*ratio for i in (0,1)]
   layer=mod.affine_frame(raw,sheet.size,ratio,translation)
   outside=layer.getchannel('A').copy();outside.paste(0,tuple(bounds));hist=outside.histogram()
   if sum(hist[3:]):raise ValueError(f'Meaningful source outside registered isolation: {family} {idx} {sum(hist[3:])} pixels')
@@ -90,7 +99,8 @@ for family,cfg in families.items():
    record['personnelDoorEndpointsSource']=[transform(p) for p in e['door']];record['personnelDoorNotes']='Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px.'
   else:
    record['personnelDoorObservable']=False;record['personnelDoorNotes']='No complete ordinary personnel door leaf is visible; factory loading bays and courtyard open arcades are not personnel doors.'
-  evidence.append({'id':record['id'],'source':e['source'],'sourceSha256':hashlib.sha256(path.read_bytes()).hexdigest(),'originalGroundEdgeSlopes':old_record['measuredGeometry']['groundEdgeSlopesMeasured'],'correctedGroundEdgeSlopes':[v[0] for v in edges],'observedGroundEdges':[v[2] for v in edges],'observedGroundVertices':corners,'observedGroundCenter':center,'observedPersonnelDoor':e['door'],'sourceToMasterScale':source_scale,'sourceToSheetScale':ratio,'sourceToSheetTranslation':translation,'isolation':iso,'discardedEncodingNoiseAfterResampling':{'alpha1Pixels':hist[1],'alpha2Pixels':hist[2],'meaningfulPixelsDiscarded':sum(hist[3:])},'clearSourceBounds':old_record['sourceBoundsSheet'],'newSourceBounds':bounds})
+  evidence.append({'id':record['id'],'source':e['source'],'sourceSha256':hashlib.sha256(path.read_bytes()).hexdigest(),'originalGroundEdgeSlopes':old_record['measuredGeometry']['groundEdgeSlopesMeasured'],'correctedGroundEdgeSlopes':[v[0] for v in edges],'observedGroundEdges':[v[2] for v in edges],'observedGroundVertices':corners,'observedGroundCenter':center,'observedPersonnelDoor':e['door'],'sourceToMasterScale':entry_scale,'sourceToSheetScale':ratio,'sourceToSheetTranslation':translation,'isolation':iso,'discardedEncodingNoiseAfterResampling':{'alpha1Pixels':hist[1],'alpha2Pixels':hist[2],'meaningfulPixelsDiscarded':sum(hist[3:])},'clearSourceBounds':old_record['sourceBoundsSheet'],'newSourceBounds':bounds})
+  if entry_calibration:evidence[-1]['isolatedFrameCalibration']=entry_calibration
  out=OUTPUT/family;out.mkdir(parents=True,exist_ok=True);sheet.save(out/'generated-source.png',optimize=True);(out/'source-measurements.json').write_text(json.dumps(measure,indent=2)+'\n');(archive/'assembly-recipe.json').write_text(json.dumps({'baseSource':'before-generated-source.png','sourcePolicy':'Canonical buildingGenerationPrompt() imagegen repaints; accepted target cutouts only, original unedited identities retained. Repaint isolation preserves original RGBA. One measured camera density per generated sheet, uniform scale and ground-centre translation only.','scaleCalibration':cfg.get('scaleCalibration'),'replacements':evidence},indent=2)+'\n')
  print(family,'stage',out,'source_scale',source_scale,'original_scale',old_scale)
- for e in evidence:print(e['id'],e['correctedGroundEdgeSlopes'],'doorMaster',None if not e['observedPersonnelDoor'] else abs(e['observedPersonnelDoor'][1][1]-e['observedPersonnelDoor'][0][1])*source_scale)
+ for e in evidence:print(e['id'],e['correctedGroundEdgeSlopes'],'doorMaster',None if not e['observedPersonnelDoor'] else abs(e['observedPersonnelDoor'][1][1]-e['observedPersonnelDoor'][0][1])*e['sourceToMasterScale'])

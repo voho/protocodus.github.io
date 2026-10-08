@@ -4,6 +4,106 @@
   "scaleCalibration": null,
   "replacements": [
     {
+      "id": "house-expensive-1",
+      "source": "manor-alpha-final.png",
+      "sourceSha256": "c0d971c4336631ea919774555c3da1e0ba218b9dcb169e4673519e88f77e2ae0",
+      "originalGroundEdgeSlopes": [
+        0.5800000000000002,
+        -0.6036363636363635
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5760453975029332,
+        -0.6004658450847588
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            60,
+            734.5051625256851
+          ],
+          [
+            550,
+            1016.7674073021224
+          ]
+        ],
+        [
+          [
+            730,
+            1024.7791762884594
+          ],
+          [
+            1190,
+            748.5648875494704
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          33,
+          718.9519367931059
+        ],
+        [
+          1240,
+          718.5415952952325
+        ]
+      ],
+      "observedGroundCenter": [
+        636.5,
+        718.7467660441691
+      ],
+      "observedPersonnelDoor": [
+        [
+          610,
+          636
+        ],
+        [
+          610,
+          691
+        ]
+      ],
+      "sourceToMasterScale": 0.1678440956765659,
+      "sourceToSheetScale": 0.3292116194437695,
+      "sourceToSheetTranslation": [
+        -1.0431957759592763,
+        843.935213180627
+      ],
+      "isolation": {
+        "method": "Complete original isolated RGBA generator frame; no component extraction, alpha editing, silhouette fitting, rotation or shear."
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 0,
+        "alpha2Pixels": 0,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        0,
+        837,
+        417,
+        1254
+      ],
+      "newSourceBounds": [
+        0,
+        837,
+        417,
+        1254
+      ],
+      "isolatedFrameCalibration": {
+        "sourceEdgeEndpoints": [
+          [
+            33,
+            718.9519367931059
+          ],
+          [
+            648.6778680042579,
+            1073.610339001377
+          ]
+        ],
+        "physicalSpanMetres": 30,
+        "footprint": 2,
+        "note": "Observed complete front-left garden hedge ground edge, assigned its canonical 30m architectural envelope. One uniform density applies to this entire isolated generated frame; no silhouette fit."
+      }
+    },
+    {
       "id": "house-expensive-3",
       "source": "camera-targets.png",
       "sourceSha256": "b0a0c78e4ca1765ea51acbe0f6ab58c5a99c40ad74a6581925276029c8281492",

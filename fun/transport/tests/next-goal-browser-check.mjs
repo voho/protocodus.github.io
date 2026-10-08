@@ -77,14 +77,16 @@ try {
   assert.equal(framed, true, 'the quarry is on screen');
   await page.keyboard.press('Escape');
 
+  // Recipe 7's quarry is 2 × 2. The old stop at 219,251 is sqrt(17)
+  // tiles from its corner; move south so this new stop serves it at range 4.
   // Build the known connection, then the checklist ticks the first three steps.
   const supplier=page.locator('#objective-summary [data-ref]').nth(1);
   const supplierRef=await supplier.getAttribute('data-ref');await supplier.focus();
   await page.evaluate(async () => {
     const { buildPlan } = await import('./construction-plan.js'), { build } = await import('./model.js');
-    const points = []; for (let y = 251; y >= 245; y--) points.push({ x: 219, y });
+    const points = []; for (let y = 252; y >= 245; y--) points.push({ x: 219, y });
     if (!buildPlan(transport.game, 'road', points, { preferredMode: 'road' }).ok) throw new Error('road failed');
-    if (!build(transport.game, 'bus-stop', 219, 251).ok) throw new Error('stop failed');
+    if (!build(transport.game, 'bus-stop', 219, 252).ok) throw new Error('stop failed');
   });
   await page.waitForFunction(() => document.querySelectorAll('#objective-steps .objective-step.done').length === 3);
   assert.equal(await page.evaluate(()=>document.activeElement.dataset.ref),supplierRef,'live step changes preserve focus on an unchanged supplier reference');
@@ -95,10 +97,10 @@ try {
   assert.equal(await page.locator('#objective-action').textContent(), 'Set up route', 'the one button is the open step');
   await page.screenshot({ path: `${output}/desktop-connected.png` });
   await page.locator('[data-goal-step="3"]').click();
-  const stop = await page.evaluate(() => transport.game.stations.find(stop => stop.x === 219 && stop.y === 251).id);
+  const stop = await page.evaluate(() => transport.game.stations.find(stop => stop.x === 219 && stop.y === 252).id);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(), stop);
   assert.equal(await page.locator('#route-form [name="to"]').inputValue(), 'station-1');
-  assert.equal(await page.locator('#route-form [name="cargo"]').inputValue(), 'stone');
+  assert.equal(await page.locator('#route-form [data-cargo-choice="stone"]').getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('#route-form button[type="submit"]').isEnabled(), true);
   await page.screenshot({ path: `${output}/desktop-launch.png` });
   await page.locator('#close-management').click();
@@ -115,7 +117,7 @@ try {
   await page.locator('#objective-card').waitFor({ state: 'visible' });
   assert.equal(await page.locator('#objective-chip').isVisible(), true, 'a collapsed goal stays collapsed after reload');
   await page.evaluate(async () => {
-    const { addRoute, tick } = await import('./model.js'), stop = transport.game.stations.find(stop => stop.x === 219 && stop.y === 251);
+    const { addRoute } = await import('./model.js'), stop = transport.game.stations.find(stop => stop.x === 219 && stop.y === 252);
     if (!addRoute(transport.game, { mode: 'road', stops: [stop.id, 'station-1'], cargo: 'stone' }).ok) throw new Error('route failed');
   });
   await page.waitForFunction(()=>document.querySelector('#objective-current').textContent==='Resume time for the first delivery');

@@ -1,0 +1,52 @@
+{
+  "generator": "built-in image_gen",
+  "transparent_background": true,
+  "steps": [
+    {
+      "operation": "Camera repaint",
+      "source": "before-generated-source.png",
+      "result": "camera-targets.png",
+      "prompt": "prompt.txt",
+      "job": "generation-job.json"
+    },
+    {
+      "operation": "Manor lawn alpha edit in complete source sheet",
+      "source": "camera-targets.png",
+      "result": "manor-alpha-first.png",
+      "prompt": "manor-alpha-prompt.txt",
+      "job": "manor-alpha-job.json"
+    },
+    {
+      "operation": "Lossless crop of entire isolated manor",
+      "source": "manor-alpha-first.png",
+      "sourceBoundsSheet": [
+        0,
+        837,
+        430,
+        1254
+      ],
+      "result": "manor-alpha-reference.png",
+      "record": "manor-reference-extraction.json"
+    },
+    {
+      "operation": "Isolated manor lawn alpha repair",
+      "source": "manor-alpha-reference.png",
+      "result": "manor-alpha-final.png",
+      "prompt": "manor-isolated-alpha-prompt.txt",
+      "job": "manor-isolated-alpha-job.json"
+    }
+  ],
+  "acceptedSource": "manor-alpha-final.png",
+  "acceptedSourceSha256": "c0d971c4336631ea919774555c3da1e0ba218b9dcb169e4673519e88f77e2ae0",
+  "rawZeroAlphaGroundProbes": [
+    [
+      870,
+      816
+    ],
+    [
+      733,
+      913
+    ]
+  ],
+  "packing": "Whole original isolated RGBA frame calibrated from the observed 30m front-left physical garden edge. Uniform scale and observed ground-centre translation only. No RGB key, hand-painted alpha mask, silhouette normalization, camera warp, rotation or shear."
+}

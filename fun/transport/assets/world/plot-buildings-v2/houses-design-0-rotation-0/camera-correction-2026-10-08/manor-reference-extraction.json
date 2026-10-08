@@ -1,0 +1,10 @@
+{
+  "source": "manor-alpha-first.png",
+  "sourceBoundsSheet": [
+    0,
+    837,
+    430,
+    1254
+  ],
+  "operation": "Lossless rectangular extraction of the whole isolated manor; no resize, color, geometry or alpha changes."
+}

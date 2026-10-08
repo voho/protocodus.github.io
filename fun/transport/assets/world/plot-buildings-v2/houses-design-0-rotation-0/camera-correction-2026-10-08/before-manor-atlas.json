@@ -2209,59 +2209,59 @@
       "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
       "sourceAlpha": {
         "alphaBounds": [
-          6,
-          39,
-          411,
-          396
+          0,
+          0,
+          417,
+          401
         ],
         "meaningfulAlphaBounds": [
-          8,
-          107,
-          408,
-          360
+          13,
+          123,
+          416,
+          362
         ],
-        "transparentFraction": 0.6843158566671842,
-        "nontransparentPixels": 56638,
-        "meaningfulPixels": 53839,
-        "fractionalAlphaPixels": 55291,
+        "transparentFraction": 0.697232142343679,
+        "nontransparentPixels": 58422,
+        "meaningfulPixels": 50651,
+        "fractionalAlphaPixels": 58235,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 8
+        "minimumFilteringGutterPixels": 1
       },
       "masterAlpha": {
         "alphaBounds": [
-          24,
-          88,
-          232,
-          254
+          20,
+          69,
+          234,
+          256
         ],
         "meaningfulAlphaBounds": [
           26,
-          123,
-          230,
-          252
+          131,
+          232,
+          253
         ],
-        "transparentFraction": 0.7762451171875,
-        "nontransparentPixels": 15183,
-        "meaningfulPixels": 14277,
-        "fractionalAlphaPixels": 14413,
+        "transparentFraction": 0.78948974609375,
+        "nontransparentPixels": 14997,
+        "meaningfulPixels": 13269,
+        "fractionalAlphaPixels": 14556,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 4
+        "minimumFilteringGutterPixels": 3
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.03668608189168043,
+        "envelopeZeroAlphaFraction": 0.03720768495175172,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.04961240310077519,
+        "frontGroundZeroAlphaFraction": 0.05770887166236004,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -2307,80 +2307,80 @@
           "groundEdgeSegmentsSource": [
             [
               [
-                18.709501390666894,
-                248.74284722551693
+                12.0,
+                244.42
               ],
               [
-                180.02319491811394,
-                341.6668579362015
+                215.0,
+                362.16
               ]
             ],
             [
               [
-                239.28128641799245,
-                344.304425378803
+                215.0,
+                362.21
               ],
               [
-                390.7186313621264,
-                253.37147206953136
+                413.0,
+                242.69
               ]
             ]
           ],
           "visibleOppositeGroundVerticesSource": [
             [
-              9.820787665685117,
-              243.62254459451992
+              12.0,
+              244.42
             ],
             [
-              407.1792123343149,
-              243.48745540547998
+              413.0,
+              242.69
             ]
           ],
-          "observationMethod": "Visible paved parcel or fence-base boundaries fitted to original alpha>180 pixels, residual <2 source pixels; opposite physical edge endpoints manually identified. No silhouette anchor. See retained repaint measurements.",
+          "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
           "groundCenterSource": [
-            208.5,
-            243.55500000000006
+            212.5,
+            243.555
           ],
           "personnelDoorEndpointsSource": [
             [
-              199.7758920847401,
-              216.3138031468643
+              203.0,
+              227.0
             ],
             [
-              199.7758920847401,
-              234.4204422162718
+              203.0,
+              242.0
             ]
           ],
-          "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
+          "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              31.237878842459743,
-              194.64495380675282
+              25.777784271373577,
+              192.44100856162225
             ],
             [
-              113.48148572397704,
-              242.02100502489145
+              129.27459121856143,
+              252.4691565909912
             ]
           ],
           [
             [
-              143.69342294575893,
-              243.36573314517278
+              129.27459121856143,
+              252.4946484153624
             ],
             [
-              220.90170695697924,
-              197.00479563883124
+              230.2222157286264,
+              191.55899143837775
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
-          0.5760453975029332,
-          -0.6004658450847594
+          0.5800000000000002,
+          -0.6036363636363635
         ],
-        "groundSlopeMaximumAbsoluteError": 0.10046584508475942,
+        "groundSlopeMaximumAbsoluteError": 0.10363636363636353,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -2388,31 +2388,31 @@
           192.0
         ],
         "groundCenterErrorMasterPixels": 0.0,
-        "personnelDoorHeightMasterMeasured": 9.231425262211213,
+        "personnelDoorHeightMasterMeasured": 7.64754731136856,
         "personnelDoorEndpointsMasterMeasured": [
           [
-            123.55213146457099,
-            178.111443883156
+            123.15655336946658,
+            183.55965695068625
           ],
           [
-            123.55213146457099,
-            187.34286914536722
+            123.15655336946658,
+            191.2072042620548
           ]
         ],
-        "personnelDoorHeightRelativeError": 0.23635159761757307
+        "personnelDoorHeightRelativeError": 0.024225086344003513
       },
       "registrationPlan": {
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          208.5,
-          243.55500000000006
+          212.5,
+          243.555
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "uniformSourceToMasterScale": 0.5098364874245707,
         "translationMaster": [
-          21.699092371977017,
-          67.82677430530866
+          19.65974642227873,
+          67.82677430530869
         ],
         "targetGroundCenterMaster": [
           128.0,
@@ -2424,16 +2424,16 @@
         ],
         "registrationOffsetReview": "",
         "transformedMeaningfulAlphaBoundsMaster": [
-          25.777784271373584,
-          122.88911494716228,
-          229.71237924120186,
-          251.87774626557865
+          26.28762075879815,
+          131.04649874595543,
+          231.75172519090012,
+          252.89741924042784
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 4.122253734421349,
+        "minimumMeaningfulFilteringGutterMasterPixels": 3.102580759572163,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
-          "clippedSourcePixels": 37,
-          "clippedSourceAlphaEnergy": 37,
+          "clippedSourcePixels": 96,
+          "clippedSourceAlphaEnergy": 96,
           "clippedNonNoiseSourcePixels": 0,
           "clippedNonNoiseSourceAlphaEnergy": 0,
           "maximumAllowedClippedAlpha": 2,
@@ -2442,15 +2442,15 @@
         "sourceCropToMasterAffine": [
           0.5098364874245707,
           0,
-          21.699092371977017,
+          19.65974642227873,
           0,
           0.5098364874245707,
-          68.33661079273323
+          68.33661079273325
         ],
         "sourceSheetToMasterAffine": [
           0.5098364874245707,
           0,
-          21.699092371977017,
+          19.65974642227873,
           0,
           0.5098364874245707,
           -358.3965291816324
@@ -2458,10 +2458,10 @@
         "sourceNominalCellToMasterAffine": [
           0.5098364874245707,
           0,
-          21.699092371977017,
+          19.65974642227873,
           0,
           0.5098364874245707,
-          67.82677430530866
+          67.82677430530869
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
@@ -2476,53 +2476,53 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              18.709501390666894,
-              248.74284722551693
+              12.0,
+              244.42
             ],
             [
-              180.02319491811394,
-              341.6668579362015
+              215.0,
+              362.16
             ]
           ],
           [
             [
-              239.28128641799245,
-              344.304425378803
+              215.0,
+              362.21
             ],
             [
-              390.7186313621264,
-              253.37147206953136
+              413.0,
+              242.69
             ]
           ]
         ],
         "visibleOppositeGroundVerticesSource": [
           [
-            9.820787665685117,
-            243.62254459451992
+            12.0,
+            244.42
           ],
           [
-            407.1792123343149,
-            243.48745540547998
+            413.0,
+            242.69
           ]
         ],
-        "observationMethod": "Visible paved parcel or fence-base boundaries fitted to original alpha>180 pixels, residual <2 source pixels; opposite physical edge endpoints manually identified. No silhouette anchor. See retained repaint measurements.",
+        "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
         "groundCenterSource": [
-          208.5,
-          243.55500000000006
+          212.5,
+          243.555
         ],
         "personnelDoorEndpointsSource": [
           [
-            199.7758920847401,
-            216.3138031468643
+            203.0,
+            227.0
           ],
           [
-            199.7758920847401,
-            234.4204422162718
+            203.0,
+            242.0
           ]
         ],
-        "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
+        "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
       },
-      "masterSha256": "f7bbd9e6f90b2a7b1a6821dad2b70bbaa2bd0bc40e254c792b781593a0807166"
+      "masterSha256": "a2bac9d4ba29f79a3d475928a3c2b6bc6526c4803d54d0991b2e9fdf9ed64288"
     },
     {
       "id": "house-expensive-2",
@@ -3212,10 +3212,10 @@
   "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
   "groundRegistrationApplied": true,
   "source": "generated-source.png",
-  "sourceSha256": "278dccf10d11102cd963db75c8347a09913bb822b11f4eebd41bde4607f2c78d",
+  "sourceSha256": "8e8d3f4e5f4cf95bbc6d275f217a66e47f0954dbf8ec21ab786ae48dcee6f832",
   "generationJobSha256": "2ee614e47dcbb16e2a590863343ead640941e1591e30fc2d9582bc835fa24a29",
   "measurements": "registration-measurements.json",
-  "measurementsSha256": "d16466a85bdcb2f787d66206338d6c7e2a3ff7e069ba8e3d6e34e538b8722296",
+  "measurementsSha256": "2a70be2aa0b75d9639b41dee579c6d5f96aab43346ececf11e0ea75bb9f62101",
   "originalSourceResolution": {
     "sheetPixels": [
       1254,
@@ -3585,51 +3585,51 @@
         "groundEdgeSegmentsSource": [
           [
             [
-              18.709501390666894,
-              248.74284722551693
+              12.0,
+              244.42
             ],
             [
-              180.02319491811394,
-              341.6668579362015
+              215.0,
+              362.16
             ]
           ],
           [
             [
-              239.28128641799245,
-              344.304425378803
+              215.0,
+              362.21
             ],
             [
-              390.7186313621264,
-              253.37147206953136
+              413.0,
+              242.69
             ]
           ]
         ],
         "visibleOppositeGroundVerticesSource": [
           [
-            9.820787665685117,
-            243.62254459451992
+            12.0,
+            244.42
           ],
           [
-            407.1792123343149,
-            243.48745540547998
+            413.0,
+            242.69
           ]
         ],
-        "observationMethod": "Visible paved parcel or fence-base boundaries fitted to original alpha>180 pixels, residual <2 source pixels; opposite physical edge endpoints manually identified. No silhouette anchor. See retained repaint measurements.",
+        "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
         "groundCenterSource": [
-          208.5,
-          243.55500000000006
+          212.5,
+          243.555
         ],
         "personnelDoorEndpointsSource": [
           [
-            199.7758920847401,
-            216.3138031468643
+            203.0,
+            227.0
           ],
           [
-            199.7758920847401,
-            234.4204422162718
+            203.0,
+            242.0
           ]
         ],
-        "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
+        "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
       },
       {
         "id": "house-expensive-2",
@@ -3848,7 +3848,7 @@
     "contractSha256": "1b259372f2589951aad69b101d3830132fc50ee8f539cde679922c2b9e71dcf2",
     "sourceCellPixels": 418,
     "sourceToMasterScale": 0.5098364874245707,
-    "meaningfulSourcePixelsRetained": 498327,
+    "meaningfulSourcePixelsRetained": 495139,
     "sourceIsolationNoise": {
       "omittedSourcePixels": 0,
       "omittedSourceAlphaEnergy": 0,
@@ -3869,7 +3869,7 @@
   "outputs": {
     "16": {
       "path": "atlas-16.png",
-      "sha256": "1f770a8750d91e5ce07eab32942070d2281bf3658ac289b4b6f9b8e5cd6bb85b",
+      "sha256": "4d88d798834f6f499e99a9b5dab48daf1b5a601169f03816c085e9d9157e8f25",
       "dimensions": [
         48,
         48
@@ -3881,7 +3881,7 @@
     },
     "32": {
       "path": "atlas-32.png",
-      "sha256": "96a4de3268b6331475b3e1b987400a43d764df09a7f54497169927d5f4a59e6c",
+      "sha256": "031e94f50408f9a426ff3250263d7f4946da424f396e7bc2b1fea1c46efdacaf",
       "dimensions": [
         96,
         96
@@ -3893,7 +3893,7 @@
     },
     "64": {
       "path": "atlas-64.png",
-      "sha256": "76eaf7fdce853870c61672654464ec54b8d89b2e1893c50472385c9b7da06f6f",
+      "sha256": "911fb079aed4f642858271c847e779260b6c93dd7f6d6768eaacabaa13a50bbb",
       "dimensions": [
         192,
         192
@@ -3905,7 +3905,7 @@
     },
     "128": {
       "path": "atlas-128.png",
-      "sha256": "892ab9d32cdee710e09f0c1e521a781f8bdbdead499a3a4dfa3a186bcacd18af",
+      "sha256": "d5e98ef85d7b7c60f3a56f1dbeb1969ef948e03d9d9be059f8a6864889150ca8",
       "dimensions": [
         384,
         384
@@ -3917,7 +3917,7 @@
     },
     "256": {
       "path": "atlas-256.png",
-      "sha256": "aba67efca221eec5fcc7d6e155d2f64b05a8eccb92d702e2ad537906374a6b33",
+      "sha256": "8932aacd605fb4604701b3d2276fa1ebc13cea27ce9063d46b1ad1d0fe160cb3",
       "dimensions": [
         768,
         768
@@ -3929,7 +3929,7 @@
     },
     "512": {
       "path": "atlas-512.png",
-      "sha256": "c87ea87e5ea6ff19eeb54bd729639c029148495d8188e6f2f0dbf0db73d1ec56",
+      "sha256": "c7008579cd2ad9e838fb55f2de0f4005dea2c84271d8bcee2688b5c3b0b2893c",
       "dimensions": [
         1536,
         1536
@@ -3956,20 +3956,11 @@
       "date": "2026-10-08",
       "recipe": "camera-correction-2026-10-08/assembly-recipe.json",
       "acceptedEntries": [
-        "house-expensive-1",
         "house-expensive-3"
       ],
       "unchangedCells": "All other cells remain byte-identical at every shipping display density.",
       "review": "Actual source ground edges, physical centres, ordinary door leaves, full RGBA retention and all six density levels reviewed. No per-silhouette scale or camera warp.",
-      "manorAlphaRepair": {
-        "source": "camera-correction-2026-10-08/manor-alpha-final.png",
-        "prompt": "camera-correction-2026-10-08/manor-isolated-alpha-prompt.txt",
-        "job": "camera-correction-2026-10-08/manor-isolated-alpha-job.json",
-        "lineage": "camera-correction-2026-10-08/manor-alpha-lineage.json",
-        "sourcePolicy": "Isolated imagegen alpha repair preserves bare-ground holes, hedges, shrubs, paths and fountain. Full-frame physical parcel calibration and ground registration only; no color key, alpha painting or per-silhouette fit.",
-        "doorReview": "Complete 55 source-pixel door leaf at x=610, y=636\u2013691, independently reviewed; 9.2314 master pixels after calibrated uniform scale (23.63% above canonical 7.4667, inside the existing 25% tolerance).",
-        "unaffectedCells": "All other eight house cells, including the previously corrected courtyard villa, remain byte-identical across six shipping display densities."
-      }
+      "retainedOriginal": "Country manor retained: the camera repaint introduced opaque bare lawn; it was rejected before shipment."
     }
   }
 }

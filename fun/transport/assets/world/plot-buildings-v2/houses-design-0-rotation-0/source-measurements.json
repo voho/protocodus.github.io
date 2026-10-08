@@ -358,51 +358,51 @@
       "groundEdgeSegmentsSource": [
         [
           [
-            12.0,
-            244.42
+            18.709501390666894,
+            248.74284722551693
           ],
           [
-            215.0,
-            362.16
+            180.02319491811394,
+            341.6668579362015
           ]
         ],
         [
           [
-            215.0,
-            362.21
+            239.28128641799245,
+            344.304425378803
           ],
           [
-            413.0,
-            242.69
+            390.7186313621264,
+            253.37147206953136
           ]
         ]
       ],
       "visibleOppositeGroundVerticesSource": [
         [
-          12.0,
-          244.42
+          9.820787665685117,
+          243.62254459451992
         ],
         [
-          413.0,
-          242.69
+          407.1792123343149,
+          243.48745540547998
         ]
       ],
-      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "observationMethod": "Visible paved parcel or fence-base boundaries fitted to original alpha>180 pixels, residual <2 source pixels; opposite physical edge endpoints manually identified. No silhouette anchor. See retained repaint measurements.",
       "groundCenterSource": [
-        212.5,
-        243.555
+        208.5,
+        243.55500000000006
       ],
       "personnelDoorEndpointsSource": [
         [
-          203.0,
-          227.0
+          199.7758920847401,
+          216.3138031468643
         ],
         [
-          203.0,
-          242.0
+          199.7758920847401,
+          234.4204422162718
         ]
       ],
-      "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
+      "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
     },
     {
       "id": "house-expensive-2",

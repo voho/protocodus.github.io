@@ -87,15 +87,15 @@
     "id": "house-expensive-1",
     "personnelDoorEndpointsSource": [
       [
-        199.7758920847401,
-        216.3138031468643
+        203.0,
+        227.0
       ],
       [
-        199.7758920847401,
-        234.4204422162718
+        203.0,
+        242.0
       ]
     ],
-    "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
+    "personnelDoorObservationMethod": "Visible leaf head and sill manually marked on the source RGBA composite; approximate two source-pixel reading uncertainty."
   },
   {
     "id": "house-expensive-2",

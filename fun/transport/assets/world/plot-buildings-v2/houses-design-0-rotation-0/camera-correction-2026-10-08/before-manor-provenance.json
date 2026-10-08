@@ -4,7 +4,7 @@
   "canonicalPrompt": "generation-prompt.txt",
   "nativeGeometryReference": "generation-reference.png",
   "source": "generated-source.png",
-  "sourceSha256": "278dccf10d11102cd963db75c8347a09913bb822b11f4eebd41bde4607f2c78d",
+  "sourceSha256": "8e8d3f4e5f4cf95bbc6d275f217a66e47f0954dbf8ec21ab786ae48dcee6f832",
   "measurements": "registration-measurements.json",
   "observationOverlay": "registration-observations.png",
   "packing": {
@@ -20,7 +20,7 @@
       256,
       512
     ],
-    "sourceSha256": "278dccf10d11102cd963db75c8347a09913bb822b11f4eebd41bde4607f2c78d",
+    "sourceSha256": "8e8d3f4e5f4cf95bbc6d275f217a66e47f0954dbf8ec21ab786ae48dcee6f832",
     "groundRegistrationApplied": true,
     "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
   },
@@ -30,19 +30,10 @@
     "date": "2026-10-08",
     "recipe": "camera-correction-2026-10-08/assembly-recipe.json",
     "acceptedEntries": [
-      "house-expensive-1",
       "house-expensive-3"
     ],
     "unchangedCells": "All other cells remain byte-identical at every shipping display density.",
     "review": "Actual source ground edges, physical centres, ordinary door leaves, full RGBA retention and all six density levels reviewed. No per-silhouette scale or camera warp.",
-    "manorAlphaRepair": {
-      "source": "camera-correction-2026-10-08/manor-alpha-final.png",
-      "prompt": "camera-correction-2026-10-08/manor-isolated-alpha-prompt.txt",
-      "job": "camera-correction-2026-10-08/manor-isolated-alpha-job.json",
-      "lineage": "camera-correction-2026-10-08/manor-alpha-lineage.json",
-      "sourcePolicy": "Isolated imagegen alpha repair preserves bare-ground holes, hedges, shrubs, paths and fountain. Full-frame physical parcel calibration and ground registration only; no color key, alpha painting or per-silhouette fit.",
-      "doorReview": "Complete 55 source-pixel door leaf at x=610, y=636\u2013691, independently reviewed; 9.2314 master pixels after calibrated uniform scale (23.63% above canonical 7.4667, inside the existing 25% tolerance).",
-      "unaffectedCells": "All other eight house cells, including the previously corrected courtyard villa, remain byte-identical across six shipping display densities."
-    }
+    "retainedOriginal": "Country manor retained: the camera repaint introduced opaque bare lawn; it was rejected before shipment."
   }
 }

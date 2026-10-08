@@ -23,17 +23,23 @@ try {
       const profiles = [];
       for (const zoom of [.5, 1, 2]) {
         const scale = zoom * devicePixelRatio, factory = infra.createIsometricInfrastructureSprites({ pixelScale: scale });
-        for (const mode of ['road', 'rail']) {
+        for (const mode of ['road', 'rail']) for (const axis of ['x', 'y']) {
           const bounds = infra.isometricStationBounds(mode), direct = document.createElement('canvas'), cached = document.createElement('canvas');
           direct.width = direct.height = cached.width = cached.height = 160 * scale;
-          for (const c of [direct.getContext('2d'), cached.getContext('2d')]) {
+          for (const [index, c] of [direct.getContext('2d'), cached.getContext('2d')].entries()) {
             // The map is opaque ground. Compare the complete displayed pixels,
             // including the alpha blend of each station's antialiased edge.
             c.fillStyle = '#91a77a'; c.fillRect(0, 0, direct.width, direct.height);
-            c.scale(scale, scale); c.translate(40 - bounds.left, 40 - bounds.top);
+            // Chromium's high-quality atlas filter can round edge samples
+            // differently after a screen translation. Rasterize the reference
+            // at the preparation origin, then compare it with the cached image
+            // copied elsewhere; this still detects resampling during that copy.
+            const offset = index ? 40 : 0;
+            c.scale(scale, scale); c.translate(offset - bounds.left, offset - bounds.top);
           }
-          const authored = infra.drawIsometricStop(direct.getContext('2d'), mode, 0, 0, scale), prepared = factory.stop(cached.getContext('2d'), mode, 0, 0);
-          const a = direct.getContext('2d').getImageData(0, 0, direct.width, direct.height).data, b = cached.getContext('2d').getImageData(0, 0, cached.width, cached.height).data;
+          const authored = infra.drawIsometricStop(direct.getContext('2d'), mode, 0, 0, scale, axis), prepared = factory.stop(cached.getContext('2d'), mode, 0, 0, axis);
+          const frame = bounds.size * scale, offset = 40 * scale;
+          const a = direct.getContext('2d').getImageData(0, 0, frame, frame).data, b = cached.getContext('2d').getImageData(offset, offset, frame, frame).data;
           // Compare the pixels visible on grass. Raw RGB in near-transparent
           // antialiased edges can differ after unpremultiplication while their
           // displayed colours agree; this matches prepared-sprites QA.
@@ -42,12 +48,12 @@ try {
             const channel = i % 4, alpha = i - channel + 3, ground = [145, 167, 122][channel] || 0;
             const pa = channel === 3 ? a[i] : a[i] * a[alpha] / 255 + ground * (1 - a[alpha] / 255);
             const pb = channel === 3 ? b[i] : b[i] * b[alpha] / 255 + ground * (1 - b[alpha] / 255);
-            const delta = Math.abs(pa - pb); if(delta > max){max = delta;visibleWorst={channel, direct:[...a.slice(alpha-3,alpha+1)],cached:[...b.slice(alpha-3,alpha+1)],x:(alpha-3)/4%direct.width,y:Math.floor((alpha-3)/4/direct.width)};} sum += delta;
+            const delta = Math.abs(pa - pb); if(delta > max){max = delta;visibleWorst={channel, direct:[...a.slice(alpha-3,alpha+1)],cached:[...b.slice(alpha-3,alpha+1)],x:(alpha-3)/4%frame,y:Math.floor((alpha-3)/4/frame)};} sum += delta;
             if (Math.abs(a[i] - b[i]) > rawMax) { rawMax = Math.abs(a[i] - b[i]); rawWorst = { direct: [...a.slice(alpha - 3, alpha + 1)], cached: [...b.slice(alpha - 3, alpha + 1)] }; }
           }
-          const before = factory.getStats().created; factory.stop(cached.getContext('2d'), mode, 0, 0);
+          const before = factory.getStats().created; factory.stop(cached.getContext('2d'), mode, 0, 0, axis);
           let stationInk = 0; for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-145)+Math.abs(a[i+1]-167)+Math.abs(a[i+2]-122)>16)stationInk++;
-          profiles.push({ mode, zoom, authored, prepared, max, sum, mean: sum / a.length, rawMax, rawWorst, visibleWorst, ink: stationInk, reused: before === factory.getStats().created, envelope: bounds.size });
+          profiles.push({ mode, axis, zoom, authored, prepared, max, sum, mean: sum / a.length, rawMax, rawWorst, visibleWorst, ink: stationInk, reused: before === factory.getStats().created, envelope: bounds.size });
         }
       }
       const source = createGame({ biome: 'taiga', size: 'square512', seed: 1847, generationVersion: 10, townCount: 2, industryDistricts: 1 });
