@@ -6,7 +6,7 @@ import { buildingAt, buildingTiles } from '../building-sites.js';
 import { localEnvironment } from '../environment.js';
 import { encodeGame } from '../save-codec.js';
 import { townLedger, reviewMarket, monthlyMarkets, recordTownSupply, propertyOccupancy, propertyBase, propertyAt, BUILT_YIELD } from '../town-market.js';
-import { emptyGame, tileAt, line } from './helpers.mjs';
+import { emptyGame, tileAt, line, completeFixtureConstruction } from './helpers.mjs';
 
 const ledgerOf = (game, city) => townLedger(game, city, new Map());
 function cityAt(game, x = 30, y = 30, population = 1800) {
@@ -63,6 +63,7 @@ test('parks improve local greenery and amenities, reduce pollution and earn no p
     game.revision++;
     const before = localEnvironment(game, 21, 21);
     assert.equal(build(game, kind, 20, 20).ok, true);
+    completeFixtureConstruction(game, buildingAt(game, 20, 20).building);
     const after = localEnvironment(game, 21, 21);
     assert.equal(after.civic, before.civic + 1); assert.equal(after.leisure, before.leisure + 1);
     assert.ok(after.amenity > before.amenity, kind);
@@ -78,6 +79,7 @@ test('malls provide proportionate food and household outlets for town deliveries
   for (const kind of MALL_KINDS) {
     const game = emptyGame(), city = cityAt(game), definition = BUILDINGS[kind];
     assert.equal(build(game, kind, 32, 30).ok, true);
+    completeFixtureConstruction(game, buildingAt(game, 32, 30).building);
     const ledger = ledgerOf(game, city);
     assert.equal(ledger.shopUnits, definition.shopUnits);
     assert.deepEqual(ledger.outlets, { ...definition.outlets, fuel: 0 });
@@ -98,6 +100,7 @@ test('mall rent responds to stocking both retail families and sale ends its priv
   for (const kind of MALL_KINDS) {
     const game = emptyGame(), city = cityAt(game, 30, 30, 10000), definition = BUILDINGS[kind];
     assert.equal(build(game, kind, 32, 30).ok, true);
+    completeFixtureConstruction(game, buildingAt(game, 32, 30).building);
     reviewMarket(game, city);
     const [property] = ledgerOf(game, city).owned;
     assert.equal(propertyBase(property), BUILT_YIELD * definition.cost);
@@ -124,6 +127,7 @@ test('mall rent responds to stocking both retail families and sale ends its priv
 test('a saved mall resumes with identical demands and monthly property income', () => {
   const game = emptyGame(), city = cityAt(game);
   assert.equal(build(game, 'mall-modern', 32, 30).ok, true);
+  completeFixtureConstruction(game, buildingAt(game, 32, 30).building);
   reviewMarket(game, city);
   recordTownSupply(game, city, 'food', city.market.wants.food);
   recordTownSupply(game, city, 'furniture', city.market.wants.household);
@@ -138,6 +142,7 @@ test('a cannery food truck supplies a mall town and earns the food demand bonus'
   const game = emptyGame(), city = cityAt(game, 30, 9, 900);
   assert.equal(build(game, 'cannery', 10, 7).ok, true);
   assert.equal(build(game, 'mall-neighborhood', 32, 9).ok, true);
+  completeFixtureConstruction(game, game.industries[0], buildingAt(game, 32, 9).building);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   const plant = game.industries[0]; plant.inventory.produce = 900;

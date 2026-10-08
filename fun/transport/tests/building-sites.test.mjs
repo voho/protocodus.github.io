@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { build, buildPath, constructionCost, restoreGame, validateGame, industryAt } from '../model.js';
+import { build, buildPath, tick, constructionCost, restoreGame, validateGame, industryAt } from '../model.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite, siteSize } from '../building-sites.js';
 import { industryFootprint, industrySize, industryTiles } from '../industry-sites.js';
 import { encodeGame } from '../save-codec.js';
@@ -135,7 +135,7 @@ test('legacy compact sites keep every neighbor when desired expansion is blocked
 
 test('demolishing a prestige home from a child tile removes its residents exactly once',()=>{
   const game=emptyGame();build(game,'city',14,20);const city=game.cities[0],population=city.population;
-  assert.equal(build(game,'house-expensive-1',20,20).ok,true);assert.equal(city.population,population+28);
+  assert.equal(build(game,'house-expensive-1',20,20).ok,true);assert.equal(city.population,population);tick(game,120);assert.equal(city.population,population+28);
   assert.equal(tileAt(game,20,20).building.populationCityId,city.id);
   assert.equal(build(game,'bulldoze',21,21).ok,true);assert.equal(city.population,population);
   assert.equal(build(game,'bulldoze',20,20).ok,false);assert.equal(city.population,population);

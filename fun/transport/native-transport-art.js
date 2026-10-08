@@ -90,6 +90,35 @@ export function drawNativeRailStop(c){
   return true;
 }
 
+// Real paving and safety paint, in metres, frame the existing shelter without
+// changing its authored scale. A light road bay and amber rail platform edge
+// remain identifiable against both dark networks and pale terrain.
+export function drawNativeStopApron(c,mode){
+  const {block}=model(c,Math.atan2(1,2),Math.SQRT2),rail=mode==='rail';
+  if(rail){
+    block(-7.15,-3.15,7.15,2.25,0,.16,'#8c938b','#f0e9d6');
+    block(-6.9,-2.9,6.9,2,.16,.015,'#c7bca5','#c7bca5');
+  }else{
+    block(-4.15,-2,4.15,2,0,.12,'#8c938b','#f0e9d6');
+    block(-3.9,-1.75,3.9,1.75,.12,.015,'#c7bca5','#c7bca5');
+  }
+  return true;
+}
+
+// An upright roadside board sits outside the shelter roof, at a plausible
+// 3.5m height. Only the map's screen-space mode badge grows with readability.
+export function drawNativeStopBoard(c,mode){
+  const {project,block}=model(c,Math.atan2(1,2),Math.SQRT2),rail=mode==='rail',x=rail?6.8:3.9,y=rail?1.7:1.45,color=rail?'#3b6872':'#426959';
+  // The front safety edge is painted after the source cutout so an authored
+  // pavement cannot hide it; its height matches the physical platform top.
+  if(rail)block(-6.8,1.8,6.8,2.15,.36,.015,'#d8ae59','#e4bf70');
+  else block(-3.8,1.55,3.8,1.85,.21,.015,'#f0e9d6','#f0e9d6');
+  block(x-.09,y-.09,x+.09,y+.09,.15,3.35,P.slate,P.cream);
+  const board=(x0,x1,z0,z1,fill)=>polygon(c,[[x0,y,z0],[x1,y,z0],[x1,y,z1],[x0,y,z1]].map(p=>project(...p)),fill);
+  board(x-.6,x+.6,2.65,3.55,'#f0e9d6');board(x-.44,x+.44,2.8,3.4,color);
+  return true;
+}
+
 export function drawNativePortal(c,{mode='road',heading=0}={}){
   const {project,block,shadow}=model(c,heading),angle=Math.atan2(Math.sin(heading)*2,Math.cos(heading)),visibleFront=Math.sin(angle)>=0;
   const outer=mode==='rail'?4:4.6,mouth=mode==='rail'?2.4:3.2;

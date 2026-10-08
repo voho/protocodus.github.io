@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, buildPath, addRoute, removeRoute, addRouteVehicle, addRouteVehicles, sellRouteVehicle, getRouteFleet, getRetirementRefund, getVehiclePurchase, getVehicleUpgrade, vehicleNoun, tick, validateGame, restoreGame, VEHICLE_COSTS, MAX_VEHICLES, validVehicleCount } from '../model.js';
 import { encodeGame } from '../save-codec.js';
-import { emptyGame, line, advance, equivalent } from './helpers.mjs';
+import { emptyGame, line, advance, equivalent, completeFixtureConstruction } from './helpers.mjs';
 
 const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 100, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
 const phase = (route, vehicle) => { const L = route.path.length - 1; return (vehicle.direction === 1 ? vehicle.progress : 2 * L - vehicle.progress) % (2 * L); };
@@ -11,6 +11,7 @@ const phase = (route, vehicle) => { const L = route.path.length - 1; return (veh
 function quarryFixture(stock = 2000) {
   const game = emptyGame(); game.cities = [town('Stoneford', 30, 9)];
   assert.equal(build(game, 'quarry', 9, 7).ok, true);
+  completeFixtureConstruction(game, game.industries[0]);
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   const quarry = game.industries[0]; quarry.inventory.stone = stock;

@@ -1,4 +1,5 @@
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
+import { startConstruction, isUnderConstruction } from './building-construction.js';
 import { localEnvironment, randomAt, weatherAt, hasRoadAccess } from './environment.js';
 import { industryTiles } from './industry-sites.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem, buildingSize, buildingTiles, placeBuildingSite } from './building-sites.js';
@@ -134,7 +135,7 @@ export function settlementSuitability(game, point, kind = 'residential') {
 }
 
 export function housingCapacity(building) {
-  if (!building) return 0;
+  if (!building || isUnderConstruction(building)) return 0;
   const residents = BUILDINGS[building.kind]?.residents;
   return residents ? residents * building.level : ['house', 'apartment'].includes(building.kind) ? 15 * building.level : 0;
 }
@@ -279,7 +280,7 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const tile = tileAt(game, zone.x, zone.y);
     if (!tile || tile.zone !== zone.kind) continue;
     const existing = buildingAt(game, zone.x, zone.y);
-    if (existing && (existing.x !== zone.x || existing.y !== zone.y)) continue;
+    if (existing && (existing.x !== zone.x || existing.y !== zone.y || isUnderConstruction(existing.building))) continue;
     const city = nearestCity(game, zone), environment = localEnvironment(game, zone.x, zone.y), funded = fundedTown(city, day);
     const key = `zone:${zone.x},${zone.y}`, occupiedLevel = tile.building?.level || 0;
     if (!zoneServiceActive(game, city, connectedCities) || !environment.roadAccess) {
@@ -315,7 +316,8 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     const existing = buildingAt(game, x, y);
     if (existing && (existing.x !== x || existing.y !== y)) continue;
     if (buildingSiteProblem(game, building.kind, x, y, size, { exclude: existing, allowZone: Boolean(zone) })) continue;
-    const population = Math.max(0, housingCapacity(building) - housingCapacity(tile.building));
+    if (isUnderConstruction(existing?.building)) continue;
+    const population = housingCapacity(building), displaced = housingCapacity(tile.building);
     // A later town foundation must not move an existing home's residents to a
     // different town. Explicit null identifies countryside housing, too.
     const populationCityId = Object.hasOwn(tile.building || {}, 'populationCityId') ? tile.building.populationCityId : city.id;
@@ -324,7 +326,9 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     // The view patches only these cells (change-journal.js): the new footprint, the old one and any grove it dissolves.
     const touched = [...points, ...(existing ? buildingTiles(existing) : [])];
     for (const p of points) { const grove = terrainObjectAt(game, p.x, p.y); if (grove) touched.push(...terrainObjectTiles(grove)); }
-    if (!placeBuildingSite(game, building.kind, x, y, { size, building, exclude: existing, allowZone: Boolean(zone) })) continue;
+    const placed = placeBuildingSite(game, building.kind, x, y, { size, building, exclude: existing, allowZone: Boolean(zone) });
+    if (!placed) continue;
+    startConstruction(game, placed.building, { x, y, populationGain: population, populationCityId, benefitCityId: city.id, suppliesGain: zone?.kind === 'commercial' ? (building.level - previousLevel) * 8 : 0, activityGain: zone?.kind === 'industrial' ? (building.level - previousLevel) * 10 : 0 });
     // The town levels the plot where it can, so the building stands on flat ground rather than a plinth.
     const levelled = plotLevelPlan(game, x, y, size);
     if (levelled) {
@@ -336,9 +340,11 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
     for (const p of touched) cells.push(p.y * game.width + p.x);
     for (const p of points) claimed.add(`${p.x},${p.y}`);
     const populationCity = game.cities.find(town => town.id === populationCityId);
-    if (populationCity) populationCity.population = Math.max(0, populationCity.population + population);
-    if (zone?.kind === 'commercial') city.supplies += (building.level - previousLevel) * 8;
-    if (zone?.kind === 'industrial') city.activity += (building.level - previousLevel) * 10;
+    if (populationCity && displaced) {
+      populationCity.population = Math.max(0, populationCity.population - displaced);
+      populationCity.passengers = Math.min(populationCity.passengers, populationCity.population * .9);
+      populationCity.mail = Math.min(populationCity.mail || 0, populationCity.population * MAIL_POOL_SHARE);
+    }
     changed = true;
   }
   // Heights changed under a levelled plot, which a site journal entry promises never happens: views rebuild instead.

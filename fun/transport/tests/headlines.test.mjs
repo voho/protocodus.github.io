@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, tick, addRoute, removeRoute, build, buildPath, validateGame, restoreGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { HEADLINE_LIMIT, HEADLINE_TOWN_TIERS, HEADLINE_PRIORITY, headlineKicker, headlineNoun, headlineWatch, arrivalRoute, detectHeadlines, headlineTier, townHeadline, recordHeadline, airDebutHeadline } from '../headlines.js';
-import { emptyGame, line, tileAt } from './helpers.mjs';
+import { emptyGame, line, tileAt, completeFixtureConstruction } from './helpers.mjs';
 import { vehicleModel, modelHeadline } from '../vehicle-models.js';
 
 const town = (id, name, x, y) => ({ id, name, x, y, population: 900, activity: 0, growth: 0, passengers: 200, delivered: 0, supplies: 0, lastServiceDay: null });
@@ -64,7 +64,7 @@ test('the first bus into a new town, then the first train, merged with the town 
 
 test('freight arrivals say supplied by; a first train to an industry names its stop', () => {
   const game = withTowns(['home', 'Home', 5, 40], ['second', 'Second', 5, 60], ['cedar', 'Cedarbridge', 45, 10]), watch = headlineWatch(game);
-  ok(build(game, 'food-plant', 10, 7)); game.industries[0].inventory.food = 500;
+  ok(build(game, 'food-plant', 10, 7)); completeFixtureConstruction(game, game.industries[0]); game.industries[0].inventory.food = 500;
   ok(buildPath(game, 'road', line(10, 45, 12))); ok(build(game, 'bus-stop', 10, 12)); ok(build(game, 'bus-stop', 45, 12));
   const food = ok(addRoute(game, { mode: 'road', stops: stopsOf(game, 'road'), cargo: 'food' })).route;
   const entries = run(game, watch, 40);
@@ -75,6 +75,7 @@ test('freight arrivals say supplied by; a first train to an industry names its s
   assert.equal(entries[0].routeId, food.id);
 
   ok(build(game, 'logging-camp', 10, 18)); ok(build(game, 'sawmill', 30, 18));
+  completeFixtureConstruction(game, ...game.industries.slice(-2));
   game.industries.find(industry => industry.kind === 'logging-camp').inventory.timber = 300;
   ok(buildPath(game, 'rail', line(10, 30, 23))); ok(build(game, 'train-stop', 10, 23)); ok(build(game, 'train-stop', 30, 23));
   const timber = ok(addRoute(game, { mode: 'rail', stops: stopsOf(game, 'rail'), cargo: 'timber' })).route;

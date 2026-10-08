@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, build, buildPath, addRoute, tick, priceFor, inflationInfo, constructionCost, getVehiclePurchase, hasClearableDecoration, distancePay, BUILD_COSTS, VEHICLE_COSTS, CARGO } from '../model.js';
-import { emptyGame, tileAt, line } from './helpers.mjs';
+import { emptyGame, tileAt, line, completeFixtureConstruction } from './helpers.mjs';
 
 const yearDay = year => (Date.UTC(year, 0, 1) - Date.UTC(1950, 0, 1)) / 86400000;
 
@@ -55,6 +55,7 @@ test('all construction types and clearing surcharges use current inflation', () 
 test('delivery fares crossing New Year use the arrival year and keep pace with prices', () => {
   const game = emptyGame();
   build(game, 'logging-camp', 10, 8); build(game, 'sawmill', 30, 8);
+  completeFixtureConstruction(game, ...game.industries);
   buildPath(game, 'road', line(10, 30, 13));
   build(game, 'bus-stop', 10, 13); build(game, 'bus-stop', 30, 13);
   game.industries[0].inventory.timber = 100;

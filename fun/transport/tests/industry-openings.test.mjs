@@ -72,30 +72,32 @@ test('forced openings obey every placement rule and announce themselves', () => 
     assertRules(game, site);
     assert.ok(['farm', 'food-plant'].includes(site.kind), site.kind);
     assert.equal(site.owner, 'world');
-    assert.ok(Number.isInteger(site.openedDay));
+    assert.equal(site.openedDay, undefined);
+    assert.ok(Number.isInteger(site.construction.startedDay));
   }
-  const notices = game.notifications.filter(n => n.topic === 'industry-opening');
+  const notices = game.notifications.filter(n => n.topic === 'industry-construction');
   assert.equal(notices.length, sites.length);
   assert.deepEqual(notices.map(n => n.target), sites.map(site => ({ kind: 'industry', id: site.id })).reverse());
-  for (const notice of notices) assert.match(notice.message, /^New (grain farm|food plant) opens near \w+\.$/);
-  assert.equal(notices[0].template, `New {industry:${sites.at(-1).id}} opens near {town:${game.cities[0].id}}.`);
+  for (const notice of notices) assert.match(notice.message, /^Construction starts on a new (grain farm|food plant) near \w+\. Ready in (6|10) months\.$/);
+  assert.match(notices[0].template, new RegExp(`Construction starts on a new \{industry:${sites.at(-1).id}\} near \{town:${game.cities[0].id}\}`));
   const grouped = groupNotices(notices.slice(0, 2).reverse());
   assert.equal(grouped.length, 1);
-  assert.match(grouped[0].message, /^2 new industries opened: (grain farm|food plant) and (grain farm|food plant)\.$/);
+  assert.match(grouped[0].message, /^2 industries started construction:/, 'construction notices must not claim industries already opened');
+  assert.ok(sites.every(site => site.construction && Object.values(site.inventory).every(stock => stock === 0)));
   assert.equal(grouped[0].type, 'success');
   assert.equal(validateGame(game), true);
 });
 
 test('the monthly tick opens industries deterministically, however time is partitioned', () => {
   const a = farmTown(), b = farmTown();
-  const opened = game => game.industries.filter(site => site.openedDay !== undefined).map(site => `${site.id}:${site.kind}@${site.x},${site.y}:${site.openedDay}`);
+  const opened = game => game.industries.filter(site => site.owner !== 'player' && (site.openedDay !== undefined || site.construction)).map(site => `${site.id}:${site.kind}@${site.x},${site.y}:${site.openedDay ?? site.construction.startedDay}`);
   for (let month = 24; month < 24 + 12 * 30 && !opened(a).length; month++) {
     enterMonth(a, month);
     b.day = monthStart(month) - .5; b.lastMonth = month - 1; for (let n = 0; n < 4; n++) tick(b, .25);
   }
   assert.ok(opened(a).length >= 1, 'an opening within 30 years');
   assert.deepEqual(opened(b), opened(a));
-  assert.equal(a.notifications[0].topic, 'industry-opening');
+  assert.equal(a.notifications[0].topic, 'industry-construction');
   assert.equal(validateGame(a), true);
 });
 

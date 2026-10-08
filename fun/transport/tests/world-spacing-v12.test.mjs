@@ -7,7 +7,7 @@ import { encodeGame } from '../save-codec.js';
 import { siteGap, relatedIndustries, industryDistance, industrySpacingProblem, townSpacingProblem, MIN_SITE_GAP, MIN_CONNECTION_LENGTH } from '../industry-sites.js';
 import { STATION_RADIUS, AIRPORT_REACH, stationReach, stationServes } from '../station-sites.js';
 import { openingSiteProblem } from '../industry-openings.js';
-import { emptyGame, line } from './helpers.mjs';
+import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 const frozen11={taiga:'dd01470c49a07a44cc025a2b10f33a0e5c89675a5b4af144e0eae1848cc661b7',tundra:'fc6429a2afefc865ac00544af358b9bb7da6ac381e326162b9cbfd861d702316',desert:'72a90c4e6cd14a407c7a473345b4c32d92093bbf51d9873af71d6117f4812c38'};
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -74,6 +74,7 @@ test('ordinary stops cover four tiles while airports retain their existing reach
 
 test('old saves preserve working five-tile stops and new stops retain four-tile coverage after reload',()=>{
   const game=emptyGame();ok(build(game,'oil-well',10,20));ok(build(game,'refinery',30,20));
+  completeFixtureConstruction(game,...game.industries);
   ok(buildPath(game,'road',line(19,25,20)));
   for(const x of [19,25]){const placed=build(game,'bus-stop',x,20);ok(placed);placed.station.catchmentRadius=5;}
   const route=addRoute(game,{mode:'road',cargo:'oil',stops:game.stations.map(stop=>stop.id)});ok(route);

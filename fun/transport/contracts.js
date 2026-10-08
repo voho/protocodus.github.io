@@ -1,3 +1,4 @@
+import { isUnderConstruction } from './building-construction.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO } from './data.js';
 import { isTownTraffic } from './data.js';
 import { randomAt } from './environment.js';
@@ -17,7 +18,7 @@ const shortId = value => typeof value === 'string' && value.length > 0 && value.
 const center = site => INDUSTRIES[site.kind] ? { x: site.x + (industrySize(site) - 1) / 2, y: site.y + (industrySize(site) - 1) / 2 } : site;
 // Fares grow with distancePay(L) = (L + 12) ÷ 9 while a round trip grows with L, so income per vehicle-day falls as f(L).
 const perDay = length => distancePay(length) / length;
-const producing = site => site.owner !== 'player' && Object.keys(INDUSTRIES[site.kind].outputs).length > 0 && (Object.keys(INDUSTRIES[site.kind].inputs).length === 0 || site.production > 0);
+const producing = site => !isUnderConstruction(site) && site.owner !== 'player' && Object.keys(INDUSTRIES[site.kind].outputs).length > 0 && (Object.keys(INDUSTRIES[site.kind].inputs).length === 0 || site.production > 0);
 const started = game => game.contracts !== undefined || game.routes.some(route => !isTownTraffic(route.cargo) && route.delivered > 0);
 
 /** The bonus paid on top of the fare: a served contract earns 1.6× what a 10-tile route earns per vehicle-day. */
@@ -62,7 +63,7 @@ function servedPairs(game, coverageOf) {
 
 function buyers(game, source, cargo) {
   const from = center(source), reach = point => { const d = Math.hypot(point.x - from.x, point.y - from.y); return d >= NEAREST && d <= FARTHEST; };
-  const found = nearbyIndustries(game, from.x, from.y, FARTHEST + 3).filter(site => site !== source && INDUSTRIES[site.kind].inputs[cargo] && reach(center(site))).map(site => ({ kind: 'industry', site }));
+  const found = nearbyIndustries(game, from.x, from.y, FARTHEST + 3).filter(site => site !== source && !isUnderConstruction(site) && INDUSTRIES[site.kind].inputs[cargo] && reach(center(site))).map(site => ({ kind: 'industry', site }));
   if (TOWN_CARGO.includes(cargo)) for (const city of nearbyCities(game, from.x, from.y, FARTHEST)) if (reach(city)) found.push({ kind: 'city', site: city });
   return found;
 }

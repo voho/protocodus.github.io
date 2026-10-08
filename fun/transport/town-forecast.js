@@ -2,6 +2,7 @@ import { townOf, townLedger, marketView, propertyOccupancy, familyCargo, MARKET,
 import { zoneServiceActive, servedTownSet, housingCapacity } from './settlements.js';
 import { hasRoadAccess } from './environment.js';
 import { BUILDINGS, residentialKind, commercialKind } from './buildings.js';
+import { constructionDuration, CONSTRUCTION_MONTH_DAYS } from './building-construction.js';
 import { buildingAt, buildingFootprint } from './building-sites.js';
 import { nearbyZones } from './simulation-spatial.js';
 import { WORKSHOP, WORKSHOP_RECIPES } from './data.js';
@@ -11,7 +12,7 @@ import { money, number, count, listJoin, cargoName } from './copy.js';
 // What an investment in a town would bring, for the placement tip: residents, rent, payback, and the shop wants or workshop
 // products it adds. DOM-free and read-only: it reads the kinds, footprints, road rule, service gate and occupancy the simulation
 // uses, never calls ensureMarket, draws no randomAt, spends no nextId and saves nothing. model.js never imports it.
-/** A zoned plot's first months go to development: cost ÷ rent plus this many months matched the realized payback. */
+/** Development interest precedes construction; each building phase adds its own calendar time below. */
 export const FORECAST = Object.freeze({ monthsToBuild: 6 });
 const ZONES = new Set(['residential', 'commercial', 'industrial']), SOLD = ['food', 'household', 'fuel'];
 const HOMES = Object.freeze({ sector: 'homes' }), WORKS = Object.freeze({ sector: 'works' });
@@ -80,7 +81,7 @@ function workshopSquares(game, open) {
  * {towns: [{city, tiles}], far, roadless, served, residents, levels, workshopLevels, goods, input, output, wants: {family, units, cargo} | null,
  * rent, payback, cost}. Tiles with no town within 10 tiles count in far, tiles without a road beside them in roadless; the rest group
  * by town, most tiles first. Rent is today's price of the mature ground rent at today's occupancy; rent and payback (months, with
- * FORECAST.monthsToBuild of development) are null until one of those towns meets the zone gate. */
+ * FORECAST.monthsToBuild of development plus the construction phases) are null until one of those towns meets the zone gate. */
 export function zoneForecast(game, kind, placements) {
   if (!ZONES.has(kind)) return null;
   const tiles = placements.filter(p => !p.state || p.state === 'ok');
@@ -100,19 +101,27 @@ export function zoneForecast(game, kind, placements) {
     }
     const list = [...groups.values()].sort((a, b) => b.tiles.length - a.tiles.length || game.cities.indexOf(a.city) - game.cities.indexOf(b.city));
     const active = list.filter(group => zoneServiceActive(game, group.city, served));
-    const result = { towns: list.map(group => ({ city: group.city, tiles: group.tiles.length })), far, roadless, served: list.length > 0 && active.length === list.length, residents: 0, levels: 0, workshopLevels: 0, goods: 0, input: recipe?.input ?? null, output: recipe?.output ?? null, wants: null, rent: null, payback: null, cost };
+    const result = { towns: list.map(group => ({ city: group.city, tiles: group.tiles.length })), far, roadless, served: list.length > 0 && active.length === list.length, residents: 0, levels: 0, workshopLevels: 0, goods: 0, input: recipe?.input ?? null, output: recipe?.output ?? null, wants: null, rent: null, payback: null, cost, constructionMonths: 0 };
     if (kind === 'industrial') {
       const squares = workshopSquares(game, open);
       for (const square of squares) base += GROUND_RENT.works * 4 * 3 * propertyOccupancy(townInfo(game, square.city).view, WORKS, square.city.population);
       result.workshopLevels = 3 * squares.length;
+      if (squares.length) result.constructionMonths = [1, 2, 3].reduce((days, level) => days + constructionDuration('factory', { level }), 0) / CONSTRUCTION_MONTH_DAYS;
       result.goods = result.workshopLevels * WORKSHOP.rate * 30 / WORKSHOP.ratio;
     } else {
-      const wanted = { food: 0, household: 0, fuel: 0 };
+      const wanted = { food: 0, household: 0, fuel: 0 }, maturity = new Map();
       for (const { city, tiles: own } of list) {
         const info = townInfo(game, city), added = { food: 0, household: 0, fuel: 0 };
         for (const p of own) {
-          const variant = tileAt(game, p.x, p.y).variant, level = matureLevel(game, kind, p.x, p.y);
-          result.levels += level;
+          const variant = tileAt(game, p.x, p.y).variant;
+          let shape = maturity.get(variant);
+          if (!shape) {
+            const level = matureLevel(game, kind, p.x, p.y); let days = 0;
+            for (let tier = 1; tier <= level; tier++) days += constructionDuration(developmentKind(kind, variant, tier), { level: tier });
+            shape = { level, months: days / CONSTRUCTION_MONTH_DAYS }; maturity.set(variant, shape);
+          }
+          const { level } = shape; result.levels += level;
+          result.constructionMonths = Math.max(result.constructionMonths, shape.months);
           if (kind === 'residential') { result.residents += housingCapacity({ kind: residentialKind(variant, level), level }); base += GROUND_RENT.homes * level * propertyOccupancy(info.view, HOMES, city.population); continue; }
           // A developed commercial zone also keeps the family of the shop it grew from, as townLedger counts it.
           const sells = OUTLET[commercialKind(variant, level)], grew = OUTLET[commercialKind(variant, 1)];
@@ -128,7 +137,7 @@ export function zoneForecast(game, kind, placements) {
       if (family) result.wants = { family, units: wanted[family], cargo: familyCargo(game, family)[0] };
     }
     const rent = active.length ? priceFor(game, base) : 0;
-    if (rent > 0) { result.rent = rent; result.payback = Math.ceil(cost / rent) + FORECAST.monthsToBuild; }
+    if (rent > 0) { result.rent = rent; result.payback = Math.ceil(cost / rent) + FORECAST.monthsToBuild + result.constructionMonths; }
     return result;
   });
 }
@@ -142,13 +151,13 @@ export function buildingForecast(game, kind, x, y) {
   if (!workshop && group !== 'homes' && group !== 'shops' && group !== 'services') return null;
   return remember(game, 'building', `${kind}:${x},${y}`, () => {
     const city = townOf(game, x, y), family = workshop ? null : OUTLET[kind] || null, recipe = workshop ? WORKSHOP_RECIPES[game.biome]?.[0] : null;
-    const result = { city, rent: 0, stockedRent: 0, family, payback: null, goods: workshop ? WORKSHOP.rate * 30 / WORKSHOP.ratio : 0, input: recipe?.input ?? null, output: recipe?.output ?? null };
+    const result = { city, rent: 0, stockedRent: 0, family, payback: null, constructionMonths: constructionDuration(kind) / CONSTRUCTION_MONTH_DAYS, goods: workshop ? WORKSHOP.rate * 30 / WORKSHOP.ratio : 0, input: recipe?.input ?? null, output: recipe?.output ?? null };
     if (!city) return result;
     const view = townInfo(game, city).view, cost = workshop ? WORKSHOP.cost : BUILDINGS[kind].cost, sector = workshop ? 'works' : group === 'homes' ? 'homes' : 'shops';
     const rent = p => priceFor(game, BUILT_YIELD * cost * propertyOccupancy(view, p, city.population));
     result.rent = rent({ sector, family });
     result.stockedRent = family ? rent({ sector, family: null }) : result.rent;
-    if (result.rent > 0) result.payback = Math.ceil(priceFor(game, cost) / result.rent);
+    if (result.rent > 0) result.payback = Math.ceil(priceFor(game, cost) / result.rent) + result.constructionMonths;
     return result;
   });
 }
@@ -164,15 +173,15 @@ export function forecastNote(game, tool, placements) {
     const where = listJoin(f.towns.map(town => town.city.name)), far = f.far ? `, ${number(f.far)} too far from a town` : '';
     const line = tool === 'industrial' && !f.workshopLevels ? `${where}, a workshop needs a 2 × 2 block`
       : f.rent === null ? `Develops once a route serves ${where}`
-      : tool === 'residential' ? `${where}, about +${number(f.residents)} residents and ${money(f.rent)} a month in rent, ${paysBack(f.payback)}`
-      : tool === 'commercial' ? `${where}, about ${money(f.rent)} a month in rent, ${paysBack(f.payback)}${f.wants ? `, shops would want about +${number(f.wants.units)} ${cargoName(f.wants.cargo)}` : ''}`
-      : `${where}, ${made(f)} and ${money(f.rent)} a month in rent`;
+      : tool === 'residential' ? `${where}, once built, about +${number(f.residents)} residents and ${money(f.rent)} a month in rent, ${paysBack(f.payback)}`
+      : tool === 'commercial' ? `${where}, once built, about ${money(f.rent)} a month in rent, ${paysBack(f.payback)}${f.wants ? `, shops would want about +${number(f.wants.units)} ${cargoName(f.wants.cargo)}` : ''}`
+      : `${where}, once built, ${made(f)} and ${money(f.rent)} a month in rent`;
     return { forecast: line + far, warning: f.far > 0 };
   }
   const at = placements[0], f = at && buildingForecast(game, tool, at.x, at.y);
   if (!f) return null;
   if (!f.city) return { forecast: 'Countryside, earns no rent', warning: false };
-  if (tool === 'workshop') return { forecast: `${f.city.name}, ${made(f)} and ${money(f.rent)} a month in rent`, warning: false };
+  if (tool === 'workshop') return { forecast: `${f.city.name}, once built, ${made(f)} and ${money(f.rent)} a month in rent`, warning: false };
   const stocked = f.stockedRent > f.rent ? ` or ${money(f.stockedRent)} stocked with ${cargoName(familyCargo(game, f.family)[0])}` : '';
-  return { forecast: `${f.city.name}, about ${money(f.rent)} a month in rent${stocked}, ${paysBack(f.payback)}`, warning: false };
+  return { forecast: `${f.city.name}, once built, about ${money(f.rent)} a month in rent${stocked}, ${paysBack(f.payback)}`, warning: false };
 }

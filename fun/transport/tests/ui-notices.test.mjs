@@ -4,7 +4,7 @@ import { addRoute, build, buildPath, refreshRouteConnections, tick, validateGame
 import { stepIndustries } from '../industry-simulation.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from '../ui-notices.js';
 import { creditToast } from '../ui-notices.js';
-import { emptyGame, line } from './helpers.mjs';
+import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 const notices = count => Array.from({ length: count }, (_, index) => ({ id: `notice-${200 - index}`, day: 10, message: `Notice ${200 - index}`, text: `Notice ${200 - index}`, type: 'info' }));
 
@@ -119,6 +119,7 @@ test('town founding and industry expansion notices carry their site', () => {
   assert.deepEqual(game.notifications[0].target, { kind: 'city', id: founded.city.id });
   assert.equal(game.notifications[0].template, `{town:${founded.city.id}} founded. Zone homes nearby and give it a passenger route.`);
   assert.equal(build(game, 'logging-camp', 10, 9).ok, true);
+  completeFixtureConstruction(game, game.industries[0]);
   const camp = game.industries[0], calls = [];
   Object.assign(camp, { capacity: .98, activity: 400, totalProduced: 10, idleDays: 0, nextReviewDay: 0 });
   stepIndustries(game, (_, message, type, extra) => calls.push({ message, type, extra }));

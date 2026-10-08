@@ -153,6 +153,51 @@ export function rasterGroundIdentity(detail, biome='taiga', variant=0) {
   return artworkChoice(seedFor(biome,`${detail}-density`,variant))%3!==0?`${id}-sparse`:id;
 }
 
+// A lifecycle changes crown size and condition, never its ground registration.
+// Existing callers omit lifecycle and retain their authored forest compositions.
+export function forestLifecycleKey(lifecycle) {
+  return lifecycle ? `${lifecycle.stage}:${Math.round((lifecycle.scale ?? 1) * 800)}` : '';
+}
+export function applyForestLifecycle(trees, lifecycle) {
+  if (!lifecycle) return trees;
+  if (lifecycle.stage === 'empty') return [];
+  const scale = lifecycle.stage === 'young' ? clamp(Number(lifecycle.scale) || .38, .38, 1) : 1;
+  return trees.map(tree => ({ ...tree, size: tree.size * scale,
+    bare: lifecycle.stage === 'old' ? tree.bare || artworkChoice(tree.seed) % 5 < 3 : lifecycle.stage === 'fallen' ? true : tree.bare,
+    fallen: lifecycle.stage === 'fallen' }));
+}
+function fallenGeometry(tree) {
+  const length = Math.min(18, tree.size * .65), slope = (tree.seed & 1) ? .5 : -.5;
+  return { length, slope, x: tree.x - length / 2, y: tree.y - 1.8 - length / 2 * slope, width: Math.max(.8, tree.size * .055) };
+}
+function drawFallenTree(c, tree, biome) {
+  const { length, slope, x, y, width } = fallenGeometry(tree), white = /birch|aspen/.test(tree.species);
+  c.save();c.lineCap = 'round';c.lineJoin = 'round';
+  c.strokeStyle = white ? '#78816b' : biome === 'desert' ? '#806b4d' : '#605a42';c.lineWidth = width;
+  c.beginPath();c.moveTo(x, y);c.lineTo(x + length, y + length * slope);c.stroke();
+  c.strokeStyle = white ? '#c6c5a7' : '#a29670';c.lineWidth = width * .42;
+  c.beginPath();c.moveTo(x, y - width * .22);c.lineTo(x + length * .91, y + length * .91 * slope - width * .22);c.stroke();
+  c.strokeStyle = '#797359';c.lineWidth = Math.max(.45, width * .45);
+  for (let i = 0; i < 2; i++) {
+    const along = length * (.43 + i * .26), side = (i ? -1 : 1) * length * .13;
+    c.beginPath();c.moveTo(x + along, y + along * slope);c.lineTo(x + along + side, y + along * slope - side * slope);c.stroke();
+  }
+  c.fillStyle = '#c2ae7d';c.beginPath();c.ellipse(x, y, width * .58, width * .38, 0, 0, Math.PI * 2);c.fill();c.restore();
+}
+function fallenShadow(tree, biome, opacity) {
+  const { length, slope, x, y, width } = fallenGeometry(tree);
+  return { color: biome === 'desert' ? '78,60,38' : biome === 'tundra' ? '52,62,62' : '30,44,34',
+    lobes: [{ x: x + length / 2 + .4, y: y + length * slope / 2 + .65, rx: length * .59, ry: Math.max(.7, width * .68), angle: Math.atan(slope), alpha: .24 * opacity }], contact: null };
+}
+function drawLifecycleForest(c, trees, biome, pixelScale, lifecycle) {
+  if (!lifecycle && !trees.every(tree => atlasAvailable(rasterTreeIdentity(tree, biome)))) return false;
+  for (const tree of trees) {
+    if (tree.fallen) drawFallenTree(c, tree, biome);
+    else if (!drawTree(c, tree, biome, pixelScale)) drawNativeTree(c, tree, biome);
+  }
+  return true;
+}
+
 // The footprint grows along the ground axes. Tree height remains a mature-tree
 // height instead of stretching a one-tile grove into a tower of foliage.
 export function natureObjectLayout(footprint) {
@@ -160,7 +205,7 @@ export function natureObjectLayout(footprint) {
   return { width: 64 * span, height: 64 * span, anchorX: 32 * span, anchorY: 48 * span };
 }
 
-export function rasterForestComposition(biome='taiga',rawDetail='',variant=0,{density=1,footprint=1}={}){
+export function rasterForestComposition(biome='taiga',rawDetail='',variant=0,{density=1,footprint=1,lifecycle=null}={}){
   if (!TREE_KINDS[biome]) biome = 'taiga';
   const v=wrap(variant);
   if(footprint>1){
@@ -180,7 +225,7 @@ export function rasterForestComposition(biome='taiga',rawDetail='',variant=0,{de
         x: layout.anchorX + (u - w) * 32,
         y: layout.anchorY + (u + w) * 16 });
     }
-    return trees.sort((a,b)=>a.y-b.y);
+    return applyForestLifecycle(trees.sort((a,b)=>a.y-b.y),lifecycle);
   }
   const trees=forestComposition(biome,rawDetail,v);
   if(density>1){
@@ -194,7 +239,7 @@ export function rasterForestComposition(biome='taiga',rawDetail='',variant=0,{de
     }
     trees.sort((a,b)=>a.y-b.y);
   }
-  return trees;
+  return applyForestLifecycle(trees,lifecycle);
 }
 
 // All three physical-pixel zoom profiles share this allowance. Retina groves
@@ -206,21 +251,22 @@ export function treeShadowCacheStats(){return {entries:shadowCache.size,bytes:sh
 
 // x/y is the composition origin, not the tile center. The separate ground pass
 // can extend beyond the upright sprite without clipping shadows at its edges.
-export function drawRasterTreeShadows(c,{biome='taiga',detail='',variant=0,density=1,footprint=1,x=0,y=0,pixelScale=1,viewBounds=null,preparedState=false}={}){
+export function drawRasterTreeShadows(c,{biome='taiga',detail='',variant=0,density=1,footprint=1,x=0,y=0,pixelScale=1,viewBounds=null,preparedState=false,lifecycle=null}={}){
   if(!TREE_KINDS[biome])biome='taiga';
+  if(lifecycle?.stage==='empty')return;
   const revision=worldArtRevision();if(revision!==shadowRevision){shadowCache.clear();shadowBytes=0;shadowRevision=revision;}
-  const scale=clamp(pixelScale,.5,4),span=clamp(Math.floor(footprint)||1,1,3),key=`${biome}:${detail}:${wrap(variant)}:${density}:${span}:${scale}`;
+  const scale=clamp(pixelScale,.5,4),span=clamp(Math.floor(footprint)||1,1,3),key=`${biome}:${detail}:${wrap(variant)}:${density}:${span}:${scale}:${forestLifecycleKey(lifecycle)}`;
   let stamp=shadowCache.get(key);
   if(stamp){shadowCache.delete(key);shadowCache.set(key,stamp);shadowHits++;}
   else{
-    let trees=rasterForestComposition(biome,detail,variant,{density,footprint:span});
-    const fallback=!trees.every(tree=>atlasAvailable(rasterTreeIdentity(tree,biome)));
+    let trees=rasterForestComposition(biome,detail,variant,{density,footprint:span,lifecycle});
+    const fallback=!lifecycle&&!trees.every(tree=>atlasAvailable(rasterTreeIdentity(tree,biome)));
     if(fallback){
       trees=forestComposition(biome,detail,variant);
       if(span>1){const layout=natureObjectLayout(span);trees=trees.map(tree=>({...tree,x:layout.anchorX+(tree.x-16)*span,y:layout.anchorY+(tree.y-16)*span,size:tree.size*span}));}
     }
     const opacity=(span>1?.76:density>=3?.7:density>1?.82:1)*(fallback?.72:1);
-    const shadows=trees.map(tree=>treeShadowGeometry(fallback?tree:rasterTreeShadowRecord(tree,biome),biome,{opacity,contact:!fallback})),bounds=treeShadowBounds(shadows);
+    const shadows=trees.map(tree=>tree.fallen?fallenShadow(tree,biome,opacity):treeShadowGeometry(fallback?tree:rasterTreeShadowRecord(tree,biome),biome,{opacity,contact:!fallback})),bounds=treeShadowBounds(shadows);
     const width=bounds.right-bounds.left,height=bounds.bottom-bounds.top,canvas=document.createElement('canvas');
     canvas.width=Math.max(1,Math.ceil(width*scale));canvas.height=Math.max(1,Math.ceil(height*scale));
     const context=canvas.getContext('2d');context.scale(scale,scale);context.translate(-bounds.left,-bounds.top);drawTreeShadows(context,shadows);
@@ -235,14 +281,12 @@ export function drawRasterTreeShadows(c,{biome='taiga',detail='',variant=0,densi
   if(!preparedState)c.restore();
 }
 
-export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1) {
+export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footprint, pixelScale = 1, { lifecycle = null } = {}) {
   if (!TREE_KINDS[biome]) biome = 'taiga';
   const span = clamp(Math.floor(footprint) || 2, 2, kind === 'forest' ? 3 : 6), v = wrap(variant), layout = natureObjectLayout(span);
   if(kind==='forest'){
-    const trees=rasterForestComposition(biome,rawDetail,v,{footprint:span});
-    if(!trees.every(tree=>atlasAvailable(rasterTreeIdentity(tree,biome))))return false;
-    for(const tree of trees)drawTree(c,tree,biome,pixelScale);
-    return true;
+    const trees=rasterForestComposition(biome,rawDetail,v,{footprint:span,lifecycle});
+    return drawLifecycleForest(c,trees,biome,pixelScale,lifecycle);
   }
   let id;
   if (kind === 'mountain') {
@@ -260,14 +304,12 @@ export function drawRasterNatureObject(c, kind, biome, rawDetail, variant, footp
   return drawAtlas(c, id, layout.anchorX - size / 2, layout.anchorY + 14 * span - size, size, size, { pixelScale });
 }
 
-export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1, { density = 1 } = {}) {
+export function drawRasterNature(c, kind, biome = 'taiga', rawDetail = '', variant = 0, pixelScale = 1, { density = 1, lifecycle = null } = {}) {
   if (!TREE_KINDS[biome]) biome = 'taiga';
   const detail = normalizedDetail(rawDetail), v = wrap(variant), r = random(seedFor(biome, rawDetail === 'bare-foothill' ? 'wooded-foothill' : detail, v));
   if (kind === 'forest') {
-    const trees = rasterForestComposition(biome,rawDetail,v,{density});
-    if (!trees.every(tree => atlasAvailable(rasterTreeIdentity(tree, biome)))) return false;
-    for (const tree of trees) drawTree(c, tree, biome, pixelScale);
-    return true;
+    const trees = rasterForestComposition(biome,rawDetail,v,{density,lifecycle});
+    return drawLifecycleForest(c,trees,biome,pixelScale,lifecycle);
   }
   if (kind === 'tree') {
     const species = TREE_IDS[biome][rawDetail] ? rawDetail : biome === 'desert' ? 'acacia' : 'pine';

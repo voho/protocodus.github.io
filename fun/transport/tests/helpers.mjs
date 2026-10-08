@@ -23,6 +23,22 @@ export const tileAt = (game, x, y) => game.tiles[y * game.width + x];
 export const line = (x1, x2, y) => Array.from({ length: x2 - x1 + 1 }, (_, index) => ({ x: x1 + index, y }));
 export const advance = (game, days, tick) => { for (let n = 0; n < days * 4; n++) tick(game, .25); };
 
+// Economy and freight scenarios may start with established premises. Complete
+// only the explicitly supplied fixture sites; real construction remains timed.
+export function completeFixtureConstruction(game, ...entities) {
+  for (const entity of entities) {
+    const project = entity?.construction;
+    if (!project) continue;
+    const populationTown = game.cities.find(city => city.id === project.populationCityId);
+    if (populationTown) populationTown.population += project.populationGain || 0;
+    const beneficiary = game.cities.find(city => city.id === project.benefitCityId);
+    if (beneficiary) { beneficiary.supplies += project.suppliesGain || 0; beneficiary.activity += project.activityGain || 0; }
+    delete entity.construction;
+    game.revision++;
+  }
+  return entities[0];
+}
+
 // Frame partitions must match a whole tick to floating-point precision.
 export function equivalent(actual, expected, path = 'game') {
   if (typeof actual === 'number' && typeof expected === 'number') {

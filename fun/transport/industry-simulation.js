@@ -1,4 +1,5 @@
 import { INDUSTRIES } from './data.js';
+import { isUnderConstruction } from './building-construction.js';
 import { localEnvironment, localTransport, randomAt, weatherAt } from './environment.js';
 import { industrySize } from './industry-sites.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
@@ -16,7 +17,7 @@ export function industryConditions(game,industry,served=null){
   for(const city of nearbyCities(game,industry.x,industry.y,12)){const d=Math.hypot(city.x-industry.x,city.y-industry.y);if(d<12)workers=Math.max(workers,clamp(city.population/900)*(1-d/14));}
   const definition=INDUSTRIES[kind];
   for(const other of nearbyIndustries(game,industry.x,industry.y,8)){
-    if(other===industry||Math.hypot(other.x-industry.x,other.y-industry.y)>8)continue;
+    if(other===industry||isUnderConstruction(other)||Math.hypot(other.x-industry.x,other.y-industry.y)>8)continue;
     const neighbor=INDUSTRIES[other.kind];
     if(Object.keys(definition.inputs).some(c=>neighbor.outputs[c])||Object.keys(definition.outputs).some(c=>neighbor.inputs[c]))partners++;
   }
@@ -71,6 +72,7 @@ export function initializeIndustry(game,industry){
 export function stepIndustries(game,notify=()=>{}){
   const day=Math.floor(game.day);
   for(const industry of game.industries){
+    if(isUnderConstruction(industry))continue;
     initializeIndustry(game,industry);
     // Off-cycle activity decay depends only on transport coverage. Full
     // production conditions are needed solely when production/review is due.

@@ -6,6 +6,8 @@ import { buildingSize } from './building-sites.js';
 import { releaseTerrainObjectsCells } from './terrain-objects.js';
 import { noteSurfaceChanges } from './change-journal.js';
 import { stationTiles, stationReach, LEGACY_STATION_RADIUS } from './station-sites.js';
+import { treeLifecycle, canRegrowTree } from './tree-lifecycle.js';
+import { isUnderConstruction } from './building-construction.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -182,7 +184,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
     if (tile.terrain === 'rock' || tile.terrain === 'mountain') env.rocks++;
     const site = buildings.at(x + dx, y + dy), key = site && site.y * game.width + site.x;
     if (!tile.road && !tile.rail && !site) vegetation += tile.terrain === 'forest' ? 1 : tile.terrain === 'water' ? .7 : isPlantDetail(tile.detail) ? .7 : tile.terrain === 'grass' ? .4 : .12;
-    const kind = site?.building.kind, definition = BUILDINGS[kind], group = definition?.group;
+    const kind = isUnderConstruction(site?.building) ? null : site?.building.kind, definition = BUILDINGS[kind], group = definition?.group;
     if (definition?.naturalCover && !tile.road && !tile.rail) { vegetation += definition.naturalCover; parkCover += definition.naturalCover; }
     if (kind && !seenBuildings.has(key)) {
       seenBuildings.add(key);
@@ -200,7 +202,7 @@ export function localEnvironment(game, x, y, radius = 3, footprint = 1, served =
       } else if (kind === 'factory') { env.industries++; disturbance += .7; }
     }
     const industry = entities.industriesAt.get((y + dy) * game.width + x + dx);
-    if (industry && !seenIndustries.has(industry)) { seenIndustries.add(industry); env.industries++; disturbance += emissions[industry.kind] ?? .65; }
+    if (industry && !isUnderConstruction(industry) && !seenIndustries.has(industry)) { seenIndustries.add(industry); env.industries++; disturbance += emissions[industry.kind] ?? .65; }
   }
   env.transport = localTransport(game, x, y, footprint, served);
   env.elevation /= Math.max(1, cells);
@@ -223,13 +225,16 @@ function coprimeStride(length) {
 
 // A sparse asynchronous Moore-neighborhood automaton: one 128th of the land
 // receives a chance each day, capped at 4,096 cells on continental worlds.
-// Proposals commit together; growing trees never cascade within the same day.
+// A seeded rotating sweep visits every tile before repeating, so aging cannot
+// starve behind repeated random samples. Proposals commit together; growing
+// trees never cascade within the same day.
 export function stepEcology(game) {
   const length = game.tiles.length;
   if (!length) return 0;
   const day = Math.floor(game.day || 0), budget = Math.min(4096, Math.ceil(length / 128));
   const entities = entityIndex(game), proposals = [];
-  const start = Math.floor(randomAt(game, day, 'ecology-sample', 1) * length), stride = coprimeStride(length);
+  const stride = coprimeStride(length), offset = Math.floor(randomAt(game, 0, 'ecology-sample', 1) * length);
+  const start = (offset + ((day * budget) % length) * stride) % length;
   const desert = game.biome === 'desert', tundra = game.biome === 'tundra';
   const species = (BIOME_NATURE[game.biome] || BIOME_NATURE.taiga).trees.filter(detail => detail !== 'deadwood');
   for (let n = 0; n < budget; n++) {
@@ -238,12 +243,23 @@ export function stepEcology(game) {
     const x = index % game.width, y = Math.floor(index / game.width);
     const buildings = neighborhoodBuildings(game, x - 1, y - 1, x + 1, y + 1);
     if (buildings.at(x, y)) continue;
+    // A fallen tree leaves a genuinely empty clearing before plants or new
+    // saplings may return. Infrastructure always wins over natural succession.
+    if (tile.terrain !== 'forest' && !canRegrowTree(tile, day)) continue;
+    const life = tile.terrain === 'forest' ? treeLifecycle(game, x, y, tile, day) : null;
+    if (life?.stage === 'empty') { proposals.push({ index, terrain: desert ? 'sand' : tundra ? 'snow' : 'grass', detail: '', treeClearedDay: day }); continue; }
+    if (life?.stage === 'fallen') {
+      // Preserve the species/placement seed when a tree falls. Its lifecycle
+      // selects log artwork; changing detail to deadwood would move the logs.
+      if (tile.treeBornDay === undefined) proposals.push({ index, terrain: 'forest', detail: tile.detail || '', treeBornDay: life.bornDay });
+      continue;
+    }
     let forests = 0, water = 0, wetGround = 0, pressure = 0;
     const nearbySpecies = [];
     for (const [dx, dy] of NEIGHBORS) {
       const near = tileAt(game, x + dx, y + dy);
       if (!near) continue;
-      if (near.terrain === 'forest' && near.detail !== 'deadwood') { forests++; if (species.includes(near.detail)) nearbySpecies.push(near.detail); }
+      if (near.terrain === 'forest' && near.detail !== 'deadwood' && !['fallen','empty'].includes(treeLifecycle(game, x + dx, y + dy, near, day).stage)) { forests++; if (species.includes(near.detail)) nearbySpecies.push(near.detail); }
       if (near.terrain === 'water') water++;
       if (near.detail === 'marsh' || near.detail === 'reeds' || near.detail === 'cotton-grass') wetGround++;
       const nearBuilding = buildings.at(x + dx, y + dy)?.building;
@@ -258,12 +274,7 @@ export function stepEcology(game) {
     const recruit = () => choose(nearbySpecies.length && randomAt(game, day, index, 24) < .65 ? nearbySpecies : species);
     let terrain = tile.terrain, detail = tile.detail || '';
     if (terrain === 'forest') {
-      const stress = clamp(disturbance * .58 + Math.max(0, (desert ? .28 : .18) - moisture) * .7 + Math.max(0, weather.cold - .83) * .3);
-      if (detail === 'deadwood') {
-        if (roll < .12 + stress * .16) { terrain = desert ? 'sand' : tundra ? 'snow' : 'grass'; detail = desert ? 'scrub' : 'shrubs'; }
-        else if (roll > .76 && moisture > .25 && forests > 0 && disturbance < .25) detail = recruit();
-      } else if (roll < .018 + stress * .25) detail = 'deadwood';
-      else if (!species.includes(detail) && roll > .5 && moisture > .25 && disturbance < .2) detail = recruit();
+      if (!species.includes(detail) && roll > .5 && moisture > .25 && disturbance < .2) detail = recruit();
       else if (forests >= 3 && moisture > .4 && disturbance < .15 && roll > .96) detail = recruit();
     } else {
       const suitable = moisture > (desert ? .34 : tundra ? .2 : .18) && tile.elevation < (tundra ? .5 : .6) && disturbance < .5;
@@ -276,7 +287,7 @@ export function stepEcology(game) {
         else detail = moisture > .4 && weather.growth > .75 ? choose(['wildflowers','bluebells','ferns','berry-bushes']) : choose(['heather','grass-tufts','shrubs']);
       } else if (disturbance > .35 && roll < disturbance * .25) detail = desert ? 'scrub' : 'shrubs';
     }
-    if (terrain !== tile.terrain || detail !== (tile.detail || '')) proposals.push({ index, terrain, detail });
+    if (terrain !== tile.terrain || detail !== (tile.detail || '')) proposals.push({ index, terrain, detail, ...(terrain === 'forest' && tile.terrain !== 'forest' ? { treeBornDay: day } : {}) });
   }
   // A changing constituent returns the shared grove/outcrop to its unchanged
   // single-tile fallbacks before the succession proposal takes effect.
@@ -284,6 +295,8 @@ export function stepEcology(game) {
   for (const proposal of proposals) {
     const tile = game.tiles[proposal.index];
     tile.terrain = proposal.terrain; tile.detail = proposal.detail;
+    if (proposal.treeBornDay !== undefined) { tile.treeBornDay = proposal.treeBornDay; delete tile.treeClearedDay; }
+    if (proposal.treeClearedDay !== undefined) { tile.treeClearedDay = proposal.treeClearedDay; delete tile.treeBornDay; }
   }
   // Views patch only these cells; heights, water and structures never change.
   if (proposals.length) { const from = game.revision || 0; game.revision = from + 1; noteSurfaceChanges(game, from, game.revision, [...proposals.map(p => p.index), ...released]); }

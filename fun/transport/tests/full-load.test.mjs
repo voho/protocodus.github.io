@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { build, buildPath, addRoute, addRouteVehicle, setRouteFullLoad, waitingForFullLoad, FULL_LOAD_MAX_WAIT, createGame, tick, validateGame, restoreGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { routeHealth } from '../gameplay-insights.js';
-import { emptyGame, line, advance, equivalent } from './helpers.mjs';
+import { emptyGame, line, advance, equivalent, completeFixtureConstruction } from './helpers.mjs';
 
 const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 100, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
 const own = (object, key) => Object.hasOwn(object, key);
@@ -16,6 +16,7 @@ function timberFixture({ fullLoad, trucks = 1 } = {}) {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
   assert.equal(build(game, 'sawmill', 30, 8).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   const camp = game.industries[0]; camp.inventory.timber = 0;
@@ -68,6 +69,7 @@ test('a truck waits a month at most, and a sawmill short of timber still reads N
   const game = emptyGame();
   assert.equal(build(game, 'sawmill', 10, 8).ok, true);
   assert.equal(build(game, 'furniture-factory', 30, 8).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   assert.equal(buildPath(game, 'road', line(10, 30, 13)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   const sawmill = game.industries[0]; sawmill.inventory.lumber = 5; sawmill.inventory.timber = 0;

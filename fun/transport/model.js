@@ -1,6 +1,8 @@
 import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITIES, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP, TOWN_CARGO } from './data.js';
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion, worldGenerationOptions, validGenerationOptions } from './world.js';
 import { BUILDINGS } from './buildings.js';
+import { constructionDuration, startConstruction, stepBuildingConstruction, initializeBuildingConstruction, isUnderConstruction, validBuildingConstruction } from './building-construction.js';
+import { validTreeLifecycleTile } from './tree-lifecycle.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
 import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySpacingProblem, townSpacingProblem, industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
@@ -111,7 +113,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
-    version:1, siteFootprintVersion:3, terrainObjectVersion:1, stationReachVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
+    version:1, siteFootprintVersion:3, terrainObjectVersion:1, stationReachVersion:1, treeLifecycleEpoch:0, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
     money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -119,6 +121,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     achievements:createAchievementState(0),
   };
   rememberGeneratedWorld(game);
+  initializeBuildingConstruction(game,{empty:true});
   for(const city of game.cities)city.mail??=0;
   for(const industry of game.industries)initializeIndustry(game,industry);
   game.stations.push(
@@ -522,30 +525,32 @@ export function build(game,tool,x,y) {
   // A placed workshop is the town's 'factory' building at its first level; the anchor tile names its town.
   if(tool==='workshop') {
     const placed=placeBuildingSite(game,'factory',x,y,{size:WORKSHOP.footprint,building:{level:1,owner:'player',paid:cost}});
+    startConstruction(game,placed.building,{x,y});
     spend(game,cost);game.revision++;
-    return result(true,`Workshop built.${spent(cost)}`,{cost,building:placed.building});
+    return result(true,`Workshop construction started. Ready in ${constructionDuration('factory')/30} months.${spent(cost)}`,{cost,building:placed.building});
   }
   if(owns(BUILDINGS,tool)) {
     const def=BUILDINGS[tool],nearCity=closestCity(game,point,10);
     const size=buildingFootprint(tool);
     const placed=placeBuildingSite(game,tool,x,y,{size,building:{level:1,...def.residents?{populationCityId:nearCity?.id??null}:{},...def.group==='community'?{}:{owner:'player',paid:cost}}});
     spend(game,cost);
-    if(nearCity&&def.residents)nearCity.population+=def.residents;
+    startConstruction(game,placed.building,{x,y,populationGain:def.residents||0});
     game.revision++;
-    return result(true,`${def.name} built.${spent(cost)}`,{cost,building:placed.building});
+    return result(true,`${def.name} construction started. Ready in ${constructionDuration(tool)/30} months.${spent(cost)}`,{cost,building:placed.building});
   }
   const def=INDUSTRIES[tool];
   spend(game,cost);const newIndustry=placeIndustry(game,tool,x,y,{owner:'player'});
-  return result(true,`${def.name} built.${spent(cost)}`,{cost,industry:newIndustry});
+  return result(true,`${def.name} construction started. Ready in ${constructionDuration(tool)/30} months.${spent(cost)}`,{cost,industry:newIndustry});
 }
 /** One more level for a workshop you placed, at the placing price; a developed one grows with its zone instead. */
 export function expandWorkshop(game,x,y) {
   const site=buildingAt(game,x,y),cost=priceFor(game,WORKSHOP.cost);
   if(site?.building.kind!=='factory'||site.building.owner!=='player')return result(false,'Only your own workshops can be expanded.');
+  if(isUnderConstruction(site.building))return result(false,'Wait for this workshop to finish construction before expanding it.');
   if(site.building.level>=WORKSHOP.maxLevel)return result(false,'This workshop is fully expanded.');
   if(game.money<cost)return result(false,`Need ${moneyText(cost)} to expand this workshop.`);
-  site.building.level+=1;site.building.paid=(site.building.paid||0)+cost;spend(game,cost);game.revision++;
-  return result(true,`Workshop expanded to level ${site.building.level}.${spent(cost)}`,{cost,building:site.building});
+  site.building.level+=1;startConstruction(game,site.building,{x:site.x,y:site.y});site.building.paid=(site.building.paid||0)+cost;spend(game,cost);game.revision++;
+  return result(true,`Workshop expansion started. Level ${site.building.level} opens in ${constructionDuration('factory',site.building)/30} months.${spent(cost)}`,{cost,building:site.building});
 }
 /** A building you placed goes back to its town for 60% of today's value. It stays as it is, and its rent stops; no notice. */
 export function sellProperty(game,x,y) {
@@ -556,24 +561,24 @@ export function sellProperty(game,x,y) {
   delete site.building.owner;delete site.building.paid;game.money+=refund;game.revision++;
   return result(true,`${name} sold${property.town?` to ${property.town.name}`:''} for ${moneyText(refund)}.`,{refund,town:property.town});
 }
-// One placement for the Build tool and the region's own openings. A world
-// producer starts with twelve days of output in stock, like a generated one.
-function placeIndustry(game,kind,x,y,{owner,openedDay}){
-  const def=INDUSTRIES[kind],stocked=owner!=='player'&&!Object.keys(def.inputs).length;
-  const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,stocked&&owns(def.outputs,cargo)?def.outputs[cargo]*12:0]));
-  const site={id:freshId(game,'industry',game.industries),kind,name:def.name,x,y,footprint:industryFootprint(kind),capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner,...openedDay===undefined?{}:{openedDay}};
+// One placement for the Build tool and the region's own openings.
+// New sites reserve their full parcel, with empty stores until construction finishes.
+function placeIndustry(game,kind,x,y,{owner}){
+  const def=INDUSTRIES[kind];
+  const inventory=Object.fromEntries([...Object.keys(def.inputs),...Object.keys(def.outputs)].map(cargo=>[cargo,0]));
+  const site={id:freshId(game,'industry',game.industries),kind,name:def.name,x,y,footprint:industryFootprint(kind),capacity:1,inventory,production:0,totalProduced:0,activity:0,shipped:0,received:0,idleDays:0,owner};
   initializeIndustry(game,site);
   releaseTerrainObjects(game,industryTiles(site));
-  game.industries.push(site);game.revision++;
+  game.industries.push(site);startConstruction(game,site);game.revision++;
   return site;
 }
 /** The region's monthly opening near a served town, announced once; `force` (tests and debugging only) skips the date, freight and chance gates. */
 export function openIndustry(game,month=calendarMonth(game),{force=false}={}){
   const plan=planIndustryOpening(game,month,{force});if(!plan)return null;
-  const site=placeIndustry(game,plan.kind,plan.x,plan.y,{owner:'world',openedDay:Math.floor(game.day)}),size=industrySize(site);
+  const site=placeIndustry(game,plan.kind,plan.x,plan.y,{owner:'world'}),size=industrySize(site);
   const town=closestCity(game,{x:site.x+(size-1)/2,y:site.y+(size-1)/2})||game.cities.find(city=>city.id===plan.anchorId);
-  const opened=(industry,near)=>`New ${industry} opens near ${near}.`;
-  notify(game,opened(INDUSTRIES[plan.kind].name.toLowerCase(),town.name),'success',{topic:'industry-opening',target:{kind:'industry',id:site.id},template:opened(token('industry',site.id),token('town',town.id))});
+  const opened=(industry,near)=>`Construction starts on a new ${industry} near ${near}. Ready in ${constructionDuration(plan.kind)/30} months.`;
+  notify(game,opened(INDUSTRIES[plan.kind].name.toLowerCase(),town.name),'success',{topic:'industry-construction',target:{kind:'industry',id:site.id},template:opened(token('industry',site.id),token('town',town.id))});
   return site;
 }
 
@@ -899,7 +904,7 @@ function journeyCoverage(game,station,context) {
 // that loadVehicle would take it from (not one the end stop reaches) and that still makes it. Otherwise no town is credited.
 function workshopMaker(game,route,destination,context) {
   const start=context?context.stations.get(route.stops[0]):game.stations.find(s=>s.id===route.stops[0]),source=start&&journeyCoverage(game,start,context);
-  if(!source||source.industries.some(industry=>INDUSTRIES[industry.kind].outputs[route.cargo]))return null;
+  if(!source||source.industries.some(industry=>!isUnderConstruction(industry)&&INDUSTRIES[industry.kind].outputs[route.cargo]))return null;
   return source.cities.find(city=>!destination.cities.includes(city)&&workshopOutputs(game,city).includes(route.cargo))||null;
 }
 // Returns the sources a freight start has: the covered industries that make its cargo, whatever their stock, or,
@@ -918,7 +923,7 @@ function loadVehicle(game,route,vehicle,stopIndex,context,day=game.day) {
   } else if(stopIndex===0) {
     const coverage=journeyCoverage(game,station,context);
     for(const industry of coverage.industries) {
-      if(!INDUSTRIES[industry.kind].outputs[route.cargo])continue;
+      if(isUnderConstruction(industry)||!INDUSTRIES[industry.kind].outputs[route.cargo])continue;
       sources++;if(free<=0)continue;
       const amount=Math.min(free,Math.floor(industry.inventory[route.cargo]||0));
       industry.inventory[route.cargo]-=amount;industry.shipped+=amount;industry.activity+=amount;vehicle.load+=amount;free-=amount;
@@ -967,7 +972,7 @@ function unloadVehicle(game,route,vehicle,stopIndex,arrivalDay=game.day,context)
     const coverage=journeyCoverage(game,station,context);
     let buyer=null;
     for(const industry of coverage.industries) {
-      if(!INDUSTRIES[industry.kind].inputs[route.cargo])continue;
+      if(isUnderConstruction(industry)||!INDUSTRIES[industry.kind].inputs[route.cargo])continue;
       buyer??=industry;
       const available=Math.max(0,MAX_INVENTORY*industry.capacity-(industry.inventory[route.cargo]||0));
       const amount=Math.min(remaining,available);
@@ -1107,7 +1112,7 @@ function travelSpeed(game,route,vehicle,segment,cache){
         let congestion=0,support=0;
         for(const city of nearbyCities(game,a.x,a.y,5)){const d=Math.hypot(city.x-a.x,city.y-a.y);if(d<5)congestion+=Math.min(.15,city.population/10000)*(1-d/6);}
         const supportingSites=new Set();
-        for(const [dx,dy]of DIRECTIONS){const site=buildingAt(game,a.x+dx,a.y+dy),kind=site?.building.kind;if((kind==='service-garage'||kind==='police-station')&&!supportingSites.has(site.building)){supportingSites.add(site.building);support+=.035;}}
+        for(const [dx,dy]of DIRECTIONS){const site=buildingAt(game,a.x+dx,a.y+dy),kind=site?.building.kind;if((kind==='service-garage'||kind==='police-station')&&!isUnderConstruction(site.building)&&!supportingSites.has(site.building)){supportingSites.add(site.building);support+=.035;}}
         shared={climate,congestion,support,terrain:(ta.bridge||tb.bridge)?.8:(ta.tunnel||tb.tunnel)?.88:1,grade:1-Math.min(.16,Math.abs(transportElevation(ta)-transportElevation(tb))*.4)};
       }
     }
@@ -1261,7 +1266,7 @@ function maintenance(game) {
     return sum+expense;
   },0);
   const facilities=game.industries.reduce((sum,i)=>{
-    if(i.owner!=='player')return sum;
+    if(i.owner!=='player'||isUnderConstruction(i))return sum;
     const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3,industrySize(i)),support=1-Math.min(.15,e.fire*.035+e.services*.015);
     return sum+INDUSTRIES[i.kind].cost*.00008*(.9+randomAt(game,day,i.id,522)*.2)*(1+localWeather.cold*.2+localWeather.heat*.12)*support;
   },0);
@@ -1367,7 +1372,7 @@ export function tick(game,days,{reserved=[],motion=null}={}) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step,motion);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepBuildingConstruction(game,notify);stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
       const month=calendarMonth(game),closedMonth=month>game.lastMonth?game.lastMonth:null;
       if(closedMonth!==null){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
       stepAchievements(game,{closedMonth,served,networkTotals});
@@ -1390,6 +1395,8 @@ export function validateGame(game) {
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
   if(!validGenerationOptions(game.size,game.generationOptions)||(game.generationOptions&&!(game.generationVersion>=7)))return false;
   if(!Array.isArray(game.tiles)||game.tiles.length!==game.width*game.height||!finite(game.money,-1e12,1e12)||!finite(game.day,0,1e8)||!Number.isInteger(game.nextId)||game.nextId<0)return false;
+  if(game.treeLifecycleEpoch!==undefined&&(!Number.isInteger(game.treeLifecycleEpoch)||!finite(game.treeLifecycleEpoch,0,game.day)))return false;
+  if(!game.tiles.every(t=>validTreeLifecycleTile(t,game.day)))return false;
   if(game.networkRevision!==undefined&&(!Number.isInteger(game.networkRevision)||!finite(game.networkRevision,0,1e15)))return false;
   if(!Number.isInteger(game.seed)||!finite(game.seed,0,4294967295)||!Number.isInteger(game.revision)||!finite(game.lastMonthlyProfit))return false;
   for(const key of ['cities','industries','stations','routes','vehicles','zones','history','notifications'])if(!Array.isArray(game[key])||game[key].length>10000)return false;
@@ -1401,6 +1408,8 @@ export function validateGame(game) {
   const ids=new Set();
   const uniqueId=obj=>{if(typeof obj?.id!=='string'||ids.has(obj.id))return false;ids.add(obj.id);return true;};
   if(!game.tiles.every(t=>t&&TERRAIN.has(t.terrain)&&finite(t.elevation)&&(t.detail===undefined||(typeof t.detail==='string'&&t.detail.length<80))&&(t.publicRoad===undefined||typeof t.publicRoad==='boolean')&&Number.isInteger(t.variant)&&['road','rail','bridge','tunnel'].every(k=>typeof t[k]==='boolean')&&(t.zone===null||ZONE_TYPES.includes(t.zone))&&(t.building===null||(t.building&&(owns(BUILDINGS,t.building.kind)||['house','apartment','shop','office','factory'].includes(t.building.kind))&&finite(t.building.level,1,3)&&validFootprint(t.building,buildingFootprint(t.building.kind))))))return false;
+  if(!game.tiles.every(tile=>!tile.building||validBuildingConstruction(game,tile.building)))return false;
+  if(!game.industries.every(industry=>validBuildingConstruction(game,industry)))return false;
   if(!game.tiles.every((tile,index)=>validStructureMetadata(tile,game,index%game.width,Math.floor(index/game.width))))return false;
   if(!game.tiles.every(t=>!t.building||(t.building.owner===undefined||t.building.owner==='player')&&(t.building.paid===undefined||finite(t.building.paid,0,1e12))))return false;
   if(!game.cities.every(c=>validPoint(game,c)&&uniqueId(c)&&typeof c.name==='string'&&finite(c.population,0,1e8)&&finite(c.activity,0)&&finite(c.passengers,0)&&finite(c.growth,0)&&finite(c.delivered,0)&&finite(c.supplies,0)&&(c.mail===undefined||finite(c.mail,0,1e9))))return false;
@@ -1541,7 +1550,8 @@ export function restoreGame(saved) {
     if(game.stationReachVersion!==1){for(const stop of game.stations)if(stop.mode!=='air')stop.catchmentRadius=LEGACY_STATION_RADIUS;game.stationReachVersion=1;}
     if(game.siteFootprintVersion!==3){if(game.siteFootprintVersion===undefined)expandRestoredSites(game);resizeRestoredIndustries(game);game.siteFootprintVersion=3;}
     if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
-    game.networkRevision??=0;
+    game.networkRevision??=0;game.treeLifecycleEpoch??=Math.floor(game.day);
+    initializeBuildingConstruction(game);
     if(game.monthlyOperatingExpenses===undefined)game.monthlyIncomeAtAccountingStart=game.monthlyIncome;
     game.monthlyOperatingExpenses??=0;game.totalOperatingExpenses??=0;game.lastMonthlyOperatingProfit??=0;game.monthlyIncomeAtAccountingStart??=0;game.accountingStartDay??=game.day;
     game.lastMonth=calendarMonth(game);

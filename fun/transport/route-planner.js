@@ -1,7 +1,8 @@
+import { isUnderConstruction } from './building-construction.js';
 import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, stationReach, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH, MAX_VEHICLES, validVehicleCount } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
 import { FULL_LOAD_MAX_WAIT } from './model.js';
-import { workshopLevels, workshopOutputs } from './town-market.js';
+import { workshopLevels, workshopOutputs, workshopInputs } from './town-market.js';
 import { WORKSHOP } from './data.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } from './data.js';
 import { passengerArrivals } from './settlements.js';
@@ -111,6 +112,7 @@ function averageCapacity(game, industry, productivity, shipped) {
 // output is carried away; a factory is held to what it made lately or to the ingredients your routes
 // bring, whichever is more.
 function siteSupply(game, industry, cargo, { stops, covers, excludeRouteId, projectedRoute }, from) {
+  if (isUnderConstruction(industry)) return 0;
   const definition = INDUSTRIES[industry.kind], inputs = Object.entries(definition.inputs), output = definition.outputs[cargo];
   const productivity = industryConditions(game, industry, from).productivity, potential = output * industry.capacity * productivity;
   if (!inputs.length) return output * averageCapacity(game, industry, productivity, potential) * productivity;
@@ -167,6 +169,17 @@ function infrastructureShare(game, mode, path, stations, excludeRouteId = null) 
   for (const stop of stations) share += INFRASTRUCTURE_UPKEEP.stop[stop.mode] / ((users.get(`station:${stop.id}`) || 0) + 1);
   return share;
 }
+// Reserve both endpoints now, but do not promise fares before a supplier and buyer can trade.
+function constructionWait(game, from, to, cargo) {
+  if (isTownTraffic(cargo)) return null;
+  const source = stationCoverage(game, from), destination = stationCoverage(game, to);
+  const producers = source.industries.filter(site => INDUSTRIES[site.kind].outputs[cargo]);
+  const buyers = destination.industries.filter(site => INDUSTRIES[site.kind].inputs[cargo]);
+  const dates = [];
+  if (producers.length && producers.every(isUnderConstruction) && !source.cities.some(city => !destination.cities.includes(city) && workshopOutputs(game, city).includes(cargo))) dates.push(Math.min(...producers.map(site => site.construction.completeDay)));
+  if (buyers.length && buyers.every(isUnderConstruction) && !destination.cities.some(city => TOWN_CARGO.includes(cargo) || workshopInputs(game, city).includes(cargo))) dates.push(Math.min(...buyers.map(site => site.construction.completeDay)));
+  return dates.length ? Math.max(...dates) : null;
+}
 function computeForecast(game, draft, plan) {
   const vehicleCount = draft.vehicleCount === undefined ? 1 : draft.vehicleCount;
   if (!plan.valid || !validVehicleCount(vehicleCount)) return null;
@@ -178,12 +191,14 @@ function computeForecast(game, draft, plan) {
   // bought, even if a paused repair has not refreshed its cached active flag.
   const projectedRoute = joining ? { id: plan.existingRouteId, path: plan.path, active: true } : null;
   const [from, to] = plan.reversed ? [...plan.stations].reverse() : plan.stations, flows = loadingFlows(game, from, to, cargo, editing?.id, projectedRoute);
+  const constructionUntil = constructionWait(game, from, to, cargo);
+  if (constructionUntil !== null) for (const flow of flows) flow.free = 0;
   const oneWay = purchase.capacity / roundTrip(mode, tiles, purchase.level), perVehicleDay = oneWay * flows.length;
   const capacityDay = perVehicleDay * vehicleCount, cost = purchase.cost * vehicleCount;
   const supplyDay = flows.reduce((sum, flow) => sum + flow.free, 0), movedDay = flows.reduce((sum, flow) => sum + Math.min(oneWay * vehicleCount, flow.free), 0);
   // With full load a freight vehicle stands at the start for the share of its round trips the supply cannot fill, at the
   // idle 45% of its upkeep, and what boards during a wait rides along for about half of it. A supply that fills it never waits.
-  const full = draft.fullLoad === true && !isTownTraffic(cargo), moving = full ? Math.min(1, supplyDay / capacityDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity * vehicleCount / Math.max(.01, supplyDay)) / 2 : 0;
+  const full = draft.fullLoad === true && !isTownTraffic(cargo) && constructionUntil === null, moving = full ? Math.min(1, supplyDay / capacityDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity * vehicleCount / Math.max(.01, supplyDay)) / 2 : 0;
   // One trip's days on the way set the share of the fare a delivery keeps.
   const days = Math.round(scheduledDays(mode, tiles, purchase.level) + wait), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
   // An added vehicle joins its route's share of the network; a new route takes its own.
@@ -202,6 +217,7 @@ function computeForecast(game, draft, plan) {
     madeDay: flows.reduce((sum, flow) => sum + flow.made, 0), fullFare: fareFor(game, cargo, paid + 1, purchase.capacity, game.day, days), cost, unitCost: purchase.cost, joining,
     tiles: paid, travel: tiles, days, share, perUnit, wait,
     marketBonus, workshopsPending: flows.some(flow => flow.pending), editing: Boolean(editing),
+    ...(constructionUntil === null ? {} : { constructionUntil, constructionNote: `Industries under construction. Freight starts in about ${Math.max(1, Math.ceil((constructionUntil - game.day) / 30))} months; revenue is zero until then.` }),
   };
 }
 

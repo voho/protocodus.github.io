@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { LEGACY_BUILDING_KINDS } from '../buildings.js';
 import { BUILDINGS, INDUSTRIES, WORLD_SIZES, createGame, build, tileAt, tick, validateGame, saveGame, loadGame, SAVE_KEY } from '../model.js';
 import { emptyGame } from './helpers.mjs';
+import { constructionDuration } from '../building-construction.js';
 import { encodeGame, decodeGame } from '../save-codec.js';
 
 function stored(run) {
@@ -39,7 +40,7 @@ test('every house, civic building, shop and service can be built with its listed
     Object.assign(tile,{terrain:'grass',building:null,zone:null,road:false,rail:false});
     const before=game.money,result=build(game,kind,x,y);
     assert.equal(result.ok,true,`${kind}: ${result.message}`);
-    assert.deepEqual(tile.building,{kind,level:1,footprint:definition.footprint,...definition.residents?{populationCityId:null}:{},...definition.group==='community'?{}:{owner:'player',paid:definition.cost}});
+    assert.deepEqual(tile.building,{kind,level:1,footprint:definition.footprint,...definition.residents?{populationCityId:null}:{},...definition.group==='community'?{}:{owner:'player',paid:definition.cost},construction:{startedDay:0,completeDay:constructionDuration(kind,{level:1,footprint:definition.footprint})}});
     assert.equal(game.money,before-definition.cost);
     assert.equal(build(game,kind,x,y).ok,false,'occupied plots remain protected');
     tile.building=null;tile.terrain='water';

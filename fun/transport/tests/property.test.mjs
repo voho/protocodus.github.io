@@ -6,7 +6,7 @@ import { placeBuildingSite, buildingAt } from '../building-sites.js';
 import { BUILDINGS } from '../buildings.js';
 import { money } from '../copy.js';
 import { GROUND_RENT, BUILT_YIELD, OCCUPANCY_FLOOR, CLOSE_HOOKS, townOf, townLedger, ensureMarket, monthlyMarkets, propertyBase, propertyOccupancy, propertyValue, propertyAt, companyProperty, drainPropertyEvents } from '../town-market.js';
-import { emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
 
 const clone = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
 const saved = game => JSON.stringify(encodeGame(game));
@@ -25,7 +25,7 @@ function develop(game, kind, x, y, level = 1, size = 1) {
   game.revision++;
   return building;
 }
-const place = (game, kind, x, y) => { const placed = build(game, kind, x, y); assert.equal(placed.ok, true, `${kind}: ${placed.message}`); return placed; };
+const place = (game, kind, x, y) => { const placed = build(game, kind, x, y); assert.equal(placed.ok, true, `${kind}: ${placed.message}`); completeFixtureConstruction(game, placed.building, placed.industry); return placed; };
 const zoneBlock = (game, kind, x, y) => { for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) place(game, kind, x + dx, y + dy); };
 // Ashford's clear 2 × 2 blocks between its streets, out of the built-up centre: (4, 7), (7, 1), (7, 4), (−8, 1), (−2, 7), (1, 7), (7, −2).
 
@@ -118,7 +118,7 @@ test('returns match the calibration within a quarter', () => {
   const near = (value, target, label) => assert.ok(Math.abs(value - target) <= .25 * target, `${label}: $${value} against $${target}`);
   near(run((game, A) => zoneBlock(game, 'residential', A.x + 4, A.y + 7)).rent, 59, 'a residential 2 × 2 zone block');
   // The same four zones, each alone with room to spread, earn a little more once built up for using four times the land.
-  const singles = [[7, -2], [7, 1], [-2, 7], [1, 7]], spread = run((game, A) => singles.forEach(([dx, dy]) => place(game, 'residential', A.x + dx, A.y + dy)), { months: 48 });
+  const singles = [[7, -2], [7, 1], [-2, 7], [1, 7]], spread = run((game, A) => singles.forEach(([dx, dy]) => place(game, 'residential', A.x + dx, A.y + dy)), { months: 72 });
   near(spread.rent, 88, 'four single zones once built up');
   assert.ok(singles.every(([dx, dy]) => buildingAt(spread.game, spread.A.x + dx, spread.A.y + dy)?.building.footprint === 2), 'each spread over its empty neighbours');
   near(run((game, A) => place(game, 'house-cheap-1', A.x + 4, A.y + 7)).rent, 21, 'a cottage');
@@ -159,7 +159,7 @@ test('rent is company income in the closing month, never route revenue', () => {
   assert.equal(game.annual[0].revenue - plain.annual[0].revenue, year);
 });
 
-test('occupancy never falls below its floor, so rent never stops', () => {
+test('completed property retains its occupancy floor while rebuilding property earns no rent', () => {
   const { game, A } = twoTownFixture();
   zoneBlock(game, 'residential', A.x + 4, A.y + 7); zoneBlock(game, 'residential', A.x + 7, A.y + 4);
   place(game, 'shop-grocery', A.x - 5, A.y + 7); place(game, 'workshop', A.x - 8, A.y + 1); place(game, 'house-normal-1', A.x + 1, A.y + 7);
@@ -171,7 +171,7 @@ test('occupancy never falls below its floor, so rent never stops', () => {
   for (let month = 0; month < 24; month++) {
     closeMonths(game, 1);
     lowest = Math.min(lowest, game.history.at(-1).property || 0);
-    for (const p of sites) { const share = propertyAt(game, p.x, p.y); assert.ok(share.occupancy >= OCCUPANCY_FLOOR[share.sector] - 1e-12, `${p.kind} at ${share.occupancy}`); }
+    for (const p of sites) { const share = propertyAt(game, p.x, p.y); if (buildingAt(game, p.x, p.y).building.construction) assert.equal(share.occupancy, 0); else assert.ok(share.occupancy >= OCCUPANCY_FLOOR[share.sector] - 1e-12, `${p.kind} at ${share.occupancy}`); }
   }
   assert.ok(lowest > 0 && lowest < served, `rent fell from $${served} to at least $${lowest}`);
 });
@@ -195,7 +195,7 @@ test('selling returns 60% of today’s value, keeps the building and stops its r
 
 test('a sold workshop keeps its level and stock; plots, public and town buildings cannot be sold', () => {
   const { game, A } = twoTownFixture(), x = A.x + 4, y = A.y + 7;
-  place(game, 'workshop', A.x - 8, A.y + 1); assert.ok(expandWorkshop(game, A.x - 8, A.y + 1).ok);
+  place(game, 'workshop', A.x - 8, A.y + 1); const expansion = expandWorkshop(game, A.x - 8, A.y + 1); assert.ok(expansion.ok); completeFixtureConstruction(game, expansion.building);
   game.cities[0].workshop = { input: { lumber: 40 }, output: { furniture: 12 } };
   const works = sellProperty(game, A.x - 7, A.y + 2);
   assert.equal(works.refund, Math.round(.6 * priceFor(game, 24000))); assert.match(works.message, /^Workshop sold to Ashford for \$[\d,]+\.$/);

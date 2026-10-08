@@ -57,7 +57,7 @@ Two of three judges chose quiet instrument as the base, and all three wanted par
 | Chrome | Light paper rails. Ink only for transient surfaces. | Dark enamel slabs over the art pulled the eye away from the map (two judges). Light rails match the brand and today's DOM, and need the least CSS churn. |
 | Route identity | Number + line colour + bullet shape by mode: road square, rail circle, water pill, air diamond. | Colour alone fails beyond 6 routes and for colour-blind players. Shape shows the mode without letters. Airports need no new chrome. |
 | Line palette | 9 colours that alternate deep (white numerals) and light (ink numerals). No green, teal or orange. | Once land, water and signal hues are excluded, pastels alone run out of distinct hues. Per-line numeral colour is real transit practice. Checked on the live map: deep lines with a paper halo and light lines with an ink casing both read on moss, roads and river. Today's pastel teal vanished on the river. |
-| Map labels | Keep the paper nameplate pills. Replace the lettered B/T stop sign with a roundel that carries route bullets. | Atlas's stroke-halo labels looked crude over roofs. The B sign collided with town names. |
+| Map labels | Keep paper town nameplates. Road and rail stops use distinct bus/train pictograms with adjacent route bullets. | Separate map signs make small shelters and stations recognizable; shared placement keeps signs clear of town names. |
 | Selection | Orange footprint outline on a paper casing, plus an ink name tag. | Quiet instrument's pale outline was too faint. Orange means here. |
 | Panel ↔ map | Linked state on every matching reference, a map highlight, and an edge pointer for off-screen targets. | Atlas's leader lines were restless and looked like rendering glitches. |
 | Type | Inter for words and figures, Space Grotesk for the brand. 14 px body. 12 px floor everywhere, canvas included. | Quiet instrument's 11 px floor was marginal for small labels. Space Grotesk's narrow counters and quirky figures read poorly at 12–13 px in ink-2, so text moved to Inter, which was drawn for small screen sizes. |
@@ -657,7 +657,7 @@ The strip shows a route's state at a glance, left to right from the first stop t
 - **Paused or offline route:** the line at 45% alpha, with no flow.
 - **Bridges:** route lines continue along the bank ramps and across the raised deck, beneath vehicles. Solid deck sides, guardrails and sparse piers distinguish crossings from roads or tracks laid on water, including with route lines hidden.
 - **Bullets:**
-  - at Town and Detail zoom, every stop roundel carries the bullets of the routes that serve it (at most 3, then "+N");
+  - at Town and Detail zoom, every map stop sign carries the bullets of the routes that serve it (at most 3, then "+N");
   - at Region zoom, only terminus bullets are drawn, and any that collide with a nameplate are dropped.
 
 ## 9. Map vocabulary (UI drawn on the map)
@@ -665,8 +665,8 @@ The strip shows a route's state at a glance, left to right from the first stop t
 | Mark | Look | Meaning |
 |---|---|---|
 | Town nameplate | Paper plate at 94%, radius 4, ink edge at 14%. Name 13/600; population 12/500 in ink-2 after a 1 px rule. | A town (world label) |
-| Stop roundel | Paper disc with a 2.5 px ink ring, 10 px at Town zoom | A stop. Replaces the lettered B/T sign. |
-| Unused stop | Roundel with an `--edge` ring | A stop no route uses |
+| Map stop sign | Green circle with a light bus glyph for road; blue rounded square with a light train glyph for rail. Sign box is 20/22/24 display px at Region/Town/Detail, independent of building scale. | A recognizable stop even with names off. Its border preserves unused/offline status; route bullets sit beside it. |
+| Unused stop | Mode sign with an `--edge` border; ports and airports retain roundels | A stop no route uses |
 | Industry badge | Paper tile with the output pictogram. Ring in the serving line colour, 3 px storage meter (ink; warn at 90% or more), missing-input chips. | An industry and its service |
 | Selection | Orange footprint outline (2.5 px) over a 5 px paper casing, plus an ink name tag above | The selected thing |
 | Locator ring | Orange ring (2.5 px) over a 5 px paper casing, fading in over 120 ms | "This one": a hovered reference, or a toast's Show on map |
@@ -701,7 +701,13 @@ Gardens blend with their climate's world terrain, and slope foundations use natu
 
 Terrain illumination joins neighboring slopes smoothly, with upper-left sunlight and strong broad hillside contrast. It uses the existing height field without moving terrain, buildings or construction guides. Flat ground and water retain their authored colours; shore vertices keep water neutral. Texture and material boundaries remain sharp while the illumination crosses tile and chunk boundaries continuously.
 
-### 9.2 Stop reach and room for transport
+### 9.2 Construction and living woodland
+
+New architecture uses simulation time to pass through excavation, structural work and finishing before its finished sprite appears. A recessed hole, meter-scaled posts and red-and-white caution tape make the full reserved parcel clear. Frames and scaffolding replace the excavation as work progresses. Farms show their working yard under construction and add the finished fields when they open. Prices are paid once; completion needs no further action or materials interface. Show the duration before placement and a quiet progress bar with the exact opening date in the inspector. Production, population additions, services and rent wait for completion. Existing built places stay complete on load.
+
+Trees grow visibly during their first two years, become old after eight and lie as fallen timber during the last six months of a roughly ten-year life. Their roots remain registered to the terrain. Decay leaves empty ground for at least six months before ordinary ecology can regrow it. Initial forest ages vary deterministically, and pauses stop both tree aging and construction. No lifecycle management controls are added.
+
+### 9.3 Stop reach and room for transport
 
 New road stops, rail stations and ports serve within 4 tiles; existing stops loaded from older saves keep 5, and airports keep 7 measured from their full site. Reach rings and service information use the individual stop’s reach. Recipe 12 and new town/industry placement reserve both catchments plus at least five road edges between town pairs, towns and full industry parcels, and related industry parcels. Related means the same kind or a supplier/customer pair. Existing geography and service remain intact.
 

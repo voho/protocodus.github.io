@@ -5,7 +5,7 @@ import { routeCapacity } from '../gameplay-insights.js';
 import { scheduledDays } from '../economy-pricing.js';
 import { build, buildPath, addRoute, tick, createGame, passengerEndpoints } from '../model.js';
 import { industryContains, industryDistance } from '../industry-sites.js';
-import { emptyGame, line, advance, tileAt } from './helpers.mjs';
+import { emptyGame, line, advance, tileAt, completeFixtureConstruction } from './helpers.mjs';
 import { routeBreakPoint, refreshRouteConnections } from '../model.js';
 import { buildPlan } from '../construction-plan.js';
 import { fullLoadQueue } from '../gameplay-insights.js';
@@ -32,6 +32,27 @@ test('factory explanations identify every missing ingredient and distinguish ful
   mill.inventory.iron=.01;assert.equal(industryStatus(mill).state,'producing','fractional recipes can operate');
   mill.inventory.steel=900;assert.equal(industryStatus(mill).state,'full');
   mill.capacity=2;assert.equal(industryStatus(mill).state,'backlog','capacity also controls storage');
+});
+
+test('unfinished industries explain opening dates and a prepared route waits without requesting repairs or more vehicles', () => {
+  const game=routeGame(),route=game.routes[0],[source,buyer]=game.industries;
+  Object.assign(route,{mode:'road',path:[{x:10,y:10},{x:30,y:10}],accountingStartDay:0});
+  game.day=40;game.vehicles=[{id:'truck',routeId:route.id,load:0,capacity:24}];
+  source.inventory.timber=900;
+  source.construction={startedDay:0,completeDay:180};buyer.construction={startedDay:0,completeDay:300};
+  const status=industryStatus(buyer,game);
+  assert.equal(status.state,'construction');assert.equal(status.word,'Under construction');
+  assert.deepEqual(status.missing,[],'a closed factory does not ask for ingredients yet');
+  assert.match(status.detail,/opens .*connection can be prepared/);
+  let health=routeHealth(game,route);
+  assert.deepEqual([health.state,health.tone,health.word,health.waiting,health.capacity],['waiting','info','Supplier being built',0,24]);
+  assert.match(health.detail,/once construction finishes/);
+  assert.equal(routeNeedsAttention(game,route),false);assert.equal(routeCapacity(game,route).room,false);
+  completeFixtureConstruction(game,source);
+  health=routeHealth(game,route);assert.equal(health.word,'Buyer being built');
+  assert.equal(routeNeedsAttention(game,route),false);assert.equal(routeCapacity(game,route).room,false);
+  completeFixtureConstruction(game,buyer);
+  assert.equal(routeHealth(game,route).state,'running');assert.equal(routeCapacity(game,route).room,true);
 });
 
 test('a half-full store is more to carry, and names the route another vehicle would help', () => {
@@ -102,6 +123,7 @@ test('legacy five-tile stops retain service indicators and checklist coverage al
 test('a working iron route beside large sites reads as running and names its cargo cleanly', () => {
   const game=emptyGame();
   assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);
+  completeFixtureConstruction(game,...game.industries);
   assert.equal(buildPath(game,'road',line(25,56,41)).ok,true);
   assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',56,41).ok,true);
   const result=addRoute(game,{name:'Ore run',mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'iron'});
@@ -237,6 +259,7 @@ test('a route without full load never reads the line and reads as before', () =>
 test('routes need attention only while they cannot run, and the count follows every cause', () => {
   const game=emptyGame();
   assert.equal(build(game,'logging-camp',10,8).ok,true);assert.equal(build(game,'sawmill',30,8).ok,true);
+  completeFixtureConstruction(game,...game.industries);
   assert.equal(buildPath(game,'road',line(10,30,13)).ok,true);
   assert.equal(build(game,'bus-stop',10,13).ok,true);assert.equal(build(game,'bus-stop',30,13).ok,true);
   const stops=game.stations.map(stop=>stop.id);
@@ -339,6 +362,7 @@ test('first route steps tick exactly when each stop, connection, route and deliv
   const game=emptyGame();game.cities=[{id:'town',name:'Town',x:40,y:41,population:400,activity:0,growth:0,passengers:0,delivered:0,supplies:0,lastServiceDay:null}];
   assert.equal(build(game,'quarry',8,40).ok,true);
   const quarry=game.industries[0],choice={source:quarry,buyer:{id:'town',kind:'city',name:'Town',x:40,y:41},cargo:'stone'};
+  completeFixtureConstruction(game,quarry);
   const done=()=>firstRouteSteps(game,choice).map(step=>step.done);
   assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);
   assert.deepEqual(done(),[false,false,false,false,false]);

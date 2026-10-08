@@ -10,7 +10,7 @@ import {paymentRateSeries} from '../payment-rates.js';
 import {ensureMarket,townLedger} from '../town-market.js';
 import {cargoIcon} from '../cargo-icons.js';
 import {encodeGame} from '../save-codec.js';
-import {emptyGame,line,equivalent} from './helpers.mjs';
+import {emptyGame,line,equivalent,tileAt,completeFixtureConstruction} from './helpers.mjs';
 
 const newKinds=['dairy-farm','vegetable-farm','orchard','livestock-farm','dairy-plant','cannery','meat-packer'];
 const inputs=['milk','produce','livestock'];
@@ -33,6 +33,7 @@ test('new farms and processors reserve their full fields and factory sites and e
 test('feed and processing conserve every new recipe input and cannot manufacture output without supply',()=>{
   for(const kind of ['dairy-farm','livestock-farm','dairy-plant','cannery','meat-packer']){
     const game=emptyGame(),result=build(game,kind,20,20);ok(result);const site=result.industry,def=INDUSTRIES[kind];
+    completeFixtureConstruction(game,site);
     Object.assign(site,{lastProductionDay:0,nextProductionDay:1,nextReviewDay:1000});game.day=1;stepIndustries(game);
     assert.equal(site.totalProduced,0,`${kind} waits for its input`);
     for(const [cargo,amount]of Object.entries(def.inputs))site.inventory[cargo]=amount*10;
@@ -44,6 +45,7 @@ test('feed and processing conserve every new recipe input and cannot manufacture
   }
   for(const kind of ['vegetable-farm','orchard']){
     const game=emptyGame(),result=build(game,kind,20,20);ok(result);
+    completeFixtureConstruction(game,result.industry);
     Object.assign(result.industry,{lastProductionDay:0,nextProductionDay:1,nextReviewDay:1000});game.day=1;stepIndustries(game);
     assert.ok(result.industry.inventory.produce>0,`${kind} harvests fruit or vegetables without an imported input`);
   }
@@ -56,6 +58,7 @@ function foodFixture(farm,processor,cargo){
   ok(build(game,farm,sourceX,5));ok(build(game,processor,plantX,7));
   ok(build(game,'city',townX,12));ok(buildPath(game,'road',line(10,townX,12)));
   ok(build(game,'shop-grocery',townX+1,11));ok(build(game,'shop-bakery',townX+3,11));
+  completeFixtureConstruction(game,...game.industries,tileAt(game,townX+1,11).building,tileAt(game,townX+3,11).building);
   for(const x of [...fed?[10]:[],sourceX,plantX,townX])ok(build(game,'bus-stop',x,12));
   const byX=x=>game.stations.find(stop=>stop.x===x).id,routes=[];
   if(fed){const feed=addRoute(game,{mode:'road',cargo:'grain',stops:[byX(10),byX(sourceX)]});ok(feed);routes.push(feed.route);}

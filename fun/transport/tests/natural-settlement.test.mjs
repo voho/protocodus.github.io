@@ -91,7 +91,8 @@ test('served towns lay short public streets once their lots run out, and keep gr
   const month6 = population(game), before = structuredClone(game.tiles), upkeep = game.infrastructureUpkeep;
   days(game, 900);
   const grown = population(game) / month6 - 1, added = streets(game, before);
-  assert.ok(grown >= .2 && grown <= .45, `towns grow ${Math.round(grown * 100)}% from month 6 to year 3`);
+  // At month six some reserved homes are still being built; their residents arrive later.
+  assert.ok(grown >= .2 && grown <= .6, `towns grow ${Math.round(grown * 100)}% from month 6 to year 3`);
   assert.ok(added.length >= 6, `${added.length} street tiles`);
   for (const { x, y, tile, was } of added) {
     assert.equal(tile.publicRoad, true, `${x},${y} is a public street`);

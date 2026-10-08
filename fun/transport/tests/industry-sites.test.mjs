@@ -8,7 +8,7 @@ import { industryTiles, industrySiteProblem, industryFootprint, MIN_SITE_GAP } f
 import { quoteBuildPlan } from '../construction-plan.js';
 import { INDUSTRIES } from '../data.js';
 import { WORLD_GENERATION_VERSION } from '../world.js';
-import { emptyGame, tileAt } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, tileAt } from './helpers.mjs';
 
 test('every eligible industry reserves a 5×5 site',()=>{
   for(const [kind,def] of Object.entries(INDUSTRIES))for(const biome of def.biomes){
@@ -124,6 +124,7 @@ test('industry transport catchments exclude inactive and out-of-range stops with
 
 test('fire and local services reduce player-industry upkeep equally on every side',()=>{
   const base=flatIndustryGame('oil-well'),expenses=[];
+  completeFixtureConstruction(base, ...base.industries);
   for(const point of Object.values(siteSides)){
     const game=structuredClone(base);
     for(const y of [19,20,21,22,23]){

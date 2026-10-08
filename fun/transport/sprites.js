@@ -3,7 +3,7 @@ import { INDUSTRIES, WORKSHOP } from './data.js';
 import { worldArtRevision, preloadWorldArt, startupArtCells } from './atlas-runtime.js';
 import { drawRasterIndustry, hasRasterIndustry } from './raster-industries.js';
 import { drawRasterBuilding, hasRasterBuilding, buildingArtworkDesign } from './raster-buildings.js';
-import { drawRasterNature, drawRasterNatureObject, natureObjectLayout, nativeNatureDetail, drawNativeHollowTree } from './raster-nature.js';
+import { drawRasterNature, drawRasterNatureObject, natureObjectLayout, nativeNatureDetail, drawNativeHollowTree, forestLifecycleKey } from './raster-nature.js';
 import { drawTownBuilding } from './building-sprites.js';
 import { drawTownFeature } from './town-feature-sprites.js';
 import { drawProcessingPlant } from './processing-sprites.js';
@@ -128,7 +128,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
   cache.syncRevision(`${assetRevision}:${worldRevision}`);
   const natureKinds=new Set(['forest','rock','mountain','terrain-detail']);
   const shopKinds=new Set(SHOP_KINDS);
-  function sprite(kind,variant=0,level=INDUSTRIES[kind]?.footprint||1,detail='',footprint=undefined) {
+  function sprite(kind,variant=0,level=INDUSTRIES[kind]?.footprint||1,detail='',footprint=undefined,lifecycle=null) {
     // Saved companies and external previews can still use the original names.
     // Resolve before caching so these share the exact current artwork identity.
     if(kind==='house'||kind==='apartment')kind=residentialKind(variant,level);
@@ -146,7 +146,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     const parcelKey=BUILDINGS[kind]||kind==='factory'?`:parcel-${physicalFootprint}`:'';
     // Share repeated seeds while retaining each house design and orientation.
     const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign,logicalFootprint)||hasRasterBuilding(kind,biome,shopDesign,logicalFootprint))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome,span);
-    const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`)+parcelKey,cached=cache.get(key);
+    const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`)+parcelKey+(kind==='forest'&&lifecycle?`:life-${forestLifecycleKey(lifecycle)}`:''),cached=cache.get(key);
     if(cached){hits++;return cached;}
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;
     const forest=kind==='forest',width=layout?.width||(forest?48:TILE*span),height=layout?.height||(forest?48:TILE*span+8);
@@ -158,7 +158,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.scale(canvas.width/width,canvas.height/height);if(!natureObject)ctx.translate(forest?8:0,forest?16:8);
     const r=rng(7331+variant*799+kind.length*371+level*97);
     if(natureObject){
-      if(!drawRasterNatureObject(ctx,kind,biome,detail,variant,span,density)){
+      if(!drawRasterNatureObject(ctx,kind,biome,detail,variant,span,density,{lifecycle})){
         ctx.save();ctx.translate(layout.anchorX-16*span,layout.anchorY-16*span);ctx.scale(span,span);
         if(forest)drawForest(ctx,biome,detail,variant,profile);else if(kind==='mountain')drawMountain(ctx,detail,r,biome,profile);else drawBoulder(ctx,16,22,12,r,biome,profile);
         ctx.restore();
@@ -171,7 +171,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
       if(kind==='factory'){ctx.save();ctx.scale(span,span);cityArt=drawRasterBuilding(ctx,kind,biome,density*span,{gardenGround,footprint:logicalFootprint});ctx.restore();}
       if(!cityArt&&!drawRasterIndustry(ctx,siteKind,biome,density,{size:32*span,footprint:span,gardenGround})){ctx.save();ctx.scale(span,span);industry(ctx,siteKind,r,biome,profile,span,{gardenGround});ctx.restore();}
     }
-    else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1})){}
+    else if(drawRasterNature(ctx,kind,biome,detail,variant,density,{density:kind==='forest'?level:1,lifecycle})){}
     else if(kind==='terrain-detail') drawTerrainDetail(ctx,nativeNatureDetail(detail),r,biome,profile);
     else if(kind==='forest') drawForest(ctx,biome,detail,variant,profile);
     else if(kind==='tree'){if(!drawNativeHollowTree(ctx,detail,biome,variant,profile))conifer(ctx,16,25,14,r,biome,profile);}

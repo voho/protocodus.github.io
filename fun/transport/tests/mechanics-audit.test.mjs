@@ -4,7 +4,7 @@ import { build, buildPath, addRoute, tick, passengerEndpoints, refreshRouteConne
 import { calendarMonth } from '../economy-pricing.js';
 import { validateRoutePlan } from '../route-planner.js';
 import { stepSettlements, housingCapacity } from '../settlements.js';
-import { emptyGame, line, tileAt } from './helpers.mjs';
+import { emptyGame, line, tileAt, completeFixtureConstruction } from './helpers.mjs';
 
 const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 100, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
 const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-7, `${actual} versus ${expected}`);
@@ -22,7 +22,9 @@ test('demolishing housing removes its represented residents and prevents build-c
   const game = emptyGame(); build(game, 'city', 20, 20);
   const city = game.cities[0], original = city.population;
   for (let n = 0; n < 5; n++) {
-    assert.equal(build(game, 'house-cheap-1', 21, 20).ok, true); assert.equal(city.population, original + 12);
+    assert.equal(build(game, 'house-cheap-1', 21, 20).ok, true);
+    completeFixtureConstruction(game, tileAt(game, 21, 20).building);
+    assert.equal(city.population, original + 12);
     assert.equal(build(game, 'bulldoze', 21, 20).ok, true); assert.equal(city.population, original);
   }
   tileAt(game, 21, 20).building = { kind: 'house-normal-2', level: 3 }; city.population += 66; city.passengers = city.population * .9;
@@ -46,11 +48,13 @@ test('overlapping legacy stop catchments transport passengers to a different act
 
 test('founding a closer town cannot steal existing housing or charge countryside residents to it', () => {
   const game = emptyGame(); build(game, 'city', 10, 10); const original = game.cities[0];
-  build(game, 'house-cheap-1', 18, 10); delete tileAt(game, 18, 10).building.populationCityId; // Legacy house.
+  build(game, 'house-cheap-1', 18, 10); completeFixtureConstruction(game, tileAt(game, 18, 10).building);
+  delete tileAt(game, 18, 10).building.populationCityId; // Legacy house.
   build(game, 'city', 23, 10); const newer = game.cities[1];
   assert.equal(tileAt(game, 18, 10).building.populationCityId, original.id);
   build(game, 'bulldoze', 18, 10); assert.equal(original.population, 80); assert.equal(newer.population, 80);
-  build(game, 'house-cheap-1', 50, 30); assert.equal(tileAt(game, 50, 30).building.populationCityId, null);
+  build(game, 'house-cheap-1', 50, 30); completeFixtureConstruction(game, tileAt(game, 50, 30).building);
+  assert.equal(tileAt(game, 50, 30).building.populationCityId, null);
   build(game, 'city', 52, 30); const ruralTown = game.cities[2];
   assert.equal(tileAt(game, 50, 30).building.populationCityId, null);
   build(game, 'bulldoze', 50, 30); assert.equal(ruralTown.population, 80, 'a countryside home never credited to the new town cannot remove its founder population');
@@ -73,6 +77,7 @@ test('residential zone upgrades retain the town originally credited for their re
 
 test('input-starved factories do not expand from receiving cargo alone and retain every stored unit', () => {
   const game = emptyGame(); build(game, 'steel-mill', 30, 10);
+  completeFixtureConstruction(game, game.industries[0]);
   const mill = game.industries[0]; mill.inventory.coal = 700; mill.activity = 200; mill.nextProductionDay = 1; mill.nextReviewDay = 1;
   tick(game, 100);
   assert.equal(mill.totalProduced, 0); assert.equal(mill.inventory.coal, 700); assert.ok(mill.capacity <= 1);
@@ -140,6 +145,7 @@ test('route connectivity can refresh while paused without moving vehicles or cha
 test('a complete affordable food chain conserves cargo and earns positive operating profit', () => {
   const game = emptyGame(); game.money = 400000;
   build(game, 'farm', 10, 6); build(game, 'food-plant', 30, 8); build(game, 'city', 50, 10); buildPath(game, 'road', line(10, 50, 13));
+  completeFixtureConstruction(game, ...game.industries);
   for (const x of [10, 30, 50]) build(game, 'bus-stop', x, 13);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'grain', stops: game.stations.slice(0, 2).map(stop => stop.id) }).ok, true);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'food', stops: game.stations.slice(1, 3).map(stop => stop.id) }).ok, true);

@@ -1,7 +1,7 @@
 import { registerAtlas, drawAtlas, worldArtRevision } from './atlas-runtime.js';
 import { createSpriteCache } from './sprite-cache.js';
 import { drawRailStationFallback } from './rail-station-art.js';
-import { drawNativeBusStop, drawNativePort, drawNativePortal } from './native-transport-art.js';
+import { drawNativeBusStop, drawNativePort, drawNativePortal, drawNativeStopApron, drawNativeStopBoard } from './native-transport-art.js';
 
 // Upright structures use authored dimetric views. Road/rail surface textures
 // remain in the ground plane and receive the shared projection exactly once.
@@ -17,15 +17,40 @@ export const cardinalDirection=(dx,dy)=>Math.abs(dx)>Math.abs(dy)?dx>0?'e':'w':d
 // their 2:1 ground directions; keep the pavement's lower contact point stable.
 export const isometricStationBounds=()=>({left:-36,top:-54,size:72});
 function drawStationArt(c,id,x,y,size,pixelScale){
-  if(drawAtlas(c,id,x,y,size,size,{pixelScale}))return true;
-  if(id==='isometric:train-stop')return drawRailStationFallback(c,x,y,size);
+  const stopMode=id==='isometric:train-stop'?'rail':id==='isometric:bus-stop'?'road':null;
+  const stopDetail=paint=>{c.save();c.translate(x+size/2,y+size*.75);c.scale(size/72,size/72);paint(c,stopMode);c.restore();};
+  if(stopMode)stopDetail(drawNativeStopApron);
+  if(drawAtlas(c,id,x,y,size,size,{pixelScale})){if(stopMode)stopDetail(drawNativeStopBoard);return true;}
+  if(id==='isometric:train-stop'){drawRailStationFallback(c,x,y,size);stopDetail(drawNativeStopBoard);return true;}
   const heading={e:Math.atan2(1,2),s:Math.atan2(1,-2),w:Math.atan2(-1,-2),n:Math.atan2(-1,2)}[id.split('-').at(-1)]||0;
   c.save();
   let drawn=false;
   if(id==='isometric:bus-stop'){c.translate(x+size/2,y+size*.75);c.scale(size/72,size/72);drawn=drawNativeBusStop(c);}
   else if(id.startsWith('isometric:port-')){c.translate(x+size/2,y+size*.75);c.scale(size/72,size/72);drawn=drawNativePort(c,{heading});}
   else if(id.startsWith('portal:')){c.translate(x+size/2,y+size*35/44);c.scale(size/44,size/44);drawn=drawNativePortal(c,{mode:id.includes('rail-')?'rail':'road',heading});}
-  c.restore();return drawn;
+  c.restore();if(stopMode)stopDetail(drawNativeStopBoard);return drawn;
+}
+
+// Display-pixel wayfinding, distinct from the physically scaled stop below.
+// A bus face and rail face are readable with town names switched off. Keep
+// the complete paint inside the existing marker/picking box (radius + 1).
+export function drawStopModeSign(c,x,y,radius,mode,ring){
+  const color=mode==='rail'?'#315e70':'#37614e',r=radius-1;
+  c.save();c.translate(x,y);
+  c.beginPath();c.roundRect(-radius,-radius,radius*2,radius*2,mode==='rail'?3:radius);c.fillStyle='#fbf6e3';c.fill();
+  c.strokeStyle=ring;c.lineWidth=1;c.stroke();
+  c.beginPath();c.roundRect(-r,-r,r*2,r*2,mode==='rail'?2:radius);c.fillStyle=color;c.fill();
+  c.scale(radius/10,radius/10);
+  c.fillStyle='#fff9e8';c.beginPath();c.roundRect(-4.7,-5.5,9.4,9.2,1.7);c.fill();
+  c.fillStyle=color;c.fillRect(-3.1,-3.7,6.2,3.1);
+  c.fillStyle='#fff9e8';
+  if(mode==='rail'){
+    c.strokeStyle='#fff9e8';c.lineWidth=1.35;c.beginPath();c.moveTo(-2.7,3.1);c.lineTo(-4.3,5.7);c.moveTo(2.7,3.1);c.lineTo(4.3,5.7);c.moveTo(-3.7,5);c.lineTo(3.7,5);c.stroke();
+  }else{
+    c.fillRect(-4.1,3,2.1,2.5);c.fillRect(2,3,2.1,2.5);c.fillRect(-5.8,-3.2,1.2,2.3);c.fillRect(4.6,-3.2,1.2,2.3);
+  }
+  c.fillStyle=color;c.fillRect(-3.1,1.2,1.6,1.2);c.fillRect(1.5,1.2,1.6,1.2);
+  c.restore();
 }
 // Reflection swaps the two world axes while leaving verticals, physical scale
 // and the registered ground centre intact. Rotation would tilt the building.

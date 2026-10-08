@@ -123,6 +123,11 @@
 .industry-condition p{margin:8px 0 0;font-size:var(--fs-small);line-height:var(--lh-small);color:inherit}
 .site-status[data-state=backlog]{color:var(--ink-2)}
 .industry-condition[data-state=backlog]{color:var(--ink-2)}
+.building-project{margin:12px 0;padding:12px;background:var(--well);border-radius:var(--r-3)}
+.project-heading{display:flex;justify-content:space-between;gap:12px}
+.building-project .progress-track{margin:10px 0;height:6px}
+.building-project .progress-track div{background:var(--signal)}
+.building-project p{margin:8px 0 0}
 /* Town outlook: recent growth under the service line, and an optional fold on how a town finds room. */
 .inspector .town-growth{margin:-4px 0 0;color:var(--ink-2)}
 .town-grow{margin-top:16px;padding-top:8px;border-top:1px solid var(--rule)}
@@ -229,3 +234,5 @@
 .supplier-list{display:grid;gap:var(--s-1);min-width:0}
 .industry-suppliers small{color:var(--ink-2)}
 .inspector h3>.bullet{margin-right:var(--s-1)}
+
+.build-time{display:block;font-size:var(--fs-small);font-weight:400;color:var(--ink-2);margin-top:4px}

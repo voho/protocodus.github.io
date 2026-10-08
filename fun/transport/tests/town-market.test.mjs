@@ -9,7 +9,7 @@ import { stepSettlements, settlementSuitability } from '../settlements.js';
 import { TOWN_RADIUS as AUTHORITY_RADIUS } from '../town-authority.js';
 import * as market from '../town-market.js';
 import { TOWN_RADIUS, MARKET, FAMILIES, familyOf, familyCargo, townOf, townLedger, reviewMarket, ensureMarket, marketView, monthlyMarkets, recordTownSupply, validMarket, demandLabel, CLOSE_HOOKS } from '../town-market.js';
-import { emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
 
 const zoneMap = game => new Map(game.zones.map(zone => [zone.y * game.width + zone.x, zone]));
 const clone = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
@@ -20,7 +20,7 @@ const zone = (game, kind, x, y, progress = 0) => { tileAt(game, x, y).zone = kin
 function foodLine(fixture, trucks = 1) {
   const { game, A, sa } = fixture;
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
-  assert.ok(build(game, 'food-plant', A.x - 19, 49).ok);
+  const foodPlant = build(game, 'food-plant', A.x - 19, 49); assert.ok(foodPlant.ok); completeFixtureConstruction(game, foodPlant.industry);
   const plant = game.industries.at(-1), stop = build(game, 'bus-stop', A.x - 18, 48).station;
   plant.inventory.food = 900;
   const launched = addRoute(game, { mode: 'road', stops: [stop.id, sa.id], cargo: 'food' });
@@ -31,7 +31,7 @@ function foodLine(fixture, trucks = 1) {
 // A food plant beside a road east to a 900-resident town without shops, as in the cargo payment tests.
 function foodRun() {
   const game = emptyGame();
-  assert.ok(build(game, 'food-plant', 10, 7).ok);
+  const foodPlant = build(game, 'food-plant', 10, 7); assert.ok(foodPlant.ok); completeFixtureConstruction(game, foodPlant.industry);
   const city = town(game, 30, 9, 900, 'town');
   assert.ok(buildPath(game, 'road', line(10, 30, 12)).ok);
   for (const x of [10, 30]) assert.ok(build(game, 'bus-stop', x, 12).ok);
@@ -89,7 +89,7 @@ test('shop wants follow residents, food outlets and their lineage', () => {
   assert.ok(build(served, 'commercial', x, y).ok);
   served.revision++;
   const outlets = () => townLedger(served, A, zoneMap(served)).outlets.food, before = outlets(), plot = served.zones.at(-1);
-  const grow = level => { plot.progress = Math.max(plot.progress, level); for (let day = 0; day < 120 && (tile.building?.level || 0) < level; day++) { A.lastServiceDay = served.day; tick(served, 1); if ((tile.building?.level || 0) < level) plot.progress = Math.max(plot.progress, level); } assert.equal(tile.building?.level, level); };
+  const grow = level => { plot.progress = Math.max(plot.progress, level); for (let day = 0; day < 120 && (tile.building?.level || 0) < level; day++) { A.lastServiceDay = served.day; tick(served, 1); if ((tile.building?.level || 0) < level) plot.progress = Math.max(plot.progress, level); } assert.equal(tile.building?.level, level); completeFixtureConstruction(served, tile.building); };
   grow(1); assert.equal(tile.building.kind, 'shop-grocery'); assert.equal(outlets(), before + 1);
   grow(2); assert.equal(tile.building.kind, 'service-post-office'); assert.equal(outlets(), before + 2, 'the upgrade never loses the food outlet');
 });
@@ -181,7 +181,7 @@ test('a food truck earns a modest bonus, and more trucks meet the wants cap', ()
 test('the route forecast counts the market bonus on what the receiving town still wants', () => {
   const fixture = twoTownFixture(), { game, A, sa } = fixture;
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
-  assert.ok(build(game, 'food-plant', A.x - 19, 49).ok);
+  const foodPlant = build(game, 'food-plant', A.x - 19, 49); assert.ok(foodPlant.ok); completeFixtureConstruction(game, foodPlant.industry);
   const stop = build(game, 'bus-stop', A.x - 18, 48).station, draft = { mode: 'road', cargo: 'food', from: stop.id, to: sa.id };
   Object.assign(game.industries.at(-1), { production: 3 });
   const wanted = forecastRoute(game, draft), view = marketView(game, A);

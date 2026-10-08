@@ -13,6 +13,8 @@ import { nextMilestone, progressText } from './milestones.js';
 import { workshopInputs, workshopOutputs, workshopRecipes } from './town-market.js';
 import { waitingForFullLoad } from './model.js';
 import { scheduledDays, travelTiles } from './economy-pricing.js';
+import { isUnderConstruction } from './building-construction.js';
+import { dayText } from './formatters.js';
 
 const nearby = (site, stop) => stationServes(stop, site);
 const covers = (site, stop) => industryDistance(site, stop) <= stationReach(stop);
@@ -185,6 +187,7 @@ function townWords(game, city, connected, served) {
 // With a game, a piling-up store names the route that already loads here. A factory nothing has
 // supplied yet is Idle; once supplied, a missing input reads Needs <cargo>.
 export function industryStatus(industry, game = null) {
+  if (isUnderConstruction(industry)) return status(game, 'construction', 'info', 'Under construction', `${token('industry', industry.id)} opens ${dayText(industry.construction.completeDay)}. Its road or rail link can be prepared while work continues.`, { missing: [] }, [industry]);
   const definition = INDUSTRIES[industry.kind], inventory = industry.inventory || {}, inputs = Object.keys(definition.inputs), made = cargoTokens(Object.keys(definition.outputs));
   const me = token('industry', industry.id), say = (state, tone, word, reason) => status(game, state, tone, word, reason, { missing }, [industry]);
   const missing = inputs.filter(key => !(inventory[key] > 0));
@@ -279,6 +282,12 @@ export function routeHealth(game, route, stats = null) {
   const townBuyer = towns.some(city => workshopInputs(game, city).includes(route.cargo) || TOWN_CARGO.includes(route.cargo) && !makers.includes(city)), cargo = cargoToken(route.cargo);
   if (!sources.length && !makers.length) return say('blocked', 'error', 'No supplier', `Nothing within ${stationReach(from)} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
   if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${stationReach(to)} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
+  const unfinishedSource = !makers.length && sources.length && sources.every(isUnderConstruction);
+  const unfinishedBuyer = !townBuyer && buyers.length && buyers.every(isUnderConstruction);
+  if (unfinishedSource || unfinishedBuyer) {
+    const sites = unfinishedSource ? sources : buyers, first = sites.reduce((a, b) => a.construction.completeDay <= b.construction.completeDay ? a : b);
+    return say('waiting', 'info', unfinishedSource ? 'Supplier being built' : 'Buyer being built', `${token('industry', first.id)} opens ${dayText(first.construction.completeDay)}. This route can carry ${cargo} once construction finishes.`, { waiting: 0, capacity: fleetCapacity(game, route, stats) }, sites);
+  }
   // Full stores still take and pay for every delivery, so they give way to a supplier's warning and to a full-load line.
   const full = !townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001);
   // Only a full-load route reads its line; vehicles waiting in it hold cargo that has not left yet.

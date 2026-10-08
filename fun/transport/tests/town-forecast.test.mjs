@@ -6,12 +6,13 @@ import { encodeGame, decodeGame } from '../save-codec.js';
 import { quoteBuildPlan, buildPlan } from '../construction-plan.js';
 import { placeBuildingSite } from '../building-sites.js';
 import { residentialKind, commercialKind } from '../buildings.js';
+import { constructionDuration, CONSTRUCTION_MONTH_DAYS } from '../building-construction.js';
 import { housingCapacity, activeCities, zoneServiceActive, servedTownSet } from '../settlements.js';
 import { fundedTown } from '../town-authority.js';
 import { FORECAST, matureLevel, zoneForecast, buildingForecast, forecastNote } from '../town-forecast.js';
 import { MARKET, OUTLET, CLOSE_HOOKS, townLedger, propertyBase, propertyOccupancy, marketView, monthlyMarkets, returnsTotals } from '../town-market.js';
 import { writeSaveSlot, readSaveSlot } from '../save-slots.js';
-import { emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
 
 const read = name => readFileSync(new URL('../' + name, import.meta.url), 'utf8');
 const clone = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
@@ -42,9 +43,9 @@ function streetTown(population = 600, [x0, y0, x1, y1] = [42, 32, 47, 35]) {
 // Ashford's workshop fed with lumber from a sawmill on the main road, its furniture carried on to Brookby.
 function freightFixture() {
   const fixture = twoTownFixture(), { game, A, sa, sb } = fixture;
-  const sawmill = build(game, 'sawmill', 43, 50).industry, stop = build(game, 'bus-stop', 44, 48).station;
+  const sawmill = completeFixtureConstruction(game, build(game, 'sawmill', 43, 50).industry), stop = build(game, 'bus-stop', 44, 48).station;
   sawmill.inventory.lumber = 900;
-  assert.ok(build(game, 'workshop', A.x - 8, A.y + 1).ok);
+  const workshop = build(game, 'workshop', A.x - 8, A.y + 1); assert.ok(workshop.ok); completeFixtureConstruction(game, workshop.building);
   const lumber = addRoute(game, { mode: 'road', stops: [stop.id, sa.id], cargo: 'lumber' }).route, furniture = addRoute(game, { mode: 'road', stops: [sa.id, sb.id], cargo: 'furniture' }).route;
   assert.ok(lumber && furniture);
   return { ...fixture, sawmill, lumber, furniture };
@@ -54,13 +55,13 @@ function worksWorld(works) {
   const game = emptyGame(), town = (id, name, x) => { const city = { id, name, x, y: 30, population: 800, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }; game.cities.push(city); return city; };
   // Seed the industry before the towns: this is an established compact layout,
   // retained by old companies, rather than a new industry's siting proposal.
-  const factory = works ? build(game, 'furniture-factory', 31, 33).industry : null;
+  const factory = works ? completeFixtureConstruction(game, build(game, 'furniture-factory', 31, 33).industry) : null;
   assert.ok(!works || factory);
   const A = town('town-a', 'Alder', 30), B = town('town-b', 'Birch', 70);
   game.revision++;
   assert.ok(buildPath(game, 'road', line(20, 75, 32)).ok);
   const sa = build(game, 'bus-stop', 30, 32).station, sb = build(game, 'bus-stop', 70, 32).station;
-  assert.ok(build(game, 'workshop', 26, 33).ok);
+  const workshop = build(game, 'workshop', 26, 33); assert.ok(workshop.ok); completeFixtureConstruction(game, workshop.building);
   closeMonths(game, 1);
   return { game, A, B, sa, sb, factory };
 }
@@ -78,20 +79,20 @@ test('a residential block forecasts its homes, residents, rent and payback as th
   assert.deepEqual(points.map(p => matureLevel(game, 'residential', p.x, p.y)), [2, 2, 2, 2], 'level-3 homes are 2 × 2, so a block stops at 2');
   assert.deepEqual([f.levels, f.far, f.roadless, f.served, f.towns.map(town => [town.city.name, town.tiles])], [8, 0, 0, true, [['Ashford', 4]]]);
   assert.equal(f.residents, points.reduce((sum, p) => sum + housingCapacity({ kind: residentialKind(tileAt(game, p.x, p.y).variant, 2), level: 2 }), 0));
-  assert.deepEqual([f.cost, f.payback], [4 * priceFor(game, 420), Math.ceil(f.cost / f.rent) + FORECAST.monthsToBuild]);
-  assert.deepEqual(forecastNote(game, 'residential', placements), { forecast: `Ashford, about +${f.residents} residents and $${f.rent} a month in rent, pays back in about ${Math.round(f.payback / 12)} years`, warning: false });
+  assert.deepEqual([f.cost, f.payback], [4 * priceFor(game, 420), Math.ceil(f.cost / f.rent) + FORECAST.monthsToBuild + f.constructionMonths]);
+  assert.deepEqual(forecastNote(game, 'residential', placements), { forecast: `Ashford, once built, about +${f.residents} residents and $${f.rent} a month in rent, pays back in about ${Math.round(f.payback / 12)} years`, warning: false });
   assert.ok(buildPlan(game, 'residential', points).ok);
-  let total = 0, payback = null, twoYears = null;
-  for (let month = 1; month <= 60 && (payback === null || !twoYears); month++) {
+  let total = 0, payback = null, mature = null;
+  for (let month = 1; month <= 60 && (payback === null || !mature); month++) {
     closeMonths(game, 1);
     const realized = blockRent(game, A, points);
     total += realized.rent;
     if (payback === null && total >= f.cost) payback = month;
-    if (month === 24) twoYears = realized;
+    if (month === 36) mature = realized;
   }
-  assert.deepEqual(twoYears.plots.map(p => p.level), [2, 2, 2, 2], 'the block settles where the forecast said');
-  assert.equal(twoYears.plots.reduce((sum, p) => sum + housingCapacity(p), 0), f.residents);
-  near(f.rent, twoYears.rent, .15, 'rent at month 24');
+  assert.deepEqual(mature.plots.map(p => p.level), [2, 2, 2, 2], 'the block settles where the forecast said');
+  assert.equal(mature.plots.reduce((sum, p) => sum + housingCapacity(p), 0), f.residents);
+  near(f.rent, mature.rent, .15, 'rent after all construction phases finish');
   near(f.payback, payback, .2, 'months to pay back');
 });
 
@@ -109,9 +110,9 @@ test('commercial blocks forecast their levels, rent and the shop wants they add'
   const wants = (n, family) => Math.round(P * MARKET.perResident[family] * Math.min(1, n * MARKET.reach[family] / P));
   assert.deepEqual(forecasts[0].wants, { family: 'food', units: wants(outlets.food + added.food, 'food') - wants(outlets.food, 'food'), cargo: 'food' });
   assert.ok(forecasts[0].wants.units > 0);
-  assert.match(forecastNote(game, 'commercial', quote(game, 'commercial', east)).forecast, new RegExp(`^Ashford, about \\$${forecasts[0].rent} a month in rent, pays back in about \\d+ (months|years), shops would want about \\+${forecasts[0].wants.units} food$`));
+  assert.match(forecastNote(game, 'commercial', quote(game, 'commercial', east)).forecast, new RegExp(`^Ashford, once built, about \\$${forecasts[0].rent} a month in rent, pays back in about \\d+ (months|years), shops would want about \\+${forecasts[0].wants.units} food$`));
   for (const points of [east, west]) assert.ok(buildPlan(game, 'commercial', points).ok);
-  closeMonths(game, 30);
+  closeMonths(game, 42);
   [east, west].forEach((points, n) => {
     const realized = blockRent(game, A, points);
     assert.deepEqual(realized.plots.map(p => p.level), levels[n], `block ${n} settled at its forecast levels`);
@@ -135,7 +136,7 @@ test('industrial strokes forecast one workshop for each whole 2 × 2 square', ()
   game.cities[0].fundedUntil = Math.floor(game.day) + 365;
   const f = forecast(block(42, 34, 2, 2));
   assert.equal(f.rent, priceFor(game, 12 * 4 * 3 * .3));
-  assert.deepEqual(forecastNote(game, 'industrial', quote(game, 'industrial', block(42, 34, 2, 2))), { forecast: `Millbrook, about 23 furniture a month from delivered lumber and $${f.rent} a month in rent`, warning: false });
+  assert.deepEqual(forecastNote(game, 'industrial', quote(game, 'industrial', block(42, 34, 2, 2))), { forecast: `Millbrook, once built, about 23 furniture a month from delivered lumber and $${f.rent} a month in rent`, warning: false });
   assert.deepEqual(forecastNote(game, 'industrial', quote(game, 'industrial', [{ x: 47, y: 34 }])), { forecast: 'Millbrook, a workshop needs a 2 × 2 block', warning: false });
   assert.equal(forecastNote(game, 'industrial', quote(game, 'industrial', [{ x: 46, y: 34 }])), null, 'a lone tile with no road says nothing the quote has not said');
 });
@@ -191,7 +192,7 @@ test('a stroke far from every town is too far to develop', () => {
   // A stroke over the town's edge names the tiles past it.
   const edge = Array.from({ length: 5 }, (_, i) => ({ x: A.x + 4, y: A.y + 7 + i })).filter(p => !tileAt(game, p.x, p.y).road), note = forecastNote(game, 'residential', quote(game, 'residential', edge));
   assert.equal(note.warning, true);
-  assert.match(note.forecast, /^Ashford, about \+\d+ residents and \$\d+ a month in rent, pays back in about \d+ (months|years), 2 too far from a town$/);
+  assert.match(note.forecast, /^Ashford, once built, about \+\d+ residents and \$\d+ a month in rent, pays back in about \d+ (months|years), 2 too far from a town$/);
 });
 
 test('placed homes, shops and workshops forecast rent from their town’s market; the town’s own buildings none', () => {
@@ -199,22 +200,25 @@ test('placed homes, shops and workshops forecast rent from their town’s market
   const cottage = buildingForecast(game, 'house-cheap-1', A.x + 4, A.y + 7);
   assert.equal(cottage.city, A);
   assert.equal(cottage.rent, priceFor(game, .016 * 1400 * (.6 + .4 * view.demand[0])));
-  assert.equal(cottage.payback, Math.ceil(priceFor(game, 1400) / cottage.rent));
-  assert.deepEqual(forecastNote(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]), { forecast: `Ashford, about $${cottage.rent} a month in rent, pays back in about ${Math.round(cottage.payback / 12)} years`, warning: false });
+  assert.equal(cottage.payback, Math.ceil(priceFor(game, 1400) / cottage.rent) + constructionDuration('house-cheap-1') / CONSTRUCTION_MONTH_DAYS);
+  assert.deepEqual(forecastNote(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]), { forecast: `Ashford, once built, about $${cottage.rent} a month in rent, pays back in about ${Math.round(cottage.payback / 12)} years`, warning: false });
   const grocer = buildingForecast(game, 'shop-grocery', A.x + 5, A.y + 7);
   assert.equal(grocer.family, 'food');
   assert.ok(grocer.rent < grocer.stockedRent, `unstocked $${grocer.rent}, stocked $${grocer.stockedRent}`);
-  assert.match(forecastNote(game, 'shop-grocery', [{ x: A.x + 5, y: A.y + 7 }]).forecast, new RegExp(`^Ashford, about \\$${grocer.rent} a month in rent or \\$${grocer.stockedRent} stocked with food, pays back in about \\d+ years$`));
+  assert.match(forecastNote(game, 'shop-grocery', [{ x: A.x + 5, y: A.y + 7 }]).forecast, new RegExp(`^Ashford, once built, about \\$${grocer.rent} a month in rent or \\$${grocer.stockedRent} stocked with food, pays back in about \\d+ years$`));
   const works = buildingForecast(game, 'workshop', A.x - 8, A.y + 1);
   assert.deepEqual([works.rent, works.goods, works.input, works.output], [priceFor(game, .016 * 12000 * (.3 + .7 * (view.utilization || 0))), 7.5, 'lumber', 'furniture']);
-  assert.equal(forecastNote(game, 'workshop', [{ x: A.x - 8, y: A.y + 1 }]).forecast, `Ashford, about 8 furniture a month from delivered lumber and $${works.rent} a month in rent`);
+  assert.equal(forecastNote(game, 'workshop', [{ x: A.x - 8, y: A.y + 1 }]).forecast, `Ashford, once built, about 8 furniture a month from delivered lumber and $${works.rent} a month in rent`);
   assert.equal(buildingForecast(game, 'school', A.x + 7, A.y + 1), null);
   assert.equal(forecastNote(game, 'school', [{ x: A.x + 7, y: A.y + 1 }]), null);
   const far = buildingForecast(game, 'house-cheap-1', A.x, A.y + 11);
   assert.deepEqual([far.city, far.rent, far.payback], [null, 0, null]);
   assert.deepEqual(forecastNote(game, 'house-cheap-1', [{ x: A.x, y: A.y + 11 }]), { forecast: 'Countryside, earns no rent', warning: false });
-  // The cottage's first rent, at the next close.
-  assert.ok(build(game, 'house-cheap-1', A.x + 4, A.y + 7).ok);
+  // A new cottage earns nothing while the two-month build runs; its first
+  // completed close earns the projected amount.
+  const cottageSite = build(game, 'house-cheap-1', A.x + 4, A.y + 7); assert.ok(cottageSite.ok);
+  closeMonths(game, 1); assert.equal(A.market.rent, 0);
+  while (cottageSite.building.construction) tick(game, 1);
   closeMonths(game, 1);
   near(cottage.rent, A.market.rent, .1, 'the cottage’s first rent');
 });
@@ -286,7 +290,7 @@ test('products credit nothing when an industry at the loading stop also makes th
 
 test('a stop where an industry takes part of a lumber load credits the town its share by units', () => {
   const { game, A, sa, factory } = worksWorld(true);
-  const sawmill = build(game, 'sawmill', 50, 33).industry, stop = build(game, 'bus-stop', 50, 32).station;
+  const sawmill = completeFixtureConstruction(game, build(game, 'sawmill', 50, 33).industry), stop = build(game, 'bus-stop', 50, 32).station;
   sawmill.inventory.lumber = 900;
   const route = addRoute(game, { mode: 'road', stops: [stop.id, sa.id], cargo: 'lumber' }).route;
   factory.inventory.lumber = 900 * factory.capacity - 5; // model.js MAX_INVENTORY: the works take 5
@@ -297,7 +301,7 @@ test('a stop where an industry takes part of a lumber load credits the town its 
 
 test('saved returns validate, and saves without them load as before', () => {
   const { game, A } = twoTownFixture();
-  assert.ok(build(game, 'house-cheap-1', A.x + 4, A.y + 7).ok);
+  const cottageSite = build(game, 'house-cheap-1', A.x + 4, A.y + 7); assert.ok(cottageSite.ok); completeFixtureConstruction(game, cottageSite.building);
   closeMonths(game, 2);
   A.market.worksFreightNow = 1200;
   const copy = clone(game);

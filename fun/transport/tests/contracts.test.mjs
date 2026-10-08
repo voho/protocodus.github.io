@@ -5,7 +5,7 @@ import { encodeGame } from '../save-codec.js';
 import { INDUSTRIES, TOWN_CARGO } from '../data.js';
 import { stepContracts, contractMultiplier, contractState, contractSites, CONTRACT_DAYS, MAX_CONTRACTS } from '../contracts.js';
 import { nearbyIndustries } from '../simulation-spatial.js';
-import { emptyGame, line } from './helpers.mjs';
+import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 const ok = result => { assert.equal(result.ok, true, result.message); return result; };
 const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 0, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
@@ -18,6 +18,7 @@ const saved = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
 function roadFixture({ owner = 'world' } = {}) {
   const game = emptyGame();
   ok(build(game, 'quarry', 8, 7)); ok(build(game, 'quarry', 30, 14));
+  completeFixtureConstruction(game, ...game.industries);
   // Contract pricing also applies to existing compact worlds with short local hauls.
   game.cities = [town('Near', 22, 9), town('Far', 50, 9)];game.revision++;
   const [quarry, own] = game.industries; quarry.owner = owner; quarry.inventory.stone = 4000; own.inventory.stone = 4000;

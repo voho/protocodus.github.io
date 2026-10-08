@@ -5,7 +5,7 @@ import { freightFits, stationCoverage, stationServes } from '../model.js';
 import { keepText } from '../payment-rates.js';
 import { defaultRouteName, filterRoutes, forecastRoute, routeAvailableCargo, routeCargoList, routeCargoOptions, validateRoutePlan } from '../route-planner.js';
 import { routesNeedingAttention } from '../gameplay-insights.js';
-import { emptyGame, line, tileAt } from './helpers.mjs';
+import { emptyGame, line, tileAt, completeFixtureConstruction } from './helpers.mjs';
 import { FULL_LOAD_MAX_WAIT } from '../model.js';
 import { fullFareText } from '../route-planner.js';
 import { money } from '../copy.js';
@@ -14,6 +14,7 @@ function fixture(mode = 'road') {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
   assert.equal(build(game, 'sawmill', 30, 8).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   assert.equal(buildPath(game, mode, line(10, 30, 13)).ok, true);
   const tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
   assert.equal(build(game, tool, 10, 13).ok, true);
@@ -150,6 +151,7 @@ test('route advice and coverage use each endpoint’s new or legacy reach', () =
 function quarryFixture() {
   const game = emptyGame();
   assert.equal(build(game, 'quarry', 10, 7).ok, true);
+  completeFixtureConstruction(game, game.industries[0]);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: 30, y: 10 }];
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   assert.equal(build(game, 'bus-stop', 10, 12).ok, true);
@@ -317,6 +319,7 @@ test('the needs-attention filter lists exactly the routes the top bar counts', (
 function quarryLine(mode, tiles) {
   const game = emptyGame(), end = 10 + tiles, tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
   assert.equal(build(game, 'quarry', 10, 7).ok, true);
+  completeFixtureConstruction(game, game.industries[0]);
   game.cities = [{ id: 'town-a', name: 'Alderbrook', x: end, y: 10, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
   assert.equal(buildPath(game, mode, line(10, end, 12)).ok, true);
   assert.equal(build(game, tool, 10, 12).ok, true);
@@ -543,6 +546,7 @@ function workshopTowns() {
   assert.equal(buildPath(game, 'road', line(10, 50, 12)).ok, true);
   for (const x of [10, 30, 50, 27]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   assert.equal(build(game, 'workshop', 32, 7).ok, true);
+  completeFixtureConstruction(game, ...game.industries, tileAt(game, 32, 7).building);
   return game;
 }
 

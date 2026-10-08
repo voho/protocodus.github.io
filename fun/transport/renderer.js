@@ -4,6 +4,9 @@ import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './ter
 import { isTunnelTile, isUndergroundAt, TUNNEL_PORTAL_OFFSET } from './structure-visibility.js';
 import { railConsistPoses } from './rail-consist.js';
 import { stopOrientation } from './stop-orientation.js';
+import { constructionState } from './building-construction.js';
+import { paintBuildingConstruction } from './building-construction-art.js';
+import { treeLifecycle } from './tree-lifecycle.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { SPRITE_SCALE } from './sprite-art-direction.js';
 import { INDUSTRIES, BUILD_COSTS, VEHICLE_SPEEDS } from './data.js';
@@ -55,7 +58,7 @@ import { CONSTRUCTION_FEEDBACK_CELLS } from './construction-feedback.js';
 import { lineFor, lineColor, validRouteNumber } from './route-lines.js';
 import { COLORS, STATES, MAP, FONT, alpha } from './design-tokens.js';
 import { networkIndex } from './network-index.js';
-import { createIsometricInfrastructureSprites } from './isometric-infrastructure.js';
+import { createIsometricInfrastructureSprites, drawStopModeSign } from './isometric-infrastructure.js';
 import { stationSpan, stationTiles, stationServes, stationContains, stationReach, AIRPORT_REACH } from './station-sites.js';
 import { aircraftPose } from './air-flight.js';
 import { paintAirportGround, createAirportSprites, PART_FRONTS, PART_BOXES, localToWorld } from './airport-art.js';
@@ -75,7 +78,7 @@ const LANDMARKS=new Set(['forest','rock']);
 const BAKED_LAYERS=new Set(['trees','buildings','roads','rails','stations','zones']);
 const MINIMAP_LAYERS=new Set(['trees','buildings','roads','rails','stations','industryIcons','routes','zones']);
 // Map marks in display pixels (DESIGN.md 8 and 9): roundel radius per view, and one tile step of a route's projected path.
-const ROUNDEL={region:4,town:5,detail:6},INDUSTRY_MARKER={region:20,town:24,detail:28},PATH_STEP=Math.hypot(TILE,TILE/2);
+const ROUNDEL={region:9,town:10,detail:11},INDUSTRY_MARKER={region:20,town:24,detail:28},PATH_STEP=Math.hypot(TILE,TILE/2);
 const FLOATER_FORMAT=new Intl.NumberFormat('en-US',{maximumFractionDigits:1});
 const font=(weight,size)=>`${weight} ${size}px ${FONT.family}`;
 function roundRect(ctx,x,y,w,h,r=5){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
@@ -130,6 +133,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const motionPreference=window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const drawWeather=createWeatherEffects({reducedMotion:()=>Boolean(motionPreference?.matches)});
   if(options.onInvalidate)motionPreference?.addEventListener('change',options.onInvalidate);
+  let sceneryMonth=Math.floor((game.day||0)/30);
   let cachedRevision=-1, minimapRevision=-1, cachedBiome=game.biome, cachedSeed=game.seed, cachedHouseAssets=houseAssetsRevision(),cachedWorldAssets=worldArtRevision();
   let minimapPixels=null,minimapWords=null,minimapMask=null,minimapPalette=null;
   let minimapNetworkGame=null,minimapNetworkRevision=-1,minimapNetwork=null,minimapNetworkScans=0,minimapTerrainSamples=0;
@@ -313,7 +317,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const inspectSiteAt=(x,y)=>siteAt(x,y)||terrainSiteAt(x,y);
   const siteSize=site=>site?.mode==='air'?stationSpan(site):site?.object?terrainObjectSize(site.object):site?.building?buildingSize(site.building):industrySize(site);
   const foundationKey=(x,y,span)=>(y*game.width+x)*8+span;
-  const foundationSite=site=>layers.buildings&&(site?.building||INDUSTRIES[site?.kind]&&!isLargeFarm(site));
+  const foundationSite=site=>layers.buildings&&(site?.building||INDUSTRIES[site?.kind]&&(!isLargeFarm(site)||site.construction));
   function foundationProjection(x,y,span){
     const height=foundationHeight(x,y,span);
     return(u,v)=>projectTerrainPoint(u,v,height);
@@ -403,10 +407,10 @@ export function createRenderer(canvas, initialGame, options={}) {
   function screenToWorld(x,y){const origin=cameraPoint();return unprojectPoint((x-W/2)/camera.zoom+origin.x,(y-H/2)/camera.zoom+origin.y);}
   function viewportCorners(margin=0){return[[-margin,-margin],[W+margin,-margin],[W+margin,H+margin],[-margin,H+margin]].map(([x,y])=>screenToWorld(x,y));}
   function visibleBounds(extra=0){const points=viewportCorners((180+MAX_HEIGHT*heightStep+extra)*camera.zoom);return{x0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))/TILE)),y0:Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))/TILE)),x1:Math.min(game.width,Math.ceil(Math.max(...points.map(p=>p.x))/TILE)),y1:Math.min(game.height,Math.ceil(Math.max(...points.map(p=>p.y))/TILE))};}
-  // A stop's sign box, its click target, is 16 px in Region and 18 px from Town in, centred up and to the right of the stop,
-  // with the roundel at its centre. Signs,
+  // A stop's sign box grows from 20 to 24 display pixels across the three views,
+  // with its mode pictogram centred above the stop. Signs,
   // labels and markers are placed in projected display pixels (see placeOverlays), so one shift puts every box on screen.
-  const signSize=()=>detailLevel==='region'?16:18;
+  const signSize=()=>detailLevel==='region'?20:detailLevel==='town'?22:24;
   function overlayShift(){const o=cameraPoint();return{x:W/2-o.x*camera.zoom,y:H/2-o.y*camera.zoom};}
   // An airport's sign stands over its terminal hall, clear of the control tower; every other stop's over its own tile.
   const signTile=st=>st.mode==='air'?(t=>({x:st.x+t.x-.5,y:st.y+t.y-.5}))(localToWorld(st.axis,1.1,.46)):st,signLift=st=>st.mode==='air'?50:28;
@@ -643,7 +647,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       hash=Math.imul(hash^Math.round(terrainElevation(t)*65536)^((t.structureLevel||0)<<8)^code(t.structureAxis),16777619);
       hash=Math.imul(hash^(t.variant||0)^flags,16777619);hash=Math.imul(hash^code(t.zone),16777619);
       hash=Math.imul(hash^code(building?.kind)^((building?.level||0)<<12)^(buildingSize(building)<<20),16777619);
-      hash=Math.imul(hash^code(ind?.kind)^((ind?.footprint||1)<<10)^code(st?.mode),16777619);
+      hash=Math.imul(hash^code(ind?.kind)^((ind?.footprint||1)<<10)^code(st?.mode)^(ind?.construction?0x19af:0),16777619);
       hash=Math.imul(hash^code(nature?.kind)^code(nature?.detail)^((nature?.variant||0)<<8)^((nature?.footprint||0)<<24),16777619);
       const ap=airportIndex.get(id);hash=Math.imul(hash^code(ap?.id)^(ap?.axis==='y'?0x9e37:0),16777619);
     }
@@ -800,7 +804,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const {waterPath,coasts}=drawGround(c,b);
     entry.waterMotion=prepareWaterMotion({x0:cx*CHUNK_TILES,y0:cy*CHUNK_TILES,x1:Math.min(game.width,(cx+1)*CHUNK_TILES),y1:Math.min(game.height,(cy+1)*CHUNK_TILES)},coasts,tile,game.seed||0,detailLevel,waterPath,{pixelScale:rasterScale});
     waterMotionBuilds++;
-    if(layers.buildings)paintFarmFields(c,b,(x,y)=>industryIndex.get(y*game.width+x),game.biome,game.seed||0);
+    if(layers.buildings)paintFarmFields(c,b,(x,y)=>{const site=industryIndex.get(y*game.width+x);return site?.construction?null:site;},game.biome,game.seed||0);
     for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){
       const t=tile(x,y),occupied=(layers.buildings&&siteAt(x,y))||terrainSiteAt(x,y);
       if(layers.zones&&t.zone&&!occupied){
@@ -1000,6 +1004,14 @@ export function createRenderer(canvas, initialGame, options={}) {
     const origin=cameraPoint();
     objectHits.push({image,x:(x-origin.x)*camera.zoom+W/2,y:(y-origin.y)*camera.zoom+H/2,w:w*camera.zoom,h:h*camera.zoom,tx,ty});
   }
+  function constructionSprite(kind,span,level,state){
+    const key=`construction:${game.biome}:${rasterScale}:${kind}:${span}:${level}:${state.stage}`,cached=preparedSprites.get(key);
+    if(cached)return cached;
+    const width=BUILDING_FRAME*span,height=width+BUILDING_GUTTER,image=document.createElement('canvas');
+    image.width=Math.max(1,Math.round(width*rasterScale));image.height=Math.max(1,Math.round(height*rasterScale));
+    const c=image.getContext('2d');c.scale(image.width/width,image.height/height);
+    paintBuildingConstruction(c,{kind,footprint:span,level,stage:state.stage,biome:game.biome});preparedSprites.set(key,image);return image;
+  }
   function farmCoreSprite(kind){
     const density=rasterScale*BUILDING_FRAME_SCALE,key=`farm-core:${game.biome}:${detailLevel}:${density}:${kind}`,cached=preparedSprites.get(key);
     if(cached)return cached;
@@ -1107,14 +1119,14 @@ export function createRenderer(canvas, initialGame, options={}) {
       const t=tile(x,y),id=y*game.width+x,ind=industryIndex.get(id),st=stationIndex.get(id),ap=airportIndex.get(id),p=projectTile(x,y),occupied=layers.buildings&&(ind||buildingSiteAt(x,y)),nature=terrainSiteAt(x,y);
       cullPoint=p;
       if(nature&&!occupied&&!ap&&nature.x===x&&nature.y===y&&(nature.object.kind!=='forest'||layers.trees)){
-        const object=nature.object,span=terrainObjectSize(object),center=projectTile(x+(span-1)/2,y+(span-1)/2),layout=natureObjectLayout(span),detail=!layers.trees&&object.detail==='wooded-foothill'?'bare-foothill':object.detail;
-        if(object.kind==='forest')addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail,variant:object.variant||0,footprint:span,x:center.x-layout.anchorX,y:center.y-layout.anchorY,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
-        add(x+span-1,y+span-1,()=>billboard(sprite(object.kind,object.variant||0,1,detail,span),center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height,x,y),0,spriteBounds(center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height));
+        const object=nature.object,span=terrainObjectSize(object),center=projectTile(x+(span-1)/2,y+(span-1)/2),layout=natureObjectLayout(span),detail=!layers.trees&&object.detail==='wooded-foothill'?'bare-foothill':object.detail,lifecycle=object.kind==='forest'?treeLifecycle(game,x,y,t):null;
+        if(object.kind==='forest')addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail,variant:object.variant||0,footprint:span,lifecycle,x:center.x-layout.anchorX,y:center.y-layout.anchorY,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
+        add(x+span-1,y+span-1,()=>billboard(sprite(object.kind,object.variant||0,1,detail,span,lifecycle),center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height,x,y),0,spriteBounds(center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height));
       }
       if(!nature&&LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&!occupied&&!ap&&(!t.road||!layers.roads||isTunnelTile(t))&&(!t.rail||!layers.rails||isTunnelTile(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
-        const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t);
-        if(forest&&density)addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail:t.detail,variant,density,x:p.x-16,y:p.y-24,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
-        if(density)add(x,y,()=>{ctx.globalAlpha*=forest?.94:1;billboard(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40,x,y);ctx.globalAlpha=1;},0,spriteBounds(p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40));
+        const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t),lifecycle=forest?treeLifecycle(game,x,y,t):null;
+        if(forest&&density)addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail:t.detail,variant,density,lifecycle,x:p.x-16,y:p.y-24,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
+        if(density)add(x,y,()=>{ctx.globalAlpha*=forest?.94:1;billboard(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail,1,lifecycle),p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40,x,y);ctx.globalAlpha=1;},0,spriteBounds(p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40));
       }
       if(!nature&&!LANDMARKS.has(t.terrain)&&t.terrain!=='mountain'&&t.terrain!=='water'&&!occupied&&!ap&&(!t.road||!layers.roads||isTunnelTile(t))&&(!t.rail||!layers.rails||isTunnelTile(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
         const scenery=landscapeScenery(game.biome,game.seed||0,x,y,t);
@@ -1122,9 +1134,9 @@ export function createRenderer(canvas, initialGame, options={}) {
         // them upright; baking stones into ground would project them twice.
         if(scenery&&(scenery.kind==='stone'||layers.trees))add(x,y,()=>{if(!visibleRectangle(p.x-16,p.y-28,32,40))return;ctx.globalAlpha*=scenery.alpha;billboard(sprite('terrain-detail',natureVariant(x,y,t),1,scenery.detail),p.x-16,p.y-28,32,40);ctx.globalAlpha=1;},0,spriteBounds(p.x-16,p.y-28,32,40));
       }
-      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(kind,variant,level,'',span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
+      if(layers.buildings&&t.building){const variant=t.variant??x*13+y,level=t.building.level||1,legacy=t.building.kind,kind=['house','apartment'].includes(legacy)?residentialKind(variant,level):['shop','office'].includes(legacy)?commercialKind(variant,level):legacy,span=buildingSize(t.building),center=foundationPoint(x,y,span),construction=constructionState(game,t.building);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(construction?constructionSprite(kind,span,level,construction):uprightSprite(kind,variant,level,'',span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.buildings&&t.building&&(t.building.owner==='player'||t.zone))property?.push({x,y,span:buildingSize(t.building),owned:t.building.owner==='player'});
-      if(layers.buildings&&isLargeFarm(ind)){
+      if(layers.buildings&&isLargeFarm(ind)&&!ind.construction){
         const core=farmCore(ind);
         if(x===core.x&&y===core.y){const center=foundationPoint(x,y,core.span);add(x+1,y+1,()=>{drawFoundation(x,y,2);drawFoundationMarks(x,y,2);billboard(farmCoreSprite(ind.kind),center.x-BUILDING_FRAME,center.y-BUILDING_FRAME*1.5-BUILDING_GUTTER,BUILDING_FRAME*2,BUILDING_FRAME*2+BUILDING_GUTTER,ind.x,ind.y);},0,()=>siteBounds(x,y,2,center),foundationKey(x,y,2));}
         for(const section of farmFenceSections(ind,x,y)){
@@ -1135,7 +1147,7 @@ export function createRenderer(canvas, initialGame, options={}) {
           const point=projectGround(game,object.x,object.y);
           add(object.x-.5,object.y-.5,()=>paintFarmFieldObject(ctx,object,point,game.biome),0,spriteBounds(point.x-8,point.y-17,16,20));
         }
-      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(uprightSprite(ind.kind,x+y,span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
+      }else if(layers.buildings&&ind&&ind.x===x&&ind.y===y){const span=industrySize(ind),center=foundationPoint(x,y,span),construction=constructionState(game,ind);add(x+span-1,y+span-1,()=>{drawFoundation(x,y,span);drawFoundationMarks(x,y,span);billboard(construction?constructionSprite(ind.kind,span,1,construction):uprightSprite(ind.kind,x+y,span),center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER,x,y);},0,()=>siteBounds(x,y,span,center),foundationKey(x,y,span));}
       if(layers.roads&&detailLevel!=='region'&&townStreet(x,y,t)&&!pavedSquare(x,y))for(const [kind,[px,py]] of streetFurniture(x,y)){
         const u=x+px/TILE,v=y+py/TILE,q=projectGround(game,u,v);add(u,v,()=>{if(visibleRectangle(q.x-3,q.y-17,8,18))(kind==='lamp'?drawLamp:drawBin)(q);});
       }
@@ -1567,7 +1579,12 @@ export function createRenderer(canvas, initialGame, options={}) {
     // persistent Grid preference still controls exploration and is never changed.
     const showGrid=typeof view.showGrid==='boolean'?view.showGrid:layers.grid||tool!=='inspect',showRoutes=typeof view.showRoutes==='boolean'?view.showRoutes:layers.routes;
     // A paused game brings no new days, so it finishes every waiting chunk at once (view.settle).
-    ensureRevision();lazyChunkBudget=view.settle?Infinity:LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
+    ensureRevision();
+    // Tree ages update only the visible scenery once per game month. Terrain,
+    // routes and distant map tiles retain their caches; pause freezes this key.
+    const month=Math.floor((game.day||0)/30);
+    if(month!==sceneryMonth){sceneryMonth=month;sceneryBudget.clear();sceneCache=null;}
+    lazyChunkBudget=view.settle?Infinity:LAZY_CHUNKS_PER_FRAME;lazyChunksWaiting=0;const routesById=new Map((game.routes||[]).map(route=>[route.id,route]));vehicleIndicatorCounts={empty:0,partial:0,full:0};
     // A plane may stand beside its chord or high above it, so it keeps a wider margin.
     frameVehicles.length=0;if(layers.vehicles)for(const source of game.vehicles||[]){const vehicle=presentedVehicle(source);if(visibleFlat(vehicle.x,vehicle.y,Math.max(70,100*camera.zoom)+(routesById.get(vehicle.routeId)?.mode==='air'?220*camera.zoom:0)))frameVehicles.push(vehicle);}
     airPoses.clear();airStats={ground:0,air:0};for(const vehicle of frameVehicles){const route=routesById.get(vehicle.routeId);if(route?.mode!=='air')continue;const pose=airPose(vehicle,route);if(pose){airPoses.set(vehicle,pose);airStats[pose.pose.ground?'ground':'air']++;}}
@@ -1866,18 +1883,18 @@ export function createRenderer(canvas, initialGame, options={}) {
     const industryBadge=(ind,role)=>{const marker=industryMarker(ind,placed,shift),known=Boolean(INDUSTRIES[ind.kind]),kind=Object.keys(INDUSTRIES[ind.kind]?.outputs||{})[0]||'goods',hovered=hover&&industryContains(ind,hover.x,hover.y),chosen=selected&&industryContains(ind,selected.x,selected.y),svc=served.get(ind.id),status=known&&(hovered||chosen||svc?.buyer)?industryStatus(ind):null,waiting=Boolean(svc?.buyer&&status.state==='waiting'),covered=Boolean(placing)&&industryDistance(ind,placing)<=STATION_RADIUS,name=ind.name||titleCase(ind.kind),label=layers.names&&(hovered||chosen||role&&detailLevel!=='region')?(hovered||chosen)&&status?`${name} · ${status.label}`:name:null;if(role&&marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H)lensStats[role==='source'?'sources':'buyers']++;ctx.globalAlpha=lens&&!role&&!hovered&&!chosen||placing&&!covered?.5:1;if(layers.industryIcons){const fill=known&&detailLevel!=='region'?outputFill(ind):0;if(marker.stem)line(ctx,[[marker.x,marker.y],[marker.stem.x,marker.stem.y]],'#475b455b',1);if(marker.x>=0&&marker.y>=0&&marker.x<=W&&marker.y<=H){markerStats.drawn++;if(svc)markerStats.served++;if(waiting)markerStats.waiting++;if(fill>0)markerStats.meters++;if(covered)markerStats.covered++;}resourceMarker(marker.x,marker.y,kind,marker.size,label,role,{color:svc&&lineColor(svc.color).fill,fill,missing:waiting?status.missing:null,covered});}else if(label)pill(marker.x,marker.y,label,{h:28});ctx.globalAlpha=1;};
     const lensSites=[];for(const ind of game.industries||[]){if((!layers.names&&!layers.industryIcons)||!visible(ind.x,ind.y,180*camera.zoom))continue;const role=lensRole(ind.kind,lens);if(role)lensSites.push([ind,role]);else industryBadge(ind,null);}for(const [ind,role] of lensSites)industryBadge(ind,role);
     for(const bubble of contextBubbles)contextBubble(bubble);
-    // A stop is a roundel centred in its sign box: an ink ring, an --edge ring when no route uses it and an error ring when all
-    // its routes are offline. From Town in it carries the bullets of the routes that call there; Region keeps the terminus
-    // bullets that miss the town names. A roundel stepped off a label or another stop keeps a thin stem to its stop.
+    // Road and rail stops have distinct mode pictograms; their outer ring still
+    // communicates idle/active/broken service. Route bullets and displaced-sign
+    // stems retain their normal placement around the larger click target.
     signStats={drawn:0,active:0,idle:0,broken:0,named:0};signRects.length=0;signEnds.clear();
-    if(layers.stations){const calls=stopCalls(),region=detailLevel==='region',radius=ROUNDEL[detailLevel]||ROUNDEL.town;for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x),q=signTile(st);if(!sign||!visible(q.x,q.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,cx=x+sign.size/2,cy=y+sign.size/2,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken';if(sign.stem)line(ctx,[[cx,cy],[sign.stem.x+shift.x,sign.stem.y+shift.y]],alpha(COLORS.ink,.35),1);roundel(cx,cy,radius,state==='idle'?MAP.roundel.unusedRing:state==='broken'?STATES.error.color:MAP.roundel.ring);const end=stopBullets(st,routes,cx+radius+3,cy,region);signRects.push({x,y,w:Math.max(sign.size,end-x),h:sign.size});signEnds.set(st,end);signStats.drawn++;signStats[state]++;}}
+    if(layers.stations){const calls=stopCalls(),region=detailLevel==='region',radius=ROUNDEL[detailLevel]||ROUNDEL.town;for(const st of game.stations||[]){const sign=placed.signs.get(st.y*game.width+st.x),q=signTile(st);if(!sign||!visible(q.x,q.y))continue;const x=sign.x+shift.x,y=sign.y+shift.y,cx=x+sign.size/2,cy=y+sign.size/2,routes=calls.get(st.id)||[],state=!routes.length?'idle':routes.some(r=>r.active!==false)?'active':'broken';if(sign.stem)line(ctx,[[cx,cy],[sign.stem.x+shift.x,sign.stem.y+shift.y]],alpha(COLORS.ink,.35),1);const ring=state==='idle'?MAP.roundel.unusedRing:state==='broken'?STATES.error.color:MAP.roundel.ring;if(st.mode==='road'||st.mode==='rail')drawStopModeSign(ctx,cx,cy,radius,st.mode,ring);else roundel(cx,cy,radius,ring);const end=stopBullets(st,routes,cx+radius+3,cy,region);signRects.push({x,y,w:Math.max(sign.size,end-x),h:sign.size});signEnds.set(st,end);signStats.drawn++;signStats[state]++;}}
     if(stopPickingActive){
       const pulse=view.stopPicking.reducedMotion||motionPreference?.matches?1:.78+.16*Math.sin(now/550);
       for(const st of game.stations||[]){
         const q=signTile(st);if(stopPickingMode&&st.mode!==stopPickingMode||!visible(q.x,q.y))continue;
         const marker=stationMarker(st),cx=marker.x+marker.size/2,cy=marker.y+marker.size/2,chosen=st.id===view.stopPicking.selectedId||routeStops.includes(st.id),radius=(ROUNDEL[detailLevel]||ROUNDEL.town)+6;
         ctx.save();ctx.globalAlpha=chosen?1:pulse;ctx.beginPath();ctx.arc(cx,cy,radius,0,TAU);ctx.strokeStyle=MAP.selection.casing;ctx.lineWidth=5;ctx.stroke();ctx.strokeStyle=chosen?MAP.selection.color:MAP.roundel.ring;ctx.lineWidth=2;ctx.stroke();ctx.restore();
-        if(!layers.stations)roundel(cx,cy,ROUNDEL[detailLevel]||ROUNDEL.town,MAP.roundel.ring);
+        if(!layers.stations){const radius=ROUNDEL[detailLevel]||ROUNDEL.town;if(st.mode==='road'||st.mode==='rail')drawStopModeSign(ctx,cx,cy,radius,st.mode,MAP.roundel.ring);else roundel(cx,cy,radius,MAP.roundel.ring);}
         if(chosen||hover&&stationContains(st,hover.x,hover.y))pill(cx,cy-radius-15,st.name||'Stop',{h:24});
       }
     }

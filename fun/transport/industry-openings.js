@@ -27,12 +27,12 @@ export function openingAnchors(game) {
   return ids.size ? game.cities.filter(city => ids.has(city.id)) : [];
 }
 export const openingChance = towns => Math.min(OPENINGS.maxChance, OPENINGS.baseChance + OPENINGS.perTown * towns);
-/** Half as many openings as the region started with; legacy saves count every world site as original. */
+/** Half as many openings as the region started with; projects reserve their share before opening. */
 export function openingCeiling(game) {
-  const original = game.industries.filter(site => site.owner !== 'player' && site.openedDay === undefined).length;
+  const original = game.industries.filter(site => site.owner !== 'player' && site.openedDay === undefined && !site.construction).length;
   return Math.max(OPENINGS.minCeiling, Math.ceil(original * OPENINGS.share));
 }
-export const openedCount = game => game.industries.filter(site => site.openedDay !== undefined).length;
+export const openedCount = game => game.industries.filter(site => site.owner !== 'player' && (site.openedDay !== undefined || site.construction)).length;
 export const hasCarriedFreight = game => game.routes.some(route => FREIGHT.has(route.cargo) && route.delivered > 0);
 
 function gentle(game, x, y, size) {

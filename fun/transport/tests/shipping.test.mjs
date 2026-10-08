@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { build, buildPath, addRoute, removeRoute, findPath, tick, stationCoverage, validateGame, restoreGame, VEHICLE_COSTS, BUILD_COSTS } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { filterRoutes, validateRoutePlan } from '../route-planner.js';
-import { emptyGame, tileAt, line } from './helpers.mjs';
+import { emptyGame, tileAt, line, completeFixtureConstruction } from './helpers.mjs';
 
 function water(game, points) {
   for (const point of points) Object.assign(tileAt(game, point.x, point.y), { terrain: 'water', detail: 'river', elevation: 0, road: false, rail: false, bridge: false, tunnel: false });
@@ -14,6 +14,7 @@ function freightFixture() {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 8).ok, true);
   assert.equal(build(game, 'sawmill', 30, 8).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   water(game, line(10, 30, 13));
   assert.equal(build(game, 'port', 10, 13).ok, true);
   assert.equal(build(game, 'port', 30, 13).ok, true);

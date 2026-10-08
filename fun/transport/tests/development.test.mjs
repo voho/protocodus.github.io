@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INDUSTRIES, createGame, build, buildPath, addRoute, tick, validateGame, restoreGame, settlementSuitability } from '../model.js';
-import { BUILDINGS, RESIDENTIAL_KINDS, SHOP_KINDS, SERVICE_KINDS } from '../buildings.js';
+import { BUILDINGS, RESIDENTIAL_KINDS, SHOP_KINDS, SERVICE_KINDS, residentialKind } from '../buildings.js';
 import { stepSettlements, townNeeds } from '../settlements.js';
+import { constructionDuration, stepBuildingConstruction } from '../building-construction.js';
 import { encodeGame } from '../save-codec.js';
-import { emptyGame, tileAt, advance, line } from './helpers.mjs';
+import { emptyGame, tileAt, advance, line, completeFixtureConstruction } from './helpers.mjs';
 
 test('every environment-specific industry can be built on its supported terrain', () => {
   for (const biome of ['taiga', 'tundra', 'desert']) {
@@ -116,6 +117,7 @@ function develop(game, days, cargo = []) {
   for (let n = 0; n < days; n++) {
     game.day++; city.lastServiceDay = game.day; city.activity += 3;
     for (const key of cargo) (city.lastSupply ??= {})[key] = game.day;
+    stepBuildingConstruction(game);
     stepSettlements(game);
   }
 }
@@ -137,7 +139,7 @@ test('passenger service alone still lifts zoned homes through every tier, only m
   assert.ok(game.zones.every((zone, n) => zone.progress >= year[n]) && highest(game) > 2.2, 'and keeps rising toward prestige homes');
 });
 
-test('fresh food lifts homes to comfortable within a year; finished goods reach prestige', () => {
+test('fresh food lifts homes to comfortable within a year; finished goods complete prestige after its building stages', () => {
   const food = neighborhood();
   develop(food, 365, ['food']);
   assert.ok(lowest(food) >= 2, `food: ${lowest(food).toFixed(2)}`);
@@ -145,9 +147,13 @@ test('fresh food lifts homes to comfortable within a year; finished goods reach 
   assert.ok(settlementSuitability(food, food.zones[0]).notes.every(text => !/food/.test(text)));
   for (const [biome, finished] of [['desert', 'goods'], ['taiga', 'furniture']]) {
     const game = neighborhood(biome);
-    develop(game, 365, ['food', finished]);
+    // Development still needs its supply history; each successive home also
+    // spends its real construction time before the next tier can progress.
+    const constructionDays = Math.max(...game.zones.map(zone => [1, 2, 3].reduce((days, level) => days + constructionDuration(residentialKind(tileAt(game, zone.x, zone.y).variant, level)), 0)));
+    develop(game, 365 + constructionDays, ['food', finished]);
     assert.equal(lowest(game), 3, `${biome} food + ${finished}: ${lowest(game).toFixed(2)}`);
     assert.ok(tiers(game).every(tier => tier === 'Prestige'), `${biome}: ${tiers(game).join()}`);
+    assert.ok(game.zones.every(zone => !tileAt(game, zone.x, zone.y).building.construction), 'every prestige home has completed its real building stages');
   }
 });
 
@@ -189,6 +195,7 @@ test('town needs list what each biome can make, and a delivery records its day',
 
   const game = emptyGame(); game.money = 400000;
   build(game, 'food-plant', 30, 8); build(game, 'city', 50, 10); buildPath(game, 'road', line(30, 50, 13));
+  completeFixtureConstruction(game, game.industries[0]);
   for (const x of [30, 50]) build(game, 'bus-stop', x, 13);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'food', stops: game.stations.map(stop => stop.id) }).ok, true);
   game.industries[0].inventory.food = 60;

@@ -4,7 +4,7 @@ import { build, buildPath, addRoute, removeRoute, tick, validateGame, restoreGam
 import { encodeGame } from '../save-codec.js';
 import { VEHICLE_CAPACITIES } from '../data.js';
 import { validateRoutePlan } from '../route-planner.js';
-import { emptyGame, tileAt, line } from './helpers.mjs';
+import { emptyGame, tileAt, line, completeFixtureConstruction } from './helpers.mjs';
 
 const yearDay = year => (Date.UTC(year, 0, 1) - Date.UTC(1950, 0, 1)) / 86400000;
 const movement = vehicle => Object.fromEntries(['load', 'x', 'y', 'progress', 'direction', 'dwellRemaining', 'totalDistance', 'tripSerial', 'angle'].map(key => [key, vehicle[key]]));
@@ -13,6 +13,7 @@ function fleetFixture(modes = ['road']) {
   const game = emptyGame();
   assert.equal(build(game, 'logging-camp', 10, 7).ok, true);
   assert.equal(build(game, 'sawmill', 30, 7).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   game.industries[0].inventory.timber = 900;
   for (const [index, mode] of modes.entries()) {
     const y = 13 + index;

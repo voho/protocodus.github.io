@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, build, buildPath, addRoute, editRoute, removeRoute, tick, fareFor, priceFor, distancePay, transitPay, scheduledDays, payTiles, travelTiles, recentTransitDays, drainDeliveryEvents, validateGame, restoreGame, refreshRouteConnections, CARGO } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { TRANSIT_CLASSES, TRANSIT_PAY_FLOOR } from '../data.js';
-import { emptyGame, line } from './helpers.mjs';
+import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 // A producer at x=10 and a buyer (a sawmill, or a town for food) `L` tiles east along one road.
 function freight(L = 20, cargo = 'timber', mode = 'road') {
@@ -12,6 +12,7 @@ function freight(L = 20, cargo = 'timber', mode = 'road') {
   assert.equal(build(game, source, 10, 7).ok, true);
   if (buyer) assert.equal(build(game, buyer, 10 + L - 1, 7).ok, true);
   else { game.cities.push({ id: 'town', name: 'Town', x: 10 + L, y: 9, population: 900, activity: 0, passengers: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null }); game.revision++; }
+  completeFixtureConstruction(game, ...game.industries);
   assert.equal(buildPath(game, mode, line(10, 10 + L, 12)).ok, true);
   for (const x of [10, 10 + L]) assert.equal(build(game, mode === 'road' ? 'bus-stop' : 'train-stop', x, 12).ok, true);
   game.industries[0].inventory[cargo] = 500;
@@ -152,6 +153,7 @@ test('a detour pays at most twice the grid distance between the stops', () => {
   const game = emptyGame();
   assert.equal(build(game, 'coal-mine', 16, 7).ok, true);
   assert.equal(build(game, 'steel-mill', 33, 7).ok, true);
+  completeFixtureConstruction(game, ...game.industries);
   const U = [...Array.from({ length: 71 }, (_, i) => ({ x: 20, y: 12 + i })), ...line(21, 32, 82), ...Array.from({ length: 70 }, (_, i) => ({ x: 32, y: 81 - i }))];
   assert.equal(buildPath(game, 'rail', U).ok, true);
   for (const x of [20, 32]) assert.equal(build(game, 'train-stop', x, 12).ok, true);

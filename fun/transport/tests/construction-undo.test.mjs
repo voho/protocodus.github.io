@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, addRoute, build, buildProblem, tick, validateGame, restoreGame } from '../model.js';
+import { stepBuildingConstruction } from '../building-construction.js';
+import { createGame, addRoute, build, buildProblem, tick, validateGame, restoreGame, buyTownAction } from '../model.js';
 import { stationCoverage } from '../model.js';
 import { buildPlan, quoteBuildPlan } from '../construction-plan.js';
 import { captureUndo, finishUndo, canUndo, undoProblem, undoStale, undoConstruction } from '../construction-undo.js';
@@ -98,6 +99,7 @@ test('founding a town undoes its centre, notice and the owners it assigned to ol
 test('bulldozing a home, a grove, a stop and an industry undoes back to the prior state', () => {
   const game = emptyGame(), city = town(game, 42, 44);
   assert.equal(build(game, 'house-expensive-2', 40, 40).ok, true);
+  tick(game, 120);
   const population = city.population;
   city.passengers = population * .9;
   let entry = journal(game, 'bulldoze', [{ x: 41, y: 41 }]);
@@ -265,38 +267,48 @@ test('random builds, days and undos in any order never leave an invalid world', 
   assert.ok(undone > 40, `${undone} undos ran`);
 });
 
-test('undoing a workshop stops its town buying lumber the same day', () => {
+test('undoing a workshop under construction leaves its town without unfinished production', () => {
   const game = emptyGame(); town(game, 42, 44);
   assert.equal(build(game, 'road', 42, 46).ok, true);
   const stop = build(game, 'bus-stop', 42, 46).station, buys = () => stationCoverage(game, stop).accepts.includes('lumber');
   assert.equal(buys(), false);
   const { undo, result } = journal(game, 'workshop', [{ x: 44, y: 40 }]);
-  assert.equal(result.message, 'Workshop built. $12,000 spent.');
-  assert.equal(buys(), true);
+  assert.equal(result.message, 'Workshop construction started. Ready in 6 months. $12,000 spent.');
+  assert.equal(buys(), false);
   assert.equal(undoConstruction(game, undo).message, 'Workshop removed. $12,000 refunded.');
   assert.equal(buys(), false);
   assert.equal(validateGame(game), true);
 });
 
-test('a building the company owns undoes only within the month it was placed, before any rent', () => {
+test('an unfinished property undoes across month boundaries, while completion or sale makes the old placement stale', () => {
   const same = twoTownFixture().game, home = same.cities[0];
   roundTrip(same, 'house-cheap-1', [{ x: home.x + 4, y: home.y + 7 }]);
-  const { game, A } = twoTownFixture(), money = game.money;
-  const cottage = journal(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]).undo, zoned = journal(game, 'residential', [{ x: A.x - 8, y: A.y + 1 }]).undo;
-  assert.equal(canUndo(game, cottage), true, undoProblem(game, cottage));
+  const { game, A } = twoTownFixture();
+  const cottage = journal(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]).undo;
   const month = game.lastMonth;
   while (game.lastMonth === month) tick(game, 1);
-  assert.ok(game.history.at(-1).property > 0, 'the close booked rent');
-  assert.equal(canUndo(game, cottage), false);
-  assert.equal(undoProblem(game, cottage), 'Rent has been paid on this building. Sell it instead.');
-  assert.equal(undoConstruction(game, cottage).ok, false);
-  assert.ok(game.money > money - cottage.cost, 'nothing refunded');
-  assert.equal(canUndo(game, zoned), true, 'a zone still undoes in a later month: it earns nothing until built up');
-  assert.equal(undoConstruction(game, zoned).ok, true);
-  // Selling changes the tile, so the placement cannot come back either.
+  assert.ok(!game.history.at(-1).property, 'an unfinished cottage earned no rent');
+  assert.equal(canUndo(game, cottage), true, undoProblem(game, cottage));
+  assert.equal(undoConstruction(game, cottage).ok, true);
+  const completed = journal(game, 'house-cheap-1', [{ x: A.x + 4, y: A.y + 7 }]).undo;
+  tick(game, 60);
+  assert.equal(canUndo(game, completed), false, 'completed housing already added residents');
+  assert.match(undoProblem(game, completed), /changed/);
   const later = journal(game, 'house-normal-1', [{ x: A.x + 1, y: A.y + 7 }]).undo;
   assert.equal(sellProperty(game, A.x + 1, A.y + 7).ok, true);
   assert.equal(canUndo(game, later), false); assert.match(undoProblem(game, later), /changed/);
+  assert.equal(validateGame(game), true);
+});
+
+test('undoing demolition after the original deadline completes the restored project immediately', () => {
+  const game = emptyGame(), city = town(game, 42, 44), population = city.population;
+  assert.ok(build(game, 'house-cheap-1', 40, 40).ok);
+  const { undo } = journal(game, 'bulldoze', [{ x: 40, y: 40 }]);
+  game.day = 61;
+  assert.equal(undoConstruction(game, undo).ok, true);
+  assert.equal(tileAt(game, 40, 40).building.construction, undefined);
+  assert.equal(city.population, population + 12);
+  stepBuildingConstruction(game); assert.equal(city.population, population + 12);
   assert.equal(validateGame(game), true);
 });
 
@@ -304,4 +316,28 @@ test('a building the company owns undoes only within the month it was placed, be
   const game=emptyGame();Object.assign(tileAt(game,10,10),{terrain:'forest',detail:'pine'});
   const outcome=roundTrip(game,'stop',[{x:10,y:10}],{preferredMode:'road'});
   assert.match(outcome.message,/Road stop removed/);
+});
+
+
+test('a funded commercial project protects its town from Undo before it has any homes', () => {
+  const game = emptyGame();
+  // A rocky district leaves room for just the centre, an access road and a shop:
+  // the town cannot grow a home that would independently block its removal.
+  for (const tile of game.tiles) tile.terrain = 'rock';
+  for (const [x, y] of [[30, 30], [36, 30], [36, 31]]) tileAt(game, x, y).terrain = 'grass';
+  const { undo } = journal(game, 'city', [{ x: 30, y: 30 }]), city = game.cities[0];
+  assert.ok(build(game, 'road', 36, 30).ok);
+  assert.ok(build(game, 'commercial', 36, 31).ok);
+  assert.ok(buyTownAction(game, city.id, 'fund').ok);
+  while (!tileAt(game, 36, 31).building && game.day < 300) tick(game, 1);
+  const project = tileAt(game, 36, 31).building?.construction;
+  assert.ok(project, 'funding develops the road-connected commercial zone');
+  assert.equal(project.benefitCityId, city.id);
+  assert.ok(game.tiles.every(tile => tile.building?.populationCityId !== city.id));
+  assert.equal(validateGame(game), true);
+  const before = encodeGame(game);
+  assert.equal(undoConstruction(game, undo).ok, false);
+  assert.equal(undoProblem(game, undo), 'Can’t undo: construction now belongs to this town.');
+  assert.deepEqual(encodeGame(game), before, 'the refused Undo changes no saved state');
+  assert.equal(validateGame(game), true);
 });

@@ -4,7 +4,7 @@
 // both lists equal to the static imports. world-worker.js is never listed: a
 // document preload does not reach a module worker.
 export const APP_PRELOAD = Object.freeze([
-  './sprite-art-direction.js',
+  './formatters.js', './sprite-art-direction.js',
   './nature-placement.js',
   './tree-art-catalog.js',
   './terrain-view.js',
@@ -17,11 +17,11 @@ export const APP_PRELOAD = Object.freeze([
   './sprites.js', './zoom.js', './cargo-icons.js', './gameplay-insights.js', './landscape-scenery.js', './visibility.js',
   './vehicle-directions.js', './isometric.js', './rail-surface-art.js','./road-surface-art.js', './bridge-art.js', './native-transport-art.js', './rail-station-art.js', './isometric-infrastructure.js', './raster-transport.js', './marine-sprites.js',
   './weather-effects.js', './water-art.js', './overlay-placement.js',
-  './formatters.js', './shoreline.js', './terrain-mesh.js', './terrain-materials.js', './grass-art.js', './foundation-stone.js', './scenery-batches.js', './route-render-index.js',
-  './farm-fields-art.js', './route-preview-motion.js', './rail-consist.js', './stop-orientation.js', './construction-feedback.js', './game-audio.js', './renderer.js', './construction-undo.js', './network-router.js', './ui-art.js', './route-planner.js', './town-forecast.js',
+  './shoreline.js', './terrain-mesh.js', './terrain-materials.js', './grass-art.js', './foundation-stone.js', './scenery-batches.js', './route-render-index.js',
+  './farm-fields-art.js', './route-preview-motion.js', './rail-consist.js', './stop-orientation.js', './construction-feedback.js', './game-audio.js', './building-construction-art.js', './renderer.js', './construction-undo.js', './network-router.js', './ui-art.js', './route-planner.js', './town-forecast.js',
   './payment-rates.js',
   './ui-motion.js', './ui-line.js', './ui-refs.js', './ui-toast-lifetime.js', './frame-scheduler.js', './vehicle-motion.js', './world-clock.js',
   './achievements-view.js',
-  './catalog-data.js', './gallery-view.js', './selection-gallery.js',
+  './lifecycle-ui.js', './catalog-data.js', './gallery-view.js', './selection-gallery.js',
   './chains-view.js', './saves-view.js', './visibility-view.js', './ui-notices.js', './app.js'
 ]);

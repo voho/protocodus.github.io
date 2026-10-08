@@ -5,7 +5,7 @@ import { createGame, tick, validateGame, restoreGame, buildPath, build, addRoute
 import { encodeGame } from '../save-codec.js';
 import { calendarMonth } from '../economy-pricing.js';
 import { CAREER_TITLES, RATING_PARTS, titleForScore, ratingPoints, ratingInputs, reviewPerformance, validPerformance, companyValue, careerTitle, nextTitle, nextReviewDay } from '../company-rating.js';
-import { emptyGame, line } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, line } from './helpers.mjs';
 import { twoTownFixture } from './helpers.mjs';
 import { placeBuildingSite } from '../building-sites.js';
 
@@ -177,7 +177,9 @@ test('an older save is reviewed silently on load', () => {
   const young = starter(); days(young, 70); assert.equal(young.history.length, 2);
   assert.equal(restoreGame(JSON.parse(JSON.stringify(encodeGame(young)))).performance, undefined);
   // A save already past 2050 gets no century from the backfill.
-  const late = structuredClone(game); delete late.performance; late.day = 36600; late.lastDailyDay = 36600;
+  const late = structuredClone(game); delete late.performance;
+  completeFixtureConstruction(late, ...late.tiles.map(tile => tile.building), ...late.industries);
+  late.day = 36600; late.lastDailyDay = 36600;
   late.history = late.history.map((h, i) => ({ ...h, month: 1180 + i })); delete late.annual;
   assert.equal(restoreGame(JSON.parse(JSON.stringify(encodeGame(late)))).performance.century, undefined);
 });

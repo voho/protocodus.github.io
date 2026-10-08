@@ -5,7 +5,7 @@ import { money, perMonth, count, listJoin, tiles, cargoAmount, cargoName, dateSh
 import { build, buildPath, addRoute, removeRoute, addRouteVehicle, sellRouteVehicle, renameRoute, borrow, repay, tick, refreshRouteConnections, vehicleNoun as modelNoun } from '../model.js';
 import { routeHealth, industryStatus, townService } from '../gameplay-insights.js';
 import { strings } from './ui-lint.test.mjs';
-import { emptyGame, line, advance } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, line, advance } from './helpers.mjs';
 
 const MINUS = '−';
 
@@ -123,7 +123,11 @@ test('statuses share one shape: state, tone, word, reason, and the old label and
     assert.equal(typeof status.reason, 'string');sentence(status.detail, label);assert.equal(status.detail, plain(status.reason, namesIn(game)));
     if (status.fix) assert.ok(status.fix.action && status.fix.label, label);
   };
-  const ROUTE = ['Running', 'Loading', 'Stores full', 'Not connected', 'Stop missing', 'No supplier', 'No buyer', 'No passengers', 'No mail', 'Paused', 'First trip', /^Needs [a-z ]+$/];
+  const ROUTE = ['Running', 'Loading', 'Stores full', 'Not connected', 'Stop missing', 'No supplier', 'No buyer', 'No passengers', 'No mail', 'Paused', 'First trip', 'Supplier being built', 'Buyer being built', /^Needs [a-z ]+$/];
+  check(routeHealth(game, route), ROUTE, 'a route awaiting its supplier');
+  assert.equal(routeHealth(game, route).word, 'Supplier being built');
+  for (const site of game.industries) check(industryStatus(site, game), ['Under construction'], site.name);
+  completeFixtureConstruction(game, ...game.industries);
   check(routeHealth(game, route), ROUTE, 'a new route');assert.equal(routeHealth(game, route).word, 'First trip');
   assert.equal(routeHealth(game, route).label, routeHealth(game, route).word, 'the old label stays equal to the word');
   game.industries[0].inventory.timber = 900;check(routeHealth(game, route), ROUTE, 'piling up');

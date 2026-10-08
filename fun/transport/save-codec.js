@@ -195,6 +195,52 @@ function unpackByteRuns(bytes,expectedLength){
   const tail=length%4;if(cursor+tail!==bytes.length)throw new Error('Invalid tile run tail.');
   output.set(bytes.subarray(cursor),words*4);return output;
 }
+// Forest dates are sparse numeric columns, rather than tens of thousands of
+// repeated JSON keys. A shared day palette and varint tile/field deltas keep
+// continental autosaves within the existing storage budget, losslessly. Older
+// saves still carry these fields in ordinary extras and remain readable.
+function packTreeDates(packed, length, deltaLayout = false) {
+  const days = [], dayIds = new Map(), records = [], extras = [];
+  for (const [ordinal, original] of packed.extras) {
+    if (!original) { extras.push([ordinal, original]); continue; }
+    let extra = original;
+    for (const [flag, key] of ['treeBornDay','treeClearedDay'].entries()) {
+      const day = original[key]; if (!Number.isInteger(day)) continue;
+      if (extra === original) extra = { ...original };
+      delete extra[key];
+      let id = dayIds.get(day);
+      if (id === undefined) { id = days.length; dayIds.set(day, id); days.push(day); }
+      records.push([ordinal * 2 + flag, id]);
+    }
+    if (Object.keys(extra).length) extras.push([ordinal, extra]);
+    else if (deltaLayout) extras.push([ordinal, null]);
+  }
+  if (!records.length) return packed;
+  const bytes = new Uint8Array(records.length * 8); let cursor = 0, previous = 0;
+  const write = number => { do { const byte = number & 127; number >>>= 7; bytes[cursor++] = byte | (number ? 128 : 0); } while (number); };
+  for (const [ordinal, id] of records) { write(ordinal - previous); write(id); previous = ordinal; }
+  return { ...packed, extras, treeDates: { count: records.length, days, data: encodeBytes(bytes.subarray(0, cursor), 'utf16-15') } };
+}
+function readTreeDates(packed, length, write = null) {
+  const dates = packed.treeDates; if (dates === undefined) return;
+  if (!dates || !Number.isInteger(dates.count) || dates.count < 1 || dates.count > length * 2 || !Array.isArray(dates.days) || !dates.days.length || dates.days.length > dates.count || !dates.days.every(Number.isInteger)) throw new Error('Invalid tree date palette.');
+  const bytes = decodeBytes(dates.data, 'utf16-15');
+  if (bytes.length < dates.count * 2 || bytes.length > dates.count * 8) throw new Error('Invalid tree date data.');
+  let cursor = 0, previous = 0;
+  const read = () => {
+    let value = 0, shift = 0, byte;
+    do { if (cursor >= bytes.length || shift > 21) throw new Error('Invalid tree date index.'); byte = bytes[cursor++]; value += (byte & 127) * 2 ** shift; shift += 7; } while (byte & 128);
+    return value;
+  };
+  for (let n = 0; n < dates.count; n++) {
+    const ordinal = previous + read(), id = read();
+    if (ordinal >= length * 2 || (n && ordinal <= previous) || id >= dates.days.length) throw new Error('Invalid tree date index.');
+    previous = ordinal;
+    if (write) write(Math.floor(ordinal / 2), ordinal % 2 ? 'treeClearedDay' : 'treeBornDay', dates.days[id]);
+  }
+  if (cursor !== bytes.length) throw new Error('Invalid tree date tail.');
+}
+
 function encodeTiles(tiles, indices, encoding) {
   const count = indices ? indices.length : tiles.length;
   const bytes=new Uint8Array(count*4), elevations=[], elevationIds=new Map(), details=[null], detailIds=new Map();
@@ -227,7 +273,7 @@ function encodeTiles(tiles, indices, encoding) {
     }
     if(extra)extras.push([i,extra]);
   }
-  return {data:encodeBytes(bytes,encoding),...(encoding==='base64'?{}:{encoding}),elevations,details,extras};
+  return packTreeDates({data:encodeBytes(bytes,encoding),...(encoding==='base64'?{}:{encoding}),elevations,details,extras},count);
 }
 
 export function encodeGame(game) {
@@ -256,7 +302,7 @@ export function encodeGame(game) {
       }
     }
     const indices=indexBuffer.subarray(0,count),deltaLayout=packable&&count>4096;
-    return {format:PROCEDURAL_FORMAT,state,generation:{...baseline.generation},tiles:{count,indices:encodeIndices(indices,deltaLayout?'utf16-15-rle':'utf16-15'),...(deltaLayout?{indexEncoding:'utf16-15-rle',layout:'baseline-xor-v1',data:encodeBytes(deltaBuffer.subarray(0,count*4),'utf16-15-rle'),encoding:'utf16-15-rle',extras}:encodeTiles(tiles,indices,'utf16-15'))}};
+    return {format:PROCEDURAL_FORMAT,state,generation:{...baseline.generation},tiles:{count,indices:encodeIndices(indices,deltaLayout?'utf16-15-rle':'utf16-15'),...(deltaLayout?packTreeDates({indexEncoding:'utf16-15-rle',layout:'baseline-xor-v1',data:encodeBytes(deltaBuffer.subarray(0,count*4),'utf16-15-rle'),encoding:'utf16-15-rle',extras},count,true):encodeTiles(tiles,indices,'utf16-15'))}};
   }
   return {format:FORMAT,state,tiles:encodeTiles(tiles,null,tiles.length>512*384?'utf16-15':'base64')};
 }
@@ -279,6 +325,7 @@ function decodeTiles(packed,length,validateOnly=false) {
     if(!Array.isArray(entry)||entry.length!==2||!Number.isInteger(entry[0])||entry[0]<0||entry[0]>=length||seen.has(entry[0])||!entry[1]||typeof entry[1]!=='object'||Array.isArray(entry[1]))throw new Error('Invalid tile extras.');
     seen.add(entry[0]);if(!validateOnly)tiles[entry[0]]={...tiles[entry[0]],...entry[1]};
   }
+  readTreeDates(packed,length,validateOnly?null:(index,key,day)=>{tiles[index][key]=day;});
   return tiles;
 }
 
@@ -290,7 +337,7 @@ function decodeDeltaTiles(packed,count,game,indices){
     seen.add(entry[0]);
     if(entry[1]&&Object.keys(entry[1]).some(key=>CORE_KEYS.has(key)||key==='publicRoad'))throw new Error('Invalid terrain delta core override.');
   }
-  if(!game)return;
+  if(!game){readTreeDates(packed,count);return;}
   const baseline=baselines.get(game.tiles),details=[undefined,...baseline.details.keys()];
   for(let i=0;i<count;i++){
     const delta=(bytes[i*4]|bytes[i*4+1]<<8|bytes[i*4+2]<<16|bytes[i*4+3]<<24)>>>0;
@@ -308,6 +355,7 @@ function decodeDeltaTiles(packed,count,game,indices){
     tile.building=null;tile.zone=null;
     if(extra)for(const key of Object.keys(extra))Object.defineProperty(tile,key,{value:extra[key],writable:true,enumerable:true,configurable:true});
   }
+  readTreeDates(packed,count,(ordinal,key,day)=>{game.tiles[indices[ordinal]][key]=day;});
 }
 // Metadata inspection validates packed data but never regenerates millions of
 // terrain objects just to open the save dialog.

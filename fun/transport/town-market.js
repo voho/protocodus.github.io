@@ -1,4 +1,5 @@
 import { BUILDINGS, commercialKind } from './buildings.js';
+import { isUnderConstruction } from './building-construction.js';
 import { nearbyCities, nearbyZones } from './simulation-spatial.js';
 import { localEnvironment, hasRoadAccess } from './environment.js';
 import { TOWN_RADIUS, townStopCounts } from './town-authority.js';
@@ -78,6 +79,7 @@ export function townLedger(game, city, zoneMap) {
       if (!building) continue;
       const kind = building.kind, group = BUILDINGS[kind]?.group, level = Math.floor(building.level) || 1;
       if (tile.zone || building.owner === 'player') { const entry = propertyEntry(tile, building, x, y, zoneMap.get(row + x)); if (entry) (entry.zoneKind ? ledger.plots : ledger.owned).push(entry); }
+      if (isUnderConstruction(building)) continue;
       if (group === 'homes' || kind === 'house' || kind === 'apartment') ledger.homes++;
       else if (group === 'shops' || group === 'services' || kind === 'shop' || kind === 'office') {
         // A developed commercial zone also keeps the family of the shop it grew from.
@@ -162,14 +164,15 @@ export function propertySector(kind) { const group = BUILDINGS[kind]?.group; ret
 function propertyEntry(tile, building, x, y, zone) {
   const kind = building.kind, sector = propertySector(kind);
   if (!sector || !tile.zone && building.owner !== 'player') return null;
-  const level = Math.floor(building.level) || 1, family = sector === 'shops' ? OUTLET[kind] || (tile.zone === 'commercial' ? OUTLET[commercialKind(tile.variant, 1)] : null) || null : null;
-  return tile.zone ? { x, y, kind, level, tiles: zone?.tiles ?? 1, sector, family, zoneKind: tile.zone } : { x, y, kind, level, tiles: buildingSize(building) ** 2, sector, family };
+  const level = Math.floor(building.level) || 1, constructing = isUnderConstruction(building), family = sector === 'shops' ? OUTLET[kind] || (tile.zone === 'commercial' ? OUTLET[commercialKind(tile.variant, 1)] : null) || null : null;
+  return tile.zone ? { x, y, kind, level, ...(constructing ? { constructing: true } : {}), tiles: zone?.tiles ?? 1, sector, family, zoneKind: tile.zone } : { x, y, kind, level, ...(constructing ? { constructing: true } : {}), tiles: buildingSize(building) ** 2, sector, family };
 }
 const propertyCost = p => p.kind === 'factory' ? WORKSHOP.cost * p.level : BUILDINGS[p.kind]?.cost || 0;
 /** A month's rent in 1950 dollars when fully let: ground rent by level on the zone tiles bought, or a yield on the building's price. */
 export const propertyBase = p => p.zoneKind ? GROUND_RENT[p.sector] * p.tiles * p.level : BUILT_YIELD * propertyCost(p);
 /** The share let, from a closed market: the floor, plus the rest by the homes bar, stocked shelves times shoppers, shoppers alone, or workshop use. */
 export function propertyOccupancy(market, p, population) {
+  if (p.constructing) return 0;
   const floor = OCCUPANCY_FLOOR[p.sector], saturation = clamp((Math.max(0, population) + 2 * market.visitors) / Math.max(1, market.shops * MARKET.shopperReach));
   const outlets = p.sector === 'shops' && BUILDINGS[p.kind]?.outlets;
   const stocked = outlets ? Object.entries(outlets).reduce((sum, [family, units]) => sum + market.met[family] * units, 0) / Object.values(outlets).reduce((sum, units) => sum + units, 0) : null;
@@ -244,7 +247,7 @@ export function workshopLevels(game, city) {
     levels = 0;
     for (let y = Math.max(0, city.y - TOWN_RADIUS); y <= Math.min(game.height - 1, city.y + TOWN_RADIUS); y++) for (let x = Math.max(0, city.x - TOWN_RADIUS); x <= Math.min(game.width - 1, city.x + TOWN_RADIUS); x++) {
       const building = game.tiles[y * game.width + x].building;
-      if (building?.kind === 'factory' && townOf(game, x, y) === city) levels += Math.floor(building.level) || 1;
+      if (building?.kind === 'factory' && !isUnderConstruction(building) && townOf(game, x, y) === city) levels += Math.floor(building.level) || 1;
     }
     memo.levels.set(city, levels);
   }

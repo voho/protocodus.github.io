@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, buildPath, addRoute, addRouteVehicle, editRoute, upgradeRouteVehicle, tick, validateGame, restoreGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
-import { emptyGame, line } from './helpers.mjs';
+import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 100, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
 
@@ -11,6 +11,7 @@ const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 1
 function networkFixture() {
   const game = emptyGame();
   for (const [kind, x, y] of [['quarry', 8, 7], ['logging-camp', 13, 7], ['sawmill', 76, 13]]) assert.equal(build(game, kind, x, y).ok, true, kind);
+  completeFixtureConstruction(game, ...game.industries);
   // Route edits must continue to work in existing compact towns with shared freight stops.
   game.cities = [town('Stoneford', 30, 9), town('Millbrook', 75, 9)];game.revision++;
   assert.equal(buildPath(game, 'road', line(10, 75, 12)).ok, true);

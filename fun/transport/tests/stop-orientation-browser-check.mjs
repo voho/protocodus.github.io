@@ -48,10 +48,18 @@ try{
           const hit=renderer.screenToInspectTile(px+rect.left,py+rect.top),matches=hit.x===station.x&&hit.y===station.y;
           if(alpha>=220){opaque++;if(matches)picked++;}else if(!matches)clear++;
         }
-        return{mode,name,axis:frame.meta.axis,expectedAxis:axis,zoom,dpr:devicePixelRatio,anchorError:Math.hypot(actual.x-anchor.x,actual.y-anchor.y),opaque,picked,clear,ink,layout,sloped};
+        // Read the actual final display: each mode keeps a contrasting sign
+        // and white vehicle glyph even at Region with all names disabled.
+        const marker=renderer.stationMarker(station),dpr=devicePixelRatio,pixels=canvas.getContext('2d').getImageData(Math.round(marker.x*dpr),Math.round(marker.y*dpr),marker.size*dpr,marker.size*dpr).data,color=mode==='rail'?[49,94,112]:[55,97,78];
+        const edge=marker.size*dpr,inset=edge*.25;
+        let modeInk=0,glyphInk=0;for(let i=0;i<pixels.length;i+=4){const px=i/4%edge,py=Math.floor(i/4/edge);if(color.every((value,j)=>Math.abs(value-pixels[i+j])<10))modeInk++;if(px>inset&&px<edge-inset&&py>inset&&py<edge-inset&&pixels[i]>240&&pixels[i+1]>235&&pixels[i+2]>210)glyphInk++;}
+        const markerPick=renderer.stationAtMarker(rect.left+marker.x+marker.size/2,rect.top+marker.y+marker.size/2)?.id;
+        return{mode,name,axis:frame.meta.axis,expectedAxis:axis,zoom,dpr,anchorError:Math.hypot(actual.x-anchor.x,actual.y-anchor.y),opaque,picked,clear,ink,layout,sloped,markerSize:marker.size,modeInk,glyphInk,markerPick};
       },{mode,name,arms,axis,zoom});
       assert.equal(result.axis,axis);assert.ok(result.anchorError<=Math.SQRT2/dpr+.001,`ground registration ${JSON.stringify(result)}`);
       assert.ok(result.ink>0,'station keeps opaque artwork at every view');assert.equal(result.picked,result.opaque,`opaque station picking ${JSON.stringify(result)}`);assert.ok(result.clear>0,'transparent padding does not become station hit area');
+      assert.equal(result.markerSize,zoom===.5?20:zoom===1?22:24,'visible sign and picking box share readable display dimensions');assert.equal(result.markerPick,'stop');
+      assert.ok(result.modeInk>20*dpr*dpr,`mode-coloured sign survives projection and zoom ${JSON.stringify(result)}`);assert.ok(result.glyphInk>12*dpr*dpr,`light vehicle pictogram stays readable ${JSON.stringify(result)}`);
       results.push(result);
       if(dpr===1&&['x-flat','y-flat','x-through','y-through','x-junction','y-junction','cross'].includes(name))await page.screenshot({path:`${output}/${mode}-${name}-zoom${zoom}.png`});
     }

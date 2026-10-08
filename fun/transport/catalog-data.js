@@ -1,3 +1,5 @@
+import { constructionDuration } from './building-construction.js';
+import { constructionTimeText } from './lifecycle-ui.js';
 import { BUILDINGS, BUILDING_GROUPS } from './buildings.js';
 import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, WORKSHOP, WORKSHOP_RECIPES, TOWN_CARGO, VEHICLE_SPEEDS, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP, isTownTraffic } from './data.js';
 import { MARKET, OUTLET, familyCargo } from './town-market.js';
@@ -63,7 +65,7 @@ export function galleryCatalog() {
   for (const [kind, name, mode, cargo, description] of vehicles) entries.push({ id: `vehicle:${kind}`, kind, type: 'vehicle', category: 'transport', name, description, biomes: climates, mode, cargo, art: { type: 'vehicle', mode, cargo } });
   entries.push({ id: 'transport:city', kind: 'city', type: 'town', category: 'transport', name: 'Town', biomes: climates, cost: BUILD_COSTS.city, tool: 'city', description: 'Towns supply passengers and mail and buy finished cargo. Found a town, add roads and homes, then connect regular transport.', art: { type: 'building', kind: 'town-hall' } });
   for (const [kind, name, description] of [
-    ['forest', 'Woodland', 'Trees add natural cover and improve the local environment. Groves can occupy 1 × 1, 2 × 2 or 3 × 3 plots.'],
+    ['forest', 'Woodland', 'Trees grow, age and fall over about ten years, leaving clear land that may regrow. Groves can occupy 1 × 1, 2 × 2 or 3 × 3 plots.'],
     ['rock', 'Rock outcrop', 'Natural rocky ground. Larger outcrops occupy a shared parcel; bulldozing any part clears that parcel.'],
     ['mountain', 'Mountain ridge', 'Higher rocky terrain. Roads may need a tunnel, bridge or a different alignment.'],
     ['grass', 'Grassland', 'Open land for roads, towns and buildings, where the slope and site allow it.'],
@@ -122,6 +124,10 @@ export function galleryDetails(game, entry, biome = game.biome) {
   const context = { ...game, biome }, stats = [], notes = [], recipes = [], consumers = [];
   if (entry.footprint) stats.push(['Site', typeof entry.footprint === 'string' ? `${entry.footprint} tiles` : `${entry.footprint} × ${entry.footprint} tiles`]);
   if (entry.cost) stats.push(['Build price today', priceFor(game, entry.cost)]);
+  if (['building', 'industry', 'workshop'].includes(entry.type)) {
+    stats.push(['Construction time', constructionTimeText(constructionDuration(entry.type === 'workshop' ? 'workshop' : entry.kind))]);
+    notes.push('The site opens automatically after construction. Its full price is paid when placed; production, amenities and rent begin when it opens.');
+  }
   if (entry.type === 'building') {
     const d = BUILDINGS[entry.kind];
     stats.push(['Collection', BUILDING_GROUPS[d.group].name]);

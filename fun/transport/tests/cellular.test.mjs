@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { INDUSTRIES, createGame, build, buildPath, addRoute, tick, validateGame } from '../model.js';
 import { localEnvironment, stepEcology, weatherAt } from '../environment.js';
 import { settlementSuitability } from '../settlements.js';
-import { emptyGame, tileAt, line } from './helpers.mjs';
+import { emptyGame, tileAt, line, completeFixtureConstruction } from './helpers.mjs';
 
 function state(game) {
   const copy = structuredClone(game);
@@ -39,6 +39,7 @@ test('a seeded simulation has the same future regardless of frame partitioning',
 test('vehicles competing for scarce cargo arrive in the same order at every simulation speed', () => {
   const whole = emptyGame();
   for (const [kind, x, y] of [['logging-camp', 10, 8], ['sawmill', 30, 8], ['sawmill', 50, 8]]) assert.equal(build(whole, kind, x, y).ok, true);
+  completeFixtureConstruction(whole, ...whole.industries);
   assert.equal(buildPath(whole, 'road', line(10, 50, 13)).ok, true);
   for (const x of [10, 30, 50]) assert.equal(build(whole, 'bus-stop', x, 13).ok, true);
   whole.industries[0].inventory.timber = 60;
@@ -75,6 +76,7 @@ test('randomized complex production preserves every recipe ratio and waits for m
   for (const [kind, definition] of recipes) {
     const game = emptyGame(definition.biomes[0]);
     assert.equal(build(game, kind, 20, 20).ok, true);
+    completeFixtureConstruction(game, game.industries[0]);
     const industry = game.industries[0];
     const inputs = Object.entries(definition.inputs), outputs = Object.entries(definition.outputs);
     const missing = inputs.at(-1)[0];
@@ -118,6 +120,7 @@ test('a year on a huge map keeps inventories, vehicles and simulation work bound
 test('forests increase a logging camp’s actual output in otherwise identical worlds', () => {
   const open = emptyGame();
   assert.equal(build(open, 'logging-camp', 20, 20).ok, true);
+  completeFixtureConstruction(open, open.industries[0]);
   const forest = structuredClone(open);
   for (let y = 17; y <= 23; y++) for (let x = 17; x <= 23; x++) {
     if (x !== 20 || y !== 20) Object.assign(tileAt(forest, x, y), { terrain: 'forest', detail: 'pine' });

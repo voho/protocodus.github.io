@@ -335,7 +335,7 @@ Trains keep their engine and coaches spaced together through stops and reversals
 
 Each vehicle has a small load badge above it: a pill whose tail points down at the vehicle, edged on the left in its route's colour. Loaded vehicles show their resource icon, including passengers; a full green meter means full capacity, an amber meter shows a partial load, and an unfilled meter means empty. These badges stay readable in all three zoom views. Town names rise clear of a stop and its bullets at or beside the town centre, and a badge that crosses a town name or a stop fades so the name and the stop stay legible.
 
-Town names sit on paper nameplates with the population after a thin rule. Stops are roundels: a small paper disc in a dark ring, floating just above and to the right of the stop. From the Town view in, a roundel carries the bullets of up to three routes that call there, lowest number first, then a *+2* tag for the rest; the Region view keeps only the bullets that clear the town names. An offline route's bullet is faded, a stop whose routes are all offline has a red ring, and a grey ring marks a stop that no route uses, which still costs upkeep. Point at a roundel, or select its stop, to see the stop's name. Where two stops or a stop and a town name would meet, the later roundel steps aside on a thin stem. A selected place is outlined in orange, and the place under the pointer in pale paper.
+Town names sit on paper nameplates with the population after a thin rule. Road stops have a green circular bus sign and rail stops a blue rectangular train sign, floating just above the shelter or platform; both remain visible with names switched off. Signs occupy 20, 22 and 24 display pixels in Region, Town and Detail, while the buildings keep their shared physical scale. Pale road-bay edges, amber platform safety lines and end boards distinguish the stop on the ground. From the Town view in, a sign carries the bullets of up to three routes that call there, lowest number first, then a *+2* tag for the rest; the Region view keeps only the bullets that clear the town names. An offline route's bullet is faded, a stop whose routes are all offline has a red border, and a grey border marks a stop that no route uses, which still costs upkeep. Point at a sign, or select its stop, to see the stop's name. Where two stops or a stop and a town name would meet, the later sign steps aside on a thin stem. A selected place is outlined in orange, and the place under the pointer in pale paper.
 
 Every paid delivery floats its income above the stop (above an airport's sign, over its terminal), with the cargo’s icon, and the month’s profit in the top lane glows briefly. Deliveries at one stop within a moment share a figure, and in the Region view nearby stops add up to one total. Figures never cover a town’s name: one at a town-centre stop starts above the name. The figures fade after about a second and a half, stay in place with reduced motion, and can be hidden with **Map layers → Income**. With sound on, a delivery on screen also rings a soft two-note chime; the browser remembers the sound choice and starts audio after your first keyboard or pointer action.
 
@@ -368,6 +368,18 @@ Each town has an opinion of your company, from Appalling to Outstanding. Inspect
 Before you invest, the zone and building tools say what an investment would bring. While you drag zones, or point a home, shop, service or workshop at its spot, the tip adds a second line under the price: the town, then about how many residents and how much rent a month residential zones bring once built up and when they pay back; the rent and payback of commercial zones and what the town's shops would want more of; the products a month industrial blocks (one workshop per whole 2 × 2 square) or a workshop would make from delivered materials; or a placed building's rent, with what a shop would earn with its shelves stocked. A town without recent service reads *Develops once a route serves Alderbrook* (a funded town develops anyway), zones more than 10 tiles from every town centre read *Too far from a town to develop*, a building in the countryside *earns no rent*, and the town's own buildings, such as schools, show nothing. The figures are today's: they follow your service, the town's demand bars and its stocked shelves, and never promise a larger building spreading onto free land. Afterwards, **Town economy** shows what the past year there brought you: rent, market bonus and workshop freight, with a small line of the months. Workshop freight is the fares for materials the town's workshops took and for products only they could have made, less any market bonus; products loaded at a stop that also reaches a factory making them stay with the route. The Towns list gives each town that pays you rent a **Your property** row, and the Company report's property table adds each town's past twelve months. While you build in a town, or inspect a town or a property, the map outlines your property from the Town view in: buildings you own in a solid green line, plots developers built on your zones dashed.
 
 Nature also changes gradually: neighboring vegetation, moisture, climate and development influence local succession. It spreads in small steps and preserves roads, stations, industries, buildings and designated zones. The same seed and actions reproduce the same future; simulation speed and frame rate do not change the random outcomes. Saving preserves production schedules and vehicle loading waits.
+
+## Building over time
+
+New homes, shops, amenities, workshops and industries begin as construction sites. Their full price is paid when placed, and the complete plot is reserved immediately. The Build cards, placement preview and Gallery show the duration. Inspect the site for its progress and opening date.
+
+Red-and-white tape surrounds excavations, followed by structural frames and finishing work. Small homes take about **2–4 months**; larger civic buildings, workshops and shops take longer. Farms and raw-material sites take **6–9 months**, and complex factories take up to **12 months**. Construction follows game time, pauses with the game and survives saving and loading. Sites open automatically; residents, services, production and rent begin then. Connections can be prepared beforehand, and route estimates explain when a supplier or buyer is still being built. Roads, tracks and stops remain immediately usable.
+
+Buildings already present in generated worlds or older saves stay complete. Normal Undo and demolition work on construction sites too.
+
+## Living woodland
+
+Trees have a roughly **ten-year life cycle**. Saplings grow for their first two years, mature woodland ages after about eight years, and fallen timber remains for roughly six months before the ground clears. A clearing stays bare for at least six months; nearby trees may then seed new growth when local conditions allow it. Existing forests begin with varied ages, so the landscape changes gradually. Tree growth never replaces buildings, roads, tracks or reserved sites.
 
 ## Building variety
 
@@ -454,6 +466,13 @@ TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/game
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/next-step-ui-check.mjs
 ```
 
+The lifecycle-art check covers excavation, frames, finishing and completed buildings; tree growth, aging, fallen timber and clearings; full-plot picking; paused rendering and scenery-cache reuse. It checks Region, Town and Detail at DPR 1 and 2, including all three woodland climates, and writes images and results to `/tmp/transport-lifecycle-art`. The lifecycle-UI check uses the real desktop and laptop controls to place homes and factories, inspect durations and progress, save and restore active projects, and verify automatic completion and woodland inspection. Its screenshots and results go to `/tmp/transport-lifecycle-ui`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/lifecycle-art-browser-check.mjs
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/lifecycle-ui-browser-check.mjs
+```
+
 The optional computer-only entry check opens portrait and landscape phones, a tablet, a touch-only device and a mobile browser with a mouse. It verifies the exact message, preserved saves and preferences, and that no game modules load. Narrow computer windows and hybrid laptops still reach the start menu:
 
 ```sh
@@ -494,6 +513,12 @@ The focused station-art check compares direct and prepared road/rail pixels, nat
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/rail-station-browser-check.mjs
 ```
 
+The stop-orientation check covers road and rail endpoints, through routes, corners, junctions and slopes at every view and DPR 1/2. It verifies ground registration, opaque-art picking, live orientation changes, and readable bus/train pictograms with names hidden. Screenshots and results go to `/tmp/transport-stop-orientation`:
+
+```sh
+TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/stop-orientation-browser-check.mjs
+```
+
 The station-picking check covers opaque road, rail and harbor artwork beyond its ground tile, transparent margins, neighboring reserved parcels, foreground occlusion and scenery-cache reuse:
 
 ```sh
@@ -524,7 +549,7 @@ The hover-picking check sweeps the pointer over the start town at all three zoom
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/hover-pick-browser-check.mjs
 ```
 
-The focused network-planning check covers complete production graphs, industry locations and nearby customers with the arcs a selected industry draws to them, route searching/filtering, renaming stops and routes, editing a route's end stop and freight without selling its trucks, selecting stations on the map, live network verification, route highlights, Show framing, break pins and the needs-attention chip, vehicle load indicators at all three zooms, a saved teal line drawn in its Cobalt fill, stop roundels that clear town names and each other, carry no lettered sign, turn red or grey and name their stop on hover, default route names, a mail route between the first two towns (Passengers kept, Mail offered second, its name, truck, price, envelope floater, card and reload), and compact computer layouts. It uses isolated browser storage and writes screenshots to `/tmp/transport-features-qa`:
+The focused network-planning check covers complete production graphs, industry locations and nearby customers with the arcs a selected industry draws to them, route searching/filtering, renaming stops and routes, editing a route's end stop and freight without selling its trucks, selecting stations on the map, live network verification, route highlights, Show framing, break pins and the needs-attention chip, vehicle load indicators at all three zooms, a saved teal line drawn in its Cobalt fill, stop signs that clear town names and each other, use mode pictograms instead of letters, show red or grey status borders and name their stop on hover, default route names, a mail route between the first two towns (Passengers kept, Mail offered second, its name, truck, price, envelope floater, card and reload), and compact computer layouts. It uses isolated browser storage and writes screenshots to `/tmp/transport-features-qa`:
 
 ```sh
 TRANSPORT_URL=http://localhost:8000/fun/transport/ node fun/transport/tests/features-browser-check.mjs

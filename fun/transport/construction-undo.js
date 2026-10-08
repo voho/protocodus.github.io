@@ -1,3 +1,4 @@
+import { invalidateConstructionIndex, isUnderConstruction, stepBuildingConstruction } from './building-construction.js';
 import { industryAt, invalidateNetworkPoints, quoteNetworkConstruction, BUILDINGS, INDUSTRIES } from './model.js';
 import { buildingAt, buildingTiles } from './building-sites.js';
 import { industryTiles, industryFootprint } from './industry-sites.js';
@@ -98,7 +99,7 @@ export function finishUndo(entry,game,result){
     notices:{before:entry.notifications,after:game.notifications.slice(),ids},money:[entry.money,[game.money,game.monthlyExpenses,game.totalExpenses]],nextId:[entry.nextId,game.nextId],
     owners:entry.owners.filter(building=>Object.hasOwn(building,'populationCityId')),core,exact,anchors,watched,after:structuredClone(watched.map(index=>game.tiles[index])),
     // A building the company now owns earns rent at the next close, so undoing it stays within this month.
-    property:changed.some((index,n)=>game.tiles[index].building?.owner==='player'&&before[n].building?.owner!=='player'),month:calendarMonth(game),
+    property:changed.some((index,n)=>!isUnderConstruction(game.tiles[index].building)&&game.tiles[index].building?.owner==='player'&&before[n].building?.owner!=='player'),month:calendarMonth(game),
     known:new Set([...game.stations,...game.industries,...game.cities]),done:false};
 }
 
@@ -121,7 +122,8 @@ export function undoProblem(game,entry){
   if(stops.size&&game.routes.some(route=>route.stops.some(id=>stops.has(id))))return 'Can’t undo: a route now uses this stop.';
   if(entry.trades.some(([industry,shipped,received])=>industry.shipped!==shipped||industry.received!==received))return 'Can’t undo: this industry has already traded cargo.';
   const towns=new Set((entry.lists.cities?.added||[]).map(city=>city.id));
-  if(towns.size&&game.tiles.some(tile=>towns.has(tile.building?.populationCityId)))return 'Can’t undo: homes now belong to this town.';
+  if(towns.size&&game.tiles.some(tile=>towns.has(tile.building?.populationCityId)||towns.has(tile.building?.construction?.populationCityId)))return 'Can’t undo: homes now belong to this town.';
+  if(towns.size&&game.tiles.some(tile=>towns.has(tile.building?.construction?.benefitCityId)))return 'Can’t undo: construction now belongs to this town.';
   return null;
 }
 export const canUndo=(game,entry)=>!undoProblem(game,entry);
@@ -158,6 +160,8 @@ export function undoConstruction(game,entry){
   game.totalExpenses=game.totalExpenses===totalAfter?total:Math.max(0,game.totalExpenses-cost);
   if(game.nextId===entry.nextId[1])game.nextId=entry.nextId[0];
   if(entry.network)invalidateNetworkPoints(game,entry.points);else game.revision++;
+  invalidateConstructionIndex(game);
+  stepBuildingConstruction(game);
   entry.done=true;
   return {ok:true,message:`${undoLabel(entry)}.${cost>0?` ${moneyText(cost)} refunded.`:''}`,cost};
 }

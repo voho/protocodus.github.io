@@ -4,7 +4,7 @@ import { INDUSTRIES } from '../data.js';
 import { chainProducts, defaultChainProduct, findIndustryTargets, industryCatalog, nearestTown, productionChain, lensCargo, lensRole } from '../chains.js';
 import { townLensRole } from '../chains.js';
 import { build } from '../model.js';
-import { emptyGame } from './helpers.mjs';
+import { emptyGame, tileAt, completeFixtureConstruction } from './helpers.mjs';
 
 test('complex desert goods trace every raw source, shared refinery and town delivery', () => {
   const graph = productionChain('desert', 'goods');
@@ -93,6 +93,7 @@ test('only when asked, a sawmill’s targets include towns whose workshops take 
   assert.deepEqual(findIndustryTargets(game, sawmill, 5, { workshops: true }), []);
   assert.equal(townLensRole(game, city, 'lumber'), null);
   assert.equal(build(game, 'workshop', 43, 33).ok, true);
+  completeFixtureConstruction(game, tileAt(game, 43, 33).building);
   assert.deepEqual(findIndustryTargets(game, sawmill), [], 'Next goal never reads towns as lumber buyers');
   assert.deepEqual(findIndustryTargets(game, sawmill, 5, { workshops: true }), [{ id: 'town-a', kind: 'city', name: 'Ashford workshops', x: 40, y: 30, cargo: ['lumber'], distance: 20 }]);
   assert.deepEqual(['lumber', 'furniture', 'food', 'iron', 'passengers'].map(cargo => townLensRole(game, city, cargo)), ['buyer', 'source', 'buyer', null, null]);

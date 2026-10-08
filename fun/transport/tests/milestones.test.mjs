@@ -5,7 +5,7 @@ import { build, buildPath, addRoute, tick, createGame, restoreGame, validateGame
 import { encodeGame } from '../save-codec.js';
 import { MILESTONES, CHAPTERS, evaluateMilestones, nextMilestone, milestoneChapters, metMilestones, progressText } from '../milestones.js';
 import { nextProject } from '../gameplay-insights.js';
-import { emptyGame, line, equivalent } from './helpers.mjs';
+import { emptyGame, line, equivalent, completeFixtureConstruction } from './helpers.mjs';
 
 const ok = result => assert.equal(result.ok, true, result.message);
 // A flat town with a stone quarry beside it: the first freight route of a new company.
@@ -13,6 +13,7 @@ function quarryCompany() {
   const game = emptyGame();
   game.cities = [{ id: 'town', name: 'Town', x: 40, y: 41, population: 400, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }];
   ok(build(game, 'quarry', 10, 40));
+  completeFixtureConstruction(game, game.industries[0]);
   ok(buildPath(game, 'road', line(16, 37, 41)));ok(build(game, 'bus-stop', 16, 41));ok(build(game, 'bus-stop', 37, 41));
   ok(addRoute(game, { mode: 'road', stops: game.stations.map(stop => stop.id), cargo: 'stone' }));
   return game;
@@ -24,6 +25,7 @@ test('chapter 1 is stamped in order, each on the day it was first met', () => {
   const game = quarryCompany(), stoneRoute = game.routes[0];
   // A farm and a food plant wait beside the town, linked before the town grows around the road.
   ok(build(game, 'farm', 10, 64));ok(build(game, 'food-plant', 40, 70));
+  completeFixtureConstruction(game, ...game.industries.slice(-2));
   ok(buildPath(game, 'road', line(16, 37, 71)));ok(build(game, 'bus-stop', 16, 71));ok(build(game, 'bus-stop', 37, 71));
   ok(buildPath(game, 'road', Array.from({ length: 29 }, (_, i) => ({ x: 37, y: 42 + i }))));
   const [farmStop, plantStop] = game.stations.slice(-2);

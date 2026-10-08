@@ -101,18 +101,19 @@ test('ecology journals exactly its changed cells and dissolved grove footprints'
   assert.ok(days>20&&dissolved>0,'the sample covers ordinary days and dissolved groves');
 });
 
-// Recorded before the journal existed: the same seeded succession, day counts
-// and final tiles. Noting changes must never alter a decision or a write.
+// Journal bookkeeping must never alter the seeded lifecycle or its saved state.
+// Comparing equivalent worlds keeps this invariant meaningful as natural
+// succession gains new behavior, without pinning its old random mortality.
 test('stepEcology keeps identical tile state and random outcomes with the journal',()=>{
-  const golden={
-    grove:{counts:'1,1,1,1,1,0,1,1,0,0,1,0,0,1,1,1,2,0,2,0,2,0,0,0,1,0,0,4,0,1,1,0,0,0,0,2,2,1,1,0,3,0,1,0,2,0,2,2,0,1,1,0,0,2,1,0,1,0,0,1',left:84,revision:33,digest:'a6fec2ecdfd370bb'},
-    taiga:{counts:'3,4,11,8,6,5,11,2,3,4,2,14,9,8,3,9,8,13,4,7,4,4,4,4,3,8,1,7,8,6,9,9,6,1,4,12,7,13,4,6,13,9,7,4,5,0,10,5,6,8,11,3,4,5,3,9,2,3,11,5',left:0,revision:60,digest:'bbc31873f43569d7'},
-  };
   const games={grove:()=>{const game=flatForest();allocateTerrainObjects(game);return game;},taiga:()=>createGame({biome:'taiga',size:'regional',seed:1847})};
   for(const [name,make] of Object.entries(games)){
-    const game=make(),counts=[];
-    for(let day=1;day<=60;day++){game.day=day;counts.push(stepEcology(game));if(day%7===0)noteSurfaceChanges(game,game.revision,game.revision+1,[0]);}
-    assert.deepEqual({counts:counts.join(','),left:game.tiles.filter(tile=>tile.terrainObject).length,revision:game.revision,digest:digest(game)},golden[name],name);
+    const game=make(),unobserved=structuredClone(game),counts=[],repeat=[];
+    for(let day=1;day<=60;day++){
+      game.day=unobserved.day=day;counts.push(stepEcology(game));repeat.push(stepEcology(unobserved));
+      if(day%7===0)noteSurfaceChanges(game,game.revision,game.revision+1,[0]);
+    }
+    assert.deepEqual(counts,repeat,name);assert.equal(digest(game),digest(unobserved),name);
+    assert.deepEqual(game,unobserved,`${name}: journal observations never change simulation or persistence`);
   }
 });
 

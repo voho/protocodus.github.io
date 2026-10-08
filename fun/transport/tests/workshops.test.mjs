@@ -9,7 +9,7 @@ import { townLedger, workshopLevels, workshopInputs, workshopOutputs, workshopRe
 import { validateRoutePlan, forecastRoute } from '../route-planner.js';
 import { routeHealth } from '../gameplay-insights.js';
 import { openingSiteProblem } from '../industry-openings.js';
-import { emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
+import { completeFixtureConstruction, emptyGame, tileAt, line, advance, equivalent, twoTownFixture } from './helpers.mjs';
 
 const zoneMap = game => new Map(game.zones.map(zone => [zone.y * game.width + zone.x, zone]));
 const clone = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
@@ -17,21 +17,21 @@ const town = (game, x, y, id = `town-${game.cities.length + 1}`, population = 40
 // A catalog workshop expanded to `level`. Ashford's empty 2 × 2 blocks lie 7 or more tiles out, between its streets.
 function workshop(game, x, y, level = 1) {
   const placed = build(game, 'workshop', x, y);
-  assert.ok(placed.ok, placed.message);
-  for (let n = 1; n < level; n++) { const grown = expandWorkshop(game, x, y); assert.ok(grown.ok, grown.message); }
+  assert.ok(placed.ok, placed.message); completeFixtureConstruction(game, placed.building);
+  for (let n = 1; n < level; n++) { const grown = expandWorkshop(game, x, y); assert.ok(grown.ok, grown.message); completeFixtureConstruction(game, grown.building); }
   return tileAt(game, x, y).building;
 }
 // Seed a valid industry record at its established compact anchor, as retained
 // by an older company whose sites predate the current placement spacing.
 function existingIndustry(game, kind, x, y) {
   const placed=build(game,kind,game.width-8,game.height-8);assert.ok(placed.ok,placed.message);
-  Object.assign(placed.industry,{x,y});game.revision++;
+  Object.assign(placed.industry,{x,y});completeFixtureConstruction(game,placed.industry);game.revision++;
   return placed.industry;
 }
 // A sawmill 19 tiles west of Ashford, its stop, and a road into the town's street grid.
 function sawmillLine({ game, A }) {
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
-  assert.ok(build(game, 'sawmill', A.x - 19, 49).ok);
+  const placed = build(game, 'sawmill', A.x - 19, 49); assert.ok(placed.ok); completeFixtureConstruction(game, placed.industry);
   return { sawmill: game.industries.at(-1), stop: build(game, 'bus-stop', A.x - 18, 48).station };
 }
 // A route form verdict and a launch must agree; a refusal returns the launch's result.
@@ -71,18 +71,23 @@ test('a zoned 2 × 2 block develops one workshop at its NW tile, whichever tile 
   assert.deepEqual([site.x, site.y, site.building.kind, site.building.level, site.building.footprint], [x, y, 'factory', 1, 2]);
   assert.deepEqual(game.zones.filter(z => Math.abs(z.x - x - .5) < 1 && Math.abs(z.y - y - .5) < 1).map(z => [z.x, z.y]), [[x, y]], 'the site takes the other zone records');
   assert.equal(site.building.owner, undefined, 'a developed workshop belongs to the town');
-  while (site.building.level < 3 && day < 540) { tick(game, 1); day++; }
-  assert.equal(tileAt(game, x, y).building.level, 3, `level 3 within 540 days (${day})`);
+  while ((tileAt(game, x, y).building.level < 3 || tileAt(game, x, y).building.construction) && day < 1260) { tick(game, 1); day++; }
+  assert.equal(tileAt(game, x, y).building.level, 3, `three development phases and 24 months of construction complete within 1260 days (${day})`);
   assert.equal(workshopLevels(game, A), 3);
 });
 
-test('a lone industrial tile with clear land to its SE develops as it always has', () => {
+test('a lone industrial tile develops on the same day and then constructs its workshop', () => {
   const { game, A } = twoTownFixture(), x = A.x + 7, y = A.y + 1;
   assert.ok(build(game, 'industrial', x, y).ok);
   while (!tileAt(game, x, y).building && game.day < 400) tick(game, 1);
   // Recorded from the code before workshops: the first building day and level.
   assert.equal(game.day, 135);
-  assert.deepEqual(tileAt(game, x, y).building, { kind: 'factory', level: 1, footprint: 2 });
+  const building = tileAt(game, x, y).building;
+  assert.deepEqual(building, { kind: 'factory', level: 1, footprint: 2, construction: { startedDay: 135, completeDay: 315, activityGain: 10, benefitCityId: A.id } });
+  assert.equal(workshopLevels(game, A), 0);
+  tick(game, 180);
+  assert.equal(building.construction, undefined);
+  assert.equal(workshopLevels(game, A), 1);
 });
 
 test('an L of three industrial tiles whose only clear square needs an unzoned anchor never develops', () => {
@@ -112,7 +117,7 @@ test('workshop levels come from the anchor tiles and follow founding and demolit
   assert.equal(workshopLevels(game, B), 2, 'bulldozing drops the levels the same day');
 });
 
-test('a catalog workshop makes its town buy materials and sell products at once', () => {
+test('a completed catalog workshop makes its town buy materials and sell products', () => {
   const { game, A, sa } = twoTownFixture();
   assert.ok(!stationCoverage(game, sa).accepts.includes('lumber'));
   assert.deepEqual([workshopInputs(game, A), workshopOutputs(game, A)], [[], []]);
@@ -201,13 +206,18 @@ test('catalog workshops: the anchor’s town, the price, and expansion to level 
   const money = game.money, placed = build(game, 'workshop', 31, 30);
   assert.ok(placed.ok, placed.message);
   assert.equal(placed.cost, priceFor(game, 12000)); assert.equal(game.money, money - placed.cost);
-  assert.match(placed.message, /^Workshop built\. \$12,000 spent\.$/);
+  assert.match(placed.message, /^Workshop construction started\. Ready in 6 months\. \$12,000 spent\.$/);
+  assert.equal(workshopLevels(game, city), 0);
+  assert.equal(expandWorkshop(game, 32, 31).ok, false, 'the current building phase must finish first');
+  completeFixtureConstruction(game, placed.building);
   assert.deepEqual(tileAt(game, 31, 30).building, { level: 1, owner: 'player', paid: 12000, kind: 'factory', footprint: 2 });
   assert.equal(workshopLevels(game, city), 1);
   for (const level of [2, 3]) {
     const before = game.money, grown = expandWorkshop(game, 32, 31);
     assert.ok(grown.ok, grown.message); assert.equal(before - game.money, priceFor(game, 12000));
-    assert.equal(grown.message, `Workshop expanded to level ${level}. $12,000 spent.`);
+    assert.equal(grown.message, `Workshop expansion started. Level ${level} opens in ${6 + (level - 1) * 2} months. $12,000 spent.`);
+    assert.equal(workshopLevels(game, city), 0);
+    completeFixtureConstruction(game, grown.building);
   }
   assert.deepEqual([tileAt(game, 31, 30).building.level, tileAt(game, 31, 30).building.paid], [3, 36000]);
   assert.equal(expandWorkshop(game, 31, 30).message, 'This workshop is fully expanded.');
@@ -223,7 +233,7 @@ test('freight that never touches a workshop earns exactly as before, even into a
   const { game, A, B, sb } = twoTownFixture();
   assert.ok(placeBuildingSite(game, 'factory', B.x + 7, B.y + 1, { size: 2, building: { kind: 'factory', level: 2 } })); game.revision++;
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
-  assert.ok(build(game, 'quarry', A.x - 19, 49).ok);
+  const quarry = build(game, 'quarry', A.x - 19, 49); assert.ok(quarry.ok); completeFixtureConstruction(game, quarry.industry);
   existingIndustry(game,'furniture-factory',A.x-14,43).inventory.furniture=900;
   const stop = build(game, 'bus-stop', A.x - 18, 48).station;
   stop.catchmentRadius=5; // Preserve this historical revenue calibration's service area.
@@ -281,35 +291,37 @@ test('a new sawmill may open near a town whose workshops buy lumber', () => {
 });
 
 // The review's calibration (t3.mjs): two logging camps feed a sawmill 19 tiles east of Ashford's stop, which is never refilled.
-// Once Ashford has a workshop, one truck brings lumber and one takes furniture 38 tiles on to Brookby, for three years.
+// Once Ashford has a workshop, one truck brings lumber and one takes furniture 38 tiles on to Brookby.
+// Measure the fifth year, after every zoned construction phase has had time to finish.
 function calibration(mode) {
   const { game, A, sa, sb } = twoTownFixture(), levels = {};
-  const sawmill = build(game, 'sawmill', 43, 50).industry;
+  const sawmill = completeFixtureConstruction(game, build(game, 'sawmill', 43, 50).industry);
   // The review's camps stand closer to each other and to the mill than the industry spacing now allows.
-  for (const [n, x] of [40, 47].entries()) Object.assign(build(game, 'logging-camp', 10 + n * 20, 80).industry, { x, y: 60 });
+  for (const [n, x] of [40, 47].entries()) Object.assign(completeFixtureConstruction(game, build(game, 'logging-camp', 10 + n * 20, 80).industry), { x, y: 60 });
   for (let y = 49; y <= 61; y++) tileAt(game, 46, y).road = true;
   game.networkRevision++; game.revision++;
   const mill = build(game, 'bus-stop', 44, 48).station, camps = build(game, 'bus-stop', 46, 59).station;
   for (let n = 0; n < 2; n++) assert.ok(addRoute(game, { mode: 'road', stops: [camps.id, mill.id], cargo: 'timber' }).ok);
   if (mode === 'zones') for (const [bx, by] of [[4, 7], [7, 4]]) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) assert.ok(build(game, 'industrial', A.x + bx + dx, A.y + by + dy).ok);
   else workshop(game, A.x + 4, A.y + 7);
-  let launched = 0;
-  for (let day = 1; day <= 1080; day++) {
+  let launched = 0, baseline = {};
+  for (let day = 1; day <= 1800; day++) {
     tick(game, 1);
     const L = workshopLevels(game, A);
     levels[L] ??= day;
     if (!launched && L > 0) { launched = day; assert.ok(addRoute(game, { mode: 'road', stops: [mill.id, sa.id], cargo: 'lumber' }).ok); assert.ok(addRoute(game, { mode: 'road', stops: [sa.id, sb.id], cargo: 'furniture' }).ok); game.money = 1e6; }
+    if (day === 1440) baseline = Object.fromEntries(game.routes.map(route => [route.cargo, { revenue: route.revenue, delivered: route.delivered }]));
   }
-  const months = (1080 - launched) / 30.44, carried = cargo => game.routes.find(route => route.cargo === cargo);
+  const months = 360 / 30.44, carried = cargo => game.routes.find(route => route.cargo === cargo);
   assert.ok(sawmill.received > 0);
-  return { levels, lumber: carried('lumber').revenue / months, furniture: carried('furniture').revenue / months, made: carried('furniture').delivered / months };
+  return { levels, lumber: (carried('lumber').revenue - baseline.lumber.revenue) / months, furniture: (carried('furniture').revenue - baseline.furniture.revenue) / months, made: (carried('furniture').delivered - baseline.furniture.delivered) / months };
 }
 const near = (value, target, label) => assert.ok(Math.abs(value / target - 1) <= .25, `${label}: ${Math.round(value)} against ${target}`);
-test('calibration: two zoned blocks and one catalog workshop earn what the review measured', () => {
+test('calibration: zoned blocks and catalog workshops reach their expected completed earnings', () => {
   // The review paid by the square root of the distance; cargo payment's distance fares pay 38-tile furniture this much more.
   const fares = (38 + 12) / 9 / (1 + Math.sqrt(38) * .55);
   const zones = calibration('zones');
-  near(zones.levels[1], 119, 'first level'); assert.ok(zones.levels[4] <= 180 * 1.25 && zones.levels[6] <= 360 * 1.25, JSON.stringify(zones.levels));
+  near(zones.levels[1], 119 + 180, 'first completed level'); assert.ok(zones.levels[4] <= 1080 && zones.levels[6] <= 1440, JSON.stringify(zones.levels));
   near(zones.lumber, 6100, 'lumber a month'); near(zones.made, 22, 'furniture carried a month'); near(zones.furniture, 8400 * fares, 'furniture a month');
   const catalog = calibration('catalog');
   near(catalog.lumber, 6000, 'lumber a month, whatever the workshop’s size'); near(catalog.made, 7, 'furniture carried a month'); near(catalog.furniture, 2750 * fares, 'furniture a month');
@@ -318,7 +330,7 @@ test('calibration: two zoned blocks and one catalog workshop earn what the revie
 test('partitioned frames match whole ticks with lumber and furniture trucks', () => {
   const make = () => {
     const fixture = twoTownFixture(), { game, A, sa, sb } = fixture;
-    const sawmill = build(game, 'sawmill', 43, 50).industry, stop = build(game, 'bus-stop', 44, 48).station;
+    const sawmill = completeFixtureConstruction(game, build(game, 'sawmill', 43, 50).industry), stop = build(game, 'bus-stop', 44, 48).station;
     sawmill.inventory.lumber = 900;
     assert.ok(placeBuildingSite(game, 'factory', A.x + 7, A.y + 7, { size: 2, building: { kind: 'factory', level: 2, owner: 'player', paid: 24000 } })); game.revision++;
     for (const [bx, by] of [[4, 7], [-5, 7]]) for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) assert.ok(build(game, 'industrial', A.x + bx + dx, A.y + by + dy).ok);
