@@ -1,6 +1,6 @@
 import { INDUSTRIES } from './data.js';
 import { buildingAt, siteSize } from './building-sites.js';
-import { stationSiteAt } from './station-sites.js';
+import { stationSiteAt, stationReach, STATION_RADIUS, LEGACY_STATION_RADIUS } from './station-sites.js';
 
 // Missing footprint means a legacy single-tile site until a safe load migration expands it.
 export const industrySize = siteSize;
@@ -26,11 +26,46 @@ export const INDUSTRY_SPACING = 16;
 const feeds = (from,to) => Object.keys(INDUSTRIES[from].outputs).some(cargo => INDUSTRIES[to].inputs[cargo]);
 export const relatedIndustries = (a,b) => a===b||feeds(a,b)||feeds(b,a);
 /** Why a related industry is too close to this site, or null. `others` lets a plan count the sites it places first. */
-export function industrySpacingProblem(game,kind,x,y,size=industryFootprint(kind),others=game.industries){
+export function legacyIndustrySpacingProblem(game,kind,x,y,size=industryFootprint(kind),others=game.industries){
   const cx=x+(size-1)/2,cy=y+(size-1)/2;
   const near=others.find(other=>relatedIndustries(kind,other.kind)&&Math.hypot(other.x+(industrySize(other)-1)/2-cx,other.y+(industrySize(other)-1)/2-cy)<INDUSTRY_SPACING);
   if(!near)return null;
   return near.kind===kind?`Another ${INDUSTRIES[kind].name.toLowerCase()} stands within ${INDUSTRY_SPACING} tiles.`:`Too close to the ${near.name}: a supplier and its customer stand ${INDUSTRY_SPACING} tiles apart.`;
+}
+
+/** Minimum road edges between the closest possible serving stops. New plots
+ * reserve both catchments as well as the journey, measured from parcel edges. */
+export const MIN_CONNECTION_LENGTH = 5;
+export const MIN_SITE_GAP = STATION_RADIUS * 2 + MIN_CONNECTION_LENGTH;
+export function siteGap(a, b) {
+  const as = industrySize(a), bs = industrySize(b);
+  return Math.hypot(Math.max(a.x - b.x - bs + 1, b.x - a.x - as + 1, 0), Math.max(a.y - b.y - bs + 1, b.y - a.y - as + 1, 0));
+}
+// Existing five-tile stops retain their service after loading. Account for that
+// extra reach too when a player places a new neighbor beside an older company.
+function existingReach(game, site) {
+  return (game.stations || []).some(stop => stop.mode !== 'air' && stationReach(stop) > STATION_RADIUS && industryDistance(site, stop) <= stationReach(stop)) ? LEGACY_STATION_RADIUS : STATION_RADIUS;
+}
+function tooClose(game, site, other) {
+  const gap = siteGap(site, other);
+  // Most surveyed sites are far apart; scan old stops only in the narrow band
+  // where their extra catchment can change the placement decision.
+  if (gap >= LEGACY_STATION_RADIUS * 2 + MIN_CONNECTION_LENGTH) return false;
+  if (gap < MIN_SITE_GAP) return true;
+  return gap < existingReach(game, site) + existingReach(game, other) + MIN_CONNECTION_LENGTH;
+}
+export function townSpacingProblem(game, x, y) {
+  const site = { x, y }, town = game.cities.find(other => tooClose(game, site, other));
+  if (town) return `Too close to ${town.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the towns' stop ranges.`;
+  const industry = game.industries.find(other => tooClose(game, site, other));
+  return industry ? `Too close to ${industry.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the stop ranges.` : null;
+}
+export function industrySpacingProblem(game, kind, x, y, size = industryFootprint(kind), others = game.industries) {
+  const site = { x, y, footprint: size }, town = game.cities.find(other => tooClose(game, site, other));
+  if (town) return `Too close to ${town.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the plot's and town's stop ranges.`;
+  const near = others.find(other => relatedIndustries(kind, other.kind) && tooClose(game, site, other));
+  if (near) return `Too close to ${near.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the industries' stop ranges.`;
+  return legacyIndustrySpacingProblem(game, kind, x, y, size, others);
 }
 
 export function industrySiteProblem(game,kind,x,y,size=industryFootprint(kind),exclude=null){

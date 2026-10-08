@@ -145,7 +145,7 @@ export function createSprites(biome,{pixelScale=2,detailLevel='town',cache:share
     const physicalFootprint=logicalFootprint??BUILDINGS[kind]?.footprint??(kind==='factory'?WORKSHOP.footprint:span);
     const parcelKey=BUILDINGS[kind]||kind==='factory'?`:parcel-${physicalFootprint}`:'';
     // Share repeated seeds while retaining each house design and orientation.
-    const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign,logicalFootprint)||hasRasterBuilding(kind,biome,shopDesign,logicalFootprint))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome);
+    const authored=(BUILDINGS[kind]||kind==='factory')&&(hasRasterHouse(kind,biome,houseRotation,houseDesign,logicalFootprint)||hasRasterBuilding(kind,biome,shopDesign,logicalFootprint))||Object.hasOwn(INDUSTRIES,kind)&&hasRasterIndustry(kind,biome,span);
     const key=prefix+(authored?`${kind}:art:${span}${house?`:d${houseDesign}:r${houseRotation}`:shop?`:d${shopDesign}`:''}`:`${kind}:${variant}:${level}:${detail}:${span}`)+parcelKey,cached=cache.get(key);
     if(cached){hits++;return cached;}
     const natureObject=span>1&&['forest','rock','mountain'].includes(kind),layout=natureObject?natureObjectLayout(span):null;

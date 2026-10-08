@@ -2,13 +2,14 @@ import { tileAt, buildProblem, constructionCost, networkAlreadyBuilt, priceFor, 
 import { networkTerrainShape, networkEdgeAllowed } from './terrain-engineering.js';
 import { quoteBuildPlan, resolveBuildTool } from './construction-plan.js';
 import { industryDistance, industrySize } from './industry-sites.js';
+import { stationReach } from './station-sites.js';
 
 const STEPS = [[1,0],[-1,0],[0,1],[0,-1]], START = 4;
 // Search-box tile classes; 0 means not classified yet. Only flat ground and
 // finished network turn; ramps pass along their axis; crossings run straight.
 const BLOCKED = 1, FLAT = 2, RAMP_X = 3, RAMP_Y = 4, CROSSING = 5, BUILT = 6;
-const sound = quote => !quote.issues.length && quote.placements.every(p => p.state !== 'blocked' && p.state !== 'slope');
-const lineCost = quote => quote.placements.reduce((sum, p) => sum + p.cost, 0);
+const sound = quote => !quote.issues.length && quote.placements.length > 0 && quote.placements.every(p => p.state !== 'blocked' && p.state !== 'slope');
+const lineCost = quote => quote.cost;
 
 /** The plain L between two tiles, along the longer axis first unless `first` names the axis. */
 export function gridLine(a,b,first=Math.abs(b.x-a.x)>=Math.abs(b.y-a.y)?'x':'y') { const points=[];let x=a.x,y=a.y;points.push({x,y});const stepX=()=>{while(x!==b.x){x+=Math.sign(b.x-x);points.push({x,y});}};const stepY=()=>{while(y!==b.y){y+=Math.sign(b.y-y);points.push({x,y});}};if(first==='x'){stepX();stepY();}else{stepY();stepX();}return points; }
@@ -27,7 +28,7 @@ function gradeSearch(game, mode, x0, y0, x1, y1, maxExpanded, deadline) {
     const x = x0 + i % w, y = y0 + (i / w | 0), tile = tileAt(game, x, y), tool = resolveBuildTool(game, mode, x, y);
     if (networkAlreadyBuilt(tile, tool)) return BUILT;
     const shape = tool === mode ? networkTerrainShape(game, x, y) : null;
-    if (shape?.kind === 'complex' || buildProblem(game, tool, x, y, { money: Infinity })) return BLOCKED;
+    if (shape?.kind === 'complex' || buildProblem(game, tool, x, y, { money: Infinity, autoLevel: false })) return BLOCKED;
     price[i] = prices[`${tool}:${tile.terrain}`] ??= constructionCost(game, tool, x, y) / unit;
     return !shape ? CROSSING : shape.kind === 'flat' ? FLAT : shape.axis === 'x' ? RAMP_X : RAMP_Y;
   };
@@ -127,10 +128,11 @@ export function planConnection(game, source, target, mode = 'road', { margin = 1
   const fail = reason => ({ ok: false, reason, expanded: grid ? grid.expanded : 0 });
   if (!source || !target || mode !== 'road' && mode !== 'rail') return fail('no-site');
   // A stop already serving an end is reused; one serving both ends counts as the source's.
-  const serving = site => game.stations.filter(stop => stop.mode === mode && reach(site, stop) <= R);
+  const serving = site => game.stations.filter(stop => stop.mode === mode && reach(site, stop) <= stationReach(stop));
   const from = serving(source), to = serving(target).filter(stop => !from.includes(stop));
-  const x0 = Math.max(0, Math.min(source.x, target.x) - R - margin), y0 = Math.max(0, Math.min(source.y, target.y) - R - margin);
-  const x1 = Math.min(game.width - 1, Math.max(source.x + span(source), target.x + span(target)) - 1 + R + margin), y1 = Math.min(game.height - 1, Math.max(source.y + span(source), target.y + span(target)) - 1 + R + margin);
+  const boundsReach = Math.max(R, ...from.map(stationReach), ...to.map(stationReach));
+  const x0 = Math.max(0, Math.min(source.x, target.x) - boundsReach - margin), y0 = Math.max(0, Math.min(source.y, target.y) - boundsReach - margin);
+  const x1 = Math.min(game.width - 1, Math.max(source.x + span(source), target.x + span(target)) - 1 + boundsReach + margin), y1 = Math.min(game.height - 1, Math.max(source.y + span(source), target.y + span(target)) - 1 + boundsReach + margin);
   const w = x1 - x0 + 1, cells = w * (y1 - y0 + 1);
   if (cells > 1 << 18) return fail('too-far');
   grid = gradeSearch(game, mode, x0, y0, x1, y1, maxExpanded, deadline);
@@ -178,7 +180,7 @@ export function planConnection(game, source, target, mode = 'road', { margin = 1
     // A stop on a finished line passes build()'s own check now; the others wait for their line.
     if (stops.some(({ x, y }) => tileAt(game, x, y)[mode] && buildProblem(game, stopTool, x, y, { money: Infinity }))) return fail('no-site');
     const cost = quote.cost + stops.reduce((sum, stop) => sum + stop.cost, 0);
-    return { ok: true, mode, path, stops, ends, tiles: quote.placements.filter(p => p.state !== 'built').length, cost, vehicleCost: getVehiclePurchase(game, mode).cost, expanded: grid.expanded };
+    return { ok: true, mode, path, stops, ends, tiles: quote.placements.filter(p => p.state !== 'built').length, terrain: quote.terrain, terrainCost: quote.terrainCost, networkCost: quote.networkCost, cost, vehicleCost: getVehiclePurchase(game, mode).cost, expanded: grid.expanded };
   }
   return fail('no-route');
 }

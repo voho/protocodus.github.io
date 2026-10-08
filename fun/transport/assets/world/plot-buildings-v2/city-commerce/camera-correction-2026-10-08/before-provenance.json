@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-07",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "nativeGeometryReference": "generation-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "4507ed30d4493e60508b39c704cdababdad016418b25a3d2d95bf50583249e61",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "packing": {
+    "job": "city-commerce",
+    "output": "/tmp/transport-fresh-buildings/city-commerce/packed",
+    "sourceCellPixels": 418,
+    "occupied": 9,
+    "cellSizes": [
+      16,
+      32,
+      64,
+      128,
+      256,
+      512
+    ],
+    "sourceSha256": "4507ed30d4493e60508b39c704cdababdad016418b25a3d2d95bf50583249e61",
+    "groundRegistrationApplied": true,
+    "physicalReview": "All occupied sprites measured and accepted; actual generated source evidence retained."
+  },
+  "reviewStatus": "All occupied sprites measured; actual ground axes, centre and observable personnel doors accepted.",
+  "heightCorrection": null,
+  "doorScaleCorrection": "door-scale-correction/assembly-recipe.json"
+}

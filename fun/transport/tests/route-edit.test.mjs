@@ -9,12 +9,14 @@ const town = (id, x, y) => ({ id, name: id, x, y, population: 300, passengers: 1
 // One road east from a quarry and a logging camp, past Stoneford to Millbrook and its sawmill.
 // A road stub near Stoneford is not joined to it, and a rail station stands apart.
 function networkFixture() {
-  const game = emptyGame(); game.cities = [town('Stoneford', 30, 9), town('Millbrook', 75, 9)];
-  for (const [kind, x, y] of [['quarry', 9, 7], ['logging-camp', 14, 7], ['sawmill', 76, 13]]) assert.equal(build(game, kind, x, y).ok, true, kind);
+  const game = emptyGame();
+  for (const [kind, x, y] of [['quarry', 8, 7], ['logging-camp', 13, 7], ['sawmill', 76, 13]]) assert.equal(build(game, kind, x, y).ok, true, kind);
+  // Route edits must continue to work in existing compact towns with shared freight stops.
+  game.cities = [town('Stoneford', 30, 9), town('Millbrook', 75, 9)];game.revision++;
   assert.equal(buildPath(game, 'road', line(10, 75, 12)).ok, true);
   assert.equal(buildPath(game, 'road', line(25, 28, 6)).ok, true);
   assert.equal(buildPath(game, 'rail', line(30, 36, 20)).ok, true);
-  for (const [tool, x, y] of [['bus-stop', 10, 12], ['bus-stop', 30, 12], ['bus-stop', 75, 12], ['bus-stop', 27, 6], ['train-stop', 30, 20]]) assert.equal(build(game, tool, x, y).ok, true, `${tool} ${x},${y}`);
+  for (const [tool, x, y] of [['bus-stop', 10, 12], ['bus-stop', 30, 12], ['bus-stop', 75, 12], ['bus-stop', 28, 6], ['train-stop', 30, 20]]) assert.equal(build(game, tool, x, y).ok, true, `${tool} ${x},${y}`);
   const [quarryStop, stoneford, millbrook, island, rail] = game.stations.map(stop => stop.id);
   game.industries[0].inventory.stone = 2000; game.industries[1].inventory.timber = 2000;
   return { game, stops: { quarryStop, stoneford, millbrook, island, rail } };
@@ -98,7 +100,7 @@ test('an invalid edit changes nothing', () => {
     [{ stops: [stops.quarryStop, stops.rail], cargo: 'stone' }, 'Both stops must be road stops.'],
     [{ stops: [stops.quarryStop, stops.quarryStop], cargo: 'stone' }, 'Choose two different stops.'],
     [{ stops: [stops.quarryStop, 'station-missing'], cargo: 'stone' }, 'Both stops must be road stops.'],
-    [{ stops: [stops.stoneford, stops.millbrook], cargo: 'stone' }, 'These stops need a supplier of stone and a buyer within 5 tiles.'],
+    [{ stops: [stops.stoneford, stops.millbrook], cargo: 'stone' }, 'These stops need a supplier of stone and a buyer within their stop ranges.'],
     [{ stops: [stops.quarryStop, stops.stoneford], cargo: 'unobtainium' }, 'Choose a valid transport mode and cargo.'],
     [{ stops: [stops.quarryStop, stops.stoneford], cargo: 'stone' }, 'Nothing to change.'],
     [{ stops: [stops.stoneford, stops.quarryStop], cargo: 'stone' }, 'Nothing to change.'],

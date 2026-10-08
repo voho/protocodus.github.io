@@ -9,6 +9,7 @@ import { farmCrop, farmCore } from '../farm-fields-art.js';
 import { drawDirectionalVehicle } from '../vehicle-directions.js';
 import { SPRITE_SCALE, featureWorldPixels } from '../sprite-art-direction.js';
 import { cardinalDirection, isometricStationBounds } from '../isometric-infrastructure.js';
+import { stopOrientation } from '../stop-orientation.js';
 import { PART_BOXES } from '../airport-art.js';
 
 // Layout is expressed in projected world pixels, never fitted to silhouettes.
@@ -122,7 +123,7 @@ const drawImage = context.drawImage.bind(context);
 context.drawImage = (image, ...args) => {
   if (args.length === 4) {
     const m = context.getTransform(), [x, y, w, h] = args;
-    if (m.b === 0 && m.c === 0) submissions.push({ x: (m.a * x + m.e) / DPR, y: (m.d * y + m.f) / DPR, width: m.a * w / DPR, height: m.d * h / DPR, id: image.infrastructureFrame?.id });
+    if (m.b === 0 && m.c === 0) submissions.push({ x: (m.a * x + m.e) / DPR, y: (m.d * y + m.f) / DPR, width: m.a * w / DPR, height: m.d * h / DPR, id: image.infrastructureFrame?.id, axis: image.infrastructureFrame?.axis });
   }
   return drawImage(image, ...args);
 };
@@ -182,11 +183,14 @@ function report() {
         const origin = renderer.gridPointToScreen(entry.station.x, entry.station.y);
         envelopes = Object.values(PART_BOXES[entry.axis]).map(box => ({ x: Math.round(origin.x + (box.left - 2) * zoom), y: Math.round(origin.y + (box.top - 2) * zoom), width: Math.ceil((box.width + 4) * zoom * dpr) / dpr, height: Math.ceil((box.height + 4) * zoom * dpr) / dpr }));
       } else {
-        const origin = renderer.worldToScreen(entry.station.x, entry.station.y), bounds = isometricStationBounds(entry.mode), stop = entry.mode !== 'water';
-        envelopes = [{ x: origin.x + (bounds.left + (stop ? 11 : 0)) * zoom, y: origin.y + (bounds.top + (stop ? 2 : 0)) * zoom, width: bounds.size * zoom, height: bounds.size * zoom, id: stop ? `isometric:${entry.kind}` : `isometric:port-${cardinalDirection(entry.dx, entry.dy)}` }];
+        const stop = entry.mode !== 'water', placement = stop ? stopOrientation(game, entry.station) : entry.station;
+        const origin = renderer.worldToScreen(placement.x, placement.y), bounds = isometricStationBounds(entry.mode);
+        // Prepared upright sprites snap their registered roadside origin to
+        // physical pixels; the calibrated 72px frame retains its full size.
+        envelopes = [{ x: Math.round((origin.x + bounds.left * zoom) * dpr) / dpr, y: Math.round((origin.y + bounds.top * zoom) * dpr) / dpr, width: bounds.size * zoom, height: bounds.size * zoom, id: stop ? `isometric:${entry.kind}` : `isometric:port-${cardinalDirection(entry.dx, entry.dy)}`, ...(stop ? { axis: placement.axis } : {}) }];
       }
     }
-    const submitted = envelopes.every(envelope => submissions.some(call => (!envelope.id || envelope.id === call.id) && ['x', 'y', 'width', 'height'].every(key => Math.abs(call[key] - envelope[key]) < .1)));
+    const submitted = envelopes.every(envelope => submissions.some(call => (!envelope.id || envelope.id === call.id) && (!envelope.axis || envelope.axis === call.axis) && ['x', 'y', 'width', 'height'].every(key => Math.abs(call[key] - envelope[key]) < .1)));
     return { kind: entry.kind, type: entry.type, name: entry.name, x: entry.x, y: entry.y, width: entry.width, height: entry.height, design: entry.design, rotation: entry.rotation, variant: entry.variant, sourceBiome: entry.sourceBiome, centre: p, envelopes, submitted };
   });
   return { zoom, width: canvas.width / dpr, height: canvas.height / dpr, samples: entries.length, rows, sections: sections.map(({ name, top, bottom }) => ({ name, top: top * zoom, bottom: bottom * zoom })), flat: game.tiles.every(tile => tile.elevation === 0), immutable: JSON.stringify(game) === fixtureBefore, scale: SPRITE_SCALE, stats };

@@ -89,7 +89,7 @@ try {
         }
         return { changedPixels, waterPixels, outsidePixels, nominalLandPixels, shorePixels, openPixels, strongest, strongestChannel, meanContrast: contrastTotal / Math.max(1, changedPixels), fraction: changedPixels / Math.max(1, waterPixels), samples };
       };
-      const setup = (biome, shape, zoom, step = 24, raised = false, seed = 1847) => {
+      const setup = (biome, shape, zoom, step = 12, raised = false, seed = 1847) => {
         const game = gameFor(biome, shape, seed, raised); renderer.setGame(game); renderer.setZoom(zoom); renderer.setTerrainHeight(step); renderer.focus(shape === 'lake' ? 40 : 32, shape === 'lake' ? 33 : 32); renderer.setPresentation(null, 2.25);
         renderer.render(0, { settle: true }); renderer.render(100, { settle: true }); return game;
       };
@@ -128,12 +128,12 @@ try {
       if (dpr === 1 && zoom === 1) await page.locator('canvas').screenshot({ path: `${output}/${shape}.png` });
     }
 
-    for (const step of [0, 12, 24, 28]) for (const zoom of [.5, 1, 2]) {
+    for (const step of [0, 6, 12, 14]) for (const zoom of [.5, 1, 2]) {
       const result = await page.evaluate(({ step, zoom, dpr }) => {
         const q = waterMotionQA, game = q.setup('desert', 'stream', zoom, step, true), immutable = JSON.stringify(game), first = q.capture(), warm = q.renderer.getStats();
         q.renderer.setPresentation(null, 4.25); q.renderer.render(500, { settle: true }); const after = q.capture(), measured = q.measure(game, first, after), deck = [];
         for (let x = 21; x <= 43; x++) if (game.tiles[34 * 64 + x].terrain === 'water') {
-          const p = q.renderer.worldToScreen(x, 34); p.y -= q.bridgeDeckHeight(game, x, 34) * step * zoom;
+          const p = q.renderer.worldToScreen(x, 34); p.y -= q.bridgeDeckHeight(game, x, 34) * q.renderer.getTerrainHeight() * zoom;
           let strongest = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const px = Math.round(p.x * dpr) + dx, py = Math.round(p.y * dpr) + dy; if (px >= 0 && px < q.canvas.width && py >= 0 && py < q.canvas.height) { const i = (py * q.canvas.width + px) * 4; strongest = Math.max(strongest, Math.abs(first[i] - after[i]), Math.abs(first[i + 1] - after[i + 1]), Math.abs(first[i + 2] - after[i + 2])); } }
           deck.push({ x, max: strongest });
         }

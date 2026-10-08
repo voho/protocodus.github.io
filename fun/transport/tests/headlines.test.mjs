@@ -63,9 +63,9 @@ test('the first bus into a new town, then the first train, merged with the town 
 });
 
 test('freight arrivals say supplied by; a first train to an industry names its stop', () => {
-  const game = withTowns(['home', 'Home', 5, 40], ['second', 'Second', 5, 60], ['cedar', 'Cedarbridge', 40, 10]), watch = headlineWatch(game);
+  const game = withTowns(['home', 'Home', 5, 40], ['second', 'Second', 5, 60], ['cedar', 'Cedarbridge', 45, 10]), watch = headlineWatch(game);
   ok(build(game, 'food-plant', 10, 7)); game.industries[0].inventory.food = 500;
-  ok(buildPath(game, 'road', line(10, 40, 12))); ok(build(game, 'bus-stop', 10, 12)); ok(build(game, 'bus-stop', 40, 12));
+  ok(buildPath(game, 'road', line(10, 45, 12))); ok(build(game, 'bus-stop', 10, 12)); ok(build(game, 'bus-stop', 45, 12));
   const food = ok(addRoute(game, { mode: 'road', stops: stopsOf(game, 'road'), cargo: 'food' })).route;
   const entries = run(game, watch, 40);
   assert.deepEqual(entries.map(entry => entry.key), ['arrival:cedar']);

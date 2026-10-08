@@ -482,7 +482,7 @@ Spare demand is not a state. This file first listed *Passengers waiting*, *Mail 
 | Producing / Output depends on nearby nature, roads, workers and weather. (green box) | Producing, with its reason as one line. The explanation moves to the Guide. |
 | Nearest targets 5 / Direct distance · transport required / 14 tiles · 220, 241 | Buyers of stone nearby: [Alderbrook], Served, 14 tiles |
 | Activity 20; Potential / day | Removed, or said in words: "Growing slowly", "Could supply 40 a month" |
-| Coverage 5 tiles | A reach ring on the map. Tool bar: "Place within 5 tiles of what it should serve." |
+| Coverage 4 tiles | A reach ring on the map. Tool bar: "Place within 4 tiles of what it should serve." |
 | Retire routes using this station before removing it. | Route 2 uses this stop. Retire the route first, then remove the stop. |
 | There is already a station here | There's already a stop here. Pick an empty road tile. |
 | A city center cannot be demolished | Town centres can't be removed. |
@@ -507,7 +507,7 @@ The brand tagline "Build connections. Grow a world." stays as written.
 
 | Kind | Mark | Label | Click opens |
 |---|---|---|---|
-| route | bullet (number, line colour, shape by mode) | route name; the bullet alone where space is tight | its expanded row in Routes (a route's inspector) |
+| route | bullet (number, line colour, shape by mode) | route name; the bullet alone where space is tight | its own details screen in Routes |
 | stop | roundel | stop name | stop inspector |
 | town | `town` glyph | town name | town inspector |
 | industry | output cargo tile | industry name | industry inspector |
@@ -655,6 +655,7 @@ The strip shows a route's state at a glance, left to right from the first stop t
 - **Freight flow:** small chevrons in the on-colour every 44 px, offset by simulation time so that a paused frame stays still.
 - **Broken segment:** dashed `--error`, with a cut mark at the break.
 - **Paused or offline route:** the line at 45% alpha, with no flow.
+- **Bridges:** route lines continue along the bank ramps and across the raised deck, beneath vehicles. Solid deck sides, guardrails and sparse piers distinguish crossings from roads or tracks laid on water, including with route lines hidden.
 - **Bullets:**
   - at Town and Detail zoom, every stop roundel carries the bullets of the routes that serve it (at most 3, then "+N");
   - at Region zoom, only terminus bullets are drawn, and any that collide with a nameplate are dropped.
@@ -680,6 +681,8 @@ The strip shows a route's state at a glance, left to right from the first stop t
 
 Footprint marks follow the visible site surface: a building's level foundation, or the terrain for fields and nature. Selection and hover sit beneath upright artwork; a raised foundation is painted before its selection tint and border. Hover and selection use the same parcel edge so clicking does not shift or kink the outline.
 
+Trains keep fixed engine and coach spacing while stopping and reversing, with each body turning along its own part of the track. Any visible coach selects the train. Automatic and explicit tunnels share the same visible mouth: vehicles remain on the exposed approach, then disappear underground. A partly visible train keeps its load badge and selection on a visible body; fully underground vehicles have no load badge, selection ring, locator ring or map hit target. These presentation rules add no controls or route orders.
+
 Map ink tags and pointers are DOM overlays in `#map-overlays`, positioned with `renderer.worldToScreen`. They are recomputed only when the camera or the target changes.
 
 ### 9.1 World sprite scale and recognition
@@ -688,11 +691,15 @@ Buildings use one physical scale across houses, civic buildings, shops, malls an
 
 The current scale is a 16 m tile, a 1.75 m person, a 2.1 m personnel door, a 3 m storey and a 4.2 m vehicle loading bay. Bigger buildings gain rooms, wings, floors and repeated bays while their human features keep the same dimensions. Small houses leave room for gardens and low fences and read at the same scale as trucks and buses. Use the full **15m envelope inside each 16m tile**, with a narrow setback, by adding architecture and useful garden or working-yard elements. The **72px billboard frame per tile** preserves filtering margins. Every family has transparent bare ground so the actual world texture shows through; keep paths, paving, courts, pools, crops, plants and contact shadows. Preserve complete calibrated parcel cells; independently enlarging each silhouette to fit its cell breaks human scale.
 
-Every new industry occupies **5 × 5 tiles**, including extractors, processors and farms. A farm's **2 × 2 building core** sits within surrounding fields, an access lane and fences inside the 5 × 5 plot. All 25 tiles participate in placement, selection, catchment and demolition. Recipe 10 generates these plots. Published recipes 1–9 remain frozen; existing saves resize only where neighboring construction and every existing freight-stop connection remain safe, otherwise their saved footprint remains.
+Every new industry occupies **5 × 5 tiles**, including extractors, processors and farms. A farm's **2 × 2 building core** sits within surrounding fields, an access lane and fences inside the 5 × 5 plot. All 25 tiles participate in placement, selection, catchment and demolition. Recipe 10 introduced these plots. Current worlds use recipe 12; published recipes 1–11 remain frozen; existing saves resize only where neighboring construction and every existing freight-stop connection remain safe, otherwise their saved footprint remains.
 
 At Region and Town views, recognition comes from a clear silhouette, roof and wall colour masses, facade shading and large identifiers such as silos, chimneys, greenhouses, shop awnings or sports surfaces. Omit tiny brick joints, roof tiles, lettering, flower dots, dense crate grids and fine railings or mullions. High display density must sharpen the chosen level of detail without making Region noisy. Compare multiple building kinds with vehicles at actual Region and Town size, then check Detail, standard and Retina displays, and the native fallbacks.
 
 Gardens blend with their climate's world terrain, and slope foundations use natural stones. Farm fields follow the terrain while fences and objects stay registered to the grid. Artwork QA follows the computer-only policy in section 13.
+
+### 9.2 Stop reach and room for transport
+
+New road stops, rail stations and ports serve within 4 tiles; existing stops loaded from older saves keep 5, and airports keep 7 measured from their full site. Reach rings and service information use the individual stop’s reach. Recipe 12 and new town/industry placement reserve both catchments plus at least five road edges between town pairs, towns and full industry parcels, and related industry parcels. Related means the same kind or a supplier/customer pair. Existing geography and service remain intact.
 
 ## 10. Fluency
 
@@ -712,10 +719,15 @@ Gardens blend with their climate's world terrain, and slope foundations use natu
 | A value the player changed | Well tint behind the figure | 600 ms | None |
 | Meter value change | Width | 300 ms | Instant |
 | New route | Strip line draws from A to B | 400 ms | None |
+| Committed construction | Paper-cased ok outline and faint footprint fill on changed tiles; demolition and Undo use ink | 700 ms fade | Static mark for 700 ms |
 | Draft route preview | Alpha pulse, always visible | 1.8 s loop | Steady |
 | Loading train | Loop | — | Paused |
 
 Ambient income never animates in the DOM; the canvas floaters show it. The `.income-pulse` on profit is removed. Weather and floaters keep their existing reduced-motion behaviour.
+
+Construction confirmation follows only the committed tile changes, including a planned road's new stops. Reused roads, cancelled previews and refused placements receive no success mark. Keep at most 96 cells, beneath map labels, and expire on real time even while paused. Undo replaces the previous marks; changing worlds clears them. This adds a visible answer to building without another panel or control.
+
+Sound effects start muted and retain the existing Sound effects toggle. When enabled, construction, demolition, Undo and a route launch have distinct quiet cues; deliveries and milestones keep soft chimes. Unlock audio only from a keyboard or pointer gesture, bound overlapping voices, and stop active sounds on mute or when the page is hidden. Ambient events never create or unlock audio themselves.
 
 ### 10.2 Camera
 
@@ -896,7 +908,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Optional filter row:** a segmented control ("All n | Needs attention n") and a search field when there are more than 6 items.
 - **Body:** rows with hairline dividers and no cards. A footer note appears only when it carries information, for example "Newer trucks arrive in 1951."
 
-### 12.4 List rows
+### 12.4 List rows and route details
 
 - A row is at least 40 px tall, with 12 px of vertical and 16 px of horizontal padding and `--rule` dividers. Hover shows `--well`.
 - **Routes row:**
@@ -906,7 +918,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Industries row:** a 48 px portrait, the name, "Near Alderbrook · 6 tiles away", then the recipe tiles (24 px) and the status word. Stock and capacity live in the row's tooltip.
 - Page controls follow the list, never above it.
 - The whole row is a `.ref--row`, so hovering it lights the map.
-- **Expanded row** (`.row--expanded`, one at a time, `--well` background, no stripe). It contains:
+- **Route details** occupies its own screen and shows only the selected route, with **Back to routes** above it. Launching, adding vehicles from a matching draft or saving an edit opens this screen. The service list contains no creation or editing form. Details contains:
   - the strip;
   - the status line (state glyph, word, reason, fix action);
   - the fleet stepper row;
@@ -966,7 +978,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
 ### 12.8.1 Route creation
 
-The planner is a focused top-left surface, separate from existing routes. Reveal decisions in order: start and end stops, supplied cargo, then automatic name and vehicle quantity. The start stop determines transport. Stops collapse to a summary after cargo selection, with an explicit way to change them. Show only cargo produced at either stop, and explain when a destination cannot receive it. Fill names with the towns and cargo; keep manual overrides until cleared. A matching existing service offers one action to add vehicles and keeps its name and orders. Always show total purchase cost, approximate monthly revenue and net profit in a sticky footer; put detailed assumptions and full-load orders behind disclosure. Frame and gently pulse the connected draft on the map. Reduced motion keeps the preview steady. Edits retain the fleet and show zero purchase cost.
+The planner is a focused top-left surface. Routes opens the browsing list; New route, Edit route and the selected route’s details each have their own screen with Back to routes. Reveal decisions in order: start and end stops, supplied cargo, then automatic name and vehicle quantity. The start stop determines transport. Stops collapse to a summary after cargo selection, with an explicit way to change them. Show only cargo produced at either stop, and explain when a destination cannot receive it. Fill names with the towns and cargo; keep manual overrides until cleared. A matching existing service offers one action to add vehicles and keeps its name and orders. Always show total purchase cost, approximate monthly revenue and net profit in a sticky footer; put detailed assumptions and full-load orders behind disclosure. Frame both stops clear of the visible drawer, goal card and other controls, using the same terrain projection as the map, and gently pulse the connected draft. Reduced motion keeps the preview steady. Edits retain the fleet and show zero purchase cost.
 
 An explicit **New route** starts a fresh draft with one vehicle and default orders; opening it from a stop preselects that stop. If fewer than two compatible stops exist, explain the missing prerequisite and offer its construction tool without spending money. Disable map pickers with no eligible stops. Keep unsuitable cargo reasons readable in a disclosure with **Change stops**, and open it when that cargo is selected. Physical connectivity must not hide minimum-distance or cargo requirements. Choosing cargo for a usable connection is ordinary guidance, without warning colour. Live suitability updates preserve draft values, focus, caret and text selection.
 
@@ -983,6 +995,7 @@ An explicit **New route** starts a fresh draft with one vehicle and default orde
   5. Repeat count "×3".
 - **Timing:** 5 s for ok, 8 s for warn and error. The timer pauses on hover or focus. There is no close button, and pointer events stay on.
 - **Grouping:** notices that share a topic become one toast, for example "3 routes lost their connection: [1] [3] [4]". Its Show on map frames all the breaks.
+- **Undo:** a construction notice offers Undo only while its entry remains valid. Remove the action when a route change, later work or development prevents reversal, retaining the confirmation. If the removed action held keyboard focus, return focus to the previous usable control or the map.
 
 ### 12.10 Tooltips, ledger, menus, popovers
 
@@ -1043,9 +1056,12 @@ An explicit **New route** starts a fresh draft with one vehicle and default orde
 - **Route picking** uses the same bar: "Picking stops. Click a stop on the map, or press Esc."
 - **`.tip`** (placement tip): an ink tag, `--e3`, `--r-3`. It follows the pointer or the keyboard tile cursor.
   - Line 1: the tool and quantity ("Road, 7 tiles") and the price `data-num`.
+  - Road, railway, bridge and tunnel prices include any necessary leveling. When leveling is needed, show “includes $X leveling” beside the total; never add a separate confirmation or terrain payment. Usable grades have no leveling charge.
   - Optional lines: coverage ("Serves [Stone quarry]") and forecasts.
   - Invalid: an error-on-ink glyph and what happened plus how to fix it ("Can't build on water. Use a bridge.").
   - Partial: warn-on-ink.
+
+Road, railway, bridge and tunnel construction is one action: validate the finished network and required terrain changes together, show their combined price before release, and build all of it or none. Mark proposed ground heights with light amber points and connecting links, with dotted stems from the current ground; include affected land beside the path. Keep water, occupied land and existing networks protected. When safe leveling is impossible, explain the obstruction and suggest a different path or approach; do not instruct players to level every ordinary slope by hand. One Undo restores the construction and the ground it changed. Road, railway and both modes of bridge and tunnel stay selected after successful strokes; never open Build or replace the tool after a network stroke. Done ends the tool and opens Build. Escape or right-click ends the tool, first cancelling an unfinished drag when one exists.
 
 ### 12.15 Build drawer
 
@@ -1129,7 +1145,7 @@ Device detection must not reject a computer merely because its window is narrow,
 | next-goal-card, milestone-ladder, plan-connection | Goal line and ladder (12.2). Parts, not chapters. One signal action per current step ("Plan road $x"). Company goals in the Company dialog use the ladder. |
 | notification-pipeline, ui-notices | Toasts (12.9) with template references. News dialog with rows grouped by month. |
 | ttd-headlines | Headline card (12.13). The kicker and date have no middle dot. |
-| fleet-per-route, route-attention, route-forecast, edit-route, pause-route, ttd-full-load, ttd-vehicle-models, names-and-rename, ttd-transit-payment, ttd-cargo-payment | Routes rows and expanded row (12.4): stepper, status line, forecast line under the proposed strip, options as switches, More menu, the "Newer trucks arrive" line, attention segment and nav count |
+| fleet-per-route, route-attention, route-forecast, edit-route, pause-route, ttd-full-load, ttd-vehicle-models, names-and-rename, ttd-transit-payment, ttd-cargo-payment | Routes list and selected-route details (12.4): stepper, status line, forecast line under the proposed strip, options as switches, More menu, the "Newer trucks arrive" line, attention segment and nav count |
 | cargo-contracts | "Contract offers" section in Routes: proposed strip, bonus tag, months left, Plan route |
 | company-report-credit, ttd-company-rating | Company dialog (12.11, 12.17): overview, charts, leaderboard, rating reasons, credit. Ledger tooltip on the balance. |
 | ttd-achievements | Achievements dialog: tier roundels, progress meters, earned dates. A celebration toast with the achievements glyph. |
@@ -1178,6 +1194,9 @@ Device detection must not reject a computer merely because its window is narrow,
 - `tests/route-lines.test.mjs`
 - `tests/route-preview-motion.test.mjs`
 - `tests/route-building-browser-check.mjs`: staged creation, supplied cargo, names, quantity, atomic purchases, edits, preview and laptop layouts.
+- `tests/route-workflow-browser-check.mjs`: browsing, New/Edit and the selected route’s sole details screen.
+- `tests/route-framing-browser-check.mjs`: terrain-aware endpoint framing clear of visible panels on desktop and laptop.
+- `tests/persistent-network-tool-browser-check.mjs`: consecutive network strokes, Undo, refusal and explicit cancellation.
 - `tests/construction-toolbar-browser-check.mjs`: main construction shortcuts, Gallery focus, selected-road/rail stop quotes, crossings, Undo and route handoff at desktop and narrow computer widths.
 - `tests/rail-station-browser-check.mjs`: station pixel preparation, shared scale, missing-art fallback and portraits across zooms and display densities.
 - `tests/station-sprite-picking-browser-check.mjs`: opaque road/rail/harbor roof selection, transparent margins, reserved neighbors, foreground occlusion and cached scenery.

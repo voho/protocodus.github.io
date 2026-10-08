@@ -1,5 +1,4 @@
-import { build, buildProblem, networkAlreadyBuilt, constructionCost, tileAt, quoteStructureSpan, buildStructureSpan, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt, stationAt } from './model.js';
-import { SPAN_TOOLS, networkTerrainPlanIssues } from './terrain-engineering.js';
+import { build, buildProblem, constructionCost, tileAt, quoteNetworkConstruction, buildNetworkConstruction, quoteTerraformLevel, buildTerraformLevel, quoteTerraformStroke, buildTerraformStroke, BUILDINGS, INDUSTRIES, industryAt, stationAt } from './model.js';
 import { buildingAt, buildingFootprint, buildingSiteProblem } from './building-sites.js';
 import { industryFootprint, industrySiteProblem, industrySpacingProblem } from './industry-sites.js';
 import { terrainObjectAt } from './terrain-objects.js';
@@ -34,6 +33,7 @@ function uniquePoints(points) {
 }
 
 const ZONE_TOOLS = new Set(['residential', 'commercial', 'industrial']);
+const NETWORK_TOOLS = new Set(['road','rail','bridge','railbridge','tunnel','railtunnel']);
 /** The tiles of a zone stroke that could take this zone: networks, stops, town centers, buildings, industries, water, mountains and tiles already so zoned are left out. */
 export function zonePlanPoints(game, kind, points) {
   return uniquePoints(points).filter(({ x, y }) => {
@@ -62,7 +62,8 @@ export function quoteBuildPlan(game, tool, points, options) {
   if(tool==='level')return quoteTerraformLevel(game,points,options);
   if(tool==='raise'||tool==='lower')return quoteTerraformStroke(game,tool,points);
   const unique=constructionPoints(game,tool,points,options);
-  if(SPAN_TOOLS.has(tool)&&unique.length>1)return quoteStructureSpan(game,tool,unique);
+  if(!unique.length)return {placements:[],cost:0};
+  if(NETWORK_TOOLS.has(tool))return quoteNetworkConstruction(game,tool,unique);
   const placements = unique.map(({ x, y }) => {
     const resolved = resolveBuildTool(game, tool, x, y, options);
     return { x, y, tool: resolved, cost: constructionCost(game, resolved, x, y) };
@@ -91,33 +92,22 @@ export function quoteBuildPlan(game, tool, points, options) {
   return quotePlacements(game, tool, placements);
 }
 
-const tiles = (n, verb) => `${n} tile${n === 1 ? ` ${verb}s` : `s ${verb}`}`;
-const BUILDING_BLOCK = 'A building or zone is in the way. Clear it first, then build here.';
 // Walk the placements with the balance buildPlan will spend, so the preview
 // marks exactly the tiles that release would skip, refuse or cannot pay for.
 function quotePlacements(game, tool, placements) {
-  const network = tool === 'road' || tool === 'rail', issues = network ? networkTerrainPlanIssues(game, placements) : [], slopes = new Map(issues.map(issue => [issue.y * game.width + issue.x, issue]));
+  const issues = [];
   let balance = game.money;
   for (const p of placements) {
-    const tile = tileAt(game, p.x, p.y), problem = buildProblem(game, p.tool, p.x, p.y, { money: Infinity }), issue = slopes.get(p.y * game.width + p.x);
-    if (tile && network && networkAlreadyBuilt(tile, p.tool)) p.state = 'built';
-    else if (problem && (problem.reason !== 'terrain' || !network)) { p.state = 'blocked'; p.problem = problem.message; }
-    else if (problem || issue) { p.state = 'slope'; if (issue) p.issue = issue; }
+    const problem = buildProblem(game, p.tool, p.x, p.y, { money: Infinity });
+    if (problem) { p.state = 'blocked'; p.problem = problem.message; }
     else if (p.cost > balance) p.state = 'funds';
     else { p.state = 'ok'; balance -= p.cost; }
     // A zone develops only with a road beside it; the tile is still zoned, since streets may follow.
     if (ZONE_TOOLS.has(tool) && p.state !== 'blocked' && !hasRoadAccess(game, p.x, p.y)) p.needsRoad = true;
   }
   const count = state => placements.filter(p => p.state === state).length, n = placements.length;
-  const buildable = count('ok'), blocked = count('blocked'), unaffordable = count('funds'), slope = count('slope');
+  const buildable = count('ok'), blocked = count('blocked'), unaffordable = count('funds');
   const cost = placements.reduce((sum, p) => sum + (p.state === 'blocked' ? 0 : p.cost), 0), first = placements[0];
-  if (network) {
-    const slopeTiles = placements.filter(p => p.state === 'slope'), junction = slopeTiles.every(p => p.issue?.kind === 'ramp-junction') && slopeTiles[0]?.issue, refusal = placements.find(p => p.state === 'blocked')?.problem;
-    const message = slope ? junction ? 'This joins a ramp from the side. End before it, or approach along the slope.' : `${tiles(slope, 'need')} flat ground or a straight grade. Level this slope first or drag around ${slope === 1 ? 'it' : 'them'}.`
-      : blocked ? blocked === 1 ? refusal : placements.every(p => p.state !== 'blocked' || p.problem === BUILDING_BLOCK) ? `${blocked} tiles are blocked by buildings or zones. Drag around them, or bulldoze first.` : `${blocked} tiles are blocked. ${refusal}`
-      : unaffordable ? `Need ${moneyText(cost)}. You have ${moneyText(game.money)}.` : 'Follow flat ground or a straight grade.';
-    return { placements, cost, issues, buildable, blocked, unaffordable, partial: false, ok: !issues.length && !slope && !blocked && !unaffordable, message };
-  }
   // One stop, port or town reads build()'s own verdict; strokes of zones or
   // demolition stay partial and say how much of the drag will be built.
   const refusal = n === 1 || !buildable ? buildProblem(game, first.tool, first.x, first.y) : null, partial = buildable > 0 && buildable < n;
@@ -131,9 +121,8 @@ export function buildPlan(game, tool, points, options) {
   if(tool==='level')return buildTerraformLevel(game,points,options);
   if(tool==='raise'||tool==='lower')return buildTerraformStroke(game,tool,points);
   const unique=uniquePoints(points);
-  if(SPAN_TOOLS.has(tool)&&unique.length>1)return buildStructureSpan(game,tool,unique);
+  if(NETWORK_TOOLS.has(tool))return buildNetworkConstruction(game,tool,unique);
   const quote = quoteBuildPlan(game, tool, points, options), { placements } = quote;
-  if((tool==='road'||tool==='rail')&&quote.ok===false)return {ok:false,message:quote.message,cost:0,built:0,failed:placements.length,skipped:0};
   if (placements.length === 1) {
     const placement = placements[0], result = build(game, placement.tool, placement.x, placement.y);
     return { ...result, cost: result.cost || 0, built: result.ok && !result.unchanged ? 1 : 0, failed: result.ok ? 0 : 1, skipped: result.ok && result.unchanged ? 1 : 0 };

@@ -47,7 +47,7 @@ test('overlapping legacy stop catchments transport passengers to a different act
 test('founding a closer town cannot steal existing housing or charge countryside residents to it', () => {
   const game = emptyGame(); build(game, 'city', 10, 10); const original = game.cities[0];
   build(game, 'house-cheap-1', 18, 10); delete tileAt(game, 18, 10).building.populationCityId; // Legacy house.
-  build(game, 'city', 21, 10); const newer = game.cities[1];
+  build(game, 'city', 23, 10); const newer = game.cities[1];
   assert.equal(tileAt(game, 18, 10).building.populationCityId, original.id);
   build(game, 'bulldoze', 18, 10); assert.equal(original.population, 80); assert.equal(newer.population, 80);
   build(game, 'house-cheap-1', 50, 30); assert.equal(tileAt(game, 50, 30).building.populationCityId, null);
@@ -60,7 +60,7 @@ test('residential zone upgrades retain the town originally credited for their re
   const game = emptyGame(); build(game, 'city', 10, 10); const original = game.cities[0];
   build(game, 'residential', 18, 10); const plot = tileAt(game, 18, 10);
   plot.building = { kind: 'house-cheap-1', level: 1, populationCityId: original.id }; plot.variant = 0; original.population += 12; game.zones[0].progress = 1.99;
-  build(game, 'city', 21, 10); const newer = game.cities[1];
+  build(game, 'city', 23, 10); const newer = game.cities[1];
   buildPath(game, 'road', line(10, 21, 11)); build(game, 'bus-stop', 10, 11); build(game, 'bus-stop', 21, 11);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'passengers', stops: game.stations.map(stop => stop.id) }).ok, true);
   for (let day = 1; day <= 30 && plot.building.level === 1; day++) {

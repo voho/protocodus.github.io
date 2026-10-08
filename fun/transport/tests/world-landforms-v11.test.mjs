@@ -13,7 +13,7 @@ for(const biome of ['taiga','tundra','desert'])test(`${biome}: recipe 11 adds ra
   const previous=generateWorld(biome,1847,'square512',10);
   assert.equal(createHash('sha256').update(JSON.stringify(previous)).digest('hex'),oldDigests[biome]);
   const game=generateWorld(biome,1847,'square512',11),objects=sites(game),geology=objects.filter(s=>s.object.kind!=='forest'),counts={};
-  assert.equal(WORLD_GENERATION_VERSION,11);assert.equal(game.generationVersion,11);
+  assert.ok(WORLD_GENERATION_VERSION>=11);assert.equal(game.generationVersion,11);
   assert.ok(geology.length>20);assert.ok(geology.length<sites(previous).filter(s=>s.object.kind!=='forest').length,'larger formations are less cluttered overall');
   for(const site of geology){
     const span=site.object.footprint;counts[span]=(counts[span]||0)+1;
@@ -37,7 +37,7 @@ test('continental landform density stays sparse, disjoint and size weighted',()=
   assert.ok(claimed.size<game.tiles.length*.01,'large masses remain landmarks rather than a covering carpet');
 });
 test('recipe 11 procedural saves retain six tile anchors and exact original terrain',()=>{
-  const game=createGame({biome:'tundra',seed:1847,size:'square512',townCount:2,industryDistricts:1});
+  const game=createGame({biome:'tundra',seed:1847,size:'square512',generationVersion:11,townCount:2,industryDistricts:1});
   assert.equal(game.generationVersion,11);assert.equal(validateGame(game),true);
   assert.ok(sites(game).some(s=>s.object.footprint===6));
   const saved=encodeGame(game),loaded=restoreGame(JSON.parse(JSON.stringify(saved)));

@@ -36,29 +36,30 @@ for(const mode of ['road','rail']) {
     assert.equal(build(game,mode,19,20).ok,true);
     const before=structuredClone(game);
     const sideways=build(game,mode,20,19);
-    assert.equal(sideways.ok,false);assert.match(sideways.message,/Level this slope first/);
+    assert.equal(sideways.ok,false);assert.match(sideways.message,/clear dry land|existing network/);
     assert.deepEqual(game,before);
     assert.equal(build(game,mode,21,20).ok,true);
   });
-  for(const shape of ['sidehill','bend','junction','compound','crown','saddle'])test(`${mode}: ${shape} construction is rejected atomically`,()=>{
+  for(const shape of ['sidehill','bend','junction','compound','crown','saddle'])test(`${mode}: ${shape} construction includes the necessary terrain preparation`,()=>{
     const surface=shape==='compound'?(x,y)=>4+x*.5+y*.5:shape==='crown'?(x,y)=>4+(x===0&&y===0?1:0):shape==='saddle'?(x,y)=>4+((x===0&&y===0)||(x===1&&y===1)?1:0):x=>4+x;
     const game=terrain(surface);
     const points=shape==='sidehill'?line('y'):shape==='bend'?[{x:19,y:20},{x:20,y:20},{x:20,y:21}]:shape==='junction'?[...line('x'),{x:20,y:21}]:[{x:20,y:20}];
-    const before=structuredClone(game),quote=quoteBuildPlan(game,mode,points),result=buildPlan(game,mode,points);
-    assert.equal(quote.ok,false);assert.match(quote.message,/Level this slope first/);
-    assert.equal(result.ok,false);assert.equal(result.cost,0);assert.equal(result.built,0);assert.deepEqual(game,before);
-    const raw=buildPath(game,mode,points);assert.equal(raw.ok,false);assert.equal(raw.cost,0);assert.deepEqual(game,before);
+    assert.ok(networkTerrainPlanIssues(game,points.map(p=>({...p,tool:mode}))).length,'the strict grade validator still identifies the original slope');
+    const before=structuredClone(game),quote=quoteBuildPlan(game,mode,points);
+    assert.equal(quote.ok,true,quote.message);assert.ok(quote.terrainCost>0);assert.deepEqual(game,before,'preparation is quoted without changing the world');
+    const result=buildPlan(game,mode,points);assert.equal(result.ok,true,result.message);assert.equal(result.cost,quote.cost);assert.equal(result.built,points.length);
+    for(const p of points)assert.equal(networkTerrainProblem(game,p.x,p.y,mode),null,'the paid surface satisfies the same strict grade rule');
+    const rawGame=structuredClone(before),raw=buildPath(rawGame,mode,points);assert.equal(raw.ok,true);assert.equal(raw.cost,quote.cost);assert.deepEqual(rawGame,game);
   });
 }
 
-for(const mode of ['road','rail'])test(`${mode}: a rejected stroke pinpoints only the tiles that break the grade rules`,()=>{
+for(const mode of ['road','rail'])test(`${mode}: strict grade issues identify repairs while protected ramp junctions remain refused`,()=>{
   const game=terrain((x,y)=>4+(x===0&&y===0?1:0)),L=[...Array.from({length:6},(_,n)=>({x:15+n,y:21})),{x:20,y:20}];
   const placements=L.map(p=>({...p,tool:mode}));
   assert.deepEqual(networkTerrainPlanIssues(game,placements),[{x:20,y:20,kind:'uneven'}],'the L crosses one uneven tile');
   assert.equal(networkTerrainPlanProblem(game,placements),'Level this slope first. Roads and rails need flat ground or a straight uphill/downhill grade.');
   const quote=quoteBuildPlan(game,mode,L);
-  assert.equal(quote.ok,false);assert.deepEqual(quote.placements.map(p=>p.state),['ok','ok','ok','ok','ok','ok','slope']);
-  assert.equal(quote.message,'1 tile needs flat ground or a straight grade. Level this slope first or drag around it.');
+  assert.equal(quote.ok,true,quote.message);assert.ok(quote.terrainCost>0);assert.deepEqual(quote.placements.map(p=>p.state),Array(7).fill('ok'));assert.deepEqual(quote.issues,[]);
   const junction=terrain((x,y)=>4+(axisSide(x,y)?1:0)),sideways=[{x:19,y:20},{x:20,y:20},{x:20,y:21}].map(p=>({...p,tool:mode}));
   assert.deepEqual(networkTerrainPlanIssues(terrain(x=>4+x),sideways),[{x:20,y:20,kind:'sideways'},{x:20,y:21,kind:'sideways'}],'the bend and the branch climb sideways; the approach does not');
   for(let x=18;x<=22;x++)tileAt(junction,x,20)[mode]=true; // A legacy line running across the slope.
@@ -66,7 +67,7 @@ for(const mode of ['road','rail'])test(`${mode}: a rejected stroke pinpoints onl
   assert.equal(networkTerrainShape(junction,20,19).kind,'flat');assert.equal(networkTerrainShape(junction,20,20).axis,'y');
   assert.deepEqual(networkTerrainPlanIssues(junction,join.map(p=>({...p,tool:mode}))),[{x:20,y:19,kind:'ramp-junction',at:{x:20,y:20}}]);
   const joined=quoteBuildPlan(junction,mode,join);
-  assert.equal(joined.ok,false);assert.equal(joined.message,'This joins a ramp from the side. End before it, or approach along the slope.');
+  assert.equal(joined.ok,false);assert.match(joined.message,/reshape an existing network/);
   const before=structuredClone(junction);assert.equal(buildPlan(junction,mode,join).ok,false);assert.deepEqual(junction,before);
   assert.equal(quoteBuildPlan(junction,mode,join.slice(0,2)).ok,true,'ending one tile earlier is buildable');
 });

@@ -96,8 +96,8 @@ test('mail needs two different towns, and a freight pair never fits it', () => {
   assert.equal(buildPath(game, 'road', line(18, 22, 12)).ok, true);
   for (const x of [18, 22]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   const stops = game.stations.map(stop => stop.id);
-  assert.deepEqual(addRoute(game, { mode: 'road', cargo: 'mail', stops }), { ok: false, message: 'Mail stops must serve two different towns within 5 tiles.' });
-  assert.equal(addRoute(game, { mode: 'road', cargo: 'passengers', stops }).message, 'Passenger stops must serve two different towns within 5 tiles.');
+  assert.deepEqual(addRoute(game, { mode: 'road', cargo: 'mail', stops }), { ok: false, message: 'Mail stops must serve two different towns within their stop ranges.' });
+  assert.equal(addRoute(game, { mode: 'road', cargo: 'passengers', stops }).message, 'Passenger stops must serve two different towns within their stop ranges.');
   assert.equal(validateRoutePlan(game, { mode: 'road', cargo: 'mail', from: stops[0], to: stops[1] }).valid, false);
   const freight = emptyGame(); freight.cities = [town('solo', 'Alderbrook', 30, 10)]; freight.revision++;
   assert.equal(build(freight, 'quarry', 9, 7).ok, true); assert.equal(buildPath(freight, 'road', line(10, 30, 12)).ok, true);
@@ -204,8 +204,9 @@ test('route health speaks of mail, and mail never counts as freight', () => {
 });
 
 test('a mail stop never marks an industry, and losing a nearby industry warns no mail route', () => {
-  const game = emptyGame(); game.cities = [town('west', 'Alderbrook', 10, 10), town('east', 'Pinehaven', 30, 10)]; game.revision++;
-  assert.equal(build(game, 'quarry', 12, 13).ok, true);
+  const game = emptyGame();assert.equal(build(game, 'quarry', 12, 13).ok, true);
+  // A pre-existing compact town and quarry can share a stop without sharing mail.
+  game.cities = [town('west', 'Alderbrook', 10, 10), town('east', 'Pinehaven', 30, 10)]; game.revision++;
   assert.equal(buildPath(game, 'road', line(10, 30, 12)).ok, true);
   for (const x of [10, 30]) assert.equal(build(game, 'bus-stop', x, 12).ok, true);
   assert.equal(addRoute(game, { mode: 'road', cargo: 'mail', stops: game.stations.map(stop => stop.id) }).ok, true);
@@ -222,7 +223,7 @@ test('mail keeps its own route in an edit, and its bags stay aboard a stop chang
   assert.deepEqual(editRoute(bus.game, passengers.id, { stops: bus.stops, cargo: 'mail' }), { ok: false, message: refusal });
   assert.deepEqual(editRoute(game, route.id, { stops: route.stops, cargo: 'stone' }), { ok: false, message: refusal });
   assert.deepEqual(editRoute(game, route.id, { stops: route.stops, cargo: 'passengers' }), { ok: false, message: refusal });
-  assert.equal(buildPath(game, 'road', line(30, 34, 12)).ok, true); assert.equal(build(game, 'bus-stop', 34, 12).ok, true);
+  assert.equal(buildPath(game, 'road', line(30, 33, 12)).ok, true); assert.equal(build(game, 'bus-stop', 33, 12).ok, true);
   const moved = editRoute(game, route.id, { stops: [route.stops[0], game.stations.at(-1).id], cargo: 'mail' });
   assert.equal(moved.ok, true, moved.message);
   assert.equal(vehicle.load, 24, 'the bags stay aboard');

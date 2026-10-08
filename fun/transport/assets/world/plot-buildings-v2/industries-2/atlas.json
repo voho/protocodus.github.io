@@ -88,34 +88,34 @@
       },
       "masterAlpha": {
         "alphaBounds": [
-          36,
-          65,
-          252,
-          235
+          19,
+          77,
+          235,
+          247
         ],
         "meaningfulAlphaBounds": [
-          41,
-          110,
-          250,
-          233
+          23,
+          122,
+          233,
+          244
         ],
-        "transparentFraction": 0.76312255859375,
-        "nontransparentPixels": 16611,
-        "meaningfulPixels": 15146,
-        "fractionalAlphaPixels": 16530,
+        "transparentFraction": 0.7630767822265625,
+        "nontransparentPixels": 16633,
+        "meaningfulPixels": 15147,
+        "fractionalAlphaPixels": 16536,
         "edgeMeaningfulFractions": [
           0.0,
           0.0,
           0.0,
           0.0
         ],
-        "minimumFilteringGutterPixels": 6
+        "minimumFilteringGutterPixels": 12
       },
       "groundAlpha": {
         "envelopePixels": 11503,
-        "envelopeZeroAlphaFraction": 0.20507693645136052,
+        "envelopeZeroAlphaFraction": 0.015735025645483788,
         "frontGroundPixels": 5805,
-        "frontGroundZeroAlphaFraction": 0.37037037037037035,
+        "frontGroundZeroAlphaFraction": 0.031007751937984496,
         "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
       },
       "expectedGeometry": {
@@ -175,14 +175,14 @@
                 428.04
               ],
               [
-                346.0,
-                375.4
+                414.0,
+                329.0
               ]
             ]
           ],
           "groundCenterSource": [
-            179.5,
-            351.9
+            213.5,
+            328.7
           ],
           "visibleOppositeGroundVerticesSource": [
             [
@@ -190,42 +190,43 @@
               328.4
             ],
             [
-              346.0,
-              375.4
+              414.0,
+              329.0
             ]
           ],
-          "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+          "observationMethod": "2026-10-08 complete parcel re-review: outer dock base at (13,328.4) and outer eastern yard wall base at (414,329.0) are the opposite physical ground corners. Source alpha >96 occupies x13 through y328 and x414 through y329. Their midpoint registers the full 5x5 parcel. The previous eastern datum (346,375.4) was an INNER quay corner and is retained in sources/registration-before-fishery-fix-2026-10-08.json; it displaced the fishery by 34 source pixels horizontally and 23.2 vertically. Ground edges follow the same original painted camera; no source pixels or scale changed.",
           "personnelDoorObservable": false,
-          "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale."
+          "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale.",
+          "groundLandmarkUncertaintySourcePixels": 2
         },
         "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
         "groundEdgeSegmentsMasterMeasured": [
           [
             [
-              43.161623046119985,
-              180.0258146641671
+              25.837269794276608,
+              191.84713805954257
             ],
             [
-              150.6745211678538,
-              231.63200576259933
+              133.35016791601043,
+              243.45332915797482
             ]
           ],
           [
             [
-              154.24129977852746,
-              230.79636048809866
+              136.9169465266841,
+              242.61768388347414
             ],
             [
-              212.83837695388002,
-              203.9741853358329
+              230.1627302057234,
+              192.15286194045746
             ]
           ]
         ],
         "groundEdgeSlopesMeasured": [
           0.48000000000000015,
-          -0.457739130434783
+          -0.5412021857923498
         ],
-        "groundSlopeMaximumAbsoluteError": 0.04226086956521702,
+        "groundSlopeMaximumAbsoluteError": 0.0412021857923498,
         "bothGroundAxesObserved": true,
         "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "groundCenterMasterMeasured": [
@@ -238,14 +239,14 @@
         "status": "measured-translation-applied",
         "applied": true,
         "sourceGroundCenter": [
-          179.5,
-          351.9
+          213.5,
+          328.7
         ],
         "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
         "uniformSourceToMasterScale": 0.5095398015248049,
         "translationMaster": [
-          36.53760562629752,
-          12.692943843421148
+          19.213252374454143,
+          24.514267238796634
         ],
         "targetGroundCenterMaster": [
           128.0,
@@ -257,12 +258,12 @@
         ],
         "registrationOffsetReview": "",
         "transformedMeaningfulAlphaBoundsMaster": [
-          40.61392403849596,
-          110.01504593465889,
-          250.0347824651908,
-          232.81413810213687
+          23.289570786652583,
+          121.83636933003437,
+          232.71042921334742,
+          244.63546149751235
         ],
-        "minimumMeaningfulFilteringGutterMasterPixels": 5.965217534809199,
+        "minimumMeaningfulFilteringGutterMasterPixels": 11.364538502487648,
         "requiredMinimumGutterMasterPixels": 2,
         "clipping": {
           "clippedSourcePixels": 0,
@@ -275,26 +276,26 @@
         "sourceCropToMasterAffine": [
           0.5095398015248049,
           0,
-          36.53760562629752,
+          19.213252374454143,
           0,
           0.5095398015248049,
-          12.692943843421148
+          24.514267238796634
         ],
         "sourceSheetToMasterAffine": [
           0.5095398015248049,
           0,
-          36.53760562629752,
+          19.213252374454143,
           0,
           0.5095398015248049,
-          12.692943843421148
+          24.514267238796634
         ],
         "sourceNominalCellToMasterAffine": [
           0.5095398015248049,
           0,
-          36.53760562629752,
+          19.213252374454143,
           0,
           0.5095398015248049,
-          12.692943843421148
+          24.514267238796634
         ],
         "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
       },
@@ -323,14 +324,14 @@
               428.04
             ],
             [
-              346.0,
-              375.4
+              414.0,
+              329.0
             ]
           ]
         ],
         "groundCenterSource": [
-          179.5,
-          351.9
+          213.5,
+          328.7
         ],
         "visibleOppositeGroundVerticesSource": [
           [
@@ -338,15 +339,16 @@
             328.4
           ],
           [
-            346.0,
-            375.4
+            414.0,
+            329.0
           ]
         ],
-        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "observationMethod": "2026-10-08 complete parcel re-review: outer dock base at (13,328.4) and outer eastern yard wall base at (414,329.0) are the opposite physical ground corners. Source alpha >96 occupies x13 through y328 and x414 through y329. Their midpoint registers the full 5x5 parcel. The previous eastern datum (346,375.4) was an INNER quay corner and is retained in sources/registration-before-fishery-fix-2026-10-08.json; it displaced the fishery by 34 source pixels horizontally and 23.2 vertically. Ground edges follow the same original painted camera; no source pixels or scale changed.",
         "personnelDoorObservable": false,
-        "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale."
+        "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale.",
+        "groundLandmarkUncertaintySourcePixels": 2
       },
-      "masterSha256": "fd46241069ee4926c5193a75fa1546e1f881bec1c8ad366acaa87a603e7992d3"
+      "masterSha256": "1732758a5721e21fa9f109e83242c62dbe4318fc097dfef4999c6c4f863c0f28"
     },
     {
       "id": "industry:fish-processor:taiga",
@@ -3047,7 +3049,7 @@
   "sourceSha256": "91fa4b23574da2450365792782af82988862b10c784b87975aa3f8b23851440b",
   "generationJobSha256": "befddb4c7ce23e2902f397cb4197434474f8d1317d111c2e6dcbbbf2ba9de5c6",
   "measurements": "registration-measurements.json",
-  "measurementsSha256": "7516821095a46c5c4a219ffc7a8437c0dd6a70d26135419dfe2b0626ea8af5ee",
+  "measurementsSha256": "7ffed09ed1009e17c981d5c29cdf1990547bcdf63cc0e21513c68a28bd1a3114",
   "originalSourceResolution": {
     "sheetPixels": [
       1254,
@@ -3089,14 +3091,14 @@
               428.04
             ],
             [
-              346.0,
-              375.4
+              414.0,
+              329.0
             ]
           ]
         ],
         "groundCenterSource": [
-          179.5,
-          351.9
+          213.5,
+          328.7
         ],
         "visibleOppositeGroundVerticesSource": [
           [
@@ -3104,13 +3106,14 @@
             328.4
           ],
           [
-            346.0,
-            375.4
+            414.0,
+            329.0
           ]
         ],
-        "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+        "observationMethod": "2026-10-08 complete parcel re-review: outer dock base at (13,328.4) and outer eastern yard wall base at (414,329.0) are the opposite physical ground corners. Source alpha >96 occupies x13 through y328 and x414 through y329. Their midpoint registers the full 5x5 parcel. The previous eastern datum (346,375.4) was an INNER quay corner and is retained in sources/registration-before-fishery-fix-2026-10-08.json; it displaced the fishery by 34 source pixels horizontally and 23.2 vertically. Ground edges follow the same original painted camera; no source pixels or scale changed.",
         "personnelDoorObservable": false,
-        "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale."
+        "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale.",
+        "groundLandmarkUncertaintySourcePixels": 2
       },
       {
         "id": "industry:fish-processor:taiga",
@@ -3659,7 +3662,7 @@
   "outputs": {
     "16": {
       "path": "atlas-16.png",
-      "sha256": "4320c60823937772a26a7b0c52f429aadb24199669775af571c86c61e1262a62",
+      "sha256": "ad7d366a415f89545db2e90d71754e352543021c672b9c261ea95b22c5d0fc66",
       "dimensions": [
         48,
         48
@@ -3671,7 +3674,7 @@
     },
     "32": {
       "path": "atlas-32.png",
-      "sha256": "8488a47bf5bf936b4386daffc28f9cc630dd25bb279bb87cf5e626e6f88c42c3",
+      "sha256": "0f045e9cc3606d57ee64736207b051ebf1ef90668f0510dfe1b6da907b73b810",
       "dimensions": [
         96,
         96
@@ -3683,7 +3686,7 @@
     },
     "64": {
       "path": "atlas-64.png",
-      "sha256": "c49d6ffe46a3464e594e54d23b3f80b14e13ee320f93063e4439a2a763935adf",
+      "sha256": "fe4df46c0b4d13e8bc7657cca0d8ef7f3dccbaed67651e60a06dd4fb81c30d53",
       "dimensions": [
         192,
         192
@@ -3695,7 +3698,7 @@
     },
     "128": {
       "path": "atlas-128.png",
-      "sha256": "6a41651305f01169498ee5d3b35818f4b2362878294473983de8f74bfd3034e8",
+      "sha256": "f3acf4bb701da2af45bef6682b457e23aff516f9a60e68eef6b791464a1f287a",
       "dimensions": [
         384,
         384
@@ -3707,7 +3710,7 @@
     },
     "256": {
       "path": "atlas-256.png",
-      "sha256": "c94888ea41b1c46bfdd05781c8abad41059bca9ebdd9d9250821260ae3e7977a",
+      "sha256": "e728c9be9bc07a35b3db2bfabd2f53932e7fb9c042e1687ef214a5895c559bc9",
       "dimensions": [
         768,
         768
@@ -3719,7 +3722,7 @@
     },
     "512": {
       "path": "atlas-512.png",
-      "sha256": "27590d5683c7dd6c067848e2134b2e80542de94113d1f137c5ccde10ccd28821",
+      "sha256": "7e48da2d02ebbf80a4f76658c7e7de30d2174f5b7c1f14bdc1f78a28b8121683",
       "dimensions": [
         1536,
         1536

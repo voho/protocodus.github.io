@@ -4,7 +4,7 @@ import { build, createGame, industryAt, stationCoverage, restoreGame, tick } fro
 import { localEnvironment } from '../environment.js';
 import { industryConditions } from '../industry-simulation.js';
 import { encodeGame } from '../save-codec.js';
-import { industryTiles, industrySiteProblem, industryFootprint, INDUSTRY_SPACING } from '../industry-sites.js';
+import { industryTiles, industrySiteProblem, industryFootprint, MIN_SITE_GAP } from '../industry-sites.js';
 import { quoteBuildPlan } from '../construction-plan.js';
 import { INDUSTRIES } from '../data.js';
 import { WORLD_GENERATION_VERSION } from '../world.js';
@@ -53,8 +53,8 @@ test('catchment reaches the nearest industry edge and fisheries accept any shore
   for(const [x,y] of [[19,22],[25,22],[22,19],[22,25]]){
     const game=structuredClone(base);tileAt(game,x,y).terrain='water';
     assert.equal(build(game,'fishery',20,20).ok,true,`shoreline at ${x},${y}`);
-    assert.equal(stationCoverage(game,{x:29,y:22}).industries.length,1);
-    assert.equal(stationCoverage(game,{x:30,y:22}).industries.length,0);
+    assert.equal(stationCoverage(game,{x:28,y:22}).industries.length,1);
+    assert.equal(stationCoverage(game,{x:29,y:22}).industries.length,0);
   }
 });
 
@@ -95,10 +95,10 @@ test('industry productivity and local services are symmetric around a 5×5 footp
     for(const [kind,x] of [['school',17],['service-bank',16]]){
       const p=point(x,20);tileAt(game,p.x,p.y).building={kind,level:1};
     }
-    game.stations=[{id:'active-stop',mode:'road',...point(15,20)}];
+    game.stations=[{id:'active-stop',mode:'road',...point(16,20)}];
     game.routes=[{id:'active-route',active:true,stops:['active-stop']}];
     const conditions=industryConditions(game,game.industries[0]),environment=conditions.environment;
-    assert.equal(environment.transport,.6,`${side} active station reaches the nearest site edge`);
+    assert.equal(environment.transport,1-4*.08,`${side} active station reaches the nearest site edge`);
     assert.equal(environment.school,1,side);assert.equal(environment.services,1,side);
     assert.equal(environment.roadAccess,true,side);assert.equal(environment.railAccess,true,side);
     assert.ok(conditions.positive.includes('Served by a route'),side);
@@ -109,7 +109,7 @@ test('industry productivity and local services are symmetric around a 5×5 footp
 
 test('industry transport catchments exclude inactive and out-of-range stops without expanding legacy sites',()=>{
   const base=flatIndustryGame();
-  for(const [side,point] of Object.entries(siteSides))for(const [distance,active,expected] of [[5,true,.6],[6,true,0],[5,false,0]]){
+  for(const [side,point] of Object.entries(siteSides))for(const [distance,active,expected] of [[4,true,1-4*.08],[5,true,0],[4,false,0]]){
     const game=structuredClone(base);
     game.stations=[{id:'stop',mode:'road',...point(20-distance,20)}];
     game.routes=[{id:'route',active,stops:['stop']}];
@@ -168,17 +168,17 @@ test('version-1 saves expand compact industries safely and preserve operations',
   }
 });
 test('one kind, or a supplier and its customer, keep the industry spacing apart',()=>{
-  const game=emptyGame(),far=20+INDUSTRY_SPACING;
+  const game=emptyGame(),far=20+4+MIN_SITE_GAP;
   assert.equal(build(game,'logging-camp',20,20).ok,true);
-  // The sawmill buys timber; spacing runs centre to centre.
-  assert.match(build(game,'sawmill',far-1,20).message,/^Too close to the Logging camp: a supplier and its customer stand \d+ tiles apart\.$/);
+  // The sawmill buys timber; spacing reserves both complete plots and their stop ranges.
+  assert.match(build(game,'sawmill',far-1,20).message,/5-tile road between the industries/);
   assert.equal(build(game,'sawmill',far,20).ok,true);
-  assert.equal(build(game,'logging-camp',20,far-1).message,`Another logging camp stands within ${INDUSTRY_SPACING} tiles.`);
+  assert.match(build(game,'logging-camp',20,far-1).message,/5-tile road between the industries/);
   assert.equal(build(game,'logging-camp',20,far).ok,true);
   assert.equal(build(game,'oil-well',25,20).ok,true,'an unrelated industry may stand next door');
   // A drag counts the sites it places first.
   const quote=quoteBuildPlan(game,'farm',[{x:20,y:60},{x:30,y:60}]);
-  assert.equal(quote.ok,false);assert.equal(quote.message,`Another grain farm stands within ${INDUSTRY_SPACING} tiles.`);
+  assert.equal(quote.ok,false);assert.match(quote.message,/5-tile road between the industries/);
 });
 test('a saved 2×2 nonfarm industry grows to 5×5 once, around the ground it had',()=>{
   const game=emptyGame();game.siteFootprintVersion=1;

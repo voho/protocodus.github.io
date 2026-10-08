@@ -2,7 +2,9 @@
 // Stops and ports occupy their one tile; an airport occupies a 6 × 2 site whose
 // saved anchor is its north-west (lowest x, lowest y) tile. Leaf module: it
 // imports nothing, so building, industry and terrain checks can all use it.
-export const STATION_RADIUS = 5;
+export const STATION_RADIUS = 4;
+/** Older saved stops keep their established service; newly built stops use STATION_RADIUS. */
+export const LEGACY_STATION_RADIUS = 5;
 /** Towns count when their centre is within this many tiles of any airport tile. */
 export const AIRPORT_REACH = 7;
 /** Runway tiles along the axis, and rows across it (runway row + apron row). */
@@ -19,7 +21,7 @@ export function stationSpan(station) {
   if (station?.mode !== 'air') return { w: 1, h: 1 };
   return station.axis === 'y' ? { w: AIRPORT_WIDTH, h: AIRPORT_LENGTH } : { w: AIRPORT_LENGTH, h: AIRPORT_WIDTH };
 }
-export const stationReach = station => station?.mode === 'air' ? AIRPORT_REACH : STATION_RADIUS;
+export const stationReach = station => station?.mode === 'air' ? AIRPORT_REACH : station?.catchmentRadius === LEGACY_STATION_RADIUS ? LEGACY_STATION_RADIUS : STATION_RADIUS;
 /** Euclidean distance from a point to the station's nearest tile; exactly distance() for one-tile stops. */
 export function stationDistance(station, point) {
   const { w, h } = stationSpan(station);

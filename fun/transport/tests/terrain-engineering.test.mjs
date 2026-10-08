@@ -177,7 +177,7 @@ for (const tool of ['bridge', 'railbridge', 'tunnel', 'railtunnel']) for (const 
 }
 
 for(const tool of ['bridge','railbridge','tunnel','railtunnel'])for(const shape of ['compound','sidehill']){
-  test(`${tool}: new ${shape} approaches cannot bypass ordinary slope rules`,()=>{
+  test(`${tool}: new ${shape} approaches pay to satisfy ordinary slope rules`,()=>{
     for(const axis of ['x','y'])for(const endpoint of [0,4]){
       const game=levelGame(),points=prepareSpan(game,tool,axis),end=points[endpoint];
       const at=(along,across)=>tileAt(game,end.x+(axis==='x'?along:across),end.y+(axis==='x'?across:along));
@@ -192,13 +192,14 @@ for(const tool of ['bridge','railbridge','tunnel','railtunnel'])for(const shape 
       assert.equal(classified.kind,shape==='compound'?'complex':'incline');
       if(shape==='sidehill')assert.equal(classified.axis,axis==='x'?'y':'x','the ground is climbable only across the span');
       const before=structuredClone(game);
-      for(const quote of [planStructureSpan(game,tool,points),quoteStructureSpan(game,tool,points),quoteBuildPlan(game,tool,points)]){
-        assert.equal(quote.ok,false);assert.match(quote.message,/Level both end tiles/);
+      const strict=planStructureSpan(game,tool,points);assert.equal(strict.ok,false);assert.match(strict.message,/Level both end tiles/);
+      const quote=quoteStructureSpan(game,tool,points);assert.equal(quote.ok,true,quote.message);assert.ok(quote.terrainCost>0);
+      assert.equal(quoteBuildPlan(game,tool,points).cost,quote.cost);assert.deepEqual(game,before,'quoted preparation never mutates terrain');
+      for(const commit of [buildStructureSpan,buildPlan]){
+        const builtGame=structuredClone(before),result=commit(builtGame,tool,points);
+        assert.equal(result.ok,true,result.message);assert.equal(result.cost,quote.cost);assert.equal(result.built,points.length);
+        assert.ok(findPath(builtGame,points[0],points.at(-1),tool.startsWith('rail')?'rail':'road'));
       }
-      for(const result of [buildStructureSpan(game,tool,points),buildPlan(game,tool,points)]){
-        assert.equal(result.ok,false);assert.equal(result.cost,0);assert.equal(result.built,0);
-      }
-      assert.deepEqual(game,before,'rejected approaches charge nothing and leave no partial crossing');
     }
   });
 }
@@ -241,14 +242,11 @@ test('bridges cross a mixture of valley floor and water without changing shoreli
   assert.equal(tileAt(game, 13, 10).elevation, 0);
 });
 
-test('invalid span geometry, grades, obstructions and funds fail atomically', () => {
+test('invalid span geometry, protected terrain, obstructions and funds fail atomically', () => {
   const cases = [
     ['bridge', (game, points) => points.slice(0, 2)],
     ['bridge', (game, points) => [points[0], points[2], points[4]]],
     ['bridge', (game, points) => [points[0], points[1], { x: 11, y: 11 }]],
-    ['bridge', (game, points) => { for(let y=10;y<=11;y++)for(let x=14;x<=15;x++)tileAt(game,x,y).elevation=1/7; return points; }],
-    ['bridge', (game, points) => { for(let y=10;y<=11;y++)for(let x=12;x<=13;x++)tileAt(game,x,y).elevation=2/7; return points; }],
-    ['tunnel', (game, points) => { for(let y=10;y<=11;y++)for(let x=12;x<=13;x++)tileAt(game,x,y).elevation=2/7; return points; }],
     ['tunnel', (game, points) => { Object.assign(tileAt(game, 12, 10), { terrain: 'water', elevation: 0 }); return points; }],
     ['bridge', (game, points) => { tileAt(game, 12, 10).building = { kind: 'house-cheap-1', level: 1 }; return points; }],
     ['tunnel', (game, points) => { game.industries.push({ id: 'occupied-industry', kind: 'farm', x: 11, y: 9, footprint: 2 }); return points; }],
@@ -261,6 +259,16 @@ test('invalid span geometry, grades, obstructions and funds fail atomically', ()
     const result = buildPlan(game, tool, points);
     assert.equal(result.ok, false, String(alter)); assert.equal(result.cost, 0); assert.equal(result.built, 0);
     assert.deepEqual(game, before, 'a failed span never leaves a partial bridge or tunnel');
+  }
+});
+
+test('mismatched banks and insufficient interior clearance include paid preparation',()=>{
+  for(const kind of ['bank','bridge','tunnel']){
+    const tool=kind==='tunnel'?'tunnel':'bridge',game=levelGame(),points=prepareSpan(game,tool);
+    for(let y=10;y<=11;y++)for(let x=kind==='bank'?14:12;x<=(kind==='bank'?15:13);x++)tileAt(game,x,y).elevation=(kind==='bank'?1:2)/7;
+    assert.equal(planStructureSpan(game,tool,points).ok,false,'the unchanged strict span is still invalid');
+    const before=structuredClone(game),quote=quoteBuildPlan(game,tool,points);assert.equal(quote.ok,true,quote.message);assert.ok(quote.terrainCost>0);assert.deepEqual(game,before);
+    const result=buildPlan(game,tool,points);assert.equal(result.ok,true,result.message);assert.equal(result.cost,quote.cost);assert.ok(findPath(game,points[0],points.at(-1),'road'));
   }
 });
 

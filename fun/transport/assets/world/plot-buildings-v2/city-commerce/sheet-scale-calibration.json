@@ -1,0 +1,19 @@
+{
+  "observations": [
+    {
+      "sourceEdgeEndpoints": [
+        [
+          11,
+          727.54
+        ],
+        [
+          234.6351537444894,
+          830.7501082881234
+        ]
+      ],
+      "physicalSpanMetres": 15,
+      "footprint": 1,
+      "note": "Visually identified full front ground boundary of service-post-office 1x1 parcel. Boundary pixel line intersections and visible endpoint supply one common density; this visible delivered parcel edge is assigned its calibrated per-tile architectural envelope, with narrow filtering setback. Other cells keep their observed relative dimensions."
+    }
+  ]
+}

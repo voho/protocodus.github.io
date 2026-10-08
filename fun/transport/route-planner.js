@@ -1,4 +1,4 @@
-import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH, MAX_VEHICLES, validVehicleCount } from './model.js';
+import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, stationReach, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH, MAX_VEHICLES, validVehicleCount } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
 import { FULL_LOAD_MAX_WAIT } from './model.js';
 import { workshopLevels, workshopOutputs } from './town-market.js';
@@ -58,12 +58,12 @@ export function validateRoutePlan(game, draft, { ignoreFunds = false, ignoreFlee
   if (mode === 'air' && result.path.length - 1 < AIRPORT_MIN_TILES) return fail(`Airports must be at least ${AIRPORT_MIN_TILES} tiles apart for a flight.`);
   if (!Object.hasOwn(CARGO, cargo)) return fail('Choose cargo available at these stops.');
   if (mode === 'air' && !isTownTraffic(cargo)) return fail('Planes carry passengers and mail.');
-  const coverage = stations.map(stop => stationCoverage(game, stop));
+  const coverage = stations.map(stop => stationCoverage(game, stop)), [startReach, endReach] = stations.map(stationReach);
   if (isTownTraffic(cargo)) {
-    if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : 'Connected. Each stop must serve a different town within 5 tiles.');
+    if (!passengerEndpoints(game, ...stations)) return fail(mode === 'air' ? `Connected. Each airport must serve a different town within ${AIRPORT_REACH} tiles.` : startReach === endReach ? `Connected. Each stop must serve a different town within ${startReach} tiles.` : `Connected. The start needs a town within ${startReach} tiles and the end needs a different town within ${endReach} tiles.`);
   } else if (!freightFits(game, coverage[0], coverage[1], cargo)) {
     if (freightFits(game, coverage[1], coverage[0], cargo)) result.reversed = true;
-    else return fail(workshopLoop(game, coverage[0], coverage[1], cargo) || sharedCargoGap(game, stations, coverage) || `Connected. Add a ${cargoName(cargo)} supplier and a buyer within 5 tiles of the stops.`);
+    else return fail(workshopLoop(game, coverage[0], coverage[1], cargo) || sharedCargoGap(game, stations, coverage) || (startReach === endReach ? `Connected. Add a ${cargoName(cargo)} supplier and a buyer within ${startReach} tiles of the stops.` : `Connected. Add a ${cargoName(cargo)} supplier within ${startReach} tiles of the start and a buyer within ${endReach} tiles of the end.`));
   }
   // The same stops and cargo can take another vehicle instead of a duplicate service.
   const [first, second] = result.reversed ? [stations[1], stations[0]] : stations;

@@ -16,8 +16,10 @@ const saved = game => restoreGame(JSON.parse(JSON.stringify(encodeGame(game))));
 // A generated stone quarry on a straight road: Near buys 12 tiles away, Far 40 tiles away.
 // A player-built quarry at x 30 shares the road but never counts as the contract's producer.
 function roadFixture({ owner = 'world' } = {}) {
-  const game = emptyGame(); game.cities = [town('Near', 22, 9), town('Far', 50, 9)];
+  const game = emptyGame();
   ok(build(game, 'quarry', 8, 7)); ok(build(game, 'quarry', 30, 14));
+  // Contract pricing also applies to existing compact worlds with short local hauls.
+  game.cities = [town('Near', 22, 9), town('Far', 50, 9)];game.revision++;
   const [quarry, own] = game.industries; quarry.owner = owner; quarry.inventory.stone = 4000; own.inventory.stone = 4000;
   ok(buildPath(game, 'road', line(10, 50, 12)));
   for (const x of [10, 22, 30, 50]) ok(build(game, 'bus-stop', x, 12));

@@ -5,7 +5,7 @@ import { industryTiles, industryDistance } from './industry-sites.js';
 import { buildingSize } from './building-sites.js';
 import { releaseTerrainObjectsCells } from './terrain-objects.js';
 import { noteSurfaceChanges } from './change-journal.js';
-import { stationTiles } from './station-sites.js';
+import { stationTiles, stationReach, LEGACY_STATION_RADIUS } from './station-sites.js';
 
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const NEIGHBORS = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
@@ -140,17 +140,17 @@ export function weatherAt(game, x, y, day = game.day || 0) {
 }
 
 export function localTransport(game, x, y, footprint = 1, served = null) {
-  const extra = footprint - 1, entities = entityIndex(game);
+  const extra = footprint - 1, entities = entityIndex(game), reach = LEGACY_STATION_RADIUS;
   let transport = 0;
-  for (let by = Math.floor((y - 5) / 8); by <= Math.floor((y + extra + 5) / 8); by++) for (let bx = Math.floor((x - 5) / 8); bx <= Math.floor((x + extra + 5) / 8); bx++) {
+  for (let by = Math.floor((y - reach) / 8); by <= Math.floor((y + extra + reach) / 8); by++) for (let bx = Math.floor((x - reach) / 8); bx <= Math.floor((x + extra + reach) / 8); bx++) {
     for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
       const distance = industryDistance({x,y,footprint},station);
-      if (distance <= 5) transport = Math.max(transport, 1 - distance * .08);
+      if (distance <= stationReach(station)) transport = Math.max(transport, 1 - distance * .08);
     }
   }
   // A forecast counts the stop it plans to serve from as active.
   const distance = served ? industryDistance({x,y,footprint},served) : Infinity;
-  return distance <= 5 ? Math.max(transport, 1 - distance * .08) : transport;
+  return distance <= stationReach(served) ? Math.max(transport, 1 - distance * .08) : transport;
 }
 
 // localEnvironment's roadAccess for a one-tile site: a road in the 3 × 3 ring around it.

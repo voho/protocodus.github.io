@@ -17,12 +17,12 @@ const routeGame = () => ({
   routes: [{id:'r',active:true,cargo:'timber',stops:['a','b']}], vehicles: [],
 });
 
-test('town service distinguishes planned coverage from recent deliveries and uses the real five-tile radius', () => {
-  const game=routeGame(),city={x:10,y:15,lastServiceDay:null};
+test('town service distinguishes planned coverage from recent deliveries and uses the real four-tile radius', () => {
+  const game=routeGame(),city={x:10,y:14,lastServiceDay:null};
   assert.equal(townService(game,city).label,'Awaiting deliveries');
   city.lastServiceDay=5;assert.equal(townService(game,city).served,true);
-  city.y=15.1;assert.equal(townService(game,city).connected,false);
-  city.y=15;city.lastServiceDay=-30;assert.equal(townService(game,city).served,false);
+  city.y=14.1;assert.equal(townService(game,city).connected,false);
+  city.y=14;city.lastServiceDay=-30;assert.equal(townService(game,city).served,false);
   game.routes[0].active=false;assert.equal(townService(game,city).label,'No route yet');
 });
 
@@ -66,16 +66,44 @@ test('route diagnostics explain missing customers, empty sources and blocked pro
 test('route diagnostics measure industries to their nearest footprint tile, like the simulation', () => {
   const game=routeGame(),route=game.routes[0];
   for(const industry of game.industries)industry.footprint=2;
-  game.stations=[{id:'a',x:16,y:13},{id:'b',x:25,y:13}];game.vehicles.push({routeId:'r',load:10});
-  assert.equal(routeHealth(game,route).label,'Running','both stops sit five tiles from a footprint edge but farther from the anchor');
-  game.stations[0].x=17;assert.equal(routeHealth(game,route).label,'No supplier');
+  game.stations=[{id:'a',x:15,y:13},{id:'b',x:26,y:13}];game.vehicles.push({routeId:'r',load:10});
+  assert.equal(routeHealth(game,route).label,'Running','both stops sit four tiles from a footprint edge but farther from the anchor');
+  game.stations[0].x=16;assert.equal(routeHealth(game,route).label,'No supplier');
+});
+
+test('legacy five-tile stops retain service indicators and checklist coverage alongside new stops', () => {
+  const game=emptyGame();
+  game.industries=[{...site('source','logging-camp',10,{timber:600}),y:15},{...site('buyer','sawmill',30),y:15}];
+  assert.equal(buildPath(game,'road',line(10,30,10)).ok,true);
+  for(const x of [10,30])assert.equal(build(game,'bus-stop',x,10).ok,true);
+  const [from,to]=game.stations,route={id:'r',name:'Timber run',mode:'road',active:true,cargo:'timber',stops:[from.id,to.id],delivered:1,color:'#123456'};
+  game.routes=[route];
+  const [source,buyer]=game.industries,choice={source,buyer:{...buyer,kind:'industry'},cargo:'timber'};
+  assert.equal(routeHealth(game,route).word,'No supplier');
+  assert.equal(industryService(game).size,0);
+  assert.deepEqual(firstRouteSteps(game,choice).slice(0,3).map(step=>step.done),[false,false,false]);
+  for(const stop of game.stations)stop.catchmentRadius=5;
+  game.networkRevision++;
+  assert.equal(routeHealth(game,route).word,'Running');
+  assert.deepEqual([...industryService(game).keys()],['source','buyer']);
+  assert.match(industryStatus(source,game).detail,/Another truck on Timber run/);
+  assert.deepEqual(firstRouteSteps(game,choice).slice(0,3).map(step=>step.done),[true,true,true]);
+  const city={x:10,y:15,lastServiceDay:null};
+  assert.equal(townService(game,city).connected,true,'a legacy stop still serves its five-tile town');
+  city.y=15.1;assert.equal(townService(game,city).connected,false);
+  delete from.catchmentRadius;game.networkRevision++;
+  assert.equal(routeHealth(game,route).word,'No supplier');
+  assert.match(routeHealth(game,route).detail,/within 4 tiles/);
+  assert.deepEqual(firstRouteSteps(game,choice).slice(0,2).map(step=>step.done),[false,true]);
+  route.cargo='passengers';
+  assert.equal(routeHealth(game,route).reason,`{stop:${from.id}} needs a town within 4 tiles, and {stop:${to.id}} needs a different town within 5 tiles.`);
 });
 
 test('a working iron route beside large sites reads as running and names its cargo cleanly', () => {
   const game=emptyGame();
   assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);
-  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
-  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  assert.equal(buildPath(game,'road',line(25,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',56,41).ok,true);
   const result=addRoute(game,{name:'Ore run',mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'iron'});
   assert.equal(result.ok,true,result.message);
   advance(game,60,tick);
@@ -88,11 +116,12 @@ test('a working iron route beside large sites reads as running and names its car
 test('industry service marks the sites a freight route loads at and delivers to, never a passenger stop', () => {
   const game=emptyGame();
   assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);assert.equal(build(game,'quarry',30,44).ok,true);
-  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
-  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  assert.equal(buildPath(game,'road',line(25,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',56,41).ok,true);
   const [mine,mill,quarry]=game.industries,stops=game.stations.map(stop=>stop.id);
   assert.deepEqual(industryService(game),new Map(),'stops alone serve nothing');
-  assert.equal(build(game,'city',25,37).ok,true);assert.equal(build(game,'city',56,37).ok,true);
+  // A compact existing settlement may share the industry stop's catchment.
+  game.cities=[airTown('town-a',26,37),airTown('town-b',56,37)];game.revision++;
   assert.equal(addRoute(game,{mode:'road',stops,cargo:'passengers'}).ok,true);
   assert.deepEqual(industryService(game),new Map(),'a passenger stop beside the mine does not serve it');
   assert.equal(addRoute(game,{name:'Ore run',mode:'road',stops,cargo:'iron'}).ok,true);
@@ -107,8 +136,8 @@ test('industry service marks the sites a freight route loads at and delivers to,
 test('a broken route names the first gap on its old path, using the pathfinder’s own rules', () => {
   const game=emptyGame();
   assert.equal(build(game,'iron-mine',20,40).ok,true);assert.equal(build(game,'steel-mill',60,40).ok,true);
-  assert.equal(buildPath(game,'road',line(24,56,41)).ok,true);
-  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',55,41).ok,true);
+  assert.equal(buildPath(game,'road',line(25,56,41)).ok,true);
+  assert.equal(build(game,'bus-stop',26,41).ok,true);assert.equal(build(game,'bus-stop',56,41).ok,true);
   assert.equal(addRoute(game,{mode:'road',stops:game.stations.map(stop=>stop.id),cargo:'iron'}).ok,true);
   const route=game.routes[0];assert.equal(routeBreakPoint(game,route),null,'a running route has no break');
   assert.equal(build(game,'bulldoze',40,41).ok,true);refreshRouteConnections(game);
@@ -275,7 +304,7 @@ test('first cargo suggestions skip producers that no stop can ever reach and off
   const project=nextProject(game);
   assert.equal(project.target,'camp');assert.ok(project.choices.every(choice=>choice.source.id!=='quarry'));
   assert.match(project.detail,/Carry timber from Logging camp to Sawmill/);
-  for(let y=19;y<=22;y++)tileAt(game,25,y).terrain='water';game.networkRevision++;
+  for(let y=19;y<=22;y++)tileAt(game,26,y).terrain='water';game.networkRevision++;
   assert.equal(stopSiteKind(game,quarry),'port','shoreline water still takes a port');
   assert.equal(nextProject(game).target,'camp','port-only sites rank behind road access');
   assert.deepEqual(nextProject(game).choices.map(choice=>choice.source.id),['camp','quarry']);
@@ -291,7 +320,7 @@ test('stop access forecasts reject land inside another farm’s distant fields',
     const game={width:40,height:40,biome:'taiga',seed:1847,revision:1,cities:[],industries:[target,farm],stations:[],routes:[],zones:[],tiles:Array.from({length:1600},()=>({terrain:'mountain',elevation:0,detail:'',road:false,rail:false,building:null,zone:null}))};
     game.tiles[landY*game.width+landX].terrain='grass';
     assert.equal(industryContains(farm,landX,landY),true);
-    assert.ok(industryDistance(target,{x:landX,y:landY})<=5);
+    assert.ok(industryDistance(target,{x:landX,y:landY})<=4);
     assert.equal(stopSiteKind(game,target),null,'the only buildable ground belongs to the neighbouring farm');
     farm.footprint=3;game.revision++;
     assert.equal(stopSiteKind(game,target),'road','a compact legacy farm leaves that ground available for a stop');
@@ -301,7 +330,7 @@ test('stop access forecasts reject land inside another farm’s distant fields',
 test('the first route card offers a planned line until the two ends are joined', () => {
   const game=createGame({biome:'taiga',seed:1847,generationVersion:7});
   assert.equal(nextProject(game).plan,'road','the quarry and Alderbrook are not joined yet');
-  assert.equal(buildPlan(game,'road',Array.from({length:7},(_,n)=>({x:219,y:251-n}))).ok,true);assert.equal(build(game,'bus-stop',219,251).ok,true);
+  assert.equal(buildPlan(game,'road',Array.from({length:8},(_,n)=>({x:219,y:252-n}))).ok,true);assert.equal(build(game,'bus-stop',219,252).ok,true);
   const project=nextProject(game);
   assert.deepEqual(project.steps.map(step=>step.done),[true,true,true,false,false]);assert.equal(project.plan,null,'a joined pair needs no plan');
 });
@@ -314,14 +343,14 @@ test('first route steps tick exactly when each stop, connection, route and deliv
   assert.deepEqual(firstRouteSteps(game,choice).map(step=>step.label),['Stop near Stone quarry','Stop near Town','Connect them','Launch a stone route','First delivery']);
   assert.deepEqual(done(),[false,false,false,false,false]);
   assert.equal(firstRouteSteps(game,choice)[0].tool,'road','no road yet: build one first');
-  assert.equal(buildPath(game,'road',line(18,30,41)).ok,true);assert.equal(build(game,'road',37,41).ok,true);
-  assert.equal(firstRouteSteps(game,choice)[0].tool,'road','the road stops six tiles from the footprint');
-  assert.equal(build(game,'bus-stop',18,41).ok,true);
-  assert.deepEqual(done(),[false,false,false,false,false],'six tiles from the footprint is outside the catchment');
-  assert.equal(build(game,'bulldoze',18,41).ok,true);assert.equal(buildPath(game,'road',line(17,18,41)).ok,true);
-  assert.equal(firstRouteSteps(game,choice)[0].tool,'bus-stop');assert.equal(firstRouteSteps(game,choice)[0].button,'Place stop');
+  assert.equal(buildPath(game,'road',line(17,30,41)).ok,true);assert.equal(build(game,'road',37,41).ok,true);
+  assert.equal(firstRouteSteps(game,choice)[0].tool,'road','the road stops five tiles from the footprint');
   assert.equal(build(game,'bus-stop',17,41).ok,true);
-  assert.deepEqual(done(),[true,false,false,false,false],'five tiles from the footprint edge counts although the anchor is farther');
+  assert.deepEqual(done(),[false,false,false,false,false],'five tiles from the footprint is outside the catchment');
+  assert.equal(build(game,'bulldoze',17,41).ok,true);assert.equal(buildPath(game,'road',line(16,17,41)).ok,true);
+  assert.equal(firstRouteSteps(game,choice)[0].tool,'bus-stop');assert.equal(firstRouteSteps(game,choice)[0].button,'Place stop');
+  assert.equal(build(game,'bus-stop',16,41).ok,true);
+  assert.deepEqual(done(),[true,false,false,false,false],'four tiles from the footprint edge counts although the anchor is farther');
   assert.equal(build(game,'bus-stop',37,41).ok,true);
   assert.deepEqual(done(),[true,true,false,false,false],'two stops on separate roads are not connected');
   assert.equal(buildPath(game,'road',line(30,37,41)).ok,true);
@@ -393,8 +422,9 @@ test('Waiting reads the town the airport actually serves, measured from its near
 });
 
 test('the first-route checklist never counts an airport as a stop', () => {
-  const game = airGame(); game.cities = [airTown('a', 44, 68), airTown('b', 104, 68)];
+  const game = airGame();
   assert.equal(build(game, 'logging-camp', 40, 59).ok, true); assert.equal(build(game, 'sawmill', 100, 59).ok, true);
+  game.cities = [airTown('a', 44, 68), airTown('b', 104, 68)];game.revision++;
   assert.equal(build(game, 'airport-x', 40, 64).ok, true); assert.equal(build(game, 'airport-x', 100, 64).ok, true);
   const [camp, mill] = game.industries, choice = { source: camp, buyer: { id: mill.id, kind: 'industry', name: mill.name, x: mill.x, y: mill.y }, cargo: 'timber' };
   const steps = firstRouteSteps(game, choice);

@@ -58,7 +58,7 @@ export const ACHIEVEMENT_FAMILIES = Object.freeze([
     [rung('structures-100', 'bronze', 100, '100 bridge and tunnel tiles'), rung('structures-1k', 'silver', 1000, '1,000 bridge and tunnel tiles'), rung('structures-10k', 'platinum', 1e4, '10,000 bridge and tunnel tiles')]),
   family('longest', 'network', 'Long lines', 'Your longest running route by road, rail or water, in tiles.', 'month', 'tiles', (game, state, ctx) => ctx.longest,
     [rung('longest-250', 'bronze', 250, 'A 250-tile line'), rung('longest-1000', 'gold', 1000, 'A 1,000-tile line')]),
-  family('served', 'towns', 'Towns served', 'Towns within 5 tiles of a stop on a running route, or 7 of an airport.', 'month', 'towns', (game, state, ctx) => ctx.served.size,
+  family('served', 'towns', 'Towns served', 'Towns within range of a stop on a running route.', 'month', 'towns', (game, state, ctx) => ctx.served.size,
     [rung('served-50', 'gold', 50, 'Fifty towns served'), rung('served-100', 'platinum', 100, 'A hundred towns served')]),
   family('every-town', 'towns', 'Every town', 'Serve every town on the map at once, in a world of 25 towns or more.', 'month', 'flag', (game, state, ctx) => flag(game.cities.length >= 25 && ctx.served.size === game.cities.length),
     [rung('every-town', 'gold', 1, 'Every town')]),

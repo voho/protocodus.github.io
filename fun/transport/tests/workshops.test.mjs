@@ -21,6 +21,13 @@ function workshop(game, x, y, level = 1) {
   for (let n = 1; n < level; n++) { const grown = expandWorkshop(game, x, y); assert.ok(grown.ok, grown.message); }
   return tileAt(game, x, y).building;
 }
+// Seed a valid industry record at its established compact anchor, as retained
+// by an older company whose sites predate the current placement spacing.
+function existingIndustry(game, kind, x, y) {
+  const placed=build(game,kind,game.width-8,game.height-8);assert.ok(placed.ok,placed.message);
+  Object.assign(placed.industry,{x,y});game.revision++;
+  return placed.industry;
+}
 // A sawmill 19 tiles west of Ashford, its stop, and a road into the town's street grid.
 function sawmillLine({ game, A }) {
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
@@ -96,8 +103,8 @@ test('workshop levels come from the anchor tiles and follow founding and demolit
   for (const city of [A, B]) assert.equal(workshopLevels(game, city), townLedger(game, city, zoneMap(game)).works, city.name);
   assert.deepEqual([workshopLevels(game, A), workshopLevels(game, B)], [1, 5]);
   assert.ok(stationCoverage(game, sa).accepts.includes('lumber'));
-  // Carrow, 11 tiles out, lies nearer the Ashford workshop and takes it at once.
-  const founded = build(game, 'city', A.x + 11, A.y + 2);
+  // Carrow, 13 tiles out, lies nearer the Ashford workshop and takes it at once.
+  const founded = build(game, 'city', A.x + 13, A.y + 2);
   assert.ok(founded.ok, founded.message);
   assert.deepEqual([workshopLevels(game, A), workshopLevels(game, founded.city)], [0, 1]);
   assert.ok(!stationCoverage(game, sa).accepts.includes('lumber'), 'the old town’s stop stops buying lumber');
@@ -124,9 +131,10 @@ test('routes: materials into a town, its products out to another town, never bac
   const inTown = build(game, 'bus-stop', A.x - 1, A.y).station;
   const loop = 'Furniture from Ashford workshops must go to another town. Pick an end stop that doesn’t reach Ashford.';
   for (const [from, to] of [[sa, inTown], [inTown, sa]]) assert.equal(launch(game, from, to, 'furniture').message, loop);
-  // An end stop that also reaches Carrow, 10 tiles out, still covers Ashford.
+  // An established five-tile stop between two compact towns covers both.
   town(game, A.x + 10, A.y, 'Carrow');
   const both = build(game, 'bus-stop', A.x + 5, A.y).station;
+  both.catchmentRadius=5;
   assert.equal(stationCoverage(game, both).cities.length, 2);
   assert.equal(launch(game, inTown, both, 'furniture').message, loop);
   assert.equal(freightFits(game, stationCoverage(game, inTown), stationCoverage(game, both), 'furniture'), false);
@@ -216,9 +224,9 @@ test('freight that never touches a workshop earns exactly as before, even into a
   assert.ok(placeBuildingSite(game, 'factory', B.x + 7, B.y + 1, { size: 2, building: { kind: 'factory', level: 2 } })); game.revision++;
   assert.ok(buildPath(game, 'road', line(A.x - 19, A.x - 9, 48)).ok);
   assert.ok(build(game, 'quarry', A.x - 19, 49).ok);
-  assert.ok(build(game, 'furniture-factory', A.x - 14, 43).ok);
-  game.industries.at(-1).inventory.furniture = 900;
+  existingIndustry(game,'furniture-factory',A.x-14,43).inventory.furniture=900;
   const stop = build(game, 'bus-stop', A.x - 18, 48).station;
+  stop.catchmentRadius=5; // Preserve this historical revenue calibration's service area.
   const furniture = addRoute(game, { mode: 'road', stops: [stop.id, sb.id], cargo: 'furniture' }).route, stone = addRoute(game, { mode: 'road', stops: [stop.id, sb.id], cargo: 'stone' }).route;
   assert.equal(workshopLevels(game, B), 2);
   tick(game, 180);
@@ -229,8 +237,7 @@ test('freight that never touches a workshop earns exactly as before, even into a
 test('a works stop that also reaches a town loads the works’ furniture first, then the town’s', () => {
   const game = emptyGame(), A = town(game, 40, 30, 'Ashford'), B = town(game, 70, 30, 'Brookby');
   assert.ok(buildPath(game, 'road', line(40, 70, 32)).ok);
-  assert.ok(build(game, 'furniture-factory', 43, 33).ok);
-  const works = game.industries.at(-1), from = build(game, 'bus-stop', 40, 32).station, to = build(game, 'bus-stop', 70, 32).station;
+  const works = existingIndustry(game,'furniture-factory',43,33), from = build(game, 'bus-stop', 40, 32).station, to = build(game, 'bus-stop', 70, 32).station;
   workshop(game, 36, 26);
   works.inventory.furniture = 10; A.workshop = { input: {}, output: { furniture: 30 } };
   assert.ok(stationCoverage(game, from).cities.includes(A) && !stationCoverage(game, to).cities.includes(A));
@@ -267,10 +274,10 @@ test('a new sawmill may open near a town whose workshops buy lumber', () => {
   const game = emptyGame(), city = town(game, 40, 30, 'Ashford');
   assert.ok(build(game, 'logging-camp', 10, 30).ok);
   assert.equal(openingSiteProblem(game, 'sawmill', 20, 30), 'spacing', 'the camp it would buy from stands too close');
-  assert.equal(openingSiteProblem(game, 'sawmill', 26, 30), 'partner');
+  assert.equal(openingSiteProblem(game, 'sawmill', 26, 45), 'partner');
   workshop(game, 43, 33);
   assert.equal(workshopLevels(game, city), 1);
-  assert.equal(openingSiteProblem(game, 'sawmill', 26, 30), null);
+  assert.equal(openingSiteProblem(game, 'sawmill', 26, 45), null);
 });
 
 // The review's calibration (t3.mjs): two logging camps feed a sawmill 19 tiles east of Ashford's stop, which is never refilled.

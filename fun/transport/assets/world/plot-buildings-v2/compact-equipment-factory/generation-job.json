@@ -1,0 +1,56 @@
+{
+  "id": "compact-equipment-factory",
+  "type": "legacy-industry",
+  "columns": 1,
+  "rows": 1,
+  "biome": "taiga",
+  "cellPixels": 1024,
+  "scale": {
+    "tileMetres": 16,
+    "worldPixelsPerMetre": 2,
+    "billboardPixelsPerTile": 72,
+    "masterCellPixels": 256,
+    "humanHeightMetres": 1.75,
+    "doorHeightMetres": 2.1,
+    "doorWidthMetres": 0.95,
+    "storeyHeightMetres": 3,
+    "windowHeightMetres": 1.2,
+    "fenceHeightMetres": 1.2,
+    "loadingBayHeightMetres": 4.2
+  },
+  "registration": {
+    "groundCenterMaster": [
+      128,
+      192
+    ],
+    "groundEdgeSlope": 0.5,
+    "architecturalEnvelopeMetresPerTile": 15,
+    "eastWorldPixelsPerMetre": [
+      2,
+      1
+    ],
+    "northWorldPixelsPerMetre": [
+      -2,
+      1
+    ],
+    "upWorldPixelsPerMetre": [
+      0,
+      -2
+    ]
+  },
+  "entries": [
+    {
+      "id": "industry:equipment-factory:tundra:footprint-3",
+      "kind": "equipment-factory",
+      "name": "Compact equipment factory",
+      "footprint": 3,
+      "eligibleBiomes": [
+        "tundra"
+      ],
+      "runtimeIds": [
+        "industry:equipment-factory:tundra:footprint-3"
+      ],
+      "description": "Dedicated historical 3x3 parcel, 48 metres square, with a 45 metre architectural envelope. This is a NEW SMALLER FACTORY layout, never a resized 80m factory. Preserve the equipment-factory identity in the painted reference: two parallel cream-plaster machining/assembly halls with broad terracotta sawtooth roofs and three or four repeated loading bays each, a small yellow overhead gantry, a few broad stacked equipment crates, and low timber perimeter fences. Shorten the halls and reduce their number of bays for this smaller 48m plot; keep 2.1m ordinary personnel doors, 4.2m loading bays, 3m storeys and 1.2m fences at the canonical metre scale. One ordinary personnel door on a clear front-facing wall must be fully visible from head to sill. Exact fixed orthographic 2:1 ground plane: all roof ridges, hall walls, eaves, gantry rails, yard and fence edges follow +0.5/-0.5 screen slopes. No perspective convergence or camera yaw. The second native reference defines the exact pixel camera and ground anchor; retain its camera while painting the first reference materials and factory identity. Retain only necessary built paving and paths, otherwise bare yard ground is transparent; no grass lawn rectangle or foundation plinth. Broad quiet painted shapes, no text, logos, people or tiny clutter."
+    }
+  ]
+}

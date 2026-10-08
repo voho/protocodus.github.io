@@ -100,18 +100,26 @@ try{
  assert.match(await page.locator('#placement-tip').innerText(),/Clear|network/);
  const protectedState=await state(page,site);await page.mouse.click(p.x,p.y);assert.deepEqual(await state(page,site),protectedState);
 
- // Mismatched endpoints reject the complete span before spending.
+ // Mismatched endpoints now include the required ground work in one price.
  await page.evaluate(({x,y})=>{const g=transport.game;for(const [dx,dy]of[[0,0],[1,0],[0,1],[1,1]])g.tiles[(y+dy)*g.width+x+dx].elevation=4/7;g.revision++;},tile(6,32));
- await choose(page,'bridge');const invalidBefore=await state(page,site);
- assert.match(await beginDrag(page,tile(0,32),tile(6,32)),/Match both ends|start level|same level/);
- assert.equal(await page.locator('#placement-tip').evaluate(el=>el.classList.contains('invalid')),true);
- await page.mouse.up();assert.deepEqual(await state(page,site),invalidBefore);
+ await choose(page,'bridge');const mismatchBefore=await state(page,site);
+ const mismatchTip=await beginDrag(page,tile(0,32),tile(6,32));
+ assert.match(mismatchTip,/includes \$[\d,]+ leveling/);
+ assert.equal(await page.locator('#placement-tip').evaluate(el=>el.classList.contains('invalid')),false);
+ assert.deepEqual(await state(page,site),mismatchBefore,'automatic ground preparation remains a read-only preview');
+ const mismatchCost=Number(mismatchTip.match(/\$([\d,]+)/)[1].replaceAll(',',''));
+ await page.mouse.up();assert.equal(mismatchBefore.money-(await state(page,site)).money,mismatchCost,'unequal banks charge their complete preview price');
+ await page.locator('#world').focus();await page.keyboard.press('Control+z');
+ assert.deepEqual(await state(page,site),mismatchBefore,'one Undo returns both banks and refunds the complete crossing');
 
  await page.evaluate(site=>{transport.setTool('inspect');transport.renderer.setZoom(.5);transport.renderer.focus(site.x+6,site.y+12);},site);
  await page.screenshot({path:`${output}/terrain-crossings-desktop.png`});
  const saved=await state(page,site);await page.evaluate(()=>transport.persist());await page.reload();await loadAutosaveFromMenu(page);
- const loaded=await state(page,site);assert.deepEqual(JSON.parse(loaded.tiles),JSON.parse(saved.tiles),'terrain and crossing metadata survive real local-storage reload');
+ // The restored clock runs until the real Pause click lands. Decorative
+ // undergrowth may return during that interval; engineered land must not move.
+ const construction=serialized=>JSON.parse(serialized).map(({detail,...tile})=>tile);
+ const loaded=await state(page,site);assert.deepEqual(construction(loaded.tiles),construction(saved.tiles),'terrain and crossing metadata survive real local-storage reload');
  await page.close();
 
- assert.deepEqual(errors,[]);console.log('PASS: terrain gestures, level/cost previews, all four spans, cancellation, protected tiles, atomic rejection, and local save/reload.');
+ assert.deepEqual(errors,[]);console.log('PASS: terrain gestures, level/cost previews, all four spans, cancellation, protected tiles, automatic bank preparation, combined Undo, and local save/reload.');
 }finally{await browser.close();}

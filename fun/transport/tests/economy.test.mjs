@@ -114,7 +114,7 @@ test('an in-service line stops at a network break and resumes after repair', () 
 });
 
 test('bulldozing a route’s only producer or buyer warns once, naming the route', () => {
-  for (const [site, end, pattern] of [[[10, 10], 0, /^Forest supply lost its timber supplier\. Add one within 5 tiles of (.+), or retire the route\.$/], [[30, 10], 1, /^Forest supply lost its buyer\. Add a buyer within 5 tiles of (.+), or retire the route\.$/]]) {
+  for (const [site, end, pattern] of [[[10, 10], 0, /^Forest supply lost its timber supplier\. Add one within 4 tiles of (.+), or retire the route\.$/], [[30, 10], 1, /^Forest supply lost its buyer\. Add a buyer within 4 tiles of (.+), or retire the route\.$/]]) {
     const { game, stops } = freightFixture();
     assert.equal(addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' }).ok, true);
     const route = game.routes[0], last = game.notifications[0];

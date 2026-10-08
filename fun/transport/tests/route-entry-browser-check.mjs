@@ -54,14 +54,17 @@ try {
     }
     for (const key of ['cities', 'industries', 'stations', 'routes', 'vehicles', 'zones', 'terrainObjects']) g[key] = [];
     const town = (id, name, x) => ({ id, name, x, y: 83, population: 600, passengers: 100, mail: 50, activity: 0, growth: 0, delivered: 0, supplies: 0, lastServiceDay: null });
-    g.cities = [town('entry-alpha', 'Alpha', 60), town('entry-beta', 'Beta', 100)];
+    const cities = [town('entry-alpha', 'Alpha', 60), town('entry-beta', 'Beta', 100)];
     g.money = 5_000_000; g.day = g.lastDailyDay = 730; g.lastMonth = 24; g.revision++; g.networkRevision++;
     const checked = result => { if (!result.ok) throw Error(`Route entry fixture: ${result.message}`); return result; };
     checked(buildPath(g, 'road', Array.from({ length: 45 }, (_, n) => ({ x: 60 + n, y: 80 }))));
     checked(buildPath(g, 'rail', Array.from({ length: 41 }, (_, n) => ({ x: 60 + n, y: 86 }))));
     checked(build(g, 'quarry', 58, 72));
+    // Seed the compact established towns after the quarry; this route-entry
+    // fixture tests shared service, rather than new-site spacing.
+    g.cities=cities;g.revision++;
     const stops = {};
-    for (const [key, tool, x, y] of [['alpha', 'bus-stop', 60, 80], ['beta', 'bus-stop', 100, 80], ['sameTown', 'bus-stop', 64, 80], ['tooClose', 'bus-stop', 61, 80], ['railAlpha', 'train-stop', 60, 86], ['railBeta', 'train-stop', 100, 86], ['airAlpha', 'airport-x', 130, 80], ['airNear', 'airport-x', 140, 80]]) stops[key] = checked(build(g, tool, x, y)).station;
+    for (const [key, tool, x, y] of [['alpha', 'bus-stop', 60, 80], ['beta', 'bus-stop', 100, 80], ['sameTown', 'bus-stop', 62, 80], ['tooClose', 'bus-stop', 61, 80], ['railAlpha', 'train-stop', 60, 86], ['railBeta', 'train-stop', 100, 86], ['airAlpha', 'airport-x', 130, 80], ['airNear', 'airport-x', 140, 80]]) stops[key] = checked(build(g, tool, x, y)).station;
     for (let x = 60; x <= 100; x++) g.tiles[140 * g.width + x].terrain = 'water';
     stops.port = checked(build(g, 'port', 60, 140)).station;
     g.money = 5_000_000; g.revision++; g.networkRevision++;
@@ -217,10 +220,10 @@ try {
   await newRoute(page);
   await chooseStops(page, stops.alpha, stops.sameTown);
   assert.doesNotMatch(await page.locator('#route-connection').textContent(), /Connection ready/, 'physically connected stops with no usable cargo keep their validation reason');
-  assert.match(await page.locator('#route-connection').textContent(), /Each stop must serve a different town within 5 tiles/);
+  assert.match(await page.locator('#route-connection').textContent(), /Each stop must serve a different town within 4 tiles/);
   await page.locator('[data-cargo-choice="passengers"]').click();
   assert.equal(await page.locator('.route-unavailable-cargo').evaluate(details => details.open), true, 'selecting unusable cargo makes its reason readable without hovering');
-  assert.match(await page.locator('.route-unavailable-cargo').textContent(), /Each stop must serve a different town within 5 tiles/);
+  assert.match(await page.locator('.route-unavailable-cargo').textContent(), /Each stop must serve a different town within 4 tiles/);
   await page.locator('[data-route-review-stops]').click();
   assert.equal(await field(page, 'from').isVisible(), true, 'the cargo explanation offers a direct way to revise the stops');
   await newRoute(page);

@@ -2,7 +2,7 @@ import { BIOMES, CARGO, INDUSTRIES, BUILD_COSTS, VEHICLE_COSTS, VEHICLE_CAPACITI
 import { generateWorld, seedNumber, WORLD_SIZES, NEW_WORLD_SIZES, DEFAULT_WORLD_SIZE, supportsGenerationVersion, worldGenerationOptions, validGenerationOptions } from './world.js';
 import { BUILDINGS } from './buildings.js';
 import { allocateTerrainObjects } from './world-terrain-objects.js';
-import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySpacingProblem, industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
+import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySpacingProblem, townSpacingProblem, industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
 import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
@@ -28,13 +28,14 @@ import { isTownTraffic } from './data.js';
 import { MAIL_POOL_SHARE } from './settlements.js';
 import { TERRAIN_OBJECT_KINDS, validTerrainObjectSize, terrainObjectAt, terrainObjectSize, terrainObjectTiles, terrainObjectGroundIsFlat, releaseTerrainObjects } from './terrain-objects.js';
 import { LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
+import { planNetworkConstruction, earthworksView } from './construction-earthworks.js';
 import { surfaceHeight } from './terrain-geometry.js';
-import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem, networkTerrainPlanProblem } from './terrain-engineering.js';
+import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructureSpan, SPAN_TOOLS, networkEdgeAllowed, transportElevation, validStructureMetadata, networkTerrainProblem } from './terrain-engineering.js';
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 import { vehicleModel } from './vehicle-models.js';
 import { reviewPerformance, validPerformance } from './company-rating.js';
 import { createAchievementState, noteDelivery, stepAchievements, backfillAchievements, validAchievements } from './achievements.js';
-import { STATION_RADIUS, AIRPORT_MIN_TILES, AIRPORT_REACH, AIR_TURNAROUND, AIR_DEPARTURE_DWELL, AIRPORT_TOOLS, stationSpan, stationReach, stationDistance, stationTiles, stationSiteAt, airPath } from './station-sites.js';
+import { STATION_RADIUS, LEGACY_STATION_RADIUS, AIRPORT_MIN_TILES, AIRPORT_REACH, AIR_TURNAROUND, AIR_DEPARTURE_DWELL, AIRPORT_TOOLS, stationSpan, stationReach, stationDistance, stationTiles, stationSiteAt, airPath } from './station-sites.js';
 export { priceFor, inflationInfo, airAvailable, AIR_DEBUT_YEAR } from './economy-pricing.js';
 export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
 export { industryConditions } from './industry-simulation.js';
@@ -110,7 +111,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
   const settings = { townCount: townCount ?? defaults.townCount, industryDistricts: industryDistricts ?? defaults.industryDistricts };
   const generationOptions = settings.townCount === defaults.townCount && settings.industryDistricts === defaults.industryDistricts ? undefined : settings;
   const game = {
-    version:1, siteFootprintVersion:3, terrainObjectVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
+    version:1, siteFootprintVersion:3, terrainObjectVersion:1, stationReachVersion:1, seed:seedNumber(seed), biome, ...generateWorld(biome,seed,size,generationVersion,generationOptions),
     money:funds, day:0, totalDelivered:0, totalRevenue:0,
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
@@ -135,9 +136,10 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
 export function stationCoverage(game,station) {
   // An airport serves towns only, at its wider reach: passengers and mail, never freight or industries.
   if(station.mode==='air'){const reach=stationReach(station),cities=nearbyCities(game,station.x,station.y,reach+5).filter(city=>stationDistance(station,city)<=reach),town=cities.length?['passengers','mail']:[];return {cities,industries:[],zones:[],produces:town,accepts:town.slice()};}
-  const cities=nearbyCities(game,station.x,station.y,STATION_RADIUS).filter(city => distance(city,station)<=STATION_RADIUS);
-  const industries=nearbyIndustries(game,station.x,station.y,STATION_RADIUS+2).filter(industry => industryDistance(industry,station)<=STATION_RADIUS);
-  const zones=nearbyZones(game,station.x,station.y,STATION_RADIUS).filter(zone => distance(zone,station)<=STATION_RADIUS);
+  const reach=stationReach(station);
+  const cities=nearbyCities(game,station.x,station.y,reach).filter(city => distance(city,station)<=reach);
+  const industries=nearbyIndustries(game,station.x,station.y,reach+2).filter(industry => industryDistance(industry,station)<=reach);
+  const zones=nearbyZones(game,station.x,station.y,reach).filter(zone => distance(zone,station)<=reach);
   const produces=new Set(cities.length ? ['passengers','mail'] : []);
   const accepts=new Set(cities.length ? ['passengers','mail',...TOWN_CARGO] : []);
   for (const industry of industries) {
@@ -232,30 +234,79 @@ export function invalidateNetworkPoints(game,points){invalidateNetwork(game,poin
 // Towns lay their own streets as upkeep-free public roads; one revision covers every town's day.
 function placePublicRoads(game,points){for(const p of points){const t=tileAt(game,p.x,p.y);t.road=true;t.publicRoad=true;t.detail='';if(t.terrain==='forest')t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';}invalidateNetwork(game,points);}
 function spend(game,cost) { game.money-=cost;game.monthlyExpenses+=cost;game.totalExpenses+=cost; }
+// Network earthworks and track are quoted against the same read-only terrain.
+// A successful commit has no per-tile refusal paths after its full preflight.
+export function quoteNetworkConstruction(game,tool,points) {
+  const unique=new Map();
+  for(const p of Array.isArray(points)?points:[])if(p&&Number.isInteger(p.x)&&Number.isInteger(p.y))unique.set(`${p.x},${p.y}`,{x:p.x,y:p.y});
+  if(!unique.size)return {placements:[],terrain:[],cost:0,networkCost:0,terrainCost:0,issues:[],ok:false,message:'Choose a construction path.'};
+  const plan=planNetworkConstruction(game,tool,[...unique.values()]),terrain=(plan.terrain||[]).map(p=>({...p,cost:p.steps*priceFor(game,BUILD_COSTS.level)})),view=earthworksView(game,terrain);
+  const explicitSpan=tool!=='road'&&tool!=='rail'&&unique.size>1;
+  const fallback=[...unique.values()].map((p,index)=>{
+    const mode=tool.startsWith('rail')?'rail':'road',interior=index>0&&index<unique.size-1;
+    const resolved=explicitSpan?(interior?tool:mode):tool==='road'||tool==='rail'?(tileAt(game,p.x,p.y)?.terrain==='water'?(mode==='rail'?'railbridge':'bridge'):tileAt(game,p.x,p.y)?.terrain==='mountain'?(mode==='rail'?'railtunnel':'tunnel'):mode):tool;
+    return {...p,tool:resolved,...explicitSpan?{interior}:{}};
+  });
+  const placements=(plan.placements?.length?plan.placements:fallback).map(p=>({...p,cost:constructionCost(view,p.tool,p.x,p.y)}));
+  const issues=plan.issues||[],issueAt=new Map(issues.map(issue=>[issue.y*game.width+issue.x,issue]));
+  for(const p of placements){
+    const cell=tileAt(view,p.x,p.y),problem=networkPlacementProblem(view,p);
+    if(cell&&networkAlreadyBuilt(cell,p.tool))p.state='built';
+    else if(problem){p.state='blocked';p.problem=problem;}
+    else if(!plan.ok&&(!issues.length||issueAt.has(p.y*game.width+p.x))){p.state='slope';p.issue=issueAt.get(p.y*game.width+p.x);}
+    else p.state='ok';
+  }
+  const networkCost=placements.reduce((sum,p)=>sum+(p.state==='blocked'?0:p.cost),0),terrainCost=terrain.reduce((sum,p)=>sum+p.cost,0),cost=networkCost+terrainCost;
+  let balance=game.money-terrainCost;
+  for(const p of placements)if(p.state==='ok'){if(p.cost>balance)p.state='funds';else balance-=p.cost;}
+  const count=state=>placements.filter(p=>p.state===state).length,blocked=count('blocked'),unaffordable=count('funds'),buildable=count('ok');
+  const refusal=placements.find(p=>p.state==='blocked')?.problem,blockingMessage=blocked>1&&placements.every(p=>p.state!=='blocked'||p.problem==='A building or zone is in the way. Clear it first, then build here.')?`${blocked} tiles are blocked by buildings or zones. Drag around them, or bulldoze first.`:refusal;
+  const message=blocked?blockingMessage:!plan.ok?plan.message:cost>game.money?`Need ${moneyText(cost)}. You have ${moneyText(game.money)}.`:plan.message||'Build this path.';
+  return {...plan,placements,terrain,networkCost,terrainCost,cost,issues,blocked,unaffordable,buildable,partial:false,ok:Boolean(plan.ok&&!blocked&&cost<=game.money),message};
+}
+function networkPlacementProblem(game,p){
+  const {x,y,tool}=p,t=tileAt(game,x,y),mode=tool.startsWith('rail')?'rail':'road',bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
+  if(!t)return 'Choose a tile inside the map.';
+  if(networkAlreadyBuilt(t,tool))return null;
+  if(t.structureAxis)return 'Each elevated span carries one transport mode. Build another span alongside it.';
+  if(industryAt(game,x,y)||buildingAt(game,x,y)||t.zone)return 'A building or zone is in the way. Clear it first, then build here.';
+  const station=stationAt(game,x,y);
+  if(station?.mode==='air')return 'Roads and railways can’t cross an airport. Build around it.';
+  if(station&&station.mode!==mode)return 'Roads and railways can’t cross at a stop. Build around it.';
+  if(t.terrain==='water'&&!bridge&&!t.bridge)return `Water needs a ${mode==='rail'?'rail ':''}bridge.`;
+  if(t.terrain==='mountain'&&!tunnel&&!t.tunnel)return `Mountains need a ${mode==='rail'?'rail ':''}tunnel.`;
+  if(!p.interior&&bridge&&t.terrain!=='water')return 'Place bridges on water; connect the banks with ordinary track or road.';
+  if(!p.interior&&tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock')return 'Tunnels must cross mountains or rock.';
+  return null;
+}
+export function buildNetworkConstruction(game,tool,points){
+  const plan=quoteNetworkConstruction(game,tool,points),placements=plan.placements;
+  if(!plan.ok)return {...plan,cost:0,built:0,failed:placements.length,skipped:0};
+  const changed=placements.filter(p=>p.state!=='built'),terrain=plan.terrain,skipped=placements.length-changed.length;
+  if(!changed.length&&!terrain.length)return result(true,'Already built.',{cost:0,networkCost:0,terrainCost:0,terrain:[],built:0,failed:0,skipped,unchanged:true,...plan.level!==undefined?{level:plan.level,height:plan.height}:{}});
+  const affected=new Map(changed.map(p=>[`${p.x},${p.y}`,p]));
+  for(const p of terrain)for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)affected.set(`${p.x+dx},${p.y+dy}`,{x:p.x+dx,y:p.y+dy});
+  releaseTerrainObjects(game,[...affected.values()]);
+  const view=earthworksView(game,terrain);
+  for(const p of terrain){const cell=tileAt(game,p.x,p.y),next=tileAt(view,p.x,p.y);cell.elevation=next.elevation;cell.terrain=next.terrain;cell.detail=next.detail;}
+  for(const p of changed){
+    const cell=tileAt(game,p.x,p.y),mode=p.tool.startsWith('rail')?'rail':'road',bridge=p.tool==='bridge'||p.tool==='railbridge',tunnel=p.tool==='tunnel'||p.tool==='railtunnel';
+    cell[mode]=true;if(bridge)cell.bridge=true;if(tunnel)cell.tunnel=true;
+    if(p.interior){cell.structureLevel=p.level;cell.structureAxis=p.axis;}
+    if(cell.terrain==='forest'&&!tunnel){cell.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';cell.detail='';}
+    if(p.interior===false)cell.detail='';
+  }
+  spend(game,plan.cost);invalidateNetwork(game,[...changed,...terrain]);
+  const message=plan.structure?`${plan.mode==='rail'?'Rail':'Road'} ${plan.structure} built at level ${plan.height}.`:`Built ${tiles(changed.length)}.`;
+  return result(true,`${message}${spent(plan.cost)}`,{cost:plan.cost,networkCost:plan.networkCost,terrainCost:plan.terrainCost,terrain:plan.terrain,built:changed.length,failed:0,skipped,...plan.level!==undefined?{level:plan.level,height:plan.height}:{}});
+}
 export function quoteStructureSpan(game,tool,points) {
-  const plan=planStructureSpan(game,tool,points);if(!plan.ok)return plan;
-  const placements=plan.placements.map(p=>({...p,cost:constructionCost(game,p.tool,p.x,p.y)}));
-  const cost=placements.reduce((sum,p)=>sum+p.cost,0);
-  return {...plan,placements,cost,...game.money<cost?{ok:false,message:`Need ${moneyText(cost)} for the whole ${plan.structure}.`}:{}};
+  if(!SPAN_TOOLS.has(tool)||!Array.isArray(points)||points.length<3)return planStructureSpan(game,tool,points);
+  return quoteNetworkConstruction(game,tool,points);
 }
 export function buildStructureSpan(game,tool,points) {
-  const plan=quoteStructureSpan(game,tool,points);
-  if(!plan.ok)return {...plan,cost:0,built:0,failed:points.length,skipped:0};
-  let built=0,skipped=0;
-  // The whole span is checked before any charge or mutation, so an invalid
-  // portal, obstacle or short budget can never leave half a crossing behind.
-  releaseTerrainObjects(game,plan.placements.filter(p=>p.cost>0));
-  for(const p of plan.placements){
-    const t=tileAt(game,p.x,p.y);
-    if(p.cost===0){skipped++;continue;}
-    t[plan.mode]=true;
-    if(p.interior){t[plan.structure]=true;t.structureLevel=plan.level;t.structureAxis=plan.axis;}
-    if(t.terrain==='forest'&&(!p.interior||plan.structure!=='tunnel')){t.terrain=game.biome==='desert'?'sand':game.biome==='tundra'?'snow':'grass';t.detail='';}
-    if(!p.interior)t.detail='';
-    built++;
-  }
-  if(built){spend(game,plan.cost);invalidateNetwork(game,plan.placements);}
-  return result(true,built?`${plan.mode==='rail'?'Rail':'Road'} ${plan.structure} built at level ${plan.height}.${spent(plan.cost)}`:'Already built.',{cost:plan.cost,built,failed:0,skipped,level:plan.level,height:plan.height});
+  if(!SPAN_TOOLS.has(tool)||!Array.isArray(points)||points.length<3)return {...quoteStructureSpan(game,tool,points),cost:0,built:0,failed:Array.isArray(points)?points.length:0,skipped:0};
+  return buildNetworkConstruction(game,tool,points);
 }
 export function quoteTerraformLevel(game, points, { targetLevel } = {}) {
   const plan=planTerraformLevel(game,points,targetLevel);if(!plan.ok)return plan;
@@ -306,7 +357,7 @@ function rememberHousingOwners(game){
 }
 export function networkAlreadyBuilt(tile,tool) { return Boolean(tile[tool.startsWith('rail')?'rail':'road']&&(!['bridge','railbridge'].includes(tool)||tile.bridge)&&(!['tunnel','railtunnel'].includes(tool)||tile.tunnel)); }
 /** Why build() would refuse this tile, checked in build()'s own order; null when it would succeed or is already built. Plans pass a running `money`. Area leveling is quoted by quoteTerraformLevel. */
-export function buildProblem(game,tool,x,y,{money=game.money}={}) {
+export function buildProblem(game,tool,x,y,{money=game.money,autoLevel=true}={}) {
   const t=tileAt(game,x,y),fail=(message,reason='blocked')=>({message,reason});
   if(!t) return fail('Choose a tile inside the map.');
   if(!owns(BUILD_COSTS,tool)) return fail('Unknown construction tool.');
@@ -325,20 +376,15 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
     return money<constructionCost(game,tool,x,y)?fail(`Need ${moneyText(constructionCost(game,tool,x,y))} to clear this tile.`,'funds'):null;
   }
   if(NETWORK_TOOLS.includes(tool)) {
-    const mode=tool.startsWith('rail')?'rail':'road';
-    const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
-    if(networkAlreadyBuilt(t,tool)) return null;
-    if(t.structureAxis)return fail('Each elevated span carries one transport mode. Build another span alongside it.');
-    if(industry||site||t.zone) return fail('A building or zone is in the way. Clear it first, then build here.');
-    if(station?.mode==='air') return fail('Roads and railways can’t cross an airport. Build around it.');
-    if(station&&station.mode!==mode) return fail('Roads and railways can’t cross at a stop. Build around it.');
-    if(t.terrain==='water'&&!bridge&&!t.bridge) return fail(`Water needs a ${mode==='rail'?'rail ':''}bridge.`,'terrain');
-    if(t.terrain==='mountain'&&!tunnel&&!t.tunnel) return fail(`Mountains need a ${mode==='rail'?'rail ':''}tunnel.`,'terrain');
-    if(bridge&&t.terrain!=='water') return fail('Place bridges on water; connect the banks with ordinary track or road.','terrain');
-    if(tunnel&&t.terrain!=='mountain'&&t.terrain!=='rock') return fail('Tunnels must cross mountains or rock.','terrain');
-    if(!bridge&&!tunnel){const problem=networkTerrainProblem(game,x,y,mode);if(problem)return fail(problem,'terrain');}
-    const cost=constructionCost(game,tool,x,y);
-    return money<cost?fail(`Need ${moneyText(cost)} to build here.`,'funds'):null;
+    // Path search visits thousands of candidates. It can retain the cheap
+    // strict check here, then quote all earthworks once for the chosen path.
+    if(!autoLevel){
+      const problem=networkPlacementProblem(game,{x,y,tool});if(problem)return fail(problem);
+      if(!networkAlreadyBuilt(t,tool)&&(tool==='road'||tool==='rail')){const terrain=networkTerrainProblem(game,x,y,tool);if(terrain)return fail(terrain,'terrain');}
+      const cost=constructionCost(game,tool,x,y);return money<cost?fail(`Need ${moneyText(cost)} to build here.`,'funds'):null;
+    }
+    const quote=quoteNetworkConstruction(money===game.money?game:{...game,money},tool,[{x,y}]);
+    return quote.ok?null:fail(quote.message,quote.cost>money?'funds':quote.blocked?'blocked':'terrain');
   }
   if(AIRPORT_TOOLS.has(tool)) {
     if(!airAvailable(game))return fail(`Air travel arrives on 1 January ${AIR_DEBUT_YEAR}.`);
@@ -356,7 +402,7 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
       if(industry||site||t.zone) return fail('Choose an unoccupied road or rail tile.');
       if(!validNetwork(t,mode)) {
         if(mode!=='road')return fail('Build a railway here first.');
-        const roadProblem=buildProblem(game,'road',x,y,{money:Infinity});
+        const roadProblem=buildProblem(game,'road',x,y,{money:Infinity,autoLevel:false});
         if(roadProblem)return roadProblem;
       }
       if(t.bridge||t.tunnel) return fail('Stops can’t sit on a bridge or in a tunnel. Pick open ground beside it.');
@@ -374,7 +420,7 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
   if(ZONE_TYPES.includes(tool))return null;
   if(tool==='city') {
     const terrainProblem=networkTerrainProblem(game,x,y,'road');if(terrainProblem)return fail(terrainProblem,'terrain');
-    if(game.cities.some(c=>distance(c,point)<11))return fail('This is too close to another town. Found it at least 11 tiles from any town centre.');
+    const spacing=townSpacingProblem(game,x,y);if(spacing)return fail(spacing);
     if(['mountain','rock'].includes(t.terrain))return fail('A new town needs level land.','terrain');
     return null;
   }
@@ -388,6 +434,7 @@ export function buildProblem(game,tool,x,y,{money=game.money}={}) {
 // Counting from the number of stops keeps fresh-game names; after a demolition the count moves past names still in use.
 function nextStationName(game,prefix) { const used=new Set(game.stations.map(s=>s.name));let n=game.stations.length+1;while(used.has(`${prefix} ${n}`))n++;return `${prefix} ${n}`; }
 export function build(game,tool,x,y) {
+  if(NETWORK_TOOLS.includes(tool))return buildNetworkConstruction(game,tool,[{x,y}]);
   const problem=buildProblem(game,tool,x,y);if(problem)return result(false,problem.message);
   if(tool==='level')return buildTerraformLevel(game,[{x,y}]);
   const t=tileAt(game,x,y),point={x,y},station=stationAt(game,x,y),industry=industryAt(game,x,y),site=buildingAt(game,x,y),nature=terrainObjectAt(game,x,y);
@@ -429,17 +476,6 @@ export function build(game,tool,x,y) {
     if(changedNetwork)invalidateNetwork(game,[point]);else game.revision++;
     warnLostSupply(game,supplied);
     return result(true,`Cleared ${site?'the building':industry?`${industry.name||INDUSTRIES[industry.kind].name}`:station?.mode==='air'?'the airport':nature?nature.object.kind==='forest'?'the woodland':'the rocks':'the tile'}.${spent(cost)}`,{cost});
-  }
-  if(NETWORK_TOOLS.includes(tool)) {
-    const mode=tool.startsWith('rail')?'rail':'road';
-    const bridge=tool==='bridge'||tool==='railbridge',tunnel=tool==='tunnel'||tool==='railtunnel';
-    if(networkAlreadyBuilt(t,tool)) return result(true,'Already built.',{cost:0,unchanged:true});
-    const cost=constructionCost(game,tool,x,y);
-    releaseTerrainObjects(game,[point]);
-    spend(game,cost);t[mode]=true;if(bridge)t.bridge=true;if(tunnel)t.tunnel=true;
-    if(t.terrain==='forest'){t.terrain=game.biome==='tundra'?'snow':game.biome==='desert'?'sand':'grass';t.detail='';}
-    invalidateNetwork(game,[point]);
-    return result(true,`${mode==='rail'?'Rail':'Road'} ${bridge?'bridge built':tunnel?'tunnel built':'built'}.${spent(cost)}`,{cost});
   }
   if(AIRPORT_TOOLS.has(tool)) {
     const axis=tool==='airport-y'?'y':'x',cost=constructionCost(game,tool,x,y),site={x,y,mode:'air',axis},points=stationTiles(site);
@@ -551,7 +587,7 @@ export function buildPath(game,tool,points) {
     const site=tool==='bulldoze'?(buildingAt(game,point.x,point.y)||industryAt(game,point.x,point.y)||(airport?.mode==='air'?airport:null)||(nature&&nature.object.kind!=='mountain'?nature:null)):null;
     const target=site?{x:site.x,y:site.y}:point;unique.set(`${target.x},${target.y}`,target);
   }
-  if(tool==='road'||tool==='rail'){const problem=networkTerrainPlanProblem(game,[...unique.values()].map(p=>({...p,tool})));if(problem)return result(false,problem,{cost:0,built:0,failed:unique.size,skipped:0});}
+  if(NETWORK_TOOLS.includes(tool))return buildNetworkConstruction(game,tool,[...unique.values()]);
   let count=0,cost=0,skipped=0;const errors=new Map();
   for(const {x,y} of unique.values()) {
     const built=build(game,tool,x,y);
@@ -584,13 +620,13 @@ function freightPair(game,a,b,cargo) { return freightFits(game,stationCoverage(g
 // action, so each route it leaves without a producer or buyer gets one warning.
 function suppliedRoutes(game,industry) {
   const stops=new Map(game.stations.map(stop=>[stop.id,stop]));
-  return game.routes.filter(route=>{const [a,b]=route.stops.map(id=>stops.get(id));return !isTownTraffic(route.cargo)&&a&&b&&(industryDistance(industry,a)<=STATION_RADIUS||industryDistance(industry,b)<=STATION_RADIUS)&&freightPair(game,a,b,route.cargo);});
+  return game.routes.filter(route=>{const [a,b]=route.stops.map(id=>stops.get(id));return !isTownTraffic(route.cargo)&&a&&b&&(industryDistance(industry,a)<=stationReach(a)||industryDistance(industry,b)<=stationReach(b))&&freightPair(game,a,b,route.cargo);});
 }
 function warnLostSupply(game,routes) {
   for(const route of routes){
     const [a,b]=route.stops.map(id=>game.stations.find(stop=>stop.id===id));if(freightPair(game,a,b,route.cargo))continue;
     const producer=stationCoverage(game,a).industries.some(i=>INDUSTRIES[i.kind].outputs[route.cargo]);
-    const stop=producer?b:a,lost=(name,at)=>producer?`${name} lost its buyer. Add a buyer within ${STATION_RADIUS} tiles of ${at}, or retire the route.`:`${name} lost its ${cargoName(route.cargo)} supplier. Add one within ${STATION_RADIUS} tiles of ${at}, or retire the route.`;
+    const stop=producer?b:a,lost=(name,at)=>producer?`${name} lost its buyer. Add a buyer within ${stationReach(stop)} tiles of ${at}, or retire the route.`:`${name} lost its ${cargoName(route.cargo)} supplier. Add one within ${stationReach(stop)} tiles of ${at}, or retire the route.`;
     notify(game,lost(route.name,stop.name),'warning',{topic:'route-supply',target:{kind:'route',id:route.id},template:lost(token('route',route.id),token('stop',stop.id))});
   }
 }
@@ -671,10 +707,10 @@ function planRoute(game,{mode,stops,cargo},retry='launch again') {
   if(stations.some(s=>!s||s.mode!==mode))return result(false,mode==='water'?'Choose two ports for a ship route.':mode==='air'?'Choose two airports for a flight.':`Both stops must be ${stopKind(mode)}s.`);
   if(mode==='air'&&!isTownTraffic(cargo))return result(false,'Planes carry passengers and mail.');
   if(isTownTraffic(cargo)) {
-    if(!passengerEndpoints(game,...stations))return result(false,mode==='air'?`Airports must serve two different towns within ${AIRPORT_REACH} tiles.`:cargo==='mail'?'Mail stops must serve two different towns within 5 tiles.':'Passenger stops must serve two different towns within 5 tiles.');
+    if(!passengerEndpoints(game,...stations))return result(false,mode==='air'?`Airports must serve two different towns within ${AIRPORT_REACH} tiles.`:cargo==='mail'?`Mail stops must serve two different towns within their stop ranges.`:`Passenger stops must serve two different towns within their stop ranges.`);
   } else if(!freightPair(game,stations[0],stations[1],cargo)) {
     if(freightPair(game,stations[1],stations[0],cargo))stations.reverse();
-    else return result(false,workshopLoop(game,...stations.map(stop=>stationCoverage(game,stop)),cargo)||`These stops need a supplier of ${cargoName(cargo)} and a buyer within 5 tiles.`);
+    else return result(false,workshopLoop(game,...stations.map(stop=>stationCoverage(game,stop)),cargo)||`These stops need a supplier of ${cargoName(cargo)} and a buyer within their stop ranges.`);
   }
   const path=findPath(game,stations[0],stations[1],mode);
   if(!path)return result(false,mode==='water'?'These ports don’t share open water. Choose ports on the same river, lake or sea.':`These stops aren’t joined by ${mode}. Build the missing ${mode==='rail'?'track':'road'}, including any bridge or tunnel, then ${retry}.`);
@@ -1348,6 +1384,7 @@ function validPoint(game,p) {return p&&Number.isInteger(p.x)&&Number.isInteger(p
 export function validateGame(game) {
   if(!game||typeof game!=='object'||game.version!==1||!owns(BIOMES,game.biome)||!((game.width===100&&game.height===72)||Object.values(WORLD_SIZES).some(size=>size.width===game.width&&size.height===game.height)))return false;
   if(game.terrainObjectVersion!==undefined&&game.terrainObjectVersion!==1)return false;
+  if(game.stationReachVersion!==undefined&&game.stationReachVersion!==1)return false;
   if(game.siteFootprintVersion!==undefined&&![1,2,3].includes(game.siteFootprintVersion))return false;
   if(game.size!==undefined&&(!owns(WORLD_SIZES,game.size)||WORLD_SIZES[game.size].width!==game.width||WORLD_SIZES[game.size].height!==game.height))return false;
   if(game.generationVersion!==undefined&&(!supportsGenerationVersion(game.generationVersion)||!owns(NEW_WORLD_SIZES,game.size)))return false;
@@ -1380,6 +1417,7 @@ export function validateGame(game) {
   if(!game.industries.every(i=>validFootprint(i,isFarmIndustry(i.kind)?7:industryFootprint(i.kind))&&i.x+industrySize(i)<=game.width&&i.y+industrySize(i)<=game.height))return false;
   if(!game.industries.every(i=>(i.lastProductionDay===undefined||finite(i.lastProductionDay,0,game.day))&&(i.nextProductionDay===undefined||(Number.isInteger(i.nextProductionDay)&&finite(i.nextProductionDay,0,Math.floor(game.day)+3)))&&(i.nextReviewDay===undefined||(Number.isInteger(i.nextReviewDay)&&finite(i.nextReviewDay,0,Math.floor(game.day)+45)))&&(i.totalProduced===undefined||finite(i.totalProduced,0,1e15))&&(i.openedDay===undefined||(Number.isInteger(i.openedDay)&&finite(i.openedDay,0,Math.floor(game.day))))))return false;
   if(!game.stations.every(s=>validPoint(game,s)&&uniqueId(s)&&typeof s.name==='string'&&TRANSPORT_MODES.includes(s.mode)&&(s.mode==='air'?['x','y'].includes(s.axis):s.axis===undefined)))return false;
+  if(!game.stations.every(s=>s.catchmentRadius===undefined||s.mode!=='air'&&s.catchmentRadius===LEGACY_STATION_RADIUS))return false;
   if(!game.zones.every(z=>validPoint(game,z)&&ZONE_TYPES.includes(z.kind)&&finite(z.progress,0,3)))return false;
   if(!game.zones.every(z=>z.tiles===undefined||Number.isInteger(z.tiles)&&finite(z.tiles,1,9)))return false;
   // Only occupied cells need an index: even the largest world stays sparse.
@@ -1481,10 +1519,10 @@ function resizeRestoredIndustries(game) {
   for(const industry of game.industries){
     const size=industryFootprint(industry.kind),slack=size-industrySize(industry);
     if(slack<0){
-      const excess=-slack,covered=game.stations.filter(stop=>stop.mode!=='air'&&industryDistance(industry,stop)<=STATION_RADIUS),candidates=[];
+      const excess=-slack,covered=game.stations.filter(stop=>stop.mode!=='air'&&industryDistance(industry,stop)<=stationReach(stop)),candidates=[];
       for(let dy=0;dy<=excess;dy++)for(let dx=0;dx<=excess;dx++)candidates.push({x:industry.x+dx,y:industry.y+dy,footprint:size,offset:Math.abs(dx-excess/2)+Math.abs(dy-excess/2)});
       candidates.sort((a,b)=>a.offset-b.offset||a.y-b.y||a.x-b.x);
-      const site=candidates.find(candidate=>!industrySiteProblem(game,industry.kind,candidate.x,candidate.y,size,industry)&&covered.every(stop=>industryDistance(candidate,stop)<=STATION_RADIUS));
+      const site=candidates.find(candidate=>!industrySiteProblem(game,industry.kind,candidate.x,candidate.y,size,industry)&&covered.every(stop=>industryDistance(candidate,stop)<=stationReach(stop)));
       if(site){Object.assign(industry,{x:site.x,y:site.y,footprint:size});changed=true;}
       continue;
     }
@@ -1500,6 +1538,7 @@ function resizeRestoredIndustries(game) {
 export function restoreGame(saved) {
   try {
     const game=decodeGame(saved);if(!validateGame(game))return null;
+    if(game.stationReachVersion!==1){for(const stop of game.stations)if(stop.mode!=='air')stop.catchmentRadius=LEGACY_STATION_RADIUS;game.stationReachVersion=1;}
     if(game.siteFootprintVersion!==3){if(game.siteFootprintVersion===undefined)expandRestoredSites(game);resizeRestoredIndustries(game);game.siteFootprintVersion=3;}
     if(game.terrainObjectVersion!==1){allocateTerrainObjects(game);game.revision++;}
     game.networkRevision??=0;

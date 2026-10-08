@@ -1,7 +1,9 @@
 import { resolveBuildTool, quoteBuildPlan, airportPlacement } from './construction-plan.js';
 import { routeTileIndex } from './route-tiles.js';
 import { terraformProblem, networkEdgeAllowed, networkTerrainShape } from './terrain-engineering.js';
-import { isEngineeredTunnel, isUndergroundAt } from './structure-visibility.js';
+import { isTunnelTile, isUndergroundAt, TUNNEL_PORTAL_OFFSET } from './structure-visibility.js';
+import { railConsistPoses } from './rail-consist.js';
+import { stopOrientation } from './stop-orientation.js';
 import { TILE, PALETTES, createSprites, createSpriteCache, rng } from './sprites.js';
 import { SPRITE_SCALE } from './sprite-art-direction.js';
 import { INDUSTRIES, BUILD_COSTS, VEHICLE_SPEEDS } from './data.js';
@@ -26,6 +28,7 @@ import { worldArtRevision, worldArtStats } from './atlas-runtime.js';
 import { createVehicleSprites, drawRasterInfrastructure, drawRasterNetwork, drawRasterZone, hasRasterNetwork, hasRasterTransport } from './raster-transport.js';
 import { drawRailSurface, RAIL_PALETTE } from './rail-surface-art.js';
 import { drawRoadSurface, ROAD_PALETTE, BRIDGE_SUPPORT_PALETTE } from './road-surface-art.js';
+import { drawBridgeStructure } from './bridge-art.js';
 import { drawNativeVehicle, drawStreetLamp, drawStreetBin } from './native-transport-art.js';
 import { industrySize, industryFootprint, industryTiles, industryContains, industryDistance } from './industry-sites.js';
 import { createOverlayGrid, siteShape, insideShape } from './overlay-placement.js';
@@ -42,17 +45,18 @@ import { natureVariant as placedNatureVariant, natureDensity as placedNatureDens
 import { populationText } from './formatters.js';
 import { shorelineContours, appendShoreline } from './shoreline.js';
 import { projectPoint, unprojectPoint, projectAngle } from './isometric.js';
-import { projectGround as projectGroundAtHeight, projectTerrainPoint as projectTerrainPointAtHeight, surfaceHeight, tileSurface as tileSurfaceAtHeight, groundIsFlat, pickGround as pickGroundAtHeight, transportHeight, bridgeDeckHeight, bridgeSurface, MAX_HEIGHT } from './terrain-geometry.js';
+import { projectGround as projectGroundAtHeight, projectTerrainPoint as projectTerrainPointAtHeight, surfaceHeight, tileSurface as tileSurfaceAtHeight, groundIsFlat, pickGround as pickGroundAtHeight, pickTerrainSurface, transportHeight, bridgeSurface, bridgeApproachSurface, MAX_HEIGHT } from './terrain-geometry.js';
 import { normalizeTerrainHeight } from './terrain-view.js';
 import { drawTerrainMesh, paintTerrainTile } from './terrain-mesh.js';
 import { partitionScenery, transferSceneryGroups, createSceneryBudget } from './scenery-batches.js';
 import { createRouteRenderIndex } from './route-render-index.js';
 import { routePreviewAlpha } from './route-preview-motion.js';
+import { CONSTRUCTION_FEEDBACK_CELLS } from './construction-feedback.js';
 import { lineFor, lineColor, validRouteNumber } from './route-lines.js';
 import { COLORS, STATES, MAP, FONT, alpha } from './design-tokens.js';
 import { networkIndex } from './network-index.js';
 import { createIsometricInfrastructureSprites } from './isometric-infrastructure.js';
-import { stationSpan, stationTiles, stationServes, stationContains, AIRPORT_REACH } from './station-sites.js';
+import { stationSpan, stationTiles, stationServes, stationContains, stationReach, AIRPORT_REACH } from './station-sites.js';
 import { aircraftPose } from './air-flight.js';
 import { paintAirportGround, createAirportSprites, PART_FRONTS, PART_BOXES, localToWorld } from './airport-art.js';
 
@@ -154,6 +158,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   const routeIndexes=new WeakMap(),routePaths=new WeakMap(),minimapRoutePaths=new WeakMap();
   let routeSegmentsConsidered=0,routePathBuilds=0;
   let routePreviewStats={active:false,animated:false,alpha:1,segments:0,endpoints:0,mode:null};
+  let constructionFeedbackStats={cells:0,kinds:[]};
   const routeBreakPoints=new WeakMap();let routeBreaks=0,highlightedRoute=null;
   function routeBreak(r){const key=`${game.networkRevision||0}:${r.path.length}`;let entry=routeBreakPoints.get(r);if(entry?.key!==key)routeBreakPoints.set(r,entry={key,at:routeBreakPoint(game,r)});return entry.at;}
   // New homes move markers and nameplates without touching the network, so overlays also follow the site journal.
@@ -171,6 +176,17 @@ export function createRenderer(canvas, initialGame, options={}) {
     const proxy=presentationMotion.sample(game,source,presentationTime());
     if(proxy!==source)presentationSources.set(proxy,source);
     return proxy;
+  }
+  const railPoses=new WeakMap();
+  function trainPose(v,route){
+    if(route?.mode!=='rail')return null;
+    const progress=shownProgress(route,v,v.progress||0),cached=railPoses.get(v);
+    if(cached?.path===route.path&&cached.progress===progress)return cached.pose;
+    const pose=railConsistPoses(route.path,progress);railPoses.set(v,{path:route.path,progress,pose});return pose;
+  }
+  function visibleRailBody(v,route){
+    const pose=trainPose(v,route);if(!pose)return null;
+    return [pose.engine,...pose.coaches].find(body=>!isUndergroundAt(game,body.x,body.y,'rail'))||null;
   }
   // Planes: one pose per visible plane per frame (air-flight.js), in projected world px, the body at its height over
   // the ground point beneath it. Each route keeps its flight geometry and cruise level until its path or ground changes.
@@ -459,7 +475,14 @@ export function createRenderer(canvas, initialGame, options={}) {
     // A high viaduct may cover a different ground tile in screen space. Pick
     // its visible deck before the land below, including for demolition.
     for(let i=bridgeHits.length-1;i>=0;i--){
-      const hit=bridgeHits[i],p=unprojectPoint(px,py+hit.height*heightStep),u=p.x/TILE,v=p.y/TILE;
+      const hit=bridgeHits[i];
+      if(hit.surface){
+        const p=pickTerrainSurface(hit.surface,px,py);if(!p)continue;
+        const dx=p.x-hit.x-.5,dy=p.y-hit.y-.5;
+        if(Math.hypot(dx,dy)<=9/TILE||hit.arms.some(([ax,ay])=>dx*ax+dy*ay>=0&&dx*ax+dy*ay<=.5+1e-8&&Math.abs(dx*ay-dy*ax)<=9/TILE))return{x:hit.x,y:hit.y};
+        continue;
+      }
+      const p=unprojectPoint(px,py+hit.height*heightStep),u=p.x/TILE,v=p.y/TILE;
       if(Math.floor(u)===hit.x&&Math.floor(v)===hit.y&&Math.abs(hit.axis==='x'?v-hit.y-.5:u-hit.x-.5)<=9/TILE)return{x:hit.x,y:hit.y};
     }
     const p=pickGround(game,px,py);return p?{x:Math.floor(p.x),y:Math.floor(p.y)}:clamp?edgePoint(px,py,Math.floor,.5):{x:-1,y:-1};
@@ -567,13 +590,14 @@ export function createRenderer(canvas, initialGame, options={}) {
   function vehicleAt(clientX,clientY,{slop=0}={}){
     if(!layers.vehicles)return null;
     const rect=canvas.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,routesById=new Map((game.routes||[]).map(route=>[route.id,route]));
-    const shown=v=>{const route=routesById.get(v.routeId);return route&&(route.mode==='air'?airPoses.has(v):route.mode==='water'||!isUndergroundAt(game,v.x,v.y))?route:null;};
+    const shown=v=>{const route=routesById.get(v.routeId);return carrierShown(v,route)?route:null;};
     if(layers.vehicleLoads)for(let i=frameVehicles.length-1;i>=0;i--){const v=frameVehicles[i],route=shown(v);if(!route||!carrierVisible(v,route,40))continue;const b=badgeRect(v,route);if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h)return presentationSources.get(v)||v;}
     let best=null,nearest=Infinity;
     for(let i=frameVehicles.length-1;i>=0;i--){
       const v=frameVehicles[i],route=shown(v);if(!route)continue;
-      const p=carrierPoint(v,route),reach=(route.mode==='water'?Math.max(20,20*camera.zoom):Math.max(10,14*camera.zoom))+slop,d=Math.hypot(x-p.x,y-p.y);
-      if(d<=reach&&d<nearest){best=v;nearest=d;}
+      const train=trainPose(v,route),bodies=train?[train.engine,...train.coaches].filter(body=>!isUndergroundAt(game,body.x,body.y,'rail')):null;
+      const points=bodies?bodies.map(body=>vehicleToScreen(body.x,body.y,'rail')):[carrierPoint(v,route)],reach=(route.mode==='water'?Math.max(20,20*camera.zoom):Math.max(10,14*camera.zoom*(train?.scale||1)))+slop;
+      for(const p of points){const d=Math.hypot(x-p.x,y-p.y);if(d<=reach&&d<nearest){best=v;nearest=d;}}
     }
     return best&&(presentationSources.get(best)||best);
   }
@@ -653,7 +677,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     return {waterPath,coasts};
   }
-  const buried=t=>Boolean(t&&(isEngineeredTunnel(t)||t.tunnel||(t.terrain==='mountain'&&!t.bridge)));
+  const buried=t=>Boolean(t&&(isTunnelTile(t)||(t.terrain==='mountain'&&!t.bridge)));
   function portalArms(x,y,t,mode){
     return [[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>{const adjacent=tile(x+dx,y+dy);return (!t.structureAxis||(t.structureAxis==='x'?dy===0:dx===0))&&adjacent?.[mode]&&!buried(adjacent)&&networkEdgeAllowed(t,adjacent,dx,dy,mode,game,x,y);});
   }
@@ -787,7 +811,7 @@ export function createRenderer(canvas, initialGame, options={}) {
         drawRasterZone(c,t.zone,x*TILE,y*TILE,TILE,rasterScale);c.restore();
         c.fillStyle=color+'45';c.fillRect(x*TILE+2,y*TILE+2,28,28);c.strokeStyle=color+'b0';c.lineWidth=.7;c.setLineDash([3,3]);c.strokeRect(x*TILE+3,y*TILE+3,26,26);c.setLineDash([]);
       }
-      if(!t.bridge&&t.terrain!=='water')for(const mode of ['road','rail'])if(layers[mode==='road'?'roads':'rails']&&!bridgeApproaches(x,y,t,mode).length)network(c,x,y,t,mode);
+      if(!t.bridge&&t.terrain!=='water')for(const mode of ['road','rail'])if(layers[mode==='road'?'roads':'rails']&&!bridgeApproach(x,y,t,mode))network(c,x,y,t,mode);
     }
     // An airport's field, runway and apron are ground, baked once like roads and rails; the mesh keeps only this chunk's cells.
     if(layers.stations&&airports.length){const painted=new Set();for(let y=b.y0;y<b.y1;y++)for(let x=b.x0;x<b.x1;x++){const ap=airportIndex.get(y*game.width+x);if(!ap||painted.has(ap))continue;painted.add(ap);c.save();c.translate(ap.x*TILE,ap.y*TILE);paintAirportGround(c,{axis:ap.axis,biome:game.biome,detail:detailLevel,seed:(ap.x*31+ap.y)>>>0});c.restore();}}
@@ -807,35 +831,77 @@ export function createRenderer(canvas, initialGame, options={}) {
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
     for(let cy=Math.floor(y0/CHUNK_TILES);cy<Math.ceil(y1/CHUNK_TILES);cy++)for(let cx=Math.floor(x0/CHUNK_TILES);cx<Math.ceil(x1/CHUNK_TILES);cx++){if(!visible(cx*CHUNK_TILES+CHUNK_TILES/2-.5,cy*CHUNK_TILES+CHUNK_TILES/2-.5,CHUNK_PIXELS*camera.zoom+80))continue;const entry=drawChunk(cx,cy,rasterScale);ctx.drawImage(entry.mesh,entry.meshX,entry.meshY,entry.mesh.width/rasterScale,entry.mesh.height/rasterScale);if(entry.waterMotion?.waves.length||entry.waterMotion?.shores.length)waterMotionChunks.push(entry.waterMotion);}
   }
-  function bridgeApproaches(x,y,t,mode){
-    if(!t[mode]||t.bridge||t.terrain==='water'||buried(t))return [];
-    return [[-1,0],[1,0],[0,-1],[0,1]].filter(([dx,dy])=>{const n=tile(x+dx,y+dy);return n?.bridge&&n[mode]&&networkEdgeAllowed(t,n,dx,dy,mode,game,x,y);});
+  function bridgeApproach(x,y,t,mode){
+    if(!t[mode]||t.bridge||t.terrain==='water'||buried(t))return null;
+    return bridgeApproachSurface(game,x,y,mode,heightStep);
   }
-  function drawBridgeApproach(x,y,t,mode,directions){
+  function drawBridgeApproach(x,y,t,mode){
     // Keep the new road/rail surface, but lift its shore-facing edge to
     // the deck. Baking this on the riverbank would leave a road below the bridge.
+    const surface=bridgeApproachSurface(game,x,y,mode,heightStep);if(!surface)return;
     const size=Math.ceil((TILE+4)*rasterScale);
     if(approachCanvas.width!==size)approachCanvas.width=approachCanvas.height=size;
     const c=approachCanvas.getContext('2d'),sourceX=x*TILE-2,sourceY=y*TILE-2;
     c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,size,size);c.scale(rasterScale,rasterScale);c.translate(-sourceX,-sourceY);network(c,x,y,t,mode);
-    const surface=tileSurface(game,x,y);
-    for(const [dx,dy]of directions){
-      const height=bridgeDeckHeight(game,x+dx,y+dy,mode),edge=dx===1?[surface.ne,surface.se]:dx===-1?[surface.nw,surface.sw]:dy===1?[surface.sw,surface.se]:[surface.nw,surface.ne];
-      for(const p of edge)Object.assign(p,projectTerrainPoint(p.u,p.v,height));
-    }
-    // Engineered approaches keep the road at ground height at the bank's
-    // center, then climb to the deck at its edge, matching vehicle movement.
-    surface.triangles=surface.corners.map((p,i)=>[p,surface.corners[(i+1)%4],surface.center]);
+    // Paint the same complete bank ramp that carriers and route ink sample.
+    // Its center no longer dips to the original shoreline under the deck.
     paintTerrainTile(ctx,approachCanvas,{game,heightStep,x,y,surface,sourceX,sourceY,sourceScale:rasterScale,shade:false});
+    const arms=[[0,-1],[1,0],[0,1],[-1,0]].filter(([dx,dy])=>tile(x+dx,y+dy)?.[mode]&&networkEdgeAllowed(t,tile(x+dx,y+dy),dx,dy,mode,game,x,y));
+    bridgeHits.push({x,y,surface,arms});
   }
   function drawRaisedNetwork(x,y,t,mode){
-    const h=transportHeight(game,x,y,mode),base=projectTile(x,y),deck=transportPoint(x,y,mode),drop=base.y-deck.y;
-    bridgeHits.push({x,y,height:h,axis:bridgeSurface(game,x,y,mode)?.axis||t.structureAxis||'y'});
-    if(drop>2){
-      ctx.fillStyle=BRIDGE_SUPPORT_PALETTE.shadow;ctx.beginPath();ctx.ellipse(base.x+3,base.y+2,11,4,0,0,TAU);ctx.fill();
-      for(const side of [-5,5]){line(ctx,[[deck.x+side,deck.y+2],[base.x+side,base.y]],side<0?BRIDGE_SUPPORT_PALETTE.light:BRIDGE_SUPPORT_PALETTE.shade,3);line(ctx,[[base.x+side-3,base.y],[base.x+side+3,base.y]],BRIDGE_SUPPORT_PALETTE.foot,2);}
+    const h=transportHeight(game,x,y,mode),span=bridgeSurface(game,x,y,mode),axis=span?.axis||t.structureAxis||'y';
+    bridgeHits.push({x,y,height:h,axis});
+    const position=axis==='x'?x:y,first=span?.from?(axis==='x'?span.from.x:span.from.y)+1:0;
+    const support=(position-first)%3===0;
+    drawBridgeStructure(ctx,{x,y,axis,height:h,groundHeight:surfaceHeight(game,x+.5,y+.5),heightStep,mode,detailLevel,support},()=>{
+      ctx.save();ctx.translate(0,-h*heightStep);groundTransform(ctx);network(ctx,x,y,t,mode,true);ctx.restore();
+    });
+  }
+  function drawConstructionFeedback(effects){
+    constructionFeedbackStats={cells:0,kinds:[]};
+    if(!effects?.length)return;
+    const mark=MAP.property,z=camera.zoom;
+    ctx.save();ctx.lineJoin=ctx.lineCap='round';ctx.setLineDash([]);
+    for(const effect of effects){
+      if(constructionFeedbackStats.cells>=CONSTRUCTION_FEEDBACK_CELLS)break;
+      const shade=Math.max(0,Math.min(1,effect.alpha));if(!shade)continue;
+      const cells=new Map();
+      for(const {x,y}of effect.points||[]){
+        if(cells.size+constructionFeedbackStats.cells>=CONSTRUCTION_FEEDBACK_CELLS)break;
+        if(!tile(x,y)||!visibleFlat(x,y,MAX_HEIGHT*heightStep*z+70))continue;
+        const t=tile(x,y),site=siteAt(x,y),mode=t.road?'road':'rail';
+        let level=null;
+        if(foundationSite(site))level=foundationHeight(site.x,site.y,siteSize(site));
+        else if(layers.buildings&&isLargeFarm(site)){
+          const core=farmCore(site);
+          if(x>=core.x&&x<core.x+core.span&&y>=core.y&&y<core.y+core.span)level=foundationHeight(core.x,core.y,core.span);
+        }
+        if(level===null&&(t.road||t.rail)&&(t.bridge||t.terrain==='water'))level=transportHeight(game,x,y,mode);
+        const approach=level===null&&(t.road||t.rail)?bridgeApproachSurface(game,x,y,mode,heightStep):null;
+        const corners=level===null?(approach||tileSurface(game,x,y)).corners:[[x,y],[x+1,y],[x+1,y+1],[x,y+1]].map(([u,v])=>projectTerrainPoint(u,v,level));
+        cells.set(`${x},${y}`,{x,y,corners});
+      }
+      if(!cells.size)continue;
+      constructionFeedbackStats.cells+=cells.size;
+      if(!constructionFeedbackStats.kinds.includes(effect.kind))constructionFeedbackStats.kinds.push(effect.kind);
+      const color=effect.kind==='build'?STATES.ok.color:COLORS.ink2;
+      ctx.globalAlpha=shade;ctx.beginPath();
+      for(const {corners}of cells.values()){
+        corners.forEach((point,i)=>i?ctx.lineTo(point.x,point.y):ctx.moveTo(point.x,point.y));ctx.closePath();
+      }
+      ctx.fillStyle=alpha(color,.1);ctx.fill();ctx.beginPath();
+      // Adjacent changed cells share a perimeter, avoiding a bright grid over
+      // a large station or industry footprint. Corner heights follow its
+      // foundation, a bridge deck or the terrain mesh currently on screen.
+      for(const {x,y,corners}of cells.values())for(const [i,dx,dy]of [[0,0,-1],[1,1,0],[2,0,1],[3,-1,0]]){
+        if(cells.has(`${x+dx},${y+dy}`))continue;
+        const a=corners[i],b=corners[(i+1)%4];ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      }
+      ctx.strokeStyle=alpha(mark.casing,mark.casingAlpha);ctx.lineWidth=mark.casingWidth/z;ctx.stroke();
+      ctx.strokeStyle=color;ctx.lineWidth=mark.width/z;ctx.stroke();
     }
-    ctx.save();ctx.translate(0,-h*heightStep);groundTransform(ctx);network(ctx,x,y,t,mode,true);ctx.restore();
+    ctx.restore();
   }
   // Raised plots stand on irregular rubble-stone walls. Terrain boundaries and
   // shading are cached per plot; small stone materials are shared across walls.
@@ -901,10 +967,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(!visibleFlat(x,y,margin))return false;
     const p=worldToScreen(x,y);return p.x>-margin&&p.y>-margin&&p.x<W+margin&&p.y<H+margin;
   }
-  function drawCar(v,route,x,y,worldAngle,engine){
-    if(isUndergroundAt(game,x,y))return;
+  function drawCar(v,route,x,y,worldAngle,engine,scale=1){
+    if(isUndergroundAt(game,x,y,route?.mode))return;
     const p=transportPoint(x,y,route?.mode),angle=projectAngle(worldAngle);
-    ctx.save();ctx.translate(p.x,p.y);
+    ctx.save();ctx.translate(p.x,p.y);if(scale!==1)ctx.scale(scale,scale);
     if(!vehicleSprites.draw(ctx,v,route,{engine,heading:angle}))drawNativeVehicle(ctx,v,route,{engine,heading:angle});
     ctx.restore();
   }
@@ -967,8 +1033,8 @@ export function createRenderer(canvas, initialGame, options={}) {
     // avoid submitting fully clipped images around the edge of a dense view.
     const b=sceneViewBounds;return !b||x+w>b.left-2&&x<b.right+2&&y+h>b.top-2&&y<b.bottom+2;
   }
-  function drawScenery(b,routesById){
-    const traffic=frameVehicles.some(v=>{const mode=routesById.get(v.routeId)?.mode;return mode!=='water'&&(mode!=='air'||airPoses.get(v)?.pose.ground);});
+  function drawScenery(b,routesById,routeMarks=[]){
+    const traffic=routeMarks.length>0||frameVehicles.some(v=>{const mode=routesById.get(v.routeId)?.mode;return mode!=='water'&&(mode!=='air'||airPoses.get(v)?.pose.ground);});
     const bytes=canvas.width*canvas.height*4,origin=cameraPoint(),sceneKey=[camera.zoom,rasterScale,W,H].join(',');
     const key=`${camera.zoom},${W},${H},${dpr},${sceneCache?.visualRevision||0}`;
     const sourceDraws=sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers?sceneryView.sourceDraws:sceneryBatchDraws+sceneryDirectDraws;
@@ -978,7 +1044,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const viewBounds={left:viewLeft,right:viewLeft+canvas.width/rasterScale,top:viewTop,bottom:viewTop+canvas.height/rasterScale};
     const valid=allowed&&sceneryView?.key===key&&sceneryView.scene===sceneCache&&sceneryView.layers===layers&&viewBounds.left>=sceneryView.bounds.left&&viewBounds.right<=sceneryView.bounds.right&&viewBounds.top>=sceneryView.bounds.top&&viewBounds.bottom<=sceneryView.bounds.bottom;
     const ready=allowed&&Math.abs(origin.x-sceneCache.x)<=SCENE_PAN_MARGIN&&Math.abs(origin.y-sceneCache.y)<=SCENE_PAN_MARGIN&&sceneCache.batchPlanReady&&!sceneCache.shadowPreparation&&sceneCache.pendingIndex>=sceneCache.pendingGroups.length;
-    if(!valid&&!ready){if((traffic||sparse)&&sceneryView){sceneryView.image.width=sceneryView.image.height=0;sceneryView=null;}drawScene(b,routesById,traffic);return;}
+    if(!valid&&!ready){if((traffic||sparse)&&sceneryView){sceneryView.image.width=sceneryView.image.height=0;sceneryView=null;}drawScene(b,routesById,traffic,routeMarks);return;}
     if(!valid){
       const margin=SCENE_PAN_MARGIN,view=sceneView(sceneCache);
       let left=Math.floor((view.left-margin)*rasterScale),top=Math.floor((view.top-margin)*rasterScale),right=Math.ceil((view.right+margin)*rasterScale),bottom=Math.ceil((view.bottom+margin)*rasterScale);
@@ -1002,7 +1068,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     ctx.drawImage(sceneryView.image,sceneryView.x,sceneryView.y,sceneryView.image.width/rasterScale,sceneryView.image.height/rasterScale);
     ctx.imageSmoothingEnabled=smooth;sceneryViewDraws++;
   }
-  function drawScene(b,routesById,traffic=false){
+  function drawScene(b,routesById,traffic=false,routeMarks=[]){
     objectHits=[];bridgeHits=[];
     const origin=cameraPoint(),key=[camera.zoom,rasterScale,W,H].join(','),frameTime=performance.now();
     const cameraChanged=lastSceneCamera&&(lastSceneCamera.x!==origin.x||lastSceneCamera.y!==origin.y||lastSceneCamera.key!==key);
@@ -1020,7 +1086,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const spriteBounds=(x,y,w,h)=>({left:x,top:y,right:x+w,bottom:y+h});
     const siteBounds=(x,y,span,center)=>{const b=spriteBounds(center.x-BUILDING_FRAME*span/2,center.y-BUILDING_FRAME*span*.75-BUILDING_GUTTER,BUILDING_FRAME*span,BUILDING_FRAME*span+BUILDING_GUTTER);for(let n=0;n<=span;n++)for(const [u,v]of [[x+n,y],[x+n,y+span],[x,y+n],[x+span,y+n]]){const p=projectGround(game,u,v);b.left=Math.min(b.left,p.x);b.right=Math.max(b.right,p.x);b.top=Math.min(b.top,p.y);b.bottom=Math.max(b.bottom,p.y);}return b;};
     const addShadow=draw=>shadows.push({draw,point:cullPoint,tile:sceneTile});
-    const compare=(a,b)=>a.depth-b.depth||a.x-b.x||a.priority-b.priority;
+    const compare=(a,b)=>a.depth-b.depth||(a.carrierDepth??a.depth)-(b.carrierDepth??b.depth)||a.x-b.x||a.priority-b.priority;
     // Equal keys keep the build's row-major order, which a patch must reproduce.
     const staticCompare=(a,b)=>compare(a,b)||a.tile-b.tile;
     // An airport's tower, terminal, hangar, depot, masts and windsock are prepared images, each sorted by its front corner.
@@ -1045,12 +1111,12 @@ export function createRenderer(canvas, initialGame, options={}) {
         if(object.kind==='forest')addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail,variant:object.variant||0,footprint:span,x:center.x-layout.anchorX,y:center.y-layout.anchorY,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
         add(x+span-1,y+span-1,()=>billboard(sprite(object.kind,object.variant||0,1,detail,span),center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height,x,y),0,spriteBounds(center.x-layout.anchorX,center.y-layout.anchorY,layout.width,layout.height));
       }
-      if(!nature&&LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&!occupied&&!ap&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
+      if(!nature&&LANDMARKS.has(t.terrain)&&(t.terrain!=='forest'||layers.trees)&&!occupied&&!ap&&(!t.road||!layers.roads||isTunnelTile(t))&&(!t.rail||!layers.rails||isTunnelTile(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
         const forest=t.terrain==='forest',variant=natureVariant(x,y,t),density=natureDensity(x,y,t);
         if(forest&&density)addShadow(()=>drawRasterTreeShadows(ctx,{biome:game.biome,detail:t.detail,variant,density,x:p.x-16,y:p.y-24,pixelScale:rasterScale,viewBounds:sceneViewBounds,preparedState:true}));
         if(density)add(x,y,()=>{ctx.globalAlpha*=forest?.94:1;billboard(sprite(t.terrain,variant,density,!layers.trees&&t.detail==='wooded-foothill'?'bare-foothill':t.detail),p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40,x,y);ctx.globalAlpha=1;},0,spriteBounds(p.x-(forest?24:16),p.y-(forest?40:30),forest?48:32,forest?48:40));
       }
-      if(!nature&&!LANDMARKS.has(t.terrain)&&t.terrain!=='mountain'&&t.terrain!=='water'&&!occupied&&!ap&&(!t.road||!layers.roads||isEngineeredTunnel(t))&&(!t.rail||!layers.rails||isEngineeredTunnel(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
+      if(!nature&&!LANDMARKS.has(t.terrain)&&t.terrain!=='mountain'&&t.terrain!=='water'&&!occupied&&!ap&&(!t.road||!layers.roads||isTunnelTile(t))&&(!t.rail||!layers.rails||isTunnelTile(t))&&(!t.zone||!layers.zones)&&groundIsFlat(game,x,y)){
         const scenery=landscapeScenery(game.biome,game.seed||0,x,y,t);
         // Stones and plants are already authored from the fixed camera. Keep
         // them upright; baking stones into ground would project them twice.
@@ -1076,16 +1142,19 @@ export function createRenderer(canvas, initialGame, options={}) {
       dimEligible=false;
       for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails']){
         if(t.bridge||t.terrain==='water')add(x+.05,y+.05,()=>drawRaisedNetwork(x,y,t,mode));
-        else{const approaches=bridgeApproaches(x,y,t,mode);if(approaches.length)add(x+.05,y+.05,()=>drawBridgeApproach(x,y,t,mode,approaches));}
+        else if(bridgeApproach(x,y,t,mode))add(x+.05,y+.05,()=>drawBridgeApproach(x,y,t,mode));
       }
       if(layers.stations&&st){
         if(st.mode==='water'){const [dx,dy]=portLandDirection(x,y);add(x,y,()=>structureHit(infrastructureSprites.portFrame(ctx,dx,dy,p.x,p.y),st));}
-        else if(st.mode!=='air')add(x+.12,y+.12,()=>structureHit(infrastructureSprites.stopFrame(ctx,st.mode,p.x+11,p.y+2),st));
+        else if(st.mode!=='air'){
+          const stop=stopOrientation(game,st),ground=projectTile(stop.x,stop.y);
+          add(stop.frontX,stop.frontY,()=>structureHit(infrastructureSprites.stopFrame(ctx,st.mode,ground.x,ground.y,stop.axis),st));
+        }
       }
       // The first tile of an airport seen adds all its parts, so a half-visible site still stands.
       if(layers.stations&&ap&&!uprights.has(ap)){uprights.add(ap);addAirport(ap);cullPoint=p;}
       if(buried(t))for(const mode of ['road','rail'])if(t[mode]&&layers[mode==='road'?'roads':'rails'])for(const [dx,dy]of portalArms(x,y,t,mode)){
-        const mouth=projectTile(x+dx*.18,y+dy*.18);add(x+dx*.18,y+dy*.18,()=>infrastructureSprites.portal(ctx,mode,dx,dy,mouth.x,mouth.y),2);
+        const mouth=projectTile(x+dx*TUNNEL_PORTAL_OFFSET,y+dy*TUNNEL_PORTAL_OFFSET);add(x+dx*TUNNEL_PORTAL_OFFSET,y+dy*TUNNEL_PORTAL_OFFSET,()=>infrastructureSprites.portal(ctx,mode,dx,dy,mouth.x,mouth.y),2);
       }
 
       sceneTile=-1;
@@ -1126,16 +1195,30 @@ export function createRenderer(canvas, initialGame, options={}) {
     }
     }
     const staticObjects=objects;objects=[];cullPoint=null;
+    // Route ink on a raised crossing shares the deck's depth, after its surface
+    // and before traffic. It never enters static scenery pictures or hit masks.
+    for(const mark of routeMarks)add(mark.x+.05,mark.y+.05,mark.draw,1);
+    const addCarrier=(x,y,draw,mode,heading=0)=>{
+      add(x,y,draw,1);
+      // The deck-safe depth below can tie nearby coaches. Keep their true
+      // continuous order so reverse trains do not swap overlap on each tile.
+      const object=objects.at(-1);object.carrierDepth=x+y;
+      // The nose/tail reaches the next section before the vehicle's center.
+      // Include its half-tile body footprint in the foreground direction,
+      // independent of travel direction, so the next deck cannot cut it off.
+      for(const extent of [0,.5]){
+        const tx=Math.round(x+Math.abs(Math.cos(heading))*extent),ty=Math.round(y+Math.abs(Math.sin(heading))*extent),t=tile(tx,ty);
+        if(t?.[mode]&&(t.bridge||t.terrain==='water'||bridgeApproach(tx,ty,t,mode)))object.depth=Math.max(object.depth,tx+ty+.11);
+      }
+    };
     if(layers.vehicles)for(const v of frameVehicles){
       const route=routesById.get(v.routeId);
       // A plane on the ground is sorted among the airport's buildings; one in the air is drawn above the scenery.
       if(route?.mode==='air'){const a=airPoses.get(v);if(a?.pose.ground)add(a.pose.x-.5,a.pose.y-.5,()=>airportSprites.aircraft(ctx,a.pose.heading,lineFor(route).fill,a.body.x,a.body.y),1);continue;}
       if(route?.mode==='water'||!visible(v.x,v.y,100*camera.zoom))continue;
-      if(route?.mode==='rail'&&route.path?.length>1){
-        const path=route.path,max=path.length-1,direction=v.direction||1;
-        for(const offset of [34/TILE,17/TILE]){const position=Math.max(0,Math.min(max,shownProgress(route,v,v.progress||0)-offset*direction)),index=Math.min(Math.floor(position),max-1),f=position-index,a=path[index],z=path[index+1],x=a.x+(z.x-a.x)*f,y=a.y+(z.y-a.y)*f,angle=Math.atan2((z.y-a.y)*direction,(z.x-a.x)*direction);add(x,y,()=>drawCar(v,route,x,y,angle,false),1);}
-      }
-      add(v.x,v.y,()=>drawCar(v,route,v.x,v.y,Number.isFinite(v.angle)?v.angle:0,route?.mode==='rail'),1);
+      const train=trainPose(v,route);
+      if(train){for(const [body,engine] of [...train.coaches.map(body=>[body,false]),[train.engine,true]])addCarrier(body.x,body.y,()=>drawCar(v,route,body.x,body.y,body.angle,engine,train.scale),route.mode,body.angle);continue;}
+      const angle=Number.isFinite(v.angle)?v.angle:0;addCarrier(v.x,v.y,()=>drawCar(v,route,v.x,v.y,angle,route?.mode==='rail'),route?.mode,angle);
     }
     const left=sceneViewBounds.left-180,right=sceneViewBounds.right+180,top=sceneViewBounds.top-180,bottom=sceneViewBounds.bottom+180;
     const inView=object=>{
@@ -1296,8 +1379,9 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   // A load badge's display-pixel box above its carrier, shared by drawing and picking.
   // A carrier's screen point: a plane's body at its height, any other vehicle on its track.
-  const carrierPoint=(v,route)=>route.mode==='air'?screenPoint(airPoses.get(v).body):vehicleToScreen(v.x,v.y,route.mode);
-  const carrierVisible=(v,route,margin)=>{if(route.mode!=='air')return visible(v.x,v.y,margin);const p=airPoses.has(v)&&carrierPoint(v,route);return Boolean(p)&&p.x>-margin&&p.y>-margin&&p.x<W+margin&&p.y<H+margin;};
+  const carrierPoint=(v,route)=>{if(route.mode==='air')return screenPoint(airPoses.get(v).body);const body=visibleRailBody(v,route)||trainPose(v,route)?.engine||v;return vehicleToScreen(body.x,body.y,route.mode);};
+  const carrierShown=(v,route)=>Boolean(route&&(route.mode==='air'?airPoses.has(v):route.mode==='rail'?visibleRailBody(v,route):route.mode==='water'||!isUndergroundAt(game,v.x,v.y,route.mode)));
+  const carrierVisible=(v,route,margin)=>{if(route.mode!=='air'){const body=visibleRailBody(v,route)||v;return visible(body.x,body.y,margin);}const p=airPoses.has(v)&&carrierPoint(v,route);return Boolean(p)&&p.x>-margin&&p.y>-margin&&p.x<W+margin&&p.y<H+margin;};
   function badgeRect(v,route){
     const p=carrierPoint(v,route),fraction=Math.max(0,Math.min(1,(v.load||0)/Math.max(1,v.capacity||1)));
     const state=fraction<=.00001?'empty':fraction>=.99999?'full':'partial',size=detailLevel==='detail'?22:18,w=state==='empty'?24:size+8,h=state==='empty'?11:size+13;
@@ -1305,7 +1389,7 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   let loadBadgeBuilds=0;
   function vehicleLoadIndicator(v,route){
-    if(!route||!carrierVisible(v,route,40)||(route.mode==='road'||route.mode==='rail')&&isUndergroundAt(game,v.x,v.y))return;
+    if(!carrierShown(v,route)||!carrierVisible(v,route,40))return;
     const {p,fraction,state,size,w,h,x,y}=badgeRect(v,route);vehicleIndicatorCounts[state]++;
     // A badge fades where it crosses a town name or a stop sign, so the waiting bus never hides its stop.
     const covers=r=>x<r.x+r.w&&x+w>r.x&&y<r.y+r.h&&y+h>r.y;ctx.globalAlpha=labelRects.some(covers)||signRects.some(covers)?.35:1;
@@ -1526,14 +1610,25 @@ export function createRenderer(canvas, initialGame, options={}) {
       if(!cached||cached.path!==path||cached.length!==path.length||cached.key!==key||cached.revision!==structureRevision||cached.mode!==r.mode||cached.heightStep!==heightStep){
         let index=routeIndexes.get(path);
         if(!index||index.length!==path.length){index={length:path.length,spatial:createRouteRenderIndex(path)};routeIndexes.set(path,index);}
-        const drawing=new Path2D(),ranges=[],{x0:bx0,y0:by0,x1:bx1,y1:by1}=routeBounds;let previous=-1,count=0,segments=0;
+        // Decks and bank approaches are upright scenery. Split their ink at
+        // tile edges while keeping original path progress for freight chevrons.
+        const drawing=new Path2D(),ranges=[],underlay={drawing:new Path2D(),ranges:[],count:0,last:-1},raised=new Map(),land=r.mode==='road'||r.mode==='rail',{x0:bx0,y0:by0,x1:bx1,y1:by1}=routeBounds;let previous=-1,count=0,segments=0;
+        const raisedAt=p=>{const t=tile(p.x,p.y);return land&&t?.[r.mode]&&(t.bridge||t.terrain==='water'||bridgeApproach(p.x,p.y,t,r.mode));};
+        const half=(owner,a,b,first,last)=>{
+          let target=underlay;
+          if(raisedAt(owner)){const id=owner.y*game.width+owner.x;if(!raised.has(id))raised.set(id,{x:owner.x,y:owner.y,drawing:new Path2D(),ranges:[],count:0,last:-1,split:true});target=raised.get(id);}
+          if(target.last!==first){target.drawing.moveTo(a.x,a.y);target.ranges.push([first+1,last]);}else target.ranges.at(-1)[1]=last;
+          target.drawing.lineTo(b.x,b.y);target.last=last;target.count++;
+        };
         for(const[start,end]of index.spatial.query(routeBounds))for(let i=start;i<=end;i++){
           const a=path[i-1],b=path[i];segments++;
           if(Math.max(a.x,b.x)<bx0||Math.min(a.x,b.x)>=bx1||Math.max(a.y,b.y)<by0||Math.min(a.y,b.y)>=by1){previous=-1;continue;}
-          if(previous!==i-1){const p=transportPoint(a.x,a.y,r.mode);drawing.moveTo(p.x,p.y);ranges.push([i,i]);}else ranges[ranges.length-1][1]=i;
-          const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);previous=i;count++;
+          const from=transportPoint(a.x,a.y,r.mode);
+          if(previous!==i-1){drawing.moveTo(from.x,from.y);ranges.push([i,i]);}else ranges[ranges.length-1][1]=i;
+          const edge=transportPoint((a.x+b.x)/2,(a.y+b.y)/2,r.mode),p=transportPoint(b.x,b.y,r.mode);drawing.lineTo(edge.x,edge.y);drawing.lineTo(p.x,p.y);
+          half(a,from,edge,i-1,i-.5);half(b,edge,p,i-.5,i);previous=i;count++;
         }
-        cached={path,length:path.length,key,revision:structureRevision,heightStep,mode:r.mode,drawing,ranges,count,segments};routePaths.set(r,cached);routePathBuilds++;
+        cached={path,length:path.length,key,revision:structureRevision,heightStep,mode:r.mode,drawing,ranges,count,segments,underlay,raised:[...raised.values()]};routePaths.set(r,cached);routePathBuilds++;
         routeSegmentsConsidered+=segments;
       }
       return cached;
@@ -1543,11 +1638,13 @@ export function createRenderer(canvas, initialGame, options={}) {
     // dashes its broken stretch in the error colour.
     function strokeRoute(r,cached,fade=1,focus=false){
       const line=lineFor(r),z=camera.zoom,held=r.active===false||Boolean(r.paused),core=(MAP.line.core[detailLevel]||MAP.line.core.town)+(focus?MAP.line.emphasis:0),shown=(held?MAP.line.pausedAlpha:1)*fade;
-      ctx.save();ctx.lineJoin=ctx.lineCap='round';if(r.mode==='air')ctx.setLineDash([6/z,8/z]);
+      // Adjacent deck pieces meet edge-to-edge; round halo caps would cover
+      // the preceding piece's colour with a white semicircle at every tile.
+      ctx.save();ctx.lineJoin='round';ctx.lineCap=cached.split?'butt':'round';if(r.mode==='air')ctx.setLineDash([6/z,8/z]);
       ctx.globalAlpha=shown*(line.light?MAP.line.casingAlpha:MAP.line.haloAlpha);ctx.strokeStyle=line.light?COLORS.ink:COLORS.paper;ctx.lineWidth=(core+(line.light?MAP.line.casing:MAP.line.halo))/z;ctx.stroke(cached.drawing);
       ctx.globalAlpha=shown;ctx.strokeStyle=line.fill;ctx.lineWidth=core/z;ctx.stroke(cached.drawing);
       if(!held&&!isTownTraffic(r.cargo))flowChevrons(r,cached.ranges,core,line.on);
-      if(r.active===false)brokenStretch(r,core,fade);
+      if(r.active===false)brokenStretch(r,core,fade,cached.ranges);
       ctx.restore();
     }
     // Freight chevrons point from the loading stop to the delivery stop every 44 screen px, counted from the start of the
@@ -1563,10 +1660,16 @@ export function createRenderer(canvas, initialGame, options={}) {
       ctx.strokeStyle=color;ctx.lineWidth=Math.max(1,core*.26)/z;ctx.stroke();
     }
     // The tiles either side of an offline route's first gap: dashed in the error colour on the line's paper halo.
-    function brokenStretch(r,core,fade){
+    function brokenStretch(r,core,fade,ranges){
       const at=routeBreak(r);if(!at)return;
       const path=r.path,z=camera.zoom,first=Math.max(0,at.index-1),last=Math.min(path.length-1,at.index+1);ctx.beginPath();
-      for(let i=first;i<=last;i++){const p=transportPoint(path[i].x,path[i].y,r.mode);if(i===first)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);}
+      for(const [from,to]of ranges){
+        const start=Math.max(first,from-1),end=Math.min(last,to);if(end<=start)continue;
+        for(let position=start;position<=end;position=Math.min(end,position+.5)){
+          const i=Math.min(Math.floor(position),path.length-2),t=position-i,a=path[i],b=path[i+1],p=transportPoint(a.x+(b.x-a.x)*t,a.y+(b.y-a.y)*t,r.mode);
+          if(position===start)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);if(position===end)break;
+        }
+      }
       ctx.globalAlpha=fade*MAP.line.haloAlpha;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=(core+MAP.line.halo)/z;ctx.stroke();
       ctx.globalAlpha=fade;ctx.lineCap='butt';ctx.setLineDash([4/z,3/z]);ctx.strokeStyle=MAP.cut.color;ctx.lineWidth=core/z;ctx.stroke();ctx.setLineDash([]);
     }
@@ -1576,7 +1679,12 @@ export function createRenderer(canvas, initialGame, options={}) {
     const routeKey=`${routeBounds.x0},${routeBounds.y0},${routeBounds.x1},${routeBounds.y1}`;highlightedRoute=view.highlightRoute??null;const focusRoute=(refKind==='route'?routesById.get(refId):null)||(highlightedRoute===null?null:routesById.get(highlightedRoute)||null);
     // DESIGN.md 7.4: the routes serving a selected stop, industry or town stand out; a hovered or highlighted route still wins.
     const serving=!focusRoute&&view.servingRoutes?.length?new Set(view.servingRoutes):null;
-    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){const cached=routeDrawing(r,routeKey);if(cached.count)strokeRoute(r,cached,focusRoute?r!==focusRoute?MAP.line.dim:1:serving&&!serving.has(r.id)?MAP.line.dim:1,Boolean(serving?.has(r.id)));}
+    const raisedRouteMarks=[];
+    if(showRoutes)for(const r of game.routes||[])if(r.path?.length){
+      const cached=routeDrawing(r,routeKey),fade=focusRoute?r!==focusRoute?MAP.line.dim:1:serving&&!serving.has(r.id)?MAP.line.dim:1,emphasis=Boolean(serving?.has(r.id)),ground=cached.underlay||cached;
+      if(ground.count)strokeRoute(r,ground,fade,emphasis);
+      for(const part of cached.raised||[])raisedRouteMarks.push({x:part.x,y:part.y,draw:()=>strokeRoute(r,part,fade,emphasis)});
+    }
     // Selection belongs to the ground. Full-opacity foundations, fences,
     // trees, buildings and vehicles paint over both its tint and its border,
     // including when the transparent scenery layer is replayed from cache.
@@ -1584,10 +1692,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     const placing=['stop','bus-stop','train-stop','port'].includes(tool)?hover:null,serviceCenter=placing?null:selectedStation;
     ctx.save();
     if(serviceCenter?.mode==='air')airportReach(serviceCenter);
-    else if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,STATION_RADIUS);ctx.fill();reachRing(serviceCenter.x,serviceCenter.y);for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=STATION_RADIUS)highlight(node,COLORS.paper,false,industrySize(node));}
+    else if(serviceCenter){ctx.fillStyle=alpha(COLORS.paper,.1);ring(serviceCenter.x,serviceCenter.y,stationReach(serviceCenter));ctx.fill();reachRing(serviceCenter.x,serviceCenter.y,stationReach(serviceCenter));for(const node of [...(game.cities||[]),...(game.industries||[])])if((node.kind?industryDistance(node,serviceCenter):Math.hypot(node.x-serviceCenter.x,node.y-serviceCenter.y))<=stationReach(serviceCenter))highlight(node,COLORS.paper,false,industrySize(node));}
     ctx.restore();
-    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v)));
-    const carrierTile=chosenVehicle&&!selected?vehicleWorldPoint(chosenVehicle):null;
+    const chosenVehicle=view.selectedVehicleId==null?null:frameVehicles.find(v=>v.id===view.selectedVehicleId&&carrierShown(v,routesById.get(v.routeId)));
+    const carrierTile=chosenVehicle&&!selected?(visibleRailBody(chosenVehicle,routesById.get(chosenVehicle.routeId))||vehicleWorldPoint(chosenVehicle)):null;
     const selectionArea=selectionUnderlay(selected||(carrierTile&&{x:Math.floor(carrierTile.x+.5),y:Math.floor(carrierTile.y+.5)}),Boolean(carrierTile));
     // Hover is a ground mark too. A selected parcel already has its stronger
     // border, including when the pointer rests on a reserved footprint tile.
@@ -1603,7 +1711,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     if(layers.vehicles)for(const v of frameVehicles){const route=routesById.get(v.routeId);if(route?.mode==='water'&&visible(v.x,v.y))ship(v,route);}
     // Plane shadows fall on the ground before any upright, softer and paler the higher the plane flies.
     if(layers.vehicles&&airPoses.size){for(const a of airPoses.values()){const lift=a.lift*AIRCRAFT_HEIGHT_STEP;ctx.globalAlpha=Math.max(.1,.28-lift/400);airportSprites.shadow(ctx,a.pose.heading,a.lift<.05?0:a.lift<1.5?1:2,a.ground.x+.43*lift,a.ground.y+.21*lift);}ctx.globalAlpha=1;}
-    drawScenery({x0,y0,x1,y1},routesById);
+    drawScenery({x0,y0,x1,y1},routesById,raisedRouteMarks);
     if(layers.vehicles&&airPoses.size)for(const a of [...airPoses.values()].filter(a=>!a.pose.ground).sort((a,b)=>a.body.y-b.body.y))airportSprites.aircraft(ctx,a.pose.heading,lineFor(a.route).fill,a.body.x,a.body.y);
     ctx.save();
     function surfacePath(points,fresh=true){if(fresh)ctx.beginPath();points.forEach(([u,v],i)=>{const p=projectGround(game,u,v);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);});ctx.closePath();}
@@ -1663,7 +1771,7 @@ export function createRenderer(canvas, initialGame, options={}) {
       surfacePath(points);ctx.fillStyle=alpha(COLORS.paper,.1);ctx.fill();ctx.strokeStyle=alpha(MAP.reach.casing,MAP.reach.casingAlpha);ctx.lineWidth=3.5/z;ctx.stroke();ctx.setLineDash(MAP.reach.dash.map(n=>n/z));ctx.strokeStyle=MAP.reach.color;ctx.lineWidth=1.5/z;ctx.stroke();ctx.setLineDash([]);
       for(const city of game.cities||[])if(stationServes(site,city))highlight(city,COLORS.paper,false);
     }
-    function reachRing(x,y){const z=camera.zoom;ring(x,y,STATION_RADIUS);ctx.strokeStyle=alpha(MAP.reach.casing,MAP.reach.casingAlpha);ctx.lineWidth=3.5/z;ctx.stroke();ctx.setLineDash(MAP.reach.dash.map(n=>n/z));ctx.strokeStyle=MAP.reach.color;ctx.lineWidth=1.5/z;ctx.stroke();ctx.setLineDash([]);}
+    function reachRing(x,y,radius=STATION_RADIUS){const z=camera.zoom;ring(x,y,radius);ctx.strokeStyle=alpha(MAP.reach.casing,MAP.reach.casingAlpha);ctx.lineWidth=3.5/z;ctx.stroke();ctx.setLineDash(MAP.reach.dash.map(n=>n/z));ctx.strokeStyle=MAP.reach.color;ctx.lineWidth=1.5/z;ctx.stroke();ctx.setLineDash([]);}
     function highlightVertex(p,color){
       if(!p||!tile(p.x,p.y))return;
       const center=projectGround(game,p.x,p.y);ctx.beginPath();
@@ -1680,7 +1788,7 @@ export function createRenderer(canvas, initialGame, options={}) {
     const airportSite=tool==='airport'&&hover&&tile(hover.x,hover.y)?{...airportPlacement(hover,view.airportAxis),mode:'air',axis:view.airportAxis==='y'?'y':'x'}:null;
     // Placing a stop draws its reach as a solid ring over the faint rings of existing stops of the same kind (64 at most).
     // Sites it would reach tick their markers rather than each drawing an outline; a town it reaches keeps its tile outline.
-    if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&st.mode!=='air'&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,STATION_RADIUS*TILE*camera.zoom)){ring(st.x,st.y,STATION_RADIUS);ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle=alpha(COLORS.paper,.13);ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();reachRing(placing.x,placing.y);for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,COLORS.paper,false);}
+    if(placing){let rings=0;ctx.globalAlpha=.25;ctx.strokeStyle=COLORS.paper;ctx.lineWidth=1.5/camera.zoom;for(const st of game.stations||[])if(rings<64&&st.mode!=='air'&&(st.mode==='water')===(tool==='port')&&visible(st.x,st.y,stationReach(st)*TILE*camera.zoom)){ring(st.x,st.y,stationReach(st));ctx.stroke();rings++;}ctx.globalAlpha=1;ctx.fillStyle=alpha(COLORS.paper,.13);ring(placing.x,placing.y,STATION_RADIUS);ctx.fill();reachRing(placing.x,placing.y);for(const city of game.cities||[])if(Math.hypot(city.x-placing.x,city.y-placing.y)<=STATION_RADIUS)highlight(city,COLORS.paper,false);}
     if(airportSite){highlight(airportSite,validPreview(airportSite.tool,airportSite)?'#f4d090':'#d7725f',true,stationSpan(airportSite));airportReach(airportSite);}
     // Your property, when app.js asks (building in towns, or inspecting a town or property), from the Town view in: buildings you
     // own solid, plots developers built on your zones dashed, each style one cased stroke. Vacant zones keep their own tint and square.
@@ -1716,6 +1824,21 @@ export function createRenderer(canvas, initialGame, options={}) {
     const earthwork=['raise','lower','level'].includes(tool),highlightPreview=(p,color)=>earthwork?highlightVertex(p,color):highlight(previewSite(p),color,tool!=='inspect',previewSpan(p));
     for(const p of preview||[])if(planned(p))highlightPreview(p,previewColor(p,'#f2d88d'));
     if(hover&&tool!=='inspect'&&!airportSite&&planned(hover)&&!preview?.area?.capped)highlightPreview(hover,previewColor(hover,'#f4d090'));
+    // The proposed ground stays a light wire sketch until release. Short dotted
+    // stems show the cut or fill, including adjusted points beside the path.
+    if(spanQuote?.terrain?.length){
+      const edits=new Map(spanQuote.terrain.map(p=>[`${p.x},${p.y}`,p])),color=spanQuote.ok?'#f2d88d':'#d7725f',z=camera.zoom;
+      ctx.save();ctx.strokeStyle=color;ctx.lineWidth=1/z;ctx.globalAlpha=.7;ctx.setLineDash([2/z,3/z]);ctx.beginPath();
+      for(const p of edits.values()){if(!visible(p.x,p.y))continue;const before=projectGround(game,p.x,p.y),after=projectTerrainPoint(p.x,p.y,p.level);ctx.moveTo(before.x,before.y);ctx.lineTo(after.x,after.y);}
+      ctx.stroke();ctx.setLineDash([]);ctx.beginPath();
+      for(const p of edits.values()){if(!visible(p.x,p.y))continue;const a=projectTerrainPoint(p.x,p.y,p.level);for(const [dx,dy] of [[1,0],[0,1]]){const next=edits.get(`${p.x+dx},${p.y+dy}`);if(next){const b=projectTerrainPoint(next.x,next.y,next.level);ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);}}}
+      ctx.stroke();ctx.globalAlpha=1;
+      for(const p of edits.values()){if(!visible(p.x,p.y))continue;const at=projectTerrainPoint(p.x,p.y,p.level);dot(ctx,at.x,at.y,2.5/z,'#233b32');dot(ctx,at.x,at.y,1.5/z,color);}
+      ctx.restore();
+    }
+    // A completed placement reads as success even while the stationary pointer
+    // still previews the newly occupied site. Labels and keyboard focus stay above it.
+    drawConstructionFeedback(view.constructionFeedback);
     // The keyboard cursor frames its own tile, or grid point for earthworks, in dashed signal orange over paper;
     // the frame sits just outside the tile, so the preview colour inside still shows whether it can be built.
     if(hover?.keyboard&&tile(hover.x,hover.y)){const {x,y}=hover,o=.09;if(earthwork){const c=projectGround(game,x,y);ctx.beginPath();ctx.arc(c.x,c.y,8/camera.zoom,0,TAU);}else surfacePath([[x-o,y-o],[x+1+o,y-o],[x+1+o,y+1+o],[x-o,y+1+o]]);ctx.lineJoin='round';ctx.strokeStyle=MAP.cursor.casing;ctx.lineWidth=4.5/camera.zoom;ctx.stroke();ctx.setLineDash(MAP.cursor.dash.map(n=>n/camera.zoom));ctx.strokeStyle=MAP.cursor.color;ctx.lineWidth=2.25/camera.zoom;ctx.stroke();ctx.setLineDash([]);}
@@ -1762,10 +1885,10 @@ export function createRenderer(canvas, initialGame, options={}) {
     // The reach pill sits above stop signs and town names, so neither hides it.
     const airReach=airportSite||(serviceCenter?.mode==='air'?serviceCenter:null);
     if(airReach){const top=gridPointToScreen(airReach.x+.5-AIRPORT_REACH*Math.SQRT1_2,airReach.y+.5-AIRPORT_REACH*Math.SQRT1_2);pill(top.x,top.y-15,`${AIRPORT_REACH}-tile reach`,{h:25,color:COLORS.ink2});}
-    else if(placing||serviceCenter){const center=placing||serviceCenter,p=worldToScreen(center.x,center.y);pill(p.x,p.y-STATION_RADIUS*TILE*Math.SQRT1_2*camera.zoom-15,'5-tile reach',{h:25,color:COLORS.ink2});}
+    else if(placing||serviceCenter){const center=placing||serviceCenter,radius=placing?STATION_RADIUS:stationReach(serviceCenter),p=worldToScreen(center.x,center.y);pill(p.x,p.y-radius*TILE*Math.SQRT1_2*camera.zoom-15,`${radius}-tile reach`,{h:25,color:COLORS.ink2});}
     // A referenced carrier keeps its locator ring above the map; the chosen
     // carrier's ground area and ring were already drawn beneath its body.
-    const refVehicle=refKind==='vehicle'?frameVehicles.find(v=>v.id===refId&&(routesById.get(v.routeId)?.mode!=='air'||airPoses.has(v))):null;if(refVehicle){const route=routesById.get(refVehicle.routeId),p=route?carrierPoint(refVehicle,route):vehicleToScreen(refVehicle.x,refVehicle.y),r=(route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom))+4;ctx.save();ctx.globalAlpha=locatorFade;ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle=MAP.locator.casing;ctx.lineWidth=MAP.locator.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.locator.color;ctx.lineWidth=MAP.locator.width;ctx.stroke();ctx.restore();}
+    const refVehicle=refKind==='vehicle'?frameVehicles.find(v=>v.id===refId&&carrierShown(v,routesById.get(v.routeId))):null;if(refVehicle){const route=routesById.get(refVehicle.routeId),p=route?carrierPoint(refVehicle,route):vehicleToScreen(refVehicle.x,refVehicle.y),r=(route?.mode==='water'?Math.max(20,20*camera.zoom):Math.max(11,14*camera.zoom))+4;ctx.save();ctx.globalAlpha=locatorFade;ctx.beginPath();ctx.arc(p.x,p.y-2*camera.zoom,r,0,TAU);ctx.strokeStyle=MAP.locator.casing;ctx.lineWidth=MAP.locator.casingWidth;ctx.stroke();ctx.strokeStyle=MAP.locator.color;ctx.lineWidth=MAP.locator.width;ctx.stroke();ctx.restore();}
     if(layers.vehicles&&layers.vehicleLoads)for(const v of frameVehicles)vehicleLoadIndicator(v,routesById.get(v.routeId));
     // A pointed-at or chosen stop names itself beside its roundel and bullets, above the load badges of vehicles waiting there.
     for(const st of layers.stations&&layers.names?new Set([hover&&(stationIndex.get(hover.y*game.width+hover.x)||airportIndex.get(hover.y*game.width+hover.x)),selectedStation]):[]){if(!st||!visible(signTile(st).x,signTile(st).y))continue;const m=stationMarker(st),name=st.name||'Stop';ctx.font=font(500,12);const w=ctx.measureText(name).width+16,right=Math.max(m.x+m.size,signEnds.get(st)??0)+4+w/2;pill(right+w/2>W-8?m.x-4-w/2:right,m.y+m.size/2,name,{h:26});signStats.named++;}
@@ -1852,9 +1975,18 @@ export function createRenderer(canvas, initialGame, options={}) {
   }
   // Where a vehicle is drawn, in tile coordinates: a plane's pose (on its stand, taxiing or in the air), else its track position.
   function vehicleWorldPoint(v){
-    v=presentedVehicle(v);const route=(game.routes||[]).find(r=>r.id===v?.routeId);if(route?.mode!=='air')return{x:v.x,y:v.y};
+    v=presentedVehicle(v);const route=(game.routes||[]).find(r=>r.id===v?.routeId),train=trainPose(v,route);if(train)return{x:train.engine.x,y:train.engine.y};if(route?.mode!=='air')return{x:v.x,y:v.y};
     // Follow runs before render, so the previous frame's air pose can be stale.
     ensureRevision();const a=airPose(v,route);return a?{x:a.pose.x-.5,y:a.pose.y-.5}:{x:v.x,y:v.y};
+  }
+  // Spatial labels follow a visible carriage while the engine enters a bore;
+  // a fully buried or hidden fleet keeps its inspector without floating tags.
+  function vehicleVisiblePoint(v){
+    if(!layers.vehicles)return null;
+    v=presentedVehicle(v);const route=(game.routes||[]).find(r=>r.id===v?.routeId);if(!route)return null;
+    if(route.mode==='air')return vehicleWorldPoint(v);
+    const body=route.mode==='rail'?visibleRailBody(v,route):isUndergroundAt(game,v.x,v.y,route.mode)?null:v;
+    return body?{x:body.x,y:body.y}:null;
   }
   // Record the visible fleet and vehicles that can enter it before the next
   // world update. Flat projection avoids touching terrain caches off screen.
@@ -1874,5 +2006,5 @@ export function createRenderer(canvas, initialGame, options={}) {
     return [...selected];
   }
   resize();const first=game.cities?.[0];if(first)focus(first.x+4.5,first.y-4.5);else bounds();
-  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),waterMotion:{builds:waterMotionBuilds,...waterMotionStats},terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,viewPanDraws:sceneryViewPanDraws,reuses:sceneryBatchReuses,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,cameraMoving:sceneryCameraMoving,waitingForCamera:false,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,routePreview:{...routePreviewStats},highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
+  return {setGame,setPresentation,setLayers,getLayers,setTerrainHeight,getTerrainHeight,setLens,render,resize,worldToScreen,gridPointToScreen,screenToVertex,stationMarker,stationAtMarker,drawBullet,vehicleAt,vehicleWorldPoint,vehicleVisiblePoint,motionVehicles,industryMarker,cityLabels:()=>labelRects.map(rect=>({...rect})),screenToTile,screenToInspectTile,pan,zoomAt,setZoom,focus,glideTo,stepCamera,setBand,screensTo,getCamera:()=>({...camera}),drawMinimap,getStats:()=>({projection:'isometric',presentationDay:presentationTime(),waterMotion:{builds:waterMotionBuilds,...waterMotionStats},terrainGeometry:true,maxTerrainHeight:MAX_HEIGHT,heightStep:heightStep,tileWidth:TILE*2,tileHeight:TILE,chunkCount:chunks.size,composedChunks,lazyChunks:lazyChunksWaiting,sceneBuilds,scenePatches,propertyOutlines,sceneryBatches:{...sceneryBudget.stats(),viewBytes:sceneryView?sceneryView.image.width*sceneryView.image.height*4:0,viewLimit:sceneryViewLimit,viewMinimumDraws:sceneryViewMinimumDraws(canvas.width*canvas.height*4),viewSourceDraws:sceneryView?.sourceDraws||0,viewBuilds:sceneryViewBuilds,viewDraws:sceneryViewDraws,viewPanDraws:sceneryViewPanDraws,reuses:sceneryBatchReuses,enabled:sceneryBatching,builds:sceneryBatchBuilds,draws:sceneryBatchDraws,directDraws:sceneryDirectDraws,cameraMoving:sceneryCameraMoving,waitingForCamera:false,pending:(sceneryBatching&&sceneCache&&!sceneCache.batchPlanReady?1:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0))+(sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0))+lazyChunksWaiting+(sceneCache?.dirty?1:0),pendingGroups:Math.max(0,(sceneCache?.pendingGroups?.length||0)-(sceneCache?.pendingIndex||0)),pendingShadows:sceneCache?.shadowPreparation?sceneCache.shadows.length-sceneCache.shadowPreparation.index:0,preparationMs:sceneryPreparationMs,preparationBudgetMs:sceneryPrepareBudgetMs},foundationBuilds,foundationCacheSize:foundations.size,gardenSurfaces:gardenSurfaces.getStats(),routeSegmentsConsidered,routePathBuilds,routeBreaks,routePreview:{...routePreviewStats},constructionFeedback:{...constructionFeedbackStats,kinds:[...constructionFeedbackStats.kinds]},highlightRoute:highlightedRoute,hoverRef:lastHoverRef,gliding:Boolean(glide),contextTargets,lens:lensStats&&{...lensStats},industryMarkers:{...markerStats},markerTiles:markerTiles.size,overlays:{builds:overlayBuilds,...overlays?.stats},stopSigns:{...signStats},bulletTiles:bulletTiles.size,visibleVehicleCandidates:frameVehicles.length,cacheBytes,cacheLimit,cacheMax:CACHE_MAX,chunkTiles:CHUNK_TILES,rasterScale,pixelScale:rasterScale,detailLevel,view:ZOOM_VIEWS.find(view=>view.zoom===camera.zoom).name,devicePixelRatio:dpr,dpr,maxSurfaceWidth:largestSurface,maxSurfaceHeight:largestSurface,minimapWidth:minimapLayer.width,minimapHeight:minimapLayer.height,minimapMaxEdge:MINIMAP_EDGE,minimapWorldWidth:game.width,minimapWorldHeight:game.height,minimapTerrainSamples,minimapNetworkScans,minimapNetworkBytes:minimapNetwork?.bytes||0,vehicleIndicators:{...vehicleIndicatorCounts},preparedSprites:preparedSprites.getStats(),preparedTransport:preparedTransport.getStats(),vehicleSprites:vehicleSprites.getStats(),infrastructureSprites:infrastructureSprites.getStats(),preparedZooms:rasterBundles.size,loadBadgeCount:loadBadges.size,loadBadgeBuilds,airports:airports.length,aircraft:{...airStats},airportSprites:airportSprites?.getStats(),sprites:sprite?.getStats?.(),uprightSprites:uprightSprite?.getStats?.(),houseArtwork:getHouseAssetStats(game.biome),worldArtwork:worldArtStats(),treeShadows:treeShadowCacheStats(),weather:drawWeather.getStats(),marine:marine?.getStats?.(),layers:getLayers()})};
 }

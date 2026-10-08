@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-08",
+  "generator": "built-in image_gen",
+  "canonicalPrompt": "generation-prompt.txt",
+  "job": "generation-job.json",
+  "nativeGeometryReference": "generation-reference.png",
+  "paintedIdentityReference": "identity-reference.png",
+  "source": "generated-source.png",
+  "sourceSha256": "7f746528eeea9e6799b6d5586099e438adb852372850f24c917730f95a10a0c3",
+  "measurements": "registration-measurements.json",
+  "observationOverlay": "registration-observations.png",
+  "purpose": "Dedicated compact 3x3 equipment-factory layout for blocked legacy sites. Shorter halls and fewer bays preserve shared human scale without changing saved footprints. Five-tile source and runtime identities are preserved.",
+  "packing": "Complete original RGBA source; common nominal source-cell scale and measured ground translation only. All six display densities independently sampled from original; no source pixels clipped.",
+  "rejectedIterations": 2,
+  "review": "Accepted final measured ground axes +0.5255/-0.5073, measured ordinary door24 source pixels, and exact outer-ground midpoint. Earlier generator attempts had ambiguous stepped parcels and were not shipped."
+}

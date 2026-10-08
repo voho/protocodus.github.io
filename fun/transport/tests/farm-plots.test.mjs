@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { build, createGame, industryAt, stationCoverage, validateGame, restoreGame, STATION_RADIUS } from '../model.js';
 import { INDUSTRIES } from '../data.js';
-import { industrySize, industryTiles, industryDistance, industrySiteProblem, isFarmIndustry, INDUSTRY_SPACING } from '../industry-sites.js';
+import { industrySize, industryTiles, industryDistance, industrySiteProblem, isFarmIndustry, MIN_SITE_GAP } from '../industry-sites.js';
 import { buildingSiteProblem } from '../building-sites.js';
 import { localEnvironment } from '../environment.js';
 import { quoteBuildPlan, buildPlan } from '../construction-plan.js';
@@ -56,7 +56,7 @@ test('far-field obstructions, boundaries and overlapping quotes reject complete 
     assert.equal(JSON.stringify(game),before,`${obstruction}: no charge or partial field clearing`);
   }
   const game=emptyGame(),before=JSON.stringify(game),quote=quoteBuildPlan(game,'farm',[{x:20,y:20},{x:24,y:24}]);
-  assert.equal(quote.span,5);assert.equal(quote.ok,false);assert.equal(quote.message,`Another grain farm stands within ${INDUSTRY_SPACING} tiles.`);
+  assert.equal(quote.span,5);assert.equal(quote.ok,false);assert.match(quote.message,/5-tile road between the industries/);
   assert.equal(JSON.stringify(game),before);
   assert.match(buildingSiteProblem(game,'stadium',20,20,5),/Invalid building footprint/);
 });
@@ -64,7 +64,7 @@ test('far-field obstructions, boundaries and overlapping quotes reject complete 
 test('indexed station catchment and transport access reach all four full farm edges',()=>{
   const base=emptyGame(),farm=build(base,'farm',20,20).industry;
   // More than16 sites forces the spatial index instead of its full-list shortcut.
-  for(let n=0;n<17;n++)ok(build(base,'oil-well',30+n%6*16,50+Math.floor(n/6)*16));
+  for(let n=0;n<17;n++)ok(build(base,'oil-well',30+n%6*(MIN_SITE_GAP+4),50+Math.floor(n/6)*(MIN_SITE_GAP+4)));
   for(const [side,point] of Object.entries(sides)){
     assert.ok(stationCoverage(base,point(STATION_RADIUS)).industries.includes(farm),side);
     assert.equal(stationCoverage(base,point(STATION_RADIUS+1)).industries.includes(farm),false,side);
@@ -74,7 +74,7 @@ test('indexed station catchment and transport access reach all four full farm ed
     }
     const game=structuredClone(base),p=point(STATION_RADIUS);
     game.stations=[{id:'stop-farm',mode:'road',...p}];game.routes=[{id:'route-farm',active:true,stops:['stop-farm']}];
-    assert.equal(localEnvironment(game,20,20,4,5).transport,.6,`${side}: route reaches the field edge`);
+    assert.equal(localEnvironment(game,20,20,4,5).transport,1-STATION_RADIUS*.08,`${side}: route reaches the field edge`);
   }
 });
 
@@ -150,7 +150,7 @@ test('old 7×7 farms shrink within their parcel only when every existing station
   for(const positions of [[],[{x:31,y:23}],[{x:15,y:23},{x:31,y:23}]]){
     const game=emptyGame(),farm=build(game,'farm',20,20).industry;
     farm.footprint=7;game.siteFootprintVersion=2;game.revision++;
-    for(const point of positions){ok(build(game,'road',point.x,point.y));ok(build(game,'bus-stop',point.x,point.y));}
+    for(const point of positions){ok(build(game,'road',point.x,point.y));const placed=build(game,'bus-stop',point.x,point.y);ok(placed);placed.station.catchmentRadius=5;}
     for(const station of game.stations)assert.ok(stationCoverage(game,station).industries.includes(farm));
     const tiles=structuredClone(game.tiles),money=game.money,loaded=restoreGame(encodeGame(game)),restored=loaded?.industries[0];
     assert.ok(loaded);assert.equal(restored.footprint,positions.length===2?7:5);

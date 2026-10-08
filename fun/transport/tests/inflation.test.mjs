@@ -48,7 +48,8 @@ test('all construction types and clearing surcharges use current inflation', () 
   const pathGame = emptyGame(); pathGame.day = yearDay(1955);
   const tileCost = priceFor(pathGame, BUILD_COSTS.road); pathGame.money = tileCost * 2 - 1;
   const path = buildPath(pathGame, 'road', line(10, 12, 20));
-  assert.equal(path.built, 1); assert.equal(path.cost, tileCost); assert.equal(pathGame.money, tileCost - 1);
+  assert.equal(path.ok, false); assert.equal(path.built, 0); assert.equal(path.cost, 0); assert.equal(pathGame.money, tileCost * 2 - 1,'an unaffordable network stroke takes no partial payment');
+  assert.ok(line(10,12,20).every(p=>!tileAt(pathGame,p.x,p.y).road));
 });
 
 test('delivery fares crossing New Year use the arrival year and keep pace with prices', () => {

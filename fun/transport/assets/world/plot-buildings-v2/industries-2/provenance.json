@@ -37,5 +37,20 @@
     "date": "2026-10-07",
     "prompt": "camera-correction-prompt.txt",
     "operation": "Repaint the ground plane to 2:1 while preserving upright human scale; measure actual resulting ground edges and centres."
+  },
+  "registrationCorrection": {
+    "date": "2026-10-08",
+    "kind": "fishery",
+    "operation": "Re-register complete fishery parcel from its outer dock and yard corners; retain original pixels, scale, and all other cells exactly.",
+    "previousMeasurements": "sources/registration-before-fishery-fix-2026-10-08.json",
+    "previousGroundCenterSource": [
+      179.5,
+      351.9
+    ],
+    "groundCenterSource": [
+      213.5,
+      328.7
+    ],
+    "verification": "All six densities independently sampled from original source; cells 1-8 byte-identical to previous output; no meaningful source pixels clipped."
   }
 }

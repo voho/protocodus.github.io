@@ -55,7 +55,7 @@ test('any unjournaled construction or settlement revision breaks coverage across
   const before=game.revision;for(let day=game.day+1;game.revision===before;day++){game.day=day;stepEcology(game);}
   assert.equal(surfaceChangesSince(game,start),null,'a construction gap between two ecology days');
   assert.ok(surfaceChangesSince(game,built).length>0,'ecology after the construction is covered again');
-  const town=emptyGame();build(town,'city',10,10);build(town,'residential',18,10);town.zones[0].progress=.99;build(town,'city',21,10);
+  const town=emptyGame();build(town,'city',10,10);build(town,'residential',18,10);town.zones[0].progress=.99;build(town,'city',23,10);
   buildPath(town,'road',line(10,21,11));build(town,'bus-stop',10,11);build(town,'bus-stop',21,11);
   assert.equal(addRoute(town,{mode:'road',cargo:'passengers',stops:town.stations.map(stop=>stop.id)}).ok,true);
   town.tiles.forEach((tile,index)=>{if(index%3===0&&tile.terrain==='grass'&&!tile.road&&!tile.building&&!tile.zone&&Math.abs(index%town.width-15)>8){tile.terrain='forest';tile.detail='pine';}});
@@ -140,7 +140,7 @@ test('the view reads surface and site entries together; everything else still br
 });
 
 test('a town journals exactly the cells its new homes change',()=>{
-  const town=emptyGame();build(town,'city',10,10);build(town,'residential',18,10);town.zones[0].progress=.99;build(town,'city',21,10);
+  const town=emptyGame();build(town,'city',10,10);build(town,'residential',18,10);town.zones[0].progress=.99;build(town,'city',23,10);
   buildPath(town,'road',line(10,21,11));build(town,'bus-stop',10,11);build(town,'bus-stop',21,11);
   assert.equal(addRoute(town,{mode:'road',cargo:'passengers',stops:town.stations.map(stop=>stop.id)}).ok,true);
   let grown=0;

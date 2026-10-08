@@ -91,8 +91,8 @@ test('default names read as the freight flow or the two towns, with a count for 
   assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'stone'), 'Stone quarry to Alderbrook — stone', 'the supplier, then the town that buys');
   assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'passengers'), 'Alderbrook – Pinehaven — passengers', 'two towns joined by an en dash');
   assert.equal(defaultRouteName(game, [stop(q), stop(a)], 'coal'), 'Stone quarry S… to Alderbrook — coal', 'an end without its site is named after its town, then its stop');
-  assert.equal(build(game, 'logging-camp', 26, 13).ok, true);
-  assert.equal(build(game, 'sawmill', 48, 13).ok, true);
+  // A saved compact town may already share its stop with an old industry.
+  for(const [kind,x] of [['logging-camp',26],['sawmill',48]]){const placed=build(game,kind,x,35);assert.equal(placed.ok,true,placed.message);placed.industry.y=13;game.revision++;}
   assert.equal(defaultRouteName(game, [stop(a), stop(p)], 'timber'), 'Alderbrook to Pinehaven — timber', 'served towns take priority over the industries inside their catchments');
   assert.equal(addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route.name, 'Stone quarry to Alderbrook — stone', 'a route launched without a name takes the default');
   const second = addRoute(game, { mode: 'road', stops: [q, a], cargo: 'stone' }).route;

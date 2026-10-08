@@ -1,0 +1,533 @@
+{
+  "source": "generated-source.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "entries": [
+    {
+      "id": "civic:shop-butcher:taiga",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        377,
+        462
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            35.0,
+            364.0
+          ],
+          [
+            216.0,
+            446.92
+          ]
+        ],
+        [
+          [
+            213.0,
+            447.21
+          ],
+          [
+            375.0,
+            349.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          35.0,
+          364.0
+        ],
+        [
+          375.0,
+          349.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        205.0,
+        356.5
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          184,
+          364
+        ],
+        [
+          184,
+          392
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:shop-hardware:taiga",
+      "sourceBoundsSheet": [
+        377,
+        0,
+        825,
+        462
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            9.0,
+            362.0
+          ],
+          [
+            219.0,
+            457.45
+          ]
+        ],
+        [
+          [
+            216.0,
+            458.23
+          ],
+          [
+            405.0,
+            352.89
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          9.0,
+          362.0
+        ],
+        [
+          405.0,
+          352.89
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        207.0,
+        357.445
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          195,
+          364
+        ],
+        [
+          195,
+          393
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:shop-florist:taiga",
+      "sourceBoundsSheet": [
+        825,
+        0,
+        1254,
+        462
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            21.0,
+            362.0
+          ],
+          [
+            229.0,
+            460.42
+          ]
+        ],
+        [
+          [
+            227.0,
+            460.2
+          ],
+          [
+            389.0,
+            363.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          21.0,
+          362.0
+        ],
+        [
+          389.0,
+          363.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        205.0,
+        362.5
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          181,
+          366
+        ],
+        [
+          181,
+          394
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:service-post-office:taiga",
+      "sourceBoundsSheet": [
+        0,
+        462,
+        406,
+        844
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            11.0,
+            309.54
+          ],
+          [
+            236.0,
+            413.38
+          ]
+        ],
+        [
+          [
+            234.0,
+            413.1
+          ],
+          [
+            405.0,
+            318.9
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          11.0,
+          309.54
+        ],
+        [
+          405.0,
+          318.9
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        208.0,
+        314.22
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          127,
+          290
+        ],
+        [
+          127,
+          320
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:service-bank:taiga",
+      "sourceBoundsSheet": [
+        406,
+        462,
+        854,
+        844
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            -11.0,
+            304.09
+          ],
+          [
+            255.0,
+            424.91
+          ]
+        ],
+        [
+          [
+            253.0,
+            424.32
+          ],
+          [
+            434.0,
+            319.42
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          -11.0,
+          304.09
+        ],
+        [
+          434.0,
+          319.42
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        211.5,
+        311.755
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          156,
+          294.5
+        ],
+        [
+          156,
+          313.5
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:service-hotel:taiga",
+      "sourceBoundsSheet": [
+        854,
+        462,
+        1254,
+        844
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            18,
+            308
+          ],
+          [
+            216,
+            401
+          ]
+        ],
+        [
+          [
+            216,
+            401
+          ],
+          [
+            413,
+            288
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          18,
+          308
+        ],
+        [
+          413,
+          288
+        ]
+      ],
+      "observationMethod": "Actual paved parcel or fence ground-contact boundary corners manually reviewed on corrected image at source-pixel magnification. Opposite side ground vertices define physical centre; no silhouette fit.",
+      "groundCenterSource": [
+        215.5,
+        298.0
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          130,
+          304
+        ],
+        [
+          130,
+          318
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:service-garage:taiga",
+      "sourceBoundsSheet": [
+        0,
+        844,
+        459,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            5.0,
+            242.0
+          ],
+          [
+            282.0,
+            353.81
+          ]
+        ],
+        [
+          [
+            279.0,
+            354.08
+          ],
+          [
+            457.0,
+            257.79
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          5.0,
+          242.0
+        ],
+        [
+          457.0,
+          257.79
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        231.0,
+        249.895
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          319,
+          287
+        ],
+        [
+          319,
+          306
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:service-barber:taiga",
+      "sourceBoundsSheet": [
+        459,
+        844,
+        785,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            49,
+            262
+          ],
+          [
+            212,
+            336
+          ]
+        ],
+        [
+          [
+            212,
+            336
+          ],
+          [
+            360,
+            247
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          49,
+          262
+        ],
+        [
+          360,
+          247
+        ]
+      ],
+      "observationMethod": "Actual paved parcel or fence ground-contact boundary corners manually reviewed on corrected image at source-pixel magnification. Opposite side ground vertices define physical centre; no silhouette fit.",
+      "groundCenterSource": [
+        204.5,
+        254.5
+      ],
+      "personnelDoorEndpointsSource": [
+        [
+          194,
+          248
+        ],
+        [
+          194,
+          278
+        ]
+      ],
+      "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    },
+    {
+      "id": "civic:factory:taiga",
+      "sourceBoundsSheet": [
+        785,
+        844,
+        1254,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            -49.0,
+            230.54
+          ],
+          [
+            255.0,
+            370.38
+          ]
+        ],
+        [
+          [
+            254.0,
+            370.17
+          ],
+          [
+            408.0,
+            280.0
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          -49.0,
+          230.54
+        ],
+        [
+          408.0,
+          280.0
+        ]
+      ],
+      "observationMethod": "Ground-level fence, paved parcel or working-yard boundary identified in original alpha>96 edge pixels; fitted straight segment endpoints extended only along visible collinear boundary pixels. Opposite side vertices define physical ground centre. Review retained observations overlay; no silhouette-bottom anchor.",
+      "groundCenterSource": [
+        179.5,
+        255.27
+      ],
+      "personnelDoorObservable": false,
+      "personnelDoorNotes": "Factory main frontage shows loading bays. Elevated rear annex has a window/possible personnel doorway behind the adjacent roof and rail, but a complete door head and sill cannot be distinguished reliably."
+    }
+  ],
+  "reviewStatus": "Actual generated ground edges and visible personnel doors reviewed; absent or genuinely occluded personnel doors explicitly documented.",
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            11,
+            727.54
+          ],
+          [
+            234.6351537444894,
+            830.7501082881234
+          ]
+        ],
+        "physicalSpanMetres": 15,
+        "footprint": 1,
+        "note": "Visually identified full front ground boundary of service-post-office 1x1 parcel. Boundary pixel line intersections and visible endpoint supply one common density; this visible delivered parcel edge is assigned its calibrated per-tile architectural envelope, with narrow filtering setback. Other cells keep their observed relative dimensions."
+      }
+    ]
+  }
+}

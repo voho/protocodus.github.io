@@ -109,6 +109,8 @@ Recipe 11 keeps 5 × 5 industrial plots and places geological features on sparse
 
 Save migration version 3 expands smaller sites only into clear adjoining land while retaining their original occupied tiles. A 7 × 7 farm shrinks to a contained 5 × 5 plot only if every existing freight stop stays within reach. When a safe resize cannot fit, the saved site's original footprint remains. Preserve roads, buildings, stops, inventories and route connections; new construction and openings still use 5 × 5.
 
+Blocked historical sites may use dedicated paintings at their saved metre scale. The **3 × 3 equipment factory** has a separately generated 48m layout in [compact-equipment-factory](assets/world/plot-buildings-v2/compact-equipment-factory/), with shorter halls and fewer bays instead of a resized five-tile factory. Its retained prompt uses `buildingGenerationPrompt()`, and its actual ground edges, physical centre and visible personnel door are measured before packing. The matching compact kind and footprint load this sheet lazily; native geometry remains the fallback for unavailable art and other historical extents. The October 8 fishery correction separately re-registers the existing five-tile source using the outer dock and yard corners, preserving its original pixels and scale.
+
 Transport supports computers only. Artwork and gameplay checks use desktop and laptop browsers; phones and tablets show `please use computer to play the game` before startup, as recorded in [AGENTS.md](AGENTS.md).
 
 ## Airport component quality

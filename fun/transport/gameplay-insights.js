@@ -14,8 +14,8 @@ import { workshopInputs, workshopOutputs, workshopRecipes } from './town-market.
 import { waitingForFullLoad } from './model.js';
 import { scheduledDays, travelTiles } from './economy-pricing.js';
 
-const nearby = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) <= STATION_RADIUS;
-const covers = (site, stop) => industryDistance(site, stop) <= STATION_RADIUS;
+const nearby = (site, stop) => stationServes(stop, site);
+const covers = (site, stop) => industryDistance(site, stop) <= stationReach(stop);
 const isCity = site => !INDUSTRIES[site?.kind];
 const reach = (site, point) => isCity(site) ? Math.hypot(site.x - point.x, site.y - point.y) : industryDistance(site, point);
 const siteName = site => site.name || INDUSTRIES[site.kind]?.name || 'Town';
@@ -119,7 +119,7 @@ function openProcessor(game) {
   const supplied = [];
   for (const route of freight) {
     const end = stops.get(route.stops?.[1]);
-    if (end) for (const site of nearbyIndustries(game, end.x, end.y, STATION_RADIUS + 3)) if (INDUSTRIES[site.kind].inputs[route.cargo] && covers(site, end) && !supplied.includes(site)) supplied.push(site);
+    if (end) for (const site of nearbyIndustries(game, end.x, end.y, stationReach(end) + 3)) if (INDUSTRIES[site.kind].inputs[route.cargo] && covers(site, end) && !supplied.includes(site)) supplied.push(site);
   }
   const loads = site => freight.some(route => INDUSTRIES[site.kind].outputs[route.cargo] && stops.get(route.stops?.[0]) && covers(site, stops.get(route.stops[0])));
   const processor = supplied.find(site => !loads(site));
@@ -138,7 +138,7 @@ export function firstRouteSteps(game, choice) {
   if (!state || state.key !== key) {
     const target = buyer.kind === 'city' ? game.cities.find(city => city.id === buyer.id) : game.industries.find(site => site.id === buyer.id);
     // An airport never serves an industry, so the checklist leaves airports out.
-    const serving = site => site ? game.stations.filter(stop => stop.mode !== 'air' && reach(site, stop) <= STATION_RADIUS).sort((a, b) => reach(site, a) - reach(site, b)) : [];
+    const serving = site => site ? game.stations.filter(stop => stop.mode !== 'air' && reach(site, stop) <= stationReach(stop)).sort((a, b) => reach(site, a) - reach(site, b)) : [];
     const from = serving(source), to = serving(target), ids = [new Set(from.map(stop => stop.id)), new Set(to.map(stop => stop.id))];
     let pair = null;
     for (const a of from.slice(0, 3)) for (const b of to.slice(0, 3)) if (!pair && a !== b && a.mode === b.mode && findPath(game, a, b, a.mode)?.length >= 3) pair = [a, b];
@@ -204,7 +204,7 @@ export function industryStatus(industry, game = null) {
 // Passenger, mail and offline routes serve no industry; each stop's catchment, as stationCoverage reads it, is found once per call.
 export function industryService(game) {
   const stops = new Map(game.stations.map(stop => [stop.id, stop])), coverage = new Map(), service = new Map();
-  const covered = id => { const stop = stops.get(id); if (!coverage.has(id)) coverage.set(id, stop ? nearbyIndustries(game, stop.x, stop.y, STATION_RADIUS + 2).filter(site => covers(site, stop)) : []); return coverage.get(id); };
+  const covered = id => { const stop = stops.get(id); if (!coverage.has(id)) coverage.set(id, stop ? nearbyIndustries(game, stop.x, stop.y, stationReach(stop) + 2).filter(site => covers(site, stop)) : []); return coverage.get(id); };
   for (const route of game.routes) {
     if (!route.active || isTownTraffic(route.cargo)) continue;
     for (const [end, role, list] of [[0, 'source', 'outputs'], [1, 'buyer', 'inputs']]) for (const site of covered(route.stops?.[end])) {
@@ -268,7 +268,7 @@ export function routeHealth(game, route, stats = null) {
   if (!ends) return say('blocked', 'error', 'Stop missing', 'One of its stops was removed. Edit the route to pick another, or retire it.', { fix: EDIT });
   if (isTownTraffic(route.cargo)) {
     const towns = stops.map(stop => game.cities.filter(city => stationServes(stop, city))), mail = route.cargo === 'mail';
-    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return say('blocked', 'error', mail ? 'No mail' : 'No passengers', `${ends} each need a different town within ${stationReach(from)} tiles.`, { fix: EDIT });
+    if (!towns[0].some(a => towns[1].some(b => a.id !== b.id))) return say('blocked', 'error', mail ? 'No mail' : 'No passengers', stationReach(from) === stationReach(to) ? `${ends} each need a different town within ${stationReach(from)} tiles.` : `${token('stop', from.id)} needs a town within ${stationReach(from)} tiles, and ${token('stop', to.id)} needs a different town within ${stationReach(to)} tiles.`, { fix: EDIT });
     const pair = endpointTowns(towns, stops), waiting = Math.min(...pair.map(city => Math.floor(city[route.cargo] || 0)));
     return fleetHealth(game, route, stats, waiting, mail ? 'Mail travels both ways.' : 'Passengers travel both ways.', stops);
   }
@@ -277,8 +277,8 @@ export function routeHealth(game, route, stats = null) {
   // Towns load their workshops' products for another town, and towns with workshops buy their materials.
   const towns = game.cities.filter(city => nearby(city, to)), makers = game.cities.filter(city => nearby(city, from) && !towns.includes(city) && workshopOutputs(game, city).includes(route.cargo));
   const townBuyer = towns.some(city => workshopInputs(game, city).includes(route.cargo) || TOWN_CARGO.includes(route.cargo) && !makers.includes(city)), cargo = cargoToken(route.cargo);
-  if (!sources.length && !makers.length) return say('blocked', 'error', 'No supplier', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
-  if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${STATION_RADIUS} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
+  if (!sources.length && !makers.length) return say('blocked', 'error', 'No supplier', `Nothing within ${stationReach(from)} tiles of ${token('stop', from.id)} supplies ${cargo}. Add a supplier there, or edit the route.`, { fix: EDIT });
+  if (!buyers.length && !townBuyer) return say('blocked', 'error', 'No buyer', `Nothing within ${stationReach(to)} tiles of ${token('stop', to.id)} buys ${cargo}. Add a buyer there, or edit the route.`, { fix: EDIT });
   // Full stores still take and pay for every delivery, so they give way to a supplier's warning and to a full-load line.
   const full = !townBuyer && buyers.every(site => (site.inventory?.[route.cargo] || 0) >= 900 * (site.capacity || 1) - .001);
   // Only a full-load route reads its line; vehicles waiting in it hold cargo that has not left yet.
@@ -307,7 +307,7 @@ export function nextProject(game, { source: preferred } = {}) {
     if (!choice) return { title: 'Your first cargo route', detail: 'Pick a supplier and a buyer in Production chains.', action: 'chains', button: 'Production chains', choices, choice: 0, steps: [] };
     // Until the two ends are joined, the card can also plan the line and its stops, on land only.
     const steps = firstRouteSteps(game, choice), line = steps[2], plan = line.done || line.action !== 'connect' || steps.some(step => step.tool === 'port') ? null : line.tool;
-    return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
+    return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within ${STATION_RADIUS} tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
   if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 }, figure: `${Math.floor(delivered)} of 100` };

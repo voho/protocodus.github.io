@@ -1,4 +1,4 @@
-import { industryAt, invalidateNetworkPoints, BUILDINGS, INDUSTRIES } from './model.js';
+import { industryAt, invalidateNetworkPoints, quoteNetworkConstruction, BUILDINGS, INDUSTRIES } from './model.js';
 import { buildingAt, buildingTiles } from './building-sites.js';
 import { industryTiles, industryFootprint } from './industry-sites.js';
 import { terrainObjectAt, terrainObjectTiles } from './terrain-objects.js';
@@ -38,8 +38,8 @@ function restoreList(current,{before,after,added,removed}){
   return list;
 }
 
-/** Before buildPlan: the gesture, complete farm fields and sites it would clear, plus a three-tile collar and the counters a build moves. */
-export function captureUndo(game,tool,points){
+/** Before buildPlan: the gesture, complete sites, quoted earthworks and their cleared objects, plus a three-tile collar and the counters a build moves. */
+export function captureUndo(game,tool,points,{terrain}={}){
   const centers=[];
   for(const p of Array.isArray(points)?points:[])if(p&&Number.isInteger(p.x)&&Number.isInteger(p.y)){
     centers.push(p);
@@ -47,6 +47,12 @@ export function captureUndo(game,tool,points){
     if(tool==='bulldoze'){const industry=industryAt(game,p.x,p.y),site=industry||buildingAt(game,p.x,p.y)||terrainObjectAt(game,p.x,p.y),airport=stationSiteAt(game,p.x,p.y);if(site)centers.push(site);if(industry)centers.push(...industryTiles(industry));if(airport?.mode==='air')centers.push(...stationTiles(airport));}
     // An airport's site lies either way around the pointer, depending on the runway.
     if(tool==='airport')for(const axis of ['x','y'])centers.push(...stationTiles({...airportPlacement(p,axis),mode:'air',axis}));
+  }
+  if(terrain===undefined&&['road','rail','bridge','railbridge','tunnel','railtunnel'].includes(tool))terrain=quoteNetworkConstruction(game,tool,points).terrain;
+  if(terrain){
+    centers.push(...terrain);
+    const affected=block(game,terrain,-1,1,block(game,Array.isArray(points)?points.filter(p=>p&&Number.isInteger(p.x)&&Number.isInteger(p.y)):[],0,0));
+    for(const index of affected){const p=pointOf(game,index),site=terrainObjectAt(game,p.x,p.y);if(site)centers.push(site);}
   }
   const indices=[...block(game,centers,-3,3)],owners=[];
   // Founding a town first pins every older home to its current town.

@@ -1,7 +1,7 @@
 // Notices in a real browser: nothing is dropped, bursts are grouped and toasts act.
 // Serve the repository root first; every page uses fresh, isolated browser storage.
 import assert from 'node:assert/strict';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu, openGameAction } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -13,6 +13,7 @@ const errors = [];
 async function open(viewport) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
   page.on('pageerror', error => errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
   // Record every toast as it is shown, including ones that later scroll out of the region.
   // A reference's mark (a route's numbered bullet, a cargo or town icon) is not part of the sentence.
   await page.addInitScript(() => {
@@ -168,9 +169,14 @@ try {
   assert.equal(await page.locator('#offline-routes').getAttribute('aria-label'), '3 routes need attention', 'the top bar counts every cut service');
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${output}/grouped-warning-desktop.png` });
-  await page.locator('#toast-region .toast.warning .toast-action').click();
-  await page.waitForFunction(() => document.activeElement?.matches('[data-focus-route]'));
-  assert.equal(await page.evaluate(() => transport.game.routes.some(r => r.id === document.activeElement.dataset.focusRoute)), true, 'Show opens Routes at the broken service');
+  const routeNotice=page.locator('#toast-region .toast.warning .toast-action'),routeNoticeHTML=await routeNotice.evaluate(button=>button.closest('.toast').outerHTML);
+  await routeNotice.click();
+  await page.waitForFunction(() => document.activeElement?.id === 'route-detail-title',undefined,{timeout:3000}).catch(async error=>{
+    const state=await page.evaluate(()=>({active:document.activeElement?.outerHTML,title:document.querySelector('#route-detail-title')?.outerHTML,panel:document.querySelector('#panel-content')?.innerHTML,toasts:[...document.querySelectorAll('#toast-region .toast')].map(el=>el.outerHTML)}));
+    await writeFile(`${output}/route-focus-failure.json`,JSON.stringify({routeNoticeHTML,state,errors},null,2));
+    await page.screenshot({path:`${output}/route-focus-failure.png`});throw error;
+  });
+  assert.equal(await page.evaluate(() => { const card=document.querySelector('#route-list [data-route-id]');return transport.game.routes.some(route=>route.id===card?.dataset.routeId&&!route.active); }), true, 'Show opens the broken service’s details');
   await page.screenshot({ path: `${output}/show-route-desktop.png` });
   // Put the sloped road tile back as it was; the chip clears once the services run again.
   assert.deepEqual(await page.evaluate(async cut => {
@@ -215,8 +221,13 @@ try {
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${output}/new-year-desktop.png` });
   const money = await page.evaluate(() => transport.game.money);
-  await page.locator('#toast-region .toast-action', { hasText: 'Review upgrades' }).click();
-  await page.waitForFunction(() => document.activeElement?.id === 'upgrade-fleet');
+  const upgradeAction=page.locator('#toast-region .toast-action', { hasText: 'Review upgrades' }),upgradeClick=await upgradeAction.evaluate(button=>({button:button.outerHTML,toast:button.closest('.toast').outerHTML}));
+  await upgradeAction.click();
+  await page.waitForFunction(() => document.activeElement?.id === 'upgrade-fleet').catch(async error=>{
+    const state=await page.evaluate(()=>({active:document.activeElement?.outerHTML,routeTitle:document.querySelector('#route-detail-title')?.textContent,upgrades:document.querySelector('.fleet-upgrades')?.outerHTML,panel:document.querySelector('#panel-content')?.innerHTML,toasts:[...document.querySelectorAll('#toast-region .toast')].map(el=>el.outerHTML)}));
+    await writeFile(`${output}/upgrade-focus-failure.json`,JSON.stringify({upgradeClick,state,errors},null,2));
+    await page.screenshot({path:`${output}/upgrade-focus-failure.png`});throw error;
+  });
   assert.equal(await page.evaluate(() => transport.game.money), money, 'reviewing upgrades never spends money');
   assert.equal(await page.locator('.nav-button[data-view="routes"]').getAttribute('aria-expanded'), 'true');
   assert.equal((await toastsSince(page, from)).filter(toast => /^New for 1951/.test(toast.text)).length, 1, 'one year toast per January');
@@ -262,10 +273,10 @@ try {
   from = await shown(page);
   const freight = await page.evaluate(async () => {
     const { build, addRoute } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
-    const g = transport.game, path = [[219, 255], [220, 255], ...Array.from({ length: 11 }, (_, i) => [221, 255 - i])].map(([x, y]) => ({ x, y }));
-    const road = buildPlan(g, 'road', path), stops = [build(g, 'bus-stop', 220, 255), build(g, 'bus-stop', 221, 245)];
-    const result = addRoute(g, { name: 'Quarry line', mode: 'road', stops: stops.map(stop => stop.station?.id), cargo: 'stone' });
-    return { ok: road.ok && stops.every(stop => stop.ok) && result.ok, message: [road.message, ...stops.map(stop => stop.message), result.message].join(' / ') };
+    const g = transport.game, path = Array.from({ length: 8 }, (_, i) => ({ x: 219, y: 252 - i }));
+    const road = buildPlan(g, 'road', path), source = build(g, 'bus-stop', 219, 252), town = g.stations.find(stop => stop.id === g.routes[0].stops[0]);
+    const result = addRoute(g, { name: 'Quarry line', mode: 'road', stops: [source.station?.id, town?.id], cargo: 'stone' });
+    return { ok: road.ok && source.ok && result.ok, message: [road.message, source.message, result.message].join(' / ') };
   });
   assert.equal(freight.ok, true, freight.message);
   await page.waitForTimeout(600);
@@ -282,13 +293,13 @@ try {
   await clearToasts(page);
   from = await shown(page);
   const lost = await page.evaluate(async () => {
-    const { build } = await import('./model.js'), { industryDistance } = await import('./industry-sites.js');
+    const { build, stationReach } = await import('./model.js'), { industryDistance } = await import('./industry-sites.js');
     const g = transport.game, route = g.routes.find(r => r.name === 'Quarry line'), stop = g.stations.find(s => s.id === route.stops[0]);
-    const results = g.industries.filter(i => i.kind === 'quarry' && industryDistance(i, stop) <= 5).map(site => build(g, 'bulldoze', site.x, site.y));
+    const results = g.industries.filter(i => i.kind === 'quarry' && industryDistance(i, stop) <= stationReach(stop)).map(site => build(g, 'bulldoze', site.x, site.y));
     return { ok: results.length > 0 && results.every(result => result.ok), message: results.map(result => result.message).join(' / '), stop: stop.name };
   });
   assert.equal(lost.ok, true, lost.message);
-  await waitForToast(page, new RegExp(`^Quarry line lost its stone supplier\\. Add one within 5 tiles of ${lost.stop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, or retire the route\\.$`), from);
+  await waitForToast(page, new RegExp(`^Quarry line lost its stone supplier\\. Add one within 4 tiles of ${lost.stop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, or retire the route\\.$`), from);
   await page.waitForTimeout(900);
   const supply = (await toastsSince(page, from)).filter(toast => /lost its/.test(toast.text));
   assert.equal(supply.length, 1, 'one warning for the one route');

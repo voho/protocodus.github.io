@@ -52,13 +52,15 @@ function freightFixture() {
 // Alder and Birch on one road with a stop each, a workshop in Alder and, optionally, a furniture works beside Alder's stop.
 function worksWorld(works) {
   const game = emptyGame(), town = (id, name, x) => { const city = { id, name, x, y: 30, population: 800, activity: 0, growth: 0, passengers: 0, delivered: 0, supplies: 0, lastServiceDay: null }; game.cities.push(city); return city; };
+  // Seed the industry before the towns: this is an established compact layout,
+  // retained by old companies, rather than a new industry's siting proposal.
+  const factory = works ? build(game, 'furniture-factory', 31, 33).industry : null;
+  assert.ok(!works || factory);
   const A = town('town-a', 'Alder', 30), B = town('town-b', 'Birch', 70);
   game.revision++;
   assert.ok(buildPath(game, 'road', line(20, 75, 32)).ok);
   const sa = build(game, 'bus-stop', 30, 32).station, sb = build(game, 'bus-stop', 70, 32).station;
   assert.ok(build(game, 'workshop', 26, 33).ok);
-  const factory = works ? build(game, 'furniture-factory', 31, 33).industry : null;
-  assert.ok(!works || factory);
   closeMonths(game, 1);
   return { game, A, B, sa, sb, factory };
 }

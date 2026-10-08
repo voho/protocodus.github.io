@@ -87,7 +87,7 @@ function world(){
   for(const y of [12,30]){const span=buildStructureSpan(game,'bridge',line(60,66,y));assert.equal(span.ok,true,span.message);}
   const tunnel=buildStructureSpan(game,'railtunnel',line(96,100,60));assert.equal(tunnel.ok,true,tunnel.message);
   const stops=[['bus-stop',[[9,9,12,9],[27,9,30,9],[45,9,48,9],[9,27,12,27],[27,27,30,27],[45,27,48,27],[27,39,30,39],[75,15,78,15],[87,33,90,33],[117,39,120,39],[105,9,108,9]]],
-    ['train-stop',[[14,56,14,60],[38,64,38,60],[62,56,62,60],[84,64,84,60],[116,56,116,60],[26,84,30,84],[46,84,50,84],[74,72,74,76],[6,86,10,88]]],
+    ['train-stop',[[14,56,14,60],[38,64,38,60],[62,56,62,60],[84,64,84,60],[116,56,116,60],[26,84,30,84],[46,84,50,84],[74,72,74,76],[7,86,10,88]]],
     ['port',[[104,66,104,70],[116,66,116,70],[96,84,100,84]]]];
   for(const [tool,sites] of stops)for(const [tx,ty,x,y] of sites){town(game,tx,ty);const result=build(game,tool,x,y);assert.equal(result.ok,true,`${tool} ${x},${y}: ${result.message}`);}
   for(const [a,b] of [[[12,9],[30,9]],[[12,9],[48,27]],[[30,9],[78,15]],[[12,27],[90,33]],[[48,9],[120,39]],[[30,27],[30,39]],[[48,27],[108,9]],[[30,39],[90,33]],[[12,9],[120,39]],[[78,15],[90,33]]])route(game,'road',a,b);

@@ -4,7 +4,7 @@
   "canonicalPrompt": "generation-prompt.txt",
   "nativeGeometryReference": "generation-reference.png",
   "source": "generated-source.png",
-  "sourceSha256": "4507ed30d4493e60508b39c704cdababdad016418b25a3d2d95bf50583249e61",
+  "sourceSha256": "a92cf47edd41102d765fefcb457681f6b23fd02ce23f0b168ada61accaf23ff6",
   "measurements": "registration-measurements.json",
   "observationOverlay": "registration-observations.png",
   "packing": {
@@ -20,11 +20,23 @@
       256,
       512
     ],
-    "sourceSha256": "4507ed30d4493e60508b39c704cdababdad016418b25a3d2d95bf50583249e61",
+    "sourceSha256": "a92cf47edd41102d765fefcb457681f6b23fd02ce23f0b168ada61accaf23ff6",
     "groundRegistrationApplied": true,
     "physicalReview": "All occupied sprites measured and accepted; actual generated source evidence retained."
   },
   "reviewStatus": "All occupied sprites measured; actual ground axes, centre and observable personnel doors accepted.",
   "heightCorrection": null,
-  "doorScaleCorrection": "door-scale-correction/assembly-recipe.json"
+  "doorScaleCorrection": "door-scale-correction/assembly-recipe.json",
+  "cameraCorrection": {
+    "date": "2026-10-08",
+    "recipe": "camera-correction-2026-10-08/assembly-recipe.json",
+    "acceptedEntries": [
+      "civic:shop-butcher:taiga",
+      "civic:service-garage:taiga",
+      "civic:service-barber:taiga",
+      "civic:factory:taiga"
+    ],
+    "unchangedCells": "All other cells remain byte-identical at every shipping display density.",
+    "review": "Actual source ground edges, physical centres, ordinary door leaves, full RGBA retention and all six density levels reviewed. No per-silhouette scale or camera warp."
+  }
 }

@@ -3,7 +3,7 @@ import { BUILDINGS, residentialKind, SHOP_KINDS } from './buildings.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 import { generatedElevation } from './world-tiles.js';
 import { buildingFootprint, placeBuildingSite } from './building-sites.js';
-import { generatedIndustryFootprint, industrySiteProblem, industrySpacingProblem } from './industry-sites.js';
+import { generatedIndustryFootprint, industrySiteProblem, industrySpacingProblem, legacyIndustrySpacingProblem, MIN_SITE_GAP } from './industry-sites.js';
 import { generateTerrainV8, levelElevation, WATER_POND } from './world-terrain-v8.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -89,7 +89,7 @@ function settle(game, biome, seed, random, config, terrain) {
   }
   candidates.sort((a, b) => b.score - a.score || a.y - b.y || a.x - b.x);
   const towns = [{ x: ax, y: ay, starter: true }, { x: ax + 24, y: ay, starter: true }];
-  const far = (x, y, spacing) => towns.every(town => Math.hypot(town.x - x, town.y - y) >= spacing);
+  const far = (x, y, spacing) => towns.every(town => Math.hypot(town.x - x, town.y - y) >= (game.generationVersion>=12?Math.max(spacing,MIN_SITE_GAP):spacing));
   for (const pass of [0, 1, 2]) for (const c of candidates) {
     if (towns.length >= config.towns) break;
     const spacing = pass === 2 ? 12 : pass === 1 ? 14 : 15 + hashNoise(c.x >> 3, c.y >> 3, seed + 4223) * 6;
@@ -380,7 +380,7 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
         const distance = Math.hypot(x - anchor.x, y - anchor.y);
         const score = habitat(kind, x, y, size) + (wanted && tile(x, y).terrain === wanted ? 25 : 0) - rough(x, y, size) * 60 - distance / scale * (extraction ? 35 : 85) + hashNoise(x, y, seed + district * 251) * 22;
         // The deposit and the full site rules only need to confirm a candidate that would win.
-        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size) && !industrySpacingProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
+        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size) && !(game.generationVersion>=12?industrySpacingProblem:legacyIndustrySpacingProblem)(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
       };
       for (let attempt = 0; attempt < 140; attempt++) {
         const spread = extent * (extraction ? .75 + random() * 1.7 : .35 + random() * .55);

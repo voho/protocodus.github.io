@@ -1,0 +1,88 @@
+{
+  "baseSource": "before-generated-source.png",
+  "sourcePolicy": "Canonical buildingGenerationPrompt() imagegen repaints; accepted target cutouts only, original unedited identities retained. Repaint isolation preserves original RGBA. One measured camera density per generated sheet, uniform scale and ground-centre translation only.",
+  "scaleCalibration": null,
+  "replacements": [
+    {
+      "id": "house-expensive-3",
+      "source": "camera-targets.png",
+      "sourceSha256": "b0a0c78e4ca1765ea51acbe0f6ab58c5a99c40ad74a6581925276029c8281492",
+      "originalGroundEdgeSlopes": [
+        0.6024064171122994,
+        -0.5885641025641026
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5530582382206601,
+        -0.5792026312280546
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            865,
+            1094.2932461873638
+          ],
+          [
+            1000,
+            1168.956108347153
+          ]
+        ],
+        [
+          [
+            1070,
+            1188.1972626931565
+          ],
+          [
+            1220,
+            1101.3168680089484
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          849,
+          1085.4443143758335
+        ],
+        [
+          1244,
+          1087.4160048594752
+        ]
+      ],
+      "observedGroundCenter": [
+        1046.5,
+        1086.4301596176542
+      ],
+      "observedPersonnelDoor": null,
+      "sourceToMasterScale": 0.5098364874245707,
+      "sourceToSheetScale": 1.0,
+      "sourceToSheetTranslation": [
+        -11.0,
+        -1.0451596176542353
+      ],
+      "isolation": {
+        "method": "Lossless RGBA assignment to nearest of the major alpha>230 connected components; no silhouette fitting, alpha editing, rotation or shear. Every original pixel belongs to exactly one component, including detached details and soft shadows.",
+        "componentCount": 9,
+        "selectedComponentCentroid": [
+          1044.2677307092283,
+          1068.8002262947662
+        ]
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 3,
+        "alpha2Pixels": 0,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        820,
+        837,
+        1254,
+        1254
+      ],
+      "newSourceBounds": [
+        820,
+        837,
+        1254,
+        1254
+      ]
+    }
+  ]
+}

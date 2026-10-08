@@ -27,12 +27,19 @@ function drawStationArt(c,id,x,y,size,pixelScale){
   else if(id.startsWith('portal:')){c.translate(x+size/2,y+size*35/44);c.scale(size/44,size/44);drawn=drawNativePortal(c,{mode:id.includes('rail-')?'rail':'road',heading});}
   c.restore();return drawn;
 }
+// Reflection swaps the two world axes while leaving verticals, physical scale
+// and the registered ground centre intact. Rotation would tilt the building.
+function drawStopArt(c,id,x,y,size,pixelScale,axis='x'){
+  if(axis!=='y')return drawStationArt(c,id,x,y,size,pixelScale);
+  c.save();c.translate(2*x+size,0);c.scale(-1,1);
+  const drawn=drawStationArt(c,id,x,y,size,pixelScale);c.restore();return drawn;
+}
 export function drawIsometricInfrastructure(c,kind,x,y,w,h,pixelScale=1){
   const id=kind==='port'?'isometric:port-w':['bus-stop','train-stop'].includes(kind)?'isometric:'+kind:kind==='road-tunnel'?'portal:road-e':kind==='rail-tunnel'?'portal:rail-e':null;
   const size=Math.min(w,h);
   return id?drawStationArt(c,id,x+(w-size)/2,y+(h-size)/2,size,pixelScale):false;
 }
-export function drawIsometricStop(c,mode,x,y,pixelScale=1){const{left,top,size}=isometricStationBounds(mode);return drawStationArt(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x+left,y+top,size,pixelScale);}
+export function drawIsometricStop(c,mode,x,y,pixelScale=1,axis='x'){const{left,top,size}=isometricStationBounds(mode);return drawStopArt(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x+left,y+top,size,pixelScale,axis);}
 export function drawIsometricPort(c,dx,dy,x,y,pixelScale=1){const{left,top,size}=isometricStationBounds('water');return drawStationArt(c,'isometric:port-'+cardinalDirection(dx,dy),x+left,y+top,size,pixelScale);}
 export function drawIsometricPortal(c,mode,dx,dy,x,y,pixelScale=1){return drawStationArt(c,'portal:'+mode+'-'+cardinalDirection(dx,dy),x-22,y-35,44,pixelScale);}
 
@@ -41,15 +48,15 @@ export function drawIsometricPortal(c,mode,dx,dy,x,y,pixelScale=1){return drawSt
 export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedCache=null}={}){
   const scale=Math.max(.25,Number(pixelScale)||1),cache=sharedCache||createSpriteCache({limit:4*1024*1024});
   let created=0,hits=0;
-  function draw(c,id,x,y,bounds){
+  function draw(c,id,x,y,bounds,axis=null){
     cache.syncRevision(worldArtRevision());
-    const key=`infrastructure:${scale}:${id}`;let image=cache.get(key);
+    const key=`infrastructure:${scale}:${id}:${axis||''}`;let image=cache.get(key);
     if(image)hits++;
     else{
       image=document.createElement('canvas');image.width=image.height=Math.ceil(bounds.size*scale);
       const p=image.getContext('2d');p.scale(scale,scale);
-      if(!drawStationArt(p,id,0,0,bounds.size,scale))return false;
-      image.infrastructureFrame={id,pixelScale:scale,...bounds};cache.set(key,image);created++;
+      if(!(axis?drawStopArt(p,id,0,0,bounds.size,scale,axis):drawStationArt(p,id,0,0,bounds.size,scale)))return false;
+      image.infrastructureFrame={id,pixelScale:scale,...bounds,...axis?{axis}:{}};cache.set(key,image);created++;
     }
     // Prepared antialiasing is final: snap only the stationary upright image,
     // preserving its measured anchor and native physical-pixel dimensions.
@@ -64,8 +71,8 @@ export function createIsometricInfrastructureSprites({pixelScale=1,cache:sharedC
     c.drawImage(image,frame.x,frame.y,frame.w,frame.h);c.restore();return frame;
   }
   return {
-    stop:(c,mode,x,y)=>Boolean(draw(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x,y,isometricStationBounds(mode))),
-    stopFrame:(c,mode,x,y)=>draw(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x,y,isometricStationBounds(mode)),
+    stop:(c,mode,x,y,axis='x')=>Boolean(draw(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x,y,isometricStationBounds(mode),axis)),
+    stopFrame:(c,mode,x,y,axis='x')=>draw(c,'isometric:'+(mode==='rail'?'train-stop':'bus-stop'),x,y,isometricStationBounds(mode),axis),
     port:(c,dx,dy,x,y)=>Boolean(draw(c,'isometric:port-'+cardinalDirection(dx,dy),x,y,isometricStationBounds('water'))),
     portFrame:(c,dx,dy,x,y)=>draw(c,'isometric:port-'+cardinalDirection(dx,dy),x,y,isometricStationBounds('water')),
     portal:(c,mode,dx,dy,x,y)=>Boolean(draw(c,'portal:'+mode+'-'+cardinalDirection(dx,dy),x,y,{left:-22,top:-35,size:44})),

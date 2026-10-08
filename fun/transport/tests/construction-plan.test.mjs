@@ -176,7 +176,7 @@ test('single stops, ports and towns quote exactly what build() will say', () => 
   assert.equal(quoteBuildPlan(game, 'port', [{ x: 12, y: 12 }]).message, 'Place a port on water directly beside land.');
   build(game, 'city', 30, 30);
   const near = quoteBuildPlan(game, 'city', [{ x: 35, y: 30 }]);
-  assert.equal(near.ok, false); assert.equal(near.message, 'This is too close to another town. Found it at least 11 tiles from any town centre.');
+  assert.equal(near.ok, false); assert.match(near.message, /5-tile road between the towns' stop ranges/);
   game.money = 10;
   assert.match(quoteBuildPlan(game, 'city', [{ x: 60, y: 60 }]).message, /^Need \$/);
 });
@@ -357,7 +357,10 @@ test('a zone block beside one road counts the tiles no road reaches', () => {
 test('zonePlanPoints drops what a zone can never claim and keeps other zones for the quote to refuse', () => {
   const game = emptyGame();
   build(game, 'road', 10, 10); build(game, 'bus-stop', 10, 10); build(game, 'road', 11, 10); build(game, 'rail', 12, 10); build(game, 'city', 13, 10);
-  build(game, 'house-cheap-1', 14, 10); build(game, 'logging-camp', 15, 10); build(game, 'residential', 20, 10); build(game, 'commercial', 21, 10);
+  build(game, 'house-cheap-1', 14, 10);
+  // Existing compact worlds may have a factory beside a town; zoning still respects its entire plot.
+  game.industries.push({id:'legacy-camp',kind:'logging-camp',name:'Logging camp',x:15,y:10,footprint:5});
+  build(game, 'residential', 20, 10); build(game, 'commercial', 21, 10);
   Object.assign(tileAt(game, 22, 10), { terrain: 'water' }); Object.assign(tileAt(game, 23, 10), { terrain: 'mountain' }); Object.assign(tileAt(game, 24, 10), { terrain: 'forest' });
   const kept = zonePlanPoints(game, 'residential', [...line(10, 25, 10), { x: 25, y: 10 }, { x: -1, y: 10 }]).map(p => p.x);
   assert.deepEqual(kept, [21, 24, 25], 'roads, a stop, rail, a town center, a house, the full 5×5 industry, the same zone, water and mountains are left out');

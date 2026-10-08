@@ -59,7 +59,7 @@ export const routeLabel = route => validRouteNumber(route?.number) ? `Route ${ro
 // and mail join two towns with an en dash. Every new default name also names its cargo.
 // A name another route already has gets ' 2', ' 3' and so on; `except` (a route or its id) never counts, so a route
 // renamed along its stops does not collide with itself. Names in a save are never rewritten.
-const REACH = 5, NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
+const NAME_LENGTH = 36, TOWN_TO_TOWN = new Set(['passengers', 'mail']);
 const apart = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // An airport names the towns within its wider reach, measured from its nearest tile.
 const townsNear = (game, stop) => nearbyCities(game, stop.x, stop.y, stationReach(stop) + (stop.mode === 'air' ? 5 : 0)).filter(town => stationServes(stop, town));
@@ -83,7 +83,7 @@ export function defaultRouteName(game, stations, cargo, except = null) {
   if (!from || !to) return '';
   const townName = stop => townsNear(game, stop).reduce((best, town) => !best || stationDistance(stop, town) < stationDistance(stop, best) ? town : best, null)?.name;
   const place = stop => townName(stop) || stop.name;
-  const site = (stop, role, other) => nearbyIndustries(game, stop.x, stop.y, REACH + 2).find(site => site !== other && INDUSTRIES[site.kind]?.[role][cargo] && industryDistance(site, stop) <= REACH);
+  const site = (stop, role, other) => nearbyIndustries(game, stop.x, stop.y, stationReach(stop) + 2).find(site => site !== other && INDUSTRIES[site.kind]?.[role][cargo] && industryDistance(site, stop) <= stationReach(stop));
   let labels, separator;
   if (TOWN_TO_TOWN.has(cargo)) { const pair = townPair(game, from, to); labels = pair ? pair.map((town, i) => town.name || place([from, to][i])) : [place(from), place(to)]; separator = ' – '; }
   else {

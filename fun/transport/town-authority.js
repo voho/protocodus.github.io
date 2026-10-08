@@ -29,7 +29,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const actionActive = (until, day) => Number.isInteger(until) && Math.floor(day) < until;
 /** Development funded at the town hall; false for no town (a zone far from every centre). */
 export const fundedTown = (city, day) => !!city && actionActive(city.fundedUntil, day);
-/** Map<city, n>: stops of running routes that serve each town (five tiles, seven for an airport), in station order. */
+/** Map<city, n>: stops of running routes that serve each town (each stop’s saved service range), in station order. */
 export function townStopCounts(game) {
   const stops = new Set(), counts = new Map();
   for (const route of game.routes) if (route.active) for (const id of route.stops) stops.add(id);

@@ -1,0 +1,582 @@
+{
+  "version": 2,
+  "jobId": "compact-equipment-factory",
+  "type": "legacy-industry",
+  "columns": 1,
+  "rows": 1,
+  "cellSizes": [
+    16,
+    32,
+    64,
+    128,
+    256,
+    512
+  ],
+  "masterCell": 256,
+  "order": [
+    "industry:equipment-factory:tundra:footprint-3"
+  ],
+  "sprites": [
+    {
+      "id": "industry:equipment-factory:tundra:footprint-3",
+      "kind": "equipment-factory",
+      "cell": 0,
+      "footprint": 3,
+      "runtimeIds": [
+        "industry:equipment-factory:tundra:footprint-3"
+      ],
+      "eligibleBiomes": [
+        "tundra"
+      ],
+      "sourceBounds": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "sourceBoundsSheet": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "sourceNominalCellBoundsSheet": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "sourceCellPixels": 1254,
+      "observedSourceCropPixels": [
+        1254,
+        1254
+      ],
+      "sourceScale": 0.20414673046251994,
+      "normalization": "Observed ground-centre translation, explicit complete source crop, ONE uniform sheet density; no silhouette fitting",
+      "sourceAlpha": {
+        "alphaBounds": [
+          0,
+          31,
+          1236,
+          1245
+        ],
+        "meaningfulAlphaBounds": [
+          106,
+          656,
+          1150,
+          1221
+        ],
+        "transparentFraction": 0.8024897679896421,
+        "nontransparentPixels": 317999,
+        "meaningfulPixels": 308285,
+        "fractionalAlphaPixels": 317749,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 33
+      },
+      "masterAlpha": {
+        "alphaBounds": [
+          15,
+          113,
+          237,
+          249
+        ],
+        "meaningfulAlphaBounds": [
+          21,
+          131,
+          235,
+          247
+        ],
+        "transparentFraction": 0.7976226806640625,
+        "nontransparentPixels": 13525,
+        "meaningfulPixels": 13030,
+        "fractionalAlphaPixels": 13171,
+        "edgeMeaningfulFractions": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "minimumFilteringGutterPixels": 9
+      },
+      "groundAlpha": {
+        "envelopePixels": 11503,
+        "envelopeZeroAlphaFraction": 0.0025210814570112146,
+        "frontGroundPixels": 5805,
+        "frontGroundZeroAlphaFraction": 0.0049956933677863915,
+        "method": "Observed PNG alpha inside the canonical projected envelope; plants, walls and paving remain occupied. Bare-ground identity requires source review."
+      },
+      "expectedGeometry": {
+        "groundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "groundEnvelopeMaster": [
+          [
+            128.0,
+            138.66666666666669
+          ],
+          [
+            234.66666666666666,
+            192.0
+          ],
+          [
+            128.0,
+            245.33333333333331
+          ],
+          [
+            21.333333333333343,
+            192.0
+          ]
+        ],
+        "personnelDoorMasterPixels": 4.977777777777778,
+        "personnelDoorMasterWidthPixels": 2.2518518518518515,
+        "storeyMasterPixels": 7.111111111111111,
+        "fenceMasterPixels": 2.844444444444444,
+        "loadingBayMasterPixels": 9.955555555555556,
+        "worldPixelsPerMasterPixel": 0.84375
+      },
+      "measuredGeometry": {
+        "status": "measured",
+        "measurement": {
+          "id": "industry:equipment-factory:tundra:footprint-3",
+          "groundEdgeSegmentsSource": [
+            [
+              [
+                130,
+                962.28884
+              ],
+              [
+                580,
+                1198.770007
+              ]
+            ],
+            [
+              [
+                680,
+                1188.040322
+              ],
+              [
+                1120,
+                964.811431
+              ]
+            ]
+          ],
+          "visibleOppositeGroundVerticesSource": [
+            [
+              110,
+              953
+            ],
+            [
+              1145,
+              953
+            ]
+          ],
+          "groundCenterSource": [
+            627.5,
+            953
+          ],
+          "observationMethod": "2026-10-08 review of complete factory outer fence base, separate from roof silhouette and gate edges: outer western and eastern base corners both y953; front ground-axis slopes independently fitted to original alpha>96 boundary pixels over x130..579 and x680..1119, residual standard deviation 0.81px and 1.60px. Exact native geometric reference defines a purpose-designed 3x3, 48m factory; no resized 5x5 painting.",
+          "groundLandmarkUncertaintySourcePixels": 2,
+          "personnelDoorEndpointsSource": [
+            [
+              630,
+              1088.5
+            ],
+            [
+              630,
+              1112.5
+            ]
+          ],
+          "personnelDoorObservationMethod": "Fully visible front hall personnel-door leaf at source column630, with actual dark pixels y1089..1112 inclusive; measured pixel boundaries at1088.5 and1112.5. Four adjacent columns independently retain24px leaf height. This ordinary door is distinct from the larger loading bays.",
+          "personnelDoorObservable": true
+        },
+        "groundEdgeObservationMethod": "Actual visible ground-edge segments; hidden rear corner is not required",
+        "groundEdgeSegmentsMasterMeasured": [
+          [
+            [
+              26.43700159489633,
+              193.8962863157895
+            ],
+            [
+              118.3030303030303,
+              242.17314337480067
+            ]
+          ],
+          [
+            [
+              138.7177033492823,
+              239.98271326315793
+            ],
+            [
+              228.54226475279106,
+              194.41126502073365
+            ]
+          ]
+        ],
+        "groundEdgeSlopesMeasured": [
+          0.5255137044444445,
+          -0.5073383886363638
+        ],
+        "groundSlopeMaximumAbsoluteError": 0.02551370444444445,
+        "bothGroundAxesObserved": true,
+        "groundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "groundCenterMasterMeasured": [
+          128.0,
+          192.0
+        ],
+        "groundCenterErrorMasterPixels": 0.0,
+        "personnelDoorHeightMasterMeasured": 4.899521531100478,
+        "personnelDoorEndpointsMasterMeasured": [
+          [
+            128.5103668261563,
+            219.66188197767147
+          ],
+          [
+            128.5103668261563,
+            224.56140350877195
+          ]
+        ],
+        "personnelDoorHeightRelativeError": 0.015721120984278934
+      },
+      "registrationPlan": {
+        "status": "measured-translation-applied",
+        "applied": true,
+        "sourceGroundCenter": [
+          627.5,
+          953
+        ],
+        "sourceGroundCenterMethod": "Observed physical ground centre, local source-cell pixel coordinates",
+        "uniformSourceToMasterScale": 0.20414673046251994,
+        "translationMaster": [
+          -0.10207336523126287,
+          -2.5518341307814865
+        ],
+        "targetGroundCenterMaster": [
+          128.0,
+          192.0
+        ],
+        "wholeSheetRegistrationOffsetMaster": [
+          0,
+          0
+        ],
+        "registrationOffsetReview": "",
+        "transformedMeaningfulAlphaBoundsMaster": [
+          21.53748006379585,
+          131.3684210526316,
+          234.66666666666666,
+          246.71132376395536
+        ],
+        "minimumMeaningfulFilteringGutterMasterPixels": 9.288676236044637,
+        "requiredMinimumGutterMasterPixels": 2,
+        "clipping": {
+          "clippedSourcePixels": 19,
+          "clippedSourceAlphaEnergy": 19,
+          "clippedNonNoiseSourcePixels": 0,
+          "clippedNonNoiseSourceAlphaEnergy": 0,
+          "maximumAllowedClippedAlpha": 2,
+          "method": "Observed source pixel centres transformed to master; alpha1/2 encoding noise only may leave frame"
+        },
+        "sourceCropToMasterAffine": [
+          0.20414673046251994,
+          0,
+          -0.10207336523126287,
+          0,
+          0.20414673046251994,
+          -2.5518341307814865
+        ],
+        "sourceSheetToMasterAffine": [
+          0.20414673046251994,
+          0,
+          -0.10207336523126287,
+          0,
+          0.20414673046251994,
+          -2.5518341307814865
+        ],
+        "sourceNominalCellToMasterAffine": [
+          0.20414673046251994,
+          0,
+          -0.10207336523126287,
+          0,
+          0.20414673046251994,
+          -2.5518341307814865
+        ],
+        "scalePolicy": "ONE observed or default source pixel-to-master density for the entire sheet; no silhouette or per-entry scale fitting"
+      },
+      "originalMeasurements": {
+        "id": "industry:equipment-factory:tundra:footprint-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              130,
+              962.28884
+            ],
+            [
+              580,
+              1198.770007
+            ]
+          ],
+          [
+            [
+              680,
+              1188.040322
+            ],
+            [
+              1120,
+              964.811431
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            110,
+            953
+          ],
+          [
+            1145,
+            953
+          ]
+        ],
+        "groundCenterSource": [
+          627.5,
+          953
+        ],
+        "observationMethod": "2026-10-08 review of complete factory outer fence base, separate from roof silhouette and gate edges: outer western and eastern base corners both y953; front ground-axis slopes independently fitted to original alpha>96 boundary pixels over x130..579 and x680..1119, residual standard deviation 0.81px and 1.60px. Exact native geometric reference defines a purpose-designed 3x3, 48m factory; no resized 5x5 painting.",
+        "groundLandmarkUncertaintySourcePixels": 2,
+        "personnelDoorEndpointsSource": [
+          [
+            630,
+            1088.5
+          ],
+          [
+            630,
+            1112.5
+          ]
+        ],
+        "personnelDoorObservationMethod": "Fully visible front hall personnel-door leaf at source column630, with actual dark pixels y1089..1112 inclusive; measured pixel boundaries at1088.5 and1112.5. Four adjacent columns independently retain24px leaf height. This ordinary door is distinct from the larger loading bays.",
+        "personnelDoorObservable": true
+      },
+      "masterSha256": "fc572706a35371fbbb6c598eeeac1c99ab1475a1b12d2fc4cc954e676b569ec5"
+    }
+  ],
+  "registration": "Observed ground-centre translation of complete RGBA crops atONE explicit whole-sheet density; never silhouette fit",
+  "groundRegistrationApplied": true,
+  "source": "generated-source.png",
+  "sourceSha256": "7f746528eeea9e6799b6d5586099e438adb852372850f24c917730f95a10a0c3",
+  "generationJobSha256": "7466f65d1e71fa3e89bcc6263303d2b9dc5e2d419b37393a09511539e2976ea7",
+  "measurements": "registration-measurements.json",
+  "measurementsSha256": "f844a50483db2dca0c5b084a393832a0e5ee6358032a3a62d734c01692ff73ae",
+  "originalSourceResolution": {
+    "sheetPixels": [
+      1254,
+      1254
+    ],
+    "squareCellPixels": 1254,
+    "columns": 1,
+    "rows": 1
+  },
+  "originalMeasurements": {
+    "source": "generated-source.png",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "entries": [
+      {
+        "id": "industry:equipment-factory:tundra:footprint-3",
+        "groundEdgeSegmentsSource": [
+          [
+            [
+              130,
+              962.28884
+            ],
+            [
+              580,
+              1198.770007
+            ]
+          ],
+          [
+            [
+              680,
+              1188.040322
+            ],
+            [
+              1120,
+              964.811431
+            ]
+          ]
+        ],
+        "visibleOppositeGroundVerticesSource": [
+          [
+            110,
+            953
+          ],
+          [
+            1145,
+            953
+          ]
+        ],
+        "groundCenterSource": [
+          627.5,
+          953
+        ],
+        "observationMethod": "2026-10-08 review of complete factory outer fence base, separate from roof silhouette and gate edges: outer western and eastern base corners both y953; front ground-axis slopes independently fitted to original alpha>96 boundary pixels over x130..579 and x680..1119, residual standard deviation 0.81px and 1.60px. Exact native geometric reference defines a purpose-designed 3x3, 48m factory; no resized 5x5 painting.",
+        "groundLandmarkUncertaintySourcePixels": 2,
+        "personnelDoorEndpointsSource": [
+          [
+            630,
+            1088.5
+          ],
+          [
+            630,
+            1112.5
+          ]
+        ],
+        "personnelDoorObservationMethod": "Fully visible front hall personnel-door leaf at source column630, with actual dark pixels y1089..1112 inclusive; measured pixel boundaries at1088.5 and1112.5. Four adjacent columns independently retain24px leaf height. This ordinary door is distinct from the larger loading bays.",
+        "personnelDoorObservable": true
+      }
+    ]
+  },
+  "sheetScaleCalibration": null,
+  "sheetScaleCalibrationFile": null,
+  "sheetScaleCalibrationSha256": null,
+  "physicalCalibration": {
+    "scale": {
+      "tileMetres": 16,
+      "worldPixelsPerMetre": 2,
+      "billboardPixelsPerTile": 72,
+      "masterCellPixels": 256,
+      "humanHeightMetres": 1.75,
+      "doorHeightMetres": 2.1,
+      "doorWidthMetres": 0.95,
+      "storeyHeightMetres": 3,
+      "windowHeightMetres": 1.2,
+      "fenceHeightMetres": 1.2,
+      "loadingBayHeightMetres": 4.2
+    },
+    "registration": {
+      "groundCenterMaster": [
+        128,
+        192
+      ],
+      "groundEdgeSlope": 0.5,
+      "architecturalEnvelopeMetresPerTile": 15,
+      "eastWorldPixelsPerMetre": [
+        2,
+        1
+      ],
+      "northWorldPixelsPerMetre": [
+        -2,
+        1
+      ],
+      "upWorldPixelsPerMetre": [
+        0,
+        -2
+      ]
+    },
+    "contractSha256": "1b259372f2589951aad69b101d3830132fc50ee8f539cde679922c2b9e71dcf2",
+    "sourceCellPixels": 1254,
+    "sourceToMasterScale": 0.20414673046251994,
+    "meaningfulSourcePixelsRetained": 308285,
+    "sourceIsolationNoise": {
+      "omittedSourcePixels": 0,
+      "omittedSourceAlphaEnergy": 0,
+      "maximumAllowedOmittedAlpha": 2,
+      "method": "Original sheet alpha outside the union of explicit occupied-slot crop rectangles"
+    },
+    "measuredGeometryVerified": true,
+    "minimumFilteringGutterMasterPixels": 2,
+    "measurementTolerances": {
+      "groundSlopeAbsoluteError": 0.11,
+      "groundCenterMasterPixels": 3,
+      "personnelDoorRelativeError": 0.25
+    }
+  },
+  "mipFilter": "Independent original-cutout premultiplied-alpha Lanczos affine; no sharpening",
+  "mipSharpening": false,
+  "groundKey": "RGBA alpha, bare ground must be authored transparent; no colour keying",
+  "outputs": {
+    "16": {
+      "path": "atlas-16.png",
+      "sha256": "9e7be1f5b33fd07169b7966af5dd624041b6a308905e1a1c12b45847ce61995a",
+      "dimensions": [
+        16,
+        16
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.012759170653907496,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "32": {
+      "path": "atlas-32.png",
+      "sha256": "4f03ff3537aa49cf1becf1dd9ff2d42d393da96ec27f010ebac595738ed0df17",
+      "dimensions": [
+        32,
+        32
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.025518341307814992,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "64": {
+      "path": "atlas-64.png",
+      "sha256": "547d172e5fa1c71f245ed2565dd72cf1c89e5e9017e7d3221663e4d4cfe6bbd3",
+      "dimensions": [
+        64,
+        64
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.051036682615629984,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "128": {
+      "path": "atlas-128.png",
+      "sha256": "034db8b0cca0b83bf9cafdf5289f8d88d9eab64c80ebda097bfd7ca754c5c601",
+      "dimensions": [
+        128,
+        128
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.10207336523125997,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "256": {
+      "path": "atlas-256.png",
+      "sha256": "fc572706a35371fbbb6c598eeeac1c99ab1475a1b12d2fc4cc954e676b569ec5",
+      "dimensions": [
+        256,
+        256
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.20414673046251994,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    },
+    "512": {
+      "path": "atlas-512.png",
+      "sha256": "3160ff1e6d32beb00eeaa31ba91c077e1e120bdf519f69ab552227b5ce82dd1c",
+      "dimensions": [
+        512,
+        512
+      ],
+      "generatedSourceCellPixels": 1254,
+      "sourceToLevelScale": 0.4082934609250399,
+      "upsampledFromGeneratedSource": false,
+      "sourceDetailPolicy": "Direct affine resampling of original generated pixels; upsampled levels add no source detail"
+    }
+  },
+  "provenance": {
+    "operation": "Uniform source pixel density and measured registration only; generator output preserved verbatim",
+    "generator": "image_gen",
+    "styleReference": null,
+    "sourceReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
+  }
+}

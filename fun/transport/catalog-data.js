@@ -24,10 +24,10 @@ const infrastructure = [
   ['train-stop', 'Rail station', 'Place on a railway near towns or industries, then connect another station.', 'train-stop', 'rail'],
   ['port', 'Port', 'Place on water beside a bank. Ships follow connected rivers, lakes and seas.', 'port', 'water'],
   ['airport-x', 'Airport', 'A 6 × 2 runway on clear, level land near a town. Planes carry passengers and mail.', 'airport', 'air'],
-  ['bridge', 'Road bridge', 'Cross water or lower land between flat banks at the same height.', 'road-bridge'],
-  ['railbridge', 'Rail bridge', 'Carry trains across water or lower land between flat ends at the same height.', 'rail-bridge'],
-  ['tunnel', 'Road tunnel', 'Cross higher dry ground between flat portal sites at the same height.', 'road-tunnel'],
-  ['railtunnel', 'Rail tunnel', 'Carry trains through higher dry ground between flat portal sites.', 'rail-tunnel'],
+  ['bridge', 'Road bridge', 'Cross water or lower land. Necessary bank leveling is included in the price.', 'road-bridge'],
+  ['railbridge', 'Rail bridge', 'Carry trains across water or lower land. Necessary bank leveling is included in the price.', 'rail-bridge'],
+  ['tunnel', 'Road tunnel', 'Cross higher dry ground. Necessary portal leveling is included in the price.', 'road-tunnel'],
+  ['railtunnel', 'Rail tunnel', 'Carry trains through higher dry ground. Necessary portal leveling is included in the price.', 'rail-tunnel'],
 ];
 const vehicles = [
   ['bus', 'Bus', 'road', 'passengers', 'Carries passengers between two different towns, loading at both ends.'],

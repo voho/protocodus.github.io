@@ -243,3 +243,18 @@ export const HOUSE_PLOT_ATLASES = Object.freeze(PLOT_BUILDING_ATLASES.filter(atl
 export const CITY_PLOT_ATLASES = Object.freeze(PLOT_BUILDING_ATLASES.filter(atlas => atlas.type === "city"));
 export const INDUSTRY_PLOT_ATLASES = Object.freeze(PLOT_BUILDING_ATLASES.filter(atlas => atlas.type === "industry"));
 export const FARM_CORE_PLOT_ATLASES = Object.freeze(PLOT_BUILDING_ATLASES.filter(atlas => atlas.type === "farm-core"));
+
+// Historical parcels that cannot safely expand retain their saved extent.
+// These are separately authored at that metre scale, not smaller copies of
+// current five-tile paintings. They load only when a matching site is drawn.
+export const COMPACT_INDUSTRY_PLOT_ATLASES = Object.freeze([
+  Object.freeze({
+    id: 'compact-equipment-factory', type: 'legacy-industry', columns: 1, rows: 1,
+    path: './assets/world/plot-buildings-v2/compact-equipment-factory/atlas',
+    entries: Object.freeze([Object.freeze({
+      kind: 'equipment-factory', footprint: 3,
+      runtimeIds: Object.freeze(['industry:equipment-factory:tundra:footprint-3']),
+      eligibleBiomes: Object.freeze(['tundra']),
+    })]),
+  }),
+]);

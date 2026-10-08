@@ -92,10 +92,10 @@ try {
  await page.evaluate(({x,y})=>{transport.setTool('road');transport.renderer.focus(x,y);},site);
  const roadStart=await tilePoint(site.x-1,site.y),roadEnd=await tilePoint(site.x+1,site.y);
  await page.mouse.move(roadStart.x,roadStart.y);await page.mouse.down();await page.mouse.move(roadEnd.x,roadEnd.y,{steps:6});await page.mouse.up();
- await page.locator('[data-construction-next="stop"]').waitFor({state:'visible'});
- assert.equal(await page.locator('.construction-next').innerText().then(text=>text.startsWith('Road built.')),true,'a completed road returns to Build and suggests stops');
+ assert.equal(await page.locator('#active-tool-bar').isVisible(),true,'a completed road keeps the tool ready for the next stroke');
+ assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'true','a completed road keeps Build closed');
  assert.ok(await page.evaluate(({x,y})=>[x-1,x,x+1].every(column=>transport.game.tiles[y*transport.game.width+column].road),site));
- await page.locator('[data-construction-next="stop"]').click();await page.locator('#cancel-tool-button').click();
+ await page.locator('#cancel-tool-button').click();
  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false','Done reopens the build picker');
  await page.evaluate(()=>transport.setView('routes'));
 

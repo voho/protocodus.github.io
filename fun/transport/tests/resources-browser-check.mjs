@@ -88,7 +88,7 @@ try {
     assert.deepEqual(marker.industry, { x: steel.x, y: steel.y }, `${zoom}x marker resolves to its industry`);
     assert.notDeepEqual(marker.ground, marker.industry, `${zoom}x ordinary picking still resolves to the underlying ground`);
     await page.mouse.click(marker.x, marker.y);
-    assert.equal(await page.locator('#inspector h3').textContent(), steel.name, `${zoom}x resource marker opens the industry inspector`);
+    assert.equal(await page.locator('#inspector-title').textContent(), steel.name, `${zoom}x resource marker opens the industry inspector`);
     await page.locator('#inspector .tiny-button').click();
 
     const originalTile = await page.evaluate(async ({ ground }) => {
@@ -135,7 +135,7 @@ try {
     assert.ok(placed.moved && placed.stats.own > 0, `${zoom}x some markers sit on their own building: ${JSON.stringify(placed.stats)}`);
     await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', placed.moved);
     await page.mouse.click(placed.moved.x, placed.moved.y);
-    assert.equal(await page.locator('#inspector h3').textContent(), placed.moved.name, `${zoom}x a marker on its own building opens its industry`);
+    assert.equal(await page.locator('#inspector-title').textContent(), placed.moved.name, `${zoom}x a marker on its own building opens its industry`);
     await page.locator('#inspector .tiny-button').click();
   }
   // Placement is kept per half-view cell of the camera; a long pan across cells leaves every marker in view where it was beside its site.
@@ -166,11 +166,12 @@ try {
     transport.game.revision++;
   });
   await page.locator('.main-nav [data-view="routes"]').click();
-  await page.locator('#route-form [name="name"]').fill('Icon-selected freight');
+  await page.locator('#new-route-button').click();
   await page.locator('#route-form [name="from"]').selectOption('station-1');
-  assert.ok(await page.locator('.coverage-note [data-cargo-icon="food"]').count() > 0, 'departure coverage shows available resources');
-  await page.locator('[data-cargo-choice="food"]').click();
   await page.locator('#route-form [name="to"]').selectOption('station-2');
+  assert.ok(await page.locator('#route-cargo-step [data-cargo-icon="food"]').count() > 0, 'the chosen stops expose their available resources');
+  await page.locator('[data-cargo-choice="food"]').click();
+  await page.locator('#route-form [name="name"]').fill('Icon-selected freight');
   assert.equal(await page.locator('#route-form [name="cargo"]').inputValue(), 'food');
   assert.equal(await page.locator('[data-cargo-choice="food"]').getAttribute('aria-pressed'), 'true');
   await page.screenshot({ path: `${output}/desktop-route-cargo.png` });
@@ -195,7 +196,7 @@ try {
   await closeDrawer();
   const quarry = await page.evaluate(async () => {
     const { build } = await import('./model.js'), { buildPlan } = await import('./construction-plan.js');
-    const game = transport.game, road = buildPlan(game, 'road', [251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 251);
+    const game = transport.game, road = buildPlan(game, 'road', [252, 251, 250, 249, 248, 247, 246, 245].map(y => ({ x: 219, y })), { preferredMode: 'road' }), stop = build(game, 'bus-stop', 219, 252);
     if (!road.ok || !stop.ok) throw new Error(`Could not prepare the quarry fixture: ${road.message}; ${stop.message}`);
     const site = game.industries.find(industry => industry.kind === 'quarry' && Math.hypot(industry.x - 219, industry.y - 253) < 5);
     transport.renderer.focus(site.x, site.y); transport.inspect(site.x, site.y, 'industry');
@@ -220,10 +221,11 @@ try {
   await page.locator('#inspector button', { hasText: 'Plan route from here' }).click();
   await page.locator('#route-pick-banner').waitFor({ state: 'visible' });
   const picking = await planned();
-  assert.equal(picking.from, quarry.stop.id); assert.equal(picking.to, ''); assert.equal(picking.cargo, 'stone');
+  assert.equal(picking.from, quarry.stop.id); assert.equal(picking.to, ''); assert.equal(picking.cargo, '', 'a new origin-only draft asks the player to choose cargo');
   assert.match(picking.banner, /^Click the end road stop/, 'Plan route from here picks the end on the map');
   await clickStop(quarry.alder);
   await page.locator('#route-pick-banner').waitFor({ state: 'detached' });
+  await page.locator('[data-cargo-choice="stone"]').click();
   await page.waitForFunction(() => document.querySelector('#route-connection')?.dataset.valid === 'true');
   assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Alderbrook Central completes a valid stone route');
   await page.locator('#route-form button[type="submit"]').click();
@@ -242,7 +244,7 @@ try {
     await closeDrawer();
     await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.id === 'world', seen);
     await page.mouse.click(seen.x, seen.y);
-    assert.equal(await page.locator('#inspector h3').textContent(), seen.name, `${zoom}x a served marker still opens its industry`);
+    assert.equal(await page.locator('#inspector-title').textContent(), seen.name, `${zoom}x a served marker still opens its industry`);
   }
   await page.evaluate(() => transport.renderer.setZoom(1));
   await inspectAt(quarry.stop);
@@ -259,9 +261,10 @@ try {
   assert.equal(await page.locator('#inspector .service-summary').textContent(), `Served by ${quarry.stop.name} · 1 route`);
   await inspectAt(quarry.alder);
   await page.locator('#inspector [aria-label="Deliver stone here"]').click();
-  await page.locator('#route-pick-banner').filter({ hasText: 'Click the start road stop' }).waitFor();
+  await page.locator('#route-pick-banner').filter({ hasText: 'Click the start stop' }).waitFor();
   await clickStop(quarry.stop);
   await page.locator('#route-pick-banner').waitFor({ state: 'detached' });
+  await page.waitForFunction(() => document.querySelector('#route-connection')?.dataset.valid === 'true');
   assert.deepEqual(await planned(), { from: quarry.stop.id, to: quarry.alder.id, cargo: 'stone', valid: 'true', banner: '' }, 'Deliver here keeps the end and picks only the start');
   const refusal = await page.evaluate(async stop => (await import('./model.js')).build(transport.game, 'bulldoze', stop.x, stop.y), quarry.stop);
   assert.equal(refusal.ok, false); assert.equal(refusal.message, `${stone.name} uses this stop. Retire the route first, then remove the stop.`, 'bulldozing a served stop names its route');
@@ -272,12 +275,12 @@ try {
   await page.locator('#inspector').screenshot({ path: `${output}/desktop-road-use.png` });
   await closeDrawer();
   const far = await page.evaluate(() => { const g = transport.game, site = g.industries.find(industry => !g.stations.some(stop => Math.hypot(stop.x - industry.x, stop.y - industry.y) < 12)); transport.renderer.focus(site.x, site.y); transport.inspect(site.x, site.y, 'industry'); return site.name; });
-  assert.equal(await page.locator('#inspector [data-place-stop]').getAttribute('title'), 'No stop within 5 tiles yet', `${far} has no stop in reach`);
+  assert.equal(await page.locator('#inspector [data-place-stop]').getAttribute('title'), 'No stop within 4 tiles yet', `${far} has no stop in reach`);
   await page.locator('#inspector button', { hasText: 'Place a stop nearby' }).click();
   assert.equal(await page.locator('.tool-card[data-tool="stop"]').getAttribute('aria-pressed'), 'true', 'Place a stop nearby picks the Stop tool');
   await page.keyboard.press('Escape');
 
-  assert.equal(Object.keys(cargo).length, 21);
+  assert.equal(Object.keys(cargo).length, 24);
   assert.deepEqual(errors, [], 'no browser console or runtime errors');
   console.log(`Transport resource UI checks passed. Screenshots: ${output}`);
 } finally {

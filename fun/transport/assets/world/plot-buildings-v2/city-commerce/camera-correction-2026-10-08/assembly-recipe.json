@@ -1,0 +1,374 @@
+{
+  "baseSource": "before-generated-source.png",
+  "sourcePolicy": "Canonical buildingGenerationPrompt() imagegen repaints; accepted target cutouts only, original unedited identities retained. Repaint isolation preserves original RGBA. One measured camera density per generated sheet, uniform scale and ground-centre translation only.",
+  "scaleCalibration": {
+    "source": "garage-door-final.png",
+    "sourceEdgeEndpoints": [
+      [
+        10,
+        496.5063938793043
+      ],
+      [
+        351.97519460333774,
+        686.2329356471266
+      ]
+    ],
+    "physicalSpanMetres": 30,
+    "footprint": 2,
+    "sourceToMasterScale": 0.30494298824403576,
+    "note": "Observed complete left/front paved garage parcel edge assigned the 30m architectural span. This one camera density is used for ALL four 2x2 repaint slots; no individual silhouette scaling."
+  },
+  "replacements": [
+    {
+      "id": "civic:service-garage:taiga",
+      "source": "garage-door-final.png",
+      "sourceSha256": "c60626cf93334b695bc8e40ef61707d02b00274c5a6998d2666b130fdd057715",
+      "originalGroundEdgeSlopes": [
+        0.4036462093862816,
+        -0.5409550561797751
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5547962096721345,
+        -0.5921652485445585
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            40,
+            513.1502801694684
+          ],
+          [
+            310,
+            662.9452567809446
+          ]
+        ],
+        [
+          [
+            410,
+            651.8726623376626
+          ],
+          [
+            585,
+            548.2437438423649
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          10,
+          496.5063938793043
+        ],
+        [
+          619,
+          528.1101253918498
+        ]
+      ],
+      "observedGroundCenter": [
+        314.5,
+        512.3082596355771
+      ],
+      "observedPersonnelDoor": [
+        [
+          405,
+          566
+        ],
+        [
+          405,
+          596
+        ]
+      ],
+      "sourceToMasterScale": 0.30494298824403576,
+      "sourceToSheetScale": 0.6298020252679218,
+      "sourceToSheetTranslation": [
+        10.92726305323859,
+        771.2422205200292
+      ],
+      "isolation": {
+        "method": "Lossless RGBA assignment to nearest of the major alpha>230 connected components; no silhouette fitting, alpha editing, rotation or shear. Every original pixel belongs to exactly one component, including detached details and soft shadows.",
+        "componentCount": 4,
+        "selectedComponentCentroid": [
+          311.60109061264757,
+          475.51421153226966
+        ]
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 0,
+        "alpha2Pixels": 0,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        0,
+        844,
+        459,
+        1254
+      ],
+      "newSourceBounds": [
+        0,
+        844,
+        418,
+        1254
+      ]
+    },
+    {
+      "id": "civic:factory:taiga",
+      "source": "door-targets.png",
+      "sourceSha256": "b3c51d3ca8f9ce96fde551c794e3f6f72ba458db1eaeaf52465a39c70762732d",
+      "originalGroundEdgeSlopes": [
+        0.46,
+        -0.5855194805194807
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5201750976617578,
+        -0.589012035832708
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            650,
+            493.21052343856763
+          ],
+          [
+            920,
+            633.6577998072423
+          ]
+        ],
+        [
+          [
+            1050,
+            635.65386996904
+          ],
+          [
+            1220,
+            535.5218238774796
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          607,
+          470.84299423911204
+        ],
+        [
+          1253,
+          516.0844266950003
+        ]
+      ],
+      "observedGroundCenter": [
+        930.0,
+        493.46371046705616
+      ],
+      "observedPersonnelDoor": null,
+      "sourceToMasterScale": 0.30494298824403576,
+      "sourceToSheetScale": 0.6298020252679218,
+      "sourceToSheetTranslation": [
+        459.28411650083274,
+        788.4855557516246
+      ],
+      "isolation": {
+        "method": "Lossless RGBA assignment to nearest of the major alpha>230 connected components; no silhouette fitting, alpha editing, rotation or shear. Every original pixel belongs to exactly one component, including detached details and soft shadows.",
+        "componentCount": 4,
+        "selectedComponentCentroid": [
+          953.1475509566533,
+          434.0140853561622
+        ]
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 11,
+        "alpha2Pixels": 4,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        785,
+        844,
+        1254,
+        1254
+      ],
+      "newSourceBounds": [
+        836,
+        844,
+        1254,
+        1254
+      ]
+    },
+    {
+      "id": "civic:shop-butcher:taiga",
+      "source": "door-targets.png",
+      "sourceSha256": "b3c51d3ca8f9ce96fde551c794e3f6f72ba458db1eaeaf52465a39c70762732d",
+      "originalGroundEdgeSlopes": [
+        0.45812154696132606,
+        -0.6062345679012344
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5011394104808279,
+        -0.5796228278650571
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            90,
+            1060.1686414990356
+          ],
+          [
+            280,
+            1155.385129490393
+          ]
+        ],
+        [
+          [
+            400,
+            1149.2762430939226
+          ],
+          [
+            580,
+            1044.9441340782123
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          46,
+          1038.118507437879
+        ],
+        [
+          638,
+          1011.3260100620389
+        ]
+      ],
+      "observedGroundCenter": [
+        342.0,
+        1024.722258749959
+      ],
+      "observedPersonnelDoor": [
+        [
+          294,
+          1049
+        ],
+        [
+          294,
+          1089
+        ]
+      ],
+      "sourceToMasterScale": 0.30494298824403576,
+      "sourceToSheetScale": 0.6298020252679218,
+      "sourceToSheetTranslation": [
+        -27.39229264162927,
+        -288.87215389784365
+      ],
+      "isolation": {
+        "method": "Lossless RGBA assignment to nearest of the major alpha>230 connected components; no silhouette fitting, alpha editing, rotation or shear. Every original pixel belongs to exactly one component, including detached details and soft shadows.",
+        "componentCount": 4,
+        "selectedComponentCentroid": [
+          339.0590261680317,
+          963.3654703034049
+        ]
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 38,
+        "alpha2Pixels": 0,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        0,
+        0,
+        377,
+        462
+      ],
+      "newSourceBounds": [
+        0,
+        0,
+        377,
+        462
+      ]
+    },
+    {
+      "id": "civic:service-barber:taiga",
+      "source": "door-targets.png",
+      "sourceSha256": "b3c51d3ca8f9ce96fde551c794e3f6f72ba458db1eaeaf52465a39c70762732d",
+      "originalGroundEdgeSlopes": [
+        0.4539877300613497,
+        -0.6013513513513513
+      ],
+      "correctedGroundEdgeSlopes": [
+        0.5024462531962056,
+        -0.5612630315757883
+      ],
+      "observedGroundEdges": [
+        [
+          [
+            678,
+            1061.8264257481649
+          ],
+          [
+            908,
+            1177.389063983292
+          ]
+        ],
+        [
+          [
+            988,
+            1164.5256716417912
+          ],
+          [
+            1188,
+            1052.2730653266335
+          ]
+        ]
+      ],
+      "observedGroundVertices": [
+        [
+          644,
+          1044.7432531394938
+        ],
+        [
+          1243,
+          1021.4035985899651
+        ]
+      ],
+      "observedGroundCenter": [
+        943.5,
+        1033.0734258647294
+      ],
+      "observedPersonnelDoor": [
+        [
+          904,
+          1049
+        ],
+        [
+          904,
+          1095
+        ]
+      ],
+      "sourceToMasterScale": 0.30494298824403576,
+      "sourceToSheetScale": 0.6298020252679218,
+      "sourceToSheetTranslation": [
+        32.7817891597158,
+        447.8682641399231
+      ],
+      "isolation": {
+        "method": "Lossless RGBA assignment to nearest of the major alpha>230 connected components; no silhouette fitting, alpha editing, rotation or shear. Every original pixel belongs to exactly one component, including detached details and soft shadows.",
+        "componentCount": 4,
+        "selectedComponentCentroid": [
+          941.1595133532618,
+          965.89145169822
+        ]
+      },
+      "discardedEncodingNoiseAfterResampling": {
+        "alpha1Pixels": 0,
+        "alpha2Pixels": 0,
+        "meaningfulPixelsDiscarded": 0
+      },
+      "clearSourceBounds": [
+        459,
+        844,
+        785,
+        1254
+      ],
+      "newSourceBounds": [
+        418,
+        844,
+        836,
+        1254
+      ]
+    }
+  ]
+}

@@ -114,6 +114,6 @@
   {
     "id": "house-expensive-3",
     "personnelDoorObservable": false,
-    "personnelDoorNotes": "Courtyard arcades are open passages; no complete ordinary personnel-door leaf is visible."
+    "personnelDoorNotes": "No complete ordinary personnel door leaf is visible; factory loading bays and courtyard open arcades are not personnel doors."
   }
 ]

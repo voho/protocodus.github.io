@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { HEIGHT_STEP, MAX_HEIGHT, TERRAIN_SLOPE_LIMIT, projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundIsFlat, pickGround, transportHeight, bridgeDeckHeight, bridgeSurface, terrainGeometryStats, clearTerrainGeometryCache } from '../terrain-geometry.js';
+import { HEIGHT_STEP, MAX_HEIGHT, TERRAIN_SLOPE_LIMIT, projectGround, projectTerrainPoint, surfaceHeight, tileSurface, groundIsFlat, pickGround, pickTerrainSurface, transportHeight, bridgeDeckHeight, bridgeSurface, bridgeApproachSurface, terrainGeometryStats, clearTerrainGeometryCache } from '../terrain-geometry.js';
 import { TERRAIN_HEIGHT_VIEWS } from '../terrain-view.js';
 import { facetLight } from '../terrain-mesh.js';
 import { TERRAIN_SLOPE_SHAPES } from '../terrain-slope-shapes.js';
@@ -170,18 +170,46 @@ test('2048² geometry uses bounded local reads and a bounded chunk LRU',()=>{
   const stats=terrainGeometryStats(game);assert.ok(stats.cachedChunks<=stats.cacheLimit);assert.ok(stats.bytes<=1024*1024);assert.ok(reads<500000,`140 distant chunks stay bounded (${reads} tile reads)`);
 });
 
+test('large ordinary fleets reuse chunk bridge absence without repeating neighborhood reads',()=>{
+  const game=world(256,256,2/7);for(const t of game.tiles){t.road=true;t.rail=true;}
+  let reads=0;
+  game.tiles=new Proxy(game.tiles,{get(target,key){if(/^\d+$/.test(String(key)))reads++;return Reflect.get(target,key);}});
+  const points=Array.from({length:1000},(_,i)=>({x:8+(i%100)*2,y:8+Math.floor(i/100)*20}));
+  for(const mode of ['road','rail'])for(const p of points)close(transportHeight(game,p.x,p.y,mode),2);
+  const warmed=terrainGeometryStats(game).builtChunks;reads=0;
+  for(const mode of ['road','rail'])for(const p of points)close(transportHeight(game,p.x+.1,p.y,mode),2);
+  assert.equal(terrainGeometryStats(game).builtChunks,warmed,'moving fleets reuse the warmed terrain fields');
+  assert.ok(reads<=points.length*5,`ordinary road and rail queries avoid per-vehicle neighborhood scans (${reads} reads)`);
+});
+
+test('chunk bridge absence includes neighboring banks and clears after building or removing spans',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y'])for(const bank of [31,32]){
+    const game=world(64,64,0),at=(along,across=20)=>axis==='x'?{x:along,y:across}:{x:across,y:along};
+    const p=at(bank),side=at(bank,21),deck=at(bank===31?32:31);
+    tile(game,p.x,p.y)[mode]=true;tile(game,side.x,side.y)[mode]=true;
+    assert.equal(bridgeApproachSurface(game,p.x,p.y,mode),null,'warm the chunk before construction');
+    Object.assign(tile(game,deck.x,deck.y),{terrain:'water',[mode]:true,bridge:true,structureAxis:axis});game.revision++;
+    const surface=bridgeApproachSurface(game,p.x,p.y,mode);assert.ok(surface,'a bridge across the chunk boundary raises its bank');
+    const taper=bridgeApproachSurface(game,side.x,side.y,mode);assert.ok(taper,'the shared side taper is included');assert.equal(taper.directions.length,0);
+    tile(game,deck.x,deck.y).bridge=false;game.revision++;
+    assert.equal(bridgeApproachSurface(game,p.x,p.y,mode),null,'removing the span restores cached absence');
+    game.tiles=game.tiles.map((t,index)=>index===deck.y*game.width+deck.x?{...t,bridge:true}:t);
+    assert.ok(bridgeApproachSurface(game,p.x,p.y,mode),'replacement tiles invalidate absence even at the same revision');
+  }
+});
+
 function crossing(explicit=true){
   const game=world(64,64,6/16);for(let y=0;y<64;y++)for(let x=24;x<=27;x++)Object.assign(tile(game,x,y),{terrain:'water',elevation:0});
   for(let x=20;x<=31;x++)tile(game,x,20).road=true;
   for(let x=24;x<=27;x++)Object.assign(tile(game,x,20),{bridge:true,...explicit?{structureAxis:'x',structureLevel:6}:{}});
   return game;
 }
-test('bridge decks use the visible bank heights and vehicles blend onto the same deck',()=>{
+test('bridge decks follow the visible banks with water clearance and vehicles blend onto the same deck',()=>{
   for(const explicit of [true,false]){
     const game=crossing(explicit),span=bridgeSurface(game,25,20),bank=surfaceHeight(game,23.5,20.5);
-    close(span.height,bank);assert.equal(span.axis,'x');assert.equal(span.legacy,!explicit);assert.equal(span.from.x,23);assert.equal(span.to.x,28);
+    close(span.height,Math.max(bank,1));assert.equal(span.axis,'x');assert.equal(span.legacy,!explicit);assert.equal(span.from.x,23);assert.equal(span.to.x,28);
     for(let x=24;x<=27;x++){close(bridgeDeckHeight(game,x,20),span.height);close(transportHeight(game,x,20),span.height);assert.equal(transportHeight(game,x,20,'water'),0);}
-    close(transportHeight(game,23,20),bank);close(transportHeight(game,23.5,20),span.height);
+    close(transportHeight(game,23,20),bridgeApproachSurface(game,23,20).center.height);close(transportHeight(game,23.5,20),span.height);
     assert.equal(bridgeDeckHeight(game,20,20),null);assert.equal(transportHeight(game,20.2,20),surfaceHeight(game,20.7,20.5));
     const before=span.height;tile(game,23,20).elevation=1/16;game.revision++;assert.ok(bridgeDeckHeight(game,25,20)<=before);
   }
@@ -194,17 +222,156 @@ test('long bridges share one constant portal-derived deck across distant viewpor
   for(let x=20;x<490;x++)Object.assign(tile(game,x,16),{bridge:true,structureAxis:'x',structureLevel:8});
   const center=bridgeSurface(game,255,16);assert.equal(center.from.x,19);assert.equal(center.to.x,490);
   for(const x of [20,127,255,383,489])assert.equal(bridgeSurface(game,x,16),center,'all visible pieces use the same cached span');
-  assert.equal(center.height,surfaceHeight(game,19.5,16.5));
+  assert.equal(center.height,Math.max(surfaceHeight(game,19.5,16.5),1));
+});
+
+function approachCrossing(mode,axis,elevation=0,explicit=true){
+  const game=world(40,40,elevation),at=(along,across=20)=>axis==='x'?{x:along,y:across}:{x:across,y:along};
+  for(let along=18;along<=21;along++)for(let across=0;across<40;across++){
+    const p=at(along,across);Object.assign(tile(game,p.x,p.y),{terrain:'water',elevation:0});
+  }
+  for(let along=16;along<=23;along++){
+    const p=at(along),interior=along>=18&&along<=21;
+    Object.assign(tile(game,p.x,p.y),{[mode]:true,bridge:interior,...interior&&explicit?{structureAxis:axis,structureLevel:0}:{}});
+  }
+  return {game,at};
+}
+test('low-bank road and rail bridges have one shared raised deck without rewriting saved spans',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y'])for(const explicit of [true,false]){
+    const {game,at}=approachCrossing(mode,axis,0,explicit);
+    const saved=JSON.stringify(game),middle=at(19),span=bridgeSurface(game,middle.x,middle.y,mode);
+    assert.equal(span.height,1,'even sea-level banks leave visible space under the deck');assert.equal(span.axis,axis);assert.equal(span.legacy,!explicit);
+    for(const [along,expected] of [[16.5,0],[17,.5],[17.25,.75],[17.5,1],[18,1],[19.5,1],[21,1],[21.5,1],[21.75,.75],[22,.5],[22.5,0]]){
+      const p=at(along);
+      close(transportHeight(game,p.x,p.y,mode),expected,`${mode}/${axis} at ${along}`);
+      close(transportHeight(game,p.x,p.y,'water'),0,'ships retain their water-level path');
+    }
+    assert.equal(JSON.stringify(game),saved,'presentation clearance preserves legacy and explicit engineering metadata');
+  }
 });
 
 
 test('uneven bridge banks ramp to the deck by the shared edge and stay level over water',()=>{
   for(const lowBank of [23,28]){
     const game=crossing();tile(game,lowBank,20).elevation=1/16;tile(game,lowBank+1,21).elevation=1/16;game.revision++;
-    const deck=bridgeDeckHeight(game,25,20),ground=surfaceHeight(game,lowBank+.5,20.5),direction=lowBank===23?1:-1;
-    assert.ok(deck>ground);close(transportHeight(game,lowBank,20),ground);
-    close(transportHeight(game,lowBank+direction*.25,20),(ground+deck)/2);
+    const deck=bridgeDeckHeight(game,25,20),ground=surfaceHeight(game,lowBank+.5,20.5),direction=lowBank===23?1:-1,surface=bridgeApproachSurface(game,lowBank,20);
+    assert.ok(deck>ground);assert.ok(surface.center.height>=ground);close(transportHeight(game,lowBank,20),surface.center.height);
+    close(transportHeight(game,lowBank+direction*.25,20),(surface.center.height+deck)/2);
+    close(transportHeight(game,lowBank-direction*.5,20),surfaceHeight(game,lowBank-direction*.5+.5,20.5),'the outer edge still meets unchanged land');
     for(const offset of [.5,.75,1])close(transportHeight(game,lowBank+direction*offset,20),deck,`bank${lowBank} offset${offset}`);
+  }
+});
+
+test('bridge approaches are continuous and monotonic at fine steps in both travel directions',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y'])for(const elevation of [0,1/16,6/16])for(const explicit of [true,false]){
+    const {game,at}=approachCrossing(mode,axis,elevation,explicit),height=along=>{const p=at(along);return transportHeight(game,p.x,p.y,mode);};
+    const deck=height(19),before=JSON.stringify(game);
+    for(const direction of [-1,1]){
+      let previous=null;
+      for(let step=0;step<=7000;step++){
+        const along=direction===1?16+step/1000:23-step/1000,current=height(along);
+        if(previous!==null)assert.ok(Math.abs(current-previous)<=.002+1e-8,`${mode}/${axis} continuous at ${along} moving ${direction}`);
+        if(along>=17.5&&along<=21.5)close(current,deck,'carriers stay on the deck at integer and fractional positions');
+        previous=current;
+      }
+      for(const bank of [17,22]){
+        const towardDeck=bank===17?1:-1,outer=bank-towardDeck*.5,start=height(outer),rise=Math.sign(deck-start);
+        let previousHeight=direction===1?start:deck;
+        for(let step=0;step<=1000;step++){
+          const fraction=direction===1?step/1000:1-step/1000,current=height(outer+towardDeck*fraction);
+          if(rise)assert.ok((current-previousHeight)*rise*direction>=-1e-8,'the bank never dips before climbing onto the bridge');
+          else close(current,deck,'a bank already at deck level stays level');
+          previousHeight=current;
+        }
+      }
+    }
+    assert.equal(JSON.stringify(game),before,'continuous movement only changes presentation');
+  }
+});
+
+test('approach painting, fractional carrier anchors and picking share all four faces',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y'])for(const elevation of [0,6/16])for(const bank of [17,22]){
+    const {game,at}=approachCrossing(mode,axis,elevation),p=at(bank),original=tileSurface(game,p.x,p.y),saved=JSON.stringify(game);
+    for(const {value:heightStep} of TERRAIN_HEIGHT_VIEWS){
+      const surface=bridgeApproachSurface(game,p.x,p.y,mode,heightStep);
+      assert.ok(surface);assert.equal(surface.triangles.length,4);
+      assert.equal(bridgeApproachSurface(game,p.x,p.y,mode,heightStep),surface,'hot geometry and pick queries share the same surface');
+      const {dx,dy,height}=surface.directions[0],shore=dx===1?['ne','se']:dx===-1?['nw','sw']:dy===1?['sw','se']:['nw','ne'];
+      for(const corner of ['nw','ne','se','sw'])close(surface[corner].height,shore.includes(corner)?height:original[corner].height,'only shore corners lift');
+      for(const face of surface.triangles){
+        assert.ok(area(face)>0,'raised approach faces never fold over');
+        for(const weights of [[.2,.3,.5],[.15,.75,.1],[.7,.1,.2]]){
+          const u=face.reduce((sum,point,i)=>sum+point.u*weights[i],0),v=face.reduce((sum,point,i)=>sum+point.v*weights[i],0),expected=face.reduce((sum,point,i)=>sum+point.height*weights[i],0);
+          close(transportHeight(game,u-.5,v-.5,mode),expected,'fractional positions sample the containing painted triangle');
+          const projected=projectTerrainPoint(u,v,expected,heightStep),picked=pickTerrainSurface(surface,projected.x,projected.y);
+          assert.ok(picked);close(picked.x,u,'raised approach pick u');close(picked.y,v,'raised approach pick v');
+        }
+      }
+      assert.equal(pickTerrainSurface(surface,surface.center.x+1000,surface.center.y),null);
+      assert.equal(pickTerrainSurface(surface,NaN,surface.center.y),null);
+    }
+    assert.equal(JSON.stringify(game),saved);
+  }
+  assert.equal(pickTerrainSurface(null,0,0),null);
+});
+
+test('side junctions share ramp edges and stay continuous through turns onto and off both banks',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y'])for(const explicit of [true,false])for(const elevation of [0,6/16])for(const bank of [17,22]){
+    const {game,at}=approachCrossing(mode,axis,elevation,explicit);
+    for(let across=17;across<=23;across++){const p=at(bank,across);tile(game,p.x,p.y)[mode]=true;}
+    const saved=JSON.stringify(game),bankPoint=at(bank),bankSurface=bridgeApproachSurface(game,bankPoint.x,bankPoint.y,mode);
+    for(const side of [-1,1]){
+      const adjacent=at(bank,20+side),surface=bridgeApproachSurface(game,adjacent.x,adjacent.y,mode);
+      assert.ok(surface,'a side street receives one tile of taper');assert.deepEqual(surface.directions,[],'a taper does not invent a direct bridge connection');
+      const outer=at(bank,20+side*2);assert.equal(bridgeApproachSurface(game,outer.x,outer.y,mode),null,'the taper ends at unchanged ground');
+      const shared=surface.corners.filter(point=>bankSurface.corners.some(other=>other.u===point.u&&other.v===point.v));
+      assert.equal(shared.length,2);
+      for(const point of shared)close(point.height,bankSurface.corners.find(other=>other.u===point.u&&other.v===point.v).height,'both painted cells share the entire edge');
+      for(const edge of [20+side*.5,20+side*1.5])for(const acrossRoad of [-.4,0,.4]){
+        const before=at(bank+acrossRoad,edge-1e-7),after=at(bank+acrossRoad,edge+1e-7);
+        assert.ok(Math.abs(transportHeight(game,before.x,before.y,mode)-transportHeight(game,after.x,after.y,mode))<1e-6,'side and outer taper boundaries are continuous across road width');
+      }
+      const bridgeDirection=bank===17?1:-1,path=[at(bank,20+side*3),bankPoint,at(bank+bridgeDirection*2)];
+      for(const direction of [-1,1]){
+        const points=direction===1?path:[...path].reverse();let previous=null;
+        for(let segment=0;segment<points.length-1;segment++){
+          const a=points[segment],b=points[segment+1],steps=(Math.abs(b.x-a.x)+Math.abs(b.y-a.y))*1000;
+          for(let step=0;step<=steps;step++){
+            const fraction=step/steps,current=transportHeight(game,a.x+(b.x-a.x)*fraction,a.y+(b.y-a.y)*fraction,mode);
+            if(previous!==null)assert.ok(Math.abs(current-previous)<=.002+1e-8,`${mode}/${axis} side ${side} bank ${bank} continuous corner entry/exit`);
+            previous=current;
+          }
+        }
+      }
+      for(const {value:heightStep} of TERRAIN_HEIGHT_VIEWS){
+        const raised=bridgeApproachSurface(game,adjacent.x,adjacent.y,mode,heightStep);
+        for(const face of raised.triangles){
+          const u=face.reduce((sum,point)=>sum+point.u,0)/3,v=face.reduce((sum,point)=>sum+point.v,0)/3,height=face.reduce((sum,point)=>sum+point.height,0)/3;
+          close(transportHeight(game,u-.5,v-.5,mode),height,'side taper anchoring matches its painted face');
+          const point=projectTerrainPoint(u,v,height,heightStep),picked=pickTerrainSurface(raised,point.x,point.y);
+          assert.ok(picked);close(picked.x,u);close(picked.y,v);
+        }
+      }
+    }
+    assert.equal(JSON.stringify(game),saved,'side transitions never alter the saved network or terrain');
+  }
+});
+
+test('approaches only follow connected span endpoints and rebuild after network changes',()=>{
+  for(const mode of ['road','rail'])for(const axis of ['x','y']){
+    const {game,at}=approachCrossing(mode,axis),bank=at(17),side=at(19,19),interior=at(19);
+    tile(game,side.x,side.y).terrain='grass';tile(game,side.x,side.y)[mode]=true;
+    assert.equal(bridgeApproachSurface(game,side.x,side.y,mode),null,'a road next to the side of a bridge is not a ramp');
+    assert.equal(bridgeApproachSurface(game,interior.x,interior.y,mode),null,'a bridge deck is not a bank');
+    assert.equal(bridgeApproachSurface(game,bank.x,bank.y,mode==='road'?'rail':'road'),null,'a different network cannot attach');
+    assert.equal(bridgeApproachSurface(game,bank.x,bank.y,'water'),null);
+    const surface=bridgeApproachSurface(game,bank.x,bank.y,mode);assert.ok(surface);
+    tile(game,bank.x,bank.y)[mode]=false;game.revision++;
+    assert.equal(bridgeApproachSurface(game,bank.x,bank.y,mode),null,'removed connections clear the approach');
+    tile(game,bank.x,bank.y)[mode]=true;game.revision++;
+    assert.notEqual(bridgeApproachSurface(game,bank.x,bank.y,mode),surface,'restored connections rebuild the shared surface');
+    tile(game,bank.x,bank.y).tunnel=true;game.revision++;
+    assert.equal(bridgeApproachSurface(game,bank.x,bank.y,mode),null,'tunnel portals retain their own treatment');
   }
 });
 

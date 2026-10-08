@@ -221,8 +221,14 @@ export function networkEdgeAllowed(a, b, dx, dy, mode, game = null, x = 0, y = 0
   const level = tile => Number.isInteger(tile.structureLevel) ? Math.round(tile.structureLevel / TERRAIN_LEVELS * LAND_HEIGHT_LEVELS) : landHeightLevel(tile);
   if(level(a)===level(b))return true; // Old crossings retain their source-height connections.
   if(!game)return false;
-  const actual=(tile,tx,ty)=>tile.structureAxis?level(tile):surfaceHeight(game,tx+.5,ty+.5);
-  return actual(a,x,y)===actual(b,x+dx,y+dy);
+  const actual=(tile,tx,ty,neighbor)=>{
+    if(tile.structureAxis)return level(tile);
+    // An engineered bridge can meet the high end of a straight riverbank
+    // ramp. Its centre is halfway down that bank, below the shared deck edge.
+    if(neighbor.bridge&&neighbor.terrain==='water'){const shape=networkTerrainShape(game,tx,ty);if(shape.kind==='incline'&&shape.axis===axis)return Math.max(...tileSurface(game,tx,ty).corners.map(p=>p.height));}
+    return surfaceHeight(game,tx+.5,ty+.5);
+  };
+  return actual(a,x,y,b)===actual(b,x+dx,y+dy,a);
 }
 export function validStructureMetadata(tile, game = null, x = 0, y = 0) {
   if (tile.structureLevel === undefined && tile.structureAxis === undefined) return true;
@@ -232,13 +238,13 @@ export function validStructureMetadata(tile, game = null, x = 0, y = 0) {
   return spanClearance(game,tile.bridge?'bridge':'tunnel',x,y,Math.round(tile.structureLevel/TERRAIN_LEVELS*LAND_HEIGHT_LEVELS));
 }
 
-function spanClearance(game,structure,x,y,height){
+export function spanClearance(game,structure,x,y,height){
   const heights=tileSurface(game,x,y).corners.map(point=>point.height),lo=Math.min(...heights),hi=Math.max(...heights);
   return structure==='bridge'?hi<=height&&lo<height:lo>=height&&hi>height;
 }
 
 /** Geometry and occupancy only: callers add prices, then commit atomically. */
-export function planStructureSpan(game, tool, points) {
+export function planStructureSpan(game, tool, points, { engineeredBanks = false } = {}) {
   const mode = tool.startsWith('rail') ? 'rail' : 'road', structure = tool.endsWith('bridge') ? 'bridge' : 'tunnel';
   const fail = message => ({ ok: false, message, placements: [], cost: 0, structure });
   if (!SPAN_TOOLS.has(tool)) return fail('Choose a bridge or tunnel.');
@@ -253,8 +259,9 @@ export function planStructureSpan(game, tool, points) {
     if (p[axis] !== first[axis] + i * direction || p[axis === 'x' ? 'y' : 'x'] !== first[axis === 'x' ? 'y' : 'x']) return fail('Drag one continuous, straight span.');
   }
   const start = tileAt(game, first.x, first.y), end = tileAt(game, last.x, last.y);
-  for(const point of [first,last])if(!tileAt(game,point.x,point.y)[mode]&&networkTerrainShape(game,point.x,point.y).kind!=='flat')return fail('Level both end tiles first; crossings need flat banks or portals. Start farther back from the shore.');
-  const endpointHeight=(point,tile)=>tile[mode]?landHeightLevel(tile):surfaceHeight(game,point.x+.5,point.y+.5);
+  const bankGrade=point=>{const shape=networkTerrainShape(game,point.x,point.y),inward=point===first?direction:-direction,neighbor=tileAt(game,point.x+(axis==='x'?inward:0),point.y+(axis==='y'?inward:0));return engineeredBanks&&structure==='bridge'&&neighbor?.terrain==='water'&&shape.kind==='incline'&&shape.axis===axis;};
+  for(const point of [first,last])if(!tileAt(game,point.x,point.y)[mode]&&networkTerrainShape(game,point.x,point.y).kind!=='flat'&&!bankGrade(point))return fail('Level both end tiles first; crossings need flat banks or portals. Start farther back from the shore.');
+  const endpointHeight=(point,tile)=>tile[mode]?landHeightLevel(tile):bankGrade(point)?Math.max(...tileSurface(game,point.x,point.y).corners.map(p=>p.height)):surfaceHeight(game,point.x+.5,point.y+.5);
   const height=endpointHeight(first,start),endHeight=endpointHeight(last,end);
   let level = Math.round(height / LAND_HEIGHT_LEVELS * TERRAIN_LEVELS);
   if ([start, end].some(t => ['water', 'mountain'].includes(t.terrain) || t.bridge || t.tunnel)) return fail('Both ends need open dry land, outside existing bridges or tunnels.');

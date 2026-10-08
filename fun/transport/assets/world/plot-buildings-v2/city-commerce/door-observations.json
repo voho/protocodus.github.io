@@ -3,15 +3,15 @@
     "id": "civic:shop-butcher:taiga",
     "personnelDoorEndpointsSource": [
       [
-        184,
-        364
+        157.76950278713974,
+        371.7901706082064
       ],
       [
-        184,
-        392
+        157.76950278713974,
+        396.9822516189232
       ]
     ],
-    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
   },
   {
     "id": "civic:shop-hardware:taiga",
@@ -87,33 +87,33 @@
     "id": "civic:service-garage:taiga",
     "personnelDoorEndpointsSource": [
       [
-        319,
-        287
+        265.99708328674694,
+        283.71016682167283
       ],
       [
-        319,
-        306
+        265.99708328674694,
+        302.6042275797106
       ]
     ],
-    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
   },
   {
     "id": "civic:service-barber:taiga",
     "personnelDoorEndpointsSource": [
       [
-        194,
-        248
+        184.12282000191715,
+        264.53058864597324
       ],
       [
-        194,
-        278
+        184.12282000191715,
+        293.5014818082975
       ]
     ],
-    "personnelDoorNotes": "Visible ordinary door leaf head to sill, excluding masonry outer portal, canopy, threshold and any separate upper transom; manually reviewed at source-pixel magnification after imagegen correction."
+    "personnelDoorNotes": "Observed ordinary door leaf head to sill, excluding the frame, threshold, and clearly separate fixed glazed transom on shop entries. Source-pixel review uncertainty approximately 2px."
   },
   {
     "id": "civic:factory:taiga",
     "personnelDoorObservable": false,
-    "personnelDoorNotes": "Factory main frontage shows loading bays. Elevated rear annex has a window/possible personnel doorway behind the adjacent roof and rail, but a complete door head and sill cannot be distinguished reliably."
+    "personnelDoorNotes": "No complete ordinary personnel door leaf is visible; factory loading bays and courtyard open arcades are not personnel doors."
   }
 ]

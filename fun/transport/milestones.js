@@ -6,11 +6,11 @@ import { priceFor } from './economy-pricing.js';
 import { industryDistance } from './industry-sites.js';
 import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 import { money, number } from './copy.js';
+import { stationReach, stationServes } from './station-sites.js';
 
 // Company milestones are recognition only: they never grant money or unlock tools,
 // vehicles, speeds or land. The simulation stamps each id with the day it was first
 // met; only this module and the interface read the stamps.
-const RADIUS = 5;
 const SUPPLIES = ['food', 'goods', 'furniture', 'machinery', 'fuel'];
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const freight = game => game.routes.filter(route => !isTownTraffic(route.cargo));
@@ -19,7 +19,7 @@ const flag = met => ({ value: met ? 1 : 0, target: 1 });
 const count = (value, target) => ({ value: Math.max(0, Math.floor(value)), target });
 const profit = base => game => count(game.history.at(-1)?.operatingProfit || 0, Math.round(priceFor(game, base)));
 const served = target => game => count(activeCities(game).size, target);
-const covers = (site, stop) => industryDistance(site, stop) <= RADIUS;
+const covers = (site, stop) => industryDistance(site, stop) <= stationReach(stop);
 // Generated towns reach about 1,800 residents, so only a town the company serves and grows counts.
 const largestTown = game => [...activeCities(game)].reduce((best, city) => !best || city.population > best.population ? city : best, null);
 
@@ -28,7 +28,7 @@ function townCargo(game) {
   const stops = new Map(game.stations.map(stop => [stop.id, stop])), cargo = new Set();
   for (const route of freight(game)) {
     const stop = stops.get(route.stops?.[1]);
-    if (route.delivered > 0 && stop && TOWN_CARGO.includes(route.cargo) && !cargo.has(route.cargo) && nearbyCities(game, stop.x, stop.y, RADIUS).some(city => Math.hypot(city.x - stop.x, city.y - stop.y) <= RADIUS)) cargo.add(route.cargo);
+    if (route.delivered > 0 && stop && TOWN_CARGO.includes(route.cargo) && !cargo.has(route.cargo) && nearbyCities(game, stop.x, stop.y, stationReach(stop)).some(city => stationServes(stop, city))) cargo.add(route.cargo);
   }
   return cargo;
 }
@@ -38,7 +38,7 @@ function loadedCapacity(game) {
   let best = 0;
   for (const route of freight(game)) {
     const stop = route.active && stops.get(route.stops?.[0]);
-    if (stop) for (const site of nearbyIndustries(game, stop.x, stop.y, RADIUS + 3)) if (INDUSTRIES[site.kind].outputs[route.cargo] && covers(site, stop)) best = Math.max(best, site.capacity || 1);
+    if (stop) for (const site of nearbyIndustries(game, stop.x, stop.y, stationReach(stop) + 3)) if (INDUSTRIES[site.kind].outputs[route.cargo] && covers(site, stop)) best = Math.max(best, site.capacity || 1);
   }
   return best;
 }

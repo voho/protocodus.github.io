@@ -4,7 +4,7 @@
   "canonicalPrompt": "generation-prompt.txt",
   "nativeGeometryReference": "generation-reference.png",
   "source": "generated-source.png",
-  "sourceSha256": "5a896576445905324997184328f8b815fb957c5b9dfec5c1d2a0489da8f2b1c7",
+  "sourceSha256": "8e8d3f4e5f4cf95bbc6d275f217a66e47f0954dbf8ec21ab786ae48dcee6f832",
   "measurements": "registration-measurements.json",
   "observationOverlay": "registration-observations.png",
   "packing": {
@@ -20,10 +20,20 @@
       256,
       512
     ],
-    "sourceSha256": "5a896576445905324997184328f8b815fb957c5b9dfec5c1d2a0489da8f2b1c7",
+    "sourceSha256": "8e8d3f4e5f4cf95bbc6d275f217a66e47f0954dbf8ec21ab786ae48dcee6f832",
     "groundRegistrationApplied": true,
     "physicalReview": "Measured camera, physical registration, observable personnel scale and original RGBA isolation accepted"
   },
   "reviewStatus": "Accepted: all per-sprite measured geometry verified; genuinely unobservable personnel leaves documented.",
-  "heightCorrection": "Shared human features in 2x2 expensive-house row reduced at the original ground footprint."
+  "heightCorrection": "Shared human features in 2x2 expensive-house row reduced at the original ground footprint.",
+  "cameraCorrection": {
+    "date": "2026-10-08",
+    "recipe": "camera-correction-2026-10-08/assembly-recipe.json",
+    "acceptedEntries": [
+      "house-expensive-3"
+    ],
+    "unchangedCells": "All other cells remain byte-identical at every shipping display density.",
+    "review": "Actual source ground edges, physical centres, ordinary door leaves, full RGBA retention and all six density levels reviewed. No per-silhouette scale or camera warp.",
+    "retainedOriginal": "Country manor retained: the camera repaint introduced opaque bare lawn; it was rejected before shipment."
+  }
 }

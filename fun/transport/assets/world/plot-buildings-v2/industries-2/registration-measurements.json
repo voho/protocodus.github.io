@@ -30,14 +30,14 @@
             428.04
           ],
           [
-            346.0,
-            375.4
+            414.0,
+            329.0
           ]
         ]
       ],
       "groundCenterSource": [
-        179.5,
-        351.9
+        213.5,
+        328.7
       ],
       "visibleOppositeGroundVerticesSource": [
         [
@@ -45,13 +45,14 @@
           328.4
         ],
         [
-          346.0,
-          375.4
+          414.0,
+          329.0
         ]
       ],
-      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "observationMethod": "2026-10-08 complete parcel re-review: outer dock base at (13,328.4) and outer eastern yard wall base at (414,329.0) are the opposite physical ground corners. Source alpha >96 occupies x13 through y328 and x414 through y329. Their midpoint registers the full 5x5 parcel. The previous eastern datum (346,375.4) was an INNER quay corner and is retained in sources/registration-before-fishery-fix-2026-10-08.json; it displaced the fishery by 34 source pixels horizontally and 23.2 vertically. Ground edges follow the same original painted camera; no source pixels or scale changed.",
       "personnelDoorObservable": false,
-      "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale."
+      "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale.",
+      "groundLandmarkUncertaintySourcePixels": 2
     },
     {
       "id": "industry:fish-processor:taiga",

@@ -142,14 +142,14 @@ try {
   assert.match(await page.locator('#inspector').textContent(), /Airport, 6 × 2 site/);
   assert.match(await page.locator('#inspector').textContent(), /7 tiles/);
   await page.screenshot({ path: `${output}/inspector.png` });
-  // 11. A selected airport draws its rounded 7-tile reach and pill, never the 5-tile ring.
+  // 11. A selected airport draws its rounded 7-tile reach and pill, never a ground-stop ring.
   const pills = await page.evaluate(() => {
     const seen = [], fill = CanvasRenderingContext2D.prototype.fillText;
     CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) { seen.push(String(text)); return fill.call(this, text, ...rest); };
     try { transport.renderer.render(performance.now(), { tool: 'inspect', selected: { x: transport.game.stations.find(s => s.name === 'Fernford Airport').x, y: transport.game.stations.find(s => s.name === 'Fernford Airport').y, kind: '' } }); } finally { CanvasRenderingContext2D.prototype.fillText = fill; }
     return seen;
   });
-  assert.ok(pills.includes('7-tile reach') && !pills.includes('5-tile reach'), 'a selected airport shows its 7-tile reach');
+  assert.ok(pills.includes('7-tile reach') && !pills.includes('4-tile reach') && !pills.includes('5-tile reach'), 'a selected airport shows its 7-tile reach');
   await page.locator('#inspector .tiny-button').click();
 
   // 7. Routes: picking the start airport chooses Air, the end stays an airport, then cargo and one plane.

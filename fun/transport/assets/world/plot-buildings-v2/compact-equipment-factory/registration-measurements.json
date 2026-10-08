@@ -1,0 +1,62 @@
+{
+  "source": "generated-source.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "entries": [
+    {
+      "id": "industry:equipment-factory:tundra:footprint-3",
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            130,
+            962.28884
+          ],
+          [
+            580,
+            1198.770007
+          ]
+        ],
+        [
+          [
+            680,
+            1188.040322
+          ],
+          [
+            1120,
+            964.811431
+          ]
+        ]
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          110,
+          953
+        ],
+        [
+          1145,
+          953
+        ]
+      ],
+      "groundCenterSource": [
+        627.5,
+        953
+      ],
+      "observationMethod": "2026-10-08 review of complete factory outer fence base, separate from roof silhouette and gate edges: outer western and eastern base corners both y953; front ground-axis slopes independently fitted to original alpha>96 boundary pixels over x130..579 and x680..1119, residual standard deviation 0.81px and 1.60px. Exact native geometric reference defines a purpose-designed 3x3, 48m factory; no resized 5x5 painting.",
+      "groundLandmarkUncertaintySourcePixels": 2,
+      "personnelDoorEndpointsSource": [
+        [
+          630,
+          1088.5
+        ],
+        [
+          630,
+          1112.5
+        ]
+      ],
+      "personnelDoorObservationMethod": "Fully visible front hall personnel-door leaf at source column630, with actual dark pixels y1089..1112 inclusive; measured pixel boundaries at1088.5 and1112.5. Four adjacent columns independently retain24px leaf height. This ordinary door is distinct from the larger loading bays.",
+      "personnelDoorObservable": true
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "source": "industries-2-final.png",
+  "sourceDimensions": [
+    1254,
+    1254
+  ],
+  "entries": [
+    {
+      "id": "industry:fishery:taiga",
+      "sourceBoundsSheet": [
+        0,
+        0,
+        420,
+        438
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            13.0,
+            328.4
+          ],
+          [
+            224.0,
+            429.68
+          ]
+        ],
+        [
+          [
+            231.0,
+            428.04
+          ],
+          [
+            346.0,
+            375.4
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        179.5,
+        351.9
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          13.0,
+          328.4
+        ],
+        [
+          346.0,
+          375.4
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "The fishery buildings show windows and broad cargo openings, with no unambiguous ordinary personnel door visible. No door dimension is inferred from expected scale."
+    },
+    {
+      "id": "industry:fish-processor:taiga",
+      "sourceBoundsSheet": [
+        420,
+        0,
+        837,
+        438
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            24.0,
+            342.36
+          ],
+          [
+            215.0,
+            435.39
+          ]
+        ],
+        [
+          [
+            217.0,
+            435.43
+          ],
+          [
+            351.0,
+            373.1
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        187.5,
+        357.73
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          24.0,
+          342.36
+        ],
+        [
+          351.0,
+          373.1
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "Fish processor front openings stop above the wall base or are wide loading bays; no unambiguous ordinary personnel door is visible. No door dimension is inferred from expected scale."
+    },
+    {
+      "id": "industry:oil-well:taiga",
+      "sourceBoundsSheet": [
+        837,
+        0,
+        1254,
+        438
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            7.0,
+            326.38
+          ],
+          [
+            208.0,
+            426.14
+          ]
+        ],
+        [
+          [
+            208.0,
+            426.98
+          ],
+          [
+            407.0,
+            332.68
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        207.0,
+        329.53
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          7.0,
+          326.38
+        ],
+        [
+          407.0,
+          332.68
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorEndpointsSource": [
+        [
+          215,
+          388
+        ],
+        [
+          215,
+          394
+        ]
+      ],
+      "personnelDoorObservationNote": "Single narrow shaded-gable entry at the front oil-well service hut; source lintel to threshold, not its larger adjacent windows.",
+      "personnelDoorObservable": true
+    },
+    {
+      "id": "industry:refinery:taiga",
+      "sourceBoundsSheet": [
+        0,
+        438,
+        421,
+        836
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            9.0,
+            273.98
+          ],
+          [
+            215.0,
+            373.8
+          ]
+        ],
+        [
+          [
+            220.0,
+            372.24
+          ],
+          [
+            416.0,
+            283.85
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        212.5,
+        278.915
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          9.0,
+          273.98
+        ],
+        [
+          416.0,
+          283.85
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "Refinery small office openings are windows above the base; personnel entries are hidden or ambiguous. No door dimension is inferred from expected scale."
+    },
+    {
+      "id": "industry:quarry:taiga",
+      "sourceBoundsSheet": [
+        421,
+        438,
+        844,
+        836
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            7.0,
+            286.15
+          ],
+          [
+            211.0,
+            383.67
+          ]
+        ],
+        [
+          [
+            280.0,
+            351.53
+          ],
+          [
+            423.0,
+            285.11
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        215.0,
+        285.63
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          7.0,
+          286.15
+        ],
+        [
+          423.0,
+          285.11
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "Quarry office shaded opening is a broad paired window/workshop opening; no unambiguous ordinary personnel door is visible. No door dimension is inferred from expected scale."
+    },
+    {
+      "id": "industry:cement-works:taiga",
+      "sourceBoundsSheet": [
+        844,
+        438,
+        1254,
+        836
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            8.0,
+            289.59
+          ],
+          [
+            205.0,
+            386.06
+          ]
+        ],
+        [
+          [
+            204.0,
+            386.36
+          ],
+          [
+            398.0,
+            297.17
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        203.0,
+        293.38
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          8.0,
+          289.59
+        ],
+        [
+          398.0,
+          297.17
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorEndpointsSource": [
+        [
+          64,
+          290
+        ],
+        [
+          64,
+          296
+        ]
+      ],
+      "personnelDoorObservationNote": "Single service entry on the shaded gable of the small front cement office; measured opening reaches the ground threshold.",
+      "personnelDoorObservable": true
+    },
+    {
+      "id": "industry:sand-pit:taiga",
+      "sourceBoundsSheet": [
+        0,
+        836,
+        419,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            10.0,
+            230.61
+          ],
+          [
+            210.0,
+            332.02
+          ]
+        ],
+        [
+          [
+            210.0,
+            331.8
+          ],
+          [
+            416.0,
+            239.64
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        213.0,
+        235.125
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          10.0,
+          230.61
+        ],
+        [
+          416.0,
+          239.64
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "Sand pit conveyor hut has a small elevated opening; it cannot honestly be identified as an ordinary personnel entry. No door dimension is inferred from expected scale."
+    },
+    {
+      "id": "industry:glassworks:taiga",
+      "sourceBoundsSheet": [
+        419,
+        836,
+        836,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            42.0,
+            252.62
+          ],
+          [
+            211.0,
+            337.64
+          ]
+        ],
+        [
+          [
+            211.0,
+            338.56
+          ],
+          [
+            414.0,
+            246.82
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        228.0,
+        249.72
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          42.0,
+          252.62
+        ],
+        [
+          414.0,
+          246.82
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorEndpointsSource": [
+        [
+          125,
+          215
+        ],
+        [
+          125,
+          220
+        ]
+      ],
+      "personnelDoorObservationNote": "Narrow grey personnel entry beside the first large material/loading bay on the front glass hall; measured opening, excluding wall shadow.",
+      "personnelDoorObservable": true
+    },
+    {
+      "id": "industry:copper-mine:taiga",
+      "sourceBoundsSheet": [
+        836,
+        836,
+        1254,
+        1254
+      ],
+      "groundEdgeSegmentsSource": [
+        [
+          [
+            3.0,
+            246.25
+          ],
+          [
+            180.0,
+            335.84
+          ]
+        ],
+        [
+          [
+            179.0,
+            336.07
+          ],
+          [
+            346.0,
+            260.87
+          ]
+        ]
+      ],
+      "groundCenterSource": [
+        174.5,
+        253.56
+      ],
+      "visibleOppositeGroundVerticesSource": [
+        [
+          3.0,
+          246.25
+        ],
+        [
+          346.0,
+          260.87
+        ]
+      ],
+      "observationMethod": "Observed front alpha-contour ground-boundary segments of the corrected source, visually reviewed against retained overlay; endpoints fitted from actual edge pixels. Ground centre is midpoint of observed side vertices, not silhouette bottom.",
+      "personnelDoorObservable": false,
+      "personnelDoorObservationNote": "Copper mine office openings are raised windows; conveyor access is material-sized and no ordinary personnel entry is unambiguously visible. No door dimension is inferred from expected scale."
+    }
+  ],
+  "reviewStatus": "Corrected original reviewed: two actual ground axes and measured centre per entry; visible ordinary doors measured, ambiguous/hidden entrances explicitly unobservable.",
+  "sheetScaleCalibration": {
+    "observations": [
+      {
+        "sourceEdgeEndpoints": [
+          [
+            13.0,
+            328.4
+          ],
+          [
+            224.0,
+            429.68
+          ]
+        ],
+        "physicalSpanMetres": 75,
+        "footprint": 5,
+        "note": "Visible full front working-yard/parcel ground edge of fishery, observed in corrected original pixels; spans the75m architectural envelope inside its80m site. One measured density applies to the entire sheet."
+      }
+    ]
+  }
+}

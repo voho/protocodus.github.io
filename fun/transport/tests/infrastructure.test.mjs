@@ -38,8 +38,8 @@ for (const mode of ['road', 'rail']) {
     const from = { x: 10, y: 10 }, to = { x: 16, y: 10 };
     for (let y=0;y<game.height;y++) Object.assign(tileAt(game,12,y),{terrain:'water',elevation:0});
     tileAt(game, 14, 10).terrain = 'mountain';
-    assert.equal(build(game, mode, 12, 10).ok, false, 'ordinary track cannot cross water');
-    assert.equal(build(game, mode, 14, 10).ok, false, 'ordinary track cannot cross mountains');
+    assert.equal(build(structuredClone(game), mode, 12, 10).ok, true, 'the network tool resolves water to the matching bridge');
+    assert.equal(build(structuredClone(game), mode, 14, 10).ok, true, 'the network tool resolves mountains to the matching tunnel');
     for (const x of [10, 11, 13, 15, 16]) assert.equal(build(game, mode, x, 10).ok, true);
     assert.equal(findPath(game, from, to, mode), null);
     assert.equal(build(game, bridgeTool, 12, 10).ok, true);

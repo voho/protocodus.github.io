@@ -16,7 +16,7 @@ try {
     await page.route('**/station-sprite-picking-qa', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><style>body{margin:0}canvas{position:absolute;left:0;top:0;width:800px;height:576px}</style><canvas id="cached"></canvas><canvas id="direct"></canvas>' }));
     await page.goto(new URL('station-sprite-picking-qa', base).href);
     await page.evaluate(async () => {
-      const [{ createRenderer }, { preloadWorldArt }, { preloadHouses }] = await Promise.all([import('./renderer.js'), import('./atlas-runtime.js'), import('./raster-houses.js')]);
+      const [{ createRenderer }, { preloadWorldArt }, { preloadHouses }, { SPRITE_SCALE }] = await Promise.all([import('./renderer.js'), import('./atlas-runtime.js'), import('./raster-houses.js'), import('./sprite-art-direction.js')]);
       await Promise.all([preloadWorldArt({ biome: 'taiga', waitMs: 20000 }), preloadHouses({ biome: 'taiga', waitMs: 20000 })]);
       const stations = [{ id: 'road', mode: 'road', name: 'Road shelter', x: 40, y: 45 }, { id: 'rail', mode: 'rail', name: 'Rail station', x: 48, y: 45 }, { id: 'water', mode: 'water', name: 'Harbor', x: 44, y: 53 }];
       const tiles = Array.from({ length: 96 * 96 }, (_, variant) => ({ terrain: 'grass', elevation: .25, detail: '', variant, cleared: true }));
@@ -33,7 +33,8 @@ try {
       context.drawImage = (image, ...args) => {
         if (args.length === 4) {
           const m = context.getTransform(), [x, y, w, h] = args;
-          calls.push({ image, id: image.infrastructureFrame?.id, left: (m.a * x + m.e) / devicePixelRatio, top: (m.d * y + m.f) / devicePixelRatio, width: m.a * w / devicePixelRatio, height: m.d * h / devicePixelRatio, house: !image.infrastructureFrame && Math.abs(w - 48) < .6 && Math.abs(h - 60) < .6 });
+          const frame=SPRITE_SCALE.billboardPixelsPerTile;
+          calls.push({ image, id: image.infrastructureFrame?.id, left: (m.a * x + m.e) / devicePixelRatio, top: (m.d * y + m.f) / devicePixelRatio, width: m.a * w / devicePixelRatio, height: m.d * h / devicePixelRatio, house: !image.infrastructureFrame && Math.abs(w - frame) < .6 && Math.abs(h - frame * 1.25) < .6 });
         }
         return draw(image, ...args);
       };

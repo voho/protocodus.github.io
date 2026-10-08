@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createGame, buildProblem, findPath, build, addRoute, tick, STATION_RADIUS } from '../model.js';
 import { buildPlan, quoteBuildPlan } from '../construction-plan.js';
 import { planNetworkStroke, planConnection, gridLine } from '../network-router.js';
-import { networkTerrainShape } from '../terrain-engineering.js';
+import { networkTerrainShape, networkTerrainPlanIssues } from '../terrain-engineering.js';
 import { placeBuildingSite } from '../building-sites.js';
 import { industryDistance } from '../industry-sites.js';
 import { nextProject } from '../gameplay-insights.js';
@@ -55,37 +55,34 @@ for (const mode of ['road', 'rail']) {
     assert.deepEqual(plan.path, gridLine(a, b, 'y'));
   });
 
-  test(`${mode}: a crown or a 2×2 house on the line makes the drag detour with a clean quote`, () => {
+  test(`${mode}: a crown is leveled while a 2×2 house makes the drag detour`, () => {
     const crown = levels((x, y) => x === 20 && y === 20 ? 5 : 4), house = flat();
     assert.ok(placeBuildingSite(house, 'house-expensive-1', 19, 19));
     assert.equal(networkTerrainShape(crown, 20, 20).kind, 'complex');
     for (const game of [crown, house]) {
       const a = { x: 12, y: 20 }, b = { x: 28, y: 20 }, line = gridLine(a, b);
-      assert.equal(quoteBuildPlan(game, mode, line).ok, false);
+      assert.equal(quoteBuildPlan(game, mode, line).ok, game === crown);
       const plan = route(game, mode, a, b), quote = quoteBuildPlan(game, mode, plan.path);
-      assert.equal(plan.reason, 'routed');
+      assert.equal(plan.reason, game === crown ? 'direct' : 'routed');
       assert.ok(clean(quote), quote.message); assert.deepEqual(quote.issues, []);
       assert.deepEqual(plan.path[0], a); assert.deepEqual(plan.path.at(-1), b); assert.ok(contiguous(plan.path));
-      assert.ok(plan.path.every(p => p.y !== 20 || p.x < 19 || p.x > 20), 'the path leaves the blocked tiles');
+      if(game === crown){assert.deepEqual(plan.path,line);assert.ok(quote.terrainCost>0,'necessary leveling is included');}
+      else assert.ok(plan.path.every(p => p.y !== 20 || p.x < 19 || p.x > 20), 'the path leaves the blocked tiles');
       assert.ok(plan.path.length <= line.length + 2, `a short detour: ${plan.path.length} tiles`);
       assertBuilds(game, mode, plan, a, b);
     }
   });
 
-  test(`${mode}: ramps are entered and left only along their axis`, () => {
+  test(`${mode}: a sideways slope is prepared for the direct drag`, () => {
     const game = levels(x => 4 + Math.max(0, Math.min(2, x - 20))), a = { x: 21, y: 10 }, b = { x: 21, y: 24 };
     assert.equal(networkTerrainShape(game, 21, 16).axis, 'x');
-    assert.equal(quoteBuildPlan(game, mode, gridLine(a, b)).ok, false, 'a straight drag would climb sideways');
+    const quote=quoteBuildPlan(game, mode, gridLine(a, b));
+    assert.equal(quote.ok, true);assert.ok(quote.terrainCost>0,'a straight drag includes leveling');
     const plan = route(game, mode, a, b);
-    assert.equal(plan.reason, 'routed'); assert.ok(clean(quoteBuildPlan(game, mode, plan.path)));
-    let ramps = 0;
-    for (const [i, p] of plan.path.entries()) {
-      if (networkTerrainShape(game, p.x, p.y).kind !== 'incline') continue;
-      ramps++;
-      for (const q of [plan.path[i - 1], plan.path[i + 1]]) if (q) assert.equal(q.y, p.y, `${p.x},${p.y} is used along its x axis`);
-    }
-    assert.ok(ramps >= 2, 'both ends sit on the ramp');
+    assert.equal(plan.reason, 'direct');assert.deepEqual(plan.path,gridLine(a,b));
     assertBuilds(game, mode, plan, a, b);
+    assert.equal(buildPlan(game,mode,plan.path).ok,true);
+    assert.ok(plan.path.every(p=>networkTerrainShape(game,p.x,p.y).kind==='flat'),'the resulting roadbed is level across its width');
   });
 
   test(`${mode}: a ramp beside an older parallel line is avoided`, () => {
@@ -117,7 +114,7 @@ for (const mode of ['road', 'rail']) {
     const game = levels((x, y) => x === 20 && y === 20 ? 5 : 4), a = { x: 12, y: 20 }, b = { x: 28, y: 23 };
     zone(game, [[12, 22]]);
     const copy = structuredClone(game), first = route(game, mode, a, b);
-    assert.equal(first.reason, 'routed');
+    assert.equal(first.reason, 'direct');
     assert.deepEqual(route(game, mode, a, b), first);
     assert.deepEqual(route(copy, mode, a, b), first);
   });
@@ -150,18 +147,19 @@ test('a 120-tile drag without a route stays under the expansion cap and the time
   assert.ok(planNetworkStroke(game, 'road', a, b, { budgetMs: 0 }).expanded <= 128, 'a spent budget stops at the next check');
 });
 
-test('taiga 1847: most drags whose two L bends both fail are rescued quickly', () => {
+test('taiga 1847: most drags needing earthworks or a detour are rescued quickly', () => {
   const game = createGame({ biome: 'taiga', seed: 1847 });
-  const open = (x, y) => !buildProblem(game, 'road', x, y, { money: Infinity }) && networkTerrainShape(game, x, y).kind === 'flat';
+  const open = (x, y) => !buildProblem(game, 'road', x, y, { money: Infinity, autoLevel:false }) && networkTerrainShape(game, x, y).kind === 'flat';
+  const strict = path => !networkTerrainPlanIssues(game,path.map(p=>({...p,tool:'road'}))).length&&path.every(p=>!buildProblem(game,'road',p.x,p.y,{money:Infinity,autoLevel:false}));
   let seed = 1847, tries = 0, rescued = 0;
   const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32, times = [];
   for (let found = 0; found < 40 && tries++ < 5000;) {
     const a = { x: 20 + Math.floor(random() * (game.width - 40)), y: 20 + Math.floor(random() * (game.height - 40)) }, reach = 8 + Math.floor(random() * 15), angle = random() * Math.PI * 2;
     const b = { x: a.x + Math.round(Math.cos(angle) * reach), y: a.y + Math.round(Math.sin(angle) * reach) };
-    if (!open(a.x, a.y) || !open(b.x, b.y) || ['direct', 'flipped'].includes(planNetworkStroke(game, 'road', a, b, { maxExpanded: 0 }).reason)) continue;
+    if (!open(a.x, a.y) || !open(b.x, b.y) || strict(gridLine(a,b)) || strict(gridLine(a,b,'y'))) continue;
     found++;
     const plan = route(game, 'road', a, b);
-    if (plan.reason === 'routed') { rescued++; assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), `${a.x},${a.y} → ${b.x},${b.y}`); }
+    if (['direct','flipped','routed'].includes(plan.reason)) { rescued++; assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), `${a.x},${a.y} → ${b.x},${b.y}`); }
     const started = performance.now(); planNetworkStroke(game, 'road', a, b); times.push(performance.now() - started);
   }
   assert.equal(times.length, 40, 'the sample finds 40 drags whose two bends fail');
@@ -201,17 +199,19 @@ test('taiga 1847 recipe 7: the quarry plan joins Alderbrook Central with one sto
   assert.deepEqual(connect(game, quarry, town), plan, 'identical inputs give identical plans');
 });
 
-for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome} 1847: the default world's first freight plan builds and delivers within a month`, () => {
+for (const biome of ['taiga', 'tundra', 'desert']) test(`${biome} 1847: the default world's first freight plan builds and delivers within six weeks`, () => {
   const game = createGame({ biome, seed: 1847 }), project = nextProject(game), choice = project.choices[project.choice];
   assert.equal(project.plan, 'road', 'the opening pair can be joined over land');
-  const plan = connect(game, choice.source, choice.buyer);
+  const buyer = (choice.buyer.kind === 'industry' ? game.industries : game.cities).find(site => site.id === choice.buyer.id);
+  const plan = connect(game, choice.source, buyer);
   assert.equal(plan.ok, true, plan.reason);
   assert.ok(clean(quoteBuildPlan(game, 'road', plan.path)), 'the whole line quotes clean'); assert.ok(contiguous(plan.path));
   assert.ok(plan.stops.length <= 2 && plan.stops.every(stop => game.tiles[stop.y * game.width + stop.x].terrain !== 'water'));
   const { copy, route, spent } = launch(game, plan, choice.cargo);
   assert.equal(spent, plan.cost, 'Build spends exactly the plan');
-  advance(copy, 30, tick);
-  assert.ok(route.delivered > 0, `${choice.cargo} arrives within a month`);
+  // Recipe 12 deliberately leaves room for a journey beyond both stop ranges.
+  advance(copy, 42, tick);
+  assert.ok(route.delivered > 0, `${choice.cargo} arrives within six weeks`);
 });
 
 for (const mode of ['road', 'rail']) test(`${mode}: a plan between two unserved sites places a stop beside each, then finds them joined`, () => {
@@ -234,6 +234,26 @@ test('a stop that already serves the source is reused and its line followed', ()
   assert.equal(plan.ends[0]?.id, stop.id); assert.deepEqual(plan.stops.map(stop => stop.end), [1]);
   assert.ok(plan.tiles <= plan.path.length - 6, 'the old road carries the first tiles');
   launch(game, plan, 'grain');
+});
+
+for (const mode of ['road', 'rail']) test(`${mode}: legacy five-tile stops are reused even at the search boundary`, () => {
+  const game = flat(), [farm, plant] = farmAndPlant(game), tool = mode === 'rail' ? 'train-stop' : 'bus-stop';
+  const stops = [{x:15,y:20},{x:47,y:26}].map(p => {
+    assert.equal(build(game, mode, p.x, p.y).ok, true);
+    const result = build(game, tool, p.x, p.y); assert.equal(result.ok, true, result.message);
+    return result.station;
+  });
+  const options = {margin:0,budgetMs:1e9};
+  const fresh = planConnection(game, farm, plant, mode, options);
+  assert.equal(fresh.ok, true, fresh.reason);
+  assert.deepEqual(fresh.ends, [null,null], 'new four-tile stops cannot serve sites five tiles away');
+  assert.ok(fresh.stops.every(stop => inReach(stop.end ? plant : farm, stop)));
+  for (const stop of stops) stop.catchmentRadius = 5;
+  const legacy = planConnection(game, farm, plant, mode, options);
+  assert.equal(legacy.ok, true, legacy.reason);
+  assert.deepEqual(legacy.ends.map(stop => stop?.id), stops.map(stop => stop.id));
+  assert.deepEqual(legacy.stops, [], 'both saved stops retain service without replacement');
+  launch(game, legacy, 'grain');
 });
 
 test('sites whose catchments overlap still get stops three tiles apart', () => {

@@ -53,7 +53,7 @@ test('every tool builds and undoes back to the exact prior state', () => {
     ['house-normal-1', () => [{ x: 40, y: 40 }]],
     ['house-expensive-1', () => [{ x: 44, y: 40 }]],
     ['school', () => [{ x: 48, y: 40 }]],
-    ['sawmill', () => [{ x: 50, y: 50 }]],
+    ['sawmill', () => [{ x: 50, y: 60 }]],
     ['steel-mill', () => [{ x: 56, y: 50 }]],
     ['raise', () => [{ x: 60, y: 20 }, { x: 61, y: 20 }]],
     ['lower', () => [{ x: 60, y: 24 }]],
@@ -141,7 +141,7 @@ test('a demolition dents its town by a recorded amount, and undo takes back just
 });
 
 test('a later tick keeps cargo, vehicles and growth instead of rewinding them', () => {
-  const game = emptyGame(), city = town(game, 50, 20);
+  const game = emptyGame(), city = town(game, 52, 20);
   for (let x = 20; x <= 34; x++) build(game, 'road', x, 30);
   assert.equal(build(game, 'logging-camp', 17, 25).ok, true); assert.equal(build(game, 'sawmill', 35, 25).ok, true);
   build(game, 'bus-stop', 20, 30); build(game, 'bus-stop', 34, 30);

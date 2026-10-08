@@ -107,7 +107,7 @@ test('passenger planning requires two different towns and refuses adjacent stops
 
 test('passengers and mail between stops serving the same town explain the different-town requirement', () => {
   const game = emptyGame();
-  game.cities = [{ id: 'town-shared', name: 'Alderbrook', x: 14, y: 10 }];
+  game.cities = [{ id: 'town-shared', name: 'Alderbrook', x: 14, y: 13 }];
   assert.equal(buildPath(game, 'road', line(10, 18, 13)).ok, true);
   for (const x of [10, 18]) assert.equal(build(game, 'bus-stop', x, 13).ok, true);
   const [from, to] = game.stations;
@@ -125,10 +125,26 @@ test('passengers and mail between stops serving the same town explain the differ
     const plan = validateRoutePlan(game, { ...draft, cargo });
     assert.equal(plan.connected, true);
     assert.equal(plan.valid, false);
-    assert.equal(plan.message, 'Connected. Each stop must serve a different town within 5 tiles.');
+    assert.equal(plan.message, 'Connected. Each stop must serve a different town within 4 tiles.');
     assert.equal(options.find(option => option.cargo === cargo).message, plan.message);
   }
   assert.equal(JSON.stringify({ money: game.money, revision: game.revision, cities: game.cities, stations: game.stations, routes: game.routes, vehicles: game.vehicles }), before, 'clarifying the verdict changes no world state');
+});
+
+test('route advice and coverage use each endpoint’s new or legacy reach', () => {
+  const {game,draft}=fixture(),[from,to]=game.stations;
+  game.cities=[{id:'a',name:'Alderbrook',x:from.x,y:from.y+5},{id:'b',name:'Brookby',x:to.x,y:to.y+4}];game.revision++;
+  const passengers={...draft,cargo:'passengers'};
+  assert.equal(validateRoutePlan(game,passengers).valid,false,'a new stop cannot reach a town five tiles away');
+  from.catchmentRadius=5;
+  assert.equal(validateRoutePlan(game,passengers).valid,true,'the restored start retains its town while the new end reaches four tiles');
+  game.cities[1].y++;
+  assert.equal(validateRoutePlan(game,passengers).message,'Connected. The start needs a town within 5 tiles and the end needs a different town within 4 tiles.');
+  assert.equal(validateRoutePlan(game,{...draft,cargo:'coal'}).message,'Connected. Add a coal supplier within 5 tiles of the start and a buyer within 4 tiles of the end.');
+  to.catchmentRadius=5;
+  assert.equal(validateRoutePlan(game,passengers).valid,true,'both legacy endpoints keep their original reach');
+  game.cities=[];game.revision++;
+  assert.equal(validateRoutePlan(game,passengers).message,'Connected. Each stop must serve a different town within 5 tiles.');
 });
 
 function quarryFixture() {

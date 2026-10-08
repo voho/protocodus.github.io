@@ -1,0 +1,19 @@
+{
+  "observations": [
+    {
+      "sourceEdgeEndpoints": [
+        [
+          817,
+          1068.0
+        ],
+        [
+          620.1316772605496,
+          1176.019063547545
+        ]
+      ],
+      "physicalSpanMetres": 28.8,
+      "footprint": 2,
+      "note": "Visually identified full front ground boundary of house-expensive-2 2x2 parcel. Boundary pixel line intersections and visible endpoint supply one common density; this visible delivered parcel edge is assigned its calibrated per-tile architectural envelope, with narrow filtering setback. Other cells keep their observed relative dimensions."
+    }
+  ]
+}
