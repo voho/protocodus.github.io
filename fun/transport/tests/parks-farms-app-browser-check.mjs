@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Real catalog and pointer gestures on untouched recipe-10 terrain. Model and
 // artwork matrix tests cover other climates; this check exercises player flows.
 import assert from 'node:assert/strict';
@@ -14,13 +15,15 @@ const farms = ['farm', 'dairy-farm', 'vegetable-farm', 'orchard', 'livestock-far
 const errors = [], results = [];
 
 async function drawer(page) {
-  if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open')))
-    await page.locator('.main-nav [data-view="build"]').click();
+  if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) {
+    await page.locator('#world').focus();
+    await page.keyboard.press('Shift+B');
+  }
   await page.locator('.sidebar').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
 }
 async function choose(page, kind, group) {
   await drawer(page);
-  await page.locator(`[data-category="${group ? 'towns' : 'industry'}"]`).click();
+  await openBuildArea(page, group ? 'towns' : 'industry');
   if (group) await page.locator('#building-group').selectOption(group);
   await page.locator(`#panel-content [data-tool="${kind}"]`).click();
   assert.equal(await page.locator(`#panel-content [data-tool="${kind}"]`).getAttribute('aria-pressed'), 'true');
@@ -140,7 +143,7 @@ async function catalog(page, profile) {
   });
   const counts = {};
   for (const group of ['homes', 'community', 'shops', 'services']) {
-    await drawer(page); await page.locator('[data-category="towns"]').click(); await page.locator('#building-group').selectOption(group);
+    await drawer(page); await openBuildArea(page, 'towns'); await page.locator('#building-group').selectOption(group);
     assert.match(await page.locator('.panel-heading').filter({ has: page.locator('h2', { hasText: /^Buildings$/ }) }).innerText(), new RegExp(`${expected.total} types`));
     counts[group] = await page.locator('.building-card').count();
     const kinds = group === 'community' ? parks : group === 'shops' ? malls : [];
@@ -155,7 +158,7 @@ async function catalog(page, profile) {
     if (kinds.length) await page.screenshot({ path: `${output}/${profile}-${group}-catalog.png` });
   }
   assert.deepEqual(counts, expected.groups, 'the catalog exposes every building in its group');
-  await drawer(page); await page.locator('[data-category="industry"]').click();
+  await drawer(page); await openBuildArea(page, 'industry');
   const industryKinds = await page.evaluate(async () => Object.entries((await import('./data.js')).INDUSTRIES).filter(([, definition]) => definition.biomes.includes(transport.game.biome)).map(([kind]) => kind));
   for (const kind of industryKinds) assert.match(await page.locator(`.industry-tool[data-tool="${kind}"] .tool-cost`).innerText(), /5 × 5/);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'catalog stays within the viewport');

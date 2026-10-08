@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Airports and flights in a real browser (seed 1847): the 1952 debut, placing and turning a 6 × 2 site, footprint
 // lookups, an air route between two towns, planes on the ground and aloft, lights, layers, the art's weight beside
 // the houses, saves and bulldozing. Serve the repository root first; storage is isolated.
@@ -26,7 +27,7 @@ const money = page => page.evaluate(() => transport.game.money);
 const canvasCrop = (page, rect) => page.evaluate(rect => { const c = document.querySelector('#world'), d = devicePixelRatio || 1; return Array.from(c.getContext('2d').getImageData(Math.round(rect.x * d), Math.round(rect.y * d), Math.max(1, Math.round(rect.w * d)), Math.max(1, Math.round(rect.h * d))).data); }, rect);
 const differs = (a, b) => { let n = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 24) n++; return n; };
 async function chooseView(page, view) {
-  const button = page.locator(`.main-nav [data-view="${view}"]`);
+  const button = page.locator(view === 'build' ? '.main-nav [data-build-area="network"]' : `.main-nav [data-view="${view}"]`);
   const open = await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'));
   if (!open || !(await button.evaluate(el => el.classList.contains('active')))) await button.click();
 }
@@ -41,8 +42,8 @@ try {
 
   // 1. Before 1952 the Airport card waits with its year; A only says when.
   await chooseView(page, 'build');
-  await page.locator('[data-category="network"]').click();
-  assert.equal(await networkCards(page).count(), 6, 'Road, Rail, Stop, Port, Airport and Bulldozer');
+  await openBuildArea(page, 'network');
+  assert.equal(await networkCards(page).count(), 5, 'Road, Rail, Stop, Port and Airport share Transport');
   const card = page.locator('#panel-content [data-tool="airport"]');
   assert.equal(await card.getAttribute('aria-disabled'), 'true');
   assert.match(await card.textContent(), /From 1952/);

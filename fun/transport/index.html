@@ -46,7 +46,12 @@
     <header class="topbar">
       <a class="wordmark" href="/fun/" aria-label="Transport — back to games"><span class="brand-symbol" aria-hidden="true">t</span><span class="wordmark-text">transport<span class="wordmark-dot">.</span></span></a>
       <nav class="main-nav" aria-label="Game views and construction tools">
-        <button class="nav-button active" data-view="build" aria-label="Build" title="Build (Shift+B)" aria-keyshortcuts="Shift+B"><span data-icon="build"></span><span class="nav-label">Build</span></button>
+        <div class="main-nav-build-areas" role="group" aria-label="Build areas">
+          <button class="nav-button build-area" type="button" data-build-area="network" aria-label="Build network" aria-expanded="false" title="Build network: roads, railways, stops, ports and airports (Shift+1)" aria-keyshortcuts="Shift+1"><span data-icon="build"></span><span class="nav-label">Network</span></button>
+          <button class="nav-button build-area" type="button" data-build-area="towns" aria-label="Build towns and buildings" aria-expanded="false" title="Build towns and buildings: zones, homes, shops and amenities (Shift+2)" aria-keyshortcuts="Shift+2"><span data-icon="house"></span><span class="nav-label">Buildings</span></button>
+          <button class="nav-button build-area" type="button" data-build-area="industry" aria-label="Build industry" aria-expanded="false" title="Build industry: farms, mines and factories (Shift+3)" aria-keyshortcuts="Shift+3"><span data-icon="factory"></span><span class="nav-label">Industry</span></button>
+          <button class="nav-button build-area" type="button" data-build-area="terrain" aria-label="Shape terrain and build crossings" aria-expanded="false" title="Shape terrain and build bridges or tunnels (Shift+4)" aria-keyshortcuts="Shift+4"><span data-icon="raise"></span><span class="nav-label">Terrain</span></button>
+        </div>
         <button class="nav-button" data-view="routes" aria-label="Routes" title="Routes (Shift+R)" aria-keyshortcuts="Shift+R"><span data-icon="routes"></span><span class="nav-label">Routes</span></button>
         <button class="nav-button" data-view="industry" aria-label="Industries" title="Industries (Shift+I)" aria-keyshortcuts="Shift+I"><span data-icon="industry"></span><span class="nav-label">Industries</span></button>
         <button class="nav-button" data-open-chains aria-haspopup="dialog" title="Production chains (C)"><span data-icon="chains"></span> Chains</button>

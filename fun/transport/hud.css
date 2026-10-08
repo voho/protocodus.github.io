@@ -373,7 +373,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  #balance{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
 /* The game menu's groups: company, map, help and the game itself, each row with its key on the right. */
-@media(max-width:720px){
+@media(max-width:1180px){
  .compact-play{--play-header:84px}
  .compact-play .topbar{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:36px 40px;padding:4px 8px;gap:0 8px}
  .compact-play .topbar .wordmark{grid-row:1;grid-column:1}
@@ -420,31 +420,43 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .compact-play .main-nav .nav-button{flex:0 0 auto;white-space:nowrap}
 .compact-play .topbar .main-nav .nav-button svg{display:block;flex-shrink:0}
 .main-nav-build-tools{display:flex;align-items:center;flex:0 0 auto;gap:4px;padding-left:8px;border-left:1px solid var(--rule)}
+.main-nav-build-areas{display:flex;align-items:center;flex:0 0 auto;gap:2px;padding-right:8px;border-right:1px solid var(--rule)}
+.compact-play .main-nav .build-area{background:var(--well)}
+.compact-play .main-nav .build-area[aria-expanded=true]{background:var(--ink);color:var(--on-ink)}
 .compact-play .main-nav .toolbar-tool[aria-pressed=true]{background:var(--well);color:var(--ink);border-bottom:2px solid var(--ink);padding-bottom:6px}
 .compact-play .main-nav .nav-button:focus-visible{outline-offset:-2px}
-@media(max-width:1580px){
+@media(max-width:1799px){
  /* Keep the everyday tasks named on desktop: compact the brand and spacing first. */
  .compact-play .wordmark-text{display:none}
  .compact-play .topbar .brand-symbol{margin-right:0}
  .compact-play .topbar{gap:var(--s-2)}
- .compact-play .main-nav .nav-button{padding-left:var(--s-2);padding-right:var(--s-2);gap:var(--s-1)}
+ .compact-play .main-nav .nav-button{padding-left:var(--s-1);padding-right:var(--s-1);gap:var(--s-1)}
 }
-@media(max-width:1023px){
+@media(max-width:1439px){
  .compact-play .main-nav .toolbar-tool .nav-label{display:none}
  .compact-play .main-nav .toolbar-tool{min-width:40px;justify-content:center;padding:8px}
 }
-@media(max-width:1240px){
+@media(max-width:1399px){
  .compact-play .topbar{gap:var(--s-1)}
  .compact-play .main-nav [data-view] .nav-label{display:none}
  .compact-play .main-nav [data-view]{min-width:36px;justify-content:center}
 }
-@media(max-width:720px){
+@media(max-width:1023px){
+ .compact-play .main-nav .build-area .nav-label{display:none}
+ .compact-play .main-nav .build-area{min-width:36px;justify-content:center}
+}
+@media(max-width:1180px){
  /* Finance figures on the second row must not change the navigation's width on the first row. */
  .compact-play .topbar{grid-template-columns:36px minmax(0,1fr) 36px;gap:0 8px}
  .compact-play .topbar .hud-finance-wrap{grid-column:1/3;justify-self:start;width:max-content;margin-left:0}
  .compact-play .topbar .date-block{justify-self:end}
  .compact-play .topbar .main-nav{justify-content:flex-start;gap:0}
  .compact-play .main-nav-build-tools{gap:0;padding-left:4px}
+ .compact-play .main-nav-build-areas{gap:0;padding-right:4px}
  .compact-play .topbar .main-nav .nav-button{min-width:36px;justify-content:center;padding:6px}
  .compact-play .topbar .main-nav .toolbar-tool[aria-pressed=true]{padding-bottom:4px}
+}
+@media(max-width:600px){
+ .compact-play .topbar .main-nav .nav-button{min-width:32px;padding-left:4px;padding-right:4px}
+ .compact-play .main-nav [data-open-gallery] .nav-label{display:none}
 }

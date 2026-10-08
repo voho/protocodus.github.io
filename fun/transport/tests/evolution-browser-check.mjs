@@ -77,7 +77,7 @@ try{
   assert.match(await page.locator('#inflation-rate').textContent(),/\+[1-5]\.\d\d%/);
   await page.locator('#company-stats').click();
   await page.screenshot({path:`${output}/upgraded-fleet-desktop.png`});
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click();
   const expected=await page.evaluate(async()=>{const {priceFor,BUILD_COSTS}=await import('./model.js');return priceFor(transport.game,BUILD_COSTS.road);});
   assert.match(await page.locator('[data-tool="road"] .tool-cost').textContent(),new RegExp(String(expected)),'construction palette quotes current inflated costs');
   const clearing=await page.evaluate(()=>{
@@ -103,7 +103,7 @@ try{
     t.terrain='forest';t.detail='pine';g.revision++;
     return {cost:constructionCost(g,'road',p.x,p.y),money:g.money};
   },clearing);
-  await page.locator('.main-nav [data-view="build"]').click(); // choosing the Bulldozer closed the drawer
+  await page.locator('.main-nav [data-build-area="network"]').click(); // choosing the Bulldozer closed the drawer
   await page.locator('[data-tool="road"]').click();
   await page.mouse.move(point.x,point.y);
   assert.equal(await page.locator('#placement-tip').textContent(),`Road · $${construction.cost.toLocaleString('en-US')}`,'placement quote includes inflated forest clearance');

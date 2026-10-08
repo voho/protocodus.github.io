@@ -147,7 +147,7 @@ try {
     g.money = 1000000; g.revision++; g.networkRevision++; transport.renderer.setZoom(1); transport.renderer.focus(site.x + 3, site.y + 2); return site;
   });
   async function point(x, y) { return app.evaluate(({ x, y }) => { const p = transport.renderer.worldToScreen(x, y), rect = document.querySelector('#world').getBoundingClientRect(); return { x: rect.left + p.x, y: rect.top + p.y }; }, { x, y }); }
-  await app.locator('.main-nav [data-view="build"]').click(); await app.locator('[data-tool="road"]').click();
+  await app.locator('.main-nav [data-build-area="network"]').click(); await app.locator('[data-tool="road"]').click();
   const start = await point(site.x, site.y), end = await point(site.x + 4, site.y);
   await app.mouse.move(start.x, start.y); await app.mouse.down(); await app.mouse.move(end.x, end.y, { steps: 6 }); await app.mouse.up();
   const roads = await app.evaluate(({ x, y }) => [0, 1, 2, 3, 4].map(dx => transport.game.tiles[y * transport.game.width + x + dx].road), site);

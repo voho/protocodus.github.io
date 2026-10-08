@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Isolated browser companies: no connection to the player's local saves.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -31,8 +32,7 @@ async function fixture(page) {
   });
 }
 async function choose(page,key) {
-  await page.evaluate(()=>transport.setView('build'));
-  if(['level','raise','lower'].includes(key)&&!await page.locator('.engineering-tools').evaluate(el=>el.open))await page.locator('.engineering-tools summary').click();
+  await openBuildArea(page, ['level','raise','lower'].includes(key) ? 'terrain' : 'network');
   const button=page.locator(`[data-tool="${key}"]`);await button.waitFor({state:'visible'});await button.click();
 }
 async function screen(page,point) {

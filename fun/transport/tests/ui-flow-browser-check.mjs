@@ -70,7 +70,7 @@ try {
  await page.locator('.construction-next').waitFor({state:'visible'});
  const built=await page.evaluate(({x,y})=>({road:transport.game.tiles[y*transport.game.width+x].road,station:transport.game.stations.find(s=>s.x===x&&s.y===y),money:transport.game.money}),site);
  assert.equal(built.road,true);assert.equal(built.station.mode,'road');assert.equal(built.money,site.money-site.quote);
- assert.equal(await page.locator('.main-nav [data-view="build"]').getAttribute('aria-expanded'),'true');
+ assert.equal(await page.locator('.main-nav [data-build-area="network"]').getAttribute('aria-expanded'),'true');
  await page.locator('[data-construction-next="route"]').click();
  assert.equal(await page.locator('#route-form [name="from"]').inputValue(),String(built.station.id),'the next route starts at the newly built stop');
  await page.locator('[data-pick-route="to"]').click();await page.locator('#route-pick-banner').waitFor({state:'visible'});

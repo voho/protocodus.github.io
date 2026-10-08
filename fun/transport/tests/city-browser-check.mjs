@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Investment forecasts and returns in a real browser (city-investment-feedback), on seed 1847. A residential rectangle dragged
 // beside Alderbrook forecasts residents, rent and payback on the tip's second line, under the quote's own line; a drag far from
 // every town warns that it is too far to develop; the cottage tool forecasts rent and a school forecasts nothing. A cottage, a
@@ -167,7 +168,7 @@ try {
 
   // Outlines: while Build › Town is open at the Town view, in the ok colour on the cottage; none in Explore or at Region.
   await page.evaluate(() => { document.querySelector('#inspector .tiny-button')?.click(); transport.setView('build'); });
-  await page.locator('#panel-content [data-category="towns"]').click();
+  await openBuildArea(page, 'towns');
   await page.evaluate(site => { transport.renderer.setZoom(1); transport.renderer.focus(site.x, site.y); }, sites.cottage);
   const drawn = await outlines(page);
   assert.ok(drawn > 0, `Build › Town outlines the property (${drawn})`);

@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Real placement and demolition gestures; every browser context has isolated saves.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -46,8 +47,8 @@ try {
       transport.renderer.setZoom(1); transport.renderer.focus(site.x + 1, site.y + 1); transport.setView('build');
       return site;
     });
-    if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) await page.locator('.main-nav [data-view="build"]').click();
-    await page.locator('[data-category="towns"]').click();
+    if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) await page.locator('.main-nav [data-build-area="network"]').click();
+    await openBuildArea(page, 'towns');
     await page.locator('#building-group').selectOption('community');
     assert.match(await page.locator('[data-tool="hospital"] .building-price').innerText(), /2 × 2/);
     assert.match(await page.locator('[data-tool="stadium"] .building-price').innerText(), /3 × 3/);

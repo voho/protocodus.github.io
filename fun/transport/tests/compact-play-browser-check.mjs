@@ -25,21 +25,21 @@ try {
       map:document.querySelector('#world').getBoundingClientRect().width,
       width:innerWidth, overflow:document.documentElement.scrollWidth > innerWidth,
     }));
-    assert.equal(layout.header, 52); assert.equal(layout.map, layout.width); assert.equal(layout.overflow, false);
+    assert.equal(layout.header, profile.width <= 1180 ? 84 : 52); assert.equal(layout.map, layout.width); assert.equal(layout.overflow, false);
     await page.screenshot({ path:`${output}/${profile.name}-play.png`, animations:'disabled' });
 
-    await page.locator('.main-nav [data-view="build"]').click();
+    await page.locator('.main-nav [data-build-area="network"]').click();
     assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'false');
-    await page.locator('.main-nav [data-view="build"]').click();
+    await page.locator('.main-nav [data-build-area="network"]').click();
     assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'true');
-    await page.locator('.main-nav [data-view="build"]').click();
+    await page.locator('.main-nav [data-build-area="network"]').click();
     await page.screenshot({ path:`${output}/${profile.name}-build.png`, animations:'disabled' });
     await page.locator('#panel-content [data-tool="road"]').click();
     assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'), 'true', 'Choosing construction frees the map');
     assert.equal(await page.locator('#active-tool-bar').isVisible(), true);
-    assert.equal(await page.locator('#active-tool-hint').innerText(), 'Drag to build. Go straight up slopes and turn on flat ground.');
+    assert.equal(await page.locator('#active-tool-hint').innerText(), 'Drag to build. Necessary leveling included in the price.');
     await page.keyboard.press('s');
-    assert.match(await page.locator('#active-tool-hint').innerText(), /5 tiles/, 'the stop hint names the catchment');
+    assert.match(await page.locator('#active-tool-hint').innerText(), /4 tiles/, 'the stop hint names the catchment');
     await page.locator('#cancel-tool-button').click();
     assert.equal(await page.locator('#active-tool-bar').isVisible(), false);
 

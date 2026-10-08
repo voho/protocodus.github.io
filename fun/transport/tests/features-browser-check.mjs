@@ -45,7 +45,7 @@ async function clickStationBadge(page, station) {
 }
 
 async function chooseView(page, view) {
-  const button = page.locator(`.main-nav [data-view="${view}"]`);
+  const button = page.locator(view === 'build' ? '.main-nav [data-build-area="network"]' : `.main-nav [data-view="${view}"]`);
   const open = await page.locator('.sidebar').evaluate(element => element.classList.contains('drawer-open'));
   if (!open || !(await button.evaluate(element => element.classList.contains('active')))) await button.click();
 }

@@ -3,7 +3,7 @@ import { icon } from './ui-icons.js';
 const $ = selector => document.querySelector(selector);
 
 /** Keep secondary controls available without reserving space around the map. */
-export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onShortcuts, onView, getView, onCancelGesture = () => {}, onMinimapOpen = () => {}, shortcuts = {} }) {
+export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchievements, onShortcuts, onView, getView, getBuildArea = () => 'network', onCancelGesture = () => {}, onMinimapOpen = () => {}, shortcuts = {} }) {
   const app = $('#app'), sidebar = $('.sidebar');
   const topbar = $('.topbar'), canvas = $('#world'), minimap = $('.minimap-wrap');
   app.classList.add('compact-play');
@@ -107,8 +107,9 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
     const open = sidebar.classList.contains('drawer-open');
     sidebar.inert = !open;
     sidebar.setAttribute('aria-hidden', String(!open));
-    for (const button of document.querySelectorAll('.main-nav [data-view]')) {
-      const active = open && button.dataset.view === getView();
+    for (const button of document.querySelectorAll('.main-nav [data-view], .main-nav [data-build-area]')) {
+      const current = button.dataset.buildArea ? getView() === 'build' && button.dataset.buildArea === getBuildArea() : button.dataset.view === getView();
+      const active = open && current;
       button.classList.toggle('active', active);
       button.setAttribute('aria-controls', sidebar.id);
       button.setAttribute('aria-expanded', String(active));
@@ -123,7 +124,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   function closeManagement(restoreFocus = false) {
     sidebar.classList.remove('drawer-open'); syncManagement();
     if (restoreFocus) {
-      const trigger = document.querySelector(`.main-nav [data-view="${getView()}"]`);
+      const trigger = document.querySelector(getView() === 'build' ? `.main-nav [data-build-area="${getBuildArea()}"]` : `.main-nav [data-view="${getView()}"]`);
       trigger?.focus({ preventScroll: true });
     }
   }

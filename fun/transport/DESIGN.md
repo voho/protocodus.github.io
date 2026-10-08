@@ -789,8 +789,10 @@ Sound effects start muted and retain the existing Sound effects toggle. When ena
 
 ### 11.1 Default screen (desktop)
 
+The sketches abbreviate Network, Buildings, Industry and Terrain as **Areas**, Towns and Industries as **Places**, and the direct construction shortcuts and Gallery as **Tools**. These are groups of visible buttons.
+
 ```
-┌[t] Build  Routes ▲2  Towns  Industries┐                ┌ $372,875            Jan 1950 │ ❚❚ 1× 3× 8× │ news• ≡ ┐
+┌[t] Areas  Routes ▲2  Places  Tools ┐                ┌ $372,875            Jan 1950 │ ❚❚ 1× 3× 8× │ news• ≡ ┐
 └────────────────────────────────────────┘                │ +$1,034 this month  Rain     │             │         │
                                                            └─────────────────────────────────────────────────────┘
                                                                          ┌ ⚑ First 100 deliveries   24 of 100 ⌄ ┐
@@ -806,7 +808,7 @@ While the game is paused, a 2 px orange line runs along the top edge of the map.
 Working state (wide):
 
 ```
-┌[t] Build  Routes ▲2  Towns  Industries┐     ┌ cluster ─────────────────────────┐
+┌[t] Areas  Routes ▲2  Places  Tools ┐     ┌ cluster ─────────────────────────┐
 ├ Routes 3          [+ New route]      ×┤     ┌ ⚑ First 100 deliveries 24 of 100 ⌄┐
 │ [All 3] [Needs attention 2]            │     ┌ [art] Stone quarry         ⌖  ×  ┐
 ├────────────────────────────────────────┤     │       Industry near [Alderbrook] │
@@ -879,7 +881,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Shared:** paper, `--e1`, `--r-4`, height `--rail-h`, 4 px padding. Items inside are 40 px tall. A 1 px `--rule` separator between groups marks a group boundary.
 - **Nav rail** (top left). Its minimum width is `--drawer-w` at wide and compact widths, so the drawer can grow out of it. Contents:
   - The t tile: 32 px, `--signal` fill, paper "t" italic 700. It links to `/fun/` with the label "All games".
-  - The tabs Build, Routes, Towns, Industries: icon 20 and label 14/500 in ink-2. Hover shows the well.
+  - Direct construction buttons Network, Buildings, Industry and Terrain, plus browsing buttons Routes, Towns and Industries: icon 20 and label 14/500 in ink-2. Hover shows the well.
   - The active tab has an ink label and a 2 px ink bar inside the rail's bottom edge.
   - Routes shows the attention count ("▲2" in warn, aria "Routes, 2 need attention") only when it is above zero.
   - Tabs are buttons with `aria-expanded` and `aria-controls` pointing at the drawer.
@@ -907,7 +909,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
   The footer shows "Part 1 of 4" and "All goals".
 - **Onboarding.** The first-route checklist uses the same ladder inside a native **All steps** disclosure, initially closed. Its summary names the current step; the route sentence above it links the cargo and both endpoints to the map. Keep the open state through live updates and alternative suggestions, and reset it when changing companies. The waiting delivery step explains that time must run, including while paused. Folding the entire goal keeps its existing saved preference.
-- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Build drawer repeats the goal with the Next goal layer off.
+- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Network, Industry and Terrain drawers repeat the goal with the Next goal layer off.
 - **With the inspector.** When the inspector opens at wide widths, the inspector starts under the goal line. The line stays one line.
 
 ### 12.3 Drawer
@@ -1071,18 +1073,20 @@ An explicit **New route** starts a fresh draft with one vehicle and default orde
   - Invalid: an error-on-ink glyph and what happened plus how to fix it ("Can't build on water. Use a bridge.").
   - Partial: warn-on-ink.
 
-Road, railway, bridge and tunnel construction is one action: validate the finished network and required terrain changes together, show their combined price before release, and build all of it or none. Mark proposed ground heights with light amber points and connecting links, with dotted stems from the current ground; include affected land beside the path. Keep water, occupied land and existing networks protected. When safe leveling is impossible, explain the obstruction and suggest a different path or approach; do not instruct players to level every ordinary slope by hand. One Undo restores the construction and the ground it changed. Road, railway and both modes of bridge and tunnel stay selected after successful strokes; never open Build or replace the tool after a network stroke. Done ends the tool and opens Build. Escape or right-click ends the tool, first cancelling an unfinished drag when one exists.
+Road, railway, bridge and tunnel construction is one action: validate the finished network and required terrain changes together, show their combined price before release, and build all of it or none. Mark proposed ground heights with light amber points and connecting links, with dotted stems from the current ground; include affected land beside the path. Keep water, occupied land and existing networks protected. When safe leveling is impossible, explain the obstruction and suggest a different path or approach; do not instruct players to level every ordinary slope by hand. One Undo restores the construction and the ground it changed. Road, railway and both modes of bridge and tunnel stay selected after successful strokes; never open a drawer or replace the tool after a network stroke. Done ends the tool and opens its construction area. Escape or right-click ends the tool, first cancelling an unfinished drag when one exists.
 
-### 12.15 Build drawer
+### 12.15 Construction areas
 
-- Main-toolbar construction shortcuts retain text labels at computer widths of 1024 px and above. Compact the brand first; use icons and horizontal scrolling when the computer window is narrower. Road, Railway, Stop, Bulldozer and Gallery have distinct shared glyphs.
+- **Network**, **Buildings**, **Industry** and **Terrain** open their own drawers directly from the main toolbar. Each drawer has its area title and a short description; there is no generic Build button, category tab strip or nested Terrain accordion.
+- **Shift+1/2/3/4** open those four areas; **Shift+B** opens the last area. Clicking the open area again closes it. Done returns to the active tool’s area.
+- Direct Road, Railway, Stop and Bulldozer shortcuts and Gallery remain in the toolbar. Construction-area labels remain visible from 1024 px, quick-tool labels from 1440 px, and Gallery’s label above 600 px.
+- The header is 52 px tall above 1180 px and uses two rows totalling 84 px at narrower widths. At 520 px all direct buttons remain visible as 32 px icon controls; smaller computer windows can scroll the bounded navigation rail.
 - Active construction instructions use the shared top-left anchor. The goal card yields that space until construction finishes, keeping its open or folded preference.
-- **Header:** "Build", with a segmented control "Network | Town | Industry".
-- **Network** has two groups:
-  - **Place:** sprite cards in 2 columns (Road, Rail, Stop, Port, Airport, Bulldozer). Each card has a 48 px sprite, the name in 14/600 and a price line in 13 ink-2 ("from $180 a tile"). The selected card has a 2 px ink outline. Airport and Bulldozer are ordinary cards; none spans the row. Airport waits greyed with "From 1952".
-  - **Shape the land:** a row of line-icon buttons (Bulldoze, Raise, Lower, Level).
-- **Town:** zones, buildings (sprite cards with price and tier word), Found town and Workshop.
-- **Industry:** industry cards with output cargo tiles and prices.
+- **Network:** two-column cards for Road, Rail, Stop, Port and Airport. Cards retain their sprites, names, prices and selected outlines. Airport waits greyed with "From 1952".
+- **Buildings:** residential, commercial and industrial zones, Workshop, Found town and the illustrated building catalog with prices, tiers and construction times.
+- **Industry:** industry cards with cargo recipes, prices and construction times.
+- **Terrain:** Raise, Lower and Level area, followed by Bridge and Tunnel with a Road/Rail mode choice. All tools are immediately visible.
+- Every construction area retains a compact Bulldozer action.
 
 ### 12.16 Demand rows (towns, the second pillar)
 
@@ -1162,7 +1166,7 @@ Device detection must not reject a computer merely because its window is narrow,
 | company-report-credit, ttd-company-rating | Company dialog (12.11, 12.17): overview, charts, leaderboard, rating reasons, credit. Ledger tooltip on the balance. |
 | ttd-achievements | Achievements dialog: tier roundels, progress meters, earned dates. A celebration toast with the achievements glyph. |
 | ttd-airports | Air bullet (diamond), `plane` glyph, "airport" stop kind, Place card. No new chrome. |
-| city-market, city-property, city-town-hall, city-workshops, city-investment-feedback, town-needs, town-outlook, ttd-town-authority, service-share-growth, town-street-growth | Town inspector sections (12.16), Build Town category, rent floaters (paper pills), placement tip forecasts |
+| city-market, city-property, city-town-hall, city-workshops, city-investment-feedback, town-needs, town-outlook, ttd-town-authority, service-share-growth, town-street-growth | Town inspector sections (12.16), Buildings area, rent floaters (paper pills), placement tip forecasts |
 | industry-status-markers, overlay-placer-and-badges, delivery-floaters | Map vocabulary (9) |
 | active-tool-bar, construction-ergonomics, area-zoning, construction-undo, truthful-construction-preview | Tool bar and tips (12.14). Undo as a toast action ("Road built. [Undo]"). |
 | clickable-vehicles-and-stops, inspector-service-links | Vehicle references and vehicle card. Stop inspector "Routes here" and "New route from here". |
@@ -1182,7 +1186,7 @@ Device detection must not reject a computer merely because its window is narrow,
 | `components.css` | Shared primitives (section 12, contract 16.3) |
 | `refs.css` | References, the line language, map overlays |
 | `hud.css` | Rails, drawer shell, menu, zoom, overview panel |
-| `build.css` | Build drawer, placement tips |
+| `build.css` | Construction drawers, placement tips |
 | `routes.css` | Routes drawer |
 | `places.css` | Inspector, Towns and Industries lists |
 | `notices.css` | Toasts, goal, News, headlines |

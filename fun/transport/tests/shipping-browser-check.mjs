@@ -46,7 +46,7 @@ try {
     return null;
   });
   assert.ok(sites, 'both starter towns have usable ports on a connected generated river');
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click();
   await page.locator('[data-tool="port"]').click();
   await clickMap(page, sites.a);
   await page.waitForFunction(() => transport.game.stations.filter(s=>s.mode==='water').length===1);

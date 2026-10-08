@@ -13,7 +13,7 @@ try {
  page.on('pageerror',error=>errors.push(error.message));
  await page.goto(url);await createWorldFromMenu(page);
  assert.deepEqual(await page.evaluate(()=>[transport.game.width,transport.game.height,transport.game.cities.length]),[512,512,48]);
- await page.locator('.main-nav [data-view="build"]').click();
+ await page.locator('.main-nav [data-build-area="network"]').click();
  // Wide screens leave the goal to its map card; the drawer copy stays for a hidden goal layer.
  assert.equal(await page.locator('.project-card').isVisible(),false);
  assert.match(await page.locator('#objective-title').textContent(),/first cargo route/);
@@ -38,7 +38,7 @@ try {
  await page.locator('[data-industry]').first().click();
  assert.match(await page.locator('.industry-condition').getAttribute('title'),/makes steel once it gets iron ore and coal\./);
  await page.locator('#panel-content').evaluate(el=>el.scrollTop=el.scrollHeight);
- await page.locator('[data-view="build"]').click();
+ await page.locator('[data-build-area="network"]').click();
  assert.equal(await page.locator('#panel-content').evaluate(el=>el.scrollTop),0,'switching views returns to the main tools');
  await page.evaluate(async()=>{const {tick,build}=await import('./model.js');tick(transport.game,10);const c=transport.game.cities[0];for(let y=c.y-10;y<c.y+10;y++)for(let x=c.x-10;x<c.x+10;x++){const result=build(transport.game,'road',x,y);if(result.ok)return;}});
  await page.waitForTimeout(600);

@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
@@ -20,18 +21,19 @@ try{
  await page.evaluate(()=>{transport.setTool('stop');transport.setView('build');});await page.locator('[data-stop-mode="rail"]').click();
  assert.equal(await page.locator('[data-stop-mode="rail"]').getAttribute('aria-pressed'),'true');
  assert.equal(await page.locator('[data-tool="stop"] canvas').getAttribute('data-infrastructure-sprite'),'train-stop');
+ await openBuildArea(page, 'terrain');
  assert.equal(await page.locator('[data-tool="railbridge"]').count(),1);
- await page.locator('[data-category="towns"]').click();
+ await openBuildArea(page, 'towns');
  const next=await page.locator('#building-group option').nth(1).getAttribute('value');await page.locator('#building-group').selectOption(next);
  const group=await page.evaluate(async()=>{const {BUILDINGS}=await import('./buildings.js');return [...document.querySelectorAll('.building-card')].map(el=>BUILDINGS[el.dataset.tool].group);});
  assert.ok(group.length);assert.ok(group.every(value=>value===next));
  const building=await page.locator('.building-card').first().getAttribute('data-tool');await page.locator('.building-card').first().click();
  assert.equal(await page.locator(`.building-card[data-tool="${building}"]`).getAttribute('aria-pressed'),'true');
- await page.evaluate(()=>transport.setView('build'));await page.locator('[data-category="industry"]').click();const industry=await page.locator('.industry-tool').first().getAttribute('data-tool');await page.locator('.industry-tool').first().click();
+ await page.evaluate(()=>transport.setView('build'));await openBuildArea(page, 'industry');const industry=await page.locator('.industry-tool').first().getAttribute('data-tool');await page.locator('.industry-tool').first().click();
  assert.equal(await page.locator(`.industry-tool[data-tool="${industry}"]`).getAttribute('aria-pressed'),'true');
- await page.evaluate(()=>transport.setView('build'));await page.locator('[data-category="network"]').click();await page.locator('[data-tool="rail"]').click();await page.evaluate(()=>transport.setView('build'));
- await page.locator('.engineering-tools summary').click();await page.locator('[data-tool="railbridge"]').click();
- assert.equal(await page.locator('.engineering-tools').evaluate(el=>el.open),true);assert.equal(await page.locator('[data-crossing-mode="rail"]').getAttribute('aria-pressed'),'true');
+ await page.evaluate(()=>transport.setView('build'));await openBuildArea(page, 'network');await page.locator('[data-tool="rail"]').click();await page.evaluate(()=>transport.setView('build'));
+ await openBuildArea(page, 'terrain');await page.locator('[data-tool="railbridge"]').click();
+ assert.equal(await page.locator('.engineering-tools').evaluate(el=>el.tagName),'SECTION');assert.equal(await page.locator('[data-crossing-mode="rail"]').getAttribute('aria-pressed'),'true');
  assert.equal(await page.locator('[data-tool="railbridge"]').getAttribute('aria-pressed'),'true');
  await page.evaluate(()=>transport.setView('industry'));
  const identity=await page.evaluate(()=>{

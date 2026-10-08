@@ -170,7 +170,25 @@ let hover = null, selected = null, preview = [];
 let pointer = null, spaceDown = false, spaceUsedForPan = false, sounds = false;
 const gameAudio=createGameAudio(),constructionFeedback=createConstructionFeedback();
 let floaters = [], floaterGame = null, presentationDeliveries=[],presentationRents=[],chimeAt = 0, incomeSeen = {}, incomePulseAt = -Infinity;
-let preferredMode = 'road', engineeringOpen = false;
+let preferredMode = 'road';
+const BUILD_AREAS = {
+ network:{name:'Build network',detail:'Roads, railways and stops. Ports and airports for longer journeys.'},
+ towns:{name:'Build towns & buildings',detail:'Zone neighborhoods or place homes, shops and amenities.'},
+ industry:{name:'Build industry',detail:'Farms, mines and factories for your production chains.'},
+ terrain:{name:'Terrain & crossings',detail:'Shape clear land or build a bridge or tunnel.'},
+};
+function buildAreaForTool(next) {
+ if(spanTools.has(next)||terrainTools.has(next))return 'terrain';
+ if(BUILDINGS[next]||['residential','commercial','industrial','workshop','city'].includes(next))return 'towns';
+ if(INDUSTRIES[next])return 'industry';
+ return next==='inspect'||next==='bulldoze'?category:'network';
+}
+function openBuildArea(next=category) {
+ if(!BUILD_AREAS[next])return;
+ if(view==='build'&&category===next&&$('.sidebar').classList.contains('drawer-open')){closeManagement();return;}
+ if(tool!=='inspect')setTool('inspect');
+ category=next;setView('build',{resetScroll:true});
+}
 let airportAxis = 'x'; // The runway's way round for the Airport tool, for this session only.
 let lastFrame = performance.now(), hudAt = 0, saveAt = performance.now(), minimapAt = 0, panelAt = 0;
 let worldSerial=0,savedWorld=-1,savedDay=-1,savedRevision=-1;
@@ -275,7 +293,7 @@ function syncToolControls() {
  const info=TOOL_INFO[tool]||BUILDINGS[tool]||INDUSTRIES[tool],network=preferredMode==='rail'?'railway':'road';
  $('#active-tool-icon').innerHTML=icon(info?.icon||'factory');
  $('#active-tool-name').textContent=info?.name||'Build';
- $('#active-tool-hint').textContent=lineTools.has(tool)?'Drag to build · Done opens Build':'Click to place · Done opens Build';
+ $('#active-tool-hint').textContent=lineTools.has(tool)?'Drag to build · Done opens tools':'Click to place · Done opens tools';
  if(tool==='road'||tool==='rail')$('#active-tool-hint').textContent='Drag to build. Necessary leveling included in the price.';
  if(tool==='stop')$('#active-tool-hint').textContent=preferredMode==='road'?'Click land or road within 4 tiles of customers · Missing road included':'Click a railway within 4 tiles of customers';
  if(tool==='port')$('#active-tool-hint').textContent='Click water beside land, near customers';
@@ -294,7 +312,7 @@ function setTool(next) {
  cancelGesture();closeMapMenus();cancelRoutePicking();constructionNext=null;
  if(['road','bridge','tunnel','bus-stop'].includes(next))preferredMode='road';
  if(['rail','railbridge','railtunnel','train-stop'].includes(next))preferredMode='rail';
- if(spanTools.has(next)||terrainTools.has(next)){category='network';engineeringOpen=true;}
+ category=buildAreaForTool(next);
  tool=['bus-stop','train-stop'].includes(next)?'stop':next;selected=null;hover=null;
  disposeInspectorGallery();$('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);if(!syncBuildToolSelection())renderPanel();syncToolControls();
@@ -312,7 +330,7 @@ function setView(next, options = {}) {
  if(next==='towns'||next==='industry')anchorEntities();
  view=next;closeInspector();
  $$('.nav-button[data-view]').forEach(el=>{el.classList.toggle('active',el.dataset.view===view);el.setAttribute('aria-current',el.dataset.view===view?'page':'false');});
- renderPanel({resetScroll:changedView});syncToolControls();if(compactUI){compactUI.openManagement();updateHud();}
+ renderPanel({resetScroll:changedView||options.resetScroll});syncToolControls();if(compactUI){compactUI.openManagement();updateHud();}
  wakeFrame();
 }
 function infrastructureKind(key) {
@@ -483,13 +501,14 @@ function buildConnectionPlan() {
  runProjectAction('launch',null,{mode:fresh.mode,from:ids[0],to:ids[1],cargo});
 }
 function engineeringTools() {
- return `<details class="engineering-tools" ${engineeringOpen?'open':''}><summary>${icon('raise')} Terrain &amp; crossings</summary><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}${toolCard('level','Level area')}</div><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport"><span>Crossings</span>${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></details>`;
+ return `<section class="engineering-tools" aria-label="Terrain and crossings"><div class="tool-grid">${toolCard('raise','Raise +1')}${toolCard('lower','Lower −1')}${toolCard('level','Level area')}</div><h3 class="build-section-title">Bridges &amp; tunnels</h3><div class="stop-mode-picker" role="group" aria-label="Bridge and tunnel transport">${['road','rail'].map(mode=>`<button data-crossing-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div><div class="tool-grid">${toolCard(preferredMode==='rail'?'railbridge':'bridge','Bridge')}${toolCard(preferredMode==='rail'?'railtunnel':'tunnel','Tunnel')}</div></section>`;
 }
 function buildPanel() {
- const groups={network:['road','rail','stop','port','airport','bulldoze'],towns:['residential','commercial','industrial','workshop','city']};
- const tabs=`<div class="build-tabs" role="tablist" aria-label="Construction categories">${[['network','Network'],['towns','Town'],['industry','Industry']].map(([key,label])=>`<button role="tab" aria-selected="${category===key}" data-category="${key}" class="${category===key?'active':''}">${label}</button>`).join('')}</div>`;
+ const groups={network:['road','rail','stop','port','airport'],towns:['residential','commercial','industrial','workshop','city']},area=BUILD_AREAS[category];
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small><small class="build-time">${constructionTimeText(constructionDuration(key))} to build</small></span></button>`).join('')}</div>`;
- return `<div class="panel-heading"><h2>Build</h2></div>${constructionNext?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${tabs}${category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`}<div class="stop-mode-picker" data-build-stop-mode role="group" aria-label="Stop type at road and rail crossings"${tool==='stop'?'':' hidden'}><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>${category==='network'?engineeringTools():''}${category!=='network'?`<div class="build-bottom-tools"><button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze" aria-keyshortcuts="X" title="Bulldozer (X)">${icon('bulldoze')} Bulldozer <span>X</span></button></div>`:''}${category==='towns'?buildingPalette():projectCard()}`;
+ const content=category==='terrain'?engineeringTools():category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`;
+ const stops=category==='network'?`<div class="stop-mode-picker" data-build-stop-mode role="group" aria-label="Stop type at road and rail crossings"${tool==='stop'?'':' hidden'}><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:'';
+ return `<div class="panel-heading"><h2>${escapeHTML(area.name)}</h2></div><p class="build-area-note">${area.detail}</p>${constructionNext&&category==='network'?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${content}${stops}<div class="build-bottom-tools"><button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze" aria-keyshortcuts="X" title="Bulldozer (X)">${icon('bulldoze')} Bulldozer <span>X</span></button></div>${category==='towns'?buildingPalette():projectCard()}`;
 }
 const cargoValidationSignature=options=>JSON.stringify(options.filter(option=>editCargo(option.cargo)).map(({cargo,valid,message})=>({cargo,valid,message})));
 function cargoChoices(options=[]) {
@@ -1170,13 +1189,13 @@ function refreshEntities() {
  for(const art of list.querySelectorAll('[data-industry-sprite]')){const old=drawn.get(portraitKey(art))?.pop();if(old)art.replaceWith(old);}
  bindEntityCards(list);drawPaletteSprites(list);references?.relink();panel.scrollTop=scroll;
 }
-const buildPanelValues=()=>[game,game.day,game.revision,game.money,category,preferredMode,buildingGroup,engineeringOpen,pricingYear,goalChoice];
+const buildPanelValues=()=>[game,game.day,game.revision,game.money,category,preferredMode,buildingGroup,pricingYear,goalChoice];
 function syncBuildToolSelection(){
  if(view!=='build'||!buildPanelState)return false;
  const values=buildPanelValues();if(values.some((value,index)=>value!==buildPanelState[index]))return false;
  const panel=$('#panel-content');
  for(const el of panel.querySelectorAll('[data-tool]')){const active=el.dataset.tool===tool;el.classList.toggle('active',active);el.setAttribute('aria-pressed',String(active));}
- panel.querySelector('[data-build-stop-mode]').hidden=tool!=='stop';
+ const stopMode=panel.querySelector('[data-build-stop-mode]');if(stopMode)stopMode.hidden=tool!=='stop';
  return true;
 }
 function renderPanel({resetScroll=false}={}) {
@@ -1187,7 +1206,6 @@ function renderPanel({resetScroll=false}={}) {
  const entityList=panel.querySelector('#entity-list');if(entityList)entityList.cardMarkup=entityCardMarkup;
  drawPaletteSprites();references?.relink();
  panel.querySelectorAll('[data-stop-mode]').forEach(el=>el.addEventListener('click',()=>{preferredMode=el.dataset.stopMode;renderPanel();canvas.focus({preventScroll:true});}));
- panel.querySelector('.engineering-tools')?.addEventListener('toggle',e=>{engineeringOpen=e.currentTarget.open;});
  panel.querySelectorAll('[data-crossing-mode]').forEach(el=>el.addEventListener('click',()=>{
   preferredMode=el.dataset.crossingMode;
   if(spanTools.has(tool))setTool((preferredMode==='rail'?'rail':'')+(tool.includes('bridge')?'bridge':'tunnel'));
@@ -1196,7 +1214,6 @@ function renderPanel({resetScroll=false}={}) {
  if($('#building-group'))$('#building-group').addEventListener('change',e=>{buildingGroup=e.target.value;renderPanel();});
  panel.querySelectorAll('[data-construction-next]').forEach(button=>button.onclick=()=>{if(button.dataset.constructionNext==='route'){const station=constructionNext?.station;constructionNext=null;planRoute({mode:station?.mode||preferredMode,from:station?.id?String(station.id):'',to:'',cargo:'passengers'});}else{const mode=constructionNext?.kind==='network'?constructionNext.mode:constructionNext?.station?.mode||preferredMode;setTool(({road:'bus-stop',rail:'train-stop',water:'port',air:'airport'})[mode]||'stop');}});
  panel.querySelectorAll('[data-tool]').forEach(el=>el.addEventListener('click',()=>setTool(el.dataset.tool)));
- panel.querySelectorAll('[data-category]').forEach(el=>el.addEventListener('click',()=>{category=el.dataset.category;renderPanel();$('#panel-content').scrollTop=0;}));
  panel.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',()=>{const a=el.dataset.action;if(a==='help')openHelp();if(a==='chains')openChains();if(a==='development'||a==='industry-build'){category=a==='development'?'towns':'industry';setView('build');}}));
  bindEntityCards(panel);
  if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;anchorEntities();refreshEntities();};
@@ -1519,7 +1536,7 @@ function contextView() {
  return {...selectionContext,covers:[$('#inspector'),$('#objective-card'),$('.sidebar.drawer-open')].filter(el=>el&&!el.hidden).map(el=>{const r=el.getBoundingClientRect();return {x:r.left-map.left,y:r.top-map.top,w:r.width,h:r.height};})};
 }
 $('.sidebar').addEventListener('transitionend',e=>{if(e.target===e.currentTarget&&selectionContext)invalidateScene();});
-// Your property is outlined on the map only while you build in towns (Build › Town open, or one of its tools in hand), or while
+// Your property is outlined on the map while Buildings is open or one of its tools is in hand, or while
 // the inspector shows a town, a building on your zone or a building you own.
 function propertyOutlines() {
  if(view==='build'&&category==='towns'&&(tool!=='inspect'||$('.sidebar').classList.contains('drawer-open')))return true;
@@ -1987,7 +2004,7 @@ function queueNewYear(pricing) {
 // January 1952 during play brings air travel once: a headline, or a toast when headline cards are off. A load never announces it.
 function announceAirDebut() {
  const entry=airDebutHeadline(game);if(game.headlines?.some(item=>item.key===entry.key))return;
- if(!announceHeadline(entry))noticeQueue.push({message:'Air travel arrives. Airports open in Build, Network.',type:'milestone',action:{label:'Build an airport',run:openAirportTool}});
+ if(!announceHeadline(entry))noticeQueue.push({message:'Air travel arrives. Airports are available in Network.',type:'milestone',action:{label:'Build an airport',run:openAirportTool}});
 }
 // The year just closed: its operating profit, the change on the year before and its best route.
 function yearReview(year) {
@@ -2427,7 +2444,8 @@ canvas.addEventListener('wheel',()=>{if(follow)stopFollow();},{passive:true});
 $('#minimap').addEventListener('click',e=>{const box=e.currentTarget.getBoundingClientRect();renderer.focus((e.clientX-box.left)/box.width*game.width,(e.clientY-box.top)/box.height*game.height);});
 $('#minimap').addEventListener('keydown',e=>{if(e.key==='Enter'){renderer.focus(game.cities[0].x,game.cities[0].y);}});
 $$('.nav-button[data-view]').forEach(el=>el.addEventListener('click',()=>compactUI?compactUI.toggleManagement(el.dataset.view):setView(el.dataset.view)));
-$$('[data-toolbar-tool]').forEach(button=>button.addEventListener('click',()=>{category='network';setView('build');setTool(button.dataset.toolbarTool);}));
+$$('[data-build-area]').forEach(button=>button.addEventListener('click',()=>openBuildArea(button.dataset.buildArea)));
+$$('[data-toolbar-tool]').forEach(button=>button.addEventListener('click',()=>{category=buildAreaForTool(button.dataset.toolbarTool);setView('build');setTool(button.dataset.toolbarTool);}));
 $$('[data-open-gallery]').forEach(button=>button.addEventListener('click',()=>openGallery()));
 $$('[data-open-chains]').forEach(el=>el.addEventListener('click',()=>openChains()));
 $$('[data-speed]').forEach(el=>el.addEventListener('click',()=>changeSpeed(Number(el.dataset.speed))));
@@ -2541,10 +2559,12 @@ canvas.addEventListener('wheel',()=>{if(keyCursor&&hover===keyCursor)showKeyCurs
 let spaceStarted=0;
 const SPEEDS=[0,1,3,8];
 function stepSpeed(direction) { const at=Math.max(0,SPEEDS.indexOf(speed)),next=SPEEDS[Math.max(0,Math.min(SPEEDS.length-1,at+direction))];if(next!==speed)changeSpeed(next); }
-// Shift+B, R, T and I press their drawer tab, so closing the drawer also clears a Routes or Industries lens;
-// Shift+N, C and G open News, Company and Goals. Letters are the printed ones, as for the tool keys.
-const SHIFT_KEYS={b:'build',r:'routes',t:'towns',i:'industry'};
-function shiftShortcut(key) {
+// Shift+1–4 opens a construction area; Shift+B returns to the last one.
+// Other shifted letters open the named management view or dialog.
+const SHIFT_KEYS={r:'routes',t:'towns',i:'industry'};
+function shiftShortcut(key,code) {
+ const area={Digit1:'network',Digit2:'towns',Digit3:'industry',Digit4:'terrain'}[code];
+ if(area||key==='b'){openBuildArea(area||category);return true;}
  const panel=SHIFT_KEYS[key];
  if(panel){const tab=$(`.nav-button[data-view="${panel}"]`);if(tab)tab.click();else setView(panel);return true;}
  const open={n:openNews,c:openCompany,g:openGoals}[key];if(open){open();return true;}
@@ -2562,7 +2582,7 @@ const SHORTCUT_GROUPS=[
  ['Time',[['Space','Pause or resume'],['.','Faster'],[',','Slower, then pause']]],
  ['Map',[['Arrows','Move the map'],['+ −','Zoom in or out'],['H','Back to home town'],['F','Show the selection, or follow a vehicle'],['M','Overview map'],['L','Map layers'],['G','Grid'],['Enter','Tile cursor for the keyboard']]],
  ['Build',[['R','Road'],['T','Rail'],['S','Stop'],['P','Port'],['A','Airport, again to turn it'],['B','Bridge'],['N','Tunnel'],['[ ] E','Lower, raise, level land'],['X','Bulldozer'],['1 2 3','Residential, commercial, industrial zones'],['Shift','Hold while dragging for a straight line or a rectangle'],['Ctrl+Z','Undo the last build'],['Esc','Cancel the drag, then finish the tool']]],
- ['Panels',[['Shift+B','Build'],['Shift+R','Routes'],['Shift+T','Towns'],['Shift+I','Industries'],['C','Production chains'],['Shift+N','News'],['Shift+C','Company'],['Shift+G','Company goals'],['Ctrl+S','Saved games'],['?','This sheet'],['Esc','Close what is open, one step at a time']]],
+ ['Panels',[['Shift+1','Build network'],['Shift+2','Build towns and buildings'],['Shift+3','Build industry'],['Shift+4','Terrain and crossings'],['Shift+B','Last construction area'],['Shift+R','Routes'],['Shift+T','Towns'],['Shift+I','Industries'],['C','Production chains'],['Shift+N','News'],['Shift+C','Company'],['Shift+G','Company goals'],['Ctrl+S','Saved games'],['?','This sheet'],['Esc','Close what is open, one step at a time']]],
 ];
 function openShortcuts() {
  closeManagement();
@@ -2604,7 +2624,7 @@ document.addEventListener('keydown',e=>{
  }
  if(e.repeat)return;const key=e.key.toLowerCase();
  // Shift with a letter opens the panel or dialog it names, while the letter alone picks a tool (see the shortcuts sheet).
- if(e.shiftKey&&!pointer&&shiftShortcut(key)){e.preventDefault();return;}
+ if(e.shiftKey&&!pointer&&shiftShortcut(key,e.code)){e.preventDefault();return;}
  // Comma and full stop step the speed down and up, pause included; F shows the selection, or follows the selected vehicle.
  // All three are the printed characters: on AZERTY a full stop is Shift+; and on Czech QWERTZ ? sits on the comma key.
  if(key===','||key==='.'){e.preventDefault();stepSpeed(key==='.'?1:-1);return;}
@@ -2615,7 +2635,7 @@ document.addEventListener('keydown',e=>{
  const rail=preferredMode==='rail',keys={r:'road',t:'rail',s:'stop',p:'port',a:'airport',b:rail?'railbridge':'bridge',x:'bulldoze','1':'residential','2':'commercial','3':'industrial'},codes={KeyE:'level',BracketLeft:'lower',BracketRight:key==='+'?null:'raise',KeyN:rail?'railtunnel':'tunnel',Digit1:'residential',Digit2:'commercial',Digit3:'industrial'},next=keys[key]||codes[e.code];
  // A again turns the runway; before 1952 it only says when air travel arrives.
  if(next==='airport'&&(tool==='airport'||!airAvailable(game))){if(tool==='airport')turnRunway();else setTool(next);return;}
- if(next){category=['residential','commercial','industrial'].includes(next)?'towns':'network';view='build';setView('build');setTool(next);return;}
+ if(next){category=buildAreaForTool(next);view='build';setView('build');setTool(next);return;}
  if(key==='l'){e.preventDefault();closeMapMenus();cancelGesture();layersView?.toggle();}
  if(key==='m')openAtlas();if(key==='c'&&!e.ctrlKey&&!e.metaKey)openChains();if(key==='g')$('#grid-button').click();if(key==='h')$('#home-view').click();if(key==='?')openShortcuts();
  if(key==='='||key==='+')$('#zoom-in').click();if(key==='-')$('#zoom-out').click();
@@ -2631,10 +2651,10 @@ document.addEventListener('visibilitychange',()=>{lastFrame=performance.now();si
 window.addEventListener('pageshow',()=>{lastFrame=performance.now();simulation.setActive(!document.hidden&&!isLoading()&&!$('#start-menu')?.open,lastFrame,{blocked:capturingSave,reserved:preview});wakeFrame();});
 
 layersView=mountVisibility($('#layers-panel'),$('#layers-button'),{getLayers:()=>({...mapLayers}),onChange:(key,visible)=>setMapLayers({[key]:visible}),onPreset:name=>setMapLayers(layerPreset(name)),onOpen:()=>{cancelGesture();compactUI?.hideMinimap();closeManagement();closeInspector();closeMapMenus();}});
-compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onAchievements:openAchievements,onShortcuts:openShortcuts,shortcuts:{news:'Shift+N',company:'Shift+C',goals:'Shift+G'},onView:setView,getView:()=>view,onCancelGesture:()=>{cancelGesture();closeManagement();closeInspector();},onMinimapOpen:()=>{closeManagement();closeInspector();closeMapMenus();layersView?.close();renderer.drawMinimap($('#minimap'));invalidateScene();}});
+compactUI=mountCompactPlay({onMenu:openGameMenu,onNews:openNews,onCompany:openCompany,onGoals:openGoals,onAchievements:openAchievements,onShortcuts:openShortcuts,shortcuts:{news:'Shift+N',company:'Shift+C',goals:'Shift+G'},onView:setView,getView:()=>view,getBuildArea:()=>category,onCancelGesture:()=>{cancelGesture();closeManagement();closeInspector();},onMinimapOpen:()=>{closeManagement();closeInspector();closeMapMenus();layersView?.close();renderer.drawMinimap($('#minimap'));invalidateScene();}});
 initReferences();
 // Closing the drawer yourself ends a lens set by Routes or Industries; locating a site or picking a stop closes it and keeps the lens.
-for(const el of [$('#close-management'),...$$('.nav-button[data-view]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('drawer-open'))dropCargoLens('routes','industry');});
+for(const el of [$('#close-management'),...$$('.nav-button[data-view],.nav-button[data-build-area]')])el?.addEventListener('click',()=>{if(!$('.sidebar').classList.contains('drawer-open'))dropCargoLens('routes','industry');});
 // Pointing at or focusing a route card lights its route on the map; a timed Show highlight outlives the pointer leaving.
 let highlight={id:null,until:0};for(const type of ['pointerover','focusin','pointerout','focusout'])$('#panel-content').addEventListener(type,e=>{const card=e.target.closest?.('[data-route-id]');if(!card||card.contains(e.relatedTarget))return;const id=game.routes.find(route=>String(route.id)===card.dataset.routeId)?.id;if(type==='pointerover'||type==='focusin'){if(highlight.id!==id||highlight.until<=performance.now())highlight={id,until:Infinity,card};}else if(highlight.id===id&&highlight.until===Infinity)highlight={id:null,until:0};});
 $('#offline-routes').addEventListener('click',()=>{routeFilters={query:'',mode:'all',status:'attention',cargo:'all'};routePage=0;setView('routes');revealInPanel($('#route-list .route-card'),null);});

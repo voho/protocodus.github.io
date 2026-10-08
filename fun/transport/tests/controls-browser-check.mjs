@@ -207,7 +207,7 @@ async function strokeInput() {
   await page.keyboard.press('Escape'); await page.locator('#modal').waitFor({ state: 'hidden' });
   await page.evaluate(() => transport.setSpeed(0));
   await keyTool(page, 'KeyE', /Level land/);
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="terrain"]').click();
   await page.waitForFunction(() => document.querySelector('.sidebar').getBoundingClientRect().left >= 0);
   await page.locator('.engineering-tools').scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${output}/desktop-engineering-keys.png` });
@@ -633,8 +633,8 @@ try {
   await longStrokes();
   await areaZoning();
   const page = await start({ width: 1440, height: 1000 });
-  await page.locator('.main-nav [data-view="build"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
-  assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'airport', 'bulldoze'], 'six primary network tools stay visible; engineering choices are expandable');
+  await page.locator('.main-nav [data-build-area="network"]').click(); await page.locator('.sidebar').waitFor({ state: 'visible' });
+  assert.deepEqual(await page.locator('#panel-content > .tool-grid [data-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.tool)), ['road', 'rail', 'stop', 'port', 'airport'], 'Transport contains five network tools; terrain has its own area');
   assert.equal(await page.locator('#panel-content [data-tool="inspect"]').count(), 0, 'no Explore box: Done and Esc end a tool (DESIGN.md 11.2)');
   await menus(page);
   const site = await fixture(page);
@@ -709,7 +709,7 @@ try {
   await keyTool(page, 'x', /Bulldozer/); await clickTile(page, { x: site.road.x + 8, y: site.road.y });
   assert.equal(await page.evaluate(p => transport.game.tiles[p.y * transport.game.width + p.x].road, { x: site.road.x + 8, y: site.road.y }), false);
   await home(page);
-  await page.locator('.main-nav [data-view="build"]').click(); await page.locator('[data-tool="road"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click(); await page.locator('[data-tool="road"]').click();
   await layout(page, ['#active-tool-bar', '#cancel-tool-button', '.view-controls', '#game-menu-button']);
   await page.screenshot({ path: `${output}/desktop-simple-controls.png` });
   await page.locator('#cancel-tool-button').click(); await page.locator('#zoom-level').click();

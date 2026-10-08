@@ -131,7 +131,7 @@ try {
   await routes(page);
   await page.locator('[data-cargo-choice="iron"]').click();
   await showing(page, 'iron');
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click();
   await cleared(page, 'leaving Routes clears the lens');
   await routes(page, 'coal');
   await page.locator('[data-cargo-choice="coal"]').click();
@@ -184,7 +184,7 @@ try {
   await page.locator('[data-chain-locate]').first().click();
   await page.locator('#modal').waitFor({ state: 'hidden' });
   await showing(page, 'iron');
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click();
   assert.equal((await lens(page))?.cargo, 'iron', 'a Chains lens stays across views');
   await page.locator('#world').focus();
   await page.keyboard.press('c');

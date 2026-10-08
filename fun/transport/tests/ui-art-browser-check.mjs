@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Generated art must remain visible through panel changes, filtering and DPR scaling.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -28,10 +29,10 @@ try {
     await page.goto(url);await createWorldFromMenu(page);
     await page.evaluate(()=>{transport.setSpeed(0);transport.setView('build');});
     await portraits(page,'#panel-content [data-infrastructure-sprite]',profile.density,4);
-    await page.locator('[data-category="towns"]').click();
+    await openBuildArea(page, 'towns');
     await portraits(page,'#panel-content [data-building-sprite]',profile.density,9);
     assert.equal(await page.locator('[data-building-sprite]').first().evaluate(el=>getComputedStyle(el).imageRendering),'auto');
-    await page.locator('[data-category="industry"]').click();
+    await openBuildArea(page, 'industry');
     await portraits(page,'#panel-content [data-industry-sprite]',profile.density,3);
     await page.evaluate(()=>transport.setView('industry'));
     await portraits(page,'#entity-list [data-industry-sprite]',profile.density,3);
@@ -52,7 +53,7 @@ try {
     assert.notEqual(tankerImage,ferryImage,'Cargo selection updates ferry to tanker');
     // Air in 1952: the airport's portrait in Build and its inspector, the plane's in the route list and the route form.
     await page.evaluate(async()=>{const model=await import('./model.js'),g=transport.game;g.day=730.02;g.lastDailyDay=730;g.lastMonth=24;g.money=5e6;const a=model.build(g,'airport-x',192,200).station,b=model.build(g,'airport-y',230,270).station;window.artQA={route:model.addRoute(g,{mode:'air',stops:[a.id,b.id],cargo:'passengers'}).route.id,airport:a};g.revision++;transport.setView('build');});
-    await page.locator('[data-category="network"]').click();
+    await openBuildArea(page, 'network');
     await portraits(page,'#panel-content [data-infrastructure-sprite="airport"]',profile.density);
     await page.evaluate(()=>transport.inspect(artQA.airport.x+4,artQA.airport.y+1));
     await portraits(page,'#inspector [data-infrastructure-sprite="airport"]',profile.density);

@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Real construction gestures in isolated storage; the player's company is untouched.
 import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
@@ -46,10 +47,10 @@ async function screen(page,tiles,vertices=false){return page.evaluate(({tiles,ve
  return tiles.map(p=>{const screen=vertices?transport.renderer.gridPointToScreen(p.x,p.y):transport.renderer.worldToScreen(p.x,p.y);return{x:r.left+screen.x,y:r.top+screen.y};});
 },{tiles,vertices});}
 // Choosing a tool, or a crossing mode while a span tool is active, closes the drawer.
-async function drawer(page){if(!await page.locator('.sidebar').evaluate(el=>el.classList.contains('drawer-open')))await page.locator('.main-nav [data-view="build"]').click();}
+async function drawer(page) { await openBuildArea(page, 'terrain'); }
+
 async function choose(page,tool){
  await drawer(page);
- if(!await page.locator('.engineering-tools').evaluate(el=>el.open))await page.locator('.engineering-tools summary').click();
  const mode=tool.startsWith('rail')?'rail':'road';
  if(['bridge','tunnel','railbridge','railtunnel'].includes(tool)){await page.locator(`[data-crossing-mode="${mode}"]`).click();await drawer(page);}
  await page.locator(`[data-tool="${tool}"]`).click();
@@ -67,7 +68,7 @@ async function beginDrag(page,a,b,vertices=false){
 
 try{
  const page=await start({width:1280,height:920}),site=await fixture(page),tile=(dx,dy)=>({x:site.x+dx,y:site.y+dy});
- assert.equal(await page.locator('.engineering-tools').evaluate(el=>el.open),false,'secondary tools start collapsed');
+ assert.equal(await page.locator('.engineering-tools').count(),0,'terrain tools have their own toolbar area');
  await choose(page,'raise');assert.match(await page.locator('#active-tool-hint').innerText(),/\+1 level/);
  let [p]=await screen(page,[tile(16,32)],true);await page.mouse.move(p.x,p.y);
  assert.match(await page.locator('#placement-tip').innerText(),/Level 3 → 4/);

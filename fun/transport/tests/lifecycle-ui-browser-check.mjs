@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
@@ -58,8 +59,7 @@ try {
       return { house, factory, tree };
     });
 
-    await page.locator('.main-nav [data-view="build"]').click();
-    await page.locator('[data-category="towns"]').click();
+    await openBuildArea(page, 'towns');
     const houseCard = page.locator('.building-card[data-tool="house-cheap-1"]');
     assert.match(await houseCard.innerText(), /2 months to build/);
     await houseCard.click();
@@ -78,8 +78,7 @@ try {
     assert.equal(await page.locator('.building-project [role="progressbar"]').getAttribute('aria-valuenow'), paused);
     await page.screenshot({ path: `${output}/${profile.name}-excavation.png` });
 
-    await page.locator('.main-nav [data-view="build"]').click();
-    await page.locator('[data-category="industry"]').click();
+    await openBuildArea(page, 'industry');
     const factoryCard = page.locator('[data-tool="sawmill"]');
     assert.match(await factoryCard.innerText(), /10 months to build/);
     await factoryCard.click(); p = await point(page, sites.factory);

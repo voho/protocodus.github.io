@@ -1,7 +1,6 @@
-/* Build: the drawer's categories and tool cards, the active-tool bar and the placement tip. */
-.build-tabs{display:flex;border-bottom:1px solid var(--rule);gap:20px;margin-bottom:20px}
-.build-tabs button{border-bottom:2px solid transparent;margin-bottom:-1px;font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);padding:0 2px 12px;min-height:44px}
-.build-tabs button.active{color:var(--ink-2);border-color:var(--ink)}
+/* Each toolbar construction area opens its own tools beside the map. */
+.build-area-note{font-size:var(--fs-small);line-height:var(--lh-small);color:var(--ink-2);margin:0 0 16px}
+.build-section-title{font-size:var(--fs-body);line-height:var(--lh-body);font-weight:600;margin:20px 0 8px}
 .tool-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tool-card{position:relative;text-align:left;background:var(--paper);border:1px solid var(--rule);min-height:78px;padding:12px 12px 8px;border-radius:var(--r-3);transition:border .15s,background .15s}
 .tool-card:hover{border-color:var(--ink);background:var(--well)}
@@ -28,7 +27,6 @@
 .building-card canvas{width:100%;height:82px;object-fit:contain;display:block;image-rendering:pixelated}
 .building-card .building-tier{display:block;font-size:var(--fs-caption);line-height:var(--lh-caption);letter-spacing:0;color:var(--ink-2);margin:0 0 4px}
 .building-card strong{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:500;display:block;min-height:25px}
-.build-tabs{gap:0;justify-content:space-between;margin-bottom:16px}
 .tool-grid{gap:8px}
 .tool-card{min-height:92px;padding:12px}
 .tool-card svg{width:25px;height:25px;margin-bottom:12px}
@@ -76,13 +74,8 @@
 .stop-mode-picker button{display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-width:0;min-height:44px;border-radius:var(--r-2);padding:8px 8px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink-2)}
 .stop-mode-picker button svg{width:17px;height:17px;flex:0 0 17px}
 .stop-mode-picker button[aria-pressed=true]{background:var(--ink);color:var(--on-ink);box-shadow:none}
-.engineering-tools{border:1px solid var(--rule);border-radius:var(--r-3);margin-top:12px;padding:0 12px;background:var(--paper)}
-.engineering-tools>summary{cursor:pointer;min-height:46px;display:flex;align-items:center;gap:8px;font-size:var(--fs-body);line-height:var(--lh-body);color:var(--ink);list-style:none}
-.engineering-tools>summary::-webkit-details-marker{display:none}
-.engineering-tools>summary:after{content:'+';margin-left:auto;font-size:var(--fs-title);line-height:var(--lh-title)}
-.engineering-tools[open]>summary:after{content:'−'}
-.engineering-tools>summary svg{width:21px;height:21px;flex:0 0 21px}
-.engineering-tools[open]{padding-bottom:12px}
+.engineering-tools{margin:0}
+.engineering-tools [data-tool=level]{grid-column:1/-1}
 .engineering-tools .tool-card{min-height:85px;padding:12px}
 .engineering-tools .tool-card .tool-title{font-size:var(--fs-small);line-height:var(--lh-small)}
 .engineering-tools .tool-card .tool-cost{font-size:var(--fs-caption);line-height:var(--lh-caption)}

@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Workshops in a real browser: Build › Town shows the Workshop with its factory art beside a full-width Found a town; a
 // workshop placed near Alderbrook with real pointer events, its inspector with recipes, stock and Expand, the town's stop
 // buying lumber, the Town economy's Workshops block, and the route form offering lumber from a sawmill stop. Desktop.
@@ -33,7 +34,7 @@ try {
 
     // Build › Town: the Workshop card draws the factory, and Found a town takes the whole row.
     await page.evaluate(() => transport.setView('build'));
-    await page.locator('[data-category="towns"]').click();
+    await openBuildArea(page, 'towns');
     const card = page.locator('.tool-grid [data-tool="workshop"]');
     await card.waitFor();
     assert.equal(await card.locator('canvas[data-building-sprite="factory"]').count(), 1, 'the card draws the factory');

@@ -1,3 +1,4 @@
+import { openBuildArea } from './browser-build.mjs';
 // Serve the repository root first. Override TRANSPORT_URL / TRANSPORT_PLAYWRIGHT if needed.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -108,7 +109,7 @@ try {
     return null;
   });
   assert.ok(strip, 'seed has a buildable test strip');
-  await page.locator('.main-nav [data-view="build"]').click();
+  await page.locator('.main-nav [data-build-area="network"]').click();
   await page.locator('[data-tool="road"]').click();
   const points = await page.evaluate(({ x, y }) => {
     const rect = document.querySelector('#world').getBoundingClientRect();
@@ -127,8 +128,7 @@ try {
   assert.equal(await page.locator('#world').evaluate(el => el.classList.contains('build-mode')), false);
 
   // Inspect all 37 architectural choices, build a civic landmark, and navigate a huge map.
-  await page.locator('.main-nav [data-view="build"]').click();
-  await page.locator('[data-category="towns"]').click();
+  await openBuildArea(page, 'towns');
   const expectedGroups={homes:9,community:18,shops:11,services:5};
   for(const [group,count] of Object.entries(expectedGroups)){
     await page.locator('#building-group').selectOption(group);
@@ -162,8 +162,7 @@ try {
   const cache=await page.evaluate(()=>transport.renderer.getStats());
   assert.ok(cache.maxSurfaceWidth<=2048&&cache.maxSurfaceHeight<=2048,'huge maps never allocate a world-size texture');
   assert.ok(cache.cacheBytes<=cache.cacheLimit,'chunk memory remains bounded');
-  await page.locator('.main-nav [data-view="build"]').click();
-  await page.locator('[data-category="network"]').click();
+  await openBuildArea(page, 'network');
 
   await page.locator('.main-nav [data-view="routes"]').click();
   if (await page.locator('#new-route-button').isVisible()) await page.locator('#new-route-button').click();

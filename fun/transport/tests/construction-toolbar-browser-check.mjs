@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
+import { openBuildArea } from './browser-build.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -11,6 +12,7 @@ const output = process.env.TRANSPORT_OUTPUT || process.env.TRANSPORT_SCREENSHOTS
 await mkdir(output, { recursive:true });
 const errors = [], results = [];
 const tools = ['road', 'rail', 'stop', 'bulldoze'];
+const areas = ['network', 'towns', 'industry', 'terrain'];
 const shortcuts = { road:'R', rail:'T', stop:'S', bulldoze:'X' };
 const toolButton = (page, tool) => page.locator(`.topbar [data-toolbar-tool="${tool}"]`);
 const settle = page => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
@@ -29,17 +31,17 @@ async function pressed(page, expected) {
 }
 
 async function layout(page, width) {
-  const controls = await page.locator('.topbar [data-toolbar-tool], .topbar [data-open-gallery]').evaluateAll(buttons => buttons.map(button => {
+  const controls = await page.locator('.topbar [data-build-area], .topbar [data-toolbar-tool], .topbar [data-open-gallery]').evaluateAll(buttons => buttons.map(button => {
     const rect=button.getBoundingClientRect(),style=getComputedStyle(button),at=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
     const visible=node=>{if(!node)return false;const bounds=node.getBoundingClientRect(),style=getComputedStyle(node);return bounds.width>1&&bounds.height>1&&style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0;};
     const hits=[rect.left+3,rect.right-3].map(x=>{const target=document.elementFromPoint(x,rect.y+rect.height/2);return target===button||button.contains(target);});
-    return { tool:button.dataset.toolbarTool||'gallery',left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,height:rect.height,visible:style.visibility==='visible'&&style.display!=='none',hit:at===button||button.contains(at),edgeHits:hits,hitElement:at?.outerHTML.slice(0,500),icon:visible(button.querySelector('svg')),label:visible(button.querySelector('.nav-label')) };
+    return { tool:button.dataset.buildArea||button.dataset.toolbarTool||'gallery',area:Boolean(button.dataset.buildArea),left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom,width:rect.width,height:rect.height,visible:style.visibility==='visible'&&style.display!=='none',hit:at===button||button.contains(at),edgeHits:hits,hitElement:at?.outerHTML.slice(0,500),icon:visible(button.querySelector('svg')),label:visible(button.querySelector('.nav-label')) };
   }));
   if(controls.some(control=>!control.hit||control.edgeHits.includes(false))){
     await page.screenshot({path:`${output}/toolbar-obstructed-${width}.png`});
     await writeFile(`${output}/toolbar-obstructed-${width}.json`,JSON.stringify(controls,null,2));
   }
-  assert.equal(controls.length, 5, 'all four tools and Gallery are direct topbar controls');
+  assert.equal(controls.length, 9, 'four construction areas, four quick tools and Gallery are direct topbar controls');
   for (const control of controls) {
     assert.equal(control.visible, true, `${width}px ${control.tool} is visible`);
     assert.ok(control.left>=-.5&&control.right<=width+.5&&control.top>=-.5, `${width}px ${control.tool} stays in the viewport`);
@@ -47,15 +49,56 @@ async function layout(page, width) {
     assert.equal(control.hit, true, `${width}px ${control.tool} is not covered by another control`);
     assert.deepEqual(control.edgeHits,[true,true], `${width}px ${control.tool} is fully visible and clickable at both edges`);
     assert.ok(control.icon||control.label, `${width}px ${control.tool} has a visible icon or label`);
-    if(control.tool==='gallery')assert.equal(control.label,true, `${width}px Gallery keeps its visible name`);
+    if(control.tool==='gallery')assert.equal(control.label,width>600, `${width}px Gallery keeps its visible name or narrow-window icon`);
     else {
       assert.equal(control.icon,true, `${width}px ${control.tool} keeps its identifying icon`);
-      assert.equal(control.label,width>=1024, `${width}px ${control.tool} keeps a readable desktop and laptop name or the narrow-window icon fallback`);
+      assert.equal(control.label,width>=(control.area?1024:1440), `${width}px ${control.tool} keeps its readable name or compact icon fallback`);
     }
   }
   assert.equal(await page.locator('#game-menu [data-open-gallery]').count(), 0, 'Gallery stays on the main toolbar');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth+1), true, `${width}px header adds no horizontal page overflow`);
   return controls;
+}
+
+async function constructionAreas(page) {
+  const initial=await state(page),headings={network:'Build network',towns:'Build towns & buildings',industry:'Build industry',terrain:'Terrain & crossings'};
+  assert.equal(await page.locator('.main-nav [data-view="build"], #panel-content [data-category]').count(),0,'construction areas replace the single Build button and nested category tabs');
+  async function active(area) {
+    assert.deepEqual(await page.locator('.topbar [data-build-area]').evaluateAll(buttons=>buttons.filter(button=>button.getAttribute('aria-expanded')==='true').map(button=>button.dataset.buildArea)),area?[area]:[],'only the open area is expanded');
+    assert.deepEqual(await page.locator('.topbar [data-build-area].active').evaluateAll(buttons=>buttons.map(button=>button.dataset.buildArea)),area?[area]:[],'only the open area receives its active style');
+  }
+  for(const [index,area] of areas.entries()) {
+    const button=page.locator(`.topbar [data-build-area="${area}"]`);
+    assert.equal(await button.getAttribute('aria-keyshortcuts'),`Shift+${index+1}`);
+    await button.click();await active(area);
+    assert.equal(await page.locator('#panel-content > .panel-heading h2').first().innerText(),headings[area]);
+    assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false');
+    assert.equal(await page.locator('#active-tool-bar').isVisible(),false,'browsing an area leaves construction cancelled');
+    if(area==='terrain'){
+      assert.equal(await page.locator('.engineering-tools').evaluate(element=>element.tagName),'SECTION','terrain tools are visible without another disclosure');
+      for(const tool of ['raise','lower','level'])assert.equal(await page.locator(`[data-tool="${tool}"]`).isVisible(),true);
+    }
+  }
+  await page.locator('.topbar [data-build-area="terrain"]').click();await active(null);
+  assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'true','clicking the current area closes its drawer');
+  for(const [index,area] of areas.entries()) {
+    await page.locator('#world').focus();await page.keyboard.press(`Shift+${index+1}`);await active(area);
+    await page.locator('#close-management').click();await active(null);
+    assert.equal(await page.evaluate(()=>document.activeElement?.dataset.buildArea),area,'Close returns focus to this area');
+    await page.keyboard.press('Shift+B');await active(area);
+    await page.locator('#close-management').focus();await page.keyboard.press('Escape');await active(null);
+    assert.equal(await page.evaluate(()=>document.activeElement?.dataset.buildArea),area,'Escape returns focus to this area');
+  }
+  // Choosing a different area cancels placement; Done reopens the area belonging to the tool.
+  await toolButton(page,'road').click();await pressed(page,'road');
+  await openBuildArea(page,'towns');await active('towns');await pressed(page,null);
+  assert.equal(await page.locator('#active-tool-bar').isVisible(),false);
+  await page.locator('[data-tool="residential"]').click();
+  await page.locator('#cancel-tool-button').click();await active('towns');
+  await openBuildArea(page,'terrain');await page.locator('[data-tool="raise"]').click();
+  await page.locator('#cancel-tool-button').click();await active('terrain');
+  await page.locator('#close-management').click();await active(null);
+  assert.deepEqual(await state(page),initial,'browsing construction areas, shortcuts and tool cancellation never mutate the world');
 }
 
 async function financeLayouts(page, width) {
@@ -206,6 +249,7 @@ try {
     await page.goto(url);await createWorldFromMenu(page,{generationVersion:10});
     await page.evaluate(()=>document.querySelector('#dismiss-objective')?.click());
     await explore(page);
+    await constructionAreas(page);
     const controls=await layout(page,profile.width);
     const finance=await financeLayouts(page,profile.width);
     if(profile.width===1440){for(const width of [1366,1280,1241,1240,1181,1100,1024]){await page.setViewportSize({width,height:1000});await layout(page,width);if(width===1241)await financeLayouts(page,width);await page.screenshot({path:`${output}/toolbar-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
@@ -251,5 +295,5 @@ try {
   }
   assert.deepEqual(errors,[],'the toolbar, contextual stop actions and Gallery raise no browser errors');
   await writeFile(`${output}/results.json`,JSON.stringify({results,errors},null,2));
-  console.log(JSON.stringify({profiles:results.map(({width,density,placements})=>({width,density,placements:placements.length})),checks:'direct tools, keyboard state, Gallery focus, selected-network quotes, immediate placement, current-stop inspector, route handoff, crossings, Undo and save validity',errors},null,2));
+  console.log(JSON.stringify({profiles:results.map(({width,density,placements})=>({width,density,placements:placements.length})),checks:'construction areas, drawer switching and focus, area shortcuts, direct tools, keyboard state, Gallery focus, selected-network quotes, immediate placement, current-stop inspector, route handoff, crossings, Undo and save validity',errors},null,2));
 } finally { await browser.close(); }

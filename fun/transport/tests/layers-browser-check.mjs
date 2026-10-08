@@ -138,7 +138,7 @@ try {
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'picking reveals matching stops even when the ordinary station layer is hidden');
   assert.equal(await page.locator('[data-pick-route="to"]').getAttribute('aria-pressed'),'true','the selected departure proceeds to picking the arrival');
   await page.keyboard.press('Escape');await openLayers(page);await setLayer(page,'stations',true);await page.locator('[data-layers-close]').click();
-  await page.evaluate(()=>transport.renderer.setZoom(1));await page.locator('.main-nav [data-view="build"]').click();
+  await page.evaluate(()=>transport.renderer.setZoom(1));await page.locator('.main-nav [data-build-area="network"]').click();
 
   // A compact, controlled map places all fifteen visual categories in view at
   // every zoom. Comparison happens against actual raster output, not only flags.

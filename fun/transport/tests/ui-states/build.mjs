@@ -1,10 +1,10 @@
+import { openBuildArea } from '../browser-build.mjs';
 // Build states: the drawer's categories, a road stroke with its price tip and the bulldoze warning.
-import { freshWorld, openView, rest, settle, tilePoint } from './setup.mjs';
+import { freshWorld, rest, settle, tilePoint } from './setup.mjs';
 
 async function category(page, key) {
   await freshWorld(page);
-  await openView(page, 'build');
-  await page.locator(`#panel-content [data-category="${key}"]`).click();
+  await openBuildArea(page, key);
   await rest(page);
   await settle(page);
 }
@@ -12,8 +12,7 @@ async function category(page, key) {
 export const states = [
   { name: 'build-network', setup: page => category(page, 'network') },
   { name: 'build-terrain', async setup(page) {
-    await category(page, 'network');
-    if (!await page.locator('.engineering-tools').evaluate(el => el.open)) await page.locator('.engineering-tools > summary').click();
+    await category(page, 'terrain');
     await page.locator('.engineering-tools').evaluate(el => el.scrollIntoView({ block: 'start' }));
     await rest(page);
     await settle(page);
