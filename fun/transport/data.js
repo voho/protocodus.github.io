@@ -100,8 +100,8 @@ export const BUILD_COSTS = {
 export const VEHICLE_COSTS = { road: 18000, rail: 78000, water: 64000, air: 150000 };
 export const VEHICLE_CAPACITIES = { road: 24, rail: 90, water: 140, air: 40 };
 /** Daily upkeep before weather and inflation: per vehicle, per company track or road tile, per bridge or tunnel tile, per stop. */
-export const VEHICLE_UPKEEP = { road: 22, rail: 90, water: 70, air: 150 };
-export const INFRASTRUCTURE_UPKEEP = { road: .075, rail: .14, structure: .2, stop: { road: 1.2, rail: 4, water: 6, air: 18 } };
+export const VEHICLE_UPKEEP = { road: 55, rail: 225, water: 175, air: 375 };
+export const INFRASTRUCTURE_UPKEEP = { road: .15, rail: .35, structure: .5, stop: { road: 3, rail: 10, water: 15, air: 45 } };
 export const TOWN_CARGO = ['food', 'furniture', 'goods', 'fuel', 'stone', 'cement', 'machinery'];
 /** Cargo that travels between two different towns and loads at both ends. */
 export const TOWN_TRAFFIC = ['passengers', 'mail'];

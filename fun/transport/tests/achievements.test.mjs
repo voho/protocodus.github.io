@@ -6,7 +6,7 @@ import { encodeGame } from '../save-codec.js';
 import { captureWorld, materializeWorld } from '../world-transfer.js';
 import { CARGO } from '../data.js';
 import { priceFor, inflationInfo, calendarMonth } from '../economy-pricing.js';
-import { ACHIEVEMENTS, ACHIEVEMENT_FAMILIES, ACHIEVEMENT_GROUPS, ACHIEVEMENT_IDS, ACHIEVEMENT_TIERS, CARGO_ORDER, CARGO_BIT, CARGO_MASK, cargoMask, cargoCount, createAchievementState, noteDelivery, stepAchievements, drainAchievementUnlocks, achievementProgress, validAchievements, earnedCount } from '../achievements.js';
+import { ACHIEVEMENTS, ACHIEVEMENT_FAMILIES, ACHIEVEMENT_GROUPS, ACHIEVEMENT_IDS, ACHIEVEMENT_TIERS, CARGO_ORDER, CARGO_BIT, CARGO_MASK, cargoMask, cargoCount, createAchievementState, noteDelivery, stepAchievements, drainAchievementUnlocks, achievementProgress, validAchievements, earnedCount, achievementById, achievementPrize, ACHIEVEMENT_PRIZES } from '../achievements.js';
 import { renderAchievements } from '../achievements-view.js';
 import { achievementNotices } from '../ui-notices.js';
 import { emptyGame, line, equivalent } from './helpers.mjs';
@@ -260,12 +260,19 @@ test('validateGame rejects damaged records and accepts unknown ids', () => {
   assert.equal(validAchievements({ day: 0 }), true);
 });
 
-test('records never change the simulation', () => {
+test('records change nothing but the cash their prizes pay', () => {
   const a = createGame({ biome: 'taiga', size: 'regional', seed: 1847 }), b = structuredClone(a);delete b.achievements;
   a.totalDelivered = b.totalDelivered = 99990;a.money = b.money = 1e9;
   days(a, 400);days(b, 400);
-  assert.ok(Object.keys(a.achievements.unlocked).length >= 2, 'records were earned along the way');
-  for (const key of ['money', 'vehicles', 'industries', 'cities', 'notifications', 'nextId', 'routes', 'history']) assert.deepEqual(a[key], b[key], key);
+  const earned = Object.keys(a.achievements.unlocked);
+  assert.ok(earned.length >= 2, 'records were earned along the way');
+  const prizes = earned.reduce((sum, id) => sum + achievementPrize(a, achievementById(id), a.achievements.unlocked[id]), 0);
+  assert.ok(prizes > 0);
+  assert.equal(a.money - b.money, prizes, 'each medal paid its prize once, at the prices of its day');
+  assert.equal((a.totalRewards || 0) - (b.totalRewards || 0), prizes);
+  for (const key of ['vehicles', 'industries', 'cities', 'notifications', 'nextId', 'routes']) assert.deepEqual(a[key], b[key], key);
+  const operating = game => game.history.map(({ money, rewards, ...rest }) => rest);
+  assert.deepEqual(operating(a), operating(b), 'prizes are never fares: operating accounts match');
 });
 
 test('only the records, their dialog, the model hooks and the interface read game.achievements', () => {
@@ -340,5 +347,8 @@ test('notices: one record is named, two or more on one day become one line at th
   assert.deepEqual(achievementNotices(['delivered-100k', 'fleet-100']), [{ message: '2 achievements earned: 100,000 delivered and A hundred vehicles.', tier: 'silver' }]);
   assert.deepEqual(achievementNotices(['fleet-10', 'fleet-100', 'fleet-1000']), [{ message: '3 achievements earned: Ten vehicles, A hundred vehicles and A thousand vehicles.', tier: 'gold' }]);
   assert.deepEqual(achievementNotices(['fleet-10', 'fleet-100', 'years-10', 'years-25', 'delivered-100m']), [{ message: '5 achievements earned: Ten vehicles, A hundred vehicles, Ten years and 2 more.', tier: 'platinum' }]);
+  const prize = a => ACHIEVEMENT_PRIZES[a.tier];
+  assert.deepEqual(achievementNotices(['delivered-100k'], prize), [{ message: 'Bronze achievement: 100,000 delivered. +$25,000.', tier: 'bronze' }]);
+  assert.deepEqual(achievementNotices(['fleet-10', 'fleet-100'], prize), [{ message: '2 achievements earned: Ten vehicles and A hundred vehicles. +$125,000.', tier: 'silver' }]);
   assert.deepEqual(achievementNotices(['no-such-record']), []);
 });

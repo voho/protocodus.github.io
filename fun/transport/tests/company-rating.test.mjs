@@ -135,7 +135,8 @@ test('the century is stamped once, when December 2049 closes', () => {
   const game = starter(); game.day = 36524.5; game.lastMonth = calendarMonth(game); game.lastDailyDay = 36524;
   tick(game, .5);
   const { century } = game.performance;
-  assert.deepEqual(century, { day: 36525, score: game.performance.score, title: game.performance.reached.length - 1, value: companyValue(game).total });
+  // The review closes December first; the same day's medals (a century in business) pay their prizes after it.
+  assert.deepEqual(century, { day: 36525, score: game.performance.score, title: game.performance.reached.length - 1, value: companyValue(game).total - game.monthlyRewards });
   days(game, 100);
   assert.ok(game.performance.day > 36525); assert.deepEqual(game.performance.century, century);
   assert.equal(validateGame(game), true);

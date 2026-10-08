@@ -20,7 +20,7 @@ import { nextLineColor, nextRouteNumber, ensureRouteNumbers, defaultRouteName, v
 import { networkIndex, updateNetworkIndex, noteNetworkChanges, networkChangesSince } from './network-index.js';
 import { noteSurfaceChanges } from './change-journal.js';
 import { initializeIndustry, stepIndustries } from './industry-simulation.js';
-import { evaluateMilestones, validMilestones } from './milestones.js';
+import { evaluateMilestones, validMilestones, milestoneReward } from './milestones.js';
 import { stepContracts, contractBonus, validContracts } from './contracts.js';
 import { planIndustryOpening } from './industry-openings.js';
 import { availableVehicleLevel, priceFor, inflationInfo, calendarMonth, airAvailable, AIR_DEBUT_YEAR } from './economy-pricing.js';
@@ -36,7 +36,7 @@ import { terraformProblem, planTerraformLevel, planTerraformStroke, planStructur
 import { money, count, tiles, listJoin, capital, cargoName, modelYear, vehicleNoun, stopKind, token } from './copy.js';
 import { vehicleModel } from './vehicle-models.js';
 import { reviewPerformance, validPerformance } from './company-rating.js';
-import { createAchievementState, noteDelivery, stepAchievements, backfillAchievements, validAchievements } from './achievements.js';
+import { createAchievementState, noteDelivery, stepAchievements, backfillAchievements, validAchievements, achievementById, achievementPrize } from './achievements.js';
 import { STATION_RADIUS, LEGACY_STATION_RADIUS, AIRPORT_MIN_TILES, AIRPORT_REACH, AIR_TURNAROUND, AIR_DEPARTURE_DWELL, AIRPORT_TOOLS, stationSpan, stationReach, stationDistance, stationTiles, stationSiteAt, airPath } from './station-sites.js';
 export { priceFor, inflationInfo, airAvailable, AIR_DEBUT_YEAR } from './economy-pricing.js';
 export { distancePay, transitPay, scheduledDays, payTiles, travelTiles } from './economy-pricing.js';
@@ -118,7 +118,7 @@ export function createGame({biome='taiga',seed=1847,size=DEFAULT_WORLD_SIZE,gene
     monthlyIncome:0, monthlyExpenses:0, monthlyOperatingExpenses:0, monthlyIncomeAtAccountingStart:0, lastMonthlyProfit:0, lastMonthlyOperatingProfit:0, accountingStartDay:0,
     history:[], notifications:[], revision:0, networkRevision:0, nextId:100,
     totalExpenses:0, totalOperatingExpenses:0, lastDailyDay:0, lastMonth:0,
-    achievements:createAchievementState(0),
+    achievements:createAchievementState(0), milestones:{},
   };
   rememberGeneratedWorld(game);
   initializeBuildingConstruction(game,{empty:true});
@@ -1246,6 +1246,9 @@ function countNetwork(game){
 }
 /** Road and rail tiles the company owns, and its bridge and tunnel tiles; recounted only after a network change. */
 export function networkTotals(game){const totals=networkCounts.get(game);return totals&&totals.revision===(game.networkRevision||0)&&totals.tiles===game.tiles?totals:countNetwork(game);}
+/** Weather's share of a vehicle's running cost, and of the network's: daily upkeep and the route forecast use both. */
+export const vehicleWeatherCost = (mode, weather) => 1 + weather.cold * (mode === 'water' ? .23 : .14) + weather.heat * .08;
+export const networkWeatherCost = weather => 1 + weather.wetness * .16 + weather.cold * .18;
 function maintenance(game) {
   if(game.maintenanceRevision!==(game.networkRevision||0)) {
     let upkeep=0;
@@ -1261,7 +1264,7 @@ function maintenance(game) {
     const localWeather=weatherAt(game,at.x,at.y,day),key=Math.floor(at.y)*game.width+Math.floor(at.x);
     let e=environments.get(key);if(!e){e=localEnvironment(game,at.x,at.y,2);environments.set(key,e);}
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
-    const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active&&!waitingForFullLoad(v)?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*(1+localWeather.cold*(route?.mode==='water'?.23:.14)+localWeather.heat*.08)*support;
+    const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active&&!waitingForFullLoad(v)?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*vehicleWeatherCost(route?.mode,localWeather)*support;
     if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
     return sum+expense;
   },0);
@@ -1270,7 +1273,7 @@ function maintenance(game) {
     const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3,industrySize(i)),support=1-Math.min(.15,e.fire*.035+e.services*.015);
     return sum+INDUSTRIES[i.kind].cost*.00008*(.9+randomAt(game,day,i.id,522)*.2)*(1+localWeather.cold*.2+localWeather.heat*.12)*support;
   },0);
-  const infrastructureFactor=(1+weather.wetness*.16+weather.cold*.18)*(.94+randomAt(game,day,'infrastructure',523)*.12);
+  const infrastructureFactor=networkWeatherCost(weather)*(.94+randomAt(game,day,'infrastructure',523)*.12);
   const infrastructure=(game.infrastructureUpkeep||0)*infrastructureFactor,rawTotal=infrastructure+fleet+facilities;
   const expenses=priceFor(game,rawTotal),shares=infrastructureShares(game);
   for(const route of game.routes){
@@ -1348,8 +1351,8 @@ function monthlyUpdate(game) {
   if(interest){game.money-=interest;game.monthlyExpenses+=interest;game.totalExpenses+=interest;game.monthlyOperatingExpenses=(game.monthlyOperatingExpenses||0)+interest;game.totalOperatingExpenses=(game.totalOperatingExpenses||0)+interest;}
   game.lastMonthlyProfit=game.monthlyIncome-game.monthlyExpenses;
   game.lastMonthlyOperatingProfit=game.monthlyIncome-(game.monthlyIncomeAtAccountingStart||0)-(game.monthlyOperatingExpenses||0);
-  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered,...game.monthlyMarketBonus>0?{marketBonus:game.monthlyMarketBonus}:{},...game.monthlyProperty>0?{property:game.monthlyProperty}:{}});
-  delete game.monthlyMarketBonus;delete game.monthlyProperty;
+  game.history.push({month:game.lastMonth,day:Math.floor(game.day),income:game.monthlyIncome,expenses:game.monthlyExpenses,operatingExpenses:game.monthlyOperatingExpenses||0,operatingProfit:game.lastMonthlyOperatingProfit,profit:game.lastMonthlyProfit,money:game.money,population:game.cities.reduce((sum,c)=>sum+c.population,0),delivered:game.totalDelivered,...game.monthlyMarketBonus>0?{marketBonus:game.monthlyMarketBonus}:{},...game.monthlyProperty>0?{property:game.monthlyProperty}:{},...game.monthlyRewards>0?{rewards:game.monthlyRewards}:{}});
+  delete game.monthlyMarketBonus;delete game.monthlyProperty;delete game.monthlyRewards;
   if(game.history.length>36)game.history.shift();
   // Each town keeps its last four counts, so the inspector can show recent growth.
   for(const city of game.cities){(city.popHistory??=[]).push(Math.floor(city.population));if(city.popHistory.length>4)city.popHistory.shift();}
@@ -1362,6 +1365,8 @@ function monthlyUpdate(game) {
   stepContracts(game,site=>stationCoverage(game,site));
   if(game.money<0)notify(game,'Your balance is below zero. Take a loan in Company, or retire a route that earns less than its upkeep.','warning',{topic:'credit'});
 }
+// A goal's reward or a medal's prize: cash for engaging, never a fare, so operating profit and the profit goals ignore it.
+function payReward(game,amount){game.money+=amount;game.monthlyRewards=(game.monthlyRewards||0)+amount;game.totalRewards=(game.totalRewards||0)+amount;}
 // Reserved tiles belong to the stroke the player is drawing; towns never lay a street there.
 export function tick(game,days,{reserved=[],motion=null}={}) {
   if(!Number.isFinite(days)||days<=0)return;
@@ -1372,10 +1377,11 @@ export function tick(game,days,{reserved=[],motion=null}={}) {
     const step=Math.min(remaining,nextDay-game.day);
     moveVehicles(game,step,motion);game.day+=step;remaining-=step;
     if(game.day+.00000001>=nextDay) {
-      game.day=nextDay;stepBuildingConstruction(game,notify);stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);evaluateMilestones(game);game.lastDailyDay=nextDay;
+      game.day=nextDay;stepBuildingConstruction(game,notify);stepIndustries(game,notify);stepWorkshops(game);const served=stepSettlements(game,{extendStreets:points=>placePublicRoads(game,points),reserved});stepEcology(game);maintenance(game);serveFullLoads(game);
+      for(const milestone of evaluateMilestones(game))payReward(game,milestoneReward(game,milestone));game.lastDailyDay=nextDay;
       const month=calendarMonth(game),closedMonth=month>game.lastMonth?game.lastMonth:null;
       if(closedMonth!==null){monthlyUpdate(game);game.lastMonth=month;openIndustry(game,month);}
-      stepAchievements(game,{closedMonth,served,networkTotals});
+      for(const id of stepAchievements(game,{closedMonth,served,networkTotals}))payReward(game,achievementPrize(game,achievementById(id)));
     }
     // Presentation records observe the committed fleet after full-load releases
     // and daily changes. They never participate in movement or accounting.
@@ -1488,7 +1494,7 @@ export function validateGame(game) {
   }
   if(!game.history.every(h=>h&&['month','day','income','expenses','profit','money','population','delivered'].every(k=>finite(h[k]))))return false;
   if(!game.history.every(h=>(h.operatingExpenses===undefined||finite(h.operatingExpenses,0,1e15))&&(h.operatingProfit===undefined||finite(h.operatingProfit))))return false;
-  if(!game.history.every(h=>h.property===undefined||finite(h.property,0))||!['monthlyProperty','totalProperty'].every(key=>game[key]===undefined||finite(game[key],0,1e15))||Array.isArray(game.annual)&&game.annual.some(a=>a?.property!==undefined&&!finite(a.property,0)))return false;
+  if(!game.history.every(h=>(h.property===undefined||finite(h.property,0))&&(h.rewards===undefined||finite(h.rewards,0)))||!['monthlyProperty','totalProperty','monthlyRewards','totalRewards'].every(key=>game[key]===undefined||finite(game[key],0,1e15))||Array.isArray(game.annual)&&game.annual.some(a=>a?.property!==undefined&&!finite(a.property,0)))return false;
   if(game.annual!==undefined&&!(Array.isArray(game.annual)&&game.annual.length<=200&&game.annual.every(a=>a&&['year','revenue','operatingProfit','delivered','population','routes'].every(k=>finite(a[k]))&&(a.bestRouteId===null||typeof a.bestRouteId==='string'&&a.bestRouteId.length<=64))))return false;
   if(game.startingFunds!==undefined&&!STARTING_FUNDS.includes(game.startingFunds))return false;
   if(game.loan!==undefined&&!finite(game.loan,0,1e12))return false;

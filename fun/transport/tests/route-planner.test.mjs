@@ -347,9 +347,11 @@ for (const mode of ['road', 'rail']) for (const tiles of [10, 40]) {
     assert.equal(forecast.movedDay, Math.min(forecast.perVehicleDay, forecast.supplyDay));
     const route = addRoute(game, { ...draft, stops: [draft.from, draft.to] }).route;
     simulate(game, 180);
-    const month = (route.revenue - route.expenses) / 6;
-    assert.ok(Math.abs(month / forecast.netMonth - 1) <= .3, `forecast ${Math.round(forecast.netMonth)} vs simulated ${Math.round(month)} a month`);
-    assert.ok(Math.abs(forecast.paybackMonths - forecast.cost / forecast.netMonth) < 1e-9);
+    // A cheap cargo's net can sit near zero, where any small difference is a large share; hold fares and upkeep to it instead.
+    const fares = route.revenue / 6, upkeep = route.expenses / 6;
+    assert.ok(Math.abs(fares / forecast.revenueMonth - 1) <= .2, `forecast fares ${Math.round(forecast.revenueMonth)} vs simulated ${Math.round(fares)} a month`);
+    assert.ok(Math.abs(upkeep / forecast.upkeepMonth - 1) <= .05, `forecast upkeep ${Math.round(forecast.upkeepMonth)} vs simulated ${Math.round(upkeep)} a month`);
+    assert.equal(forecast.paybackMonths, forecast.netMonth > 0 ? forecast.cost / forecast.netMonth : Infinity);
     let fleet = 1;
     while (fleet < 12 && !fleetClearsQuarry(mode, tiles, fleet)) fleet++;
     assert.ok(Math.abs(forecast.vehiclesToSaturate - fleet) <= 1, `forecast ${forecast.vehiclesToSaturate} vehicles, simulated ${fleet}`);

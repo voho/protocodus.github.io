@@ -1,7 +1,7 @@
 import { isUnderConstruction } from './building-construction.js';
 import { findPath, stationCoverage, getVehiclePurchase, passengerEndpoints, getRouteFleet, fareFor, priceFor, industryConditions, stationServes, stationReach, airAvailable, AIRPORT_MIN_TILES, AIRPORT_REACH, MAX_VEHICLES, validVehicleCount } from './model.js';
 import { freightFits, workshopLoop } from './model.js';
-import { FULL_LOAD_MAX_WAIT } from './model.js';
+import { FULL_LOAD_MAX_WAIT, vehicleWeatherCost, networkWeatherCost } from './model.js';
 import { workshopLevels, workshopOutputs, workshopInputs } from './town-market.js';
 import { WORKSHOP } from './data.js';
 import { CARGO, INDUSTRIES, TOWN_CARGO, VEHICLE_UPKEEP, INFRASTRUCTURE_UPKEEP } from './data.js';
@@ -15,7 +15,7 @@ import { VEHICLE_SPEEDS } from './data.js';
 import { familyOf, marketView, MARKET } from './town-market.js';
 import { isTownTraffic } from './data.js';
 import { mailRate } from './settlements.js';
-import { localEnvironment } from './environment.js';
+import { localEnvironment, seasonalWeather } from './environment.js';
 
 const pathCache = new WeakMap();
 const cargoNames = keys => keys.length ? listJoin([...keys.slice(0, 3).map(key => cargoName(key)), ...keys.length > 3 ? ['more'] : []]) : 'no cargo';
@@ -201,8 +201,11 @@ function computeForecast(game, draft, plan) {
   const full = draft.fullLoad === true && !isTownTraffic(cargo) && constructionUntil === null, moving = full ? Math.min(1, supplyDay / capacityDay) : 1, wait = moving < 1 ? Math.min(FULL_LOAD_MAX_WAIT, purchase.capacity * vehicleCount / Math.max(.01, supplyDay)) / 2 : 0;
   // One trip's days on the way set the share of the fare a delivery keeps.
   const days = Math.round(scheduledDays(mode, tiles, purchase.level) + wait), share = transitPay(cargo, days), perUnit = fareFor(game, cargo, paid + 1, 1, game.day, days);
-  // An added vehicle joins its route's share of the network; a new route takes its own.
-  const upkeep = vehicleCount * VEHICLE_UPKEEP[mode] * (moving + .45 * (1 - moving)) + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to], editing?.id));
+  // An added vehicle joins its route's share of the network; a new route takes its own. Both cost what the coming
+  // season's weather adds in maintenance: vehicles where they travel, the network at the first town.
+  const middle = plan.path[Math.floor(plan.path.length / 2)], home = game.cities[0] || { x: game.width / 2, y: game.height / 2 };
+  const upkeep = vehicleCount * VEHICLE_UPKEEP[mode] * (moving + .45 * (1 - moving)) * vehicleWeatherCost(mode, seasonalWeather(game, middle.x, middle.y))
+    + (joining ? 0 : infrastructureShare(game, mode, plan.path, [from, to], editing?.id) * networkWeatherCost(seasonalWeather(game, home.x, home.y)));
   const upkeepMonth = priceFor(game, upkeep * 30);
   // The receiving town's shops pay a quarter more for what they still wanted last month.
   const receiver = TOWN_CARGO.includes(cargo) ? stationCoverage(game, to).cities[0] : null, family = receiver && familyOf(game, cargo), market = family && marketView(game, receiver);

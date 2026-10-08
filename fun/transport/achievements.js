@@ -2,12 +2,16 @@ import { CARGO, INDUSTRIES } from './data.js';
 import { priceFor, inflationInfo, calendarYear } from './economy-pricing.js';
 import { activeCities } from './settlements.js';
 
-// Achievements are long-horizon records in bronze, silver, gold and platinum. They are recognition only: they pay
-// nothing, unlock nothing and no simulation or UI module other than this one, achievements-view.js and app.js's
-// dialog, notices and company count reads game.achievements. tick() evaluates them at day boundaries only, with
-// no notify(), randomAt or ids; a stamp, once made, is never taken back. DOM-free, and never imports model.js.
+// Achievements are long-horizon records in bronze, silver, gold and platinum. Each medal pays a one-off prize by its
+// tier (ACHIEVEMENT_PRIZES, in 1950 dollars at the prices of the day it is earned) and unlocks nothing. Apart from
+// tick()'s payout of the ids stepAchievements returns, only this module, achievements-view.js and app.js's dialog,
+// notices and company count read game.achievements. tick() evaluates them at day boundaries only, with no notify(),
+// randomAt or ids; a stamp, once made, is never taken back. DOM-free, and never imports model.js.
 export const ACHIEVEMENT_TIERS = Object.freeze(['bronze', 'silver', 'gold', 'platinum']);
 export const TIER_NAMES = Object.freeze({ bronze: 'Bronze', silver: 'Silver', gold: 'Gold', platinum: 'Platinum' });
+/** Each tier's prize in 1950 dollars. An older save's quiet credit (backfillAchievements) pays none. */
+export const ACHIEVEMENT_PRIZES = Object.freeze({ bronze: 25000, silver: 100000, gold: 400000, platinum: 1500000 });
+export const achievementPrize = (game, achievement, day = game.day) => priceFor(game, ACHIEVEMENT_PRIZES[achievement.tier], day);
 // Bit order is saved: append only.
 export const CARGO_ORDER = Object.freeze(['passengers', 'timber', 'lumber', 'coal', 'iron', 'steel', 'grain', 'food', 'furniture', 'machinery', 'fish', 'oil', 'fuel', 'stone', 'sand', 'glass', 'copper', 'wire', 'cement', 'goods', 'mail', 'milk', 'produce', 'livestock']);
 export const CARGO_BIT = Object.freeze(Object.fromEntries(CARGO_ORDER.map((key, i) => [key, 1 << i])));

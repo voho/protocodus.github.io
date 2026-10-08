@@ -1,4 +1,4 @@
-import { ACHIEVEMENT_GROUPS, ACHIEVEMENT_FAMILIES, ACHIEVEMENTS, TIER_NAMES, CARGO_ORDER, CARGO_BIT, cargoMask, cargoCount, achievementProgress, achievementMeasures, earnedCount } from './achievements.js';
+import { ACHIEVEMENT_GROUPS, ACHIEVEMENT_FAMILIES, ACHIEVEMENTS, TIER_NAMES, CARGO_ORDER, CARGO_BIT, cargoMask, cargoCount, achievementProgress, achievementMeasures, earnedCount, achievementPrize } from './achievements.js';
 import { calendarYear, inflationInfo } from './economy-pricing.js';
 import { icon } from './ui-icons.js';
 import { cargoIcon } from './cargo-icons.js';
@@ -72,7 +72,8 @@ function row(game, family, measures) {
   const medals = family.rungs.map(r => owns(unlocked, r.id) ? medalIcon(r.tier, { label: `${tierName(r.tier)}: ${r.title}, earned ${dateLong(unlocked[r.id])}` }) : medalIcon(r.tier, { locked: true, label: `${tierName(r.tier)}: ${r.title}` })).join('');
   const line = progress.complete ? null : measure(game, family, progress, measures);
   if (line?.pct >= 100) line.text += `, earned ${CLOSES[family.cadence]}`;
-  const bar = line ? `<div class="achievement-progress"><span class="achievement-meter" aria-hidden="true"><span style="width:${line.pct}%"></span></span><span class="achievement-value" data-num>${escape(line.text)}</span>${line.missing?.length ? `<span class="achievement-cargo">${line.missing.map(key => `<span class="achievement-cargo-tile" title="${escape(capital(cargoName(key)))}">${cargoIcon(key, { decorative: true })}</span>`).join('')}</span>` : ''}</div>` : '';
+  const prize = progress.complete ? '' : `<span class="achievement-prize" data-num>${tierName(progress.rung.tier)} pays ${compact(achievementPrize(game, progress.rung))}</span>`;
+  const bar = line ? `<div class="achievement-progress"><span class="achievement-meter" aria-hidden="true"><span style="width:${line.pct}%"></span></span><span class="achievement-value" data-num>${escape(line.text)}</span>${prize}${line.missing?.length ? `<span class="achievement-cargo">${line.missing.map(key => `<span class="achievement-cargo-tile" title="${escape(capital(cargoName(key)))}">${cargoIcon(key, { decorative: true })}</span>`).join('')}</span>` : ''}</div>` : '';
   const stamp = last ? `<p class="achievement-earned">${last.title === title ? 'Earned' : `${escape(last.title)}, earned`} ${dateLong(unlocked[last.id])}</p>` : '';
   return `<li ${attrs} data-state="${progress.complete ? 'complete' : 'open'}"><span class="achievement-medals">${medals}</span><div class="achievement-text"><strong>${escape(title)}</strong><p>${escape(family.detail)}</p>${bar}${stamp}</div></li>`;
 }

@@ -130,8 +130,14 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   const north = weatherSample(game, cache, gx, gy) * (1 - sx) + weatherSample(game, cache, gx + 1, gy) * sx;
   const south = weatherSample(game, cache, gx, gy + 1) * (1 - sx) + weatherSample(game, cache, gx + 1, gy + 1) * sx;
   const rain = north * (1 - sy) + south * sy;
-  const summer = cache.summer;
-  const elevation = tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0;
+  return climateAt(game, rain, cache.summer, tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0);
+}
+/** The weather over the next `days` at (x, y) with fronts averaged out: forecasts plan with it. Never touches weatherAt's cache. */
+export function seasonalWeather(game, x, y, day = game.day || 0, days = 180) {
+  const turn = Math.PI * 2 / CLIMATE_YEAR, from = (Math.floor(day) - CLIMATE_SPRING) * turn, to = from + days * turn;
+  return climateAt(game, .5, (Math.cos(from) - Math.cos(to)) / (to - from), tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0);
+}
+function climateAt(game, rain, summer, elevation) {
   const desert = game.biome === 'desert', tundra = game.biome === 'tundra';
   const wetness = clamp((desert ? .1 : tundra ? .39 : .52) + (rain - .5) * .48 - summer * .07 + elevation * .08);
   const cold = clamp((tundra ? .66 : desert ? .08 : .33) - summer * (tundra ? .24 : .28) + elevation * .26);

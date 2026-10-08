@@ -1,4 +1,4 @@
-import { listJoin, token } from './copy.js';
+import { listJoin, token, money } from './copy.js';
 import { achievementById, ACHIEVEMENT_TIERS, TIER_NAMES } from './achievements.js';
 
 // DOM-free batching between the model's notice log and HUD toasts. The model
@@ -63,10 +63,10 @@ export function newYearNotice(year, rate, { generation = true, model } = {}) {
   return generation ? `New for ${year}: ${vehicles} 20% more and run 10% faster. Prices rise ${(rate * 100).toFixed(1)}% this year.` : `Prices rise ${(rate * 100).toFixed(1)}% in ${year}.`;
 }
 
-/** Newly earned achievements as one toast: the record by name, or for two or more one line at the highest tier. */
-export function achievementNotices(ids) {
-  const list = ids.map(achievementById).filter(Boolean);
-  if (list.length < 2) return list.map(a => ({ message: `${TIER_NAMES[a.tier]} achievement: ${a.title}.`, tier: a.tier }));
+/** Newly earned achievements as one toast: the record by name, or for two or more one line at the highest tier. `prize` prices a record's payout. */
+export function achievementNotices(ids, prize = null) {
+  const list = ids.map(achievementById).filter(Boolean), paid = prize ? ` +${money(list.reduce((sum, a) => sum + prize(a), 0))}.` : '';
+  if (list.length < 2) return list.map(a => ({ message: `${TIER_NAMES[a.tier]} achievement: ${a.title}.${paid}`, tier: a.tier }));
   const tier = ACHIEVEMENT_TIERS[Math.max(...list.map(a => ACHIEVEMENT_TIERS.indexOf(a.tier)))];
-  return [{ message: `${list.length} achievements earned: ${names(list.map(a => a.title))}.`, tier }];
+  return [{ message: `${list.length} achievements earned: ${names(list.map(a => a.title))}.${paid}`, tier }];
 }

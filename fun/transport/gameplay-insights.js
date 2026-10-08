@@ -313,17 +313,17 @@ export function nextProject(game, { source: preferred } = {}) {
   const freight = game.routes.filter(route => !isTownTraffic(route.cargo));
   if (!freight.some(route => route.delivered > 0)) {
     const choices = memo(game, 'first', siteKey(game), () => firstRouteChoices(game)), index = Math.max(0, choices.findIndex(choice => choice.source.id === preferred)), choice = choices[index];
-    if (!choice) return { title: 'Your first cargo route', detail: 'Pick a supplier and a buyer in Production chains.', action: 'chains', button: 'Production chains', choices, choice: 0, steps: [] };
+    if (!choice) return { title: 'Your first cargo route', detail: 'Pick a supplier and a buyer in Production chains.', action: 'chains', button: 'Production chains', choices, choice: 0, steps: [], reward: 'first-freight' };
     // Until the two ends are joined, the card can also plan the line and its stops, on land only.
     const steps = firstRouteSteps(game, choice), line = steps[2], plan = line.done || line.action !== 'connect' || steps.some(step => step.tool === 'port') ? null : line.tool;
-    return { title: 'Your first cargo route', summaryTemplate: `Carry ${cargoToken(choice.cargo)} from ${token('industry', choice.source.id)} to ${token(choice.buyer.kind === 'city' ? 'town' : 'industry', choice.buyer.id)}.`, detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within ${STATION_RADIUS} tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
+    return { reward: 'first-freight', title: 'Your first cargo route', summaryTemplate: `Carry ${cargoToken(choice.cargo)} from ${token('industry', choice.source.id)} to ${token(choice.buyer.kind === 'city' ? 'town' : 'industry', choice.buyer.id)}.`, detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within ${STATION_RADIUS} tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
-  if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 }, figure: `${Math.floor(delivered)} of 100` };
+  if (delivered < 100) return { reward: 'freight-100', title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 }, figure: `${Math.floor(delivered)} of 100` };
   if (!freight.some(route => route.delivered > 0 && PROCESSED.has(route.cargo))) {
     const chain = memo(game, 'chain', `${siteKey(game)}:${game.routes.length}:${game.routes.at(-1)?.id}`, () => openProcessor(game));
     const pair = chain.supplied ? null : memo(game, 'factory', siteKey(game), () => factoryPair(game));
-    if (pair) return { title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo', ...roadPlan(game, pair) };
+    if (pair) return { reward: 'processing', title: 'Supply a factory', detail: `Carry ${cargoName(pair.cargo)} from ${siteName(pair.source)} to ${pair.buyer.name}, ${count(pair.distance, 'tile')}. ${recipe(pair.factory)}`, action: 'source', target: pair.source.id, buyer: pair.buyer, cargo: pair.cargo, button: 'Find cargo', ...roadPlan(game, pair) };
     if (chain.processor && chain.buyer) {
       // A factory takes and pays for what it is sent even while it waits for another input, so the goal says so.
       const name = siteName(chain.processor), supplied = Object.keys(INDUSTRIES[chain.processor.kind].inputs).filter(key => !chain.missing.includes(key));

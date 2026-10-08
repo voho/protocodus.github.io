@@ -193,6 +193,8 @@
    remains a native keyboard disclosure, preserving its open state on refresh. */
 #objective-card #objective-summary{margin:0 0 var(--s-3);font-size:var(--fs-small);line-height:var(--lh-body)}
 #objective-summary .ref{font-size:inherit;line-height:inherit}
+/* A rewarded goal ends its sentence with the cash reward, adding no line of its own. */
+#objective-card .objective-reward{font-weight:600;color:var(--ok);white-space:nowrap;font-variant-numeric:tabular-nums}
 #objective-checklist{margin-bottom:var(--s-3)}
 #objective-checklist>summary{display:flex;align-items:center;justify-content:space-between;gap:var(--s-3);min-height:var(--control);list-style:none;cursor:pointer;border-radius:var(--r-2);font-size:var(--fs-small);line-height:var(--lh-small)}
 #objective-checklist>summary::-webkit-details-marker{display:none}
