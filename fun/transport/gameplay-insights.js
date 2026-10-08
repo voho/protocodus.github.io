@@ -307,7 +307,7 @@ export function nextProject(game, { source: preferred } = {}) {
     if (!choice) return { title: 'Your first cargo route', detail: 'Pick a supplier and a buyer in Production chains.', action: 'chains', button: 'Production chains', choices, choice: 0, steps: [] };
     // Until the two ends are joined, the card can also plan the line and its stops, on land only.
     const steps = firstRouteSteps(game, choice), line = steps[2], plan = line.done || line.action !== 'connect' || steps.some(step => step.tool === 'port') ? null : line.tool;
-    return { title: 'Your first cargo route', detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
+    return { title: 'Your first cargo route', summaryTemplate: `Carry ${cargoToken(choice.cargo)} from ${token('industry', choice.source.id)} to ${token(choice.buyer.kind === 'city' ? 'town' : 'industry', choice.buyer.id)}.`, detail: `Carry ${cargoName(choice.cargo)} from ${siteName(choice.source)} to ${choice.buyer.name}. Place a stop within 5 tiles of each.`, action: 'source', target: choice.source.id, button: 'Find cargo', choices, choice: index, steps, plan };
   }
   const delivered = freight.reduce((total, route) => total + route.delivered, 0);
   if (delivered < 100) return { title: 'First 100 cargo deliveries', detail: `${Math.floor(delivered)} of 100 delivered. Every freight delivery counts; passengers and mail don’t.`, action: 'routes', button: 'Open routes', progress: { value: Math.floor(delivered), max: 100 }, figure: `${Math.floor(delivered)} of 100` };

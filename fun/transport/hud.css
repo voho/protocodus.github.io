@@ -16,10 +16,6 @@
 .speed-control button.active{background:var(--ink);box-shadow:none;color:var(--on-ink)}
 .speed-control button[data-speed="0"].active{background:var(--signal);color:var(--ink)}
 .play-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.terrain-height-control{display:flex;align-items:center;gap:4px;height:35px;padding:2px 4px 2px 7px;border:1px solid var(--rule);border-radius:var(--r-2);background:var(--well);color:var(--ink-2)}
-.terrain-height-control svg{width:15px;height:15px;flex-shrink:0}
-.terrain-height-control select{width:70px;height:29px;min-height:0;padding:2px;border:0;border-radius:var(--r-1);background:transparent;color:var(--ink-2);font:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);cursor:pointer}
-.terrain-height-control select:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
 .workspace{height:calc(100dvh - 187px);display:flex;position:relative;min-height:200px}
 .sidebar{width:268px;background:var(--paper);border-right:1px solid var(--rule);flex-shrink:0;display:flex;flex-direction:column;z-index:var(--z-sheet)}
 .sidebar-foot{padding:12px 16px;border-top:1px solid var(--rule);margin-top:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;height:39px}
@@ -237,7 +233,11 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 .map-popover button:hover,.map-popover button:focus-visible{background:var(--well)}
 .map-popover button svg{width:19px;height:19px;color:var(--ink-2)}
 .map-popover button[aria-pressed=true]{background:var(--well);color:var(--ink-2);box-shadow:none}
-#map-options{top:70px;right:20px;width:190px}
+#map-options{top:70px;right:20px;width:280px;max-width:calc(100% - var(--s-4));overflow:auto}
+.terrain-height-control{display:flex;align-items:center;gap:var(--s-3);padding:var(--s-2) var(--s-3);margin-top:var(--s-1);border-top:1px solid var(--rule);color:var(--ink-2);font-size:var(--fs-body);line-height:var(--lh-body);font-weight:var(--fw-medium)}
+.terrain-height-control svg{width:20px;height:20px;flex-shrink:0}
+.terrain-height-control>span{white-space:nowrap}
+.terrain-height-control select.field{width:auto;min-width:0;flex:1;padding-inline:var(--s-1);font-size:var(--fs-small);line-height:var(--lh-small)}
 #map-options button[aria-pressed=true]{background:transparent}
 #map-options button:hover{background:var(--well)}
 .map-bottomline{justify-content:flex-start;gap:16px;pointer-events:none}
@@ -344,8 +344,6 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .topbar .speed-control button{width:23px;height:20px}
  .compact-play .topbar .speed-control{padding:1px}
  .compact-play .play-controls{gap:4px}
- .compact-play .terrain-height-control{height:24px;padding:1px 2px 1px 4px;gap:2px}
- .compact-play .terrain-height-control select{height:20px;width:65px}
  .compact-play .hud-finances{gap:12px}
 }
 @media(prefers-reduced-motion:reduce){
@@ -428,14 +426,15 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  /* Keep the everyday tasks named on desktop: compact the brand and spacing first. */
  .compact-play .wordmark-text{display:none}
  .compact-play .topbar .brand-symbol{margin-right:0}
- .compact-play .topbar{gap:12px}
- .compact-play .main-nav .nav-button{padding-left:8px;padding-right:8px}
+ .compact-play .topbar{gap:var(--s-2)}
+ .compact-play .main-nav .nav-button{padding-left:var(--s-2);padding-right:var(--s-2);gap:var(--s-1)}
 }
-@media(max-width:1280px){
+@media(max-width:1023px){
  .compact-play .main-nav .toolbar-tool .nav-label{display:none}
  .compact-play .main-nav .toolbar-tool{min-width:40px;justify-content:center;padding:8px}
 }
-@media(max-width:1180px){
+@media(max-width:1240px){
+ .compact-play .topbar{gap:var(--s-1)}
  .compact-play .main-nav [data-view] .nav-label{display:none}
  .compact-play .main-nav [data-view]{min-width:36px;justify-content:center}
 }

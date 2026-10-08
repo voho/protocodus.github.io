@@ -16,6 +16,8 @@ Fleet updates reuse trajectory records and share a route's unchanged terrain, we
 
 Grass has finer irregular dark and light grain, soil pores and broken moss patches. Eight small seeded textures per climate stay anchored to the terrain. All three climates together use at most **864 KiB**. Authored meadow and scree textures cover all dry terrain, including previously smooth mountain faces, with climate-specific sand/snow finishes, softly blended boundaries and irregular lichen patches. Their permanent texture bank is bounded at **3 MiB**, plus **768 KiB** for moss stamps. All detail is painted into cold terrain chunks and adds no drawing to warm frames; first rendering and newly exposed chunks still cost more than the previous smooth terrain.
 
+Terrain illumination now interpolates shared vertex light derived from neighboring slopes instead of assigning a separate light level to each triangle. A small world-aligned light map is baked into each cold chunk using the existing source-sized scratch canvas; no additional per-chunk texture or warm-frame work is retained. Paired Taiga, Tundra and Desert checks at all three zooms kept identical chunk-cache bytes and composed zero chunks in warm views. Cold scene timings were mixed and variable, so this visual change carries no whole-scene speed claim. The lighting browser check covers integral and fractional display density, chunk seams, transparent cutouts, sharp material boundaries and unchanged flat-water colours.
+
 House garden cutouts expose the actual world terrain while preserving architecture, fences, flowers and paths. Prepared cutout canvases share an **18 MiB** cache. A garden raised above a slope copies the same world-anchored ground onto its level top, using a separate **16 MiB** surface cache; unchanged warm views reuse both. Foundation walls use irregular fieldstones from shared climate, wall-direction and density materials, bounded at **7 MiB** regardless of the number of scenery contexts.
 
 Generation recipe **9** reserves **7×7 farm plots** around **2×2 building cores**; processors and other industrial sites remain **3×3**. Crop and pasture ground is baked into the existing terrain chunks, so warm frames add no field-texture composition. The shared field bank contains at most **15 textures × 128 × 128 × 4 bytes = 960 KiB**, independent of map size and farm count. Fences, orchard trees and small building cores retain normal scenery ordering and picking. All 49 plot tiles participate in reservations, indexed catchment, route bounds, demolition, save validation and construction undo. Recipes **1–8** keep their exact baseline bytes, and restored compact farms retain their saved extents.
@@ -96,6 +98,7 @@ node fun/transport/tests/raster-houses-browser-check.mjs
 node fun/transport/tests/house-ground-browser-check.mjs
 node fun/transport/tests/farm-fields-browser-check.mjs
 node fun/transport/tests/farm-core-art-browser-check.mjs
+node fun/transport/tests/terrain-lighting-browser-check.mjs
 node fun/transport/tests/town-variety-art-browser-check.mjs
 node fun/transport/tests/parks-farms-app-browser-check.mjs
 node --test fun/transport/tests/farm-plots.test.mjs fun/transport/tests/farm-food-chains.test.mjs fun/transport/tests/parks-malls.test.mjs

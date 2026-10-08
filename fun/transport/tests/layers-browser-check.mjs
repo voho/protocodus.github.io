@@ -37,17 +37,22 @@ try {
   const keys = Object.keys(defaults);
   assert.equal(keys.length, 15);
   assert.deepEqual(await currentLayers(page), defaults);
-  assert.equal(defaults.grid, true, 'a fresh browser starts with the tile grid enabled');
+  assert.equal(defaults.grid, false, 'a fresh browser leaves exploration free of the tile grid');
+  const beforeConstruction = await page.evaluate(() => localStorage.getItem('transport-visibility-v1'));
+  await page.keyboard.press('r');
+  await page.locator('#active-tool-bar').waitFor({ state: 'visible' });
+  assert.equal((await currentLayers(page)).grid, false, 'a construction guide does not enable the persistent Grid layer');
+  assert.equal(await page.evaluate(() => localStorage.getItem('transport-visibility-v1')), beforeConstruction, 'temporary construction guides do not save a layer preference');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('g');
-  assert.equal((await currentLayers(page)).grid, false, 'G can hide the default grid');
+  assert.equal((await currentLayers(page)).grid, true, 'G can keep the grid visible during exploration');
   await page.reload();await loadAutosaveFromMenu(page);await page.locator('[data-speed="0"]').click();
-  assert.equal((await currentLayers(page)).grid, false, 'the G shortcut preference survives reload');
+  assert.equal((await currentLayers(page)).grid, true, 'the explicit Grid on preference survives reload');
   await page.keyboard.press('g');
   await openLayers(page);await setLayer(page, 'grid', false);
   await page.reload();await loadAutosaveFromMenu(page);await page.locator('[data-speed="0"]').click();
   assert.equal((await currentLayers(page)).grid, false, 'the Layers off preference survives reload');
   assert.equal(await page.locator('#grid-button').getAttribute('aria-pressed'), 'false');
-  await page.keyboard.press('g');
   await openLayers(page);
   assert.equal(await page.locator('#layers-button').getAttribute('aria-expanded'), 'true');
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'Layers is a nonmodal map control');
@@ -108,7 +113,7 @@ try {
   await page.locator('.main-nav [data-view="routes"]').click();
   await page.locator('#new-route-button').click();
   // A second Routes click while the drawer slides open would close it again.
-  await page.locator('#route-form [name="mode"]').waitFor({ state: 'visible' });
+  await page.locator('#route-form').waitFor({ state: 'visible' });
   const station=await page.evaluate(()=>transport.game.stations.find(stop=>stop.mode==='road'));
   assert.ok(station,'the starting world has a road stop for route picking');
   const stationPoints=await page.evaluate(station=>{
@@ -119,7 +124,7 @@ try {
   },station);
   assert.notDeepEqual(stationPoints.rawBadge,{x:station.x,y:station.y},'stop badge target is outside its own map tile');
   // Picking on the map closes the Routes drawer; Escape leaves it closed.
-  const resetStops=async()=>{if(!(await page.locator('#route-form [name="mode"]').isVisible())){await page.evaluate(()=>transport.setView('routes'));await page.locator('#new-route-button').click();}await page.locator('#route-form [name="mode"]').selectOption('rail');await page.locator('#route-form [name="mode"]').selectOption('road');};
+  const resetStops=async()=>{if(!(await page.locator('#route-form').isVisible())){await page.evaluate(()=>transport.setView('routes'));await page.locator('#new-route-button').click();}await page.locator('#route-form [name="from"]').selectOption('');};
   await resetStops();await page.locator('[data-pick-route="from"]').click();
   await page.mouse.click(stationPoints.badge.x,stationPoints.badge.y);
   assert.equal(await page.locator('#route-form [name="from"]').inputValue(),station.id,'a visible stop badge can select its stop beyond its tile');
@@ -170,6 +175,28 @@ try {
     const floaters=[{x:49,y:34,revenue:1669,cargo:'food',born:0}];
     window.layersQA={canvas,minimap,game,renderer,floaters,defaults:DEFAULT_LAYERS,original:JSON.stringify(game)};
   });
+  const constructionGrid = await page.evaluate(() => {
+    const q=layersQA,render=view=>{q.renderer.render(0,{...view,settle:true});return q.canvas.toDataURL();};
+    q.renderer.setLayers({...q.defaults,grid:false});
+    const exploration=render({tool:'inspect'}),checks=[];
+    for(const tool of ['road','raise','house-normal-2','sawmill']){
+      const automatic=render({tool}),enabled=render({tool,showGrid:true}),hidden=render({tool,showGrid:false});
+      checks.push({tool,visible:automatic!==hidden,exact:automatic===enabled,preference:q.renderer.getLayers().grid});
+    }
+    const restored=render({tool:'inspect'})===exploration;
+    q.renderer.setLayers({grid:true});
+    const always=render({tool:'inspect'})===render({tool:'inspect',showGrid:true});
+    q.renderer.setLayers(q.defaults);
+    return {checks,restored,always,unchanged:JSON.stringify(q.game)===q.original};
+  });
+  for(const check of constructionGrid.checks){
+    assert.equal(check.visible,true,`${check.tool} reveals the tile grid in the rendered map`);
+    assert.equal(check.exact,true,`${check.tool} uses the same grid as the explicit layer`);
+    assert.equal(check.preference,false,`${check.tool} leaves the stored layer choice alone`);
+  }
+  assert.equal(constructionGrid.restored,true,'returning to exploration restores its exact grid-free pixels');
+  assert.equal(constructionGrid.always,true,'an explicit Grid on preference remains visible during exploration');
+  assert.equal(constructionGrid.unchanged,true,'temporary grid guides never change the company');
   const rasterResults=[];
   for(const zoom of [.5,1,2]){
     await page.evaluate(zoom=>{const q=layersQA;q.renderer.setZoom(zoom);q.renderer.setLayers(q.defaults);q.renderer.render(0,{floaters:q.floaters});},zoom);

@@ -20,6 +20,9 @@ async function goal(page, open) {
 
 export const states = [
   { name: 'notices-goal-open', setup: page => goal(page, true) },
+  { name: 'notices-goal-checklist', async setup(page) {
+    await goal(page,true);await page.locator('#objective-checklist > summary').click();await settle(page);
+  } },
   { name: 'notices-goal-folded', setup: page => goal(page, false) },
   { name: 'notices-toasts', async setup(page) {
     await freshWorld(page);

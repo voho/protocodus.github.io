@@ -4,7 +4,6 @@
 // both lists equal to the static imports. world-worker.js is never listed: a
 // document preload does not reach a module worker.
 export const APP_PRELOAD = Object.freeze([
-  './ui-icons.js',
   './sprite-art-direction.js',
   './nature-placement.js',
   './tree-art-catalog.js',

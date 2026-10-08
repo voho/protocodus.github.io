@@ -50,7 +50,7 @@ async function layout(page, width) {
     if(control.tool==='gallery')assert.equal(control.label,true, `${width}px Gallery keeps its visible name`);
     else {
       assert.equal(control.icon,true, `${width}px ${control.tool} keeps its identifying icon`);
-      assert.equal(control.label,width>1280, `${width}px ${control.tool} keeps a readable desktop label or the laptop icon fallback`);
+      assert.equal(control.label,width>=1024, `${width}px ${control.tool} keeps a readable desktop and laptop name or the narrow-window icon fallback`);
     }
   }
   assert.equal(await page.locator('#game-menu [data-open-gallery]').count(), 0, 'Gallery stays on the main toolbar');
@@ -63,9 +63,9 @@ async function financeLayouts(page, width) {
   await page.evaluate(()=>document.fonts.ready);
   try{
     // Legitimate profit displays must not resize the unrelated first-row tools.
-    for(const value of ['+$0','-$27','-$120,000']){
+    for(const value of ['+$0','-$27','-$120,000','-$1,200,000']){
       await profit.evaluate((node,value)=>{node.textContent=value;},value);await settle(page);
-      const controls=await layout(page,width),header=await page.locator('.topbar').boundingBox(),lower=await page.locator('#company-stats, #profit, .topbar [data-speed], #terrain-height, #date').evaluateAll(nodes=>nodes.map(node=>{
+      const controls=await layout(page,width),header=await page.locator('.topbar').boundingBox(),lower=await page.locator('#company-stats, #profit, .topbar [data-speed], #date').evaluateAll(nodes=>nodes.map(node=>{
         const box=node.getBoundingClientRect(),at=document.elementFromPoint(box.x+box.width/2,box.y+box.height/2);
         return {control:node.id||`speed-${node.dataset.speed}`,rect:box.toJSON(),hit:at===node||node.contains(at),hitElement:at?.outerHTML.slice(0,500)};
       }));
@@ -207,8 +207,8 @@ try {
     await page.evaluate(()=>document.querySelector('#dismiss-objective')?.click());
     await explore(page);
     const controls=await layout(page,profile.width);
-    const finance=profile.name==='narrow'?await financeLayouts(page,profile.width):[];
-    if(profile.width===1440){for(const width of [1366,1280,1100]){await page.setViewportSize({width,height:1000});await layout(page,width);await page.screenshot({path:`${output}/toolbar-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
+    const finance=await financeLayouts(page,profile.width);
+    if(profile.width===1440){for(const width of [1366,1280,1241,1240,1181,1100,1024]){await page.setViewportSize({width,height:1000});await layout(page,width);if(width===1241)await financeLayouts(page,width);await page.screenshot({path:`${output}/toolbar-${width}.png`});}await page.setViewportSize({width:1440,height:1000});}
     const initial=await state(page);
     for(const goal of ['open','folded']){
       await page.locator(goal==='open'?'#objective-chip':'#dismiss-objective').click();
