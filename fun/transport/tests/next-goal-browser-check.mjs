@@ -60,13 +60,15 @@ try {
   assert.notEqual(other, detail);assert.doesNotMatch(other, /Stone quarry/);
   assert.equal(await disclosure.evaluate(el=>el.open),true,'choosing another route keeps the requested checklist open');
   await page.evaluate(() => transport.setView('build'));
-  assert.equal(await page.locator('.project-card').isVisible(), false, 'wide screens leave the goal to its map card');
+  assert.equal(await page.locator('.project-card').count(), 0, 'construction does not duplicate the next-goal card');
+  assert.equal(await page.locator('#objective-card').isVisible(), false, 'drawers hide unrelated goal guidance at desktop width');
   await page.locator('#close-management').click();
   while (!(await page.locator('#objective-detail').textContent()).includes('Stone quarry')) await page.locator('#objective-another').click();
   await page.evaluate(({ x, y }) => transport.inspect(x, y), quarry);
   assert.equal(await page.locator('#inspector h3').first().textContent(), 'Stone quarry');
-  assert.equal(await page.locator('#objective-card').isVisible(), true, 'wide screens keep the card beside the inspector');
+  assert.equal(await page.locator('#objective-card').isVisible(), false, 'inspection hides unrelated goal guidance at desktop width');
   await page.locator('#inspector .tiny-button').click();
+  assert.equal(await page.locator('#objective-card').isVisible(), true, 'the same goal returns after inspection');
 
   // The open step frames the quarry and its buyer and chooses the right tool.
   await page.locator('[data-goal-step="0"]').click();
@@ -144,15 +146,18 @@ try {
   await page.locator('#dismiss-objective').click();
   await page.locator('#objective-chip').click();
   assert.equal(await page.locator('#objective-body').isVisible(), true);
-  // The Next goal layer removes the card entirely; Show on map turns it back on.
+  // The Next goal layer removes the card entirely and remains the one place to restore it.
   await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
   await page.locator('[data-layer="goal"]').setChecked(false);
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the layer hides the card');
   await page.locator('[data-layers-close]').click();
   await page.evaluate(() => transport.setView('build'));
-  await page.locator('.project-card summary').click();
-  await page.locator('[data-goal-show]').click();
-  assert.equal(await page.locator('#objective-body').isVisible(), true, 'Show on map turns the layer back on');
+  assert.equal(await page.locator('.project-card, [data-goal-show]').count(),0,'construction keeps the goal preference in Layers');
+  await page.locator('#close-management').click();
+  await page.locator('#game-menu-button').click();await page.locator('#layers-button').click();
+  await page.locator('[data-layer="goal"]').setChecked(true);
+  await page.locator('[data-layers-close]').click();
+  assert.equal(await page.locator('#objective-body').isVisible(), true, 'the layer restores the requested expanded goal');
   assert.equal(await page.evaluate(() => transport.renderer.getLayers().goal), true);
   await page.locator('#game-menu-button').click();
   assert.equal(await page.locator('#objective-card').isVisible(), false, 'the game menu hides the card');

@@ -373,7 +373,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  #balance{font-size:var(--fs-body);line-height:var(--lh-body)}
 }
 /* The game menu's groups: company, map, help and the game itself, each row with its key on the right. */
-@media(max-width:1180px){
+@media(max-width:720px){
  .compact-play{--play-header:84px}
  .compact-play .topbar{display:grid;grid-template-columns:auto 1fr auto;grid-template-rows:36px 40px;padding:4px 8px;gap:0 8px}
  .compact-play .topbar .wordmark{grid-row:1;grid-column:1}
@@ -407,14 +407,14 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 #app.compact-play #zoom-menu,#game-menu{position:fixed;left:8px;right:auto;top:calc(var(--play-header) + 8px);bottom:auto;max-height:calc(100dvh - var(--play-header) - 16px)}
 #app.compact-play #zoom-menu{width:190px}
 #app.compact-play:has(#layers-panel:not([hidden]),#map-options:not([hidden]),#zoom-menu:not([hidden]),#game-menu:not([hidden]),#active-tool-bar:not([hidden]),.route-pick-banner,.minimap-wrap:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
-@media(max-width:1100px){
- #app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
-}
-@media(min-width:1101px){
- #app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) #objective-card{left:calc(var(--drawer-width) + 16px);right:auto}
-}
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) #objective-card{visibility:hidden;pointer-events:none}
+/* Notifications stay in the free map space, clear of panel controls and the zoom rail. */
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) .toast-region{left:calc(var(--drawer-width) + 24px);right:16px;bottom:64px;width:auto;max-width:540px;max-height:calc(100dvh - var(--play-header) - 88px);overflow-y:auto;transform:none}
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) .toast{min-width:0;max-width:100%;flex-wrap:wrap;overflow-wrap:anywhere}
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) .toast-action{max-width:100%;white-space:normal}
+#app.compact-play:has(.sidebar.drawer-open,.inspector:not([hidden])) .toast-actions{min-width:0;max-width:100%}
 @media(prefers-reduced-motion:reduce){#app.compact-play .sidebar{transition:none}}
-/* Everyday construction and the gallery stay on the main rail. Let only this rail scroll when a computer window
+/* Construction areas, places and the global bulldozer share the main rail. Let only this rail scroll when a computer window
    becomes unusually narrow, so finance, speed and the game menu keep their place. */
 .compact-play .topbar .main-nav{flex:1 1 auto;min-width:0;gap:4px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:var(--edge) transparent;scroll-padding-inline:4px}
 .compact-play .main-nav .nav-button{flex:0 0 auto;white-space:nowrap}
@@ -445,7 +445,7 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
  .compact-play .main-nav .build-area .nav-label{display:none}
  .compact-play .main-nav .build-area{min-width:36px;justify-content:center}
 }
-@media(max-width:1180px){
+@media(max-width:720px){
  /* Finance figures on the second row must not change the navigation's width on the first row. */
  .compact-play .topbar{grid-template-columns:36px minmax(0,1fr) 36px;gap:0 8px}
  .compact-play .topbar .hud-finance-wrap{grid-column:1/3;justify-self:start;width:max-content;margin-left:0}
@@ -458,5 +458,4 @@ button.minimap-label:hover{color:var(--ink-2);background:var(--well)}
 }
 @media(max-width:600px){
  .compact-play .topbar .main-nav .nav-button{min-width:32px;padding-left:4px;padding-right:4px}
- .compact-play .main-nav [data-open-gallery] .nav-label{display:none}
 }

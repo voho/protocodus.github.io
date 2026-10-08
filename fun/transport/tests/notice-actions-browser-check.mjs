@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
+import { chooseBuildTool } from './browser-build.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -121,7 +122,7 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#inspector').isHidden(), true, 'the next Escape closes the inspector');
 
-  await page.locator('[data-toolbar-tool="road"]').click();
+  await chooseBuildTool(page,'road');
   await page.locator('#company-stats').click();
   await away();
   await page.keyboard.press('Escape');

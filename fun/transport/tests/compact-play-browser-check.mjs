@@ -25,7 +25,7 @@ try {
       map:document.querySelector('#world').getBoundingClientRect().width,
       width:innerWidth, overflow:document.documentElement.scrollWidth > innerWidth,
     }));
-    assert.equal(layout.header, profile.width <= 1180 ? 84 : 52); assert.equal(layout.map, layout.width); assert.equal(layout.overflow, false);
+    assert.equal(layout.header, profile.width <= 720 ? 84 : 52); assert.equal(layout.map, layout.width); assert.equal(layout.overflow, false);
     await page.screenshot({ path:`${output}/${profile.name}-play.png`, animations:'disabled' });
 
     await page.locator('.main-nav [data-build-area="network"]').click();

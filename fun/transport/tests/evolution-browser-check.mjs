@@ -90,8 +90,8 @@ try{
     }
     throw new Error('No clearable plot');
   });
-  await page.locator('[data-tool="bulldoze"]').click();
-  assert.match(await page.locator('[data-tool="bulldoze"]').innerText(),/Bulldozer/);
+  await page.locator('[data-toolbar-tool="bulldoze"]').click();
+  assert.equal(await page.locator('[data-toolbar-tool="bulldoze"]').getAttribute('aria-label'),'Bulldozer');
   const point=await page.evaluate(p=>{
     transport.renderer.focus(p.x,p.y);const r=document.querySelector('#world').getBoundingClientRect();
     return {x:r.left+r.width/2,y:r.top+r.height/2};

@@ -1,4 +1,4 @@
-// Real map selection and the shared complete Gallery entry, on computers.
+// Real map selection stays concise; complete reference information opens in Gallery on demand.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
@@ -70,14 +70,31 @@ async function clickMap(page, site, { vehicle = false } = {}) {
     return { x: box.left + point.x, y: box.top + point.y };
   }, { site, vehicle });
   await page.mouse.click(p.x, p.y);
-  await page.locator('#inspector [data-inspector-gallery] .gallery-object-head h3').waitFor();
+  await page.locator('#inspector [data-gallery-browse]').waitFor();
   assert.equal(await page.locator('#modal').evaluate(dialog => dialog.open), false, 'a map click preserves the map and opens only the inspector');
 }
 
+async function closeReference(page) {
+  // dialog.open changes before the close event restores inspector focus.
+  // Wait for the actual event before sending the next keyboard command.
+  await page.evaluate(() => {
+    window.selectionGalleryClosed = false;
+    document.querySelector('#modal').addEventListener('close', () => { window.selectionGalleryClosed = true; }, { once: true });
+  });
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => selectionGalleryClosed && !document.querySelector('#modal').open);
+}
+
 async function fullInfo(page, entryId) {
+  const link = page.locator('#inspector [data-gallery-browse]');
+  assert.equal(await link.count(), 1, 'one reference link per inspected object');
+  assert.equal(await link.getAttribute('data-gallery-entry-id'), entryId, 'the link targets the inspected identity');
+  assert.equal(await page.locator('#inspector .gallery-detail, #inspector .gallery-facts, #inspector .gallery-recipe').count(), 0, 'reference details do not duplicate live inspection');
+  await link.focus(); await page.keyboard.press('Enter');
+  await page.locator('#modal .gallery-explorer').waitFor();
   const row = await page.evaluate(async id => {
     const { galleryCatalog, galleryDetails } = await import('./catalog-data.js'), { money } = await import('./copy.js');
-    const entry = galleryCatalog().find(entry => entry.id === id), root = document.querySelector('#inspector .inspector-gallery .gallery-detail'), detail = galleryDetails(transport.game, entry, entry.biomes.includes(transport.game.biome) ? transport.game.biome : entry.biomes[0]);
+    const entry = galleryCatalog().find(entry => entry.id === id), root = document.querySelector('#modal .gallery-detail'), detail = galleryDetails(transport.game, entry, entry.biomes.includes(transport.game.biome) ? transport.game.biome : entry.biomes[0]);
     const priceLabels = new Set(['Build price today', 'Current purchase price', 'Base upkeep for 30 days', 'Base stop upkeep for 30 days', 'Base cargo fare']);
     const format = (label, value) => typeof value !== 'number' ? String(value) : priceLabels.has(label) ? money(value) : new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
     const facts = [...root.querySelectorAll('.gallery-facts > div')].map(row => [row.querySelector('dt').textContent, row.querySelector('dd').textContent]);
@@ -88,7 +105,10 @@ async function fullInfo(page, entryId) {
   assert.equal(row.recipes, row.expectedRecipes, `${entryId} includes every recipe`);
   for (const text of [row.description, ...row.notes]) assert.ok(row.text.includes(text), `${entryId} includes description and all notes`);
   for (const target of row.expectedTargets) assert.ok(row.targets.includes(target), `${entryId} includes all continuation links`);
-  console.log(`Complete selected entry passed: ${entryId}`);
+  await closeReference(page);
+  assert.equal(await page.locator('#inspector').isVisible(), true, 'closing Gallery keeps the selected object');
+  assert.equal(await page.evaluate(() => document.activeElement.hasAttribute('data-gallery-browse')), true, 'closing Gallery restores its launching control');
+  console.log(`On-demand selected entry passed: ${entryId}`);
   return row;
 }
 
@@ -100,16 +120,19 @@ try {
     page.on('pageerror', error => errors.push(error.message));
     const sites = await prepare(page, profile.biome);
     await clickMap(page, sites.house); await fullInfo(page, sites.house.entry);
-    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-building-variant'), '7', 'the portrait uses the placed house design and rotation');
+    assert.equal(await page.locator('#inspector .inspector-building canvas').getAttribute('data-building-variant'), '7', 'the live portrait uses the placed house design and rotation');
+    assert.equal(await page.locator('#inspector canvas').count(), 1, 'the house is pictured once');
+    assert.ok(!(await page.locator('#inspector').innerText()).includes('Collection'), 'catalog metadata is kept in Gallery');
+    await page.locator('#inspector').screenshot({ path: `${output}/house-${profile.biome}-${profile.width}-dpr${profile.dpr}.png` });
     assert.ok(await page.locator('#inspector #sell-property').count(), 'live owned-house actions stay available');
-    assert.notEqual(await page.evaluate(() => document.activeElement.id), 'inspector-title', 'a pointer click does not move keyboard focus');
-    await page.evaluate(() => { const box = document.querySelector('#inspector'); box.scrollTop = 200; window.selectionNode = box.querySelector('.inspector-gallery'); transport.inspect(25, 25); });
-    assert.equal(await page.evaluate(() => selectionNode === document.querySelector('#inspector .inspector-gallery')), true, 'unchanged inspection reuses its Gallery nodes');
-    assert.ok(await page.locator('#inspector').evaluate(box => box.scrollTop > 0), 'unchanged inspection keeps the scroll position');
+    assert.notEqual(await page.evaluate(() => document.activeElement.id), 'inspector-title', 'the reference link retains keyboard focus');
+    await page.evaluate(() => { const box = document.querySelector('#inspector'); box.scrollTop = 200; window.selectionNode = box.querySelector('[data-gallery-browse]'); window.selectionScroll = box.scrollTop; transport.inspect(25, 25); });
+    assert.equal(await page.evaluate(() => selectionNode === document.querySelector('#inspector [data-gallery-browse]')), true, 'unchanged inspection reuses its Gallery nodes');
+    assert.equal(await page.locator('#inspector').evaluate(box => box.scrollTop), await page.evaluate(() => selectionScroll), 'unchanged inspection keeps the scroll position');
     await page.locator('#inspector [data-gallery-browse]').focus(); await page.keyboard.press('Enter');
     await page.locator('#modal .gallery-explorer').waitFor();
     assert.equal(await page.locator('#modal #gallery-object-heading').innerText(), 'Courtyard villa');
-    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    await closeReference(page);
     assert.equal(await page.locator('#inspector').isVisible(), true, 'closing the full Gallery returns to the selected object');
     assert.equal(await page.evaluate(() => document.activeElement.hasAttribute('data-gallery-browse')), true, 'Gallery close restores the launching control');
     await page.keyboard.press('Escape'); assert.equal(await page.locator('#inspector').isVisible(), false, 'Escape then closes map inspection');
@@ -119,61 +142,67 @@ try {
     await page.locator('#inspector .industry-target[data-target-id="selection-plant"]').focus(); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('#inspector-title')?.textContent === 'Selection dairy plant');
     await fullInfo(page, 'industry:dairy-plant');
-    assert.equal(await page.evaluate(() => document.activeElement.id), 'inspector-title', 'a target link lands on the inspector title');
+    assert.equal(await page.evaluate(() => document.activeElement.hasAttribute('data-gallery-browse')), true, 'Gallery returns focus within the linked target inspector');
     await page.locator('#inspector [data-inspector-back]').focus(); await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('#inspector-title')?.textContent === 'Selection dairy farm');
     await fullInfo(page, 'industry:dairy-farm');
-    await page.locator('#inspector [data-gallery-chain]').click(); await page.locator('#modal .chains-explorer').waitFor();
-    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    await page.locator('#inspector #industry-chain').click(); await page.locator('#modal .chains-explorer').waitFor();
+    await closeReference(page);
 
     await clickMap(page, sites.stop); await fullInfo(page, 'transport:bus-stop'); assert.ok(await page.locator('#inspector #station-route').count());
     await clickMap(page, { ...sites.airport, w: 2 }); await fullInfo(page, 'transport:airport-x');
-    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-infrastructure-axis'), 'y', 'the Gallery portrait preserves runway orientation');
+    assert.equal(await page.locator('#inspector .inspector-station-art').getAttribute('data-infrastructure-axis'), 'y', 'the live airport portrait preserves runway orientation');
     assert.ok((await page.locator('#inspector').innerText()).includes('North–south'));
 
     await clickMap(page, sites.grove); await fullInfo(page, 'nature:forest');
-    const actualSpecies = await page.locator('#inspector .gallery-connections [data-gallery-related]').evaluateAll(buttons => buttons.map(button => button.dataset.galleryRelated));
-    assert.deepEqual([...actualSpecies].sort(), [...sites.grove.related].sort(), 'the selected grove lists its actual deterministic species');
-    assert.ok(actualSpecies.length > 1, 'the generated grove provides varied species');
-    await page.locator('#inspector .gallery-connections [data-gallery-related]').first().click(); await page.locator('#modal .gallery-explorer').waitFor();
-    assert.equal(await page.locator('#modal [data-gallery-entry][aria-pressed="true"]').getAttribute('data-gallery-entry'), actualSpecies[0]);
-    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
     if (sites.cactus) { await clickMap(page, sites.cactus); await fullInfo(page, sites.cactus.entry); assert.equal(await page.locator('#inspector .gallery-recipe').count(), 0, 'cacti have no freight recipe'); }
 
     const vehicle = await page.evaluate(() => selectionGalleryQA.vehicle); await clickMap(page, vehicle, { vehicle: true }); await fullInfo(page, 'vehicle:truck');
-    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-level'), '1', 'the guide uses the actual carrier model');
-    assert.equal(await page.locator('#inspector .gallery-portrait canvas').getAttribute('data-cargo'), 'grain');
+    assert.equal(await page.locator('#inspector .vehicle-trip canvas').getAttribute('data-level'), '1', 'live inspection uses the actual carrier model');
+    assert.equal(await page.locator('#inspector .vehicle-trip canvas').getAttribute('data-cargo'), 'grain');
     assert.ok(await page.locator('#inspector [data-vehicle-action="follow"]').count(), 'the live carrier keeps Follow and route actions');
     assert.equal(await page.locator('#inspector [data-vehicle-live="load"]').innerText(), '6 / 20');
+    await page.locator('#inspector').screenshot({ path: `${output}/vehicle-${profile.biome}-${profile.width}-dpr${profile.dpr}.png` });
     await page.locator('#inspector [data-vehicle-action="follow"]').click(); assert.equal(await page.locator('#inspector [data-vehicle-action="follow"]').getAttribute('aria-pressed'), 'true');
     await page.locator('#inspector > .inspector-top .tiny-button').click(); assert.equal(await page.locator('#inspector').isVisible(), false);
 
-    await page.evaluate(() => transport.inspect(25, 25)); await page.locator('#inspector [data-gallery-build]').click();
+    await page.evaluate(() => transport.inspect(25, 25)); await page.locator('#inspector [data-gallery-browse]').click(); await page.locator('#modal [data-gallery-build]').click();
     assert.equal(await page.locator('#active-tool-name').innerText(), 'Courtyard villa'); assert.equal(await page.locator('#inspector').isVisible(), false, 'Build continues directly to placement');
     await page.evaluate(() => transport.setTool('inspect'));
     assert.equal(await page.evaluate(() => JSON.stringify(transport.game) === selectionGalleryQA.before), true, 'all selection, Gallery navigation and build choice are read-only');
 
     await page.evaluate(() => transport.inspect(60, 45, 'industry', 'keyboard'));
-    const layout = await page.locator('#inspector').evaluate(box => { const r = box.getBoundingClientRect(), canvas = box.querySelector('.gallery-portrait canvas'); return { left: r.left, right: r.right, top: r.top, width: r.width, overflow: box.scrollWidth - box.clientWidth, canvasWidth: canvas.width }; });
+    const layout = await page.locator('#inspector').evaluate(box => { const r = box.getBoundingClientRect(), canvas = box.querySelector('.inspector-industry-art canvas'); return { left: r.left, right: r.right, top: r.top, width: r.width, overflow: box.scrollWidth - box.clientWidth, canvasWidth: canvas.width }; });
     assert.ok(layout.left >= 0 && layout.right <= profile.width + 1, 'the inspector fits a laptop window'); assert.ok(layout.top < 150, 'the inspector stays at the upper left'); assert.ok(layout.overflow <= 1, 'complete details have no horizontal overflow');
-    await page.locator('#inspector .inspector-gallery').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/complete-guide-${profile.biome}-${profile.width}-dpr${profile.dpr}.png` });
-    // The real one-second world cadence refreshes the existing live controls
-    // without dropping the complete guide or swallowing a held press.
-    await page.evaluate(() => { document.activeElement?.blur?.(); selectionGalleryQA.plant.inventory.food = 98765; transport.setSpeed(1); });
-    await page.waitForFunction(() => document.querySelector('#inspector .ledger')?.textContent.includes('98,765'), undefined, { timeout: 5000 });
+    await page.locator('#inspector [data-gallery-browse]').scrollIntoViewIfNeeded(); await page.screenshot({ path: `${output}/concise-inspector-${profile.biome}-${profile.width}-dpr${profile.dpr}.png` });
+    // The real one-second world cadence refreshes the live controls without
+    // duplicating the reference link or swallowing a held press.
+    // Empty input keeps this in-capacity output sentinel stable during production.
+    await page.evaluate(() => { document.activeElement?.blur?.(); selectionGalleryQA.plant.inventory.food = 875; selectionGalleryQA.plant.inventory.milk = 0; transport.setSpeed(1); });
+    await page.waitForFunction(() => document.querySelector('#inspector .ledger')?.textContent.includes('875'), undefined, { timeout: 5000 });
     await fullInfo(page, 'industry:dairy-plant');
     await page.evaluate(() => transport.setSpeed(8));
-    const press = await page.locator('#inspector [data-gallery-chain]').evaluate(button => { button.scrollIntoView({ block: 'nearest' }); const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    const noticeLayout = await page.evaluate(() => {
+      const notice = document.createElement('div'); notice.className = 'toast'; notice.dataset.inspectorQa = '';
+      notice.innerHTML = '<span>First rent from your property: +$101.</span><button type="button" class="toast-action">Open report</button>';
+      document.querySelector('#toast-region').append(notice);
+      const toast = notice.getBoundingClientRect(), panel = document.querySelector('#inspector').getBoundingClientRect(), zoom = document.querySelector('.view-controls').getBoundingClientRect();
+      return { left: toast.left, right: toast.right, bottom: toast.bottom, panelRight: panel.right, zoomTop: zoom.top, overflow: notice.scrollWidth - notice.clientWidth };
+    });
+    assert.ok(noticeLayout.left >= noticeLayout.panelRight + 8, 'unrelated notifications stay clear of inspector controls');
+    assert.ok(noticeLayout.right <= profile.width && noticeLayout.overflow <= 1, 'the notice and its action remain within the available map space');
+    assert.ok(noticeLayout.bottom <= noticeLayout.zoomTop, 'notifications keep map zoom controls available');
+    const press = await page.locator('#inspector [data-gallery-browse]').evaluate(button => { button.scrollIntoView({ block: 'nearest' }); const r = button.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
     await page.mouse.move(press.x, press.y); await page.mouse.down(); await page.waitForTimeout(1150); await page.mouse.up();
-    await page.locator('#modal .chains-explorer').waitFor();
-    await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('#modal').open);
+    await page.locator('#modal .gallery-explorer').waitFor();
+    await closeReference(page);
     await page.evaluate(() => transport.setSpeed(0));
-    assert.equal(await page.locator('#inspector').isVisible(), true, 'return from a held live chain press keeps map inspection');
-    results.push({ ...profile, species: actualSpecies, cactus: sites.cactus?.entry, layout });
+    assert.equal(await page.locator('#inspector').isVisible(), true, 'return from a held live Gallery press keeps map inspection');
+    results.push({ ...profile, cactus: sites.cactus?.entry, layout, noticeLayout });
     await page.close(); activePage = null;
   }
   assert.deepEqual(errors, []); await writeFile(`${output}/results.json`, JSON.stringify({ results, errors }, null, 2));
-  console.log('Selection Gallery: real object clicks, complete facts/recipes/connections, actual artwork, live actions, keyboard/back/close/Build and narrow Retina layouts passed.');
+  console.log('Selection Gallery: concise real object inspection, complete on-demand reference, live artwork/actions, keyboard/back/close/Build and narrow Retina layouts passed.');
 } catch (error) {
   if (activePage && !activePage.isClosed()) {
     await activePage.screenshot({ path: `${output}/failure.png` }).catch(() => {});

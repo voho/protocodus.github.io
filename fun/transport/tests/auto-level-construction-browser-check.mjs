@@ -1,4 +1,4 @@
-import { openBuildArea } from './browser-build.mjs';
+import { openBuildArea, chooseBuildTool } from './browser-build.mjs';
 // Player gestures, quoted earthworks, one atomic build, and one complete Undo.
 // Only isolated browser storage and a vacant patch of a real generated world are used.
 import assert from 'node:assert/strict';
@@ -77,7 +77,7 @@ async function state(page, site) {
 async function drawer(page) { await openBuildArea(page, 'terrain'); }
 
 async function choose(page, tool) {
-  if (tool === 'road' || tool === 'rail') { await page.locator(`[data-toolbar-tool="${tool}"]`).click(); return; }
+  if (tool === 'road' || tool === 'rail') return chooseBuildTool(page,tool);
   await drawer(page);
   await page.locator(`[data-crossing-mode="${tool.startsWith('rail') ? 'rail' : 'road'}"]`).click();
   await drawer(page); await page.locator(`[data-tool="${tool}"]`).click();

@@ -1,9 +1,9 @@
-// Direct desktop construction tools and selected-road/rail stop placement.
+// Focused construction areas, global demolition and selected-road/rail stop placement.
 // Every context starts through the game menu with isolated browser storage.
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
-import { openBuildArea } from './browser-build.mjs';
+import { openBuildArea, chooseBuildTool } from './browser-build.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -14,7 +14,7 @@ const errors = [], results = [];
 const tools = ['road', 'rail', 'stop', 'bulldoze'];
 const areas = ['network', 'towns', 'industry', 'terrain'];
 const shortcuts = { road:'R', rail:'T', stop:'S', bulldoze:'X' };
-const toolButton = (page, tool) => page.locator(`.topbar [data-toolbar-tool="${tool}"]`);
+const toolButton = (page, tool) => page.locator(tool === 'bulldoze' ? '.topbar [data-toolbar-tool="bulldoze"]' : `#panel-content [data-tool="${tool}"]`);
 const settle = page => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
 const state = page => page.evaluate(() => ({
   day:transport.game.day, money:transport.game.money, expenses:transport.game.totalExpenses,
@@ -27,11 +27,15 @@ const goalState = page => page.locator('#objective-card').evaluate(card => ({
 }));
 
 async function pressed(page, expected) {
-  assert.deepEqual(await page.locator('.topbar [data-toolbar-tool]').evaluateAll(buttons => buttons.filter(button => button.getAttribute('aria-pressed') === 'true').map(button => button.dataset.toolbarTool)), expected ? [expected] : [], 'the toolbar shows exactly the active construction tool');
+  assert.deepEqual(await page.locator('.topbar [data-toolbar-tool]').evaluateAll(buttons => buttons.filter(button => button.getAttribute('aria-pressed') === 'true').map(button => button.dataset.toolbarTool)), expected === 'bulldoze' ? ['bulldoze'] : [], 'the global demolition button follows the active tool');
+  if (expected) {
+    assert.equal(await page.locator('#active-tool-bar').isVisible(), true, 'the active tool has map instructions');
+    assert.equal(await page.locator('#active-tool-name').textContent(), { road:'Road', rail:'Rail', stop:'Stop', bulldoze:'Bulldozer' }[expected], 'map instructions identify the selected tool');
+  }
 }
 
 async function layout(page, width) {
-  const controls = await page.locator('.topbar [data-build-area], .topbar [data-toolbar-tool], .topbar [data-open-gallery]').evaluateAll(buttons => buttons.map(button => {
+  const controls = await page.locator('.topbar [data-build-area], .topbar [data-toolbar-tool]').evaluateAll(buttons => buttons.map(button => {
     const rect=button.getBoundingClientRect(),style=getComputedStyle(button),at=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
     const visible=node=>{if(!node)return false;const bounds=node.getBoundingClientRect(),style=getComputedStyle(node);return bounds.width>1&&bounds.height>1&&style.display!=='none'&&style.visibility==='visible'&&Number(style.opacity)>0;};
     const hits=[rect.left+3,rect.right-3].map(x=>{const target=document.elementFromPoint(x,rect.y+rect.height/2);return target===button||button.contains(target);});
@@ -41,7 +45,8 @@ async function layout(page, width) {
     await page.screenshot({path:`${output}/toolbar-obstructed-${width}.png`});
     await writeFile(`${output}/toolbar-obstructed-${width}.json`,JSON.stringify(controls,null,2));
   }
-  assert.equal(controls.length, 9, 'four construction areas, four quick tools and Gallery are direct topbar controls');
+  assert.equal(controls.length, 5, 'four construction areas and one global demolition action are direct topbar controls');
+  assert.deepEqual(await page.locator('.topbar [data-toolbar-tool]').evaluateAll(buttons => buttons.map(button => button.dataset.toolbarTool)), ['bulldoze'], 'roads, rails and stops do not duplicate their Network cards');
   for (const control of controls) {
     assert.equal(control.visible, true, `${width}px ${control.tool} is visible`);
     assert.ok(control.left>=-.5&&control.right<=width+.5&&control.top>=-.5, `${width}px ${control.tool} stays in the viewport`);
@@ -49,19 +54,18 @@ async function layout(page, width) {
     assert.equal(control.hit, true, `${width}px ${control.tool} is not covered by another control`);
     assert.deepEqual(control.edgeHits,[true,true], `${width}px ${control.tool} is fully visible and clickable at both edges`);
     assert.ok(control.icon||control.label, `${width}px ${control.tool} has a visible icon or label`);
-    if(control.tool==='gallery')assert.equal(control.label,width>600, `${width}px Gallery keeps its visible name or narrow-window icon`);
-    else {
-      assert.equal(control.icon,true, `${width}px ${control.tool} keeps its identifying icon`);
-      assert.equal(control.label,width>=(control.area?1024:1440), `${width}px ${control.tool} keeps its readable name or compact icon fallback`);
-    }
+    assert.equal(control.icon,true, `${width}px ${control.tool} keeps its identifying icon`);
+    assert.equal(control.label,width>=(control.area?1024:1440), `${width}px ${control.tool} keeps its readable name or compact icon fallback`);
   }
-  assert.equal(await page.locator('#game-menu [data-open-gallery]').count(), 0, 'Gallery stays on the main toolbar');
+  assert.equal(await page.locator('.main-nav [data-open-gallery]').count(), 0, 'reference content leaves the persistent toolbar');
+  assert.equal(await page.locator('#game-menu [data-open-gallery]').count(), 1, 'Gallery remains available in the game menu');
+  assert.equal((await page.locator('.topbar').boundingBox()).height, width <= 720 ? 84 : 52, 'computer windows retain a compact header');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth+1), true, `${width}px header adds no horizontal page overflow`);
   return controls;
 }
 
 async function constructionAreas(page) {
-  const initial=await state(page),headings={network:'Build network',towns:'Build towns & buildings',industry:'Build industry',terrain:'Terrain & crossings'};
+  const initial=await state(page),headings={network:'Network',towns:'Buildings',industry:'Industry',terrain:'Terrain'};
   assert.equal(await page.locator('.main-nav [data-view="build"], #panel-content [data-category]').count(),0,'construction areas replace the single Build button and nested category tabs');
   async function active(area) {
     assert.deepEqual(await page.locator('.topbar [data-build-area]').evaluateAll(buttons=>buttons.filter(button=>button.getAttribute('aria-expanded')==='true').map(button=>button.dataset.buildArea)),area?[area]:[],'only the open area is expanded');
@@ -73,6 +77,8 @@ async function constructionAreas(page) {
     await button.click();await active(area);
     assert.equal(await page.locator('#panel-content > .panel-heading h2').first().innerText(),headings[area]);
     assert.equal(await page.locator('.sidebar').getAttribute('aria-hidden'),'false');
+    assert.equal(await page.locator('#objective-card').isVisible(),false,'the open drawer leaves unrelated next-goal content out of the way');
+    assert.equal(await page.locator('#panel-content .project-card, #panel-content [data-tool="bulldoze"], #panel-content .build-area-note').count(),0,'areas contain no repeated goal, demolition or introduction');
     assert.equal(await page.locator('#active-tool-bar').isVisible(),false,'browsing an area leaves construction cancelled');
     if(area==='terrain'){
       assert.equal(await page.locator('.engineering-tools').evaluate(element=>element.tagName),'SECTION','terrain tools are visible without another disclosure');
@@ -90,7 +96,7 @@ async function constructionAreas(page) {
     assert.equal(await page.evaluate(()=>document.activeElement?.dataset.buildArea),area,'Escape returns focus to this area');
   }
   // Choosing a different area cancels placement; Done reopens the area belonging to the tool.
-  await toolButton(page,'road').click();await pressed(page,'road');
+  await chooseBuildTool(page,'road');await pressed(page,'road');
   await openBuildArea(page,'towns');await active('towns');await pressed(page,null);
   assert.equal(await page.locator('#active-tool-bar').isVisible(),false);
   await page.locator('[data-tool="residential"]').click();
@@ -174,7 +180,9 @@ async function pickNetwork(page, point, expectedModes) {
   await page.mouse.click(at.x,at.y);
   await page.locator('#inspector').waitFor({state:'visible'});
   assert.equal(await page.locator('#inspector-title').textContent(), expectedModes.includes('road')?'Road':'Railway', 'the actual map click selects the network tile');
-  assert.equal(await page.locator('#inspector [data-inspector-gallery]').isVisible(), true, 'selected infrastructure includes its Gallery information');
+  assert.equal(await page.locator('#inspector [data-gallery-browse]').isVisible(), true, 'selected infrastructure links to its Gallery reference');
+  assert.equal(await page.locator('#inspector .gallery-detail, #inspector .gallery-facts, #inspector .gallery-recipe').count(), 0, 'the inspector does not repeat Gallery content');
+  assert.equal(await page.locator('#objective-card').isVisible(), false, 'inspection hides unrelated goal guidance');
   assert.deepEqual(await page.locator('#inspector [data-build-selected-stop]').evaluateAll(buttons=>buttons.map(button=>button.dataset.buildSelectedStop)), expectedModes, 'the selected network offers only matching stop types');
 }
 
@@ -189,7 +197,7 @@ async function openCurrentStop(page, stop, mode) {
   await page.locator('#station-route').waitFor({state:'visible'});
   assert.equal(await page.locator('#inspector-title').textContent(),stop.name,'an existing stop opens its current inspector');
   assert.equal(await page.locator('#inspector [data-build-selected-stop]').count(),0,'an existing stop never offers another stop on the occupied tile');
-  assert.equal(await page.locator('#inspector-gallery-object-heading').textContent(),mode==='rail'?'Rail station':'Road stop');
+  assert.equal(await page.locator('#inspector [data-gallery-browse]').count(),1,'an existing stop offers one reference link');
   assert.equal(await page.locator('#inspector .inspector-station-art').getAttribute('data-infrastructure-sprite'),mode==='rail'?'train-stop':'bus-stop','the inspector uses the matching station artwork');
 }
 
@@ -259,6 +267,7 @@ try {
       const beforeGoal=await goalState(page);
       assert.equal(beforeGoal.collapsed,goal==='folded','the goal starts in the requested state');
       for(const tool of tools){
+        if(tool!=='bulldoze')await openBuildArea(page,'network');
         const button=toolButton(page,tool);assert.equal(await button.getAttribute('aria-keyshortcuts'),shortcuts[tool]);
         await button.click();await pressed(page,tool);
         assert.equal(await page.locator('#active-tool-bar').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement?.id),'world','direct tools focus the map');
@@ -273,17 +282,20 @@ try {
         assert.deepEqual(await goalState(page),beforeGoal,`the restored goal keeps its ${goal} state and display setting`);
       }
     }
-    await toolButton(page,'road').focus();await page.keyboard.press('Space');await pressed(page,'road');
-    await toolButton(page,'rail').focus();await page.keyboard.press('Enter');await pressed(page,'rail');
+    await openBuildArea(page,'network');await toolButton(page,'road').focus();await page.keyboard.press('Space');await pressed(page,'road');
+    await openBuildArea(page,'network');await toolButton(page,'rail').focus();await page.keyboard.press('Enter');await pressed(page,'rail');
     assert.equal(await page.evaluate(()=>transport.speed),0,'toolbar keyboard activation leaves the paused clock unchanged');
     for(const tool of tools){await page.locator('#world').focus();await page.keyboard.press(shortcuts[tool].toLowerCase());await pressed(page,tool);}
     assert.deepEqual(await state(page),initial,'keyboard shortcuts select tools without construction');
-    const gallery=page.locator('.topbar [data-open-gallery]');await gallery.focus();await page.keyboard.press('Enter');
+    await page.locator('#game-menu-button').click();
+    const gallery=page.locator('#game-menu [data-open-gallery]');
+    assert.equal(await gallery.getByText('Gallery',{exact:true}).isVisible(),true,'Gallery keeps its readable menu label');
+    await gallery.focus();await page.keyboard.press('Enter');
     await page.locator('#gallery-search').waitFor({state:'visible'});await page.locator('#gallery-search').fill('rail station');
     await page.locator('#modal [data-gallery-entry="transport:train-stop"]').waitFor({state:'visible'});
     await page.screenshot({path:`${output}/gallery-${profile.width}.png`});
     await page.keyboard.press('Escape');await page.locator('#modal').waitFor({state:'hidden'});
-    await page.waitForFunction(()=>document.activeElement?.matches('.topbar [data-open-gallery]'));
+    await page.waitForFunction(()=>document.activeElement?.id==='game-menu-button');
     assert.deepEqual(await state(page),initial,'browsing the Gallery does not modify the world');
     await explore(page);await page.screenshot({path:`${output}/toolbar-${profile.width}.png`});
     const sites=await fixture(page),placements=[];

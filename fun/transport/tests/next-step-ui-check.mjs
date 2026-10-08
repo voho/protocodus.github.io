@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createWorldFromMenu } from './browser-start.mjs';
+import { chooseBuildTool } from './browser-build.mjs';
 
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
 const browser = await chromium.launch({ channel: process.env.TRANSPORT_BROWSER || 'chrome', headless: true });
@@ -26,7 +27,7 @@ try {
   await createWorldFromMenu(page, { biome: 'taiga', seed: 1847 });
 
   // A remembered railway tool must not turn a suggested road connection into an expensive train line.
-  await page.locator('[data-toolbar-tool="rail"]').click();
+  await chooseBuildTool(page,'rail');
   await page.keyboard.press('Escape');
 
   // 1. Verify Simplified HUD:
@@ -91,7 +92,7 @@ try {
   });
 
   if (unservedCity) {
-    await page.locator('[data-toolbar-tool="rail"]').click();
+    await chooseBuildTool(page,'rail');
     await page.keyboard.press('Escape');
     await page.evaluate(({ x, y }) => transport.inspect(x, y, 'city'), unservedCity);
     await page.locator('#inspector').waitFor({ state: 'visible' });

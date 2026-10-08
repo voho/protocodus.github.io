@@ -35,7 +35,9 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
     }
     if (key) button.setAttribute('aria-keyshortcuts', key.replace('Ctrl+', 'Control+'));
     actions.append(button);
-    button.addEventListener('click', () => closeMenu());
+    // Close before the original action opens a dialog, so native focus return
+    // points to the visible menu button rather than this hidden menu item.
+    button.addEventListener('click', () => closeMenu(), { capture: true });
   };
   const addAction = (id, label, art, callback, key = '') => {
     const button = document.createElement('button');
@@ -53,7 +55,7 @@ export function mountCompactPlay({ onMenu, onNews, onCompany, onGoals, onAchieve
   if (onNews) addAction('news-button', 'News', icon('news'), onNews, shortcuts.news);
   rule();
   moveAction('.main-nav [data-open-chains]', 'Production chains', 'C');
-  // Gallery and everyday construction stay in the main toolbar for direct access.
+  moveAction('.main-nav [data-open-gallery]', 'Gallery');
   moveAction('#layers-button', 'Map layers', 'L');
   const overviewButton = addAction('overview-button', 'Mini map', icon('overview'), () => {
     minimap.hidden = !minimap.hidden;

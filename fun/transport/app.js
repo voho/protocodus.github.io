@@ -61,7 +61,7 @@ import { fullFareText } from './route-planner.js';
 import { paymentRatesHTML, bindPaymentRates, routeTrip, planTrip, tripText, tripTitle, planText } from './payment-rates.js';
 import { findIndustryTargets, findIndustrySuppliers, lensCargo } from './chains.js';
 import { mountChains } from './chains-view.js';
-import { mountGallery, mountGalleryEntry } from './gallery-view.js';
+import { mountGallery } from './gallery-view.js';
 import { selectionGallery, selectionBuildingKind } from './selection-gallery.js';
 import { mountSaves } from './saves-view.js';
 import { loadVisibility, saveVisibility, normalizeLayers, layerPreset } from './visibility.js';
@@ -172,10 +172,10 @@ const gameAudio=createGameAudio(),constructionFeedback=createConstructionFeedbac
 let floaters = [], floaterGame = null, presentationDeliveries=[],presentationRents=[],chimeAt = 0, incomeSeen = {}, incomePulseAt = -Infinity;
 let preferredMode = 'road';
 const BUILD_AREAS = {
- network:{name:'Build network',detail:'Roads, railways and stops. Ports and airports for longer journeys.'},
- towns:{name:'Build towns & buildings',detail:'Zone neighborhoods or place homes, shops and amenities.'},
- industry:{name:'Build industry',detail:'Farms, mines and factories for your production chains.'},
- terrain:{name:'Terrain & crossings',detail:'Shape clear land or build a bridge or tunnel.'},
+ network:{name:'Network'},
+ towns:{name:'Buildings'},
+ industry:{name:'Industry'},
+ terrain:{name:'Terrain'},
 };
 function buildAreaForTool(next) {
  if(spanTools.has(next)||terrainTools.has(next))return 'terrain';
@@ -314,7 +314,7 @@ function setTool(next) {
  if(['rail','railbridge','railtunnel','train-stop'].includes(next))preferredMode='rail';
  category=buildAreaForTool(next);
  tool=['bus-stop','train-stop'].includes(next)?'stop':next;selected=null;hover=null;
- disposeInspectorGallery();$('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
+ $('#inspector').hidden=true;canvas.classList.toggle('build-mode',tool!=='inspect');
  $('#status-message').textContent=toolDescription(tool);if(!syncBuildToolSelection())renderPanel();syncToolControls();
  closeManagement();canvas.focus({preventScroll:true});
  if(keyOwned()){keyStart=null;showKeyCursor();}
@@ -362,14 +362,10 @@ function buildingBenefit(kind) {
  return effects[kind]||(definition.group==='shops'?'Attracts nearby development and supports local passenger demand.':definition.group==='services'?'Attracts nearby development and supports local transport and industry. Near a town centre it adds mail.':'Improves neighborhood appeal and supports local passenger demand.');
 }
 function buildingPalette() {
- return `<div class="section-divider"></div><div class="panel-heading"><h2>Buildings</h2><span>${Object.keys(BUILDINGS).length} types</span></div><label class="building-filter"><span class="sr-only">Building collection</span><select id="building-group" aria-label="Building collection">${Object.entries(BUILDING_GROUPS).map(([key,g])=>`<option value="${key}" ${buildingGroup===key?'selected':''}>${g.name} · ${Object.values(BUILDINGS).filter(b=>b.group===key).length}</option>`).join('')}</select></label><div class="building-grid">${Object.entries(BUILDINGS).filter(([,b])=>b.group===buildingGroup).map(([key,b])=>`<button class="building-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(b.name)} · ${buildingFootprint(key)} × ${buildingFootprint(key)} site · ${money(priceFor(game,b.cost))} · ${escapeHTML(buildingBenefit(key))}"><canvas width="96" height="100" data-building-sprite="${key}" aria-hidden="true"></canvas><span class="building-tier">${b.tier||BUILDING_GROUPS[b.group].name}</span><strong>${escapeHTML(b.name)}</strong><span class="building-price">${money(priceFor(game,b.cost))}<small>${buildingFootprint(key)} × ${buildingFootprint(key)}</small></span><small class="build-time">${constructionTimeText(constructionDuration(key))} to build</small></button>`).join('')}</div>`;
+ return `<div class="section-divider"></div><label class="building-filter"><span class="sr-only">Building collection</span><select id="building-group" aria-label="Building collection">${Object.entries(BUILDING_GROUPS).map(([key,g])=>`<option value="${key}" ${buildingGroup===key?'selected':''}>${g.name}</option>`).join('')}</select></label><div class="building-grid">${Object.entries(BUILDINGS).filter(([,b])=>b.group===buildingGroup).map(([key,b])=>`<button class="building-card ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}" title="${escapeHTML(buildingBenefit(key))}"><canvas width="96" height="100" data-building-sprite="${key}" aria-hidden="true"></canvas><strong>${escapeHTML(b.name)}</strong><span class="building-price">${money(priceFor(game,b.cost))}<small>${buildingFootprint(key)} × ${buildingFootprint(key)}</small></span><small class="build-time">${constructionTimeText(constructionDuration(key))} to build</small></button>`).join('')}</div>`;
 }
 function drawPaletteSprites(root = document) { drawUIArtwork(root, game); }
 
-function projectCard() {
- const project=nextProject(game,{source:goalChoice});
- return `<details class="project-card"><summary>${escapeHTML(project.title)}</summary><p>${escapeHTML(project.detail)}</p><button class="small-button" data-project-action="${project.action}" ${project.target?`data-project-target="${escapeHTML(project.target)}"`:''}${project.tool?` data-project-tool="${project.tool}"`:''}>${escapeHTML(project.button)} ${icon('arrow')}</button><button type="button" class="project-show" data-goal-show>Show on map</button></details>`;
-}
 function runProjectAction(action,target,extra={}) {
  if(action==='source')locateIndustry(target);
  else if(action==='city')locateDestination(target,'city');
@@ -508,7 +504,7 @@ function buildPanel() {
  const industries=`<div class="tool-list">${Object.entries(INDUSTRIES).filter(([,d])=>d.biomes.includes(game.biome)).map(([key,d])=>`<button class="industry-tool ${tool===key?'active':''}" data-tool="${key}" aria-pressed="${tool===key}"><canvas class="industry-art" width="112" height="112" data-industry-sprite="${key}" aria-hidden="true"></canvas><span class="industry-tool-summary"><strong>${d.name}</strong>${cargoRecipe(d.inputs,d.outputs,{counts:false})}</span><span class="tool-cost">${compactMoney(priceFor(game,d.cost))}<small>${industryFootprint(key)} × ${industryFootprint(key)}</small><small class="build-time">${constructionTimeText(constructionDuration(key))} to build</small></span></button>`).join('')}</div>`;
  const content=category==='terrain'?engineeringTools():category==='industry'?industries:`<div class="tool-grid">${groups[category].map(key=>toolCard(key)).join('')}</div>`;
  const stops=category==='network'?`<div class="stop-mode-picker" data-build-stop-mode role="group" aria-label="Stop type at road and rail crossings"${tool==='stop'?'':' hidden'}><span>At crossings</span>${['road','rail'].map(mode=>`<button data-stop-mode="${mode}" aria-pressed="${preferredMode===mode}">${icon(mode)} ${mode==='road'?'Road':'Rail'}</button>`).join('')}</div>`:'';
- return `<div class="panel-heading"><h2>${escapeHTML(area.name)}</h2></div><p class="build-area-note">${area.detail}</p>${constructionNext&&category==='network'?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${content}${stops}<div class="build-bottom-tools"><button class="compact-tool danger ${tool==='bulldoze'?'active':''}" data-tool="bulldoze" aria-keyshortcuts="X" title="Bulldozer (X)">${icon('bulldoze')} Bulldozer <span>X</span></button></div>${category==='towns'?buildingPalette():projectCard()}`;
+ return `<div class="panel-heading"><h2>${escapeHTML(area.name)}</h2></div>${constructionNext&&category==='network'?`<section class="construction-next" aria-label="Next construction step"><strong>${escapeHTML(constructionNext.message)}</strong><div>${constructionNext.kind==='network'?'<button type="button" class="button button-primary" data-construction-next="stop">Add stops</button>':'<button type="button" class="button button-primary" data-construction-next="route">Create a route</button><button type="button" class="small-button" data-construction-next="stop">Add another stop</button>'}</div></section>`:''}${content}${stops}${category==='towns'?buildingPalette():''}`;
 }
 const cargoValidationSignature=options=>JSON.stringify(options.filter(option=>editCargo(option.cargo)).map(({cargo,valid,message})=>({cargo,valid,message})));
 function cargoChoices(options=[]) {
@@ -1032,7 +1028,7 @@ function inspectorClosed(inside) {
  const source=inspectorSource;inspectorTrail=[];inspectorSource=null;
  if(source?.isConnected&&!source.closest('[inert],[hidden],#map-overlays')&&source.getClientRects().length)source.focus({preventScroll:true});else if(inside)canvas.focus({preventScroll:true});
 }
-function closeInspector() { disposeInspectorGallery();const box=$('#inspector'),inside=box.contains(document.activeElement);box.hidden=true;selected=null;inspectorHTML='';if(selectedVehicle)clearVehicle();inspectorClosed(inside); }
+function closeInspector() { const box=$('#inspector'),inside=box.contains(document.activeElement);box.hidden=true;selected=null;inspectorHTML='';if(selectedVehicle)clearVehicle();inspectorClosed(inside); }
 // The stop, industry or town centre on a map tile, for linkFromMap.
 function mapRefAt({x,y}) {
  const station=stationAt(game,x,y),industry=station?null:game.industries.find(i=>industryContains(i,x,y)),city=station||industry?null:game.cities.find(c=>c.x===x&&c.y===y);
@@ -1219,8 +1215,6 @@ function renderPanel({resetScroll=false}={}) {
  if($('#entity-search'))$('#entity-search').oninput=e=>{entityFilters[view]=e.target.value;anchorEntities();refreshEntities();};
  if($('#entity-sort'))$('#entity-sort').onchange=e=>{entityFilters.sort={...entityFilters.sort,[view]:e.target.value};anchorEntities();refreshEntities();};
  if($('#industry-kind'))$('#industry-kind').onchange=e=>{entityFilters.kind=e.target.value;anchorEntities();refreshEntities();if(e.target.value==='all')dropCargoLens('industry');else setCargoLens(lensCargo(e.target.value),'industry');};
- panel.querySelectorAll('[data-project-action]').forEach(button=>button.onclick=()=>runProjectAction(button.dataset.projectAction,button.dataset.projectTarget,{tool:button.dataset.projectTool}));
- panel.querySelectorAll('[data-goal-show]').forEach(button=>button.onclick=()=>{storeGoalFolded(false);goalOpen=true;if(!mapLayers.goal)setMapLayers({goal:true});if(window.innerWidth<=1100)closeManagement();renderGoal();});
  bindRouteCards(panel);
  panel.querySelector('.fleet-upgrades')?.addEventListener('toggle',e=>{if(e.target.isConnected)fleetControlsOpen=e.target.open;});
  if($('#upgrade-fleet'))$('#upgrade-fleet').onclick=()=>performUpgrade();
@@ -1639,11 +1633,11 @@ function networkUse(tile,x,y) {
  return `<p class="network-use">${routes.length?`Used by ${refList(routes.map(route=>`route:${route.id}`),4)}`:'Not used by any route'}</p><p>${tile.road?tile.publicRoad?'Public road · no upkeep':'Company road':'Company railway'}${tile.road&&tile.rail?' · railway':''}</p>`;
 }
 // The last generated markup, not box.innerHTML: drawn portraits change their canvas attributes.
-let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity, inspectorGallery=null;
-function disposeInspectorGallery() { inspectorGallery?.dispose();inspectorGallery=null; }
+let inspectorHTML='', inspectorKey='', panelPress=false, panelReleasedAt=-Infinity;
 function mountInspectorGallery(selection) {
  const target=$('#inspector [data-inspector-gallery]');if(!target||!selection)return;
- inspectorGallery=mountGalleryEntry(target,game,{onBuild:buildGalleryObject,onOpenChains:options=>openChains(options,{keepInspector:true}),onRelated:entryId=>openGallery({entryId,climate:selection.climate,category:'all',query:''},{keepInspector:true}),onBrowse:entryId=>openGallery({entryId,climate:selection.climate,category:'all',query:''},{keepInspector:true})},selection);
+ target.innerHTML=`<button type="button" class="text-button inspector-gallery-link" data-gallery-browse data-gallery-entry-id="${escapeHTML(selection.entryId)}">View in Gallery ${icon('chevronRight')}</button>`;
+ target.querySelector('[data-gallery-browse]').onclick=()=>openGallery({entryId:selection.entryId,climate:selection.climate,category:'all',query:''},{keepInspector:true});
 }
 
 function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
@@ -1658,7 +1652,7 @@ function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
  let title,tag,body;
  if(station&&kind!=='city'&&kind!=='industry'){const air=station.mode==='air';title=station.name;tag=air?'Airport, 6 × 2 site':stopName(station.mode).replace(/^./,c=>c.toUpperCase());body=`${infrastructurePortrait(air?'airport':station.mode==='water'?'port':station.mode==='rail'?'train-stop':'bus-stop','inspector-station-art',station.axis||'x')}<div class="inspector-grid">${air?`<div><small>Runway</small><strong>${station.axis==='y'?'North–south':'East–west'}</strong></div><div><small>Coverage</small><strong>${AIRPORT_REACH} tiles</strong></div>`:`<div><small>Network</small><strong>${transportName(station.mode)}</strong></div><div><small>Coverage</small><strong>${stationReach(station)} tiles</strong></div>`}</div>${stationCargoNotes(station)}${air?`<p class="micro-note">Planes fly straight to any airport at least ${AIRPORT_MIN_TILES} tiles away. No track needed.</p>`:''}${stationServices(station)}<button class="button button-primary full" id="station-route">${icon('route')} New route</button>`;}
  else if(industry){const d=INDUSTRIES[industry.kind],conditions=industryConditions(game,industry),typical=Object.values(d.outputs).reduce((a,b)=>a+b,0)*(industry.capacity||1)*conditions.productivity;title=industry.name||d.name;tag=`Industry · ${industrySize(industry)} × ${industrySize(industry)} site`;const status=industryStatus(industry,game);body=`${industry.openedDay!==undefined&&!isUnderConstruction(industry)?`<p class="micro-note">Opened in ${calendarYear(game,industry.openedDay)}</p>`:''}<div class="inspector-industry-art">${industryPortrait(industry.kind,'entity-art',industry)}${cargoRecipe(d.inputs,d.outputs)}</div>${status.state==='construction'?'':`<div class="industry-condition" data-state="${status.state}" title="${escapeHTML(status.detail)}"><strong>${escapeHTML(status.label)}</strong>${status.tone==='ok'?'':`<p>${escapeHTML(status.detail)}</p>`}</div>`}${industryService(industry)}${industrySuppliers(industry)}${industryDestinations(industry)}<div class="inspector-grid"><div><small>Capacity</small><strong>${Math.round((industry.capacity||1)*100)}%</strong></div><div><small>Storage</small><strong>${Math.round(outputFill(industry)*100)}% full</strong></div><div><small>${isUnderConstruction(industry)?'After opening / day':'Potential / day'}</small><strong>${typical.toLocaleString('en-US',{maximumFractionDigits:1})}</strong></div></div>${localConditions(conditions)}<div class="section-divider"></div><div class="ledger">${Object.entries(industry.inventory||{}).map(([key,n])=>`<div class="ledger-row">${cargoBadge(key,{label:true})}<strong>${integer(n)}</strong></div>`).join('')||'<span class="micro-note">Storage empty</span>'}</div>${industrySize(industry)<industryFootprint(industry.kind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
- else if(kind!=='city'&&tile.building&&BUILDINGS[buildingKind]){const b=BUILDINGS[buildingKind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.group==='homes'?b.tier+' home':b.tier||BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${buildingKind}" data-building-variant="${tile.variant??x*13+y}" data-building-footprint="${span}" data-building-level="${tile.building.level||1}" aria-hidden="true"></canvas><p>${escapeHTML(b.tier||BUILDING_GROUPS[b.group].name)} · ${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?refFor(game,`town:${nearest.id}`):'Countryside'}</p></div><div class="inspector-grid"><div><small>Collection</small><strong>${escapeHTML(BUILDING_GROUPS[b.group].name)}</strong></div><div><small>Development</small><strong>Level ${tile.building.level||1}</strong></div></div><p>${isUnderConstruction(tile.building)?'Once open: ':''}${escapeHTML(buildingBenefit(buildingKind))}</p>${propertyHTML(x,y)}${span<buildingFootprint(buildingKind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
+ else if(kind!=='city'&&tile.building&&BUILDINGS[buildingKind]){const b=BUILDINGS[buildingKind],span=buildingSize(tile.building);title=b.name;tag=`${span} × ${span} site · ${b.group==='homes'?b.tier+' home':b.tier||BUILDING_GROUPS[b.group].name}`;const nearest=game.cities.reduce((best,c)=>!best||Math.hypot(c.x-x,c.y-y)<Math.hypot(best.x-x,best.y-y)?c:best,null);body=`<div class="inspector-building"><canvas width="96" height="100" data-building-sprite="${buildingKind}" data-building-variant="${tile.variant??x*13+y}" data-building-footprint="${span}" data-building-level="${tile.building.level||1}" aria-hidden="true"></canvas><p>${nearest&&Math.hypot(nearest.x-x,nearest.y-y)<=10?refFor(game,`town:${nearest.id}`):'Countryside'}<br><span class="micro-note">Level ${tile.building.level||1}</span></p></div><p>${isUnderConstruction(tile.building)?'Once open: ':''}${escapeHTML(buildingBenefit(buildingKind))}</p>${propertyHTML(x,y)}${span<buildingFootprint(buildingKind)?'<p class="micro-note">Compact legacy site. New construction uses a larger plot.</p>':''}`;}
  else if(kind!=='city'&&tile.building?.kind==='factory'){const span=buildingSize(tile.building);title='Workshop';tag=`${span} × ${span} site, level ${tile.building.level||1}`;body=workshopBody(tile.building,townOf(game,x,y))+propertyHTML(x,y);}
  else if(city&&(kind==='city'||!tile.zone)){
   const outlook=townOutlook(game,city);title=city.name;tag='Town';
@@ -1687,8 +1681,8 @@ function inspect(x,y,kind='',origin='',{from=null,source=null,back=null}={}) {
  if(station&&kind!=='city'&&kind!=='industry')body=renameButton('station',station.id)+body;
  const box=$('#inspector'),html=`${inspectorBackLine()}<div class="inspector-top"><span class="eyebrow">${tag}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${escapeHTML(title)}</h3>${body}${gallery?'<div data-inspector-gallery></div>':''}`,key=`${worldSerial}|${x},${y},${kind}|${JSON.stringify(gallery)}`;
  const focusTitle=()=>{if(origin==='keyboard')$('#inspector-title').focus({preventScroll:true});};
- if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){inspectorGallery?.refresh();focusTitle();return;}
- compactUI?.hideMinimap();closeManagement();closeMapMenus();layersView?.close();disposeInspectorGallery();box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();references?.relink();box.querySelector('.tiny-button').onclick=closeInspector;mountInspectorGallery(gallery);
+ if(!changed&&!box.hidden&&html===inspectorHTML&&key===inspectorKey){focusTitle();return;}
+ compactUI?.hideMinimap();closeManagement();closeMapMenus();layersView?.close();box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites();references?.relink();box.querySelector('.tiny-button').onclick=closeInspector;mountInspectorGallery(gallery);
  if($('#station-route'))$('#station-route').onclick=()=>openNewRoute(station);
  if($('#expand-workshop'))$('#expand-workshop').onclick=()=>{const result=expandWorkshop(game,x,y);toast(result.message,!result.ok);if(!result.ok)return;updateHud();persist();invalidateScene();inspect(x,y,kind,'keyboard');};
  if($('#zone-town'))$('#zone-town').onclick=()=>{category='towns';setView('build');};
@@ -1730,11 +1724,10 @@ function inspectVehicle(id,refresh=false,{from=null,source=null,back=null}={}) {
  const html=`${inspectorBackLine()}<div class="inspector-top"><span class="eyebrow">${escapeHTML(`${model.name} ${model.noun}`)}</span><button class="tiny-button" aria-label="Close inspector">×</button></div><h3 id="inspector-title" tabindex="-1">${bullet(route,{named:true})}<span class="vehicle-route">${escapeHTML(route.name)}</span></h3><div class="vehicle-trip"><canvas width="80" height="64" data-vehicle-sprite="purchase" data-mode="${escapeHTML(route.mode)}" data-cargo="${escapeHTML(route.cargo)}" data-level="${vehicle.level||0}" aria-hidden="true"></canvas><div><span class="vehicle-load">${cargoBadge(route.cargo)}<strong data-vehicle-live="load"></strong><small data-vehicle-live="aboard"></small></span><p class="vehicle-age">${model.year} model, ${ageText(vehicleAge(calendarYear(game),vehicle.level))}</p><p data-vehicle-live="trip"><span data-vehicle-live="where"></span><span data-vehicle-live="tail"></span></p></div></div><div class="industry-condition" data-state="${health.state}" title="${escapeHTML(health.detail)}"><strong>${escapeHTML(health.label)}</strong></div><div class="vehicle-actions"><button class="small-button icon-only" data-vehicle-action="follow" aria-pressed="false" aria-label="Follow" title="Follow">${icon('focus')}</button><button class="small-button icon-only" data-vehicle-action="show" aria-label="Show route" title="Show route">${icon('locate')}</button><button class="small-button icon-only" data-vehicle-action="routes" aria-label="Open in Routes" title="Open in Routes">${icon('routes')}</button><button class="small-button" data-vehicle-action="add" title="${escapeHTML(order.add.title)}" ${order.add.disabled?'disabled':''}>${escapeHTML(order.add.label)}</button></div><div data-inspector-gallery></div>`,key=`${worldSerial}|vehicle:${id}`;
  const same=!box.hidden&&key===inspectorKey,hold=refresh&&(box.contains(document.activeElement)||panelPress||performance.now()-panelReleasedAt<=250);
  if(!same||html!==inspectorHTML&&!hold){
-  compactUI?.hideMinimap();closeManagement();closeMapMenus();layersView?.close();disposeInspectorGallery();box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);references?.relink();if(!same)box.scrollTop=0;
+  compactUI?.hideMinimap();closeManagement();closeMapMenus();layersView?.close();box.innerHTML=inspectorHTML=html;inspectorKey=key;box.hidden=false;drawPaletteSprites(box);references?.relink();if(!same)box.scrollTop=0;
   box.querySelector('.tiny-button').onclick=closeInspector;mountInspectorGallery(selectionGallery(game,{vehicle:id}));
   box.querySelectorAll('[data-vehicle-action]').forEach(button=>button.onclick=()=>vehicleAction(button.dataset.vehicleAction,id));
  }
- if(!hold)inspectorGallery?.refresh();
  // Days since the cargo aboard boarded, which set its share of the fare.
  const days=vehicle.load>0&&vehicle.loadedDay!==undefined?Math.floor(game.day)-Math.floor(vehicle.loadedDay):null,aboard=days===null?'':days<1?'Boarded today':`${days===1?'1 day':integer(days)+' days'} on board`;
  for(const [live,text] of [['load',load],['tail',trip.tail],['aboard',aboard]]){const el=box.querySelector(`[data-vehicle-live="${live}"]`);if(el&&el.textContent!==text)el.textContent=text;}
@@ -1830,7 +1823,7 @@ function activateGame(next) {
  undoStack=[];
  constructionFeedback.clear();gameAudio.suspend();gameAudio.resume();
  cancelRoutePicking();cancelGesture();closeMapMenus();
- constructionNext=null;routeScreen='list';focusedRouteId=null;fleetControlsOpen=false;routeDetailsOpen.clear();disposeInspectorGallery();game=next;simulation.reset(game,performance.now());worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
+ constructionNext=null;routeScreen='list';focusedRouteId=null;fleetControlsOpen=false;routeDetailsOpen.clear();game=next;simulation.reset(game,performance.now());worldSerial++;spaceDown=false;selected=null;inspectorHTML='';hover=null;tool='inspect';preferredMode='road';
  hideBack();references?.clear();refShown={ref:null,until:0};inspectorTrail=[];inspectorSource=null; // rings, the back chip and the Back line belong to the old world
  view='build';category='network';buildingGroup='homes';chainSelection={};gallerySelection={};
  formDraft={name:'',mode:'road',from:'',to:'',cargo:'passengers',cargoChosen:false,vehicleCount:1,fullLoad:false,optionsOpen:false};draftPreviewMemo=null;draftPreviewState=null;

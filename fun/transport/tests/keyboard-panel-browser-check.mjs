@@ -133,7 +133,8 @@ try {
   await page.keyboard.press('Escape');
 
   // Modal Escape remains native and closes exactly that surface.
-  await page.locator('[data-open-gallery]').click();
+  await page.locator('#game-menu-button').click();
+  await page.locator('#game-menu [data-open-gallery]').click();
   await page.locator('#gallery-search').fill('town');
   await page.keyboard.press('Escape');
   await page.locator('#modal').waitFor({ state: 'hidden' });

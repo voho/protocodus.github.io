@@ -144,13 +144,13 @@ async function catalog(page, profile) {
   const counts = {};
   for (const group of ['homes', 'community', 'shops', 'services']) {
     await drawer(page); await openBuildArea(page, 'towns'); await page.locator('#building-group').selectOption(group);
-    assert.match(await page.locator('.panel-heading').filter({ has: page.locator('h2', { hasText: /^Buildings$/ }) }).innerText(), new RegExp(`${expected.total} types`));
+    assert.equal(await page.locator('#panel-content .panel-heading h2').allTextContents().then(titles=>titles.filter(title=>title==='Buildings').length),1,'the collection uses the area heading without a repeated title');
     counts[group] = await page.locator('.building-card').count();
     const kinds = group === 'community' ? parks : group === 'shops' ? malls : [];
     for (const kind of kinds) {
       const card = page.locator(`.building-card[data-tool="${kind}"]`);
       await card.scrollIntoViewIfNeeded();
-      assert.match(await card.locator('.building-tier').innerText(), group === 'community' ? /^Parks$/ : /^Shopping centres$/);
+      assert.equal(await card.locator('.building-tier').count(),0,'cards do not repeat the chosen building collection');
       assert.match(await card.locator('.building-price').innerText(), /[23] × [23]/);
       await card.click(); assert.equal(await card.getAttribute('aria-pressed'), 'true');
       await drawer(page);

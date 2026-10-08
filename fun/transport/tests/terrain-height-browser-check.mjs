@@ -1,5 +1,6 @@
 // Isolated desktop contexts verify the view preference and every projected layer.
 import assert from 'node:assert/strict';
+import { chooseBuildTool } from './browser-build.mjs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createWorldFromMenu, loadAutosaveFromMenu } from './browser-start.mjs';
 const { chromium } = await import(process.env.TRANSPORT_PLAYWRIGHT || 'playwright');
@@ -36,7 +37,7 @@ try{
   assert.equal(await page.evaluate(()=>transport.speed),0,'a native select key does not change simulation speed');
   await openMapOptions();
   await page.locator('#terrain-height').focus();await page.keyboard.press('r');await page.keyboard.press('g');
-  assert.equal(await page.locator('.topbar [data-toolbar-tool="road"]').getAttribute('aria-pressed'),'false','select keys never activate a map tool');
+  assert.equal(await page.locator('#active-tool-bar').isVisible(),false,'select keys never activate a map tool');
   assert.equal(await page.evaluate(()=>JSON.stringify(transport.game)),before);
   await page.keyboard.press('Escape');await page.locator('#map-options').waitFor({state:'hidden'});
   await page.waitForFunction(()=>document.activeElement?.id==='game-menu-button');
@@ -69,7 +70,7 @@ try{
     await page.keyboard.press('Escape');await page.locator('#map-options').waitFor({state:'hidden'});
   }
   await page.setViewportSize({width:1280,height:900});
-  await page.locator('.topbar [data-toolbar-tool="road"]').click();
+  await chooseBuildTool(page,'road');
   await openMapOptions();
   const beforeDismiss=await page.evaluate(()=>JSON.stringify(transport.game)),camera=await page.evaluate(()=>transport.renderer.getCamera());
   await page.locator('#world').click({position:{x:750,y:350}});

@@ -53,7 +53,7 @@ Two of three judges chose quiet instrument as the base, and all three wanted par
 
 | Topic | Decision | Why |
 |---|---|---|
-| Construction access | Road, Railway, Stop and Bulldozer shortcuts plus Gallery remain in the main toolbar. | Repeated building and browsing should not require opening a secondary menu. Computer labels compact and the toolbar scrolls if necessary. |
+| Construction access | Network, Buildings, Industry and Terrain open directly; one shared Bulldozer stays in the toolbar. Road, Railway and Stop live in Network and retain R/T/S shortcuts. Gallery lives in Game menu. | Keep the persistent toolbar focused and each construction action in one place. |
 | Chrome | Light paper rails. Ink only for transient surfaces. | Dark enamel slabs over the art pulled the eye away from the map (two judges). Light rails match the brand and today's DOM, and need the least CSS churn. |
 | Route identity | Number + line colour + bullet shape by mode: road square, rail circle, water pill, air diamond. | Colour alone fails beyond 6 routes and for colour-blind players. Shape shows the mode without letters. Airports need no new chrome. |
 | Line palette | 9 colours that alternate deep (white numerals) and light (ink numerals). No green, teal or orange. | Once land, water and signal hues are excluded, pastels alone run out of distinct hues. Per-line numeral colour is real transit practice. Checked on the live map: deep lines with a paper halo and light lines with an ink casing both read on moss, roads and river. Today's pastel teal vanished on the river. |
@@ -789,10 +789,10 @@ Sound effects start muted and retain the existing Sound effects toggle. When ena
 
 ### 11.1 Default screen (desktop)
 
-The sketches abbreviate Network, Buildings, Industry and Terrain as **Areas**, Towns and Industries as **Places**, and the direct construction shortcuts and Gallery as **Tools**. These are groups of visible buttons.
+The sketches abbreviate Network, Buildings, Industry and Terrain as **Areas**, and Towns and Industries as **Places**. These are groups of visible buttons; **Clear** represents the shared Bulldozer shortcut.
 
 ```
-┌[t] Areas  Routes ▲2  Places  Tools ┐                ┌ $372,875            Jan 1950 │ ❚❚ 1× 3× 8× │ news• ≡ ┐
+┌[t] Areas  Routes ▲2  Places  Clear ┐                ┌ $372,875            Jan 1950 │ ❚❚ 1× 3× 8× │ news• ≡ ┐
 └────────────────────────────────────────┘                │ +$1,034 this month  Rain     │             │         │
                                                            └─────────────────────────────────────────────────────┘
                                                                          ┌ ⚑ First 100 deliveries   24 of 100 ⌄ ┐
@@ -808,8 +808,8 @@ While the game is paused, a 2 px orange line runs along the top edge of the map.
 Working state (wide):
 
 ```
-┌[t] Areas  Routes ▲2  Places  Tools ┐     ┌ cluster ─────────────────────────┐
-├ Routes 3          [+ New route]      ×┤     ┌ ⚑ First 100 deliveries 24 of 100 ⌄┐
+┌[t] Areas  Routes ▲2  Places  Clear ┐     ┌ cluster ─────────────────────────┐
+├ Routes 3          [+ New route]      ×┤
 │ [All 3] [Needs attention 2]            │     ┌ [art] Stone quarry         ⌖  ×  ┐
 ├────────────────────────────────────────┤     │       Industry near [Alderbrook] │
 │ [2] Stone quarry to Alderbrook +$1,356 │     ├──────────────────────────────────┤
@@ -882,6 +882,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 - **Nav rail** (top left). Its minimum width is `--drawer-w` at wide and compact widths, so the drawer can grow out of it. Contents:
   - The t tile: 32 px, `--signal` fill, paper "t" italic 700. It links to `/fun/` with the label "All games".
   - Direct construction buttons Network, Buildings, Industry and Terrain, plus browsing buttons Routes, Towns and Industries: icon 20 and label 14/500 in ink-2. Hover shows the well.
+  - One shared Bulldozer shortcut. Road, Railway and Stop are available in Network and through R/T/S.
   - The active tab has an ink label and a 2 px ink bar inside the rail's bottom edge.
   - Routes shows the attention count ("▲2" in warn, aria "Routes, 2 need attention") only when it is above zero.
   - Tabs are buttons with `aria-expanded` and `aria-controls` pointing at the drawer.
@@ -909,8 +910,8 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 
   The footer shows "Part 1 of 4" and "All goals".
 - **Onboarding.** The first-route checklist uses the same ladder inside a native **All steps** disclosure, initially closed. Its summary names the current step; the route sentence above it links the cargo and both endpoints to the map. Keep the open state through live updates and alternative suggestions, and reset it when changing companies. The waiting delivery step explains that time must run, including while paused. Folding the entire goal keeps its existing saved preference.
-- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. The Network, Industry and Terrain drawers repeat the goal with the Next goal layer off.
-- **With the inspector.** When the inspector opens at wide widths, the inspector starts under the goal line. The line stays one line.
+- **One button.** The card shows one filled button: Plan road while the game can plan the line, else the open step's action, else the goal's own. The open step's label runs that step too, with a chevron; "Another idea" and "Company goals" stay text links. Map layers owns the Next goal visibility preference.
+- **Focused surfaces.** Any open drawer or inspector hides the goal at every window size. Closing those surfaces restores its existing open or folded state. Construction drawers contain only their tools and relevant next construction actions.
 
 ### 12.3 Drawer
 
@@ -941,7 +942,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
 ### 12.5 Inspector
 
 - **Placement:**
-  - wide: right column, `--inspector-w`, under the goal line;
+  - wide: right column, `--inspector-w`, below the instrument cluster;
   - compact: overlays the drawer.
 
   It uses `--e2` and scrolls inside.
@@ -953,6 +954,7 @@ The class names in 16.3 are a contract. Parallel implementers rely on them.
   - a locate icon button (`data-ref-action="show"`);
   - a close button.
 - **Body:** a facts grid (12.7), then sections divided by hairlines, each with a 13/600 heading. No boxed callouts and no numbered lists.
+- **Reference:** one **View in Gallery** button opens the selected identity in the Gallery dialog. Keep the actual portrait and live information in the inspector; show full catalog facts, recipes and related entries in Gallery. Closing the dialog restores the selected object and the reference button’s focus.
 - **Footer:** one primary action ("New route from here") and one chevron link ("Production chain ›").
 
 ### 12.6 Buttons
@@ -1024,7 +1026,7 @@ An explicit **New route** starts a fresh draft with one vehicle and default orde
 - **Menu:** paper, `--e2`, `--r-4`, 280 px wide.
   - Header line: weather and "Saved 2 min ago" in 13 ink-2.
   - Rows: icon 20, label 14/500, and a shortcut hint in 12 ink-2 on the right (`.kbd`). Rows are 40 px tall.
-  - Order, in four groups split by rules: Company (Shift+C), Company goals (Shift+G), Achievements, News (Shift+N); Production chains (C), Map layers (L), Mini map, Map options; Sound effects, Guide, Keyboard shortcuts (?); Saved games (Ctrl+S), New world, Main menu.
+  - Order, in four groups split by rules: Company (Shift+C), Company goals (Shift+G), Achievements, News (Shift+N); Production chains (C), Gallery, Map layers (L), Mini map, Map options; Sound effects, Guide, Keyboard shortcuts (?); Saved games (Ctrl+S), New world, Main menu.
   - The footer keeps the save status only; coordinates stay out of sight (6.1 rule 11).
 - **Popover** (layers, zoom menu, overview): paper, `--e2`, anchored to its button, closed by Esc and by clicking outside.
 
@@ -1077,16 +1079,17 @@ Road, railway, bridge and tunnel construction is one action: validate the finish
 
 ### 12.15 Construction areas
 
-- **Network**, **Buildings**, **Industry** and **Terrain** open their own drawers directly from the main toolbar. Each drawer has its area title and a short description; there is no generic Build button, category tab strip or nested Terrain accordion.
+- **Network**, **Buildings**, **Industry** and **Terrain** open their own drawers directly from the main toolbar. Each drawer starts with its area title and tools; omit introductory prose and repeated headings or category counts.
 - **Shift+1/2/3/4** open those four areas; **Shift+B** opens the last area. Clicking the open area again closes it. Done returns to the active tool’s area.
-- Direct Road, Railway, Stop and Bulldozer shortcuts and Gallery remain in the toolbar. Construction-area labels remain visible from 1024 px, quick-tool labels from 1440 px, and Gallery’s label above 600 px.
-- The header is 52 px tall above 1180 px and uses two rows totalling 84 px at narrower widths. At 520 px all direct buttons remain visible as 32 px icon controls; smaller computer windows can scroll the bounded navigation rail.
-- Active construction instructions use the shared top-left anchor. The goal card yields that space until construction finishes, keeping its open or folded preference.
+- Bulldozer is the only global construction shortcut; Road, Railway and Stop stay in Network with R/T/S keys. Gallery opens from Game menu. Construction-area labels remain visible from 1024 px and the Bulldozer label from 1440 px.
+- The header is 52 px tall above 720 px and uses two rows totalling 84 px at narrower widths. At 520 px all direct buttons remain visible as 32 px icon controls; smaller computer windows can scroll the bounded navigation rail.
+- Active construction instructions use the shared top-left anchor. The goal card stays hidden during construction and while any drawer or inspector is open, preserving its open or folded preference.
+- Notifications sit in the remaining map space beside open panels and above zoom controls. Wrap their text and actions within that space so notices never cover panel controls.
 - **Network:** two-column cards for Road, Rail, Stop, Port and Airport. Cards retain their sprites, names, prices and selected outlines. Airport waits greyed with "From 1952".
-- **Buildings:** residential, commercial and industrial zones, Workshop, Found town and the illustrated building catalog with prices, tiers and construction times.
+- **Buildings:** residential, commercial and industrial zones, Workshop, Found town and the illustrated building catalog with prices and construction times. Use the area heading once and keep tier metadata out of the tool cards.
 - **Industry:** industry cards with cargo recipes, prices and construction times.
 - **Terrain:** Raise, Lower and Level area, followed by Bridge and Tunnel with a Road/Rail mode choice. All tools are immediately visible.
-- Every construction area retains a compact Bulldozer action.
+- The shared toolbar Bulldozer handles clearing from every area.
 
 ### 12.16 Demand rows (towns, the second pillar)
 
@@ -1213,7 +1216,7 @@ Device detection must not reject a computer merely because its window is narrow,
 - `tests/route-workflow-browser-check.mjs`: browsing, New/Edit and the selected route’s sole details screen.
 - `tests/route-framing-browser-check.mjs`: terrain-aware endpoint framing clear of visible panels on desktop and laptop.
 - `tests/persistent-network-tool-browser-check.mjs`: consecutive network strokes, Undo, refusal and explicit cancellation.
-- `tests/construction-toolbar-browser-check.mjs`: main construction shortcuts, Gallery focus, selected-road/rail stop quotes, crossings, Undo and route handoff at desktop and narrow computer widths.
+- `tests/construction-toolbar-browser-check.mjs`: direct construction areas and concise drawer contents, shared Bulldozer and R/T/S shortcuts, compact headers, Game menu Gallery focus, goal preference preservation, selected-road/rail stop quotes, crossings, Undo and route handoff at desktop and narrow computer widths.
 - `tests/rail-station-browser-check.mjs`: station pixel preparation, shared scale, missing-art fallback and portraits across zooms and display densities.
 - `tests/station-sprite-picking-browser-check.mjs`: opaque road/rail/harbor roof selection, transparent margins, reserved neighbors, foreground occlusion and cached scenery.
 - `tests/ui-refs.test.mjs`

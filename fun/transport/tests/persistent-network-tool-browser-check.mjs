@@ -1,4 +1,4 @@
-import { openBuildArea } from './browser-build.mjs';
+import { openBuildArea, chooseBuildTool } from './browser-build.mjs';
 // A completed network stroke leaves the next gesture ready, without opening a
 // panel. Real pointer input verifies this for every network tool and both layouts.
 import assert from 'node:assert/strict';
@@ -52,7 +52,7 @@ async function prepare(page, tool) {
   }, tool);
 }
 async function choose(page, tool) {
-  if (tool === 'road' || tool === 'rail') return page.locator(`[data-toolbar-tool="${tool}"]`).click();
+  if (tool === 'road' || tool === 'rail') return chooseBuildTool(page,tool);
   await openBuildArea(page, 'terrain');
   await page.locator(`[data-crossing-mode="${tool.startsWith('rail') ? 'rail' : 'road'}"]`).click();
   if (!await page.locator('.sidebar').evaluate(el => el.classList.contains('drawer-open'))) await openBuildArea(page, 'terrain');
