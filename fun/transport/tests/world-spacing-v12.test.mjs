@@ -10,6 +10,7 @@ import { openingSiteProblem } from '../industry-openings.js';
 import { emptyGame, line, completeFixtureConstruction } from './helpers.mjs';
 
 const frozen11={taiga:'dd01470c49a07a44cc025a2b10f33a0e5c89675a5b4af144e0eae1848cc661b7',tundra:'fc6429a2afefc865ac00544af358b9bb7da6ac381e326162b9cbfd861d702316',desert:'72a90c4e6cd14a407c7a473345b4c32d92093bbf51d9873af71d6117f4812c38'};
+const frozen12={taiga:'444231c352f872be973b29ee1cefb49bb2d85564f638fc89e4d8a4426c1382ce',tundra:'98125aa72cf5494c2683ac478c4d66a3385c5d164041a56a5c0aad47b7e2c2da',desert:'d65e47280913a6164651489291642c1ee0f26dff8f15c751e8f5a4e60dfb2d0d'};
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const ok=result=>assert.equal(result.ok,true,result.message);
 const stopSites=site=>{
@@ -22,11 +23,12 @@ const stopSites=site=>{
 const shortestRoad=(a,b)=>Math.min(...stopSites(a).map(start=>Math.min(...stopSites(b).map(end=>Math.abs(end.x-start.x)+Math.abs(end.y-start.y)))));
 
 for(const biome of ['taiga','tundra','desert']){
-  test(`${biome}: recipe 11 remains byte-exact after recipe 12 adds journey spacing`,()=>{
+  test(`${biome}: recipes 11 and 12 remain byte-exact after later recipes`,()=>{
     assert.equal(digest(generateWorld(biome,1847,'square512',11)),frozen11[biome]);
+    assert.equal(digest(generateWorld(biome,1847,'square512',12)),frozen12[biome]);
   });
   test(`${biome}: sparse and crowded recipe 12 worlds reserve five road edges beyond both catchments`,()=>{
-    assert.equal(WORLD_GENERATION_VERSION,12);
+    assert.ok(WORLD_GENERATION_VERSION>=12);
     for(const [seed,options] of [[1847,{townCount:2,industryDistricts:1}],[9731,{townCount:96,industryDistricts:16}]]){
       const world=generateWorld(biome,seed,'square512',12,options);
       assert.equal(world.cities.length,options.townCount);

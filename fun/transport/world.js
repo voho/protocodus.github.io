@@ -25,7 +25,7 @@ export const WORLD_SIZES = {
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
 export const MAX_WORLD_TILES = 2048 * 2048;
-export const WORLD_GENERATION_VERSION = 12;
+export const WORLD_GENERATION_VERSION = 13;
 export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= WORLD_GENERATION_VERSION;
 
 // Keep complete production chains together: one district contains one of every

@@ -176,7 +176,7 @@ test('one kind, or a supplier and its customer, keep the industry spacing apart'
   assert.equal(build(game,'sawmill',far,20).ok,true);
   assert.match(build(game,'logging-camp',20,far-1).message,/5-tile road between the industries/);
   assert.equal(build(game,'logging-camp',20,far).ok,true);
-  assert.equal(build(game,'oil-well',25,20).ok,true,'an unrelated industry may stand next door');
+  assert.equal(build(game,'oil-well',25,20).ok,true,'a player may build an unrelated industry next door');
   // A drag counts the sites it places first.
   const quote=quoteBuildPlan(game,'farm',[{x:20,y:60},{x:30,y:60}]);
   assert.equal(quote.ok,false);assert.match(quote.message,/5-tile road between the industries/);

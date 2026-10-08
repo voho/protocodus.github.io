@@ -17,8 +17,8 @@ try {
   for (const biome of ['taiga', 'tundra', 'desert']) {
     const context = await browser.newContext({ viewport: { width:1280, height:800 } }), page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
-    await page.goto(base); await createWorldFromMenu(page, { biome, generationVersion:12 });
-    const before = await snapshot(page); assert.equal(before.generation,12); assert.equal(before.reachVersion,1);
+    await page.goto(base); await createWorldFromMenu(page, { biome, generationVersion:13 });
+    const before = await snapshot(page); assert.equal(before.generation,13); assert.equal(before.reachVersion,1);
     await page.locator('#objective-plan').click(); await page.locator('#build-connection-plan').click();
     await page.locator('#route-launch [type="submit"]').click();
     await page.locator('#route-list[data-route-detail]').waitFor();
