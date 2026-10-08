@@ -2,6 +2,28 @@
 
 Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit remains **2048 × 2048**.
 
+## Busy companies and frame-sliced commits
+
+`tests/busy-company-benchmark.mjs` plays a real company on a generated recipe 13 world. Every producer that can reach its nearest buyer within 70 tiles by road, and every town with a neighbour within 45 tiles, runs a route built with the game's own connection planner, four vehicles each. It then times whole daily steps. With `--model`, a frozen copy builds and ticks the same company in the same process, alternating order, and must reach an identical SHA-1 of every field and tile.
+
+| Company | Daily step before → after (median) | State |
+| --- | ---: | --- |
+| 512², 73 routes, 293 vehicles | 42–45 → 32–34 ms (1.23–1.37×) | identical |
+| 1024², 185 routes, 741 vehicles | 125–133 → 93–101 ms (1.30–1.37×) | identical |
+
+- **Town growth** surveyed every lot in reach with `localEnvironment` before checking that a road runs beside it, then tested every lot's flatness. A lot is now rejected by the road and site checks first. Lots are then ranked with a stable sort, and flatness is read only until a flat lot wins, so ties still keep the earlier lot.
+- **Levelling a sloped lot** (`plotLevelPlan`) wrapped the game in a `Proxy` and rebuilt whole 48 × 48 height chunks through it for every candidate level. `previewVertexHeights` now runs the same distance transform over the plot's own window. Any source more than seven vertices away cannot set a height, so the result is exact.
+- **Height fields** survive towns' journaled new homes as well as ecology: neither moves a height, water or a network. The LRU holds 4,096 1 KiB chunks (4 MiB, a whole 2048² map) instead of 96, so daily growth across a large map stops cycling it. Single-tile flatness reads its four corners from one chunk.
+- **Daily upkeep** needed only the police, fire and service buildings around each vehicle and player plant. `localSupport` counts those exactly, without the full neighbourhood survey. Station buckets use numeric keys instead of building a string per bucket per query.
+- **Commits.** At 8× a second's eight days ran inside one animation frame: about 260 ms on the 512² company and 800 ms at 1024², once a second. `createWorldClock` now stops a frame's commit at a day boundary once it has used `FRAME_BUDGET_MS` (16 ms) and finishes on the following frames. Whole-day slices reach the same state. Pauses, speed changes, saves and any backlog of more than two intervals still commit everything at once, so game time never falls behind.
+- **Recipe 13 placement** pre-filters the towns and plots that can touch a candidate and caches industry relations per kind pair. The worst case (2 towns, 96 districts on 2048²) generates in 12.8 s, against 13.8 s for recipe 12 before. Recipe 12 itself now takes 8.6 s and stays byte-exact.
+
+Ecology remains a fixed cost: about 15 ms a day on maps of 1024² and more. It samples 4,096 random tiles a day, and its time goes to scattered tile reads rather than arithmetic.
+
+```sh
+node --max-old-space-size=8192 fun/transport/tests/busy-company-benchmark.mjs --size=1024 --days=100 --model=/absolute/baseline/model.js
+```
+
 ## October 2026 update
 
 World state now commits about once per active second, while ordinary map rendering targets 30 frames per second. Each commit processes elapsed simulation time in chronological order. Vehicles replay recorded paths one active second behind the committed state, including bends, loading waits, train carriages and aircraft turnarounds. Camera motion, pointer gestures, vehicle following and delivery figures use the display's animation frames. Input and renderer invalidations wake a paused view immediately. Paused housekeeping uses a 250 ms timer, menus poll once a second, and a hidden tab cancels both its animation frame and timer. Autosave and notice deadlines remain active in a visible paused game.

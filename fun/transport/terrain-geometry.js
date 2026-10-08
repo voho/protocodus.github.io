@@ -1,5 +1,5 @@
 import { landHeightLevel, LAND_HEIGHT_LEVELS, TERRAIN_LEVELS } from './terrain-elevation.js';
-import { surfaceChangesSince } from './change-journal.js';
+import { heightsKeptSince } from './change-journal.js';
 import { terrainSlopeShape, slopeHeight } from './terrain-slope-shapes.js';
 
 export const TERRAIN_TILE_SIZE = 32;
@@ -7,7 +7,9 @@ export const HEIGHT_STEP = 12;
 export const MAX_VISUAL_HEIGHT = LAND_HEIGHT_LEVELS;
 export const MAX_HEIGHT = MAX_VISUAL_HEIGHT;
 export const TERRAIN_SLOPE_LIMIT = 1;
-const CHUNK = 32, HALO = 8, CACHE_LIMIT = 96, BRIDGE_SCAN = 2048;
+// A 1 KiB chunk per 32² tiles: 4,096 of them (4 MiB) hold a whole 2048² map, so daily town growth across a large map
+// reuses its fields instead of cycling a small LRU.
+const CHUNK = 32, HALO = 8, CACHE_LIMIT = 4096, BRIDGE_SCAN = 2048;
 const caches = new WeakMap();
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const tileAt = (game, x, y) => x >= 0 && y >= 0 && x < game.width && y < game.height ? game.tiles[y * game.width + x] : null;
@@ -15,8 +17,8 @@ const toVisual = level => Math.round(clamp(level, 0, TERRAIN_LEVELS) * MAX_VISUA
 function cacheFor(game) {
   let cache = caches.get(game);
   if (!cache || cache.tiles !== game.tiles || cache.revision !== game.revision || cache.width !== game.width || cache.height !== game.height) {
-    // Ecology never changes elevation, water or bridges: its fields stay exact.
-    if (cache && cache.tiles === game.tiles && cache.width === game.width && cache.height === game.height && surfaceChangesSince(game, cache.revision) !== null) { cache.revision = game.revision; return cache; }
+    // Ecology and towns' new homes never change elevation, water or bridges: their fields stay exact.
+    if (cache && cache.tiles === game.tiles && cache.width === game.width && cache.height === game.height && heightsKeptSince(game, cache.revision)) { cache.revision = game.revision; return cache; }
     cache = { tiles: game.tiles, revision: game.revision, width: game.width, height: game.height, columns: Math.floor(game.width / CHUNK) + 1, chunks: new Map(), chunkBridgeModes: new Map(), hotKey: -1, hotHeights: null, bridges: new Map(), bridgeSpans: new Map(), approachDirections: new Map(), approaches: new Map(), sampledTiles: 0, builtChunks: 0 };
     caches.set(game, cache);
   }
@@ -78,6 +80,40 @@ function fieldChunk(game, cx, cy) {
   cache.hotKey = key; cache.hotHeights = heights;
   return heights;
 }
+/** Vertex heights over [u0, u1] × [v0, v1] (inside the map's vertices) as fieldChunk computes them, with `replace(index)`
+ * standing in for any tile it returns: an exact local preview of an edit, without a game copy or a chunk cache. A HALO
+ * margin is enough for the same reason it is for a chunk: no source more than seven vertices away sets a height. */
+export function previewVertexHeights(game, u0, v0, u1, v1, replace) {
+  const ox = u0 - HALO, oy = v0 - HALO, w = u1 - u0 + 1 + HALO * 2, h = v1 - v0 + 1 + HALO * 2, stride = w + 1;
+  const field = new Uint8Array(w * h), sources = new Uint8Array(stride * (h + 1)), water = new Uint8Array(stride * (h + 1));
+  for (let y = 0; y <= h; y++) for (let x = 0; x < stride; x++) {
+    const index = clamp(oy + y - 1, 0, game.height - 1) * game.width + clamp(ox + x - 1, 0, game.width - 1), tile = replace(index) ?? game.tiles[index];
+    sources[y * stride + x] = landHeightLevel(tile); water[y * stride + x] = tile.terrain === 'water' ? 1 : 0;
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const nw = y * stride + x, se = nw + stride + 1;
+    field[y * w + x] = water[nw] || water[nw + 1] || water[se - 1] || water[se] ? 0 : sources[se];
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x;
+    if (x) field[i] = Math.min(field[i], field[i - 1] + 1);
+    if (y) {
+      field[i] = Math.min(field[i], field[i - w] + 1);
+      if (x) field[i] = Math.min(field[i], field[i - w - 1] + 1);
+      if (x + 1 < w) field[i] = Math.min(field[i], field[i - w + 1] + 1);
+    }
+  }
+  for (let y = h - 1; y >= 0; y--) for (let x = w - 1; x >= 0; x--) {
+    const i = y * w + x;
+    if (x + 1 < w) field[i] = Math.min(field[i], field[i + 1] + 1);
+    if (y + 1 < h) {
+      field[i] = Math.min(field[i], field[i + w] + 1);
+      if (x) field[i] = Math.min(field[i], field[i + w - 1] + 1);
+      if (x + 1 < w) field[i] = Math.min(field[i], field[i + w + 1] + 1);
+    }
+  }
+  return (u, v) => field[(clamp(v, 0, game.height) - oy) * w + clamp(u, 0, game.width) - ox];
+}
 function vertexHeight(game, x, y) {
   x = clamp(x, 0, game.width); y = clamp(y, 0, game.height);
   const cx = Math.floor(x / CHUNK), cy = Math.floor(y / CHUNK);
@@ -116,6 +152,11 @@ export function tileSurface(game, x, y, heightStep = HEIGHT_STEP) {
 // the same shared vertices as the mesh, including interior points of parcels.
 export function groundIsFlat(game, x, y, span = 1) {
   if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isInteger(span) || span < 1 || x < 0 || y < 0 || x + span > game.width || y + span > game.height) return false;
+  // A tile inside one chunk reads its four corners from that chunk directly.
+  if (span === 1 && x % CHUNK < CHUNK - 1 && y % CHUNK < CHUNK - 1) {
+    const cx = Math.floor(x / CHUNK), cy = Math.floor(y / CHUNK), heights = fieldChunk(game, cx, cy), i = (y - cy * CHUNK) * CHUNK + x - cx * CHUNK, height = heights[i];
+    return heights[i + 1] === height && heights[i + CHUNK] === height && heights[i + CHUNK + 1] === height;
+  }
   const height = vertexHeight(game, x, y);
   for (let v = y; v <= y + span; v++) for (let u = x; u <= x + span; u++) if (vertexHeight(game, u, v) !== height) return false;
   return true;

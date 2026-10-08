@@ -43,3 +43,17 @@ test('direct compatibility advances replace stale presentation without adding el
  assert.equal(clock.getPresentationDay(),200);assert.equal(clock.getStats().pendingDays,0);
  clock.advance(2500);assert.equal(game.day,201);
 });
+test('a busy world spreads one second of 8× across frames at day boundaries, and flushes still commit everything',()=>{
+ let cpu=0;const game={day:20},calls=[],motion={captureFinal(){},reset(){},trim(){}};
+ // Each simulated day costs 10 ms of a fake CPU clock.
+ const clock=createWorldClock({game,motion,cpuNow:()=>cpu,advanceWorld:(world,days)=>{calls.push(days);world.day+=days;cpu+=10*days;}});
+ clock.setSpeed(8,0);clock.setActive(true,0);
+ clock.advance(1000);assert.deepEqual(calls,[1,1],'stops at a day boundary once the frame budget is spent');assert.equal(game.day,22);
+ clock.advance(1033);assert.ok(game.day>22&&game.day<=24.3,'the next frame continues without waiting for the interval');
+ for(const at of [1066,1099,1132])clock.advance(at);
+ assert.equal(clock.getStats().pendingDays,0,'caught up within a few frames');assert.equal(clock.getStats().commits,1,'continuations finish the same commit');assert.ok(Math.abs(game.day-(20+1.132*8))<1e-9);
+ clock.advance(1500);assert.ok(Math.abs(game.day-(20+1.132*8))<1e-9,'then the usual one-second cadence resumes');
+ calls.length=0;clock.setSpeed(0,1700);assert.equal(calls.length,1,'a speed change flushes in one advance');assert.ok(Math.abs(game.day-(20+1.7*8))<1e-9);
+ // More than two intervals behind (a long hitch), a frame commits everything rather than falling further behind.
+ clock.setSpeed(8,1700);calls.length=0;clock.advance(4700);assert.equal(calls.length,1);assert.ok(Math.abs(game.day-(20+4.7*8))<1e-9);
+});

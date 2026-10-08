@@ -7,7 +7,7 @@ import { allocateTerrainObjects } from './world-terrain-objects.js';
 import { industryContains, industryDistance, industryTiles, industrySiteProblem, industrySpacingProblem, townSpacingProblem, industrySize, industryFootprint, isFarmIndustry } from './industry-sites.js';
 import { buildingAt, buildingSize, buildingFootprint, buildingTiles, buildingSiteProblem, placeBuildingSite } from './building-sites.js';
 import { encodeGame, decodeGame, rememberGeneratedWorld } from './save-codec.js';
-import { randomAt, localEnvironment, weatherAt, stepEcology } from './environment.js';
+import { randomAt, localEnvironment, localSupport, weatherAt, stepEcology } from './environment.js';
 import { stepSettlements, housingCapacity } from './settlements.js';
 import { monthlyTownRelations, disturbTown, townActionQuote, TOWN_ACTIONS, TOWN_RADIUS, DISTURBANCE } from './town-authority.js';
 import { monthlyMarkets, recordTownSupply, recordVisitors, validMarket, MARKET } from './town-market.js';
@@ -1262,7 +1262,7 @@ function maintenance(game) {
     // Upkeep reads the steady-pace place: easing near stops is only drawn.
     const route=routeIndex.get(v.routeId),at=route&&route.mode!=='air'&&route.path.length>1?pathPoint(route.path,v.progress):v;
     const localWeather=weatherAt(game,at.x,at.y,day),key=Math.floor(at.y)*game.width+Math.floor(at.x);
-    let e=environments.get(key);if(!e){e=localEnvironment(game,at.x,at.y,2);environments.set(key,e);}
+    let e=environments.get(key);if(!e){e=localSupport(game,at.x,at.y,2);environments.set(key,e);}
     const support=1-Math.min(.12,e.police*.025+e.services*.015);
     const expense=(VEHICLE_UPKEEP[route?.mode]??VEHICLE_UPKEEP.road)*(route?.active&&!waitingForFullLoad(v)?1:.45)*(.91+randomAt(game,day,v.id,521)*.18)*vehicleWeatherCost(route?.mode,localWeather)*support;
     if(route)routeCosts.set(route.id,routeCosts.get(route.id)+expense);
@@ -1270,7 +1270,7 @@ function maintenance(game) {
   },0);
   const facilities=game.industries.reduce((sum,i)=>{
     if(i.owner!=='player'||isUnderConstruction(i))return sum;
-    const localWeather=weatherAt(game,i.x,i.y,day),e=localEnvironment(game,i.x,i.y,3,industrySize(i)),support=1-Math.min(.15,e.fire*.035+e.services*.015);
+    const localWeather=weatherAt(game,i.x,i.y,day),e=localSupport(game,i.x,i.y,3,industrySize(i)),support=1-Math.min(.15,e.fire*.035+e.services*.015);
     return sum+INDUSTRIES[i.kind].cost*.00008*(.9+randomAt(game,day,i.id,522)*.2)*(1+localWeather.cold*.2+localWeather.heat*.12)*support;
   },0);
   const infrastructureFactor=networkWeatherCost(weather)*(.94+randomAt(game,day,'infrastructure',523)*.12);
