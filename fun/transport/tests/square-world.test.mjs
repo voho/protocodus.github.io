@@ -21,11 +21,11 @@ const industrySiteRecipes = {
   desert: '559b570f47053a2e9818e1e264d8af1957c9a5b11682eb04c4770bba50b6846c',
 };
 
-test('new-world choices are exactly 512², 1024², and 2048²; legacy dimensions remain loadable', () => {
+test('new-world choices are exactly 512², 1024², 2048², 3072² and 4096²; legacy dimensions remain loadable', () => {
   assert.deepEqual(Object.entries(NEW_WORLD_SIZES).map(([key, size]) => [key, size.width, size.height]), [
-    ['square512', 512, 512], ['square1024', 1024, 1024], ['square2048', 2048, 2048],
+    ['square512', 512, 512], ['square1024', 1024, 1024], ['square2048', 2048, 2048], ['square3072', 3072, 3072], ['square4096', 4096, 4096],
   ]);
-  assert.equal(DEFAULT_WORLD_SIZE, 'square512'); assert.equal(MAX_WORLD_TILES, 2048 ** 2);
+  assert.equal(DEFAULT_WORLD_SIZE, 'square512'); assert.equal(MAX_WORLD_TILES, 4096 ** 2);
   for (const [key, width, height] of [['regional',128,96],['large',256,192],['huge',512,384],['vast',768,576]]) {
     assert.deepEqual([WORLD_SIZES[key].width,WORLD_SIZES[key].height], [width,height]);
   }

@@ -1856,6 +1856,8 @@ function markSaveFailed(){
 function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.dismissToast();toast('Autosave is working again.');}
 function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
 function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();noteAutosaveTime();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
+// Autosave scans every tile to find changes: every 20 seconds up to 2048², proportionally less often on larger maps.
+function autosaveInterval(){return 20000*Math.max(1,game.tiles.length/(2048*2048));}
 function persist(notify=false){
  saveAt=performance.now();
  if(pendingSave){pendingSave.again=true;pendingSave.notify||=notify;return pendingSave.promise;}
@@ -2873,7 +2875,7 @@ function frame(now){
  // No world state changes while paused: avoid rescanning millions of tiles to
  // rewrite the same autosave. Explicit saves and page-leave saves still run.
  // Captures block whole world commits, so every committed day phase is safe.
- if(now-saveAt>20000&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
+ if(now-saveAt>autosaveInterval()&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
  if(now-panelAt>7000&&!$('.sidebar').inert&&(view==='industry'||view==='towns')&&(panelDay!==game.day||panelRevision!==game.revision)){
   if(!$('#entity-list')?.contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
  }

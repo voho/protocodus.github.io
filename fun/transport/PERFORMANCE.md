@@ -1,6 +1,6 @@
 # Large-world performance
 
-Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit remains **2048 × 2048**.
+Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit is **4096 × 4096** (see *Practical limits*).
 
 ## Busy companies and frame-sliced commits
 
@@ -99,7 +99,15 @@ A separate save test mutates over four million tiles in a real generated 2048² 
 
 ## Practical limits
 
-A raw 4096² generation probe used about **1.8 GiB of JavaScript heap**, before renderer surfaces, path buffers, fleets, save reconstruction or browser overhead. It is not exposed as a playable size. Larger supported maps require a packed/lazy tile representation and a save strategy that avoids retaining both worlds while replacing one.
+3072² and 4096² are playable sizes. Node has no pointer compression, so its heap is larger than the browser's: a raw 4096² generation used about **1.8 GiB** in Node. Headless Chromium measured the whole world, created through the menu and its background worker, at seed 1847:
+
+| Map | Create to playable | Main-thread heap | Warm frame | First pan of half a screen | Mini map | Autosave (async) | Reload |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2048² | 11.7 s | 304 MiB | — | — | — | — | — |
+| 3072² | 22.0 s | 673 MiB | 2 ms | 0.53 s | 0.24 s | 10.5 s | 29.9 s |
+| 4096² | 35.3 s | 1,189 MiB | 2 ms | 0.67 s | 0.22 s | 26.9 s | 50.4 s |
+
+Both large worlds ran four seconds at 8× (about 35 days) with no errors. A sparse save regenerates the landscape, so loading costs about as much as creating. The autosave's capture compares every tile with the generated baseline and holds world commits while it runs, so `autosaveInterval()` stretches the 20-second interval in proportion to tiles beyond 2048²: 45 s at 3072² and 80 s at 4096². The tile representation is unchanged, so memory still grows with tiles: about 76 bytes a tile in the browser. Larger maps would need a packed or lazy tile representation, and a save strategy that avoids retaining both worlds while replacing one.
 
 Normal menu generation/restoration and live save encoding now use background workers (measurements below). Page-leave checkpoints, compatibility callers and worker-unavailable fallbacks still perform synchronous validation/terrain scans. A fully modified 2048² synchronous save can take roughly 1.3–1.8 seconds; loading while keeping the previous company for failure recovery can briefly double world memory. Fully paused unchanged worlds skip periodic autosave scans. Long-network edits can still require multiple route replans, and worst-case winding routes do not compress as well as straight lines. Local-storage quota is shared by all named saves and depends on the browser.
 

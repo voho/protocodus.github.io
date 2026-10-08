@@ -15,6 +15,9 @@ export const NEW_WORLD_SIZES = {
   square512: { width: 512, height: 512, towns: 48, clusters: 8, columns: 7, lakes: 18, separation: 24, label: '512 × 512', description: '48 towns, a connected region' },
   square1024: { width: 1024, height: 1024, towns: 128, clusters: 20, columns: 12, lakes: 48, separation: 32, label: '1024 × 1024', description: '128 towns, a broad continent' },
   square2048: { width: 2048, height: 2048, towns: 320, clusters: 48, columns: 19, lakes: 120, separation: 48, label: '2048 × 2048', description: '320 towns, a vast continent' },
+  // The largest maps hold 9 and 17 million tiles: about 0.7 and 1.3 GB of browser memory, and half a minute to create.
+  square3072: { width: 3072, height: 3072, towns: 480, clusters: 72, columns: 23, lakes: 180, separation: 48, label: '3072 × 3072', description: '480 towns, a subcontinent' },
+  square4096: { width: 4096, height: 4096, towns: 640, clusters: 96, columns: 26, lakes: 240, separation: 48, label: '4096 × 4096', description: '640 towns, a world of its own' },
 };
 export const WORLD_SIZES = {
   regional: { width: 128, height: 96, towns: 8, clusters: 1, columns: 3, lakes: 4, separation: 14, label: 'Regional', description: '128 × 96, 8 towns, a compact county' },
@@ -24,7 +27,7 @@ export const WORLD_SIZES = {
   ...NEW_WORLD_SIZES,
 };
 export const DEFAULT_WORLD_SIZE = 'square512';
-export const MAX_WORLD_TILES = 2048 * 2048;
+export const MAX_WORLD_TILES = 4096 * 4096;
 export const WORLD_GENERATION_VERSION = 13;
 export const supportsGenerationVersion = version => Number.isInteger(version) && version >= 1 && version <= WORLD_GENERATION_VERSION;
 
