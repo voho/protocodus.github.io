@@ -732,6 +732,8 @@ function processEvents() {
         else if (explosionIntensity(e) >= .35) hitstop = Math.max(hitstop, .035 + explosionIntensity(e) * .045);
       }
     }
+    // A breaking barrier and a collapsing shield land with a brief freeze too.
+    if (!fx.reduced && (e.type === 'barrier-break' || e.type === 'shield-break')) hitstop = Math.max(hitstop, e.type === 'shield-break' ? .06 : .035);
     if (e.type === 'nova') {
       if (!fx.reduced) hitstop = Math.max(hitstop, .08);
       for (const prop of environmentHit(e.x, e.y, 320, 420, state.scroll)) applyGroundReward(state, prop, 1.2);
