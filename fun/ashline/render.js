@@ -148,8 +148,8 @@ function sameBytes(a, b) {
 const pulse = (age, length) => age < 0 ? 0 : Math.max(0, 1 - age / length);
 const shortestArc = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const SHELL_FLIGHT = .35, GRAVITY = 260, PARTICLE_LIMIT = 900, HIT_FLASH = .11;
-const SHAKE_LENGTH = .55, SHAKE_LIMIT = 5, VIGNETTE_STEP = 8;
-const WRECK = '#171818', EMBER = '#5a3a24';
+const SHAKE_LENGTH = .55, SHAKE_LIMIT = 4, VIGNETTE_STEP = 8;
+const WRECK = '#0d0f10';
 const ASH_LAYERS = [
   { share: .5, depth: .45, parallax: .92, fall: 7, size: .9, alpha: .16 },
   { share: .32, depth: .75, parallax: 1, fall: 12, size: 1.3, alpha: .22 },
@@ -1351,7 +1351,7 @@ export class Renderer {
     const role = body && entityRole(body), structure = body?.kind === 'building' && role !== 'wall';
     const vehicle = body?.kind === 'unit' && !isInfantry(body), x = fx.x * TILE, y = fx.y * TILE;
     this.addShake(born, fx.x, fx.y, fx.weapon ? fx.weapon === 'artillery' ? .9 : fx.weapon === 'rocketTower' ? .5 : .25
-      : structure ? 2 + body.size * .9 : vehicle ? 1.6 : 1);
+      : structure ? 1.8 + body.size * .8 : vehicle ? 1.2 : body ? .6 : .8 * Math.sqrt(size));
     const debris = Math.min(18, Math.round((body ? structure ? 9 + size * 3 : vehicle ? 8 : 4 : 3) * (fx.weapon ? .8 : 1)));
     for (let j = 0; j < debris; j++) {
       const a = noise(seed * 91 + j, 3.1, this.seed) * Math.PI * 2, speed = (24 + noise(j, seed * 57, this.seed) * 46) * Math.sqrt(size);
@@ -1407,20 +1407,17 @@ export class Renderer {
     this.shakeX = Math.max(-SHAKE_LIMIT, Math.min(SHAKE_LIMIT, x)); this.shakeY = Math.max(-SHAKE_LIMIT, Math.min(SHAKE_LIMIT, y));
   }
 
-  // A darkened, slightly offset silhouette of the last seen frame fades with the other ground decals.
+  // A wreck fades with the other ground decals: an offset dark silhouette of the last seen frame under the
+  // same frame burnt to graphite. Both are one-off decal stamps; the cached sprite pixels are untouched.
   stampWreck(ctx, body) {
-    const n = body.kind === 'building' ? body.size / 2 : 0, x = (body.x + n) * TILE, y = (body.y + n) * TILE;
-    const ghost = { type: body.type, team: 0, kind: body.kind, angle: body.angle, size: body.size, progress: 1, moving: false, id: body.id,
+    const building = body.kind === 'building', n = building ? body.size / 2 : 0, x = (body.x + n) * TILE, y = (body.y + n) * TILE;
+    const ghost = { type: body.type, team: body.team, kind: body.kind, angle: body.angle, size: body.size, progress: 1, moving: false, id: body.id,
       wallConnections: body.wallConnections };
     const matrix = ctx.getTransform();
-    const layers = body.kind === 'building' ? [[3, 4, WRECK, .3], [0, 0, WRECK, .5], [-.8, -1, EMBER, .12]]
-      : [[2.5, 3.5, WRECK, .3], [0, 0, WRECK, .62], [-.6, -.8, EMBER, .16]];
-    for (const [dx, dy, color, alpha] of layers) {
-      ctx.setTransform(matrix); ctx.translate(x + dx, y + dy); ctx.globalAlpha = alpha;
-      drawSpriteOverlay(ctx, ghost, 0, color);
-      // A faint trace of the hull's own panels keeps the husk reading as wreckage, not a hole.
-      if (dx === 0) { ctx.globalAlpha = body.kind === 'building' ? .12 : .2; drawSprite(ctx, { ...ghost, team: body.team }, 0); }
-    }
+    ctx.translate(x + (building ? 3 : 2.5), y + (building ? 4 : 3.5)); ctx.globalAlpha = .3;
+    drawSpriteOverlay(ctx, ghost, 0, WRECK);
+    ctx.setTransform(matrix); ctx.translate(x, y); ctx.globalAlpha = building ? .5 : .8;
+    ctx.filter = 'grayscale(1) brightness(.48) contrast(1.15)'; drawSprite(ctx, ghost, 0); ctx.filter = 'none';
     ctx.setTransform(matrix); ctx.globalAlpha = 1;
   }
 
@@ -1564,9 +1561,10 @@ export class Renderer {
         const k = clock * .45 % 1;
         ctx.globalAlpha = (1 - k) * .55; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(p.x, p.y, r * k, 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha = .85;
-        stamp(ctx, radialSprite([0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00']), p.x, p.y - 15, 3.5, 17);
-        polygon(ctx, [[p.x, p.y - 33], [p.x + 4, p.y - 28], [p.x, p.y - 23], [p.x - 4, p.y - 28]], '#e2b67e', '#142027');
+        ctx.globalAlpha = .9;
+        stamp(ctx, radialSprite([0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00']), p.x, p.y - 19, 4.5, 22);
+        ellipse(ctx, p.x, p.y, 5, 3, '#14202799', '#e2b67e');
+        polygon(ctx, [[p.x, p.y - 44], [p.x + 5.5, p.y - 37.5], [p.x, p.y - 31], [p.x - 5.5, p.y - 37.5]], '#e2b67e', '#142027');
       }
       const label = labelSprite(String(zone.label || zone.id), color);
       ctx.globalAlpha = active ? .95 : .7;
@@ -1723,10 +1721,20 @@ export class Renderer {
     world();
     this.drawLava(state, visible, time, x0, y0, x1, y1);
     if (this.heat && this.heatExplored > 0) {
-      // Low-resolution warm light on explored banks; it never animates, so fog keeps nothing live.
-      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .16; ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.heat, x0 * 2, y0 * 2, (x1 - x0) * 2, (y1 - y0) * 2, x0 * TILE, y0 * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
-      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+      // Low-resolution warm light on explored banks, blended only around pools on screen. It never
+      // animates, so fog keeps nothing live.
+      let any = false;
+      ctx.beginPath();
+      for (const pool of this.lavaPools) {
+        const l = Math.max(x0, pool.tx0 - 2), t = Math.max(y0, pool.ty0 - 2), r = Math.min(x1, pool.tx1 + 2), b = Math.min(y1, pool.ty1 + 2);
+        if (r > l && b > t) { ctx.rect(l * TILE, t * TILE, (r - l) * TILE, (b - t) * TILE); any = true; }
+      }
+      if (any) {
+        ctx.save(); ctx.clip();
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .16; ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(this.heat, x0 * 2, y0 * 2, (x1 - x0) * 2, (y1 - y0) * 2, x0 * TILE, y0 * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
+        ctx.restore();
+      }
     }
     // Drawable bodies: friendly or currently visible, posed once per frame for every layer.
     const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
@@ -1869,7 +1877,7 @@ export class Renderer {
       if (!isBuilding && e.abilityUntil > time && ABILITIES[unitRole(e)]?.holdsPosition) {
         // Dig in: a low ring of sandbags (or braced plates) on the ground around the squad.
         const grow = Math.min(1, (clock - (e.abilityUntil - (ABILITIES.rifle.duration || 10))) / .5);
-        ctx.globalAlpha = Math.max(0, grow) * .95; stamp(ctx, digInSprite(UNITS[e.type]?.race === 'aiUnity'), 0, 3, 16, 16); ctx.globalAlpha = 1;
+        ctx.globalAlpha = Math.max(0, grow) * .95; stamp(ctx, digInSprite(UNITS[e.type]?.race === 'aiUnity'), 0, 4, 23, 23); ctx.globalAlpha = 1;
       }
       const visual = isBuilding && !remembered ? { ...wallVisual(e), powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status } : e;
       // Blink the actual target silhouette, following its live pose without
@@ -2188,17 +2196,18 @@ export class Renderer {
     if (e.kind === 'unit') {
       const moving = e.moving ?? e.path?.length > 0;
       const angle = unitSpriteAngle(e.angle);
+      // Attached effects rotate with the chosen view; points are rotated here instead of the context.
+      const cos = Math.cos(angle), sin = Math.sin(angle), alpha = ctx.globalAlpha;
       if (moving && !isInfantry(e)) {
-        ctx.save(); ctx.rotate(angle);
         const walker = UNITS[e.type]?.race === 'aiUnity' && unitRole(e) !== 'scout';
+        ctx.fillStyle = '#bbaa92';
         for (let j = 0; j < 4; j++) {
           const age = (time * .9 + j * .25 + e.id * .17) % 1;
-          ctx.globalAlpha = (1 - age) * (walker ? .075 : .11);
-          ellipse(ctx, walker ? (j % 2 ? 8 : -8) - age * 2 : -13 - age * 19,
-            walker ? (j < 2 ? -10 : 10) : Math.sin(j * 7) * 6, walker ? 1.5 + age * 3 : 4 + age * 8,
-            walker ? 1 + age * 2 : 3 + age * 4, '#bbaa92');
+          const x = walker ? (j % 2 ? 8 : -8) - age * 2 : -13 - age * 19, y = walker ? (j < 2 ? -10 : 10) : Math.sin(j * 7) * 6;
+          ctx.globalAlpha = alpha * (1 - age) * (walker ? .075 : .11);
+          ctx.beginPath(); ctx.ellipse(x * cos - y * sin, x * sin + y * cos, walker ? 1.5 + age * 3 : 4 + age * 8, walker ? 1 + age * 2 : 3 + age * 4, angle, 0, Math.PI * 2); ctx.fill();
         }
-        ctx.restore();
+        ctx.globalAlpha = alpha;
       } else if (entityRole(e) === 'harvester' && e.order?.type === 'harvest' && e.harvestPhase === 'gather' && e.cargo > 0) {
         ctx.save(); ctx.rotate(angle);
         for (let j = 0; j < 3; j++) {
@@ -2227,23 +2236,27 @@ export class Renderer {
       if (shot > 0 && !['engineer', 'harvester'].includes(entityRole(e))) {
         const reach = { rifle: 11, rocket: 15, scout: 16, tank: 24, artillery: 31, striker: 25 }[entityRole(e)] || 18;
         const unity = UNITS[e.type]?.race === 'aiUnity';
-        ctx.save(); ctx.scale(1, .88); ctx.rotate(angle); ctx.globalAlpha *= shot;
+        // The muzzle sits on the ground-plane heading, foreshortened vertically like the sprite views.
+        const at = (x, y) => [x * cos - y * sin, (x * sin + y * cos) * .88];
+        ctx.globalAlpha = alpha * shot;
         for (const y of entityRole(e) === 'striker' ? [-2, 2] : [0]) {
-          polygon(ctx, [[reach, y - 1.2], [reach + 7 * shot, y], [reach, y + 1.2]], unity ? '#e0eef0' : '#ffe2ac');
-          glow(ctx, reach + 1, y, 4 + shot * 3, unity ? '#b4d4db65' : '#ffc27e65');
+          polygon(ctx, [at(reach, y - 1.2), at(reach + 7 * shot, y), at(reach, y + 1.2)], unity ? '#e0eef0' : '#ffe2ac');
+          const [gx, gy] = at(reach + 1, y), r = 4 + shot * 3;
+          ctx.drawImage(glowSprite(unity ? '#b4d4db65' : '#ffc27e65'), gx - r, gy - r * .88, r * 2, r * 2 * .88);
         }
-        ctx.restore();
+        ctx.globalAlpha = alpha;
       }
       if (!isInfantry(e) && e.hp < e.maxHp * .25) {
         // A badly damaged vehicle burns: small flickering tongues over the rear deck, never over the turret.
-        const back = angle + Math.PI, bx = Math.cos(back) * 7, by = Math.sin(back) * 4 - 5;
+        const back = angle + Math.PI, bx = Math.cos(back) * 8, by = Math.sin(back) * 5 - 4;
         const flicker = .75 + Math.sin(time * 23 + e.id * 1.7) * .15 + Math.sin(time * 37 + e.id) * .1;
-        for (let j = 0; j < 3; j++) {
-          const age = (time * 1.7 + j / 3 + e.id * .31) % 1;
-          ctx.globalAlpha = (1 - age) * .9 * flicker;
-          stamp(ctx, radialSprite(FLAME), bx + (j - 1) * 2.6 + Math.sin(time * 9 + j) * .8, by - age * 9, 2.6 * (1 - age * .45), 3.8 * (1 - age * .35));
+        ctx.globalAlpha = alpha * .35 * flicker; glow(ctx, bx, by + 1, 10, '#ff9a4a90');
+        for (let j = 0; j < 4; j++) {
+          const age = (time * 1.7 + j / 4 + e.id * .31) % 1;
+          ctx.globalAlpha = alpha * (1 - age) * .95 * flicker;
+          stamp(ctx, radialSprite(FLAME), bx + (j - 1.5) * 2.4 + Math.sin(time * 9 + j) * .8, by - age * 11, 3.4 * (1 - age * .45), 5 * (1 - age * .35));
         }
-        ctx.globalAlpha = .3 * flicker; glow(ctx, bx, by + 2, 8, '#ff9a4a90'); ctx.globalAlpha = 1;
+        ctx.globalAlpha = alpha;
       }
     }
     const damaged = e.hp < e.maxHp * .4;
