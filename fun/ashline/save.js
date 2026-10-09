@@ -1,8 +1,9 @@
-import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
+import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, MAP_PROFILES, EVENT_KINDS, TEAM_STATS, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
+import {DOCTRINES} from './ai.js';
 
 export const SAVE_KEY = 'ashline.save.v1';
 const VERSION = 1, MAX_BYTES = 16_000_000, MAX_EFFECTS = Math.max(4096, UNIT_CAP * 8);
-const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt'];
+const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites'];
 const GRIDS = {terrain: Uint8Array, minerals: Float32Array, mineralTypes: Uint8Array, blocked: Uint8Array, regions: Uint16Array};
 const fail = reason => { throw new Error(reason); };
 const valid = condition => { if (!condition) fail('Saved operation is damaged or incompatible.'); };
@@ -11,6 +12,7 @@ const integer = (value, min = 0, max = 1e12) => Number.isInteger(value) && numbe
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const dimensions = value => object(value) && [[72,56],[144,112],[192,144],[224,168]].some(([width,height])=>value.width===width&&value.height===height);
 const inBounds = (value, width, height) => object(value) && number(value.x, 0, width) && number(value.y, 0, height);
+const label = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
 
 // Bound the JSON graph before reading fields, including optional order/path data.
 function validateTree(value, depth = 0) {
@@ -30,7 +32,7 @@ function validateGame(s) {
   valid(dimensions(s));
   const {width, height} = s, cells = width * height, point = value => inBounds(value, width, height);
   valid(typeof s.seed === 'string' && ['easy', 'normal', 'hard'].includes(s.difficulty));
-  if(s.mapProfile!==undefined)valid(['rift','basin','highlands'].includes(s.mapProfile));
+  if(s.mapProfile!==undefined)valid(Object.keys(MAP_PROFILES).includes(s.mapProfile));
   if(s.alertAt!==undefined)valid(number(s.alertAt,0,s.time));
   valid(['playing', 'victory', 'defeat'].includes(s.status) && number(s.time, 0));
   valid(integer(s.rng, 1, 0xffffffff) && integer(s.nextId, 1) && integer(s.navVersion) && integer(s.navBuilt, -1) && s.navBuilt <= s.navVersion && number(s.fogClock, -1, 1));
@@ -42,6 +44,7 @@ function validateGame(s) {
     if(team.race!==undefined)valid(Object.hasOwn(RACES,team.race));
     if(team.research!==undefined)valid(object(team.research)&&Object.entries(team.research).every(([id,value])=>Object.hasOwn(RESEARCH,id)&&value===true&&RESEARCH[id].requires.every(required=>team.research[required])));
     if(team.powerStatus!==undefined)valid(['stable','reserve','brownout'].includes(team.powerStatus));
+    if(team.stats!==undefined)valid(object(team.stats)&&Object.entries(team.stats).every(([key,value])=>TEAM_STATS.includes(key)&&number(value,0)));
   }
   valid(Array.isArray(s.entities) && s.entities.length <= cells + UNIT_CAP*2);
   const ids = new Set(), unitCounts = [0, 0];
@@ -136,6 +139,7 @@ function validateGame(s) {
   if(s.aiTeams?.includes(0))valid(object(s.aiByTeam)&&object(s.aiByTeam[0]));
   for(const ai of [s.ai,...Object.values(s.aiByTeam||{})]){
     valid(object(ai)&&object(ai.known)&&number(ai.nextThink,0)&&number(ai.nextRaid,0)&&typeof ai.mode==='string');
+    if(ai.doctrine!==undefined)valid(Object.keys(DOCTRINES).includes(ai.doctrine));
     for(const key of ['scoutIndex','buildIndex','raid'])valid(integer(ai[key]));
     for(const key of ['nextExpand','regroupUntil','nextMineralScan'])if(ai[key]!==undefined)valid(number(ai[key],0));
     if(ai.miningSites!==undefined)valid(Array.isArray(ai.miningSites)&&ai.miningSites.length<=64&&ai.miningSites.every(site=>point(site)&&number(site.amount,0,1e6)&&number(site.seenAt,0,s.time)));
@@ -153,6 +157,24 @@ function validateGame(s) {
     if (effect.damage !== undefined) valid(effect.weapon === 'rocketTower' ? effect.damage === BUILDINGS[raceBuilding(s,effect.team,'rocketTower')].damage : [0, 1, 2, 3].some(rank => [1,1.18].some(weapons=>[1,1.1].some(ballistics=>effect.damage === UNITS[raceUnit(s,effect.team,'rocket')].damage * (1 + .2 * rank)*weapons*ballistics))));
   }
   valid(Array.isArray(s.events) && s.events.length <= 100_000 && s.events.every(e => object(e) && typeof e.text === 'string' && [0, 1].includes(e.team) && number(e.time, 0)));
+  // Event details are optional; older saves carry only text, team and time.
+  const roles=new Set([...Object.values(BUILDINGS),...Object.values(UNITS)].map(d=>d.role));
+  for(const e of s.events){
+    if(e.kind!==undefined)valid(EVENT_KINDS.includes(e.kind));
+    if(e.x!==undefined||e.y!==undefined)valid(point(e));
+    if(e.entityId!==undefined)valid(integer(e.entityId,1,s.nextId-1));
+    if(e.role!==undefined)valid(roles.has(e.role));
+    if(e.rank!==undefined)valid(integer(e.rank,0,3));
+    if(e.amount!==undefined)valid(number(e.amount,0));
+    if(e.mineralType!==undefined)valid(integer(e.mineralType,0,3));
+    if(e.speaker!==undefined)valid(label(e.speaker,40));
+    if(e.status!==undefined)valid(label(e.status,40));
+  }
+  if(s.sites!==undefined){
+    valid(Array.isArray(s.sites)&&s.sites.length<=64);
+    const siteIds=new Set();
+    for(const site of s.sites){valid(object(site)&&label(site.id,40)&&!siteIds.has(site.id)&&label(site.kind,40)&&label(site.name,60)&&point(site)&&number(site.r,0,Math.max(width,height)));siteIds.add(site.id);}
+  }
 }
 
 export function encodeGame(game, view = {}) {

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {BUILDINGS,UNITS,RACES,createGame,updateGame,buildingRole,unitRole,teamRace,raceBuilding,raceUnit,canPlace,placeBuilding,trainUnit,getEntity,startResearch,startBuildingUpgrade,unitStats,powerStats,issueOrder} from '../sim.js';
 import {encodeGame,decodeGame} from '../save.js';
+import {DOCTRINES} from '../ai.js';
 const advance=(s,seconds)=>{for(let i=0;i<Math.round(seconds*20);i++)updateGame(s,.05);};
 const snapshot=s=>JSON.parse(encodeGame(s)).game;
 const near=(a,b)=>assert(Math.abs(a-b)<1e-7,`${a} ≠ ${b}`);
@@ -55,10 +56,17 @@ const restored=decodeGame(encodeGame(duel)).game;
 for(let i=0;i<10;i++){advance(duel,1);advance(restored,1);assert.deepEqual(snapshot(restored),snapshot(duel),'A two-race AI duel resumes exactly');}
 for(const ai of [duel.aiByTeam[0],duel.ai])for(const memory of Object.values(ai.known))assert(memory.seenAt<=duel.time);
 
+// Commander profiles store a chosen doctrine only; the default commander state is unchanged.
+const standard=createGame('profile-check','hard',{width:72,height:56,aiTeams:[0,1]}),profiled=createGame('profile-check','hard',{width:72,height:56,aiTeams:[0,1],aiProfiles:{0:{doctrine:'balanced'},1:{}}});
+assert.equal(JSON.stringify(standard.ai),'{"nextThink":3,"nextRaid":100,"known":{},"mode":"Establishing base","scoutIndex":0,"buildIndex":0,"raid":0}');
+assert.equal(JSON.stringify(profiled.ai),JSON.stringify(standard.ai));assert.equal(JSON.stringify(profiled.aiByTeam[0]),JSON.stringify({...standard.aiByTeam[0],doctrine:'balanced'}));
+assert(Object.values(DOCTRINES).every(d=>d.name&&d.commander&&d.description),'Every doctrine names its commander');
+for(const aiProfiles of [{1:{doctrine:'unknown'}},{1:{doctrine:'constructor'}},{0:{doctrine:'balanced'}},{2:{}},{1:{doctrine:'balanced',aggression:2}},{1:null},{1:[]},null,[]])
+  assert.throws(()=>createGame('profile-check','hard',{width:72,height:56,aiProfiles}),RangeError,'Malformed commander profiles are refused before generation');
 const legacy=JSON.parse(encodeGame(createGame('legacy-organics','hard',{width:72,height:56})));
 delete legacy.game.aiTeams;delete legacy.game.aiByTeam;for(const team of legacy.game.teams)delete team.race;
 const old=decodeGame(JSON.stringify(legacy)).game;assert.equal(teamRace(old,0),'organics');advance(old,.1);
 for(const mutate of [s=>s.teams[0].race='unknown',s=>s.aiTeams=[0,0],s=>{delete s.aiByTeam;},s=>s.teams[0].race='aiUnity']){
   const raw=JSON.parse(encodeGame(duel));mutate(raw.game);assert.throws(()=>decodeGame(JSON.stringify(raw)),'Malformed race/controller state is rejected');
 }
-console.log('Race checks passed: both complete rosters, own-race production/research/upgrades, shared walls, distinct stat tradeoffs, carriers, support, dual AI, fog knowledge, exact saves and legacy Organics.');
+console.log('Race checks passed: both complete rosters, own-race production/research/upgrades, shared walls, distinct stat tradeoffs, carriers, support, dual AI, commander profiles, fog knowledge, exact saves and legacy Organics.');

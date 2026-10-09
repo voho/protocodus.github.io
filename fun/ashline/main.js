@@ -1040,6 +1040,8 @@ $('new-game').addEventListener('click', () => {
 $('loading').addEventListener('cancel', event => event.preventDefault());
 $('loading-back').addEventListener('click', () => { if ($('loading-back').dataset.reload) location.reload(); else showBriefing(); });
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); });
+// Terrain choices follow the simulation's profile table; its first profile stays the default.
+$('map-profile').replaceChildren(...Object.entries(MAP_PROFILES).map(([id, profile]) => new Option(profile.name, id)));
 function updateMapDescription() {
   const size = MAP_SIZES[$('map-size').value];
   $('race-description').textContent = RACES[$('player-race').value].description;

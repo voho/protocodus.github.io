@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, MAP_SIZES, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding, productionRate} from '../sim.js';
+import {BUILDINGS, UNITS, MAP_SIZES, EVENT_KINDS, TEAM_STATS, createGame, updateGame, canPlace, placeBuilding, trainUnit, issueOrder, getEntity, powerStats, unitRank, unitStats, toggleRepair, sellBuilding, productionRate} from '../sim.js';
 import {SAVE_KEY, saveGame, loadGame, getSaveInfo, encodeGame, decodeGame} from '../save.js';
 
 const memory = new Map();
@@ -356,4 +356,38 @@ assert(legacyLoaded.game.terrain.every(value => value <= 2), 'Legacy maps withou
 assert(legacyLoaded.game.entities.every(e => (e.processingAmount ?? 0) === 0 && (e.processingTotal ?? 0) === 0));
 advance(legacyLoaded.game, .1);
 assert(legacyLoaded.game.entities.every(e => Number.isFinite(e.hp + e.x + e.y)), 'Old saves run without new processing or traffic fields');
-console.log('Ashline save checks passed: deterministic active-match/rocket-flight/traffic/veterancy continuation, camera, typed maps/fog, remembered buildings/ore, queues/rallies, unloading/processing/pause, cargo/AI, pending navigation, old/invalid saves and unavailable/full storage.');
+// Saves from before typed events, team statistics, doctrines and sites still load and continue identically.
+const recorded = JSON.parse(before), unrecorded = structuredClone(recorded);
+assert(recorded.game.events.length && recorded.game.events.every(e => EVENT_KINDS.includes(e.kind)), 'Saved events keep their kinds');
+assert(recorded.game.teams.every(t => Object.keys(t.stats).length === TEAM_STATS.length), 'Saved teams keep their statistics');
+for (const team of unrecorded.game.teams) delete team.stats;
+unrecorded.game.events = unrecorded.game.events.map(({text, team, time}) => ({text, team, time}));
+const recordedMatch = decodeGame(before).game, unrecordedMatch = decodeGame(JSON.stringify(unrecorded)).game;
+const behaviour = match => { const state = stateJSON(match); state.teams.forEach(t => { delete t.stats; }); state.events = state.events.map(({text, team, time}) => ({text, team, time})); return state; };
+for (let i = 0; i < 4; i++) {
+  advance(recordedMatch, 5); advance(unrecordedMatch, 5);
+  assert.deepEqual(behaviour(unrecordedMatch), behaviour(recordedMatch), 'Older saves without typed events or statistics continue identically');
+}
+assert(unrecordedMatch.teams.every(t => t.stats === undefined), 'Older saves do not start partial statistics');
+assert(unrecordedMatch.events.length > unrecorded.game.events.length && unrecordedMatch.events.slice(unrecorded.game.events.length).every(e => EVENT_KINDS.includes(e.kind)), 'New events in an older operation carry kinds');
+const profiled = createGame('save-doctrine', 'normal', {width: 72, height: 56, aiProfiles: {1: {doctrine: 'balanced'}}});
+profiled.sites = [{id: 'cinder-gap', kind: 'pass', x: 30.5, y: 20.5, r: 6, name: 'Cinder Gap'}, {id: 'ash-well', kind: 'deposit', x: 41, y: 35, r: 4.5, name: 'Ash Well'}];
+const profiledRaw = encodeGame(profiled), profiledLoaded = decodeGame(profiledRaw).game;
+assert.equal(profiledLoaded.ai.doctrine, 'balanced'); assert.deepEqual(profiledLoaded.sites, profiled.sites);
+advance(profiled, 3); advance(profiledLoaded, 3);
+assert.deepEqual(stateJSON(profiledLoaded), stateJSON(profiled), 'Doctrine and site data continue exactly');
+for (const corrupt of [
+  g => { g.ai.doctrine = 'unknown'; }, g => { g.ai.doctrine = 7; }, g => { g.mapProfile = 'unknown'; },
+  g => { g.teams[0].stats.trained = -1; }, g => { g.teams[0].stats.spent = '5'; }, g => { g.teams[1].stats.morale = 1; }, g => { g.teams[0].stats = []; },
+  g => { g.events[0].kind = 'fanfare'; }, g => { g.events[0].x = g.width + 1; }, g => { delete g.events[0].y; },
+  g => { g.events[0].entityId = 1.5; }, g => { g.events[0].entityId = g.nextId; }, g => { g.events[0].role = 'dragon'; },
+  g => { g.events[0].rank = 4; }, g => { g.events[0].amount = -1; }, g => { g.events[0].mineralType = 4; },
+  g => { g.events[0].speaker = 'x'.repeat(41); }, g => { g.events[0].status = 3; },
+  g => { g.sites = {}; }, g => { g.sites = Array.from({length: 65}, (_, i) => ({...g.sites[0], id: `site-${i}`})); },
+  g => { g.sites[1].id = g.sites[0].id; }, g => { g.sites[0].x = g.width + 1; }, g => { g.sites[0].r = -1; },
+  g => { g.sites[0].name = ''; }, g => { g.sites[0].kind = 3; }, g => { g.sites[0].id = 'x'.repeat(41); },
+]) {
+  const broken = JSON.parse(profiledRaw); corrupt(broken.game);
+  assert.throws(() => decodeGame(JSON.stringify(broken)), 'Typed events, statistics, doctrines and sites are validated');
+}
+console.log('Ashline save checks passed: deterministic active-match/rocket-flight/traffic/veterancy continuation, camera, typed maps/fog, remembered buildings/ore, queues/rallies, unloading/processing/pause, cargo/AI, pending navigation, typed events/statistics/doctrines/sites, old/invalid saves and unavailable/full storage.');

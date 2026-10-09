@@ -62,7 +62,7 @@ Every change keeps behaviour bit-identical. The final-state digests of all bench
 
 A\* expansion still dominates the obstructed scene and the remaining worst AI ticks (up to 16 searches per tick). A shared flow field would change paths, so it needs re-baselined digests. March and battle at 2,000 units remain bound by the per-unit neighbour loops in `navigate`.
 
-From `fun/ashline/`, with the previous simulation checked out beside it:
+From `fun/ashline/`, with the previous simulation checked out beside it. `ASHLINE_SIM_URL` must name `sim.js` inside a complete checkout, because it imports its sibling simulation modules (`ai.js`, `terrain.js`, `flocking.js`, `traffic.js`):
 
 ```sh
 git worktree add /tmp/ashline-base 4563439
@@ -72,6 +72,8 @@ ASHLINE_SIM_URL=file:///tmp/ashline-base/fun/ashline/sim.js ASHLINE_UNITS=2000 A
 ASHLINE_UNITS=2000 ASHLINE_TICKS=30 node tests/performance-benchmark.mjs
 ASHLINE_SCENES=duel ASHLINE_TICKS=18000 node tests/performance-benchmark.mjs
 ```
+
+The state digest covers every saved field. Typed events and team statistics, added after this pass, therefore change the digests relative to `4563439`; with team statistics removed and events reduced to text, team and time, all four scenes still match it.
 
 ## Rendering and memory
 
