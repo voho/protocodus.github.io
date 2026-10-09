@@ -3,9 +3,9 @@
 // debrief with Next / Retry / Remix, local progress and career records, and the Field archive.
 // The briefing stays static DOM: nothing here creates game state, requests art or schedules frames.
 // Storage is optional; every read and write tolerates a blocked or full localStorage.
-import { UNITS, BUILDINGS, RESEARCH, BUILDING_UPGRADES, MAP_PROFILES, RACES } from './sim.js';
+import { UNITS, BUILDINGS, RESEARCH, BUILDING_UPGRADES, MAP_PROFILES } from './sim.js';
 import { MISSIONS, CAMPAIGN, SKIRMISH_MODES, ARCHIVE } from './campaign.js';
-import { matchReport, survivingVeterans, addToCareer, readCareer, MEDALS } from './debrief.js';
+import { matchReport, survivingVeterans, addToCareer, readCareer, rivalName, rivalLabel, MEDALS } from './debrief.js';
 import { createObjectivesHud, menuObjective, clock } from './objectives-hud.js';
 
 export const PROGRESS_KEY = 'ashline.campaign.v1', CAREER_KEY = 'ashline.career.v1';
@@ -13,6 +13,7 @@ const LEVELS = ['easy', 'normal', 'hard'], LEVEL_NAMES = { easy: 'Cadet', normal
 const MEDAL_NAMES = { bronze: 'Bronze', silver: 'Silver', gold: 'Gold' };
 const CATEGORY_TABLES = { buildings: BUILDINGS, units: UNITS, research: RESEARCH, upgrades: BUILDING_UPGRADES };
 const fmt = value => Math.floor(value).toLocaleString('en-US');
+const count = (n, one, many = `${one}s`) => `${fmt(n)} ${n === 1 ? one : many}`;
 const $ = id => document.getElementById(id);
 
 // ---- Stored progress -------------------------------------------------------------------------------------
@@ -136,9 +137,9 @@ function installArchive() {
 // ---- Briefing ----------------------------------------------------------------------------------------------
 
 function setText(id, text) { $(id).textContent = text; }
-function medalBadge(medal) {
+function medalBadge(medal, empty = '') {
   const badge = document.createElement('span'); badge.className = 'medal'; badge.dataset.medal = medal || 'none';
-  badge.textContent = medal ? MEDAL_NAMES[medal] : '—'; return badge;
+  badge.textContent = medal ? MEDAL_NAMES[medal] : empty; return badge;
 }
 
 export function createCampaign({ launch }) {
@@ -175,14 +176,14 @@ export function createCampaign({ launch }) {
       const time = document.createElement('span'); time.className = 'entry-time'; time.textContent = record?.best ? clock(record.best) : '';
       button.append(number, name, time, medalBadge(record?.medal));
       button.setAttribute('aria-label', `Operation ${index + 1}: ${def.name}${open ? '' : ', locked'}${record?.medal ? `, ${MEDAL_NAMES[record.medal]} medal` : ''}${record?.best ? `, best ${clock(record.best)}` : ''}`);
-      button.addEventListener('click', () => { progress.selected = id; save(); renderList(); renderDetail(); });
+      button.addEventListener('click', () => { progress.selected = id; save(); renderList(); renderDetail(); $('campaign-detail').scrollIntoView({ block: 'nearest' }); });
       item.append(button); return item;
     }));
   }
 
   function renderDetail() {
     const id = isUnlocked(progress, progress.selected) ? progress.selected : CAMPAIGN[0], def = MISSIONS[id], record = progress.missions[id];
-    const index = CAMPAIGN.indexOf(id), races = def.races, rival = RACES[races[1]].name;
+    const index = CAMPAIGN.indexOf(id), rival = rivalLabel(def.races);
     setText('campaign-eyebrow', `Operation ${String(index + 1).padStart(2, '0')} · ${def.location}`);
     setText('campaign-name', def.name);
     setText('campaign-summary', def.summary);
@@ -198,14 +199,14 @@ export function createCampaign({ launch }) {
     setText('campaign-opposition', `${rival}${def.aiTeams?.includes(1) ? def.aiStep ? ' commander · one level above your setting' : ' commander' : ' garrison · no commander'}`);
     setText('campaign-par', clock(def.par));
     setText('campaign-best', record?.best ? `${clock(record.best)}${record.grade ? ` · grade ${record.grade}` : ''}` : '—');
-    $('campaign-medal').replaceChildren(medalBadge(record?.medal));
+    $('campaign-medal').replaceChildren(medalBadge(record?.medal, 'None yet'));
     $('campaign-veterans').hidden = id !== 'severance';
     setText('campaign-veterans', progress.veterans.length ? `${progress.veterans.length} Dead Signal veteran${progress.veterans.length > 1 ? 's' : ''} join this operation with their ranks.` : 'No Dead Signal veterans on the roster. Ranked survivors of Dead Signal join this operation.');
     $('campaign-start').dataset.mission = id;
   }
 
   function renderCareer() {
-    const line = career.operations ? `Career · ${fmt(career.operations)} operation${career.operations > 1 ? 's' : ''} · ${fmt(career.victories)} victor${career.victories === 1 ? 'y' : 'ies'} · ${fmt(career.kills)} kills${career.bestGrade ? ` · best grade ${career.bestGrade}` : ''}` : '';
+    const line = career.operations ? `Career · ${count(career.operations, 'operation')} · ${count(career.victories, 'victory', 'victories')} · ${count(career.kills, 'kill')}${career.bestGrade ? ` · best grade ${career.bestGrade}` : ''}` : '';
     $('career-line').textContent = line; $('career-line').hidden = !line;
   }
   function renderModes() {
@@ -279,7 +280,7 @@ export function createCampaign({ launch }) {
       const table = document.createElement('table'); table.className = 'debrief-table';
       const caption = document.createElement('caption'); caption.textContent = 'Operation record'; table.append(caption);
       const header = table.createTHead().insertRow();
-      for (const text of ['', 'You', report.rival ? RACES[s.teams[1].race]?.name ?? 'Rival' : '']) { const th = document.createElement('th'); th.textContent = text; th.scope = 'col'; header.append(th); }
+      for (const text of ['', 'You', report.rival ? rivalName(s) : '']) { const th = document.createElement('th'); th.textContent = text; th.scope = 'col'; header.append(th); }
       const body = table.createTBody();
       for (const [label, you, rival] of rows) {
         const row = body.insertRow(), th = document.createElement('th'); th.scope = 'row'; th.textContent = label; row.append(th);
@@ -303,7 +304,7 @@ export function createCampaign({ launch }) {
       const goals = document.createElement('p'); goals.className = 'debrief-note'; goals.textContent = `Commander's goals ${report.goals.done} / ${report.goals.total}`; parts.push(goals);
     }
     const careerLine = document.createElement('p'); careerLine.className = 'debrief-career';
-    careerLine.textContent = `Career · ${fmt(career.operations)} operations · ${fmt(career.victories)} victories · ${fmt(career.kills)} kills · best score ${fmt(career.bestScore)}${career.bestGrade ? ` · best grade ${career.bestGrade}` : ''}`;
+    careerLine.textContent = `Career · ${count(career.operations, 'operation')} · ${count(career.victories, 'victory', 'victories')} · ${count(career.kills, 'kill')} · best score ${fmt(career.bestScore)}${career.bestGrade ? ` · best grade ${career.bestGrade}` : ''}`;
     parts.push(careerLine);
     box.replaceChildren(...parts);
     box.setAttribute('aria-label', `Debrief: grade ${report.grade}, ${points.textContent}`);
@@ -318,6 +319,7 @@ export function createCampaign({ launch }) {
     $('new-game').textContent = campaignOp ? 'Operations' : 'New skirmish';
     for (const id of ['next-operation', 'retry-operation', 'remix-operation']) $(id).hidden = true;
     menuObjective(s);
+    $('objective').hidden = finished;
     if (def) {
       const index = CAMPAIGN.indexOf(def.id);
       eyebrow.textContent = campaignOp ? `Operation ${String(index + 1).padStart(2, '0')} · ${def.location}` : 'Skirmish';

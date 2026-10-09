@@ -173,7 +173,7 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 
 /* Operation Ashline: campaign briefing, objective tracker, transmissions, debrief and field archive. */
 .briefing-tabs{display:flex;margin:0 0 26px;border-bottom:1px solid var(--line)}
-.briefing-tabs button{flex:1;min-height:44px;padding:10px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:500 14px var(--display);text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.briefing-tabs button{flex:1;min-height:44px;padding:10px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:500 14px var(--display);text-align:left;display:flex;align-items:center;gap:10px}
 .briefing-tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
 .briefing-tabs button:hover{color:var(--text)}
 #campaign-progress{font:11px var(--mono);color:var(--amber)}
@@ -191,6 +191,7 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 .entry-time{font:11px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
 .medal{justify-self:end;display:inline-flex;align-items:center;gap:5px;font:11px var(--mono);color:var(--muted);white-space:nowrap}
 .medal:before{content:'';width:9px;height:9px;border-radius:50%;border:1px solid #8bb0b360;background:transparent}
+.campaign-entry .medal[data-medal=none]{visibility:hidden}
 .medal[data-medal=bronze]{color:#cf9a73}.medal[data-medal=bronze]:before{background:#b97c52;border-color:#e0b08d}
 .medal[data-medal=silver]{color:#cfd9da}.medal[data-medal=silver]:before{background:#aebcbe;border-color:#e8f0f0}
 .medal[data-medal=gold]{color:var(--amber)}.medal[data-medal=gold]:before{background:var(--amber);border-color:#f3d39e}
@@ -284,7 +285,8 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 .debrief-medals li[data-met=true]{color:var(--text)}.debrief-medals li[data-met=true]:before{content:'● '}
 .debrief-medals li[data-met=true][data-medal=bronze]:before{color:#cf9a73}.debrief-medals li[data-met=true][data-medal=silver]:before{color:#cfd9da}.debrief-medals li[data-met=true][data-medal=gold]:before{color:var(--amber)}
 .debrief-note,.debrief-career{margin:10px 0 0;font:11px/1.6 var(--mono);color:var(--muted)}
-.menu-archive{width:100%;margin:-8px 0 18px}
+.menu-archive{width:100%;margin-top:8px}
+.menu-objective[data-mode=operation]>p{margin-top:8px;color:var(--muted);font-size:12px}
 
 /* Field archive: lore for the world, its claimants and every unit and structure. */
 #archive{width:min(820px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:hidden}

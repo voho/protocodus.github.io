@@ -134,9 +134,10 @@ export function createObjectivesHud() {
 export function menuObjective(s) {
   const box = $('objective'), heading = box.querySelector('span'), text = box.querySelector('p');
   let list = box.querySelector('ul');
-  if (!list) { list = document.createElement('ul'); box.append(list); }
+  if (!list) { list = document.createElement('ul'); box.insertBefore(list, text); }
   list.replaceChildren();
   const table = objectiveRows(s);
+  box.dataset.mode = table ? 'operation' : 'skirmish';
   const row = (label, state, detail = '') => {
     const li = document.createElement('li'); li.dataset.state = state;
     li.textContent = label; if (detail) { const small = document.createElement('small'); small.textContent = detail; li.append(small); }

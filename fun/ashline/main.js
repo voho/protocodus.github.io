@@ -8,6 +8,7 @@ import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
 import { advanceSimulationFrame } from './frame-scheduler.js';
 import { createCampaign } from './campaign-ui.js';
+import { missionAllows } from './mission.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
@@ -124,7 +125,8 @@ function setTab(tab) {
   $('catalog-tip').textContent = tab === 'build' ? 'Build within 7 tiles of a finished structure.' : 'Recruit into an available production queue.';
   $('catalog').replaceChildren();
   const defs = tab === 'build' ? BUILDINGS : UNITS;
-  for (const type of tab === 'build' ? buildTypes.map(role => raceBuilding(game, 0, role)) : unitTypes.map(role => raceUnit(game, 0, role))) {
+  // Operations list only the structures and units they authorize.
+  for (const type of tab === 'build' ? buildTypes.filter(role => missionAllows(game, 0, 'buildings', role)).map(role => raceBuilding(game, 0, role)) : unitTypes.filter(role => missionAllows(game, 0, 'units', role)).map(role => raceUnit(game, 0, role))) {
     const def = defs[type], button = document.createElement('button');
     button.className = 'build-card'; button.dataset.type = type;
     button.setAttribute('aria-label', `${tab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} credits`);

@@ -1,7 +1,7 @@
 // Match analysis for the debrief: rating, grade, campaign medals, skirmish commander's goals and career
 // totals. Pure functions over saved game state; nothing here touches the DOM, storage or the clock.
 // Rival figures are reported only once the operation has ended, so the debrief never leaks fog.
-import { TEAM_STATS, unitRole } from './sim.js';
+import { TEAM_STATS, RACES, unitRole } from './sim.js';
 import { MISSIONS } from './campaign.js';
 
 const clamp01 = value => Math.max(0, Math.min(1, value));
@@ -76,7 +76,8 @@ export function matchReport(s) {
   if (you) {
     const dealt = you.unitKills + 2 * you.structureKills, taken = you.lost + 2 * you.structuresLost, exchange = dealt / Math.max(1, taken);
     rating += 20 * exchange / (exchange + 1);
-    rating += you.mined + you.spent === 0 ? 10 : 10 * clamp01(you.spent / Math.max(1, you.mined));
+    // An operation without an economy (a commando strike) scores the economy share as neutral.
+    rating += you.mined + you.spent === 0 ? 5 : 10 * clamp01(you.spent / Math.max(1, you.mined));
   }
   if (secondary) rating += secondary.total ? 10 * secondary.done / secondary.total : 10;
   else if (goals) rating += 10 * goals.filter(goal => goal.done).length / goals.length;
@@ -90,6 +91,12 @@ export function matchReport(s) {
   report.goals = goals ? { done: goals.filter(goal => goal.done).length, total: goals.length } : null;
   return report;
 }
+
+// Crimson always marks the rival claimant: a mirror match faces the Red Ledger or severed mainframes.
+export function rivalLabel([player = 'organics', rival = 'organics']) {
+  return rival === player ? rival === 'aiUnity' ? 'Severed Unity' : 'Red Ledger' : RACES[rival]?.name ?? 'Rival';
+}
+export const rivalName = s => rivalLabel(s.teams.map(team => team.race));
 
 // Surviving ranked units of an operation, strongest first, as plain {role, kills} records.
 export function survivingVeterans(s, limit = 12) {
