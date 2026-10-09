@@ -27,11 +27,13 @@ assert(createGame('rookies').entities.filter(e=>e.kind==='unit').every(e=>e.kill
   delete trained.kills;assert.equal(unitRank(trained),0,'Old units without personal kills remain recruits');
 }
 
-// Rank is derived, capped at three, and all bonuses use base stats rather than compounding.
+// Rank is derived, capped at three, and all bonuses use base stats rather than compounding:
+// +20% damage and maximum HP per rank, but only +5% speed so veterans keep pace with their formation.
 for(const type of Object.keys(UNITS))for(const kills of [0,4,5,9,10,14,15,30]){
   const e={kind:'unit',type,kills},rank=Math.min(3,Math.floor(kills/5)),stats=unitStats(e);
   assert.equal(unitRank(e),rank);assert.equal(stats.rank,rank);
-  for(const key of ['hp','damage','speed'])close(stats[key],UNITS[type][key]*(1+rank*.2),`${type} rank ${rank} ${key}`);
+  for(const key of ['hp','damage'])close(stats[key],UNITS[type][key]*(1+rank*.2),`${type} rank ${rank} ${key}`);
+  close(stats.speed,UNITS[type].speed*(1+rank*.05),`${type} rank ${rank} speed`);
 }
 assert.equal(unitRank({kind:'building',type:'turret',kills:20}),0);assert.equal(unitStats({kind:'building',type:'turret'}),null);
 
@@ -98,6 +100,18 @@ for(const [type,targetType,multiplier] of [['rifle','rifle',1],['scout','rifle',
   assert.equal(s.teams[0].kills,1);assert.equal(u.kills,5,'Personal kills only go to living units');
 }
 
+// Walls count as team kills and structure kills, but never toward a unit's rank.
+{
+  const s=quiet(),u=add(s,'tank',0,30.5,30.5,4);
+  for(let i=0;i<3;i++){const wall=add(s,'wall',1,33,30+i);wall.hp=1;}
+  for(let i=0;i<60&&s.entities.some(e=>e.type==='wall');i++){u.cooldown=0;issueOrder(s,[u.id],{type:'attack',targetId:s.entities.find(e=>e.type==='wall').id});updateGame(s,.05);}
+  assert(!s.entities.some(e=>e.type==='wall'),'The walls fall');
+  assert.equal(u.kills,4,'Wall kills grant no personal kills');assert.equal(unitRank(u),0);
+  assert.equal(s.teams[0].kills,3);assert.equal(s.events.filter(e=>e.text.includes('promoted to rank')).length,0);
+  const enemy=add(s,'harvester',1,34.5,30.5);enemy.hp=1;u.cooldown=0;attack(s,u,enemy);updateGame(s,.05);
+  assert.equal(u.kills,5);assert.equal(unitRank(u),1,'Other kills still promote');
+}
+
 // Defenses continue earning team kills without accumulating personal ranks or health bonuses.
 for(const type of ['turret','rocketTower']){
   const s=quiet(),tower=add(s,type,0,30,30);add(s,'reactor',0,25,28);
@@ -115,4 +129,4 @@ for(const type of ['turret','rocketTower']){
   close(u.hp,520*1.6,'Repairs reach the promoted HP cap');close(s.teams[0].credits,before-.125,'Repair cost remains unchanged');
 }
 
-console.log('Ashline rank checks passed: thresholds/cap, kill ownership, missing-HP preservation, actual movement, every weapon/splash, launch snapshots, posthumous team credit, building exclusion, and repairs.');
+console.log('Ashline rank checks passed: thresholds/cap, +20% damage/HP and +5% speed, kill ownership, missing-HP preservation, actual movement, every weapon/splash, launch snapshots, posthumous team credit, wall and building exclusion, and repairs.');

@@ -1,6 +1,7 @@
 // node tests/performance-benchmark.mjs; optional ASHLINE_PROFILE=/tmp/sim.cpuprofile.
 // ASHLINE_SIM_URL=file:///…/sim.js benchmarks another simulation. sim.js imports its sibling modules
-// (ai.js, terrain.js, flocking.js, traffic.js), so point it into a complete candidate checkout.
+// (ai.js, terrain.js, flocking.js, traffic.js, mission.js, campaign.js, abilities.js), so point it into a
+// complete candidate checkout.
 // Report timing, never assert machine-specific wall-clock thresholds.
 import {performance} from 'node:perf_hooks';
 import {createHash} from 'node:crypto';

@@ -57,6 +57,7 @@ try {
     assert(Math.abs(result.hp - (result.maxHp - 30)) < 1e-6, 'Promotion preserves missing HP');
     await clickUnit(page, setup.id); hud = await rankHUD(page);
     assert.equal(hud.rank, expectedRank); assert.equal(hud.kills, before + 1); assert(hud.text.includes(`+${expectedRank * 20}%`));
+    assert(hud.description.includes(`+${expectedRank * 20}% damage and maximum HP, +${expectedRank * 5}% speed.`), 'Ranks add 20% damage and HP but only 5% speed');
     assert(hud.description.includes(`Damage ${Number(result.stats.damage.toFixed(2))}, speed ${Number(result.stats.speed.toFixed(2))} tiles/second, maximum HP ${result.stats.hp}`), 'Selected HUD exposes the actual promoted damage, speed and max HP');
     assert((await page.locator('#selection-detail').textContent()).includes(`${Math.ceil(result.hp)} / ${result.maxHp}`));
     await page.screenshot({path: `${output}/promotion-${expectedRank}.png`});

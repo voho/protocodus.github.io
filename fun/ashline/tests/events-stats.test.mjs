@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, RESEARCH, EVENT_KINDS, TEAM_STATS, createGame, updateGame, canPlace, placeBuilding, planWallLine, buildWallLine, sellBuilding, trainUnit, startResearch, cancelResearch, getEntity, productionRate, raceUnit} from '../sim.js';
+import {BUILDINGS, UNITS, RESEARCH, EVENT_KINDS, TEAM_STATS, createGame, updateGame, canPlace, placeBuilding, planWallLine, buildWallLine, sellBuilding, trainUnit, cancelTraining, startResearch, cancelResearch, getEntity, productionRate, raceUnit} from '../sim.js';
 
 const advance = (s, seconds) => { for (let i = 0; i < Math.round(seconds / .05); i++) updateGame(s, .05); };
 function quiet(seed) {
@@ -84,4 +84,26 @@ test('deliveries record mined credits and repairs record spending', () => {
   const delivery = s.events.findLast(e => e.kind === 'delivery');
   assert.equal(delivery.team, 0); assert.equal(delivery.role, 'harvester'); assert.equal(delivery.mineralType, 1);
   assert.equal(stats.mined, delivery.amount); assert(Math.abs(s.teams[0].credits - credits - delivery.amount) < 1e-6);
+});
+
+test('cancelling training refunds the full price at any queue position', () => {
+  const s = quiet('cancel-training'), stats = s.teams[0].stats, barracks = construct(s, 'barracks');
+  const credits = s.teams[0].credits, spent = stats.spent;
+  for (const type of ['rifle', 'rocket', 'scout']) assert(trainUnit(s, 0, type, barracks.id).ok);
+  advance(s, 2); assert(barracks.queue[0].progress > 0);
+  assert.deepEqual(cancelTraining(s, 1, barracks.id, 0), {ok: false, reason: 'Select your production building'});
+  assert.equal(cancelTraining(s, 0, barracks.id, 3).reason, 'No unit at that queue position');
+  assert.equal(cancelTraining(s, 0, barracks.id, 1.5).reason, 'No unit at that queue position');
+  assert.equal(cancelTraining(s, 0, s.entities.find(e => e.team === 0 && e.kind === 'unit').id, 0).reason, 'Select your production building');
+  const middle = cancelTraining(s, 0, barracks.id, 1);
+  assert.deepEqual(middle, {ok: true, reason: '', refund: UNITS.rocket.cost, type: 'rocket'});
+  const event = s.events.at(-1);
+  assert.equal(event.kind, 'trainingCancelled'); assert.equal(event.text, 'Rocket infantry training cancelled: +160 credits');
+  assert.equal(event.amount, UNITS.rocket.cost); assert.equal(event.entityId, barracks.id);
+  assert.deepEqual(cancelTraining(s, 0, barracks.id, 0), {ok: true, reason: '', refund: UNITS.rifle.cost, type: 'rifle'}, 'Even the unit in training is refunded in full');
+  assert.deepEqual(barracks.queue.map(q => [q.type, q.progress]), [['scout', 0]]);
+  assert.equal(s.teams[0].credits, credits - UNITS.scout.cost); assert.equal(stats.spent, spent + UNITS.scout.cost, 'Refunds return their spending');
+  advance(s, UNITS.scout.trainTime / productionRate(s, 0) + .5);
+  assert.equal(stats.trained, 1); assert.equal(barracks.queue.length, 0);
+  s.status = 'victory'; assert.equal(cancelTraining(s, 0, barracks.id, 0).reason, 'Operation has ended');
 });

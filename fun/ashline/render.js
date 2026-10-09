@@ -1,6 +1,6 @@
 import { nextPaint } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
-import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitStats, buildingRole, unitRole } from './sim.js';
+import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitRange, buildingRole, unitRole } from './sim.js';
 
 const TILE = 32;
 const TEAM = [
@@ -1095,7 +1095,7 @@ export class Renderer {
       const fade = 1 / Math.sqrt(rangeUnits.length);
       ctx.save(); ctx.lineWidth = 1 / scale;
       for (const e of rangeUnits) {
-        const radius = unitStats(e).range * TILE;
+        const radius = unitRange(state, e) * TILE;
         // Simulation distances are circles on the ground plane. Fade overlapping
         // selections and draw beneath units and fog, using friendly state only.
         ctx.beginPath(); ctx.arc(e.x * TILE, e.y * TILE, radius, 0, Math.PI * 2);

@@ -465,7 +465,7 @@ function updateHUD() {
     const next = rank < 3 ? (rank + 1) * 5 : null, bonus = rank * 20;
     rankInfo.dataset.rank = rank; rankInfo.dataset.kills = kills;
     rankInfo.textContent = `Rank ${rank}/3 · ${kills}${next ? `/${next}` : ''} kills · +${bonus}%`;
-    const summary = `Rank ${rank} of 3. ${kills} kills. ${next ? `${next - kills} kills to next rank.` : 'Maximum rank.'} +${bonus}% damage, speed and maximum HP. Damage ${Number(stats.damage.toFixed(2))}, speed ${Number(stats.speed.toFixed(2))} tiles/second, maximum HP ${stats.hp}.`;
+    const summary = `Rank ${rank} of 3. ${kills} kills. ${next ? `${next - kills} kills to next rank.` : 'Maximum rank.'} +${bonus}% damage and maximum HP, +${rank * 5}% speed. Damage ${Number(stats.damage.toFixed(2))}, speed ${Number(stats.speed.toFixed(2))} tiles/second, maximum HP ${stats.hp}.`;
     rankInfo.title = summary; rankInfo.setAttribute('aria-label', summary);
   } else {
     rankInfo.textContent = ''; rankInfo.removeAttribute('title'); rankInfo.removeAttribute('aria-label');

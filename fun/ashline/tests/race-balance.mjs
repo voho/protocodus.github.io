@@ -13,7 +13,7 @@ const profiles=selected?[selected]:Object.keys(MAP_PROFILES);
 assert.ok(profiles.every(profile=>Object.hasOwn(MAP_PROFILES,profile)));
 const limit=Number(option('--limit')||2400),output=option('--output')||`/tmp/ashline-race-balance-${selected||'all'}.json`;
 // Provenance covers every simulation module, in a fixed order, so a change to any of them is visible.
-const simulationSources=['sim.js','ai.js','terrain.js','flocking.js','traffic.js'];
+const simulationSources=['sim.js','ai.js','terrain.js','flocking.js','traffic.js','mission.js','campaign.js','abilities.js'];
 const simulationSha256=simulationSources.reduce((digest,file)=>digest.update(`${file}\n`).update(readFileSync(new URL(`../${file}`,import.meta.url))),createHash('sha256')).digest('hex');
 const report={generatedAt:new Date().toISOString(),simulationSha256,simulationSources,balanceConfig:{units:Object.fromEntries(Object.entries(UNITS).map(([type,d])=>[type,{hp:d.hp,damage:d.damage,interval:d.interval,speed:d.speed,cost:d.cost,trainTime:d.trainTime}])),buildings:Object.fromEntries(Object.entries(BUILDINGS).map(([type,d])=>[type,{hp:d.hp,power:d.power,cost:d.cost,buildTime:d.buildTime}]))},parameters:{suite,size,difficulty:'hard',unitCap:UNIT_CAP,width:MAP_SIZES[size].width,height:MAP_SIZES[size].height,step:.25,timeLimitSeconds:limit,seeds,profiles,aiTeams:[0,1],pairedSideSwaps:true},matches:[]};
 const countBy=(values,key)=>values.reduce((counts,value)=>{const k=key(value);counts[k]=(counts[k]||0)+1;return counts;},{});

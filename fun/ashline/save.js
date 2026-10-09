@@ -1,9 +1,11 @@
 import {BUILDINGS, UNITS, UNIT_CAP, RESEARCH, BUILDING_UPGRADES, RACES, MAP_PROFILES, EVENT_KINDS, TEAM_STATS, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, unitStats} from './sim.js';
 import {DOCTRINES} from './ai.js';
+import {ABILITIES, abilityFor} from './abilities.js';
+import {MISSIONS} from './campaign.js';
 
 export const SAVE_KEY = 'ashline.save.v1';
 const VERSION = 1, MAX_BYTES = 16_000_000, MAX_EFFECTS = Math.max(4096, UNIT_CAP * 8);
-const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites'];
+const FIELDS = ['width', 'height', 'seed', 'mapProfile', 'difficulty', 'rng', 'nextId', 'time', 'status', 'entities', 'teams', 'effects', 'events', 'navVersion', 'navBuilt', 'fogClock', 'ai', 'aiTeams', 'aiByTeam', 'alertAt', 'sites', 'mission', 'reveals'];
 const GRIDS = {terrain: Uint8Array, minerals: Float32Array, mineralTypes: Uint8Array, blocked: Uint8Array, regions: Uint16Array};
 const fail = reason => { throw new Error(reason); };
 const valid = condition => { if (!condition) fail('Saved operation is damaged or incompatible.'); };
@@ -105,6 +107,11 @@ function validateGame(s) {
     if(e.powerRatio!==undefined)valid(e.kind==='building'&&number(e.powerRatio,0,1));
     if(e.powerStatus!==undefined)valid(e.kind==='building'&&['stable','reserve','brownout'].includes(e.powerStatus));
     if(e.wallConnections!==undefined)valid(e.kind==='building'&&role==='wall'&&integer(e.wallConnections,0,15));
+    if(e.tag!==undefined)valid(label(e.tag,40));
+    const ability=e.kind==='unit'?abilityFor(e):null;
+    if(e.abilityReadyAt!==undefined)valid(ability&&number(e.abilityReadyAt,0,s.time+ability.cooldown+1e-6));
+    if(e.abilityUntil!==undefined)valid(ability?.target==='self'&&ability.duration>0&&number(e.abilityUntil,0,s.time+ability.duration+1e-6));
+    if(e.barrage!==undefined)valid(ability?.id==='barrage'&&point(e.barrage)&&integer(e.barrage.shots,1,ability.shots)&&number(e.barrage.next,0,s.time+ability.interval+1e-6));
     if(e.repairActive!==undefined)valid(e.kind==='unit'&&role==='engineer'&&typeof e.repairActive==='boolean');
     if(e.repairTargetId!==undefined)valid(e.kind==='unit'&&role==='engineer'&&(e.repairTargetId===null||integer(e.repairTargetId,1,s.nextId-1)));
     if (e.processingAmount !== undefined || e.processingTotal !== undefined) valid(e.kind === 'building' && ['refinery', 'core'].includes(role) && number(e.processingAmount, 0) && number(e.processingTotal, e.processingAmount));
@@ -169,12 +176,32 @@ function validateGame(s) {
     if(e.mineralType!==undefined)valid(integer(e.mineralType,0,3));
     if(e.speaker!==undefined)valid(label(e.speaker,40));
     if(e.status!==undefined)valid(label(e.status,40));
+    if(e.objective!==undefined)valid(label(e.objective,40));
+    if(e.ability!==undefined)valid(Object.values(ABILITIES).some(a=>a.id===e.ability));
+    if(e.count!==undefined)valid(integer(e.count,1,UNIT_CAP*2));
   }
   if(s.sites!==undefined){
     valid(Array.isArray(s.sites)&&s.sites.length<=64);
     const siteIds=new Set();
     for(const site of s.sites){valid(object(site)&&label(site.id,40)&&!siteIds.has(site.id)&&label(site.kind,40)&&label(site.name,60)&&point(site)&&number(site.r,0,Math.max(width,height)));siteIds.add(site.id);}
   }
+  // Flares and other temporary reveals belong to one team and expire with simulation time.
+  if(s.reveals!==undefined)valid(Array.isArray(s.reveals)&&s.reveals.length<=UNIT_CAP*2&&s.reveals.every(r=>object(r)&&[0,1].includes(r.team)&&point(r)&&number(r.r,.5,20)&&number(r.until,0,s.time+60)));
+  if(s.mission!==undefined)validateMission(s,s.mission,point);
+}
+
+// Mission progress is plain data tied to its definition: objectives and triggers must match by id.
+function validateMission(s,m,point){
+  valid(object(m)&&typeof m.id==='string'&&Object.hasOwn(MISSIONS,m.id));
+  const def=MISSIONS[m.id],span=Math.max(s.width,s.height);
+  valid(Array.isArray(m.objectives)&&m.objectives.length===def.objectives.length&&m.objectives.every((o,i)=>object(o)&&o.id===def.objectives[i].id&&['active','done','failed'].includes(o.state)&&number(o.progress,0)&&typeof o.revealed==='boolean'));
+  valid(object(m.fired)&&Object.entries(m.fired).every(([id,fired])=>fired===true&&(def.triggers||[]).some(t=>t.id===id)));
+  valid(Array.isArray(m.zones)&&m.zones.length<=64&&new Set(m.zones.map(z=>z?.id)).size===m.zones.length&&m.zones.every(z=>object(z)&&label(z.id,40)&&point(z)&&number(z.r,.1,span)&&label(z.label,80)));
+  valid(object(m.counters)&&Object.keys(m.counters).length<=256&&Object.entries(m.counters).every(([key,value])=>key.length<=80&&number(value,0)));
+  valid(number(m.startedAt,0,s.time)&&number(m.nextCheck,0,s.time+.25+1e-6));
+  if(m.score!==undefined)valid(number(m.score,0));
+  if(m.directives!==undefined)valid(object(m.directives)&&Object.entries(m.directives).every(([team,d])=>['0','1'].includes(team)&&object(d)&&
+    (d.attack===null||point(d.attack))&&(d.defend===null||point(d.defend)&&number(d.defend.r,0,span))&&typeof d.noExpand==='boolean'&&(d.waveSize===undefined||integer(d.waveSize,1,UNIT_CAP))));
 }
 
 export function encodeGame(game, view = {}) {
