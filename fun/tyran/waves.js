@@ -351,7 +351,7 @@ function buildSweep(s, spawn, wave, second = false) {
     if (k === 0 && tactics.eliteLeader && ships.length) {
       applyRole(ships[0], 'elite');
       // Veteran elites add a barrier once the campaign has taught energy fire.
-      if (combatTier(s.level) + campaignCycle(s.level) * 2 >= 5) addBarrier(ships[0], .25);
+      if (combatTier(s.level) + campaignCycle(s.level) * 2 >= 5) addBarrier(ships[0], .2);
     }
   }
   return 20 + squads * 1.5;
@@ -388,7 +388,7 @@ function buildMidboss(s, spawn, wave) {
   const boss = stationShip(s, spawn, 8, s.width * (.5 + tactics.stationLane), 230, wave, tactics, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
   boss.hp *= 4; boss.maxHp = boss.hp;
   // From sector three the cruiser raises a barrier; energy weapons break it fastest.
-  if (combatTier(s.level) >= 2) addBarrier(boss, .3);
+  if (combatTier(s.level) >= 2) addBarrier(boss, .2);
   for (let k = 0; k < 2; k++) {
     const squad = newSquad(s, 4, wave);
     launchLine(s, spawn, { type: tactics.sweepTypes.find(type => type > 0 && type < 4) || 2, count: 4, path: tactics.sweepPaths[k % tactics.sweepPaths.length], mirror: (k ? -1 : 1) * tactics.mirror, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad, tactics });

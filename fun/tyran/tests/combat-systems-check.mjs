@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, update, spawnEnemy, damageEnemy, hurtPlayer, shipStats, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
+import { createCampaign, update, spawnEnemy, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
 import { applyRole, addBarrier } from '../roles.js';
 import { waveTactics } from '../tactics.js';
 import { serializeRun, restoreRun } from '../save-game.js';
@@ -126,6 +126,51 @@ check('barriers on any role and rebooting shields survive a save', () => {
   assert.deepEqual([restoredAce.shieldMax, restoredAce.shieldHp, restoredAce.shieldHit], [ace.shieldMax, ace.shieldHp, ace.shieldHit]);
   assert.deepEqual([restoredElite.shieldMax, restoredElite.shieldHp], [elite.shieldMax, elite.shieldHp]);
   assert.equal(run.state.players[0].lastHit, 7.5);
+});
+
+
+check('heavy hulls shove the pilot clear after a ram; light hulls are destroyed by it', () => {
+  const state = isolated(4), pilot = state.players[0];
+  pilot.guard = 0;
+  const heavy = Object.assign(spawnEnemy(state, 8, pilot.x + 10, pilot.y - 20), { ai: 'fixture', vx: 0, vy: 0, noFire: true });
+  const before = Math.hypot(pilot.x - heavy.x, pilot.y - heavy.y);
+  update(state, 1 / 60, [{}]);
+  assert(!heavy.dead, 'a heavy hull survives the ram');
+  assert(Math.hypot(pilot.x - heavy.x, pilot.y - heavy.y) > before, 'the pilot is pushed away');
+  // The hull sits up and to the right of the pilot.
+  assert(pilot.blastVx < 0 && pilot.blastVy > 0, 'the shove points away from the hull');
+  // The shove carries the pilot out of the hull before its hit immunity ends.
+  for (let i = 0; i < 30; i++) update(state, 1 / 60, [{}]);
+  assert(Math.hypot(pilot.x - heavy.x, pilot.y - heavy.y) >= pilot.radius + heavy.radius * .75, 'no longer overlapping');
+  const light = isolated(), ship = light.players[0]; ship.guard = 0;
+  const rammer = Object.assign(spawnEnemy(light, 1, ship.x, ship.y - 5), { ai: 'fixture', vx: 0, vy: 0, noFire: true });
+  update(light, 1 / 60, [{}]);
+  assert(rammer.dead && light.events.some(event => event.type === 'explosion' && event.cause === 'ram'));
+});
+
+check('explosions carry the momentum of the hull that died', () => {
+  const state = isolated(), enemy = spawnEnemy(state, 2, 500, 300);
+  Object.assign(enemy, { vx: 240, vy: -60, blastVx: 10, blastVy: 0 });
+  killEnemy(state, enemy);
+  const blast = state.events.find(event => event.type === 'explosion');
+  assert.deepEqual([blast.vx, blast.vy], [250, -60]);
+});
+
+check('wing drones swing past their slot on a spring, settle, and keep their velocity through a save', () => {
+  const state = isolated(), pilot = state.players[0];
+  pilot.drones = 1;
+  advance(state, 1.5);
+  const slot = () => pilot.x - 50;
+  assert(Math.abs(pilot.wing[0].x - slot()) < 1, 'a resting drone sits in its slot');
+  advance(state, .6, [{ x: 1 }]);
+  let overshoot = 0;
+  for (let i = 0; i < 60; i++) { update(state, 1 / 60, [{}]); state.events.length = 0; overshoot = Math.max(overshoot, pilot.wing[0].x - slot()); }
+  assert(overshoot > 2, `the drone swings past its slot (${overshoot})`);
+  advance(state, 1.5);
+  assert(Math.abs(pilot.wing[0].x - slot()) < 1 && Math.abs(pilot.wing[0].vx) < 5, 'and settles');
+  pilot.wing[0].vx = 120; pilot.wing[0].vy = -30;
+  const run = restoreRun(serializeRun(state));
+  assert.deepEqual([run.state.players[0].wing[0].vx, run.state.players[0].wing[0].vy], [120, -30]);
 });
 
 if (failures) process.exitCode = 1;

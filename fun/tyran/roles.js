@@ -23,7 +23,7 @@ export function applyRole(enemy, role, options = {}) {
     case 'ace':
       enemy.hp *= 2.4; enemy.maxHp = enemy.hp; enemy.tacticFire = Math.min(2, (enemy.tacticFire || 1) * 1.3); enemy.aceName = options.aceName ?? 0;
       // Aces fly with a light barrier: open it with energy fire, then finish the hull.
-      addBarrier(enemy, .3); break;
+      addBarrier(enemy, .25); break;
     case 'shielded':
       addBarrier(enemy, .55); break;
     case 'phantom':

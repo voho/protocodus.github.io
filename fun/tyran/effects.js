@@ -159,13 +159,20 @@ export class Effects {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
       const boss = event.boss, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
+      // A dying hull's momentum carries its fireball; the cap keeps a fast
+      // diver's burst readable instead of smearing it across the screen.
+      const momentum = Math.hypot(event.vx || 0, event.vy || 0), carry = momentum > 0 ? Math.min(.55, 220 / momentum) : 0;
+      const driftX = (event.vx || 0) * carry, driftY = (event.vy || 0) * carry;
       const charges = boss ? 18 : !event.player && weight >= .35 ? (event.midboss ? 6 : 3) : 0;
-      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
+      for (let i = 0; i < charges; i++) {
+        const delay = .1 + i * (boss ? .085 : .09);
+        this.delayed.push({ delay, event: { type: 'explosion', x: x + random(-size, size) * .8 + driftX * delay * .6, y: y + random(-size * .7, size * .7) + driftY * delay * .6, size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
+      }
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 470 : (size * 5 + 50) * (1 + weight * .3));
-        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !!event.ground);
+        this.particle(x, y, Math.cos(angle) * speed + driftX, Math.sin(angle) * speed + driftY, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !!event.ground);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.35 : .5 + weight * .25, radius: size * (boss ? 7 : 3 + weight * 2), color, explosion: true, diameter: size * (4 + weight), ground: !!event.ground });
       if (weight >= .35) this.rings.push({ x, y, age: 0, life: boss ? 1.05 : .75, radius: size * (boss ? 8.5 : 5), color: '#ffd7a0' });

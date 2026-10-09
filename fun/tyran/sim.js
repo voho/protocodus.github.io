@@ -59,6 +59,10 @@ export function nextLifeAfterScore(score, threshold = FIRST_EXTRA_LIFE) {
 export const RESPAWN_DELAY = 1.8, RESPAWN_GUARD = 3;
 export const PICKUP_KINDS = Object.freeze(['repair', 'credit', 'rapid', 'invulnerable', 'power', 'drone', 'bomb']);
 const DRONE_SLOTS = [[-50, 16], [50, 16]];
+// Drones hang on an underdamped spring: they swing a few units past their
+// slot when the ship stops, then settle. At full speed they trail about 22
+// units, slightly less than the earlier rigid follow.
+const DRONE_STIFFNESS = 150, DRONE_DAMPING = 9;
 const DRONE_COLOR = '#ffc46b';
 
 // Pulse provides unlimited sustained fire. Plasma spends a regenerating reserve
@@ -236,6 +240,18 @@ function constrain(body, left, right, top = -Infinity, bottom = Infinity) {
   if (body.x >= right) { body.x = right; body.vx = Math.min(0, body.vx); body.blastVx = Math.min(0, body.blastVx || 0); }
   if (body.y <= top) { body.y = top; body.vy = Math.max(0, body.vy); body.blastVy = Math.max(0, body.blastVy || 0); }
   if (body.y >= bottom) { body.y = bottom; body.vy = Math.min(0, body.vy); body.blastVy = Math.min(0, body.blastVy || 0); }
+}
+
+const confinePilot = (s, p) => constrain(p, 30, s.width - 30, 105, s.height - 42);
+// Heavy hulls shove the pilot clear instead of letting it sit inside them
+// and take a ram every time its hit immunity expires.
+function repel(s, p, e) {
+  const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy);
+  const nx = d > 1e-6 ? dx / d : 0, ny = d > 1e-6 ? dy / d : 1, overlap = Math.max(0, p.radius + e.radius * .75 - d);
+  p.x += nx * overlap * .5; p.y += ny * overlap * .5;
+  p.blastVx = clamp((p.blastVx || 0) + nx * 90, -MAX_BLAST_SPEED, MAX_BLAST_SPEED);
+  p.blastVy = clamp((p.blastVy || 0) + ny * 90, -MAX_BLAST_SPEED, MAX_BLAST_SPEED);
+  confinePilot(s, p);
 }
 
 /** Large ground explosions gently displace nearby light craft without damage. */
@@ -941,7 +957,7 @@ function enemyFire(s, e) {
 export const KINETIC_BLEED = .3;
 // A collapsing shield vents one pulse that clears nearby rounds, then needs a
 // longer reboot than an ordinary hit before it recharges.
-export const SHIELD_BREAK_DELAY = .9, SHIELD_COLLAPSE_RADIUS = 120;
+export const SHIELD_BREAK_DELAY = .5, SHIELD_COLLAPSE_RADIUS = 140;
 
 function collapseShield(s, p) {
   const cancels = [], reach = SHIELD_COLLAPSE_RADIUS * SHIELD_COLLAPSE_RADIUS;
@@ -975,7 +991,7 @@ export function hurtPlayer(s, p, damage, kind = 'energy') {
     p.power = Math.max(0, (p.power || 0) - 2); p.drones = Math.max(0, (p.drones || 0) - 1);
     if (p.wing) p.wing.length = Math.min(p.wing.length, p.drones);
     s.respawn = RESPAWN_DELAY;
-    s.events.push({ type: 'explosion', x: p.x, y: p.y, size: 50, player: true });
+    s.events.push({ type: 'explosion', x: p.x, y: p.y, size: 50, player: true, vx: p.vx, vy: p.vy });
   } else if (hull > 0 && p.power > 0) {
     // A hull breach knocks a power core loose; catch it again before it drifts away.
     p.power--;
@@ -1054,7 +1070,8 @@ export function killEnemy(s, e, cause = 'shot') {
     if (e.role === 'convoy') s.stats.convoys = (s.stats.convoys || 0) + 1;
     if (HAZARD_ROLES.has(e.role) && cause !== 'ram') s.stats.hazards = (s.stats.hazards || 0) + 1;
   }
-  s.events.push({ type: 'explosion', x: e.x, y: e.y, size: e.radius * 1.3 * s.comboBlast, boss: e.boss, value: reward * multiplier, shipType: e.type, blast: s.comboBlast, dive: diving, midboss: e.role === 'midboss', cause });
+  s.events.push({ type: 'explosion', x: e.x, y: e.y, size: e.radius * 1.3 * s.comboBlast, boss: e.boss, value: reward * multiplier, shipType: e.type, blast: s.comboBlast, dive: diving, midboss: e.role === 'midboss', cause,
+    vx: (e.vx || 0) + (e.blastVx || 0), vy: (e.vy || 0) + (e.blastVy || 0) });
   if (chain >= 2) s.events.push({ type: 'combo', x: e.x, y: e.y, combo: chain, label: s.comboLabel, damageBoost: s.comboDamage, blastBoost: s.comboBlast, time: s.comboTime });
   if (e.challenge && s.challenge) s.challenge.hits++;
   if (e.squad) {
@@ -1150,11 +1167,12 @@ function updateWing(p, dt) {
     wing.push({ x: p.x + dx * .3, y: p.y + dy + 30, px: p.x, py: p.y + 30 });
   }
   wing.length = Math.min(wing.length, p.drones || 0);
-  const follow = 1 - Math.exp(-dt * 13);
   wing.forEach((drone, index) => {
     drone.px = drone.x; drone.py = drone.y;
-    drone.x += (p.x + DRONE_SLOTS[index][0] - drone.x) * follow;
-    drone.y += (p.y + DRONE_SLOTS[index][1] - drone.y) * follow;
+    // Semi-implicit Euler stays stable up to the 50 ms step limit.
+    drone.vx = (drone.vx || 0) + ((p.x + DRONE_SLOTS[index][0] - drone.x) * DRONE_STIFFNESS - (drone.vx || 0) * DRONE_DAMPING) * dt;
+    drone.vy = (drone.vy || 0) + ((p.y + DRONE_SLOTS[index][1] - drone.y) * DRONE_STIFFNESS - (drone.vy || 0) * DRONE_DAMPING) * dt;
+    drone.x += drone.vx * dt; drone.y += drone.vy * dt;
   });
 }
 
@@ -1224,7 +1242,7 @@ export function update(s, dt, input = [], environmentHit = null) {
     const norm = Math.max(1, Math.hypot(x, y));
     p.mass = stats.mass;
     accelerate(p, x / norm * PLAYER_SPEED, y / norm * PLAYER_SPEED, (x || y ? .095 : .13) * p.mass, dt);
-    constrain(p, 30, s.width - 30, 105, s.height - 42);
+    confinePilot(s, p);
     const thrustResponse = 1 - Math.exp(-dt / (.085 * Math.sqrt(p.mass)));
     p.thrust += (.9 + Math.hypot(x, y) / norm * .28 + Math.max(0, -y / norm) * .43 - p.thrust) * thrustResponse;
     if (p.wing || p.drones) updateWing(p, dt);
@@ -1366,6 +1384,7 @@ export function update(s, dt, input = [], environmentHit = null) {
       hurtPlayer(s, p, (e.boss ? 55 : roleCollisionDamage(e)) * difficultyProfile(s.difficulty).damage, 'kinetic');
       // Light craft are destroyed by the collision; heavy hulls shrug it off.
       if (!e.boss && e.radius < 36 && e.role !== 'midboss') killEnemy(s, e, 'ram');
+      else repel(s, p, e);
     }
   }
   updateBeams(s, dt);

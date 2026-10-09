@@ -224,7 +224,11 @@ function restoreState(raw) {
     result.bombs = integer(player.bombs, START_BOMBS, 0, MAX_BOMBS);
     result.guard = number(player.guard, 0, 0, RESPAWN_GUARD);
     result.bombHeld = bool(player.bombHeld);
-    result.wing = list(player.wing, MAX_DRONES).map(drone => coordinates(drone)).map(({ x, y, px, py }) => ({ x, y, px, py }));
+    // Drone spring velocity is kept when present; older records stay at rest.
+    result.wing = list(player.wing, MAX_DRONES).map(drone => {
+      const { x, y, px, py, vx, vy } = coordinates(drone);
+      return drone.vx === undefined && drone.vy === undefined ? { x, y, px, py } : { x, y, px, py, vx, vy };
+    });
     if (result.wing.length > result.drones) invalid();
     return result;
   });
