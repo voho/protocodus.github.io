@@ -214,10 +214,16 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
     },
     checkStream(x, z) {
       beginBuild(x, z, heightAt(x, z));
-      // The previous commit's geomorph is over as far as this check cares.
+      // Each half of the geomorph is over as soon as this check asks.
       while (build) { morphT = 1; advanceBuild(); }
     },
-    checkMorph: () => [morphDY, morphDN, morphDC, morphDS, morphK.value],
+    // Up to the moment the lead starts, and then on through the swap.
+    checkLead(x, z) {
+      beginBuild(x, z, heightAt(x, z));
+      while (build && build.stage < 4) { morphT = 1; advanceBuild(); }
+    },
+    checkFinish() { while (build) { morphT = 1; advanceBuild(); } },
+    checkMorph: () => [morphDY, morphDN, morphDC, morphDS, morphK.value, morphPhase],
     checkAnchor: () => [anchorX, anchorY, anchorZ],
     checkInterrupt(x, z, stage) {
       beginBuild(x, z, heightAt(x, z));
@@ -351,51 +357,71 @@ function drawnOn([xs, zs], Y, wx, wz) {
   return fu + fv <= 1 ? A + (B - A) * fu + (C - A) * fv : D + (C - D) * (1 - fu) + (B - D) * (1 - fv);
 }
 
-/* THE GEOMORPH STARTS FROM THE SURFACE ON SCREEN. After a streamed commit,
-   every vertex plus its height delta must land on the old mesh as drawn —
-   the old vertex where the lattices share the point, the old triangle
-   (cut the way the index buffer cuts it) where they do not. */
+/* THE GEOMORPH NEVER CUTS. Two halves around the swap. The lead: each old
+   vertex walks from where it is drawn to the new surface at its own world
+   point. The follow: each new vertex walks from the old lattice as the lead
+   left it to its own place. So at the swap the two lattices draw the same
+   ground wherever one nests in the other — refining or coarsening. Both
+   ends are checked against the buffers alone, as drawn. */
 {
   setWorldSeed('alpen-check');
   const morphCases = [[0, -396, 0, -402], [0, -402, 6, -414], [6, -414, -12, -432], [0, -3600, 0, -3624]];
-  let checked = 0, zeros = 0, moved = 0, worst = 0;
+  let leadEnd = 0, followStart = 0, swap = 0, checked = 0, zeros = 0, moved = 0;
   for (const [x0, z0, x1, z1] of morphCases) {
     streamed.reset(x0, z0);
     const [ax0, ay0, az0] = streamed.checkAnchor();
     const oldPos = streamed.checkBuffers()[1].slice();
-    streamed.checkStream(x1, z1);
+    streamed.checkLead(x1, z1);
+    const [lead, , , , kLead, phase] = streamed.checkMorph();
+    assert.equal(phase, 1, 'the lead plays on the old mesh before the swap');
+    assert.equal(kLead, 0, 'and it starts from the surface on screen');
+    const leadY = ((dy) => (j) => ay0 + oldPos[j * 3 + 1] + dy[j])(lead.slice());
+    streamed.checkFinish();
     const [ax1, ay1, az1] = streamed.checkAnchor();
     const newPos = streamed.checkBuffers()[1];
-    const [dy, , , , k] = streamed.checkMorph();
-    assert.equal(k, 1, 'a streamed commit starts its geomorph from the old surface');
+    const [follow, , , , kFollow] = streamed.checkMorph();
+    assert.equal(kFollow, 1, 'the follow starts from the lead');
     const old = lanesOf(oldPos, ax0, az0);
-    const oldY = (i) => ay0 + oldPos[i * 3 + 1];
+    const fresh = lanesOf(newPos, ax1, az1);
+    const ownY = (i) => ay1 + newPos[i * 3 + 1];
+    const startY = (i) => ownY(i) + follow[i];
+    for (let j = 0; j < streamed.vertexCount; j++) {
+      const wx = ax0 + oldPos[j * 3], wz = az0 + oldPos[j * 3 + 2];
+      const target = drawnOn(fresh, ownY, wx, wz);
+      if (Number.isNaN(target)) continue;
+      leadEnd = Math.max(leadEnd, Math.abs(leadY(j) - target));
+      // Under each old vertex, the surface on either side of the swap, as an
+      // angle from the rider. Exact wherever one lattice nests in the other.
+      const d = Math.max(4, Math.hypot(wx - x1, wz - z1));
+      swap = Math.max(swap, Math.abs(drawnOn(fresh, startY, wx, wz) - leadY(j)) / d);
+    }
     for (let i = 0; i < streamed.vertexCount; i++) {
-      const drawn = drawnOn(old, oldY, ax1 + newPos[i * 3], az1 + newPos[i * 3 + 2]);
+      const drawn = drawnOn(old, leadY, ax1 + newPos[i * 3], az1 + newPos[i * 3 + 2]);
       if (Number.isNaN(drawn)) continue;
-      const start = ay1 + newPos[i * 3 + 1] + dy[i];
-      worst = Math.max(worst, Math.abs(start - drawn));
+      followStart = Math.max(followStart, Math.abs(startY(i) - drawn));
       checked++;
-      if (dy[i] === 0) zeros++;
-      else if (Math.abs(dy[i]) > 0.005) moved++;
+      if (follow[i] === 0) zeros++;
+      else if (Math.abs(follow[i]) > 0.005) moved++;
     }
   }
-  assert.ok(worst < 2e-3, `geomorph starts ${worst.toFixed(4)} m off the old surface`);
+  assert.ok(leadEnd < 2e-3, `the lead ends ${leadEnd.toFixed(4)} m off the new surface`);
+  assert.ok(followStart < 2e-3, `the follow starts ${followStart.toFixed(4)} m off where the lead ended`);
+  assert.ok(swap < 2.5e-3, `the swap itself moves the surface ${(swap * 1e3).toFixed(2)} mrad`);
   assert.ok(zeros > checked * 0.6, 'ground that re-indexed exactly carries no morph at all');
   assert.ok(moved > 0, 'and ground that was re-measured does');
-  console.log(`  geomorph: ${checked} vertices start on the old surface (worst ${worst.toExponential(1)} m), ${moved} walk to new ground`);
+  console.log(`  geomorph: lead ends within ${leadEnd.toExponential(1)} m, follow starts within ${followStart.toExponential(1)} m, the swap moves ${(swap * 1e3).toFixed(2)} mrad; ${moved} of ${checked} vertices walk`);
 }
 
-/* WHAT THE GEOMORPH CANNOT HIDE, THE TERRAIN MUST NOT MAKE. Where a commit
-   coarsens the lattice — beside and behind the rider — the new vertices
-   start on the old surface, but the old surface's finer detail between them
-   is simply gone. That is only invisible if nothing on the far rings is finer
-   than their cells can carry, which is what every generator's LOD is for;
-   the landforms first went in without one and outcrops jumped by metres. So
-   drift sideways through commits and measure the drawn surface under each
-   old vertex past the uniform field, as an angle seen from the rider. The
-   mountain without the landforms reaches about twelve milliradians here,
-   the unfiltered outcrops and arêtes thirty. */
+/* WHAT A COARSER LATTICE CANNOT CARRY, THE TERRAIN SHOULD NOT MAKE. Where
+   a commit coarsens the lattice — beside and behind the rider — the lead
+   lays the old fine detail down onto what the new cells can hold, and that
+   is only gentle if nothing on the far rings is finer than its cells, which
+   is what every generator's LOD is for: the landforms first went in without
+   one and outcrops shed metres. So drift sideways through commits, sample
+   the old surface at the new vertices, and measure how far that coarser
+   copy lies from each old vertex past the uniform field, as an angle seen
+   from the rider. The mountain without the landforms reaches about twelve
+   milliradians here, the unfiltered outcrops and arêtes thirty. */
 {
   setWorldSeed('alpen-check');
   let worst = 0;
@@ -407,22 +433,26 @@ function drawnOn([xs, zs], Y, wx, wz) {
       const z = z0 - 6 * hop;
       const x = guideAt(z) + 6 * hop;
       streamed.checkStream(x, z);
-      const [ax1, ay1, az1] = streamed.checkAnchor();
+      const [ax1, , az1] = streamed.checkAnchor();
       const newPos = streamed.checkBuffers()[1];
-      const dy = streamed.checkMorph()[0];
-      const lanes = lanesOf(newPos, ax1, az1);
-      const startY = (i) => ay1 + newPos[i * 3 + 1] + dy[i];
+      const old = lanesOf(oldPos, ax0, az0);
+      const oldY = (j) => ay0 + oldPos[j * 3 + 1];
+      const carried = new Float64Array(streamed.vertexCount);
       for (let i = 0; i < streamed.vertexCount; i++) {
-        const wx = ax0 + oldPos[i * 3], wz = az0 + oldPos[i * 3 + 2];
+        carried[i] = drawnOn(old, oldY, ax1 + newPos[i * 3], az1 + newPos[i * 3 + 2]);
+      }
+      const fresh = lanesOf(newPos, ax1, az1);
+      for (let j = 0; j < streamed.vertexCount; j++) {
+        const wx = ax0 + oldPos[j * 3], wz = az0 + oldPos[j * 3 + 2];
         const d = Math.hypot(wx - x, wz - z);
         if (d < TERRAIN.uniformNear || d > 560) continue;
-        const drawn = drawnOn(lanes, startY, wx, wz);
-        if (!Number.isNaN(drawn)) worst = Math.max(worst, Math.abs(drawn - ay0 - oldPos[i * 3 + 1]) / d);
+        const copy = drawnOn(fresh, (i) => carried[i], wx, wz);
+        if (!Number.isNaN(copy)) worst = Math.max(worst, Math.abs(copy - oldY(j)) / d);
       }
     }
   }
-  assert.ok(worst < 0.018, `a coarsening commit moves the far surface ${(worst * 1e3).toFixed(1)} mrad`);
-  console.log(`  coarsening: the far surface moves at most ${(worst * 1e3).toFixed(1)} mrad at a commit`);
+  assert.ok(worst < 0.018, `a coarser lattice drops ${(worst * 1e3).toFixed(1)} mrad of the far surface`);
+  console.log(`  far rings: a coarser lattice drops at most ${(worst * 1e3).toFixed(1)} mrad of the surface`);
 }
 assert.ok(surfaceHits > streamed.vertexCount, 'Unchanged stencils must reuse surface attributes');
 for (const stage of [0, 1]) {

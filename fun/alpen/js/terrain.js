@@ -1793,15 +1793,19 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      hop — distant slopes visibly re-shaping and re-lighting several times a
      second.
 
-     So a build also records, for every vertex, what the surface on screen
-     looked like at that world point — the old vertex where the lattices
-     share it, the old triangle interpolated where they do not — and the
-     shader walks from that to the new value over `MORPH_SECONDS` after the
-     commit. Stored as deltas, so the overwhelming majority of the mesh, which
+     So the swap is walked in two halves of `MORPH_SECONDS` each. First the
+     lead: every old vertex walks to the new surface at its own world point.
+     Then the swap, and the follow: every new vertex walks from the old
+     lattice as the lead left it — the old vertex where the lattices share
+     the point, the old triangle where they do not — to its own value. The
+     follow alone covered ground the commit refines; ground it coarsens lost
+     its fine detail in one frame at the swap, beside and behind the rider,
+     and the lead is what lays that detail down first (see `fillLeadRows`).
+     Stored as deltas, so the overwhelming majority of the mesh, which
      re-indexed exactly, carries zeros and lands bit-exact; packed to a float
-     height and normalised bytes, so the extra upload per commit is fourteen
-     bytes a vertex. Written in place while the previous morph is still
-     playing, because the GPU keeps its own copy until the commit uploads. */
+     height and normalised bytes, so each half uploads fourteen bytes a
+     vertex. Written in place while the previous half is still playing,
+     because the GPU keeps its own copy until the next upload. */
   const morphDY = new Float32Array(count);
   const morphDN = new Int8Array(count * 3);   // normal delta / 2
   const morphDC = new Int8Array(count * 3);   // vertex colour delta
@@ -3220,6 +3224,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const bracketRows = new Int32Array(vertsZ);
   const fracColumns = new Float64Array(vertsX);
   const fracRows = new Float64Array(vertsZ);
+  // And the other way round, for the lead: where each old lane falls in the
+  // new lattice, and the new lane it coincides with exactly, or -1.
+  const leadColumns = new Int32Array(vertsX);
+  const leadRows = new Int32Array(vertsZ);
+  const leadFracColumns = new Float64Array(vertsX);
+  const leadFracRows = new Float64Array(vertsZ);
+  const leadExactColumns = new Int32Array(vertsX);
+  const leadExactRows = new Int32Array(vertsZ);
   let morphSource = false;
   const heightReused = new Uint8Array(count);
   // Vertices whose whole surface was copied from the live mesh: nothing about
@@ -3288,6 +3300,26 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       bracketRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
       fracRows[r] = Math.min(1, Math.max(0, f));
     }
+    leadExactColumns.fill(-1);
+    leadExactRows.fill(-1);
+    for (let c = 0; c < vertsX; c++) if (reuseColumns[c] >= 0) leadExactColumns[reuseColumns[c]] = c;
+    for (let r = 0; r < vertsZ; r++) if (reuseRows[r] >= 0) leadExactRows[reuseRows[r]] = r;
+    lo = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = previousXs[c];
+      while (lo + 2 < vertsX && ax + sxs[lo + 1] <= x) lo++;
+      const f = (x - ax - sxs[lo]) / (sxs[lo + 1] - sxs[lo]);
+      leadColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      leadFracColumns[c] = Math.min(1, Math.max(0, f));
+    }
+    lo = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = previousZs[r];
+      while (lo + 2 < vertsZ && az + szs[lo + 1] >= z) lo++;
+      const f = (az + szs[lo] - z) / (szs[lo] - szs[lo + 1]);
+      leadRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      leadFracRows[r] = Math.min(1, Math.max(0, f));
+    }
   }
 
   /* The surface on screen at each new vertex, as a delta from the new one.
@@ -3296,92 +3328,168 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      directly; elsewhere the old cell is interpolated on the same diagonal
      the index buffer cut it along, so a vertex added inside an old triangle
      starts exactly on that triangle. Ground the old mesh never covered —
-     the leading rows of the far edge, deep in the fog — starts as itself. */
+     the leading rows of the far edge, deep in the fog — starts as itself.
+
+     That is the follow, the second half of the geomorph. The lead, the
+     first, is the same sum the other way round: before the swap, each old
+     vertex walks to the new surface at its own world point. Where a commit
+     refines the lattice the follow does the work, the new vertices rising
+     out of the old triangles; where it coarsens — beside and behind the
+     rider, wherever the rings slide outwards — the follow alone cannot,
+     because the old fine detail between the new vertices would vanish at the
+     swap. The lead lays the old fine mesh down onto the new coarse surface
+     first, so by the swap both lattices draw the same ground wherever one
+     nests in the other. */
   const byte = (v) => (v > 1 ? 127 : v < -1 ? -127 : Math.round(v * 127));
+
+  // The three corners of cell (r0, c0) under the point (fu, fv) inside it,
+  // cut on the diagonal the index buffer cuts that cell on, and their weights.
+  const corner = new Int32Array(3);
+  const weight = new Float64Array(3);
+  function cellCorners(r0, c0, fu, fv) {
+    const A = r0 * vertsX + c0;
+    const B = A + 1;
+    const C = A + vertsX;
+    const D = C + 1;
+    if ((r0 + c0) & 1) {
+      // Cut from A to D: see the index build.
+      if (fu >= fv) { corner[0] = A; weight[0] = 1 - fu; corner[1] = B; weight[1] = fu - fv; corner[2] = D; weight[2] = fv; }
+      else { corner[0] = A; weight[0] = 1 - fv; corner[1] = C; weight[1] = fv - fu; corner[2] = D; weight[2] = fu; }
+    } else if (fu + fv <= 1) {
+      corner[0] = A; weight[0] = 1 - fu - fv; corner[1] = B; weight[1] = fu; corner[2] = C; weight[2] = fv;
+    } else {
+      corner[0] = D; weight[0] = fu + fv - 1; corner[1] = C; weight[1] = 1 - fu; corner[2] = B; weight[2] = 1 - fv;
+    }
+  }
+
+  function clearDelta(t) {
+    const p = t * 3;
+    const q = t * 4;
+    morphDY[t] = 0;
+    morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
+    morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
+    morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
+  }
+
+  /* Vertex t's delta, into the morph attributes, from its own surface (the
+     `to` arrays) to the `from` surface at the same world point: from-vertex
+     `exact` where the lattices share the point, else the `from` cell that
+     `cellCorners` last set up. */
+  function writeDelta(t, exact, fromH, fromN, fromC, fromS, toH, toN, toC, toS) {
+    let h, n0, n1, n2, c0, c1, c2, s0, s1, s2, s3;
+    if (exact >= 0) {
+      const e3 = exact * 3;
+      const e4 = exact * 4;
+      h = fromH[exact];
+      n0 = fromN[e3]; n1 = fromN[e3 + 1]; n2 = fromN[e3 + 2];
+      c0 = fromC[e3]; c1 = fromC[e3 + 1]; c2 = fromC[e3 + 2];
+      s0 = fromS[e4]; s1 = fromS[e4 + 1]; s2 = fromS[e4 + 2]; s3 = fromS[e4 + 3];
+    } else {
+      h = n0 = n1 = n2 = c0 = c1 = c2 = s0 = s1 = s2 = s3 = 0;
+      for (let k = 0; k < 3; k++) {
+        const a = corner[k];
+        const w = weight[k];
+        const a3 = a * 3;
+        const a4 = a * 4;
+        h += fromH[a] * w;
+        n0 += fromN[a3] * w; n1 += fromN[a3 + 1] * w; n2 += fromN[a3 + 2] * w;
+        c0 += fromC[a3] * w; c1 += fromC[a3 + 1] * w; c2 += fromC[a3 + 2] * w;
+        s0 += fromS[a4] * w; s1 += fromS[a4 + 1] * w;
+        s2 += fromS[a4 + 2] * w; s3 += fromS[a4 + 3] * w;
+      }
+      const len = Math.hypot(n0, n1, n2) || 1;
+      n0 /= len; n1 /= len; n2 /= len;
+    }
+    const p = t * 3;
+    const q = t * 4;
+    morphDY[t] = h - toH[t];
+    morphDN[p] = byte((n0 - toN[p]) * 0.5);
+    morphDN[p + 1] = byte((n1 - toN[p + 1]) * 0.5);
+    morphDN[p + 2] = byte((n2 - toN[p + 2]) * 0.5);
+    morphDC[p] = byte(c0 - toC[p]);
+    morphDC[p + 1] = byte(c1 - toC[p + 1]);
+    morphDC[p + 2] = byte(c2 - toC[p + 2]);
+    morphDS[q] = byte(s0 - toS[q]);
+    morphDS[q + 1] = byte(s1 - toS[q + 1]);
+    morphDS[q + 2] = byte(s2 - toS[q + 2]);
+    morphDS[q + 3] = byte(s3 - toS[q + 3]);
+  }
+
+  // The follow: new vertex i, from the old surface to its own.
   function fillMorphRows(rowFrom, rowTo) {
     let i = rowFrom * vertsX;
-    if (!morphSource) {
-      morphDY.fill(0, i, rowTo * vertsX);
-      morphDN.fill(0, i * 3, rowTo * vertsX * 3);
-      morphDC.fill(0, i * 3, rowTo * vertsX * 3);
-      morphDS.fill(0, i * 4, rowTo * vertsX * 4);
-      return;
-    }
     for (let r = rowFrom; r < rowTo; r++) {
       const exactRow = reuseRows[r];
       const or = bracketRows[r];
       const fv = fracRows[r];
       for (let c = 0; c < vertsX; c++, i++) {
-        const p = i * 3;
-        const q = i * 4;
-        if (heightReused[i] && surfaceReused[i]) {
-          morphDY[i] = 0;
-          morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
-          morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
-          morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
-          continue;
-        }
+        if (heightReused[i] && surfaceReused[i]) { clearDelta(i); continue; }
         const exactColumn = reuseColumns[c];
-        let a = -1, b = -1, d = -1;
-        let wa = 1, wb = 0, wd = 0;
+        let exact = -1;
         if (exactRow >= 0 && exactColumn >= 0) {
-          a = exactRow * vertsX + exactColumn;
+          exact = exactRow * vertsX + exactColumn;
         } else {
           const oc = bracketColumns[c];
-          if (or < 0 || oc < 0) {
-            morphDY[i] = 0;
-            morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
-            morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
-            morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
-            continue;
-          }
-          const fu = fracColumns[c];
-          const A = or * vertsX + oc;
-          const B = A + 1;
-          const C = A + vertsX;
-          const D = C + 1;
-          if ((or + oc) & 1) {
-            // Cut from A to D: see the index build.
-            if (fu >= fv) { a = A; wa = 1 - fu; b = B; wb = fu - fv; d = D; wd = fv; }
-            else { a = A; wa = 1 - fv; b = C; wb = fv - fu; d = D; wd = fu; }
-          } else if (fu + fv <= 1) {
-            a = A; wa = 1 - fu - fv; b = B; wb = fu; d = C; wd = fv;
-          } else {
-            a = D; wa = fu + fv - 1; b = C; wb = 1 - fu; d = B; wd = 1 - fv;
-          }
+          if (or < 0 || oc < 0) { clearDelta(i); continue; }
+          cellCorners(or, oc, fracColumns[c], fv);
         }
-        let oldH = previousHeights[a] * wa;
-        let n0 = normals[a * 3] * wa, n1 = normals[a * 3 + 1] * wa, n2 = normals[a * 3 + 2] * wa;
-        let c0 = colors[a * 3] * wa, c1 = colors[a * 3 + 1] * wa, c2 = colors[a * 3 + 2] * wa;
-        let s0 = surface[a * 4] * wa, s1 = surface[a * 4 + 1] * wa;
-        let s2 = surface[a * 4 + 2] * wa, s3 = surface[a * 4 + 3] * wa;
-        if (b >= 0) {
-          oldH += previousHeights[b] * wb + previousHeights[d] * wd;
-          n0 += normals[b * 3] * wb + normals[d * 3] * wd;
-          n1 += normals[b * 3 + 1] * wb + normals[d * 3 + 1] * wd;
-          n2 += normals[b * 3 + 2] * wb + normals[d * 3 + 2] * wd;
-          c0 += colors[b * 3] * wb + colors[d * 3] * wd;
-          c1 += colors[b * 3 + 1] * wb + colors[d * 3 + 1] * wd;
-          c2 += colors[b * 3 + 2] * wb + colors[d * 3 + 2] * wd;
-          s0 += surface[b * 4] * wb + surface[d * 4] * wd;
-          s1 += surface[b * 4 + 1] * wb + surface[d * 4 + 1] * wd;
-          s2 += surface[b * 4 + 2] * wb + surface[d * 4 + 2] * wd;
-          s3 += surface[b * 4 + 3] * wb + surface[d * 4 + 3] * wd;
-          const len = Math.hypot(n0, n1, n2) || 1;
-          n0 /= len; n1 /= len; n2 /= len;
-        }
-        morphDY[i] = oldH - heights[i];
-        morphDN[p] = byte((n0 - buildNormals[p]) * 0.5);
-        morphDN[p + 1] = byte((n1 - buildNormals[p + 1]) * 0.5);
-        morphDN[p + 2] = byte((n2 - buildNormals[p + 2]) * 0.5);
-        morphDC[p] = byte(c0 - buildColors[p]);
-        morphDC[p + 1] = byte(c1 - buildColors[p + 1]);
-        morphDC[p + 2] = byte(c2 - buildColors[p + 2]);
-        morphDS[q] = byte(s0 - buildSurface[q]);
-        morphDS[q + 1] = byte(s1 - buildSurface[q + 1]);
-        morphDS[q + 2] = byte(s2 - buildSurface[q + 2]);
-        morphDS[q + 3] = byte(s3 - buildSurface[q + 3]);
+        writeDelta(i, exact, previousHeights, normals, colors, surface,
+          heights, buildNormals, buildColors, buildSurface);
       }
+    }
+  }
+
+  // The lead: old vertex j, from its own surface to the new one there. Old
+  // ground the new lattice has let go of, at its trailing edge, stays put.
+  function fillLeadRows(rowFrom, rowTo) {
+    let j = rowFrom * vertsX;
+    for (let r = rowFrom; r < rowTo; r++) {
+      const exactRow = leadExactRows[r];
+      const nr = leadRows[r];
+      const fv = leadFracRows[r];
+      for (let c = 0; c < vertsX; c++, j++) {
+        const exactColumn = leadExactColumns[c];
+        let exact = -1;
+        if (exactRow >= 0 && exactColumn >= 0) {
+          exact = exactRow * vertsX + exactColumn;
+          if (heightReused[exact] && surfaceReused[exact]) { clearDelta(j); continue; }
+        } else {
+          const nc = leadColumns[c];
+          if (nr < 0 || nc < 0) { clearDelta(j); continue; }
+          cellCorners(nr, nc, leadFracColumns[c], fv);
+        }
+        // Lead deltas are the old vertex's (from its own surface to the new
+        // one), so the roles of the two surfaces swap.
+        writeDelta(j, exact, heights, buildNormals, buildColors, buildSurface,
+          previousHeights, normals, colors, surface);
+      }
+    }
+  }
+
+  /* The lead has played: what is on screen is the old surface plus its
+     deltas, exactly as the GPU dequantises them, so that is the surface the
+     follow must start from. Folded into the old arrays, which the swap is
+     about to retire anyway — and which are therefore not the old lattice's
+     own surface any more, which `reset` knows. In row batches like
+     everything else here: the whole lattice at once is a frame's hitch on a
+     slow machine. */
+  function foldLeadRows(rowFrom, rowTo) {
+    for (let j = rowFrom * vertsX; j < rowTo * vertsX; j++) {
+      const p = j * 3;
+      const q = j * 4;
+      previousHeights[j] += morphDY[j];
+      const n0 = normals[p] + morphDN[p] * (2 / 127);
+      const n1 = normals[p + 1] + morphDN[p + 1] * (2 / 127);
+      const n2 = normals[p + 2] + morphDN[p + 2] * (2 / 127);
+      const len = Math.hypot(n0, n1, n2) || 1;
+      normals[p] = n0 / len; normals[p + 1] = n1 / len; normals[p + 2] = n2 / len;
+      colors[p] += morphDC[p] / 127;
+      colors[p + 1] += morphDC[p + 1] / 127;
+      colors[p + 2] += morphDC[p + 2] / 127;
+      surface[q] += morphDS[q] / 127;
+      surface[q + 1] += morphDS[q + 1] / 127;
+      surface[q + 2] += morphDS[q + 2] / 127;
+      surface[q + 3] += morphDS[q + 3] / 127;
     }
   }
 
@@ -3943,13 +4051,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     geometry.attributes.aMorphDS.needsUpdate = true;
   }
 
-  /* A third of a second: long enough that a distant slope settling into its
-     new shape reads as nothing at all, short enough that a fast run's next
-     build is seldom kept waiting for it. A build never commits over a morph
-     still in progress — the surface it recorded as "on screen" would no
-     longer be — so the morph is also the floor on the commit cadence. */
-  const MORPH_SECONDS = 0.3;
+  /* Each half takes a fifth of a second: long enough that a distant slope
+     settling into its new shape reads as nothing at all, short enough that a
+     fast run's next build is seldom kept waiting for the pair. A lead never
+     starts over a follow still in progress — the surface it recorded as "on
+     screen" would no longer be — so the morph is also the floor on the
+     commit cadence. `morphPhase` is which half the attributes hold: 0 none,
+     1 the lead (until the swap), 2 the follow. */
+  const MORPH_SECONDS = 0.2;
   let morphT = 1;
+  let morphPhase = 0;
   const easeMorph = (t) => t * t * (3 - 2 * t);
   // Nothing to walk from: a cold fill shows its own surface at once.
   function settleMorph() {
@@ -3958,7 +4069,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     morphDC.fill(0);
     morphDS.fill(0);
     morphT = 1;
+    morphPhase = 0;
     morphK.value = 0;
+  }
+  function uploadMorph() {
+    geometry.attributes.aMorphDY.needsUpdate = true;
+    geometry.attributes.aMorphDN.needsUpdate = true;
+    geometry.attributes.aMorphDC.needsUpdate = true;
+    geometry.attributes.aMorphDS.needsUpdate = true;
   }
 
   // Six-metre anchor steps keep the fine lattice fixed in world space.
@@ -3989,7 +4107,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     // The snapped lattice belongs to the build's own anchor and holds still
     // for its whole amortised run — the live surface never reads it.
     prepareHeightReuse(ax, az);
-    build = { ax, az, ay, stage: 0, row: 0 };
+    build = { ax, az, ay, stage: 0, row: 0, morph: morphSource && !probe.snapMorph, busy: 0 };
     buildStartedAt = clockNow();
   }
 
@@ -4013,17 +4131,20 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorSeed = getWorldSeed();
     mesh.position.set(anchorX, anchorY, anchorZ);
     setTileOrigins(anchorX, anchorZ);
-    const morphing = morphSource && !probe.snapMorph;
-    morphT = morphing ? 0 : 1;
-    morphK.value = morphing ? 1 : 0;
-    const filledAt = next.filledAt ?? clockNow();
+    if (next.morph) {
+      morphPhase = 2;
+      morphT = 0;
+      morphK.value = 1;
+    } else {
+      settleMorph();
+    }
     build = null;
     publish();
 
     const settled = clockNow();
-    // Busy time only: a finished build waiting out the morph is not load.
-    const span = filledAt - buildStartedAt;
-    const idle = Math.max(0, buildStartedAt - buildIdleFrom);
+    // Busy time only: a finished build waiting out a morph is not load.
+    const span = next.busy;
+    const idle = Math.max(0, settled - buildIdleFrom - span);
     buildIdleFrom = settled;
     if (anchorDwell > 0) {
       anchorDwell -= 1;
@@ -4039,46 +4160,77 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     }
   }
 
+  /* The stages: 0 heights, 1 surface, 2 the lead's deltas, 3 waiting for
+     the last follow to finish, 4 the lead playing, 5 folding it in, 6 the
+     follow's deltas, then the swap. A build with nothing to morph from goes
+     from 1 to the swap once the last follow has finished. Busy time is the
+     work stages' own, for the anchor's duty cycle: waiting out a morph is
+     not load. */
+  function startLead() {
+    uploadMorph();
+    morphPhase = 1;
+    morphT = 0;
+    morphK.value = 0;
+    build.stage = 4;
+  }
+
   function advanceBuild() {
     if (!build) return;
-    if (build.stage === 2) {
+    if (build.stage === 2 && !build.morph) {
       if (morphT >= 1) commitBuild(build);
       return;
     }
-    const deadline = clockNow() + BUILD_BUDGET_MS;
+    if (build.stage === 3) {
+      if (morphT >= 1) startLead();
+      return;
+    }
+    if (build.stage === 4) {
+      if (morphT < 1) return;
+      build.stage = 5;
+      build.row = 0;
+    }
+    const started = clockNow();
+    const deadline = started + BUILD_BUDGET_MS;
     do {
       const rowTo = Math.min(vertsZ, build.row + BUILD_BATCH_ROWS);
       if (build.stage === 0) {
         fillHeightRows(build.ax, build.az, build.row, rowTo);
-      } else {
+      } else if (build.stage === 1) {
         fillSurfaceRows(
           build.ax, build.az, build.ay,
           buildPositions, buildNormals, buildColors, buildSurface,
           buildGroomFrame,
           build.row, rowTo,
         );
+      } else if (build.stage === 2) {
+        fillLeadRows(build.row, rowTo);
+      } else if (build.stage === 5) {
+        foldLeadRows(build.row, rowTo);
+      } else {
         fillMorphRows(build.row, rowTo);
       }
       build.row = rowTo;
 
       if (build.row >= vertsZ) {
-        if (build.stage === 0) {
-          build.stage = 1;
-          build.row = 0;
-        } else {
-          build.stage = 2;
-          build.filledAt = clockNow();
-          if (morphT >= 1) commitBuild(build);
-          return;
-        }
+        build.row = 0;
+        build.stage = build.stage === 2 ? 3 : build.stage + 1;
+        if (build.stage === 2 && !build.morph) break;
+        if (build.stage === 3 || build.stage === 7) break;
       }
     } while (clockNow() < deadline);
+    build.busy += clockNow() - started;
+    if (build.stage === 7) commitBuild(build);
+    else if (build.stage === 2 && !build.morph && morphT >= 1) commitBuild(build);
+    else if (build.stage === 3 && morphT >= 1) startLead();
   }
 
   function update(x, z, dt = 1 / 60) {
     if (morphT < 1) {
       morphT = Math.min(1, morphT + Math.max(0, dt) / MORPH_SECONDS);
-      morphK.value = 1 - easeMorph(morphT);
+      // The lead walks the old mesh out to the new ground, the follow walks
+      // the new mesh in from the old.
+      const e = easeMorph(morphT);
+      morphK.value = morphPhase === 1 ? e : 1 - e;
     }
     const surfaceReveal = 1 - Math.exp(-3.2 * dt);
     snowReady.value.x += (snowReadyTarget.x - snowReady.value.x) * surfaceReveal;
@@ -4169,17 +4321,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     mesh.position.set(ax, ay, az);
     setTileOrigins(ax, az);
 
-    if (!sameAnchor) {
+    /* A lead that has started is drawn over the live buffers, and once it
+       has played they hold it folded in (see `foldLeadRows`) — no longer this
+       lattice's own surface. So the abandoned build takes them down with
+       it: a fresh fill, the same as a moved anchor. */
+    if (!sameAnchor || morphPhase === 1) {
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
       settleMorph();
       publish();
     } else if (morphT < 1) {
       // The same ground, cut to rather than walked to.
       settleMorph();
-      geometry.attributes.aMorphDY.needsUpdate = true;
-      geometry.attributes.aMorphDN.needsUpdate = true;
-      geometry.attributes.aMorphDC.needsUpdate = true;
-      geometry.attributes.aMorphDS.needsUpdate = true;
+      uploadMorph();
     }
 
     initializeShadowCache(x, z);
@@ -4214,7 +4367,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     probe,
     debug: () => ({
-      anchorX, anchorY, anchorZ, morphing: morphT < 1, morph: +morphK.value.toFixed(3), anchorMul,
+      anchorX, anchorY, anchorZ, morphing: morphT < 1, morph: +morphK.value.toFixed(3), morphPhase, anchorMul,
       reusedHeights, reusedSurfaces,
       chapter: chapterNameAt(anchorZ),
       shade: {

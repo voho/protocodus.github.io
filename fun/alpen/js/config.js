@@ -988,49 +988,6 @@ export const TERRAIN = {
      fifty-metre panels while it is still visible. */
   behind: 560,
   behindGrowth: 1.11,
-  /* Rebuilding a graded grid in one frame makes every distant facet choose a
-     new normal and colour at once. Preserve the old world-space surface, then
-     converge it on the new sampling lattice over a few frames. The terrain
-     around the board is exact immediately; only the distant LOD morphs.
-
-     `morphRate` has to be read against how often the anchor moves, and for a
-     long time it was not. At 8 per second the glide has a time constant of a
-     hundred and twenty-five milliseconds; the anchor used to move every three
-     metres, which at riding speed is every seventy-five. The far field
-     therefore never converged — it spent the entire run in motion, chasing a
-     target that was replaced before it arrived, and on a flat-shaded mesh that
-     is a skyline whose serrations visibly crawl.
-
-     The anchor now moves every six metres (see `stride` in terrain.js) and
-     this is fast enough to settle inside that window: a forty-millisecond
-     constant is four frames, so the far field arrives, sits still, and is then
-     disturbed once rather than continuously. It is not so fast that it becomes
-     the pop it exists to prevent — four frames of glide is still a glide, and
-     everything doing it is past a hundred and eighty metres and half dissolved
-     in haze by the time it moves at all. */
-  morphNear: 72,
-  morphFar: 240,
-  morphRate: 26,
-  /* HOW LONG THE GLIDE IS ALLOWED TO RUN, and it was costing more than
-     everything else in the frame put together.
-
-     `morphRate: 26` is a time constant of 38 ms, so the glide is converged
-     to within a third of a per cent after about six of them. This was one
-     full second — so for eight hundred milliseconds of every anchor the
-     loop went on lerping eighty-one thousand vertices by sixteen floats
-     each, a million and a third of lerps a frame, towards values they had
-     already reached; and because the update range it publishes always spans
-     the whole lattice, it also re-uploaded six and a third megabytes of
-     attribute buffer every one of those frames.
-
-     Worse, it never got to finish. The anchor re-arms every eight fine
-     cells — six metres — which at riding speed is about four times a
-     second, so a one-second settle meant `morphing` was true in 99% of all
-     frames and the mountain was permanently paying its worst case. At 0.22 s
-     the glide still runs nearly six time constants, which is visually
-     complete, and then stops. Profiled at 3.98 ms/frame of pure self time
-     before this, the largest single cost in the game. */
-  morphSettle: 0.22,
 
   /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
 
