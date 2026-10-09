@@ -3,6 +3,7 @@ import { Renderer, drawIcon } from './render.js';
 import { startAssets, assetStatus, spriteNativeZoom } from './assets.js';
 import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
 import { createAudio } from './audio.js';
+import { createSoundscape, bindAudioControls } from './soundscape.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
@@ -25,7 +26,7 @@ let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
 audio.setPaused(true);
-let heardEffects = new WeakSet();
+const soundscape = createSoundscape(audio);
 const keys = new Set();
 const buildTypes = ['reactor', 'refinery', 'barracks', 'factory', 'lab', 'capacitor', 'turret', 'rocketTower', 'wall'];
 const unitTypes = ['rifle', 'rocket', 'scout', 'tank', 'artillery', 'striker', 'engineer', 'harvester', 'constructor'];
@@ -52,14 +53,19 @@ const cardMeta = def => `${def.buildTime || def.trainTime}s` + (def.power < 0 ? 
 function playSound(kind = 'confirm') {
   audio.play(kind);
 }
+// Interface cue plus the selected units' voice line (select, move, attack, attackMove or harvest).
+function acknowledge(context = 'select', cue = 'select') {
+  playSound(cue);
+  if (game) soundscape.acknowledge(context, selectedUnits());
+}
 
-function notify(text, warning = false, soft = false) {
+function notify(text, warning = false, soft = false, quiet = false) {
   // Only low-value simulation chatter defers to a live warning; direct feedback to a click always replaces it.
   if (soft && $('notifications').classList.contains('warning') && performance.now() < toastUntil) return;
   $('notifications').textContent = text;
   $('notifications').className = `show${warning ? ' warning' : ''}`;
   toastUntil = performance.now() + 4300;
-  if (warning) playSound('error');
+  if (warning && !quiet) playSound('error'); // Simulation warnings have their own alert stingers.
 }
 
 async function reset(prepared, restored) {
@@ -71,7 +77,7 @@ async function reset(prepared, restored) {
   orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; lastNotice = ''; view.showGrid = false; lowPower = false; touches.clear();
   delete $('building-upgrades').dataset.entity;
-  heardEffects = new WeakSet(game.effects);
+  soundscape.reset(game);
   renderer.terrainSource = null;
   await renderer.prepareTerrain(game, ({ value, label }) => updateLoading(40 + value * 58, label));
   if (restored) {
@@ -345,7 +351,7 @@ function selectAt(point, additive = false, touch = false) {
   if (hit?.team === 0) {
     if (!additive) view.selected.clear();
     if (additive && view.selected.has(hit.id)) view.selected.delete(hit.id); else view.selected.add(hit.id);
-    playSound('select'); updateHUD();
+    acknowledge('select'); updateHUD();
   } else if (touch && (selectedUnits().length || selectedProducers().length)) commandAt(point);
   else if (!additive) { view.selected.clear(); updateHUD(); }
 }
@@ -358,7 +364,7 @@ function commandAt(point, explicitType) {
     const result = setRallyPoint(game, 0, producers.map(e => e.id), { x, y });
     if (!result.ok) { notify(result.reason, true); return; }
     view.commandMarker = { x, y, time: performance.now() / 1000, type: 'rally' };
-    orderMode = null; setOrderHint(); updateHUD(); playSound('order');
+    orderMode = null; setOrderHint(); updateHUD(); playSound('rally');
     notify(`Rally point set for ${producers.length === 1 ? BUILDINGS[producers[0].type].name : `${producers.length} producers`}.`);
     return;
   }
@@ -375,7 +381,7 @@ function commandAt(point, explicitType) {
     issueOrder(game, units.filter(e => unitRole(e) !== 'harvester').map(e => e.id), { type: 'move', x, y });
   } else issueOrder(game, units.map(e => e.id), { type, x, y, targetId: type === 'attack' ? hit.id : undefined });
   view.commandMarker = { x, y, time: performance.now() / 1000, type, ...(type === 'attack' ? { targetId: hit.id } : {}) };
-  orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
+  orderMode = null; setOrderHint(); acknowledge(type, type === 'attack' || type === 'attackMove' ? 'attackOrder' : type === 'harvest' ? 'harvestOrder' : 'order'); updateHUD();
 }
 
 function placeAt(point) {
@@ -392,7 +398,7 @@ function updateHUD() {
   const power = powerStats(game, 0);
   const low = power.ratio < 1;
   // Let a live warning (such as the reactor's destruction) finish before the low-power line replaces it.
-  if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, true); }
+  if (low !== lowPower && !(low && performance.now() < toastUntil && $('notifications').classList.contains('warning'))) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, true, false, true); }
   $('power').textContent = `${Math.floor(power.supply)} / ${Math.ceil(power.demand)}`;
   $('power-resource').classList.toggle('low-power', low);
   $('power-resource').classList.toggle('reserve-power', power.usingReserve);
@@ -725,7 +731,7 @@ function showBriefing() {
 function selectArmy() {
   if (busy()) return;
   view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && unitRole(e) !== 'harvester' && e.hp > 0).map(e => e.id));
-  updateHUD(); playSound('select');
+  updateHUD(); acknowledge('select');
 }
 
 function stopSelection() {
@@ -739,7 +745,7 @@ function toggleExplore() {
   const stop = units.every(e => e.order?.type === 'explore');
   if (stop) stopUnits(game, units.map(e => e.id));
   else issueOrder(game, units.map(e => e.id), { type: 'explore' });
-  cancelOrder(); playSound('confirm'); updateHUD();
+  cancelOrder(); if (stop) playSound('confirm'); else acknowledge('move', 'order'); updateHUD();
   notify(stop ? 'Auto-explore stopped.' : 'Auto-explore enabled. Units scout the unexplored frontier.');
 }
 
@@ -794,7 +800,7 @@ function commitFormation(active) {
   const ids = new Set(preview.positions.map(unit => unit.id)), offsets = active.formation.offsets.filter(unit => ids.has(unit.id));
   issueOrder(game, [...ids], { type: 'move', x: preview.x, y: preview.y, formationAngle: preview.angle, facing: preview.heading, formationOffsets: offsets.map(({id, x, y}) => ({id, x, y})) });
   view.commandMarker = { x: preview.x, y: preview.y, time: performance.now() / 1000, type: 'move' };
-  orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
+  orderMode = null; setOrderHint(); acknowledge('move', 'order'); updateHUD();
   return true;
 }
 
@@ -873,7 +879,7 @@ canvas.addEventListener('pointerup', event => {
       if (!active.shift) view.selected.clear();
       const a = renderer.screenToWorld(view.drag.x1, view.drag.y1, view), b = renderer.screenToWorld(view.drag.x2, view.drag.y2, view);
       for (const e of game.entities) if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && e.x >= Math.min(a.x, b.x) && e.x <= Math.max(a.x, b.x) && e.y >= Math.min(a.y, b.y) && e.y <= Math.max(a.y, b.y)) view.selected.add(e.id);
-      playSound('select'); updateHUD();
+      acknowledge('select'); updateHUD();
     }
     view.drag = null; return;
   }
@@ -893,7 +899,7 @@ canvas.addEventListener('dblclick', event => {
     const topLeft = renderer.screenToWorld(0, 0, view), bottomRight = renderer.screenToWorld(renderer.width, renderer.height, view);
     view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.type === entity.type && e.hp > 0
       && e.x >= topLeft.x && e.x <= bottomRight.x && e.y >= topLeft.y && e.y <= bottomRight.y).map(e => e.id));
-    updateHUD();
+    updateHUD(); acknowledge('select');
   }
 });
 canvas.addEventListener('wheel', event => {
@@ -949,8 +955,8 @@ document.addEventListener('keydown', event => {
     if (event.ctrlKey || event.metaKey || event.shiftKey) {
       const assigned = assignControlGroup(game, view.selected, Number(digit));
       notify(assigned.length ? `Control group ${digit}: ${assigned.length} assigned. Previous group membership removed.` : `Control group ${digit} cleared.`);
-      updateHUD();
-    } else { view.selected = new Set(controlGroupMembers(game, Number(digit))); updateHUD(); }
+      updateHUD(); playSound('group');
+    } else { view.selected = new Set(controlGroupMembers(game, Number(digit))); updateHUD(); acknowledge('select'); }
   }
   else if (key === '+' || key === '=') zoom(1.15);
   else if (key === '-') zoom(1 / 1.15);
@@ -998,7 +1004,7 @@ $('repair-building').addEventListener('click', () => {
   if (busy()) return;
   const selection = selectedEntities(); if (selection.length !== 1) return;
   const result = toggleRepair(game, selection[0].id);
-  if (!result.ok) notify(result.reason, true); else playSound('confirm');
+  if (!result.ok) notify(result.reason, true); else playSound('repair');
   updateHUD();
 });
 $('sell-building').addEventListener('click', () => {
@@ -1006,7 +1012,7 @@ $('sell-building').addEventListener('click', () => {
   const selection = selectedEntities(); if (selection.length !== 1) return;
   const result = sellBuilding(game, selection[0].id);
   if (!result.ok) notify(result.reason, true);
-  else { cancelOrder(); playSound('confirm'); notify(`Structure sold · +${fmt(result.refund)} credits`); }
+  else { cancelOrder(); playSound('sell'); notify(`Structure sold · +${fmt(result.refund)} credits`); }
   updateHUD(); updateCatalog();
 });
 $('stop-order').addEventListener('click', stopSelection);
@@ -1056,7 +1062,7 @@ function requestFrame() {
 function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
 function simulateFrameStep(dt) {
-  updateGame(game, dt);
+  updateGame(game, dt); soundscape.tick(game);
   if (game.status === 'playing') return true;
   showMenu(true); playSound(game.status); return false;
 }
@@ -1078,21 +1084,12 @@ function frame(now) {
     for (let i = lastEvent; i < game.events.length; i++) {
       const event = game.events[i];
       if (event.team !== 0 && event.team !== undefined) continue;
-      if (event.text.startsWith('Shard delivery:')) { playSound('delivery'); continue; }
-      if (/ online$/.test(event.text)) playSound('buildComplete');
-      else if (/ ready$/.test(event.text)) playSound('unitReady');
+      if (event.text.startsWith('Shard delivery:')) continue;
       // Warnings: under attack, low power, the last hauler lost, or a friendly structure destroyed; the victory line ("Hostile nexus destroyed") and single unit losses stay plain.
-      if (event.text !== lastNotice) { const warn = /attack|low power|bay blocked|^All haulers lost|^(?!Hostile).*destroyed/i.test(event.text); notify(event.text, warn, !warn); lastNotice = event.text; }
+      if (event.text !== lastNotice) { const warn = /attack|low power|bay blocked|^All haulers lost|^(?!Hostile).*destroyed/i.test(event.text); notify(event.text, warn, !warn, true); lastNotice = event.text; }
     }
     lastEvent = game.events.length;
-    for (const effect of game.effects) {
-      if (heardEffects.has(effect)) continue;
-      heardEffects.add(effect);
-      const v = game.visible[0], W = game.width, at = (x, y) => v[Math.floor(y) * W + Math.floor(x)];
-      if (!at(effect.x, effect.y) && !((effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') && Number.isFinite(effect.tx) && at(effect.tx, effect.ty))) continue;
-      if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(UNITS[effect.weapon] ? unitRole(effect.weapon) : BUILDINGS[effect.weapon] ? buildingRole(effect.weapon) : 'rifle');
-      else if (effect.type === 'explosion') playSound('explosion');
-    }
+    soundscape.frame(game, view, { width: renderer.width, height: renderer.height, levels: cameraLevels() });
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
   if (pointer?.formation && view.formationPreview && !busy()) updateFormationPreview(pointer, pointer.last, true);
@@ -1117,7 +1114,7 @@ function frame(now) {
 }
 
 $('seed').value = randomSeed();
-updateMapDescription(); updateSoundButton();
+updateMapDescription(); updateSoundButton(); bindAudioControls(audio);
 $('deploy').disabled = false;
 showBriefing();
 

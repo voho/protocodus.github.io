@@ -170,3 +170,12 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 .menu-objective{margin:0 0 20px;padding:12px 14px;border:1px solid var(--line);background:#8dccca06}
 .menu-objective>span{font:10px var(--mono);color:var(--amber)}
 .menu-objective>p{margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--text)}
+
+/* Audio mix sliders in the pause menu (owned by the sound stream). */
+.audio-mix{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin:10px 0 0;padding:8px 12px;border:1px solid var(--line);border-radius:3px;background:#8dccca05}
+.audio-mix label{display:grid;grid-template-columns:54px minmax(0,1fr) 34px;align-items:center;gap:8px;font:11px var(--font);color:var(--muted)}
+.audio-mix label:first-child{grid-column:1/-1}
+.audio-mix input{width:100%;height:24px;margin:0;accent-color:var(--accent);cursor:pointer}
+.audio-mix output{font:10px var(--mono);color:var(--text);text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:680px){.audio-mix{grid-template-columns:1fr}.audio-mix label{grid-template-columns:62px minmax(0,1fr) 38px}}
+@media(pointer:coarse){.audio-mix input{height:34px}}
