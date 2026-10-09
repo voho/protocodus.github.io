@@ -636,6 +636,12 @@ const FRAG_SHADE_TINT = `
    occlude itself, and a rider or a rock standing in a wood already has the
    depth map for the one light that matters to a figure.
 
+   Ground can arrive inside a tree, though: the well of snow a card spruce
+   stands in is part of the tree's own mesh, and without the field it was
+   the one patch of snow under a crown lit by the whole sky — a bright skirt
+   round every trunk. So `opts.canopy` may also be a GLSL expression, and
+   then only the fragments it selects take the field.
+
    It runs first after the light loop, ahead of the snow response, so the
    recovered shadow that response divides out of the direct light already
    includes it — the sun's lobe and glints go down under a crown in exactly
@@ -647,7 +653,8 @@ const FRAG_CANOPY = `
     vec3 n64CanW = cameraPosition + vN64View * mat3(viewMatrix);
     vec2 n64CanUv = (n64CanW.xz - uCanopyWin.xy) * uCanopyWin.z;
     vec2 n64CanEdge = min(n64CanUv, 1.0 - n64CanUv);
-    float n64CanIn = smoothstep(0.0, 0.08, min(n64CanEdge.x, n64CanEdge.y));
+    float n64CanIn = smoothstep(0.0, 0.08, min(n64CanEdge.x, n64CanEdge.y))
+      * (/* n64:canopy-mask */ 1.0);
     if (n64CanIn > 0.0) {
       float n64Can = texture2DLodEXT(uCanopyMap, n64CanUv, 0.0).r * n64CanIn;
       reflectedLight.indirectDiffuse *= 1.0 - n64Can;
@@ -1093,7 +1100,8 @@ export function createShading(THREE) {
     const sheen = opts.sheen === undefined ? 0 : opts.sheen;
     const wantFog = opts.fog !== false;
     const cameraFade = opts.cameraFade === true;
-    const canopy = opts.canopy === true;
+    const canopyMask = typeof opts.canopy === 'string' ? opts.canopy : null;
+    const canopy = opts.canopy === true || canopyMask !== null;
     const streamFade = opts.streamFade === true;
     // Only the ground opts out, because the ground already has this per
     // vertex. Everything else that has a light loop to patch gets it.
@@ -1141,7 +1149,8 @@ export function createShading(THREE) {
       // Inserted second so that it lands first, directly under the anchor
       // and ahead of the snow response — see FRAG_CANOPY for why.
       if (canopy && frag.indexOf(LIGHT_ANCHOR) !== -1) {
-        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_CANOPY}`);
+        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_CANOPY
+          .replace('/* n64:canopy-mask */ 1.0', canopyMask || '1.0')}`);
       }
       if (wantFog && frag.indexOf(FOG_ANCHOR) !== -1) {
         frag = frag.replace(FOG_ANCHOR, FRAG_FOG
@@ -1151,7 +1160,7 @@ export function createShading(THREE) {
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? `o${canopyMask || ''}` : ''}|${streamFade ? 'e' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 

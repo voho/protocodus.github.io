@@ -180,31 +180,46 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
         own.push(TRUNK_OWN);
       }
     }
-    const WELL = 12;
+    /* A mound with a bell's section rather than a cone's: (1 − ρ²)² from
+       the trunk to the rim, so it leaves the snow at zero slope instead of
+       meeting it along a hard polygon, and its normals are the profile's own
+       rather than twelve facets'. Two rings and the apex: the forest's
+       triangle budget is per tree and there are hundreds of trees. */
+    const WELL = 10;
+    const RINGS = [0, 0.55, 1];
     const rWell = r0 * 5.0;
     const yRim = -r0 * 1.6;
     const yApex = r0 * 1.0;
+    const rise = yApex - yRim;
     const wellYaw = rnd() * Math.PI * 2;
-    const slope = Math.atan2(rWell, yApex - yRim);
-    for (let k = 0; k < WELL; k++) {
-      const a0 = wellYaw + (k / WELL) * Math.PI * 2;
-      const a1 = wellYaw + ((k + 1) / WELL) * Math.PI * 2;
-      // a little scallop, so the rim is a drift and not a lampshade
-      const s0 = 1 + 0.10 * Math.sin(a0 * 3 + 1.3);
-      const s1 = 1 + 0.10 * Math.sin(a1 * 3 + 1.3);
-      p[0].set(Math.cos(a0) * rWell * s0, yRim, Math.sin(a0) * rWell * s0);
-      p[1].set(Math.cos(a1) * rWell * s1, yRim, Math.sin(a1) * rWell * s1);
-      p[2].set(0, yApex, 0);
-      nRoot.set(Math.cos(a0) * Math.cos(slope), Math.sin(slope), Math.sin(a0) * Math.cos(slope)).normalize();
-      nTip.set(Math.cos(a1) * Math.cos(slope), Math.sin(slope), Math.sin(a1) * Math.cos(slope)).normalize();
-      const P = [p[0], p[1], p[2]];
-      const N = [nRoot, nTip, up];
-      for (let i = 0; i < 3; i++) {
-        pos.push(P[i].x, P[i].y, P[i].z);
-        nrm.push(N[i].x, N[i].y, N[i].z);
-        uv.push(BARK.u0, BARK.v0);
-        col.push(SNOW_COL[0], SNOW_COL[1], SNOW_COL[2]);
-        own.push(SOLID_SNOW_OWN);
+    const at = (ring, k, out, n) => {
+      const rho = RINGS[ring];
+      const a = wellYaw + (k / WELL) * Math.PI * 2;
+      // a little scallop at the rim, so it is a drift and not a lampshade
+      const r = rWell * rho * (1 + 0.10 * rho * Math.sin(a * 3 + 1.3));
+      const q = 1 - rho * rho;
+      out.set(Math.cos(a) * r, yRim + rise * q * q, Math.sin(a) * r);
+      const fall = 4 * rho * q * rise / rWell;
+      n.set(Math.cos(a) * fall, 1, Math.sin(a) * fall).normalize();
+    };
+    const wp = [p[0], p[1], p[2], p[3]];
+    const wn = [nRoot, nTip, new THREE.Vector3(), new THREE.Vector3()];
+    const emit = (i) => {
+      pos.push(wp[i].x, wp[i].y, wp[i].z);
+      nrm.push(wn[i].x, wn[i].y, wn[i].z);
+      uv.push(BARK.u0, BARK.v0);
+      col.push(SNOW_COL[0], SNOW_COL[1], SNOW_COL[2]);
+      own.push(SOLID_SNOW_OWN);
+    };
+    for (let ring = 0; ring + 1 < RINGS.length; ring++) {
+      for (let k = 0; k < WELL; k++) {
+        at(ring, k, wp[0], wn[0]);
+        at(ring, k + 1, wp[1], wn[1]);
+        at(ring + 1, k + 1, wp[2], wn[2]);
+        at(ring + 1, k, wp[3], wn[3]);
+        // Wound to face up, like the cone it replaces.
+        if (ring > 0) { emit(0); emit(2); emit(1); }
+        emit(0); emit(3); emit(2);
       }
     }
   }
@@ -398,18 +413,24 @@ export function createTwigAtlas(THREE) {
   const branch = (x, y, ang, len, wid, depth) => {
     const ex = x + Math.cos(ang) * len;
     const ey = y + Math.sin(ang) * len;
-    const g = 118 + Math.floor((3 - depth) * 16 + rnd() * 20);
+    /* Deadwood is dark. These cells are lifted 1.85 times by the same rule
+       that turns the conifer atlas's needle luminance back into needles, so
+       the old 118–186 greys came out as pale silver wood — and with snow on
+       nearly every limb, a snag read as a fan of white feathers. Grey-brown
+       here lands near the 0.1–0.2 albedo of weathered larch after the lift. */
+    const g = 70 + Math.floor((3 - depth) * 12 + rnd() * 16);
     ctx.lineCap = 'round';
-    ctx.strokeStyle = `rgb(${g}, ${g}, ${g})`;
+    ctx.strokeStyle = `rgb(${g + 4}, ${g}, ${g - 6})`;
     ctx.lineWidth = Math.max(MIN_TWIG, wid);
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(ex, ey);
     ctx.stroke();
-    // Snow lies along the upper edge of wood that is flat enough to hold it.
-    if (Math.abs(Math.cos(ang)) > 0.30 && wid > 3.0) {
+    // Snow lies along the upper edge of wood that is flat and thick enough to
+    // hold it, and not on all of that either: wind strips most of a snag.
+    if (Math.abs(Math.cos(ang)) > 0.45 && wid > 4.5 && rnd() < 0.6) {
       ctx.strokeStyle = 'rgb(200, 222, 255)';
-      ctx.lineWidth = Math.max(2.0, wid * 0.55);
+      ctx.lineWidth = Math.max(2.0, wid * 0.42);
       const oy = -wid * 0.42;
       ctx.beginPath();
       ctx.moveTo(x, y + oy);

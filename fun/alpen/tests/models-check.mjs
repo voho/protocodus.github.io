@@ -408,6 +408,36 @@ assert.equal(baked.boundingBox.max.x, 5);
 const one = bakeTexturedGeometry(THREE, scene, 'part_1');
 assert.equal(valid('one node of a set', one), 12);
 assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
+/* A scan proxy shipped faceted — one normal per face, made for a normal
+   map nobody loads — is baked smooth, while a box's edges, sharper than
+   the crease, stay as hard as they were. A geodesic sphere of 320 unwelded
+   faces given flat normals is such a proxy, a little coarser than the real
+   ones. */
+{
+  const ico = new THREE.Group();
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  geo.computeVertexNormals();   // unwelded, so these are its faces' own
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+  ico.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial()));
+  const offRadial = (g) => {
+    const p = g.attributes.position, n = g.attributes.normal;
+    let worst = 0;
+    for (let i = 0; i < p.count; i++) {
+      const radial = new THREE.Vector3().fromBufferAttribute(p, i).normalize();
+      worst = Math.max(worst, radial.angleTo(new THREE.Vector3().fromBufferAttribute(n, i)));
+    }
+    return THREE.MathUtils.radToDeg(worst);
+  };
+  const flat = offRadial(geo);
+  const smooth = offRadial(bakeTexturedGeometry(THREE, ico));
+  assert.ok(flat > 5 && smooth < flat / 4, `faceted proxy smoothed: ${flat.toFixed(1)}° off the sphere → ${smooth.toFixed(1)}°`);
+  const box = baked.attributes.normal;
+  const authored = new THREE.BoxGeometry(1, 2, 3).attributes.normal;
+  for (let i = 0; i < authored.count; i++) {
+    assert.ok(Math.abs(box.getX(i) - authored.getX(i)) + Math.abs(box.getY(i) - authored.getY(i))
+      + Math.abs(box.getZ(i) - authored.getZ(i)) < 1e-6, 'a box keeps its hard edges');
+  }
+}
 
 /* The race gate and the sapling impostors. The gate's fabric must be the only
    thing that flutters, and pinned at both poles; each sapling is three cards

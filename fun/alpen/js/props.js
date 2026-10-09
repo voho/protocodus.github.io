@@ -106,7 +106,7 @@ import {
   chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
-import { growCardSpruce, createTwigAtlas } from './spruce.js';
+import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -2369,11 +2369,16 @@ export function createProps(THREE, shading) {
      `opts.frost` is the bare larch's snow: drawn a shade bluer than grey
      into an atlas that is otherwise luminance, and turned back into the
      prop snow colour per texel here. */
-  // The coloured bough atlas uses black outside the foliage. Derive the
-  // same coverage in both passes, including filtered edges and distant mips.
+  /* The coloured bough atlas uses black outside the foliage. Derive the
+     same coverage in both passes, including filtered edges and distant mips.
+     Not across the bark strip at the atlas's left edge, which fills its cell
+     with no background at all: keyed like the boughs, the quarter of it
+     darker than the cutout — every crevice — went straight through the
+     trunk, and the snow behind showed through a tree in lace. */
   const boughCoverage = `
-    diffuseColor.a *= smoothstep(0.006, 0.065,
-      max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
+    if (vMapUv.x > ${SPRUCE_LAYOUT.bark.u1.toFixed(3)})
+      diffuseColor.a *= smoothstep(0.006, 0.065,
+        max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
   const spruceMat = (height, atlas, opts = {}) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas,
@@ -2465,7 +2470,10 @@ export function createProps(THREE, shading) {
           }
         }`);
     };
-    shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
+    // The snow well at the foot is ground, and takes the ground's canopy.
+    shading.apply(m, {
+      streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE, canopy: 'vCardSolid',
+    });
     const programKey = m.customProgramCacheKey();
     m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}`;
     return m;

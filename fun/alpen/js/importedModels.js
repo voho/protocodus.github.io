@@ -127,6 +127,68 @@ function normalise(THREE, g, targetHeight, sink = 0) {
   return g;
 }
 
+/* Low-poly scan proxies arrive unwelded with one normal per face: they are
+   made to wear a normal map, and there is none here, so every triangle
+   shaded as its own flat plate — and the snow dusting, which reads the
+   normal, settled on alternate facets of the same rock. So a mesh whose
+   corner normals are exactly its faces' gets smooth ones instead: each
+   corner averages the faces sharing its position, by area, among those
+   within sixty degrees of its own, so a real edge of the rock stays an edge.
+   A mesh with authored smooth normals is left as it came. */
+const CREASE_COS = 0.5;
+function smoothFacetedNormals(positions, normals, indices, first) {
+  const tris = (indices.length - first) / 3;
+  const face = new Float64Array(tris * 4);   // unit normal, then area
+  let deviation = 0;
+  let corners = 0;
+  for (let t = 0; t < tris; t++) {
+    const a = indices[first + t * 3] * 3;
+    const b = indices[first + t * 3 + 1] * 3;
+    const c = indices[first + t * 3 + 2] * 3;
+    const ux = positions[b] - positions[a], uy = positions[b + 1] - positions[a + 1];
+    const uz = positions[b + 2] - positions[a + 2];
+    const vx = positions[c] - positions[a], vy = positions[c + 1] - positions[a + 1];
+    const vz = positions[c + 2] - positions[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz);
+    if (len === 0) continue;
+    const f = t * 4;
+    face[f] = nx / len; face[f + 1] = ny / len; face[f + 2] = nz / len; face[f + 3] = len / 2;
+    for (const k of [a, b, c]) {
+      deviation += 1 - (face[f] * normals[k] + face[f + 1] * normals[k + 1] + face[f + 2] * normals[k + 2]);
+      corners++;
+    }
+  }
+  if (!corners || deviation / corners > 1e-3) return;
+  const key = (k) => `${positions[k].toFixed(4)},${positions[k + 1].toFixed(4)},${positions[k + 2].toFixed(4)}`;
+  const facesAt = new Map();
+  for (let t = 0; t < tris; t++) {
+    for (let j = 0; j < 3; j++) {
+      const id = key(indices[first + t * 3 + j] * 3);
+      const list = facesAt.get(id);
+      if (list) list.push(t);
+      else facesAt.set(id, [t]);
+    }
+  }
+  for (let t = 0; t < tris; t++) {
+    const own = t * 4;
+    for (let j = 0; j < 3; j++) {
+      const k = indices[first + t * 3 + j] * 3;
+      let sx = 0, sy = 0, sz = 0;
+      for (const u of facesAt.get(key(k))) {
+        const f = u * 4;
+        if (face[f] * face[own] + face[f + 1] * face[own + 1]
+          + face[f + 2] * face[own + 2] < CREASE_COS) continue;
+        sx += face[f] * face[f + 3];
+        sy += face[f + 1] * face[f + 3];
+        sz += face[f + 2] * face[f + 3];
+      }
+      const len = Math.hypot(sx, sy, sz);
+      if (len > 0) { normals[k] = sx / len; normals[k + 1] = sy / len; normals[k + 2] = sz / len; }
+    }
+  }
+}
+
 /* One merged, indexed geometry that keeps its texture coordinates.
 
    The value/palette bake above exists because the low-poly set carries its
@@ -160,6 +222,7 @@ export function bakeTexturedGeometry(THREE, root, only = null) {
     const index = geo.index;
     const count = index ? index.count : pos.count;
     const offset = positions.length / 3;
+    const first = indices.length;
     nm.getNormalMatrix(node.matrixWorld);
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i).applyMatrix4(node.matrixWorld);
@@ -169,6 +232,7 @@ export function bakeTexturedGeometry(THREE, root, only = null) {
       uvs.push(tex.getX(i), tex.getY(i));
     }
     for (let i = 0; i < count; i++) indices.push(offset + (index ? index.getX(i) : i));
+    smoothFacetedNormals(positions, normals, indices, first);
   });
 
   const total = positions.length / 3;
