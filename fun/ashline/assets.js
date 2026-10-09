@@ -569,10 +569,24 @@ function unitBodyDirection(frame, entity, direction) {
   return cached;
 }
 
-function drawUnitDirection(ctx, cached, size, pixels) {
+function drawUnitDirection(ctx, cached, size, pixels, dy = 0) {
   const scale = size / pixels;
-  ctx.drawImage(cached.image, cached.x * scale, cached.y * scale,
+  ctx.drawImage(cached.image, cached.x * scale, cached.y * scale + dy,
     cached.image.width * scale, cached.image.height * scale);
+}
+
+// Sprites are drawn with offsets instead of a save/restore pair per body; thousands of bodies per frame
+// made the state stack a measurable cost. Callers keep high-quality smoothing afterwards.
+function smoothSprites(ctx) {
+  if (ctx.imageSmoothingEnabled !== true) ctx.imageSmoothingEnabled = true;
+  if (ctx.imageSmoothingQuality !== 'high') ctx.imageSmoothingQuality = 'high';
+}
+
+// A tiny fixed-screen step pulse distinguishes grounded walkers from wheeled hulls.
+// Shadows remain at the ground anchor, and idle/queued robots never walk in place.
+function walkerLift(entity, time) {
+  return UNITS[entity.type]?.race === 'aiUnity' && !['rifle', 'rocket', 'scout'].includes(unitRole(entity)) && (entity.moving ?? !!entity.path?.length)
+    ? -Math.abs(Math.sin(time * 8 + (entity.id || 0))) * .55 : 0;
 }
 
 function spriteFrame(entity, time) {
@@ -592,20 +606,19 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
   if (!sprite || entity.hp <= 0) return false;
   const { frame, size, building } = sprite;
   if (!building && !frame.directions) return false;
-  const progress = building ? Math.max(0, Math.min(1, entity.progress ?? 1)) : 1;
-  ctx.save(); ctx.globalAlpha *= progress;
+  const progress = building ? Math.max(0, Math.min(1, entity.progress ?? 1)) : 1, alpha = ctx.globalAlpha;
   if (building) {
     const wall = buildingRole(entity) === 'wall', height = (entity.size || building) * progress * (wall ? .5 : 1);
     const roofY = -size / 2 + (wall ? 0 : -8);
-    ctx.save(); ctx.globalAlpha *= .20;
-    ctx.drawImage(frame.contact, -size / 2 + 1, roofY + 3, size, size); ctx.restore();
-    ctx.globalAlpha *= .33;
+    ctx.globalAlpha = alpha * progress * .20;
+    ctx.drawImage(frame.contact, -size / 2 + 1, roofY + 3, size, size);
+    ctx.globalAlpha = alpha * progress * .33;
     ctx.drawImage(frame.shadow, -size / 2 + height * 4, roofY + height * 6, size, size);
+    ctx.globalAlpha = alpha;
   } else {
-    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    smoothSprites(ctx);
     drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].castShadow, size, frame.teams[0].width);
   }
-  ctx.restore();
   return true;
 }
 
@@ -615,7 +628,7 @@ export function drawSprite(ctx, entity, time = 0) {
   const { frame, size, building } = sprite;
   if (!building && !frame.directions) return false;
   // Applies equally to the battlefield, portraits and units inside production bays.
-  ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  smoothSprites(ctx);
   if (building) {
     const unpowered = entity.powerRatio < 1 && BUILDING_DEFS[entity.type]?.power < 0;
     const mineralType = entity.processingType, coloredHoppers = frame.mineralHoppers?.[mineralType];
@@ -623,18 +636,50 @@ export function drawSprite(ctx, entity, time = 0) {
       : frame.idleTeams && !entity.queue?.length && !(entity.processingAmount > 0)
       ? frame.idleTeams : (coloredHoppers || frame.hopperTeams)?.[hopperLevel(entity)] || frame.teams;
     const source = teams[entity.team === 1 ? 1 : 0];
-    ctx.translate(0, buildingRole(entity) === 'wall' ? 0 : -8);
-    ctx.drawImage(source, -size / 2, -size / 2, size, size);
+    ctx.drawImage(source, -size / 2, -size / 2 + (buildingRole(entity) === 'wall' ? 0 : -8), size, size);
   } else {
-    // A tiny fixed-screen step pulse distinguishes grounded walkers from wheeled hulls.
-    // Shadows remain at the ground anchor, and idle/queued robots never walk in place.
-    if (UNITS[entity.type]?.race === 'aiUnity' && !['rifle', 'rocket', 'scout'].includes(unitRole(entity)) && (entity.moving ?? !!entity.path?.length)) {
-      ctx.translate(0, -Math.abs(Math.sin(time * 8 + (entity.id || 0))) * .55);
-    }
-    drawUnitDirection(ctx, unitBodyDirection(frame, entity, unitDirection(entity.angle)), size, frame.teams[0].width);
+    drawUnitDirection(ctx, unitBodyDirection(frame, entity, unitDirection(entity.angle)), size, frame.teams[0].width, walkerLift(entity, time));
   }
-  ctx.restore();
   return true;
+}
+
+// Runtime overlays (hit flashes, wreck husks, burnt foundations) are solid-colour silhouettes of the
+// exact frame drawSprite would choose. They are separate images: baked frames are never retinted.
+const OVERLAY_LIMIT = 6 * 1024 * 1024;
+const overlays = new Map();
+let overlayBytes = 0;
+function overlayImage(key, source, color) {
+  let cached = overlays.get(key);
+  if (cached) { overlays.delete(key); overlays.set(key, cached); return cached; }
+  cached = silhouette(source, color);
+  const bytes = cached.width * cached.height * 4;
+  while (overlayBytes + bytes > OVERLAY_LIMIT && overlays.size) {
+    const [oldest, image] = overlays.entries().next().value;
+    overlayBytes -= image.width * image.height * 4; image.width = image.height = 0; overlays.delete(oldest);
+  }
+  overlays.set(key, cached); overlayBytes += bytes;
+  return cached;
+}
+export function drawSpriteOverlay(ctx, entity, time = 0, color = '#ffffff') {
+  const sprite = spriteFrame(entity, time);
+  if (!sprite) return false;
+  const { frame, size, building } = sprite;
+  if (!building && !frame.directions) return false;
+  smoothSprites(ctx);
+  const frames = sprites[entity.type], pose = frames.indexOf(frame);
+  if (building) {
+    const image = overlayImage(`${entity.type}:${pose}:${color}`, frame.teams[0], color);
+    ctx.drawImage(image, -size / 2, -size / 2 + (buildingRole(entity) === 'wall' ? 0 : -8), size, size);
+  } else {
+    const direction = unitDirection(entity.angle), body = frame.directions[direction].body[0];
+    const image = overlayImage(`${entity.type}:${pose}:${direction}:${color}`, body.image, color);
+    drawUnitDirection(ctx, { image, x: body.x, y: body.y }, size, frame.teams[0].width, walkerLift(entity, time));
+  }
+  return true;
+}
+export function releaseSpriteOverlays() {
+  for (const image of overlays.values()) image.width = image.height = 0;
+  overlays.clear(); overlayBytes = 0;
 }
 
 export function drawProp(ctx, type, x, y, size, variant = 0, mineralType = 1) {
