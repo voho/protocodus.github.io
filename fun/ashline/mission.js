@@ -298,10 +298,10 @@ export function createMissionState(s,id,options={}){
   const m=s.mission={id,objectives:def.objectives.map(o=>({id:o.id,state:'active',progress:0,revealed:!o.hidden})),fired:{},zones:[],counters:{},nextCheck:s.time+MISSION_INTERVAL,startedAt:s.time};
   for(const z of def.zones||[]){const p=openPoint(s,resolvePoint(s,z.at));m.zones.push({id:z.id,x:p.x,y:p.y,r:z.r,label:z.label});}
   (def.credits||[]).forEach((amount,team)=>{if(Number.isFinite(amount))s.teams[team].credits=Math.max(0,amount);});
-  for(const [team,d] of Object.entries(def.directives||{}))setDirective(s,Number(team),d);
   def.setup?.(s,missionApi(s,options));
   // A structure placed on a zone's centre (an outpost around its archive) moves the marker beside it.
   rebuildNavigation(s);for(const z of m.zones)Object.assign(z,openPoint(s,z));
+  for(const [team,d] of Object.entries(def.directives||{}))setDirective(s,Number(team),d);
   if(def.score)m.score=0;
   lightZones(s,def,m);
   return m;
