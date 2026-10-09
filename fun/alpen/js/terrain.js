@@ -1050,6 +1050,7 @@ function rowContext(z, ctx) {
   return ctx;
 }
 
+
 function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   mogulDetail = 1, flankDetail = 1, bulkDetail = 1) {
   const z = ctx.z;
@@ -1595,6 +1596,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const bulkDetailMask = new Float32Array(count);
   let heights = new Float64Array(count);
   let previousHeights = new Float64Array(count);
+  /* THE GEOMORPH. Each re-anchor regenerates part of the mesh, and some of
+     that ground genuinely changes: a lane that crosses a ring seam is
+     sampled under a different detail mask and a different stencil, so out
+     past the uniform field the same world point can come back up to a metre
+     higher, with another normal and another snowpack. Measured over a run,
+     thousands of vertices between 72 and 560 m did that on every six-metre
+     hop — distant slopes visibly re-shaping and re-lighting several times a
+     second.
+
+     So a build also records, for every vertex, what the surface on screen
+     looked like at that world point — the old vertex where the lattices
+     share it, the old triangle interpolated where they do not — and the
+     shader walks from that to the new value over `MORPH_SECONDS` after the
+     commit. Stored as deltas, so the overwhelming majority of the mesh, which
+     re-indexed exactly, carries zeros and lands bit-exact; packed to a float
+     height and normalised bytes, so the extra upload per commit is fourteen
+     bytes a vertex. Written in place while the previous morph is still
+     playing, because the GPU keeps its own copy until the commit uploads. */
+  const morphDY = new Float32Array(count);
+  const morphDN = new Int8Array(count * 3);   // normal delta / 2
+  const morphDC = new Int8Array(count * 3);   // vertex colour delta
+  const morphDS = new Int8Array(count * 4);   // snowpack delta
   const indices = new (count > 65535 ? Uint32Array : Uint16Array)(rows * cols * 6);
 
   // Alternate the diagonal through successive quads. Repeating one diagonal
@@ -2012,6 +2035,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     new THREE.BufferAttribute(surface, 4).setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('aGroomFrame',
     new THREE.BufferAttribute(groomFrame, 2).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aMorphDY',
+    new THREE.BufferAttribute(morphDY, 1).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aMorphDN',
+    new THREE.BufferAttribute(morphDN, 3, true).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aMorphDC',
+    new THREE.BufferAttribute(morphDC, 3, true).setUsage(THREE.DynamicDrawUsage));
+  geometry.setAttribute('aMorphDS',
+    new THREE.BufferAttribute(morphDS, 4, true).setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   // The corner of the grid, not its longest side. `ahead` alone was already
   // short of the far columns and is now short of the tail as well; the mesh is
@@ -2090,6 +2121,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const tilePowderDetail = { value: new THREE.Vector2() };
   const tileIce = { value: new THREE.Vector2() };
   const tileGroomZ = { value: 0 };
+  // How much of the old surface is still showing: 1 at a commit, 0 once the
+  // geomorph has played out. See morphDY.
+  const morphK = { value: 0 };
   /* The glacier plate repeats 2.2 times per macro tile, which keeps its
      crazing out of step with the powder's. That is a FRACTION of a tile, so
      it cannot ride the macro origin: the wrap there throws away whole macro
@@ -2260,6 +2294,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uTilePowderMacro: tilePowderMacro,
       uTilePowderDetail: tilePowderDetail,
       uTileIce: tileIce,
+      uTerrainMorphK: morphK,
       uTileGroomZ: tileGroomZ,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
@@ -2269,6 +2304,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         attribute vec3 aSmoothNormal;
         attribute vec4 aSurface;
         attribute vec2 aGroomFrame;
+        attribute float aMorphDY;
+        attribute vec3 aMorphDN;
+        attribute vec3 aMorphDC;
+        attribute vec4 aMorphDS;
+        uniform float uTerrainMorphK;
         varying vec3 vWorld;
         varying vec2 vLocal;
         varying vec3 vSmoothNormal;
@@ -2277,6 +2317,11 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying float vRock;
         varying float vRockKind;
         varying vec2 vGroomFrame;`)
+      // The geomorph's remaining share of the old surface — see morphDY.
+      .replace('#include <color_vertex>', `#include <color_vertex>
+        vColor.rgb += aMorphDC * uTerrainMorphK;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed.y += aMorphDY * uTerrainMorphK;`)
       .replace('#include <project_vertex>', `#include <project_vertex>
         vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
         /* THE MESH'S OWN COORDINATES, WHICH ARE THE ONLY ONES A FLOAT CAN
@@ -2301,12 +2346,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            double precision on the way in and already wrapped into its own tile.
            Nothing here ever forms the big number. */
         vLocal = transformed.xz;
-        vSmoothNormal = normalize(normalMatrix * aSmoothNormal);
-        vN64Ice = aSurface.x;
-        vN64Sheen = 1.0 - aSurface.z;
-        vGroomed = aSurface.y;
-        vRock = aSurface.z;
-        vRockKind = aSurface.w;
+        vSmoothNormal = normalize(normalMatrix
+          * (aSmoothNormal + aMorphDN * (2.0 * uTerrainMorphK)));
+        vec4 n64Surface = aSurface + aMorphDS * uTerrainMorphK;
+        vN64Ice = n64Surface.x;
+        vN64Sheen = 1.0 - n64Surface.z;
+        vGroomed = n64Surface.y;
+        vRock = n64Surface.z;
+        vRockKind = n64Surface.w;
         vGroomFrame = aGroomFrame;
         vDist = -mvPosition.z;`);
     shader.fragmentShader = shader.fragmentShader
@@ -2974,7 +3021,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const previousZs = new Float64Array(vertsZ);
   const reuseColumns = new Int32Array(vertsX);
   const reuseRows = new Int32Array(vertsZ);
+  // Where each new lane falls in the old lattice: the lower old lane and the
+  // fraction towards the next, or -1 outside it. The geomorph reads these.
+  const bracketColumns = new Int32Array(vertsX);
+  const bracketRows = new Int32Array(vertsZ);
+  const fracColumns = new Float64Array(vertsX);
+  const fracRows = new Float64Array(vertsZ);
+  let morphSource = false;
   const heightReused = new Uint8Array(count);
+  // Vertices whose whole surface was copied from the live mesh: nothing about
+  // them changed, so the geomorph writes them zeros without looking.
+  const surfaceReused = new Uint8Array(count);
   let heightsReady = false;
   let heightsSeed, heightsAnchorX, heightsAnchorZ;
   let reusedHeights = 0;
@@ -2985,6 +3042,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     const reusable = heightsReady && heightsSeed === getWorldSeed();
     surfaceSourceMatches = reusable && heightsSeed === anchorSeed
       && heightsAnchorX === anchorX && heightsAnchorZ === anchorZ;
+    morphSource = false;
     if (reusable) {
       for (let c = 0; c < vertsX; c++) previousXs[c] = heightsAnchorX + sxs[c];
       for (let r = 0; r < vertsZ; r++) previousZs[r] = heightsAnchorZ + szs[r];
@@ -3012,6 +3070,125 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       const z = az + szs[r];
       while (before < vertsZ && previousZs[before] > z) before++;
       if (before < vertsZ && previousZs[before] === z) reuseRows[r] = before;
+    }
+
+    /* The live surface is the one the geomorph starts from, and it is only
+       known to be this lattice's predecessor when it was built from these
+       very heights. */
+    morphSource = surfaceSourceMatches;
+    if (!morphSource) return;
+    let lo = 0;
+    for (let c = 0; c < vertsX; c++) {
+      const x = ax + sxs[c];
+      while (lo + 2 < vertsX && previousXs[lo + 1] <= x) lo++;
+      const span = previousXs[lo + 1] - previousXs[lo];
+      const f = (x - previousXs[lo]) / span;
+      bracketColumns[c] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      fracColumns[c] = Math.min(1, Math.max(0, f));
+    }
+    lo = 0;
+    for (let r = 0; r < vertsZ; r++) {
+      const z = az + szs[r];
+      while (lo + 2 < vertsZ && previousZs[lo + 1] >= z) lo++;
+      const span = previousZs[lo] - previousZs[lo + 1];
+      const f = (previousZs[lo] - z) / span;
+      bracketRows[r] = f >= -1e-9 && f <= 1 + 1e-9 ? lo : -1;
+      fracRows[r] = Math.min(1, Math.max(0, f));
+    }
+  }
+
+  /* The surface on screen at each new vertex, as a delta from the new one.
+
+     Where the old lattice holds the same world point the old vertex is read
+     directly; elsewhere the old cell is interpolated on the same diagonal
+     the index buffer cut it along, so a vertex added inside an old triangle
+     starts exactly on that triangle. Ground the old mesh never covered —
+     the leading rows of the far edge, deep in the fog — starts as itself. */
+  const byte = (v) => (v > 1 ? 127 : v < -1 ? -127 : Math.round(v * 127));
+  function fillMorphRows(rowFrom, rowTo) {
+    let i = rowFrom * vertsX;
+    if (!morphSource) {
+      morphDY.fill(0, i, rowTo * vertsX);
+      morphDN.fill(0, i * 3, rowTo * vertsX * 3);
+      morphDC.fill(0, i * 3, rowTo * vertsX * 3);
+      morphDS.fill(0, i * 4, rowTo * vertsX * 4);
+      return;
+    }
+    for (let r = rowFrom; r < rowTo; r++) {
+      const exactRow = reuseRows[r];
+      const or = bracketRows[r];
+      const fv = fracRows[r];
+      for (let c = 0; c < vertsX; c++, i++) {
+        const p = i * 3;
+        const q = i * 4;
+        if (heightReused[i] && surfaceReused[i]) {
+          morphDY[i] = 0;
+          morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
+          morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
+          morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
+          continue;
+        }
+        const exactColumn = reuseColumns[c];
+        let a = -1, b = -1, d = -1;
+        let wa = 1, wb = 0, wd = 0;
+        if (exactRow >= 0 && exactColumn >= 0) {
+          a = exactRow * vertsX + exactColumn;
+        } else {
+          const oc = bracketColumns[c];
+          if (or < 0 || oc < 0) {
+            morphDY[i] = 0;
+            morphDN[p] = morphDN[p + 1] = morphDN[p + 2] = 0;
+            morphDC[p] = morphDC[p + 1] = morphDC[p + 2] = 0;
+            morphDS[q] = morphDS[q + 1] = morphDS[q + 2] = morphDS[q + 3] = 0;
+            continue;
+          }
+          const fu = fracColumns[c];
+          const A = or * vertsX + oc;
+          const B = A + 1;
+          const C = A + vertsX;
+          const D = C + 1;
+          if ((or + oc) & 1) {
+            // Cut from A to D: see the index build.
+            if (fu >= fv) { a = A; wa = 1 - fu; b = B; wb = fu - fv; d = D; wd = fv; }
+            else { a = A; wa = 1 - fv; b = C; wb = fv - fu; d = D; wd = fu; }
+          } else if (fu + fv <= 1) {
+            a = A; wa = 1 - fu - fv; b = B; wb = fu; d = C; wd = fv;
+          } else {
+            a = D; wa = fu + fv - 1; b = C; wb = 1 - fu; d = B; wd = 1 - fv;
+          }
+        }
+        let oldH = previousHeights[a] * wa;
+        let n0 = normals[a * 3] * wa, n1 = normals[a * 3 + 1] * wa, n2 = normals[a * 3 + 2] * wa;
+        let c0 = colors[a * 3] * wa, c1 = colors[a * 3 + 1] * wa, c2 = colors[a * 3 + 2] * wa;
+        let s0 = surface[a * 4] * wa, s1 = surface[a * 4 + 1] * wa;
+        let s2 = surface[a * 4 + 2] * wa, s3 = surface[a * 4 + 3] * wa;
+        if (b >= 0) {
+          oldH += previousHeights[b] * wb + previousHeights[d] * wd;
+          n0 += normals[b * 3] * wb + normals[d * 3] * wd;
+          n1 += normals[b * 3 + 1] * wb + normals[d * 3 + 1] * wd;
+          n2 += normals[b * 3 + 2] * wb + normals[d * 3 + 2] * wd;
+          c0 += colors[b * 3] * wb + colors[d * 3] * wd;
+          c1 += colors[b * 3 + 1] * wb + colors[d * 3 + 1] * wd;
+          c2 += colors[b * 3 + 2] * wb + colors[d * 3 + 2] * wd;
+          s0 += surface[b * 4] * wb + surface[d * 4] * wd;
+          s1 += surface[b * 4 + 1] * wb + surface[d * 4 + 1] * wd;
+          s2 += surface[b * 4 + 2] * wb + surface[d * 4 + 2] * wd;
+          s3 += surface[b * 4 + 3] * wb + surface[d * 4 + 3] * wd;
+          const len = Math.hypot(n0, n1, n2) || 1;
+          n0 /= len; n1 /= len; n2 /= len;
+        }
+        morphDY[i] = oldH - heights[i];
+        morphDN[p] = byte((n0 - buildNormals[p]) * 0.5);
+        morphDN[p + 1] = byte((n1 - buildNormals[p + 1]) * 0.5);
+        morphDN[p + 2] = byte((n2 - buildNormals[p + 2]) * 0.5);
+        morphDC[p] = byte(c0 - buildColors[p]);
+        morphDC[p + 1] = byte(c1 - buildColors[p + 1]);
+        morphDC[p + 2] = byte(c2 - buildColors[p + 2]);
+        morphDS[q] = byte(s0 - buildSurface[q]);
+        morphDS[q + 1] = byte(s1 - buildSurface[q + 1]);
+        morphDS[q + 2] = byte(s2 - buildSurface[q + 2]);
+        morphDS[q + 3] = byte(s3 - buildSurface[q + 3]);
+      }
     }
   }
 
@@ -3058,6 +3235,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     ax, az, ay, outPositions, outNormals, outColors, outSurface, outGroomFrame,
     rowFrom, rowTo,
   ) {
+    surfaceReused.fill(0, rowFrom * vertsX, rowTo * vertsX);
     let i = rowFrom * vertsX;
     let p = i * 3;
     let q = i * 4;
@@ -3212,6 +3390,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
             outGroomFrame[g] = groomFrame[old * 2];
             outGroomFrame[g + 1] = groomFrame[old * 2 + 1];
             reusedSurfaces++;
+            surfaceReused[i] = 1;
             continue;
           }
         }
@@ -3564,6 +3743,28 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     geometry.attributes.color.needsUpdate = true;
     geometry.attributes.aSurface.needsUpdate = true;
     geometry.attributes.aGroomFrame.needsUpdate = true;
+    geometry.attributes.aMorphDY.needsUpdate = true;
+    geometry.attributes.aMorphDN.needsUpdate = true;
+    geometry.attributes.aMorphDC.needsUpdate = true;
+    geometry.attributes.aMorphDS.needsUpdate = true;
+  }
+
+  /* A third of a second: long enough that a distant slope settling into its
+     new shape reads as nothing at all, short enough that a fast run's next
+     build is seldom kept waiting for it. A build never commits over a morph
+     still in progress — the surface it recorded as "on screen" would no
+     longer be — so the morph is also the floor on the commit cadence. */
+  const MORPH_SECONDS = 0.3;
+  let morphT = 1;
+  const easeMorph = (t) => t * t * (3 - 2 * t);
+  // Nothing to walk from: a cold fill shows its own surface at once.
+  function settleMorph() {
+    morphDY.fill(0);
+    morphDN.fill(0);
+    morphDC.fill(0);
+    morphDS.fill(0);
+    morphT = 1;
+    morphK.value = 0;
   }
 
   // Six-metre anchor steps keep the fine lattice fixed in world space.
@@ -3618,11 +3819,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     anchorSeed = getWorldSeed();
     mesh.position.set(anchorX, anchorY, anchorZ);
     setTileOrigins(anchorX, anchorZ);
+    const morphing = morphSource && !probe.snapMorph;
+    morphT = morphing ? 0 : 1;
+    morphK.value = morphing ? 1 : 0;
+    const filledAt = next.filledAt ?? clockNow();
     build = null;
     publish();
 
     const settled = clockNow();
-    const span = settled - buildStartedAt;
+    // Busy time only: a finished build waiting out the morph is not load.
+    const span = filledAt - buildStartedAt;
     const idle = Math.max(0, buildStartedAt - buildIdleFrom);
     buildIdleFrom = settled;
     if (anchorDwell > 0) {
@@ -3641,6 +3847,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   function advanceBuild() {
     if (!build) return;
+    if (build.stage === 2) {
+      if (morphT >= 1) commitBuild(build);
+      return;
+    }
     const deadline = clockNow() + BUILD_BUDGET_MS;
     do {
       const rowTo = Math.min(vertsZ, build.row + BUILD_BATCH_ROWS);
@@ -3653,6 +3863,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           buildGroomFrame,
           build.row, rowTo,
         );
+        fillMorphRows(build.row, rowTo);
       }
       build.row = rowTo;
 
@@ -3661,7 +3872,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           build.stage = 1;
           build.row = 0;
         } else {
-          commitBuild(build);
+          build.stage = 2;
+          build.filledAt = clockNow();
+          if (morphT >= 1) commitBuild(build);
           return;
         }
       }
@@ -3669,6 +3882,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   }
 
   function update(x, z, dt = 1 / 60) {
+    if (morphT < 1) {
+      morphT = Math.min(1, morphT + Math.max(0, dt) / MORPH_SECONDS);
+      morphK.value = 1 - easeMorph(morphT);
+    }
     const surfaceReveal = 1 - Math.exp(-3.2 * dt);
     snowReady.value.x += (snowReadyTarget.x - snowReady.value.x) * surfaceReveal;
     snowReady.value.y += (snowReadyTarget.y - snowReady.value.y) * surfaceReveal;
@@ -3705,6 +3922,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       mesh.position.set(ax, ay, az);
       setTileOrigins(ax, az);
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+      settleMorph();
       publish();
       return;
     }
@@ -3759,7 +3977,15 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
     if (!sameAnchor) {
       fill(ax, az, ay, positions, normals, colors, surface, groomFrame);
+      settleMorph();
       publish();
+    } else if (morphT < 1) {
+      // The same ground, cut to rather than walked to.
+      settleMorph();
+      geometry.attributes.aMorphDY.needsUpdate = true;
+      geometry.attributes.aMorphDN.needsUpdate = true;
+      geometry.attributes.aMorphDC.needsUpdate = true;
+      geometry.attributes.aMorphDS.needsUpdate = true;
     }
 
     initializeShadowCache(x, z);
@@ -3794,7 +4020,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     vertexCount: count,
     probe,
     debug: () => ({
-      anchorX, anchorY, anchorZ, morphing: false, morphAge: 0, anchorMul,
+      anchorX, anchorY, anchorZ, morphing: morphT < 1, morph: +morphK.value.toFixed(3), anchorMul,
       reusedHeights, reusedSurfaces,
       chapter: chapterNameAt(anchorZ),
       shade: {

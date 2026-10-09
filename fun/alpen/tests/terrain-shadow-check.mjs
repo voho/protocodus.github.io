@@ -149,8 +149,11 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
     },
     checkStream(x, z) {
       beginBuild(x, z, heightAt(x, z));
-      while (build) advanceBuild();
+      // The previous commit's geomorph is over as far as this check cares.
+      while (build) { morphT = 1; advanceBuild(); }
     },
+    checkMorph: () => [morphDY, morphDN, morphDC, morphDS, morphK.value],
+    checkAnchor: () => [anchorX, anchorY, anchorZ],
     checkInterrupt(x, z, stage) {
       beginBuild(x, z, heightAt(x, z));
       fillHeightRows(x, z, 0, stage ? vertsZ : 4);
@@ -160,6 +163,8 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
       build.row = 4;
     },
     checkBuffers: () => [heights, positions, normals, colors, surface, groomFrame],
+    vertsX,
+    vertsZ,
     checkTiles(ax, az) {
       setTileOrigins(ax, az);
       return {
@@ -259,6 +264,55 @@ for (const seed of ['alpen-check', 'fresh-powder', 73291]) {
   }
 }
 assert.ok(heightHits > streamed.vertexCount, 'Nearby anchors must reuse exact heights');
+
+/* THE GEOMORPH STARTS FROM THE SURFACE ON SCREEN. After a streamed commit,
+   every vertex plus its height delta must land on the old mesh as drawn —
+   the old vertex where the lattices share the point, the old triangle
+   (cut the way the index buffer cuts it) where they do not. Written out
+   here from the old buffers alone, not from terrain.js's own interpolation. */
+{
+  setWorldSeed('alpen-check');
+  const morphCases = [[0, -396, 0, -402], [0, -402, 6, -414], [6, -414, -12, -432], [0, -3600, 0, -3624]];
+  let checked = 0, zeros = 0, moved = 0, worst = 0;
+  for (const [x0, z0, x1, z1] of morphCases) {
+    streamed.reset(x0, z0);
+    const [ax0, ay0, az0] = streamed.checkAnchor();
+    const oldPos = streamed.checkBuffers()[1].slice();
+    streamed.checkStream(x1, z1);
+    const [ax1, ay1, az1] = streamed.checkAnchor();
+    const newPos = streamed.checkBuffers()[1];
+    const [dy, , , , k] = streamed.checkMorph();
+    assert.equal(k, 1, 'a streamed commit starts its geomorph from the old surface');
+    // The lattice's lane coordinates, recovered from the old buffer itself.
+    const vx = streamed.vertsX, vz = streamed.vertsZ;
+    const oxs = Array.from({ length: vx }, (_, c) => ax0 + oldPos[c * 3]);
+    const ozs = Array.from({ length: vz }, (_, r) => az0 + oldPos[(r * vx) * 3 + 2]);
+    const oldY = (i) => ay0 + oldPos[i * 3 + 1];
+    for (let i = 0; i < vx * vz; i++) {
+      const wx = ax1 + newPos[i * 3], wz = az1 + newPos[i * 3 + 2];
+      if (wx < oxs[0] || wx > oxs[vx - 1] || wz > ozs[0] || wz < ozs[vz - 1]) continue;
+      let c = 0; while (c + 2 < vx && oxs[c + 1] <= wx) c++;
+      let r = 0; while (r + 2 < vz && ozs[r + 1] >= wz) r++;
+      const fu = (wx - oxs[c]) / (oxs[c + 1] - oxs[c]);
+      const fv = (ozs[r] - wz) / (ozs[r] - ozs[r + 1]);
+      const A = oldY(r * vx + c), B = oldY(r * vx + c + 1);
+      const C = oldY((r + 1) * vx + c), D = oldY((r + 1) * vx + c + 1);
+      let drawn;
+      if ((r + c) & 1) drawn = fu >= fv ? A + (B - A) * fu + (D - B) * fv : A + (D - C) * fu + (C - A) * fv;
+      else drawn = fu + fv <= 1 ? A + (B - A) * fu + (C - A) * fv : D + (C - D) * (1 - fu) + (B - D) * (1 - fv);
+      const start = ay1 + newPos[i * 3 + 1] + dy[i];
+      const err = Math.abs(start - drawn);
+      worst = Math.max(worst, err);
+      checked++;
+      if (dy[i] === 0) zeros++;
+      else if (Math.abs(dy[i]) > 0.005) moved++;
+    }
+  }
+  assert.ok(worst < 2e-3, `geomorph starts ${worst.toFixed(4)} m off the old surface`);
+  assert.ok(zeros > checked * 0.6, 'ground that re-indexed exactly carries no morph at all');
+  assert.ok(moved > 0, 'and ground that was re-measured does');
+  console.log(`  geomorph: ${checked} vertices start on the old surface (worst ${worst.toExponential(1)} m), ${moved} walk to new ground`);
+}
 assert.ok(surfaceHits > streamed.vertexCount, 'Unchanged stencils must reuse surface attributes');
 for (const stage of [0, 1]) {
   for (const restart of ['same anchor', 'moved anchor', 'new seed']) {
