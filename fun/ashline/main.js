@@ -336,7 +336,7 @@ function isVisible(entity) {
 function entityAt(point) {
   const entities = game.entities.filter(e => e.hp > 0 && isVisible(e));
   // Units get pointer priority when standing in front of a structure.
-  return entities.find(e => e.kind === 'unit' && Math.hypot(e.x - point.x, e.y - point.y) < .55)
+  return entities.find(e => e.kind === 'unit' && Math.hypot(renderer.poseOf(e).x - point.x, renderer.poseOf(e).y - point.y) < .55)
     || entities.find(e => e.kind === 'building' && point.x >= e.x && point.y >= e.y && point.x <= e.x + e.size && point.y <= e.y + e.size);
 }
 
@@ -872,7 +872,7 @@ canvas.addEventListener('pointerup', event => {
     if (view.drag && !active.pan) {
       if (!active.shift) view.selected.clear();
       const a = renderer.screenToWorld(view.drag.x1, view.drag.y1, view), b = renderer.screenToWorld(view.drag.x2, view.drag.y2, view);
-      for (const e of game.entities) if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && e.x >= Math.min(a.x, b.x) && e.x <= Math.max(a.x, b.x) && e.y >= Math.min(a.y, b.y) && e.y <= Math.max(a.y, b.y)) view.selected.add(e.id);
+      for (const e of game.entities) { const p = renderer.poseOf(e); if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x) && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)) view.selected.add(e.id); }
       playSound('select'); updateHUD();
     }
     view.drag = null; return;
@@ -1056,6 +1056,7 @@ function requestFrame() {
 function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
 function simulateFrameStep(dt) {
+  renderer.snapshot(game); // S5 render hook: frames between ticks blend from these poses
   updateGame(game, dt);
   if (game.status === 'playing') return true;
   showMenu(true); playSound(game.status); return false;
@@ -1108,6 +1109,7 @@ function frame(now) {
   view.placementValid = Boolean(check?.ok);
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
+  renderer.pendingTime = accumulator; // S5 render hook: interpolation fraction of the next tick
   renderer.draw(game, view);
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;

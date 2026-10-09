@@ -696,10 +696,10 @@ export function drawPropShadow(ctx, type, x, y, size, variant = 0) {
   if (!frames) return false;
   const frame = frames[((Math.floor(variant) % frames.length) + frames.length) % frames.length];
   if (!frame.shadow) return false;
-  const extent = size * frame.drawScale, offset = size * (variant >= 4 ? .045 : .1);
-  ctx.save(); ctx.globalAlpha *= .38;
+  const extent = size * frame.drawScale, offset = size * (variant >= 4 ? .045 : .1), alpha = ctx.globalAlpha;
+  ctx.globalAlpha = alpha * .38;
   ctx.drawImage(frame.shadow, x - extent / 2 + offset, y - extent / 2 + offset * 1.5, extent, extent);
-  ctx.restore(); return true;
+  ctx.globalAlpha = alpha; return true;
 }
 
 export function spriteStats() {

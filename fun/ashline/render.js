@@ -1,7 +1,7 @@
 import { nextPaint } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawSpriteOverlay, releaseSpriteOverlays, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitRange, buildingRole, unitRole } from './sim.js';
-import { ABILITIES, abilityFor, abilityStatus } from './abilities.js';
+import { ABILITIES } from './abilities.js';
 import { missionDefinition } from './mission.js';
 
 const TILE = 32;
@@ -70,11 +70,12 @@ function smoothNoise(x, y, seed = 0) {
 // drawImage: a radial gradient or shadowBlur per call was the renderer's largest state churn.
 const SPRITE_RADIUS = 48;
 const spriteCache = new Map();
-function cachedSprite(key, size, paint) {
+function cachedSprite(key, size, paint, build) {
   let sprite = spriteCache.get(key);
   if (!sprite) {
-    sprite = document.createElement('canvas'); sprite.width = sprite.height = size;
-    paint(sprite.getContext('2d'), size); spriteCache.set(key, sprite);
+    if (build) sprite = build();
+    else { sprite = document.createElement('canvas'); sprite.width = sprite.height = size; paint(sprite.getContext('2d'), size); }
+    spriteCache.set(key, sprite);
   }
   return sprite;
 }
@@ -95,6 +96,42 @@ function stamp(ctx, sprite, x, y, rx, ry = rx) {
 // Explosion soot and fire keep their original colour stops.
 const SOOT = [0, '#373532b0', .55, '#42403b84', 1, '#42403b00'];
 const FIRE = [0, '#fff3c9', .22, '#ffd193', .55, '#f39840ca', 1, '#bd4c2400'];
+const DARK_SMOKE = [0, '#28292bd0', 1, '#28292b00'];
+const STEAM = [0, '#c6c4bcd0', 1, '#c6c4bc00'];
+const FLAME = [0, '#fff1c2', .3, '#ffc061e6', .65, '#e8642acc', 1, '#a8301800'];
+// Text labels are rasterised once at twice their CSS size so they stay crisp on dense displays.
+function labelSprite(text, color, font = '600 10px monospace') {
+  return cachedSprite(`label:${font}:${color}:${text}`, 0, null, () => {
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.font = font;
+    const c = document.createElement('canvas'), w = Math.ceil(probe.measureText(text).width) + 10;
+    c.width = w * 2; c.height = 32;
+    const g = c.getContext('2d'); g.scale(2, 2);
+    g.fillStyle = '#0a151dc4'; g.fillRect(0, 2, w, 12);
+    g.font = font; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 5, 8.5);
+    return c;
+  });
+}
+// A ring of filled sandbags (Organics) or braced armour plates (Unity) for Dig in / Brace protocol.
+function digInSprite(unity) {
+  return cachedSprite(`dig:${unity}`, 96, (c, size) => {
+    c.translate(size / 2, size / 2);
+    for (let i = 0; i < 9; i++) {
+      const a = i / 9 * Math.PI * 2 + .2, x = Math.cos(a) * 34, y = Math.sin(a) * 22;
+      c.save(); c.translate(x, y); c.rotate(a + Math.PI / 2);
+      if (unity) {
+        c.fillStyle = '#20303a'; c.fillRect(-9, -3.5, 18, 7);
+        c.fillStyle = '#5e7884'; c.fillRect(-8, -3, 16, 2.4);
+        c.fillStyle = '#9fd3dc'; c.fillRect(-3, 2, 6, 1.2);
+      } else {
+        c.fillStyle = '#2b2a25'; c.beginPath(); c.ellipse(1, 1.5, 10, 5.5, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#8d8063'; c.beginPath(); c.ellipse(0, 0, 9.5, 5, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#b6a985'; c.beginPath(); c.ellipse(-1.5, -1.6, 6, 2, 0, 0, Math.PI * 2); c.fill();
+      }
+      c.restore();
+    }
+  });
+}
 export function releaseRenderSprites() {
   for (const sprite of spriteCache.values()) sprite.width = sprite.height = 0;
   spriteCache.clear();
@@ -110,6 +147,52 @@ function sameBytes(a, b) {
 // The visible pose and animation clock between two 50 ms ticks; age < 0 means "not yet".
 const pulse = (age, length) => age < 0 ? 0 : Math.max(0, 1 - age / length);
 const shortestArc = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
+const SHELL_FLIGHT = .35, GRAVITY = 260, PARTICLE_LIMIT = 900, HIT_FLASH = .11;
+const SHAKE_LENGTH = .55, SHAKE_LIMIT = 5, VIGNETTE_STEP = 8;
+const WRECK = '#171818', EMBER = '#5a3a24';
+const ASH_LAYERS = [
+  { share: .5, depth: .45, parallax: .92, fall: 7, size: .9, alpha: .16 },
+  { share: .32, depth: .75, parallax: 1, fall: 12, size: 1.3, alpha: .22 },
+  { share: .18, depth: 1, parallax: 1.1, fall: 19, size: 1.9, alpha: .28 },
+];
+// One blast in world pixels; age runs 0..1. A ground-light flash and a thin shockwave ring lead the
+// fireball, soot and sparks; every soft shape is a cached sprite rather than a per-call gradient.
+function explosion(ctx, x, y, size, age, alpha, seedX, seedY) {
+  const s = Math.sqrt(size), r = (5 + age * 28) * s, flash = Math.max(0, 1 - age * 2.6);
+  if (flash > 0) {
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = flash * .3;
+    stamp(ctx, glowSprite('#ffb66eff'), x, y + 4, 46 * s, 30 * s);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  const wave = Math.min(1, age * 1.9);
+  if (wave < 1) {
+    ctx.globalAlpha = (1 - wave) ** 1.6 * .55; ctx.strokeStyle = '#f2dcbc'; ctx.lineWidth = .5 + (1 - wave) * 1.8;
+    ctx.beginPath(); ctx.ellipse(x, y + 5, (8 + wave * 44) * s, (5 + wave * 27) * s, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.globalAlpha = Math.max(0, alpha - .12);
+  const soot = radialSprite(SOOT), fire = radialSprite(FIRE);
+  for (let j = 0; j < 7; j++) {
+    const a = j * 2.4 + noise(seedX, j) * 2, drift = r * (.25 + noise(j, seedY) * .5);
+    stamp(ctx, soot, x + Math.cos(a) * drift + age * 9, y + Math.sin(a) * drift * .6 - age * s * 19, r * .62);
+  }
+  ctx.globalAlpha = Math.min(1, alpha * 1.4);
+  glow(ctx, x, y - r * .18, r * .84, '#ef8e347d');
+  ctx.globalAlpha = alpha * alpha;
+  for (let j = 0; j < 5; j++) {
+    const a = j * 2.4, reach = r * age * .4;
+    stamp(ctx, fire, x + Math.cos(a) * reach, y + Math.sin(a) * reach * .6 - age * s * 12, r * (.25 + flash * .22));
+  }
+  ctx.globalAlpha = flash;
+  glow(ctx, x, y, 40 * s, '#ffd7a36b');
+  ctx.globalAlpha = alpha; ctx.beginPath();
+  for (let j = 0; j < 10; j++) {
+    const a = j * 2.4 + seedX, reach = r * (1 + noise(j, seedY) * .8), lift = Math.sin(age * Math.PI) * (5 + j % 3 * 6) * s;
+    const dx = x + Math.cos(a) * reach, dy = y + Math.sin(a) * reach * .6 - lift;
+    ctx.moveTo(dx, dy); ctx.lineTo(dx - Math.cos(a) * (2 + alpha * 5), dy - Math.sin(a) * 3);
+  }
+  ctx.strokeStyle = '#f0cd92c8'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
 function rock(ctx, x, y, size, variant) {
   if (drawProp(ctx, 'rock', x, y, size, variant)) return;
   ctx.save(); ctx.translate(x, y);
@@ -237,7 +320,7 @@ function buildingActivity(ctx, e, time, power) {
     rect(ctx, -6, s * .23, 12, 4, '#142027');
     for (let i = 0; i < 4; i++) rect(ctx, -5 + i * 2.8, s * .23 + 1, 1.8, 2, fill > i / 4 ? e.powerStatus === 'reserve' ? '#edb66f' : '#a7dcd1' : '#3d514f');
   } else if (entityRole(e) === 'rocketTower') {
-    const ready = power >= 1, firing = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .35);
+    const ready = power >= 1, firing = pulse(time - (e.lastShot ?? -99), .35);
     for (const x of [-s * .28, s * .28]) {
       light(ctx, x, s * .26, !ready ? '#70533b' : e.cooldown > .1 ? '#bb8d51' : t.light);
     }
@@ -246,7 +329,7 @@ function buildingActivity(ctx, e, time, power) {
       glow(ctx, -s * .231, -s * .405, 12, '#ffcf8aac');
     }
   } else if (entityRole(e) === 'turret') {
-    const angle = e.targetId ? e.angle : phase * .3, recoil = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .22);
+    const angle = e.targetId ? e.angle : phase * .3, recoil = pulse(time - (e.lastShot ?? -99), .22);
     const reach = 13 - recoil * 3;
     ctx.save(); ctx.translate(0, -7); ctx.scale(1, .8);
     ctx.beginPath(); ctx.arc(0, 0, reach, angle - .2, angle + .2);
@@ -309,7 +392,7 @@ function unityActivity(ctx, e, time, power) {
       line(ctx, x, s * .11, x, s * (.11 - fill * .37), e.powerStatus === 'reserve' ? '#dcb17a' : '#aad5d8', 1);
     }
   } else if (role === 'turret' || role === 'rocketTower') {
-    const ready = power >= 1, firing = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .22);
+    const ready = power >= 1, firing = pulse(time - (e.lastShot ?? -99), .22);
     for (const x of role === 'turret' ? [0] : [-s * .25, s * .25]) light(ctx, x, s * .22, ready ? t.light : '#6b5845');
     if (firing && ready) { ctx.globalAlpha *= firing; glow(ctx, role === 'turret' ? s * .25 : -s * .22, -s * .20, 8, '#d2e4e683'); }
   }
@@ -324,9 +407,11 @@ function productionBay(ctx, e) {
   ctx.save();
   // An open, recessed work bay replaces the permanently occupied entrance in the art.
   polygon(ctx, [[-w / 2, top], [w / 2, top], [w / 2 + 2, bottom], [-w / 2 - 2, bottom]], '#141a1c', '#4c5654');
-  const floor = ctx.createLinearGradient(0, top, 0, bottom);
-  floor.addColorStop(0, '#1b2224'); floor.addColorStop(1, '#303633');
-  rect(ctx, -w / 2 + 2, top + 3, w - 4, bottom - top - 4, floor);
+  ctx.drawImage(cachedSprite('bayFloor', 32, (c, size) => {
+    const floor = c.createLinearGradient(0, -3, 0, size + 1);
+    floor.addColorStop(0, '#1b2224'); floor.addColorStop(1, '#303633');
+    c.fillStyle = floor; c.fillRect(0, 0, size, size);
+  }), -w / 2 + 2, top + 3, w - 4, bottom - top - 4);
   for (let y = top + 6; y < bottom; y += 5) line(ctx, -w / 2 + 3, y, w / 2 - 3, y, '#75807935', .5);
   polygon(ctx, [[-w / 2 - 2, bottom], [w / 2 + 2, bottom], [w / 2 + 2, bottom + 3], [-w / 2 - 2, bottom + 3]], '#141a1c');
   for (const x of [-w / 2 - 1, w / 2 + 1]) {
@@ -618,48 +703,67 @@ export class Renderer {
     assetsReady.then(() => { if (this.groundImage !== terrainImages.ground) this.terrainSource = null; });
     this.resize();
   }
-  // Per-world presentation state: tick poses, last-seen bodies, particles and the event cursor.
+  // Per-world presentation state: tick poses, observed bodies, particles, shake and the event cursor.
   resetFrameState() {
-    this.poses = new Map(); this.poseState = null; this.poseTime = 0;
-    this.proxies = new WeakMap(); this.lastSeen = new Map(); this.byId = new Map();
-    this.particles = []; this.frameCount = 0; this.eventState = null; this.eventCursor = 0;
-    this.shakeX = this.shakeY = 0; this.drawAlpha = 1; this.drawLag = 0;
-    this.fogState = null; this.fogTime = NaN;
+    this.poses = new Map(); this.poseState = null; this.poseTime = NaN; this.afterTime = NaN;
+    this.proxies = new WeakMap(); this.bodies = []; this.bodyTime = NaN; this.bodyState = null;
+    this.particles = []; this.shakes = []; this.eventState = null; this.eventCount = 0; this.lastEvent = null;
+    this.shakeX = this.shakeY = 0; this.pendingTime = 0; this.blendAlpha = 1; this.blending = false; this.drawLag = 0;
+    this.fogState = null; this.fogTime = NaN; this.byIdSource = null; this.byIdLength = -1; this.byId = new Map();
+    this.seenShells = new WeakSet(); this.drawVisible = null; this.pendingScorches = [];
   }
-  // Called before every 50 ms tick: the next frames blend from these poses to the new state.
+  // Props bucketed by tile row, so a frame visits only the rows on screen.
+  propRowsFor(state) {
+    if (this.propRowsSource !== this.rockProps || this.propRowsCount !== this.rockProps.length || this.propRows.length !== state.height) {
+      this.propRows = Array.from({ length: state.height }, () => []);
+      for (const prop of this.rockProps) this.propRows[Math.max(0, Math.min(state.height - 1, Math.floor(prop.y)))].push(prop);
+      this.propRowsSource = this.rockProps; this.propRowsCount = this.rockProps.length;
+    }
+    return this.propRows;
+  }
+  // main.js calls this before every fixed tick; the frames until the next tick blend from these
+  // poses to the new state using the scheduler's leftover time (renderer.pendingTime).
   snapshot(state) {
-    const visible = state.visible?.[0], width = state.width;
+    const visible = state.visible?.[0], width = state.width, time = state.time;
+    if (state !== this.poseState) { this.poses.clear(); this.poseState = state; }
     for (const e of state.entities) {
       if (e.kind !== 'unit' || !(e.hp > 0)) continue;
       let pose = this.poses.get(e.id);
-      if (!pose) { pose = { x: 0, y: 0, angle: 0, seen: false, time: 0 }; this.poses.set(e.id, pose); }
-      pose.x = e.x; pose.y = e.y; pose.angle = e.angle || 0; pose.time = state.time;
+      if (!pose) { pose = { x: 0, y: 0, angle: 0, seen: false, time: NaN, ax: NaN, ay: NaN, aa: NaN }; this.poses.set(e.id, pose); }
+      pose.x = e.x; pose.y = e.y; pose.angle = e.angle || 0; pose.time = time;
       // An enemy blends only from a cell the player could see at that moment.
       pose.seen = e.team === 0 || !visible || !!visible[Math.floor(e.y) * width + Math.floor(e.x)];
     }
-    if (this.poses.size > state.entities.length + 256) for (const [id, pose] of this.poses) if (pose.time !== state.time) this.poses.delete(id);
-    this.poseState = state; this.poseTime = state.time;
+    if (this.poses.size > state.entities.length + 256) for (const [id, pose] of this.poses) if (pose.time !== time) this.poses.delete(id);
+    this.poseTime = time; this.afterTime = NaN;
   }
-  // The pose the last frame drew, for selection and hit tests that must match what the player sees.
+  // The first frame after a tick records where the tick left every unit. A body moved by anything
+  // other than that tick (a fixture, a load) then snaps to its true position instead of blending.
+  settlePoses(state) {
+    if (this.afterTime === state.time) return;
+    this.afterTime = state.time;
+    for (const e of state.entities) {
+      if (e.kind !== 'unit') continue;
+      const pose = this.poses.get(e.id);
+      if (pose && pose.time === this.poseTime) { pose.ax = e.x; pose.ay = e.y; pose.aa = e.angle || 0; }
+    }
+  }
+  // The pose the last frame drew, so selection and hit tests match what the player sees.
   poseOf(e) {
-    if (e.kind !== 'unit' || this.drawLag <= 0) return e;
-    return this.unitPose(e, null) || e;
+    return e.kind === 'unit' && this.blending ? this.unitPose(e, this.drawVisible) : e;
   }
   unitPose(e, visible) {
-    const pose = this.poses.get(e.id);
-    if (!pose || pose.time !== this.poseTime || this.poseState === null) return null;
-    if (e.team !== 0) {
-      const now = visible ?? this.drawVisible;
-      if (!pose.seen || now && !now[Math.floor(e.y) * this.drawWidth + Math.floor(e.x)]) return null;
-    }
+    const pose = this.poses.get(e.id), angle = e.angle || 0;
+    if (!pose || pose.time !== this.poseTime || pose.ax !== e.x || pose.ay !== e.y || pose.aa !== angle) return e;
+    if (e.team !== 0 && (!pose.seen || visible && !visible[Math.floor(e.y) * this.drawWidth + Math.floor(e.x)])) return e;
     const dx = e.x - pose.x, dy = e.y - pose.y;
     // Teleports and long corrections snap rather than sweep across the map.
-    if (dx * dx + dy * dy > 4 || (!dx && !dy && pose.angle === e.angle)) return null;
-    const t = this.drawAlpha;
+    if (dx * dx + dy * dy > 4 || !dx && !dy && pose.angle === angle) return e;
+    const t = this.blendAlpha;
     let proxy = this.proxies.get(e);
     if (!proxy) { proxy = Object.create(e); this.proxies.set(e, proxy); }
     proxy.x = pose.x + dx * t; proxy.y = pose.y + dy * t;
-    proxy.angle = pose.angle + shortestArc((e.angle || 0) - pose.angle) * t;
+    proxy.angle = pose.angle + shortestArc(angle - pose.angle) * t;
     return proxy;
   }
   resize() {
@@ -699,6 +803,7 @@ export class Renderer {
     this.rockProps = []; this.propRows = []; this.lavaPools = [];
     this.rememberedBuildings.clear(); this.unitPositions?.clear();
     this.seenEffects = new WeakSet(); this.lastMinimap = -Infinity;
+    if (this.vignette) this.vignette.width = this.vignette.height = 0;
     this.vignette = null; this.resetFrameState();
     releaseRenderSprites(); releaseSpriteOverlays();
   }
@@ -863,10 +968,8 @@ export class Renderer {
       }
     }
     }
-    // Explicitly release the noise bake, and bucket props by row so each frame visits only the rows on screen.
+    // The noise bake is only needed for the colours above; release its store now.
     base.width = base.height = 0;
-    this.propRows = Array.from({ length: state.height }, () => []);
-    for (const prop of this.rockProps) this.propRows[Math.max(0, Math.min(state.height - 1, Math.floor(prop.y)))].push(prop);
     yield { value: .68, label: 'Filling the lava basins' };
     yield* this.lavaSteps(state);
     yield { value: 1, label: 'Battlefield ready' };
@@ -1082,10 +1185,12 @@ export class Renderer {
     this.heatExplored = count;
     const c = this.heat.getContext('2d');
     c.clearRect(0, 0, this.heat.width, this.heat.height);
-    c.filter = 'blur(1.6px)'; c.fillStyle = '#ff7a26';
     c.beginPath();
     for (const pool of this.lavaPools) for (let j = 0; j < pool.cells.length; j++) if (!explored || explored[pool.cells[j]]) c.rect(pool.cx[j] * 2, pool.cy[j] * 2, 2, 2);
-    c.fill(); c.filter = 'none';
+    c.filter = 'blur(1.1px)'; c.fillStyle = '#ff7a26'; c.fill(); c.filter = 'none';
+    // The molten surface is already bright: keep most of the light on the surrounding banks.
+    c.globalCompositeOperation = 'destination-out'; c.globalAlpha = .7; c.fill();
+    c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
   }
 
   // Molten surfaces animate with simulation time only inside current vision. Pools outside the
@@ -1143,7 +1248,7 @@ export class Renderer {
     ctx.globalAlpha = .62; ctx.fillStyle = '#ffbe6a'; ctx.fill(); ctx.globalAlpha = 1;
   }
 
-  drawDecals(state, visible, time) {
+  drawDecals(state, visible, time, clock = time) {
     const ctx = this.decals.getContext('2d');
     if (time - this.lastDecalFade > 8) {
       ctx.save(); ctx.globalCompositeOperation = 'destination-out';
@@ -1179,57 +1284,91 @@ export class Renderer {
     }
     for (const id of this.unitPositions.keys()) if (!currentlySeen.has(id)) this.unitPositions.delete(id);
     for (const fx of state.effects || []) {
+      if (fx.type === 'shell') {
+        // A visible landing raises a small dust burst when the shell arrives; barrage shells land as blasts.
+        if (this.seenShells.has(fx)) continue;
+        this.seenShells.add(fx);
+        const target = Math.floor(fx.ty) * state.width + Math.floor(fx.tx);
+        if (visible && !visible[target] || !Number.isFinite(fx.tx)) continue;
+        if (state.effects.some(o => o.type === 'explosion' && o.weapon === 'artillery' && o.x === fx.tx && o.y === fx.ty)) continue;
+        const land = state.time + Math.max(0, fx.life || 0);
+        this.addParticle({ kind: 'impact', born: land, life: .55, x: fx.tx * TILE, y: fx.ty * TILE, gate: target, seed: noise(fx.tx, fx.ty, this.seed) });
+        this.addShake(land, fx.tx, fx.ty, .45);
+        continue;
+      }
       if (fx.type !== 'explosion' || this.seenEffects.has(fx)) continue;
       const i = Math.floor(fx.y) * state.width + Math.floor(fx.x);
       if (visible && !visible[i]) continue;
       // Once seen, a blast keeps playing even if the dying unit's own sight collapses.
       this.seenEffects.add(fx);
-      const x = fx.x * TILE, y = fx.y * TILE, radius = 19 * Math.sqrt(fx.size || 1);
-      stamp(ctx, radialSprite([0, '#0e161de0', .45, '#19202790', 1, '#19202700']), x, y, radius, radius * .75);
-      for (let j = 0; j < 12; j++) {
-        const a = noise(x, j, this.seed) * Math.PI * 2, r = radius * (.4 + noise(j, y) * .9);
-        const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r * .7;
-        line(ctx, dx, dy, dx + Math.cos(a) * 6, dy + Math.sin(a) * 3, '#19202766', 1 + j % 3);
-        if ((fx.size || 1) > 1) rect(ctx, dx, dy, 2 + j % 4, 1 + j % 3, '#292c2bcc');
+      const born = state.time - Math.max(0, (fx.maxLife || .6) - (fx.life || 0));
+      // The simulation applies barrage damage at launch; the blast and its scorch wait for the shell to land.
+      if (fx.weapon === 'artillery') {
+        const land = born + SHELL_FLIGHT;
+        this.pendingScorches.push({ born: land, fx });
+        this.addParticle({ kind: 'blast', born: land, life: .5, x: fx.x * TILE, y: fx.y * TILE - 3, size: fx.size || .8, gate: i, sx: fx.x, sy: fx.y });
+        this.blast(state, fx, ctx, land);
+      } else {
+        this.scorch(ctx, fx);
+        this.blast(state, fx, ctx, born);
       }
-      this.blast(state, fx, ctx);
+    }
+    if (this.pendingScorches.length) {
+      let keep = 0;
+      for (const pending of this.pendingScorches) {
+        if (pending.born > clock) this.pendingScorches[keep++] = pending;
+        else if (!visible || visible[Math.floor(pending.fx.y) * state.width + Math.floor(pending.fx.x)]) this.scorch(ctx, pending.fx);
+      }
+      this.pendingScorches.length = keep;
+    }
+  }
+
+  scorch(ctx, fx) {
+    const x = fx.x * TILE, y = fx.y * TILE, radius = 19 * Math.sqrt(fx.size || 1);
+    stamp(ctx, radialSprite([0, '#0e161de0', .45, '#19202790', 1, '#19202700']), x, y, radius, radius * .75);
+    for (let j = 0; j < 12; j++) {
+      const a = noise(x, j, this.seed) * Math.PI * 2, r = radius * (.4 + noise(j, y) * .9);
+      const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r * .7;
+      line(ctx, dx, dy, dx + Math.cos(a) * 6, dy + Math.sin(a) * 3, '#19202766', 1 + j % 3);
+      if ((fx.size || 1) > 1) rect(ctx, dx, dy, 2 + j % 4, 1 + j % 3, '#292c2bcc');
     }
   }
 
   // A newly seen explosion: debris, a wreck or burnt foundation for the body that just left play,
-  // and staggered secondary bursts with a short smoke column for a destroyed structure. Everything is
-  // derived from what the player saw; deaths in fog leave nothing.
-  blast(state, fx, decals) {
-    const born = state.time - Math.max(0, (fx.maxLife || .6) - (fx.life || 0)), size = fx.size || 1;
-    const seed = noise(fx.x * 13.1, fx.y * 7.7, this.seed);
+  // staggered secondary bursts with a short smoke column for a destroyed structure, and a shake.
+  // Everything derives from what the player saw; deaths in fog leave nothing.
+  blast(state, fx, decals, born) {
+    const size = fx.size || 1, seed = noise(fx.x * 13.1, fx.y * 7.7, this.seed);
     let body = null;
     if (!fx.weapon) {
-      let best = .8;
-      for (const record of this.lastSeen.values()) {
-        const live = this.byId.get(record.id);
-        if (live && live.hp > 0) continue;
-        const d = Math.hypot(record.cx - fx.x, record.cy - fx.y);
-        if (d < best) { best = d; body = record; }
+      // A death explosion sits exactly on the centre of a body observed on the previous tick.
+      for (const e of this.bodies) {
+        if (e.hp > 0) continue;
+        const n = e.kind === 'building' ? e.size / 2 : 0;
+        if (Math.abs(e.x + n - fx.x) < 1e-6 && Math.abs(e.y + n - fx.y) < 1e-6) { body = e; break; }
       }
-      if (body) this.lastSeen.delete(body.id);
     }
-    const structure = body?.kind === 'building' && body.role !== 'wall', vehicle = body?.kind === 'unit' && !body.infantry;
-    const x = fx.x * TILE, y = fx.y * TILE;
+    const role = body && entityRole(body), structure = body?.kind === 'building' && role !== 'wall';
+    const vehicle = body?.kind === 'unit' && !isInfantry(body), x = fx.x * TILE, y = fx.y * TILE;
+    this.addShake(born, fx.x, fx.y, fx.weapon ? fx.weapon === 'artillery' ? .9 : fx.weapon === 'rocketTower' ? .5 : .25
+      : structure ? 2 + body.size * .9 : vehicle ? 1.6 : 1);
     const debris = Math.min(18, Math.round((body ? structure ? 9 + size * 3 : vehicle ? 8 : 4 : 3) * (fx.weapon ? .8 : 1)));
     for (let j = 0; j < debris; j++) {
       const a = noise(seed * 91 + j, 3.1, this.seed) * Math.PI * 2, speed = (24 + noise(j, seed * 57, this.seed) * 46) * Math.sqrt(size);
-      this.addParticle({ kind: 'debris', born, life: .7 + noise(seed, j, this.seed) * .5, x, y: y + 2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed * .62,
-        vz: 60 + noise(j * 3, seed, this.seed) * 70, size: (structure || vehicle ? 1.6 : 1.1) + noise(j, 9, this.seed) * 1.6, seed: noise(j, seed, this.seed),
+      const vz = 55 + noise(j * 3, seed, this.seed) * 75;
+      this.addParticle({ kind: 'debris', born, life: 2 * vz / GRAVITY + .45, x, y: y + 2, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed * .62, vz,
+        size: (structure || vehicle ? 1.6 : 1.1) + noise(j, 9, this.seed) * 1.6,
         color: body ? j % 3 ? '#2b2c2c' : body.team === 1 ? '#8f3b40' : '#9aa3a2' : j % 2 ? '#4c463d' : '#2d2b28' });
     }
     if (!body) return;
-    if (vehicle || structure || body.role === 'wall') this.stampWreck(decals, body);
+    if (vehicle || body.kind === 'building') this.stampWreck(decals, body);
     if (!structure) return;
-    // Staggered secondary bursts across the footprint, then a brief smoke column that thins out.
     const half = body.size * TILE / 2, bursts = 2 + body.size;
     for (let j = 0; j < bursts; j++) {
-      this.addParticle({ kind: 'burst', born: born + .16 + j * (.62 / bursts) + noise(j, seed, this.seed) * .08, life: .42,
-        x: x + (noise(j, 5, seed) - .5) * half * 1.3, y: y + (noise(j, 6, seed) - .5) * half * 1.1, size: .55 + noise(j, 7, seed) * .35 });
+      const at = born + .16 + j * (.62 / bursts) + noise(j, seed, this.seed) * .08;
+      const bx = x + (noise(j, 5, seed) - .5) * half * 1.3, by = y + (noise(j, 6, seed) - .5) * half * 1.1;
+      this.addParticle({ kind: 'blast', born: at, life: .42, x: bx, y: by, size: .55 + noise(j, 7, seed) * .35, sx: bx + j, sy: by - j });
+      this.addShake(at, bx / TILE, by / TILE, .7);
     }
     for (let j = 0; j < 10; j++) {
       this.addParticle({ kind: 'smoke', born: born + .3 + j * .26, life: 2.6, x: x + (noise(j, 8, seed) - .5) * half * .7, y: y - half * .2,
@@ -1239,21 +1378,259 @@ export class Renderer {
 
   addParticle(particle) {
     // A bounded pool: during a mass battle the oldest debris yields to new blasts.
-    if (this.particles.length >= 900) this.particles.splice(0, this.particles.length - 899);
+    if (this.particles.length >= PARTICLE_LIMIT) this.particles.splice(0, this.particles.length - PARTICLE_LIMIT + 1);
     this.particles.push(particle);
+  }
+
+  addShake(born, x, y, amplitude) {
+    this.shakes.push({ born, x, y, amplitude, seed: noise(x, y, born) * 40 });
+    if (this.shakes.length > 48) this.shakes.shift();
+  }
+
+  // Screen shake is a render-only offset: it is off under prefers-reduced-motion or view.screenShake === false,
+  // follows the drawn clock (so a paused frame stays still) and fades with distance from the camera.
+  updateShake(view, clock) {
+    this.shakeX = this.shakeY = 0;
+    if (view.screenShake === false || this.reducedMotion?.matches) { this.shakes.length = 0; return; }
+    const reach = Math.max(this.width, this.height) * .6, zoom = Math.min(1.25, Math.max(.45, view.zoom / TILE));
+    let x = 0, y = 0, keep = 0;
+    for (const shake of this.shakes) {
+      const age = clock - shake.born;
+      if (age > SHAKE_LENGTH) continue;
+      this.shakes[keep++] = shake;
+      if (age < 0) continue;
+      const dx = (shake.x - view.x) * view.zoom / reach, dy = (shake.y - view.y) * view.zoom / reach;
+      const amplitude = shake.amplitude * zoom * (1 - age / SHAKE_LENGTH) ** 2 / (1 + (dx * dx + dy * dy) ** 2);
+      x += Math.sin(age * 71 + shake.seed) * amplitude; y += Math.cos(age * 59 + shake.seed * 1.3) * amplitude * .8;
+    }
+    this.shakes.length = keep;
+    this.shakeX = Math.max(-SHAKE_LIMIT, Math.min(SHAKE_LIMIT, x)); this.shakeY = Math.max(-SHAKE_LIMIT, Math.min(SHAKE_LIMIT, y));
   }
 
   // A darkened, slightly offset silhouette of the last seen frame fades with the other ground decals.
   stampWreck(ctx, body) {
     const n = body.kind === 'building' ? body.size / 2 : 0, x = (body.x + n) * TILE, y = (body.y + n) * TILE;
-    const ghost = { type: body.type, team: 0, kind: body.kind, angle: body.angle, size: body.size, progress: 1, moving: false, id: body.id, wallConnections: body.wallConnections };
+    const ghost = { type: body.type, team: 0, kind: body.kind, angle: body.angle, size: body.size, progress: 1, moving: false, id: body.id,
+      wallConnections: body.wallConnections };
     const matrix = ctx.getTransform();
-    ctx.save();
-    for (const [dx, dy, color, alpha] of body.kind === 'building' ? [[3, 4, '#0b0d0f', .3], [0, 0, '#16181a', .5]] : [[2.5, 3.5, '#0b0d0f', .34], [0, 0, '#17191a', .74], [-.6, -.8, '#3a2c22', .16]]) {
+    const layers = body.kind === 'building' ? [[3, 4, WRECK, .3], [0, 0, WRECK, .5], [-.8, -1, EMBER, .12]]
+      : [[2.5, 3.5, WRECK, .3], [0, 0, WRECK, .62], [-.6, -.8, EMBER, .16]];
+    for (const [dx, dy, color, alpha] of layers) {
       ctx.setTransform(matrix); ctx.translate(x + dx, y + dy); ctx.globalAlpha = alpha;
       drawSpriteOverlay(ctx, ghost, 0, color);
+      // A faint trace of the hull's own panels keeps the husk reading as wreckage, not a hole.
+      if (dx === 0) { ctx.globalAlpha = body.kind === 'building' ? .12 : .2; drawSprite(ctx, { ...ghost, team: body.team }, 0); }
     }
-    ctx.restore();
+    ctx.setTransform(matrix); ctx.globalAlpha = 1;
+  }
+
+  // Event-driven flourishes for things the player can see: field patches and promotions.
+  readEvents(state, visible) {
+    const events = state.events || [];
+    if (state !== this.eventState) { this.eventState = state; this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null; return; }
+    let start = this.eventCount;
+    if (start > events.length || start > 0 && events[start - 1] !== this.lastEvent) {
+      const found = this.lastEvent ? events.lastIndexOf(this.lastEvent) : -1;
+      start = found >= 0 ? found + 1 : events.length;
+    }
+    for (let i = start; i < events.length; i++) {
+      const event = events[i];
+      if (!Number.isFinite(event.x) || !Number.isFinite(event.y)) continue;
+      const seen = event.team === 0 || !visible || visible[Math.floor(event.y) * state.width + Math.floor(event.x)];
+      if (!seen) continue;
+      if (event.kind === 'ability' && event.ability === 'fieldPatch') {
+        this.addParticle({ kind: 'patch', born: event.time, life: 1, x: event.x * TILE, y: event.y * TILE, r: (ABILITIES.engineer.reach || 4) * TILE });
+      } else if (event.kind === 'promotion') {
+        this.addParticle({ kind: 'promote', born: event.time, life: 1.3, x: event.x * TILE, y: event.y * TILE, rank: event.rank || 1 });
+      }
+    }
+    this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null;
+  }
+
+  drawParticles(ctx, clock, visible) {
+    let keep = 0;
+    for (const p of this.particles) {
+      const age = clock - p.born;
+      if (age >= p.life) continue;
+      this.particles[keep++] = p;
+      if (age < 0 || p.gate !== undefined && visible && !visible[p.gate]) continue;
+      const k = age / p.life;
+      if (p.kind === 'debris') {
+        const land = 2 * p.vz / GRAVITY, t = Math.min(age, land), z = Math.max(0, p.vz * t - GRAVITY * t * t / 2);
+        const gx = p.x + p.vx * t, gy = p.y + p.vy * t, fade = age < land ? 1 : 1 - (age - land) / (p.life - land);
+        ctx.globalAlpha = fade * .5 * (1 - Math.min(.7, z / 90));
+        rect(ctx, gx - .6, gy, p.size + 1.2, p.size * .55, '#0b0e10');
+        ctx.globalAlpha = fade;
+        rect(ctx, gx, gy - z - p.size * .8, p.size, p.size * .8, p.color);
+      } else if (p.kind === 'blast') {
+        explosion(ctx, p.x, p.y, p.size, k, 1 - k, p.sx, p.sy);
+      } else if (p.kind === 'smoke') {
+        const drift = Math.sin(clock * .4 + p.seed * 6) * 4 + age * 7, r = p.size * (.6 + k * .9);
+        ctx.globalAlpha = Math.sin(k * Math.PI) * .34;
+        stamp(ctx, radialSprite(SOOT), p.x + drift, p.y - age * 26, r, r);
+      } else if (p.kind === 'impact') {
+        const r = 4 + k * 14;
+        ctx.globalAlpha = (1 - k) * .55;
+        stamp(ctx, radialSprite(SOOT), p.x + k * 3, p.y - k * 8, r * .8, r * .7);
+        if (k < .35) { ctx.globalAlpha = (1 - k / .35) * .8; glow(ctx, p.x, p.y - 2, 9, '#ffc2788f'); }
+        ctx.globalAlpha = (1 - k) * .45; ctx.strokeStyle = '#e6caaa'; ctx.lineWidth = .8;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y + 2, r * 1.2, r * .7, 0, 0, Math.PI * 2); ctx.stroke();
+      } else if (p.kind === 'patch') {
+        // An expanding service ring at the engineer's reach and rising repair glints.
+        ctx.globalAlpha = (1 - k) * .55; ctx.strokeStyle = '#a7e3dc'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, p.r * (.25 + k * .75), p.r * (.25 + k * .75) * .7, 0, 0, Math.PI * 2); ctx.stroke();
+        for (let j = 0; j < 8; j++) {
+          const a = j / 8 * Math.PI * 2 + noise(j, p.x) * .6, d = p.r * (.18 + noise(j, p.y) * .45), s = 2.5 * (1 - k) + 1;
+          const x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d * .7 - k * 16;
+          ctx.globalAlpha = Math.sin(Math.min(1, k * 1.4) * Math.PI) * .9;
+          rect(ctx, x - s, y - .5, s * 2, 1, '#ffe3a8'); rect(ctx, x - .5, y - s, 1, s * 2, '#ffe3a8');
+        }
+      } else if (p.kind === 'promote') {
+        // Gold chevrons rise once over a promoted unit the player can see.
+        const y = p.y - 18 - k * 14;
+        ctx.globalAlpha = Math.sin(Math.min(1, k * 1.3) * Math.PI) * .95;
+        glow(ctx, p.x, y, 9, '#ffd27a70');
+        for (let j = 0; j < p.rank; j++) polygon(ctx, [[p.x - 5, y + j * 3.4], [p.x, y - 3 + j * 3.4], [p.x + 5, y + j * 3.4], [p.x + 5, y + 1.6 + j * 3.4], [p.x, y - 1.4 + j * 3.4], [p.x - 5, y + 1.6 + j * 3.4]], '#e4b975');
+      }
+    }
+    this.particles.length = keep;
+    ctx.globalAlpha = 1;
+  }
+
+  // Screen-space ash-fall in three sparse layers. Gusts integrate analytically, so every mote is a pure
+  // function of the drawn clock and camera: paused frames hold still and nothing depends on fog.
+  drawAsh(ctx, view, clock) {
+    const w = this.width + 40, h = this.height + 40, count = Math.round(Math.min(110, this.width * this.height / 13000));
+    if (count <= 0) return;
+    const calm = this.reducedMotion?.matches ? .35 : 1;
+    const gust = (12 * clock - 9 * Math.cos(clock * .21) / .21 - 5 * Math.cos(clock * .53 + 1.7) / .53) * calm;
+    const panX = view.x * view.zoom, panY = view.y * view.zoom;
+    let first = 0;
+    for (const layer of ASH_LAYERS) {
+      const n = Math.round(count * layer.share);
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const seed = first + i, phase = noise(seed, 7, 23) * 6.283;
+        const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6 * calm) % w + w) % w - 20;
+        const y = ((noise(seed, 5, 19) * h + clock * layer.fall * calm - panY * layer.parallax) % h + h) % h - 20;
+        ctx.rect(x, y, layer.size, layer.size * .6);
+      }
+      first += n;
+      ctx.globalAlpha = layer.alpha; ctx.fillStyle = '#dccfb8'; ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Objectives: zone rings with pulsing beacons for active goals. Zones are static mission points the
+  // operation deliberately reveals, so they show through fog.
+  zoneGoals(state) {
+    const mission = state.mission;
+    if (!mission?.zones?.length) return null;
+    if (this.goalSource !== mission.id) {
+      let definitions = [];
+      try { definitions = missionDefinition(mission.id).objectives || []; } catch { definitions = []; }
+      this.goalZones = new Map(definitions.filter(d => typeof d.zone === 'string').map(d => [d.id, d.zone]));
+      this.goalSource = mission.id;
+    }
+    const goals = new Map();
+    for (const objective of mission.objectives || []) {
+      const zone = this.goalZones.get(objective.id);
+      if (!zone || objective.revealed === false) continue;
+      if (objective.state === 'active' || !goals.has(zone)) goals.set(zone, objective.state);
+    }
+    return goals;
+  }
+
+  drawMissionMarkers(state, view, clock) {
+    const goals = this.zoneGoals(state);
+    if (!goals) return;
+    const ctx = this.ctx;
+    for (const zone of state.mission.zones) {
+      const p = this.worldToScreen(zone.x, zone.y, view), r = Math.max(6, zone.r * view.zoom);
+      if (p.x + r < -40 || p.y + r < -40 || p.x - r > this.width + 40 || p.y - r > this.height + 40) continue;
+      const goal = goals.get(zone.id), active = goal === 'active', color = active ? '#e2b67e' : goal === 'done' ? '#8dccca' : '#97acb1';
+      ctx.globalAlpha = active ? .07 : .035; ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = active ? .85 : .5; ctx.strokeStyle = color; ctx.lineWidth = active ? 1.4 : 1;
+      ctx.setLineDash([7, 6]); ctx.lineDashOffset = active ? -clock * 5 : 0; ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+      if (active) {
+        // A slow pulse ring and a short light mast mark the objective without flooding the ground.
+        const k = clock * .45 % 1;
+        ctx.globalAlpha = (1 - k) * .55; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * k, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = .85;
+        stamp(ctx, radialSprite([0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00']), p.x, p.y - 15, 3.5, 17);
+        polygon(ctx, [[p.x, p.y - 33], [p.x + 4, p.y - 28], [p.x, p.y - 23], [p.x - 4, p.y - 28]], '#e2b67e', '#142027');
+      }
+      const label = labelSprite(String(zone.label || zone.id), color);
+      ctx.globalAlpha = active ? .95 : .7;
+      ctx.drawImage(label, Math.round(p.x - label.width / 4), Math.round(p.y - r - 18), label.width / 2, label.height / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Named sites appear only on explored ground.
+  drawSiteLabels(state, view, explored) {
+    const ctx = this.ctx;
+    for (const site of state.sites || []) {
+      if (!Number.isFinite(site.x) || !Number.isFinite(site.y)) continue;
+      if (explored && !explored[Math.floor(site.y) * state.width + Math.floor(site.x)]) continue;
+      const p = this.worldToScreen(site.x, site.y, view);
+      if (p.x < -80 || p.y < -20 || p.x > this.width + 80 || p.y > this.height + 20) continue;
+      const label = labelSprite(String(site.name || site.id), '#c4d2cf', '500 9px monospace');
+      ctx.globalAlpha = .78;
+      polygon(ctx, [[p.x, p.y - 3.5], [p.x + 3.5, p.y], [p.x, p.y + 3.5], [p.x - 3.5, p.y]], '#142027d0', '#97acb1');
+      ctx.drawImage(label, Math.round(p.x - label.width / 4), Math.round(p.y + 6), label.width / 2, label.height / 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Own abilities: flare reveal rings, barrage target reticles, and the ground-targeting preview.
+  drawAbilityMarkers(state, view, clock, ownUnits) {
+    const ctx = this.ctx, flare = ABILITIES.scout.duration || 12;
+    for (const reveal of state.reveals || []) {
+      if (reveal.team !== 0) continue;
+      const remaining = reveal.until - clock, age = flare - remaining;
+      if (remaining <= 0 || age < 0) continue;
+      const p = this.worldToScreen(reveal.x, reveal.y, view), grow = 1 - (1 - Math.min(1, age / .6)) ** 3, r = reveal.r * view.zoom * grow;
+      ctx.globalAlpha = Math.min(1, remaining / 1.5) * .6; ctx.strokeStyle = '#f3dfae'; ctx.lineWidth = 1;
+      ctx.setLineDash([2, 6]); ctx.lineDashOffset = clock * 3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    }
+    for (const e of ownUnits) {
+      const b = e.barrage;
+      if (e.team !== 0 || !b) continue;
+      const p = this.worldToScreen(b.x, b.y, view), r = Math.max(7, (ABILITIES.artillery.scatter || 1.2) * view.zoom);
+      const beat = .5 + Math.sin(clock * 9) * .5;
+      ctx.globalAlpha = .55 + beat * .3; ctx.strokeStyle = '#e8a46f'; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+      for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) line(ctx, p.x + Math.cos(a) * (r - 4), p.y + Math.sin(a) * (r - 4), p.x + Math.cos(a) * (r + 5), p.y + Math.sin(a) * (r + 5), '#e8a46f', 1.3);
+      for (let i = 0; i < b.shots; i++) rect(ctx, p.x - b.shots * 3 + i * 6 + 1, p.y + r + 6, 4, 2.5, '#f3c48d');
+    }
+    const preview = view.abilityPreview;
+    if (preview && Number.isFinite(preview.x) && Number.isFinite(preview.y)) {
+      const p = this.worldToScreen(preview.x, preview.y, view), r = Math.max(6, (preview.radius || 1) * view.zoom), color = preview.valid === false ? '#e39881' : '#a8dcd9';
+      ctx.globalAlpha = .8; ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+      line(ctx, p.x - 6, p.y, p.x + 6, p.y, color, 1.2); line(ctx, p.x, p.y - 6, p.x, p.y + 6, color, 1.2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  vignetteImage() {
+    // One small radial-gradient bake per viewport size, stretched every frame.
+    const key = `${this.width}x${this.height}`;
+    if (this.vignette && this.vignetteKey === key) return this.vignette;
+    if (this.vignette) this.vignette.width = this.vignette.height = 0;
+    const k = VIGNETTE_STEP, c = document.createElement('canvas'), w = this.width / k, h = this.height / k;
+    c.width = Math.ceil(w); c.height = Math.ceil(h);
+    const g = c.getContext('2d'), gradient = g.createRadialGradient(w / 2, h / 2, w * .2, w / 2, h / 2, w * .72);
+    gradient.addColorStop(0, '#07111c00'); gradient.addColorStop(1, '#07111c38');
+    g.fillStyle = gradient; g.fillRect(0, 0, c.width, c.height);
+    this.vignette = c; this.vignetteKey = key;
+    return c;
   }
 
   // Visibility changes only inside a simulation tick, so frames between ticks skip the comparison.
@@ -1287,70 +1664,118 @@ export class Renderer {
   draw(state, view) {
     if (this.terrainSource !== state.terrain) this.createTerrain(state);
     const ctx = this.ctx, zoom = view.zoom, scale = zoom / TILE, time = state.time || 0;
+    const visible = state.visible?.[0], explored = state.explored?.[0], W = state.width;
+    // Units blend between the last two ticks; effects and animation follow the same lagged clock.
+    this.blending = state === this.poseState && time > this.poseTime && time - this.poseTime < .25;
+    if (this.blending) {
+      this.settlePoses(state);
+      this.blendAlpha = Math.max(0, Math.min(1, this.pendingTime / (time - this.poseTime)));
+      this.drawLag = (1 - this.blendAlpha) * (time - this.poseTime);
+    } else { this.blendAlpha = 1; this.drawLag = 0; }
+    const clock = time - this.drawLag, lag = this.drawLag;
+    this.drawVisible = visible; this.drawWidth = W;
     const commandAge = view.commandMarker ? performance.now() / 1000 - view.commandMarker.time : -1;
     const attackPulse = view.commandMarker?.type === 'attack' && commandAge >= 0 && commandAge < .85
       ? Math.max(0, Math.cos(commandAge / .85 * Math.PI * 6)) * (1 - commandAge / .85) : 0;
-    const left = this.width / 2 - view.x * zoom, top = this.height / 2 - view.y * zoom;
-    const visible = state.visible?.[0], explored = state.explored?.[0];
     const entityVisible = (e) => {
       if (!visible) return true;
       if (e.kind === 'building') {
         for (let y = Math.floor(e.y); y < e.y + e.size; y++) for (let x = Math.floor(e.x); x < e.x + e.size; x++) {
-          if (x >= 0 && y >= 0 && x < state.width && y < state.height && visible[y * state.width + x]) return true;
+          if (x >= 0 && y >= 0 && x < W && y < state.height && visible[y * W + x]) return true;
         }
         return false;
       }
-      return !!visible[Math.floor(e.y) * state.width + Math.floor(e.x)];
+      return !!visible[Math.floor(e.y) * W + Math.floor(e.x)];
     };
+    if (this.byIdSource !== state.entities || this.byIdLength !== state.entities.length) {
+      this.byId.clear(); for (const e of state.entities) this.byId.set(e.id, e);
+      this.byIdSource = state.entities; this.byIdLength = state.entities.length;
+    }
+    const fogChanged = visible && explored ? this.updateFog(state) : false;
+    if (this.heat && (fogChanged || this.heatExplored < 0)) this.updateHeat(state, explored);
+    this.readEvents(state, visible);
+    this.updateShake(view, clock);
+    const left = this.width / 2 - view.x * zoom + this.shakeX, top = this.height / 2 - view.y * zoom + this.shakeY;
     const knownWalls = new Map();
     for (const e of this.rememberedBuildings.values()) if (entityRole(e) === 'wall' && !entityVisible(e)) knownWalls.set(wallKey(e), e);
     for (const e of state.entities) if (e.hp > 0 && entityRole(e) === 'wall' && (e.team === 0 || entityVisible(e))) knownWalls.set(wallKey(e), e);
     const wallVisual = e => entityRole(e) === 'wall' ? { ...e, wallConnections: wallConnections(e, knownWalls) } : e;
     const x0 = Math.max(0, Math.floor(view.x - this.width / zoom / 2) - 2);
     const y0 = Math.max(0, Math.floor(view.y - this.height / zoom / 2) - 3);
-    const x1 = Math.min(state.width, Math.ceil(view.x + this.width / zoom / 2) + 2);
+    const x1 = Math.min(W, Math.ceil(view.x + this.width / zoom / 2) + 2);
     const y1 = Math.min(state.height, Math.ceil(view.y + this.height / zoom / 2) + 3);
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     rect(ctx, 0, 0, this.width, this.height, '#0e1720');
-    ctx.drawImage(this.terrain, left, top, state.width * zoom, state.height * zoom);
-    this.drawDecals(state, visible, time);
-    ctx.drawImage(this.decals, left, top, state.width * zoom, state.height * zoom);
-    ctx.save(); ctx.translate(left, top); ctx.scale(scale, scale);
+    ctx.drawImage(this.terrain, left, top, W * zoom, state.height * zoom);
+    this.drawDecals(state, visible, time, clock);
+    ctx.drawImage(this.decals, left, top, W * zoom, state.height * zoom);
+    // World layers use one computed transform per body instead of a save/restore pair.
+    const a = this.dpr * scale, ox = this.dpr * left, oy = this.dpr * top;
+    const world = () => ctx.setTransform(a, 0, 0, a, ox, oy);
+    const at = (x, y) => ctx.setTransform(a, 0, 0, a, ox + a * x, oy + a * y);
+    world();
     this.drawLava(state, visible, time, x0, y0, x1, y1);
-    const rangeUnits = state.entities.filter(e => e.kind === 'unit' && e.team === 0 && e.hp > 0 && view.selected?.has(e.id) && UNITS[e.type].damage > 0);
+    if (this.heat && this.heatExplored > 0) {
+      // Low-resolution warm light on explored banks; it never animates, so fog keeps nothing live.
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .13; ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.heat, x0 * 2, y0 * 2, (x1 - x0) * 2, (y1 - y0) * 2, x0 * TILE, y0 * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    }
+    // Drawable bodies: friendly or currently visible, posed once per frame for every layer.
+    const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
+    const live = [], visibleUnits = [];
+    for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) {
+      const p = e.kind === 'unit' && this.blending ? this.unitPose(e, visible) : e;
+      // Off-screen orders still draw their visible route, but distant bodies do
+      // not need depth sorting with the small portion of the map on screen.
+      if (e.kind === 'unit') visibleUnits.push(p);
+      if (inView(p)) live.push(p);
+    }
+    if (state.time !== this.bodyTime || state !== this.bodyState) {
+      // Bodies the player could see on this tick; a death explosion next tick finds its wreck here.
+      this.bodies = state.entities.filter(e => e.hp > 0 && (e.team === 0 || entityVisible(e)) && e.kind !== 'rock');
+      this.bodyTime = state.time; this.bodyState = state;
+    }
+    const rangeUnits = visibleUnits.filter(e => e.team === 0 && view.selected?.has(e.id) && UNITS[e.type].damage > 0);
     if (rangeUnits.length) {
       const fade = 1 / Math.sqrt(rangeUnits.length);
-      ctx.save(); ctx.lineWidth = 1 / scale;
+      ctx.lineWidth = 1 / scale;
       for (const e of rangeUnits) {
-        const radius = unitRange(state, e) * TILE;
+        const radius = unitRange(state, e) * TILE, bonus = e.abilityUntil > time ? ABILITIES[unitRole(e)]?.range || 0 : 0;
         // Simulation distances are circles on the ground plane. Fade overlapping
         // selections and draw beneath units and fog, using friendly state only.
         ctx.beginPath(); ctx.arc(e.x * TILE, e.y * TILE, radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(141,204,202,${.016 / rangeUnits.length})`; ctx.fill();
         ctx.strokeStyle = `rgba(141,204,202,${.25 * fade})`; ctx.stroke();
+        if (bonus) {
+          // Long shot: the extended reach crawls in amber over the unboosted circle.
+          ctx.setLineDash([6 / scale, 5 / scale]); ctx.lineDashOffset = -clock * 12 / scale;
+          ctx.strokeStyle = `rgba(226,182,126,${.55 * fade})`; ctx.stroke();
+          ctx.setLineDash([]); ctx.lineDashOffset = 0;
+          ctx.beginPath(); ctx.arc(e.x * TILE, e.y * TILE, radius - bonus * TILE, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(141,204,202,${.12 * fade})`; ctx.stroke();
+        }
       }
-      ctx.restore();
     }
-    for (const prop of this.rockProps) {
+    const rows = this.propRowsFor(state);
+    for (let y = Math.max(0, y0 - 2); y <= Math.min(rows.length - 1, y1 + 2); y++) for (const prop of rows[y]) {
       if (prop.x < x0 - 2 || prop.x > x1 + 2 || prop.y < y0 - 2 || prop.y > y1 + 2) continue;
-      if (explored && !explored[Math.floor(prop.y) * state.width + Math.floor(prop.x)]) continue;
+      if (explored && !explored[Math.floor(prop.y) * W + Math.floor(prop.x)]) continue;
       drawPropShadow(ctx, prop.kind, prop.x * TILE, prop.y * TILE, prop.size, prop.variant);
     }
     // Ground shadows cannot cover neighbouring roofs or disclose enemies hidden by fog.
-    for (const e of state.entities) {
-      if (e.hp <= 0 || e.team !== 0 && !entityVisible(e)) continue;
-      if (e.x < x0 - 4 || e.x > x1 + 2 || e.y < y0 - 4 || e.y > y1 + 3) continue;
+    for (const e of live) {
       const n = e.kind === 'building' ? e.size / 2 : 0;
-      ctx.save(); ctx.translate((e.x + n) * TILE, (e.y + n) * TILE);
-      drawSpriteShadow(ctx, wallVisual(e), time);
-      ctx.restore();
+      at((e.x + n) * TILE, (e.y + n) * TILE);
+      drawSpriteShadow(ctx, wallVisual(e), clock);
     }
+    world();
     // Mineral knowledge refreshes wherever there is sensor coverage, not only inside the viewport.
     for (let i = 0; i < this.knownOre.length; i++) if (!visible || visible[i]) {
       this.knownOre[i] = state.minerals[i]; this.knownMineralTypes[i] = state.mineralTypes?.[i] || 1;
     }
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
-      const i = y * state.width + x;
+      const i = y * W + x;
       if (explored && !explored[i]) continue;
       const amount = this.knownOre[i];
       if (amount <= 0) continue;
@@ -1368,41 +1793,57 @@ export class Renderer {
         light(ctx, cx + n * 8, cy - 9, mineralType === 3 ? '#ffd3e0' : mineralType === 2 ? '#d6edff' : '#c4fff0');
       }
     }
+    // Flares light their own team's ground with a drifting parachute light; nothing here is hidden by it.
+    for (const reveal of state.reveals || []) {
+      if (reveal.team !== 0) continue;
+      const remaining = reveal.until - clock, total = ABILITIES.scout.duration || 12, age = total - remaining;
+      if (remaining <= 0 || age < 0) continue;
+      const x = reveal.x * TILE, y = reveal.y * TILE, flicker = .82 + Math.sin(clock * 19) * .1 + Math.sin(clock * 31) * .08;
+      const strength = Math.min(1, age / .4) * Math.min(1, remaining / 2) * flicker, height = 34 * (1 - age / total) + 6;
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .2 * strength;
+      glow(ctx, x, y, reveal.r * TILE * .45, '#fff1c8ff');
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = strength;
+      glow(ctx, x + Math.sin(clock * .7) * 4, y - height, 7, '#fff3d0d0');
+      rect(ctx, x + Math.sin(clock * .7) * 4 - 1, y - height - 1, 2, 2, '#fffaf0');
+      ctx.globalAlpha = 1;
+    }
     const powers = [powerStats(state, 0), powerStats(state, 1)];
-    const liveIds = new Set(state.entities.filter(e => e.hp > 0).map(e => e.id));
     for (const e of state.entities) if (e.hp > 0 && e.team === 1 && e.kind === 'building' && entityVisible(e)) {
       this.rememberedBuildings.set(e.id, { ...wallVisual(e), queue: (e.queue || []).map(item => ({ ...item })), research: e.research ? { ...e.research } : null,
         upgrade: e.upgrade ? { ...e.upgrade } : null, upgrades: e.upgrades ? { ...e.upgrades } : undefined,
         powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status, rememberedAt: time });
     }
-    for (const [id, e] of this.rememberedBuildings) if (!liveIds.has(id) && entityVisible(e)) this.rememberedBuildings.delete(id);
-    const inView = e => e.x >= x0 - 4 && e.x <= x1 + 2 && e.y >= y0 - 4 && e.y <= y1 + 3;
-    const entities = [], visibleUnits = [];
-    for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) {
-      // Off-screen orders still draw their visible route, but distant bodies do
-      // not need depth sorting with the small portion of the map on screen.
-      if (e.kind === 'unit') visibleUnits.push(e);
-      if (inView(e)) entities.push(e);
-    }
+    for (const [id, e] of this.rememberedBuildings) if (!(this.byId.get(id)?.hp > 0) && entityVisible(e)) this.rememberedBuildings.delete(id);
+    const entities = live.slice();
     for (const e of this.rememberedBuildings.values()) if (inView(e) && !entityVisible(e)) entities.push(e);
-    for (const prop of this.rockProps) if (prop.x >= x0 - 2 && prop.x < x1 + 2 && prop.y >= y0 - 2 && prop.y < y1 + 2) {
-      if (prop.kind === 'tree' && explored && !explored[Math.floor(prop.y) * state.width + Math.floor(prop.x)]) continue;
+    let trees = false;
+    for (let y = Math.max(0, y0 - 2); y <= Math.min(rows.length - 1, y1 + 2); y++) for (const prop of rows[y]) {
+      if (prop.x < x0 - 2 || prop.x >= x1 + 2 || prop.y < y0 - 2 || prop.y >= y1 + 2) continue;
+      if (prop.kind === 'tree') { if (explored && !explored[Math.floor(prop.y) * W + Math.floor(prop.x)]) continue; trees = true; }
       entities.push(prop);
     }
     entities.sort((a, b) => (a.y + (a.kind === 'building' ? a.size : 0)) - (b.y + (b.kind === 'building' ? b.size : 0)));
+    // Canopies fade over visible units behind them; only drawable bodies are bucketed, by row.
+    const unitRows = new Map();
+    if (trees) for (const u of live) if (u.kind === 'unit') {
+      const row = Math.floor(u.y);
+      if (!unitRows.has(row)) unitRows.set(row, []);
+      unitRows.get(row).push(u);
+    }
     for (const e of entities) {
-      if (e.x < x0 - 4 || e.x > x1 + 2 || e.y < y0 - 4 || e.y > y1 + 3) continue;
-      if (e.kind === 'rock') { rock(ctx, e.x * TILE, e.y * TILE, e.size, e.variant); continue; }
+      if (e.kind === 'rock') { world(); rock(ctx, e.x * TILE, e.y * TILE, e.size, e.variant); continue; }
       if (e.kind === 'tree') {
         const radius = e.size / TILE * .48;
-        const obscuresUnit = visibleUnits.some(u => u.y < e.y && u.y > e.y - radius && Math.abs(u.x - e.x) < radius);
-        ctx.save(); if (obscuresUnit) ctx.globalAlpha *= .42;
+        let obscuresUnit = false;
+        for (let row = Math.floor(e.y - radius); row <= Math.floor(e.y) && !obscuresUnit; row++) {
+          for (const u of unitRows.get(row) || []) if (u.y < e.y && u.y > e.y - radius && Math.abs(u.x - e.x) < radius) { obscuresUnit = true; break; }
+        }
+        world(); if (obscuresUnit) ctx.globalAlpha = .42;
         if (!drawProp(ctx, 'tree', e.x * TILE, e.y * TILE, e.size, e.variant)) rock(ctx, e.x * TILE, e.y * TILE, e.size, e.variant);
-        ctx.restore(); continue;
+        ctx.globalAlpha = 1; continue;
       }
       const isBuilding = e.kind === 'building', n = isBuilding ? e.size / 2 : 0;
-      const x = (e.x + n) * TILE, y = (e.y + n) * TILE;
-      ctx.save(); ctx.translate(x, y);
+      at((e.x + n) * TILE, (e.y + n) * TILE);
       if (view.selected?.has(e.id)) {
         // Ground ring sized to the body so the sprite never hides it; width stays ~1 screen pixel at any zoom.
         const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[entityRole(e)] ?? 22;
@@ -1417,29 +1858,39 @@ export class Renderer {
           ctx.fillStyle = '#8edbe316'; ctx.fill(); ctx.stroke();
         }
       }
-      const remembered = e.team === 1 && !entityVisible(e);
+      const remembered = isBuilding && e.team === 1 && !entityVisible(e);
+      if (!isBuilding && e.abilityUntil > time && ABILITIES[unitRole(e)]?.holdsPosition) {
+        // Dig in: a low ring of sandbags (or braced plates) on the ground around the squad.
+        const grow = Math.min(1, (clock - (e.abilityUntil - (ABILITIES.rifle.duration || 10))) / .5);
+        ctx.globalAlpha = Math.max(0, grow) * .95; stamp(ctx, digInSprite(UNITS[e.type]?.race === 'aiUnity'), 0, 3, 16, 16); ctx.globalAlpha = 1;
+      }
       const visual = isBuilding && !remembered ? { ...wallVisual(e), powerRatio: powers[e.team].ratio, powerStatus: powers[e.team].status } : e;
       // Blink the actual target silhouette, following its live pose without
       // revealing a concealed unit or flashing a remembered structure.
       const targeted = attackPulse > 0 && view.commandMarker.targetId === e.id && !remembered;
       if (targeted) { ctx.save(); ctx.filter = `brightness(${1 + attackPulse * 2})`; }
-      if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : time); else unit(ctx, e, time);
+      if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : clock); else unit(ctx, e, clock);
       if (targeted) ctx.restore();
-      if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, time, powers[e.team].ratio);
+      // Hit flash: a separate light silhouette over the frame; baked friendly pixels are never retinted.
+      const hit = remembered || (e.progress ?? 1) < 1 ? 0 : pulse(clock - (e.lastHit ?? -99), HIT_FLASH);
+      if (hit > 0) { ctx.globalAlpha = hit * (isBuilding ? .16 : .32); drawSpriteOverlay(ctx, visual, clock, '#fff2dc'); ctx.globalAlpha = 1; }
+      if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, clock, powers[e.team].ratio);
       else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
-      if (isBuilding && !remembered && e.progress >= 1 && powers[e.team].ratio < 1 && BUILDING_DEFS[e.type].power < 0) {
-        // One compact fixed-screen warning per affected facility, never a global flicker.
-        ctx.save(); ctx.translate(e.size * TILE * .30, e.size * TILE * .43); ctx.scale(1 / scale, 1 / scale);
-        ellipse(ctx, 0, 0, 5, 5, '#171b20e8');
-        polygon(ctx, [[0, -4], [-3, 1], [0, 1], [-1, 4], [3, -1], [0, -1]], '#e5ab6c'); ctx.restore();
-      }
       if (isBuilding) {
+        // Fixed-screen badges: one compact warning per affected facility, never a global flicker, and the team plate.
+        const k = this.dpr, ex = ox + a * (e.x + n) * TILE, ey = oy + a * (e.y + n) * TILE;
+        if (!remembered && e.progress >= 1 && powers[e.team].ratio < 1 && BUILDING_DEFS[e.type].power < 0) {
+          ctx.setTransform(k, 0, 0, k, ex + a * e.size * TILE * .30, ey + a * e.size * TILE * .43);
+          ellipse(ctx, 0, 0, 5, 5, '#171b20e8');
+          polygon(ctx, [[0, -4], [-3, 1], [0, 1], [-1, 4], [3, -1], [0, -1]], '#e5ab6c');
+        }
         const wall = buildingRole(e) === 'wall';
-        ctx.save(); ctx.translate(-e.size * TILE * .32, e.size * TILE * .43); ctx.scale(1 / scale, 1 / scale);
+        ctx.setTransform(k, 0, 0, k, ex - a * e.size * TILE * .32, ey + a * e.size * TILE * .43);
         ellipse(ctx, 0, 0, wall ? 3.3 : 5.5, wall ? 3.3 : 5.5, '#0a151ddd');
-        teamInsignia(ctx, e.team, 0, 0, wall ? 4.5 : 7); ctx.restore();
+        teamInsignia(ctx, e.team, 0, 0, wall ? 4.5 : 7);
+        at((e.x + n) * TILE, (e.y + n) * TILE);
       }
-      if ((view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || entityVisible(e))) {
+      if ((view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || !remembered)) {
         const w = isBuilding ? Math.min(44, e.size * TILE - 4) : isInfantry(e) ? (entityRole(e) === 'rocket' ? 16 : 13) : 25;
         const yy = isBuilding ? -e.size * TILE / 2 - 16 : -19;
         rect(ctx, -w / 2 - 1, yy - 1, w + 2, 5, '#0a1620ec');
@@ -1449,59 +1900,60 @@ export class Renderer {
           rect(ctx, -w / 2, yy + 6, w * (e.upgrade?.progress ?? e.research?.progress ?? e.queue[0].progress), 1, '#dec48a');
         }
       }
-      ctx.restore();
     }
-    for (const hauler of state.entities) {
-      if (entityRole(hauler) !== 'harvester' || !hauler.unloadDepotId || hauler.hp <= 0 || !entityVisible(hauler)) continue;
-      const depot = state.entities.find(e => e.id === hauler.unloadDepotId && e.hp > 0);
-      if (!depot || !entityVisible(depot)) continue;
+    world(); ctx.globalAlpha = 1;
+    for (const hauler of visibleUnits) {
+      if (!hauler.unloadDepotId || entityRole(hauler) !== 'harvester' || !entityVisible(hauler)) continue;
+      const depot = this.byId.get(hauler.unloadDepotId);
+      if (!depot || depot.hp <= 0 || !entityVisible(depot)) continue;
       const dx = (depot.x + depot.size / 2) * TILE, dy = (depot.y + depot.size / 2) * TILE;
       const targetX = dx - (entityRole(depot) === 'refinery' ? depot.size * TILE * .20 : 0);
       const targetY = dy + depot.size * TILE * (entityRole(depot) === 'refinery' ? -.30 : .32);
       const angle = unitSpriteAngle(hauler.angle);
       const x = hauler.x * TILE - Math.cos(angle) * 10, y = hauler.y * TILE - Math.sin(angle) * 9;
       for (let i = 0; i < 5; i++) {
-        const p = (time * 1.7 + i / 5) % 1;
+        const p = (clock * 1.7 + i / 5) % 1;
         const px = x + (targetX - x) * p, py = y + (targetY - y) * p - Math.sin(p * Math.PI) * 9;
         polygon(ctx, [[px - 2, py], [px, py - 3], [px + 2.5, py], [px, py + 1.5]], '#9fdec5', '#3c756d');
       }
     }
     // Every effect piece is gated by the cell it occupies, so fire from fog shows where it lands but never where it came from.
-    const seenAt = (cx, cy) => !visible || !!visible[Math.floor(cy) * state.width + Math.floor(cx)];
-    const entityById = new Map(state.entities.map(e => [e.id, e]));
+    const seenAt = (cx, cy) => !visible || !!visible[Math.floor(cy) * W + Math.floor(cx)];
     for (const engineer of visibleUnits) {
-      if (entityRole(engineer) !== 'engineer' || !engineer.repairActive) continue;
-      const target = entityById.get(engineer.repairTargetId);
+      if (!engineer.repairActive || entityRole(engineer) !== 'engineer') continue;
+      const target = this.byId.get(engineer.repairTargetId);
       if (!target || target.hp <= 0 || !entityVisible(target)) continue;
       const n = target.kind === 'building' ? target.size / 2 : 0;
       const tx = target.x + n, ty = target.y + n, dx = tx - engineer.x, dy = ty - engineer.y;
       const length = Math.hypot(dx, dy), segments = Math.max(1, Math.ceil(length * 8));
       // Broken amber service pulses keep the repair readable without covering vehicle silhouettes.
       for (let i = 0; i < segments; i++) {
-        if ((i + Math.floor(time * 6)) % 4 > 1) continue;
+        if ((i + Math.floor(clock * 6)) % 4 > 1) continue;
         const a = i / segments, b = Math.min(1, (i + .65) / segments);
         const x = engineer.x + dx * a, y = engineer.y + dy * a, xx = engineer.x + dx * b, yy = engineer.y + dy * b;
         if (!seenAt(x, y) || !seenAt(xx, yy)) continue;
         line(ctx, x * TILE, y * TILE - 3, xx * TILE, yy * TILE - 3, '#edc58b78', 1);
       }
-      const spark = .5 + Math.sin(time * 29 + engineer.id) * .5;
+      const spark = .5 + Math.sin(clock * 29 + engineer.id) * .5;
       glow(ctx, tx * TILE, ty * TILE - 3, 5 + spark * 3, '#ffd5a270');
       for (let i = 0; i < 3; i++) {
-        const angle = i * 2.4 + time * 3, r = 3 + spark * 5;
+        const angle = i * 2.4 + clock * 3, r = 3 + spark * 5;
         line(ctx, tx * TILE + Math.cos(angle) * 2, ty * TILE - 3 + Math.sin(angle) * 2,
           tx * TILE + Math.cos(angle) * r, ty * TILE - 3 + Math.sin(angle) * r, '#ffdda888', .7);
       }
     }
+    this.drawParticles(ctx, clock, visible);
     for (const fx of state.effects || []) {
-      const alpha = Math.max(0, Math.min(1, fx.life / (fx.maxLife || .3))), age = 1 - alpha;
+      // Effects advance on the drawn clock: between ticks each one is shown slightly younger.
+      const maxLife = fx.maxLife || .3, alpha = Math.max(0, Math.min(1, (fx.life + lag) / maxLife)), age = 1 - alpha;
       const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
       const launchX = fx.x - (rocket && fx.weapon === 'rocketTower' ? 14.8 / TILE : 0);
       const px = flying ? launchX + (fx.tx - launchX) * age : fx.x;
       const py = flying ? fx.y + (fx.ty - fx.y) * age : fx.y;
-      if (fx.type !== 'shot' && !seenAt(px, py) && !(fx.type === 'explosion' && this.seenEffects.has(fx))) continue;
+      if (fx.type === 'explosion' && fx.weapon === 'artillery') continue;
+      if (fx.type !== 'shot' && !seenAt(px, py) && !(fx.type === 'explosion' && this.seenEffects.has(fx)) && !(fx.type === 'shell' && seenAt(fx.tx, fx.ty))) continue;
       const x = fx.x * TILE, y = fx.y * TILE - 3;
       const unity = state.teams[fx.team]?.race === 'aiUnity';
-      ctx.save();
       if (fx.type === 'shot') {
         const dx = (fx.tx - fx.x) * TILE, dy = (fx.ty - fx.y) * TILE;
         const head = Math.min(1, age * 2.2), tail = Math.max(0, head - .18);
@@ -1518,96 +1970,77 @@ export class Renderer {
         } else if (seenAt(fx.tx, fx.ty)) {
           const impact = (age - .55) / .45;
           glow(ctx, fx.tx * TILE, fx.ty * TILE - 3, 7, '#ffab4a64');
+          ctx.beginPath();
           for (let j = 0; j < 4; j++) {
             const a = j * 2.4 + fx.tx;
-            line(ctx, fx.tx * TILE + Math.cos(a) * impact * 4, fx.ty * TILE - 3 + Math.sin(a) * impact * 4,
-              fx.tx * TILE + Math.cos(a) * impact * 10, fx.ty * TILE - 3 + Math.sin(a) * impact * 10, '#ffe4b6', .7);
+            ctx.moveTo(fx.tx * TILE + Math.cos(a) * impact * 4, fx.ty * TILE - 3 + Math.sin(a) * impact * 4);
+            ctx.lineTo(fx.tx * TILE + Math.cos(a) * impact * 10, fx.ty * TILE - 3 + Math.sin(a) * impact * 10);
           }
+          ctx.strokeStyle = '#ffe4b6'; ctx.lineWidth = .7; ctx.stroke();
         }
       } else if (rocket) {
         const dx = (fx.tx - launchX) * TILE, dy = (fx.ty - fx.y) * TILE;
         const lift = 14, launchHeight = fx.weapon === 'rocketTower' ? 25.9 : 3;
         const sx = px * TILE, sy = py * TILE - launchHeight * (1 - age) - 3 * age - Math.sin(age * Math.PI) * lift;
         // Each trail puff must be currently visible, including shots entering sensor coverage.
+        const puff = radialSprite([0, '#b8b3a5', .6, '#b8b3a5a0', 1, '#b8b3a500']);
         for (let j = 1; j <= 7; j++) {
           const p = age - j * .026;
           if (p < 0) continue;
           const tx = launchX + (fx.tx - launchX) * p, ty = fx.y + (fx.ty - fx.y) * p;
-          if (visible && !visible[Math.floor(ty) * state.width + Math.floor(tx)]) continue;
-          ellipse(ctx, tx * TILE, ty * TILE - launchHeight * (1 - p) - 3 * p - Math.sin(p * Math.PI) * lift, 1.5 + j * .35, 1 + j * .3, '#b8b3a5' + Math.round((1 - j / 8) * 65).toString(16).padStart(2, '0'));
+          if (visible && !visible[Math.floor(ty) * W + Math.floor(tx)]) continue;
+          ctx.globalAlpha = (1 - j / 8) * .3;
+          stamp(ctx, puff, tx * TILE, ty * TILE - launchHeight * (1 - p) - 3 * p - Math.sin(p * Math.PI) * lift, 2.2 + j * .45, 1.5 + j * .4);
         }
-        const angle = Math.atan2(dy + launchHeight - 3 - Math.cos(age * Math.PI) * Math.PI * lift, dx);
-        ctx.translate(sx, sy); ctx.rotate(angle);
+        ctx.globalAlpha = 1;
+        const angle = Math.atan2(dy + launchHeight - 3 - Math.cos(age * Math.PI) * Math.PI * lift, dx), cos = Math.cos(angle) * a, sin = Math.sin(angle) * a;
+        ctx.setTransform(cos, sin, -sin, cos, ox + a * sx, oy + a * sy);
         polygon(ctx, [[-3, -1.6], [4, -1.6], [7, 0], [4, 1.6], [-3, 1.6]], '#ece5ce', '#667271');
         polygon(ctx, [[-2, -1], [-8 - Math.sin(age * 80) * 2, 0], [-2, 1]], '#f7b76a');
         line(ctx, -3, 0, -6, 0, '#fff4da', 1.3);
         glow(ctx, -4, 0, 5, '#ffa64e70');
+        world();
       } else if (fx.type === 'shell') {
         const sx = (fx.x + (fx.tx - fx.x) * age) * TILE;
         const sy = (fx.y + (fx.ty - fx.y) * age) * TILE;
         const lift = Math.sin(age * Math.PI) * 48;
-        ellipse(ctx, sx + 3, sy + 4, 4, 2, '#10192355');
-        line(ctx, sx - (fx.tx - fx.x) * 2, sy - lift - (fx.ty - fx.y) * 2, sx, sy - lift, '#f9c07c66', 3);
-        line(ctx, sx - (fx.tx - fx.x), sy - lift - (fx.ty - fx.y), sx, sy - lift, '#fff0c9', 1.2);
-        glow(ctx, sx, sy - lift, 8, '#ffb66275');
-        ellipse(ctx, sx, sy - lift, 2.5, 2.5, '#fff5d7');
+        if (seenAt(fx.tx, fx.ty)) {
+          // Incoming: a tightening ring and growing shadow where the shell will land.
+          ctx.globalAlpha = .2 + age * .45; ctx.strokeStyle = '#e8a46f'; ctx.lineWidth = .9;
+          ctx.beginPath(); ctx.ellipse(fx.tx * TILE, fx.ty * TILE, 10 - age * 6, (10 - age * 6) * .62, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.globalAlpha = age * .35; ellipse(ctx, fx.tx * TILE + 1, fx.ty * TILE + 1, 1 + age * 3, .6 + age * 1.8, '#0b0e10');
+          ctx.globalAlpha = 1;
+        }
+        if (seenAt(px, py)) {
+          ellipse(ctx, sx + 3, sy + 4, 4, 2, '#10192355');
+          line(ctx, sx - (fx.tx - fx.x) * 2, sy - lift - (fx.ty - fx.y) * 2, sx, sy - lift, '#f9c07c66', 3);
+          line(ctx, sx - (fx.tx - fx.x), sy - lift - (fx.ty - fx.y), sx, sy - lift, '#fff0c9', 1.2);
+          glow(ctx, sx, sy - lift, 8, '#ffb66275');
+          ellipse(ctx, sx, sy - lift, 2.5, 2.5, '#fff5d7');
+        }
       } else if (fx.type === 'explosion') {
-        const size = Math.sqrt(fx.size || 1), r = (5 + age * 28) * size;
-        const flash = Math.max(0, 1 - age * 2.6);
-        ctx.globalAlpha = alpha * .38;
-        ellipse(ctx, x, y + 5, r * 1.45, r * .88, null, '#e6caaa');
-        ctx.globalAlpha = Math.max(0, alpha - .12);
-        for (let j = 0; j < 7; j++) {
-          const a = j * 2.4 + noise(fx.x, j) * 2, drift = r * (.25 + noise(j, fx.y) * .5);
-          const dx = x + Math.cos(a) * drift + age * 9, dy = y + Math.sin(a) * drift * .6 - age * size * 19;
-          const soot = ctx.createRadialGradient(dx, dy, 1, dx, dy, r * .62);
-          soot.addColorStop(0, '#373532b0'); soot.addColorStop(.55, '#42403b84'); soot.addColorStop(1, '#42403b00');
-          ellipse(ctx, dx, dy, r * .62, r * .62, soot);
-        }
-        ctx.globalAlpha = Math.min(1, alpha * 1.4);
-        glow(ctx, x, y - r * .18, r * .84, '#ef8e347d');
-        for (let j = 0; j < 5; j++) {
-          const a = j * 2.4, reach = r * age * .4;
-          const dx = x + Math.cos(a) * reach, dy = y + Math.sin(a) * reach * .6 - age * size * 12;
-          const fire = ctx.createRadialGradient(dx, dy, 0, dx, dy, r * (.25 + flash * .22));
-          fire.addColorStop(0, '#fff3c9'); fire.addColorStop(.22, '#ffd193'); fire.addColorStop(.55, '#f39840ca'); fire.addColorStop(1, '#bd4c2400');
-          ctx.globalAlpha = alpha * alpha;
-          ellipse(ctx, dx, dy, r * (.25 + flash * .22), r * (.25 + flash * .22), fire);
-        }
-        ctx.globalAlpha = flash;
-        glow(ctx, x, y, 40 * size, '#ffd7a36b');
-        ctx.globalAlpha = alpha;
-        for (let j = 0; j < 10; j++) {
-          const a = j * 2.4 + fx.x, reach = r * (1 + noise(j, fx.y) * .8);
-          const lift = Math.sin(age * Math.PI) * (5 + j % 3 * 6) * size;
-          const dx = x + Math.cos(a) * reach, dy = y + Math.sin(a) * reach * .6 - lift;
-          line(ctx, dx, dy, dx - Math.cos(a) * (2 + alpha * 5), dy - Math.sin(a) * 3, j % 3 ? '#e6b97bb5' : '#fbe0a9', .8 + j % 2 * .4);
-        }
+        explosion(ctx, x, y, fx.size || 1, age, alpha, fx.x, fx.y);
       }
-      ctx.restore();
+      ctx.globalAlpha = 1;
     }
-    // Sparse low-contrast airborne ash adds motion without masking tactical silhouettes.
-    for (let j = 0; j < 17; j++) {
-      const x = ((noise(j, 7, this.seed) * state.width + time * .16) % state.width) * TILE;
-      const y = ((noise(j, 18, this.seed) * state.height - time * .045 + state.height * 2) % state.height) * TILE;
-      const i = Math.floor(y / TILE) * state.width + Math.floor(x / TILE);
-      if (visible && !visible[i]) continue;
-      ellipse(ctx, x, y, 1.1, .5, '#e6d5b944');
-    }
-    ctx.restore();
+    this.drawEmbers(state, visible, clock, x0, y0, x1, y1);
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.globalAlpha = 1;
     if (visible && explored) {
-      this.updateFog(state);
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.fog, left, top, state.width * zoom, state.height * zoom);
+      ctx.drawImage(this.fog, left, top, W * zoom, state.height * zoom);
     }
+    this.drawAsh(ctx, view, clock);
     // Screen-space overlays stay crisp at every camera zoom.
+    this.drawMissionMarkers(state, view, clock);
+    this.drawSiteLabels(state, view, explored);
     for (const e of visibleUnits) this.drawUnitRank(e, view);
+    this.drawAbilityMarkers(state, view, clock, visibleUnits);
     for (const e of visibleUnits) {
       if (e.team !== 0 || !view.selected?.has(e.id) || !['move', 'attackMove'].includes(e.order?.type)) continue;
       const goal = e.order, gx = goal.x, gy = goal.y;
       if (!Number.isFinite(gx) || !Number.isFinite(gy) || Math.hypot(e.x - gx, e.y - gy) < .12) continue;
       const point = this.worldToScreen(gx, gy, view), color = goal.type === 'attackMove' ? '#e2b67e' : '#a8dcd9';
-      ctx.save(); ctx.lineWidth = 1;
+      ctx.lineWidth = 1;
       // The player knows their own assigned order in fog. Paths show only observed cells,
       // so a destination never reveals hidden obstacle routing or an enemy position.
       const route = [{ x: e.x, y: e.y }, ...(e.path || []), { x: gx, y: gy }];
@@ -1629,7 +2062,6 @@ export class Renderer {
         line(ctx, point.x + dx * 5, point.y + dy * 4, point.x + dx * 5, point.y + dy * 2, color);
       }
       rect(ctx, point.x - .7, point.y - .7, 1.4, 1.4, color);
-      ctx.restore();
     }
     if (view.formationPreview) {
       const preview = view.formationPreview, anchor = this.worldToScreen(preview.x, preview.y, view), color = '#b4e2e6';
@@ -1730,9 +2162,8 @@ export class Renderer {
       ctx.strokeStyle = '#b8e4e990'; ctx.lineWidth = 1;
       ctx.strokeRect(Math.min(x1, x2) + .5, Math.min(y1, y2) + .5, Math.abs(x2 - x1), Math.abs(y2 - y1));
     }
-    const vignette = ctx.createRadialGradient(this.width / 2, this.height / 2, this.width * .2, this.width / 2, this.height / 2, this.width * .72);
-    vignette.addColorStop(0, '#07111c00'); vignette.addColorStop(1, '#07111c38');
-    rect(ctx, 0, 0, this.width, this.height, vignette);
+    const vignette = this.vignetteImage();
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(vignette, 0, 0, vignette.width * VIGNETTE_STEP, vignette.height * VIGNETTE_STEP);
     if (performance.now() - this.lastMinimap > 130) {
       this.drawMinimap(state, view, entityVisible); this.lastMinimap = performance.now();
     } else this.drawMinimapOverlay(state, view);
@@ -1770,7 +2201,22 @@ export class Renderer {
         }
         ctx.restore();
       }
-      const shot = Math.max(0, 1 - (time - (e.lastShot ?? -99)) / .14);
+      if (e.abilityUntil > time && ABILITIES[unitRole(e)]?.speed) {
+        // Overdrive / Afterburner: a hot exhaust core and short heat puffs behind the chosen view.
+        const back = unitRole(e) === 'striker' ? -21 : -18, unity = UNITS[e.type]?.race === 'aiUnity';
+        ctx.save(); ctx.rotate(angle);
+        const flicker = .8 + Math.sin(time * 41 + e.id) * .2;
+        ctx.globalAlpha = .85 * flicker;
+        stamp(ctx, radialSprite(unity ? [0, '#eefaff', .35, '#9fd6ece0', 1, '#5c9fc000'] : FLAME), back, 0, 6 + flicker * 2, 2.6);
+        for (let j = 0; j < 5; j++) {
+          const age = (time * (moving ? 3.2 : 1.4) + j / 5 + e.id * .13) % 1;
+          ctx.globalAlpha = (1 - age) * (moving ? .32 : .16);
+          stamp(ctx, radialSprite(STEAM), back - 3 - age * (moving ? 22 : 7), (j % 2 ? 2.5 : -2.5) * (1 + age), 2 + age * 6, 1.6 + age * 4);
+        }
+        if (moving) { ctx.globalAlpha = .45; line(ctx, back - 2, -4, back - 15, -4, '#ffe2b04d', .8); line(ctx, back - 2, 4, back - 15, 4, '#ffe2b04d', .8); }
+        ctx.restore();
+      }
+      const shot = pulse(time - (e.lastShot ?? -99), .14);
       if (shot > 0 && !['engineer', 'harvester'].includes(entityRole(e))) {
         const reach = { rifle: 11, rocket: 15, scout: 16, tank: 24, artillery: 31, striker: 25 }[entityRole(e)] || 18;
         const unity = UNITS[e.type]?.race === 'aiUnity';
@@ -1781,34 +2227,43 @@ export class Renderer {
         }
         ctx.restore();
       }
+      if (!isInfantry(e) && e.hp < e.maxHp * .25) {
+        // A badly damaged vehicle burns: small flickering tongues over the rear deck, never over the turret.
+        const back = angle + Math.PI, bx = Math.cos(back) * 7, by = Math.sin(back) * 4 - 5;
+        const flicker = .75 + Math.sin(time * 23 + e.id * 1.7) * .15 + Math.sin(time * 37 + e.id) * .1;
+        for (let j = 0; j < 3; j++) {
+          const age = (time * 1.7 + j / 3 + e.id * .31) % 1;
+          ctx.globalAlpha = (1 - age) * .9 * flicker;
+          stamp(ctx, radialSprite(FLAME), bx + (j - 1) * 2.6 + Math.sin(time * 9 + j) * .8, by - age * 9, 2.6 * (1 - age * .45), 3.8 * (1 - age * .35));
+        }
+        ctx.globalAlpha = .3 * flicker; glow(ctx, bx, by + 2, 8, '#ff9a4a90'); ctx.globalAlpha = 1;
+      }
     }
     const damaged = e.hp < e.maxHp * .4;
     if (e.kind === 'building' && BUILDING_DEFS[e.type]?.race !== 'aiUnity' && (entityRole(e) === 'reactor' || entityRole(e) === 'refinery' && e.processingAmount > 0) || damaged) {
-      const s = e.kind === 'building' ? e.size * TILE : 28;
+      const s = e.kind === 'building' ? e.size * TILE : 28, puff = radialSprite(damaged ? DARK_SMOKE : STEAM), alpha = ctx.globalAlpha;
       for (let j = 0; j < (damaged ? 5 : 3); j++) {
         const age = (time * (damaged ? .42 : .28) + j / (damaged ? 5 : 3) + e.id * .13) % 1;
         const refineryStack = entityRole(e) === 'refinery' && !damaged;
         const x = (refineryStack ? s * .345 : -s * .2) + age * 14 + Math.sin(time + j) * 2;
         const y = (refineryStack ? -s * .427 : -s * .38) - age * 30;
-        ctx.save(); ctx.globalAlpha = Math.sin(age * Math.PI) * (damaged ? .25 : .085);
-        const radius = 3 + age * (damaged ? 12 : 9);
-        const smoke = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        const color = damaged ? '#28292b' : '#c6c4bc';
-        smoke.addColorStop(0, color + 'd0'); smoke.addColorStop(1, color + '00');
-        ellipse(ctx, x, y, radius, radius, smoke); ctx.restore();
+        ctx.globalAlpha = alpha * Math.sin(age * Math.PI) * (damaged ? .25 : .085);
+        stamp(ctx, puff, x, y, 3 + age * (damaged ? 12 : 9));
       }
+      ctx.globalAlpha = alpha;
     }
     if (e.kind === 'building' && e.queue?.length) {
-      ctx.save(); ctx.globalAlpha = (.4 + Math.sin(time * Math.max(.2, power) * 7 + e.id) * .1) * (power < 1 ? .5 : 1);
-      glow(ctx, 0, e.size * TILE * .23, e.size * 4, '#ffcf7f50'); ctx.restore();
+      const alpha = ctx.globalAlpha;
+      ctx.globalAlpha = alpha * (.4 + Math.sin(time * Math.max(.2, power) * 7 + e.id) * .1) * (power < 1 ? .5 : 1);
+      glow(ctx, 0, e.size * TILE * .23, e.size * 4, '#ffcf7f50'); ctx.globalAlpha = alpha;
     }
   }
 
   drawUnitRank(entity, view) {
-    const ctx = this.ctx, p = this.worldToScreen(entity.x, entity.y, view);
-    if (p.x < 0 || p.x > this.width || p.y < 0 || p.y > this.height) return;
+    const ctx = this.ctx, px = (entity.x - view.x) * view.zoom + this.width / 2 + this.shakeX, py = (entity.y - view.y) * view.zoom + this.height / 2 + this.shakeY;
+    if (px < 0 || px > this.width || py < 0 || py > this.height) return;
     const radius = entityRole(entity) === 'artillery' ? 30 : isInfantry(entity) ? 16 : 25;
-    const y = Math.round(p.y + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(p.x);
+    const y = Math.round(py + Math.max(11, radius * view.zoom / TILE) + 3), x = Math.round(px);
     const rank = unitRank(entity), team = entity.team === 1 ? 1 : 0;
     const group = team === 0 && entity.controlGroup >= 1 && entity.controlGroup <= 5 ? entity.controlGroup : 0;
     const key = `${team}:${rank}:${group}`;
@@ -1874,6 +2329,25 @@ export class Renderer {
     };
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) drawDot(e);
     for (const e of this.rememberedBuildings.values()) if (!entityVisible(e)) { ctx.globalAlpha = .4; drawDot(e); ctx.globalAlpha = 1; }
+    // Named sites once explored, and every mission zone (a deliberate static reveal).
+    const sites = (state.sites || []).filter(site => Number.isFinite(site.x) && Number.isFinite(site.y)
+      && (!explored || explored[Math.floor(site.y) * state.width + Math.floor(site.x)]));
+    ctx.font = '600 7px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const site of sites) {
+      const x = ox + site.x * s, y = oy + site.y * s;
+      polygon(ctx, [[x, y - 2.5], [x + 2.5, y], [x, y + 2.5], [x - 2.5, y]], '#142027', '#c4d2cf');
+      if (w >= 150 && sites.length <= 16) {
+        const name = String(site.name || site.id), width = ctx.measureText(name).width;
+        ctx.globalAlpha = .8; rect(ctx, x - width / 2 - 2, y + 3, width + 4, 8, '#0a151dc0'); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#c4d2cf'; ctx.fillText(name, x, y + 4);
+      }
+    }
+    const goals = this.zoneGoals(state);
+    if (goals) for (const zone of state.mission.zones) {
+      const goal = goals.get(zone.id);
+      ctx.strokeStyle = goal === 'active' ? '#e2b67e' : goal === 'done' ? '#8dccca99' : '#97acb177'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(ox + zone.x * s, oy + zone.y * s, Math.max(2.5, zone.r * s), 0, Math.PI * 2); ctx.stroke();
+    }
     ctx.strokeStyle = '#9bbbc522'; ctx.strokeRect(.5, .5, w - 1, h - 1);
     this.drawMinimapOverlay(state, view);
   }
@@ -1890,6 +2364,14 @@ export class Renderer {
       const n = e.kind === 'building' ? e.size / 2 : 0, pulse = 4 + ((time * 2) % 1) * 4;
       ctx.strokeStyle = '#e29677'; ctx.lineWidth = 1.5;
       ctx.strokeRect(ox + (e.x + n) * s - pulse, oy + (e.y + n) * s - pulse, pulse * 2, pulse * 2);
+    }
+    // Active objective beacons pulse on the tactical map as well.
+    const goals = this.zoneGoals(state);
+    if (goals) for (const zone of state.mission.zones) if (goals.get(zone.id) === 'active') {
+      const k = time * .45 % 1, x = ox + zone.x * s, y = oy + zone.y * s;
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#e2b67e'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(x, y, 2 + k * 7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+      polygon(ctx, [[x, y - 3], [x + 3, y], [x, y + 3], [x - 3, y]], '#e2b67e', '#142027');
     }
     ctx.strokeStyle = '#c5e7eebb'; ctx.lineWidth = 1;
     ctx.strokeRect(ox + (view.x - this.width / view.zoom / 2) * s, oy + (view.y - this.height / view.zoom / 2) * s, this.width / view.zoom * s, this.height / view.zoom * s);
