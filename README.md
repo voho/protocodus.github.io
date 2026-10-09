@@ -21,5 +21,7 @@
 - Enemy rounds scale with hull class: small ships fire compact, low-damage spectrum rounds while heavier craft use larger, brighter shapes. A cap keeps hostile fire from overwhelming the frame rate.
 - Every fighter uses one fixed hull sprite, with separate shadows, engine light and restrained animation.
 - Single-player flight uses WASD to move, Space for primary fire and Q for secondary fire. Primary pulse is unlimited; stronger secondary plasma consumes regenerating energy. Formations, boss weak points and timed armor windows reward different tactics.
+- Every sector sets two salted objectives and grades the flight from S to D; a mid-sector checkpoint lets a lost flight resume halfway. Weapon classes meet enemy barriers differently, and the pilot's shield collapses with a clearing pulse.
+- Positional stereo effects, layered explosions and a critical-hull alarm sit under the unchanged soundtrack.
 - Campaign progress saves automatically in the browser, including fire energy; the shop offers shared equipment upgrades after each sector.
 - The interface uses normal-case labels and locally served Chakra Petch for a consistent space-console feel.

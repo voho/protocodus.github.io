@@ -117,6 +117,26 @@ function heightAt(seed, biome, x, y) {
 const materialAt = height => height < .28 ? 0 : height < .44 ? 1 : height < .68 ? 2 : 3;
 
 /**
+ * Baked light for one map point in tile coordinates; .5 is neutral. Slopes of
+ * the continuous height field that face the upper-left sun (the side the
+ * material relief is lit from) brighten and the far side darkens, and a broad,
+ * slow variation breaks up repeated material cells. Both terms are smooth and
+ * centred on neutral, so a sector keeps its overall tone. Like tileAt, it
+ * depends only on its global coordinates.
+ */
+export function terrainLight(levelHash, worldIndex, x, y) {
+  const biome = modulo(Math.floor(worldIndex), 10);
+  const seed = (levelHash ^ Math.imul(biome + 1, 0x632be5ab)) >>> 0;
+  const dx = heightAt(seed, biome, x + .5, y) - heightAt(seed, biome, x - .5, y);
+  const dy = heightAt(seed, biome, x, y + .5) - heightAt(seed, biome, x, y - .5);
+  // Gentle slopes shade linearly; steep channel walls saturate, so a narrow
+  // valley never flips from full light to full shadow within one cell.
+  let light = .5 + .14 * Math.tanh((dx * .7 + dy * .9) * .35 / .14);
+  light += (noise(seed ^ 0x51ed, x / 9, y / 11) - .5) * .12;
+  return Math.max(.32, Math.min(.68, light));
+}
+
+/**
  * One logical tile, independent of request order.
  *
  * Materials/elevations: 0 deep water/void, 1 shore/low earth, 2 ground, 3 raised.

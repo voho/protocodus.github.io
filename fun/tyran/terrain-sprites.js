@@ -3,6 +3,7 @@ import { MAP_TILE_SIZE } from './tile-map.js';
 import { spriteCell } from './sprite-assets.js';
 
 const RESOLUTION = 2;
+const DIRECTIONAL = new Set([2, 5]);
 const SIZE = MAP_TILE_SIZE;
 const SURFACE_SIZE = SIZE * RESOLUTION;
 const TAU = Math.PI * 2;
@@ -123,7 +124,11 @@ export class TerrainSprites {
       const scratch=this.pixelScratch||(this.pixelScratch=surface()),s=scratch.getContext('2d',{willReadFrequently:true});
       s.clearRect(0,0,SURFACE_SIZE,SURFACE_SIZE);
       s.save();s.translate(SURFACE_SIZE/2,SURFACE_SIZE/2);
-      s.rotate((variant%4)*Math.PI/2);s.scale(variant>=4?-1:1,1);
+      // Dune ripples and Martian strata share one prevailing heading. Quarter
+      // turns and mirrors would flip their grain at every cell edge, so those
+      // biomes vary crops by zoom, offset and half turns only.
+      if(DIRECTIONAL.has(index))s.rotate((variant%2)*Math.PI);
+      else{s.rotate((variant%4)*Math.PI/2);s.scale(variant>=4?-1:1,1);}
       s.drawImage(texture,-span/2+dx,-span/2+dy,span,span);s.restore();
       const pixels=s.getImageData(0,0,SURFACE_SIZE,SURFACE_SIZE),data=pixels.data,base=rgb(this.colors[material]);
       // Preserve source heights before grading so the light direction is stable

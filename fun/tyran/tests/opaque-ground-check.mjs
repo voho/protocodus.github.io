@@ -26,10 +26,11 @@ try {
     };
     // Transparent materials expose the exact substrate phase independently of
     // map colors, including negative strip rows and the 600/800px repeat mismatch.
-    const originalTerrain = world.terrain, originalTileAt = world.tileAt;
+    const originalTerrain = world.terrain, originalTileAt = world.tileAt, originalShade = world.shadeTerrainRow;
     const empty = surface(MAP_TILE_SIZE, MAP_TILE_SIZE), phase = [];
     world.terrain = { getMaterial: () => empty, get: () => empty };
     world.tileAt = () => ({ variant: 0, cornerMasks: [0, 0, 0, 0] });
+    world.shadeTerrainRow = () => {};
     world.setViewport(W);
     for (const density of [1, 2]) {
       world.detailScale = density; world.tiles.clear();
@@ -39,7 +40,7 @@ try {
         phase.push({ density, row, ...compare(tile, expected) });
       }
     }
-    world.terrain = originalTerrain; world.tileAt = originalTileAt;
+    world.terrain = originalTerrain; world.tileAt = originalTileAt; world.shadeTerrainRow = originalShade;
     const pictures = [];
     for (const index of [0, 4, 6, 9]) {
       world.setWorld(index, 'opaque-ground-qa'); world.setViewport(W);
@@ -50,10 +51,17 @@ try {
           if (legacy.has(row)) return legacy.get(row);
           const out = surface((world.mapWidth + MARGIN * 2) * density, TILE * density), c = out.getContext('2d');
           c.scale(density, density);
-          for (let y = 0; y < TILE / MAP_TILE_SIZE; y++) for (let col = -1; col <= world.mapWidth / MAP_TILE_SIZE; col++) {
-            const tile = world.tileAt(col, row * (TILE / MAP_TILE_SIZE) + y), x = col * MAP_TILE_SIZE + MARGIN, py = y * MAP_TILE_SIZE;
-            c.globalAlpha = .86; c.drawImage(world.terrain.getMaterial(0, tile.variant), x, py, MAP_TILE_SIZE, MAP_TILE_SIZE); c.globalAlpha = 1;
-            for (let material = 1; material < 4; material++) if (tile.cornerMasks[material]) c.drawImage(world.terrain.get(material, tile.variant, tile.cornerMasks[material]), x, py, MAP_TILE_SIZE, MAP_TILE_SIZE);
+          // Bake the substrate first, as the strip does: the light pass blends
+          // over the opaque composite, never over transparent cells.
+          c.save(); c.translate(MARGIN, 0); world.drawSubstrate(c, TILE, -row * TILE); c.restore();
+          for (let y = 0; y < TILE / MAP_TILE_SIZE; y++) {
+            // Every layer of every cell, including those a full layer hides.
+            for (let col = -1; col <= world.mapWidth / MAP_TILE_SIZE; col++) {
+              const tile = world.tileAt(col, row * (TILE / MAP_TILE_SIZE) + y), x = col * MAP_TILE_SIZE + MARGIN, py = y * MAP_TILE_SIZE;
+              c.globalAlpha = .86; c.drawImage(world.terrain.getMaterial(0, tile.variant), x, py, MAP_TILE_SIZE, MAP_TILE_SIZE); c.globalAlpha = 1;
+              for (let material = 1; material < 4; material++) if (tile.cornerMasks[material]) c.drawImage(world.terrain.get(material, tile.variant, tile.cornerMasks[material]), x, py, MAP_TILE_SIZE, MAP_TILE_SIZE);
+            }
+            world.shadeTerrainRow(c, row, y);
           }
           legacy.set(row, out); return out;
         };
