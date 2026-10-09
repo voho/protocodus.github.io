@@ -2088,7 +2088,16 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      the arithmetic never sees the big number at all. */
   const tilePowderMacro = { value: new THREE.Vector2() };
   const tilePowderDetail = { value: new THREE.Vector2() };
+  const tileIce = { value: new THREE.Vector2() };
   const tileGroomZ = { value: 0 };
+  /* The glacier plate repeats 2.2 times per macro tile, which keeps its
+     crazing out of step with the powder's. That is a FRACTION of a tile, so
+     it cannot ride the macro origin: the wrap there throws away whole macro
+     tiles, and 2.2 of a whole tile is not whole — the ice jumped by a fifth
+     of its own tile on every re-anchor that carried the macro origin over
+     an integer, which is most of the near-field pops a parked lens records.
+     It gets its own origin, wrapped at its own scale. */
+  const ICE_REPEAT = 2.2;
   /* The plates' own rotation, written the way the shader actually applies it.
 
      GLSL's mat2 is column major, so `mat2(0.9563, -0.2924, 0.2924, 0.9563)`
@@ -2133,6 +2142,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     );
     tilePowderDetail.value.set(
       wrap(plateScratch.x / detail), wrap(plateScratch.y / detail),
+    );
+    tileIce.value.set(
+      wrap(plateScratch.x * ICE_REPEAT / macro), wrap(plateScratch.y * ICE_REPEAT / macro),
     );
     /* One scalar for all three corduroy reads: the macro tile is a whole
        number of detail tiles, so a z wrapped into the macro one is wrapped
@@ -2247,6 +2259,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       uSnowTile: snowTile,
       uTilePowderMacro: tilePowderMacro,
       uTilePowderDetail: tilePowderDetail,
+      uTileIce: tileIce,
       uTileGroomZ: tileGroomZ,
       uSnowAlbedo: snowAlbedo,
       uSnowHeight: snowHeight,
@@ -2308,6 +2321,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         varying vec2 vLocal;
         uniform vec2 uTilePowderMacro;
         uniform vec2 uTilePowderDetail;
+        uniform vec2 uTileIce;
         uniform float uTileGroomZ;
         varying vec3 vSmoothNormal;
         varying float vDist;
@@ -2475,8 +2489,10 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              returns the plate's mean luminance to the encoded mean the
              tint below was tuned on, and leaves it the bluer, deeper
              colour the photograph actually is. */
-          vec3 n64IceSample = 1.54 * texture2DGradEXT(uIceTex, powderUv * 2.2,
-            n64MacroDx * 2.2, n64MacroDy * 2.2).rgb;
+          vec2 n64IceUv = uTileIce + mat2(0.9563, -0.2924, 0.2924, 0.9563)
+            * (vLocal * (${ICE_REPEAT.toFixed(1)} / uSnowTile.x));
+          vec3 n64IceSample = 1.54 * texture2DGradEXT(uIceTex, n64IceUv,
+            n64MacroDx * ${ICE_REPEAT.toFixed(1)}, n64MacroDy * ${ICE_REPEAT.toFixed(1)}).rgb;
           diffuseColor.rgb = mix(diffuseColor.rgb,
             diffuseColor.rgb * (0.52 + 1.05 * n64IceSample), n64IceW * 0.8);
         }

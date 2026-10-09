@@ -160,6 +160,13 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
       build.row = 4;
     },
     checkBuffers: () => [heights, positions, normals, colors, surface, groomFrame],
+    checkTiles(ax, az) {
+      setTileOrigins(ax, az);
+      return {
+        macro: tilePowderMacro.value.toArray(), detail: tilePowderDetail.value.toArray(),
+        ice: tileIce.value.toArray(), groomZ: tileGroomZ.value, tile: snowTile.value.toArray(),
+      };
+    },
     checkReuse: () => [reusedHeights, reusedSurfaces],
     setSun,`);
 const { createTerrain } = await import('data:text/javascript;base64,'
@@ -191,6 +198,44 @@ assert.doesNotMatch(terrainMain.slice(fogExit), /\btexture2D\s*\(/,
 assert.equal(streamed.mesh.material.normalMap, null);
 assert.equal(streamed.mesh.material.bumpMap, null,
   'terrain owns its smooth normal and has no built-in derivative normal maps');
+/* EVERY TILED READ STAYS WELDED THROUGH A RE-ANCHOR. The anchor's share of
+   each tiling arrives wrapped into its own tile, which throws away whole
+   tiles — so a coordinate built from one may only ever be scaled by a whole
+   number. The glacier plate was read at 2.2 times the macro uv and jumped by
+   a fifth of its tile on most re-anchors; its own origin cures it. */
+for (const [, uv, factor] of terrainMain.matchAll(
+  /\b(powderUv|n64DetailUv|groomedUv|n64CordColorUv|n64IceUv)\s*\*\s*([0-9.]+)/g)) {
+  assert.equal(Number(factor) % 1, 0, `${uv} scaled by ${factor} slides on every re-anchor`);
+}
+{
+  // The shader's own arithmetic, column-major mat2 and all, written out here
+  // rather than borrowed from terrain.js: a check sharing the code it tests
+  // shares its mistakes.
+  const plate = (x, z) => [0.9563 * x + 0.2924 * z, -0.2924 * x + 0.9563 * z];
+  const frac = (v) => v - Math.floor(v);
+  const welded = (a, b) => Math.min(frac(a - b), 1 - frac(a - b)) < 1e-6;
+  const uvs = (ax, az, wx, wz) => {
+    const t = streamed.checkTiles(ax, az);
+    const [lx, lz] = [wx - ax, wz - az];
+    const [px, pz] = plate(lx, lz);
+    return [
+      t.macro[0] + px / t.tile[0], t.macro[1] + pz / t.tile[0],
+      t.detail[0] + px / t.tile[1], t.detail[1] + pz / t.tile[1],
+      t.ice[0] + px * 2.2 / t.tile[0], t.ice[1] + pz * 2.2 / t.tile[0],
+      (lz + t.groomZ) / t.tile[0], (lz + t.groomZ) / t.tile[1],
+    ];
+  };
+  const world = [[3.75, -181.5], [-40.5, -2203.25], [17.25, -25998.75]];
+  for (const [wx, wz] of world) {
+    const ref = uvs(Math.round(wx / 6) * 6, Math.round(wz / 6) * 6, wx, wz);
+    for (let k = -12; k <= 12; k++) {
+      const ax = (Math.round(wx / 6) + (k % 3)) * 6;
+      const az = (Math.round(wz / 6) + k) * 6;
+      uvs(ax, az, wx, wz).forEach((v, i) => assert.ok(welded(v, ref[i]),
+        `tiling ${i} slides by ${frac(v - ref[i]).toFixed(4)} between anchors at ${wx}, ${wz}`));
+    }
+  }
+}
 const bufferNames = ['height', 'position', 'normal', 'color', 'surface', 'groom frame'];
 let streamChecks = 0, heightHits = 0, surfaceHits = 0;
 function compareTerrain(x, z, includeHeights = true) {
