@@ -667,12 +667,25 @@ const WAVE_BRIEFS = {
   gunship: ['Gunships', 'Lancers paint a firing line before the beam. Leave the line.'],
   formation: ['Tactical formations', 'Break the formation before it passes.'],
 };
+// Stereo position follows the event across the arena; the pilot's own guns
+// stay closer to the centre so they never pull the mix to one side.
+function soundPan(e) {
+  if (!Number.isFinite(e.x) || !state) return 0;
+  return clamp(e.x / state.width * 2 - 1, -1, 1) * (e.type === 'shot' ? .35 : .75);
+}
+function soundVariant(e) {
+  if (e.type === 'challenge-result') return e.perfect ? 'perfect' : '';
+  if (e.type === 'hit') return e.hull ? (e.kinetic ? 'kinetic' : 'hull') : 'shield';
+  if (e.type === 'blocked') return e.strong ? 'strong' : e.resist ? 'resist' : e.drone ? 'drone' : '';
+  if (e.type === 'volley') return e.boss ? 'boss' : '';
+  return e.weapon || e.label;
+}
 function processEvents() {
   const events = state.events.length ? state.events.splice(0) : state.events;
   for (const e of events) {
     fx.emit(e);
     const sound = e.type === 'pickup' && (e.bonus === 'power' || e.bonus === 'drone') ? e.bonus : e.type;
-    audio.effect(sound, e.size ?? e.wave, e.type === 'challenge-result' && e.perfect ? 'perfect' : e.weapon || e.label);
+    audio.effect(sound, e.size ?? e.wave, soundVariant(e), soundPan(e));
     if (e.type === 'explosion' && !e.ground) {
       const blast = e.blast || 1;
       for (const prop of environmentHit(e.x, e.y, Math.min(250, e.size * 1.5 * blast), e.size * 2 * blast, state.scroll)) {
@@ -1106,6 +1119,13 @@ function drawFrame() {
   syncGpuDisplay();
 }
 
+// Below 30% hull the mix warns the pilot, in four steps so audio automation
+// changes only when the danger level does.
+function hullDanger() {
+  const pilot = state?.players?.[0];
+  if (scene !== 'playing' || !pilot?.alive || pilot.hull >= pilot.maxHull * .3) return 0;
+  return Math.ceil((1 - pilot.hull / (pilot.maxHull * .3)) * 4) / 4;
+}
 function frame(time) {
   frameHandle = 0;
   if (document.hidden) { lastTime = 0; return; }
@@ -1152,7 +1172,7 @@ function frame(time) {
   if (scene === 'bonus-outro') updateBonusOutro(dt);
   renderCombatFeedback();
   audio.update(scene === 'playing' || (scene === 'bonus-outro' && !bonusOutro?.black), state?.level || 0,
-    state?.challenge ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '');
+    state?.challenge ? 'challenge' : state?.bossSpawned && !state.bossDefeated ? 'boss' : '', hullDanger());
   if (clock > announcementUntil && !$('announcement').hidden) $('announcement').hidden = true;
   if (scene === 'playing') { hudClock += dt; if (hudClock > .1) { refreshHUD(); hudClock = 0; } }
   if (active || renderDirty) {

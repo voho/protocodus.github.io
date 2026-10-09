@@ -4,6 +4,18 @@ import { audioAssets, SAMPLE_GROUPS as SAMPLES, SONGS } from './audio-assets.js'
 export { preloadAudio } from './audio-assets.js';
 
 const FLIGHT_SONGS = Object.freeze(['flight', 'flight2', 'flight3']);
+// Synth layers are short, but a rampage could still stack hundreds of them.
+const MAX_SYNTH_VOICES = 64;
+// Decaying stereo noise with a soft onset: a small hangar-like room.
+function roomImpulse(context, seconds) {
+  const rate = context.sampleRate, length = Math.floor(rate * seconds), onset = rate * .012;
+  const buffer = context.createBuffer(2, length, rate);
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel);
+    for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 2.6 * Math.min(1, i / onset);
+  }
+  return buffer;
+}
 // A media element can only bind to one MediaElementAudioSourceNode. Production
 // has one engine; additional consumers use synth fallback without taking it over.
 const musicOwners = new WeakMap();
@@ -34,6 +46,13 @@ export class AudioEngine {
         this.noise = this.context.createBuffer(1, length, this.context.sampleRate);
         const data = this.noise.getChannelData(0);
         for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+        // Big explosions and novas send to a short procedural room so heavy
+        // hits have space; shots and interface cues stay dry and close.
+        this.reverbSend = this.context.createGain();
+        this.reverbReturn = this.context.createGain(); this.reverbReturn.gain.value = .5;
+        this.reverbReturn.connect(this.master);
+        this.reverbImpulse = roomImpulse(this.context, 1.6);
+        this.connectReverb();
       }
       if (this.context.state === 'suspended') this.context.resume().catch(() => {});
       this.nextBeat = this.context.currentTime;
@@ -67,18 +86,41 @@ export class AudioEngine {
       gain.linearRampToValueAtTime(value, now + .012);
     }
   }
-  pause() { this.active = false; this.stopMusic(); this.stopVoices(); }
+  pause() { this.active = false; this.danger = -1; this.stopMusic(); this.stopVoices(); }
   stopVoices() {
     for (const voice of [...this.sampleVoices, ...this.synthVoices]) {
       try { voice.source.stop(); } catch { /* Already ended. */ }
     }
     this.sampleVoices.clear(); this.synthVoices.clear();
+    // A convolver keeps ringing after its sources stop; replace it so pause
+    // and mute are silent at once.
+    if (this.reverb) this.connectReverb();
+  }
+  connectReverb() {
+    this.reverb?.disconnect(); this.reverbSend.disconnect();
+    this.reverb = this.context.createConvolver(); this.reverb.buffer = this.reverbImpulse;
+    this.reverbSend.connect(this.reverb); this.reverb.connect(this.reverbReturn);
+  }
+  // Every voice gets its own panner, so positional cues follow the action
+  // across the arena. Returned nodes are disconnected when the voice ends.
+  route(source, nodes, pan = 0, reverb = 0) {
+    let destination = this.master;
+    if (pan && this.context.createStereoPanner) {
+      const panner = this.context.createStereoPanner();
+      panner.pan.value = Math.max(-1, Math.min(1, pan));
+      panner.connect(this.master); nodes.push(panner); destination = panner;
+    }
+    source.connect(destination);
+    if (reverb > 0 && this.reverbSend) {
+      const send = this.context.createGain(); send.gain.value = reverb;
+      source.connect(send); send.connect(this.reverbSend); nodes.push(send);
+    }
   }
   trackSynth(source, nodes) {
     const voice = { source }; this.synthVoices.add(voice);
     source.onended = () => { this.synthVoices.delete(voice); source.disconnect(); nodes.forEach(node => node.disconnect()); };
   }
-  sample(group, volume, rate = 1, maxDuration = 2) {
+  sample(group, volume, rate = 1, maxDuration = 2, pan = 0, reverb = 0) {
     const available = SAMPLES[group]?.filter(key => this.samples.has(key)) || [];
     if (!available.length) return false;
     const groupLimit = group.startsWith('laser') ? 5 : group === 'explosion' ? 4 : 3;
@@ -91,16 +133,23 @@ export class AudioEngine {
     const duration = Math.min(maxDuration, source.buffer.duration / source.playbackRate.value);
     gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(volume, t + .004);
     gain.gain.setValueAtTime(volume, t + Math.max(.004, duration - .04)); gain.gain.linearRampToValueAtTime(0, t + duration);
-    source.connect(gain); gain.connect(this.master);
+    const nodes = [gain];
+    source.connect(gain); this.route(gain, nodes, pan, reverb);
     const voice = { source, group }; this.sampleVoices.add(voice);
-    source.onended = () => { this.sampleVoices.delete(voice); source.disconnect(); gain.disconnect(); };
+    source.onended = () => { this.sampleVoices.delete(voice); source.disconnect(); nodes.forEach(node => node.disconnect()); };
     source.start(t); source.stop(t + duration + .005);
     return true;
   }
   prepareMusic() {
     if (this.musicGain || this.musicUnavailable || !audioAssets.ready || !audioAssets.players.size) return;
     try {
-      this.musicGain = this.context.createGain(); this.musicGain.gain.value = 0; this.musicGain.connect(this.master);
+      this.musicGain = this.context.createGain(); this.musicGain.gain.value = 0;
+      // The soundtrack itself is untouched; a transparent low-pass muffles it
+      // only at critical hull, and a duck makes room for the heaviest blasts.
+      this.musicFilter = this.context.createBiquadFilter(); this.musicFilter.type = 'lowpass';
+      this.musicFilter.frequency.value = 20000; this.musicFilter.Q.value = .5;
+      this.musicDuck = this.context.createGain();
+      this.musicGain.connect(this.musicFilter); this.musicFilter.connect(this.musicDuck); this.musicDuck.connect(this.master);
       for (const [key, player] of audioAssets.players) {
         if (musicOwners.has(player)) continue;
         let source, channel;
@@ -171,7 +220,26 @@ export class AudioEngine {
     for (const channel of this.musicChannels.values()) channel.gain.setValueAtTime(0, this.context.currentTime);
     for (const player of this.musicPlayers.values()) player.pause();
     if (this.musicGain) this.musicGain.gain.setValueAtTime(0, this.context.currentTime);
+    if (this.musicDuck) { this.musicDuck.gain.cancelScheduledValues(this.context.currentTime); this.musicDuck.gain.setValueAtTime(1, this.context.currentTime); }
     this.musicTarget = 0;
+  }
+  duck(depth, recover = .6) {
+    if (!this.musicDuck || !this.musicPlaying) return;
+    const gain = this.musicDuck.gain, now = this.context.currentTime;
+    if (gain.cancelAndHoldAtTime) gain.cancelAndHoldAtTime(now);
+    else { const current = gain.value; gain.cancelScheduledValues(now); gain.setValueAtTime(current, now); }
+    gain.linearRampToValueAtTime(Math.min(gain.value, 1 - depth), now + .03);
+    gain.setTargetAtTime(1, now + .14, recover / 3);
+  }
+  // Critical hull muffles the soundtrack and sounds a soft two-tone alarm.
+  updateDanger(danger) {
+    const now = this.context.currentTime;
+    if (this.musicFilter && danger !== this.danger) this.musicFilter.frequency.setTargetAtTime(danger > 0 ? 3200 - danger * 1800 : 20000, now, .15);
+    this.danger = danger;
+    if (danger <= 0) { this.nextAlarm = 0; return; }
+    if (now < (this.nextAlarm || 0)) return;
+    this.nextAlarm = now + 1.5 - danger * .6;
+    this.tone(880, 870, .09, .04, 'square', now); this.tone(660, 655, .11, .04, 'square', now + .12);
   }
   updateMusic(playing, mood, level = 0) {
     if (!this.musicGain || this.musicUnavailable) return false;
@@ -196,23 +264,25 @@ export class AudioEngine {
     if (this.musicTarget !== target) { this.musicTarget = target; this.musicGain.gain.setTargetAtTime(target, this.context.currentTime, .12); }
     return this.musicPlaying && !this.music.paused && this.music.readyState >= 2;
   }
-  tone(frequency, end, duration, volume, type = 'sine', when = null) {
-    if (!this.context || this.muted) return;
-    const t = when ?? this.context.currentTime, osc = this.context.createOscillator(), gain = this.context.createGain();
+  tone(frequency, end, duration, volume, type = 'sine', when = null, pan = 0, reverb = 0) {
+    if (!this.context || this.muted || this.synthVoices.size >= MAX_SYNTH_VOICES) return;
+    const t = when ?? this.context.currentTime, osc = this.context.createOscillator(), gain = this.context.createGain(), nodes = [gain];
     osc.type = type; osc.frequency.setValueAtTime(frequency, t); osc.frequency.exponentialRampToValueAtTime(Math.max(15, end), t + duration);
     gain.gain.setValueAtTime(.001, t); gain.gain.exponentialRampToValueAtTime(volume, t + .008); gain.gain.exponentialRampToValueAtTime(.001, t + duration);
-    this.trackSynth(osc, [gain]);
-    osc.connect(gain); gain.connect(this.master); osc.start(t); osc.stop(t + duration + .02);
+    osc.connect(gain); this.route(gain, nodes, pan, reverb);
+    this.trackSynth(osc, nodes);
+    osc.start(t); osc.stop(t + duration + .02);
   }
-  burst(duration, volume, cutoff = 600, when = null) {
-    if (!this.context || this.muted) return;
-    const t = when ?? this.context.currentTime, noise = this.context.createBufferSource(), gain = this.context.createGain(), filter = this.context.createBiquadFilter();
+  burst(duration, volume, cutoff = 600, when = null, pan = 0, reverb = 0) {
+    if (!this.context || this.muted || this.synthVoices.size >= MAX_SYNTH_VOICES) return;
+    const t = when ?? this.context.currentTime, noise = this.context.createBufferSource(), gain = this.context.createGain(), filter = this.context.createBiquadFilter(), nodes = [filter, gain];
     noise.buffer = this.noise; filter.type = 'lowpass'; filter.frequency.setValueAtTime(cutoff, t); filter.frequency.exponentialRampToValueAtTime(80, t + duration);
     gain.gain.setValueAtTime(volume, t); gain.gain.exponentialRampToValueAtTime(.001, t + duration);
-    this.trackSynth(noise, [filter, gain]);
-    noise.connect(filter); filter.connect(gain); gain.connect(this.master); noise.start(t); noise.stop(t + duration);
+    noise.connect(filter); filter.connect(gain); this.route(gain, nodes, pan, reverb);
+    this.trackSynth(noise, nodes);
+    noise.start(t); noise.stop(t + duration);
   }
-  effect(type, size = 20, variant = '') {
+  effect(type, size = 20, variant = '', pan = 0) {
     if (!this.context || this.muted || this.context.state !== 'running') return;
     const t = this.context.currentTime;
     if (type === 'shot') {
@@ -220,42 +290,90 @@ export class AudioEngine {
       this.lastShot = t;
       const group = variant === 'lance' || variant === 'plasma' ? 'laser-heavy' : variant === 'scatter' || variant === 'arc' ? 'laser-retro' : 'laser-small';
       const rate = { pulse: 1.12, scatter: .85, lance: 1.22, seeker: 1.32, plasma: .74, arc: 1.4 }[variant] || 1;
-      if (this.sample(group, group === 'laser-heavy' ? .18 : .13, rate, group === 'laser-heavy' ? .38 : .22)) return;
+      if (this.sample(group, group === 'laser-heavy' ? .18 : .13, rate, group === 'laser-heavy' ? .38 : .22, pan)) return;
       const pitch = { pulse: 1150, scatter: 760, lance: 410, seeker: 930, plasma: 260, arc: 1380 }[variant] || 1150;
-      this.tone(pitch, Math.max(80, pitch * .2), variant === 'lance' ? .17 : .085, variant === 'plasma' ? .1 : .065, variant === 'arc' ? 'square' : 'triangle');
+      this.tone(pitch, Math.max(80, pitch * .2), variant === 'lance' ? .17 : .085, variant === 'plasma' ? .1 : .065, variant === 'arc' ? 'square' : 'triangle', null, pan);
+    }
+    if (type === 'volley') {
+      // Hostile fire is a quiet, throttled cue beneath the pilot's own guns;
+      // small hulls chirp high, capital ships cough low.
+      if (t - (this.lastVolley || 0) < .07) return;
+      this.lastVolley = t;
+      const heavy = variant === 'boss' || size >= 40, pitch = heavy ? 300 : 1000 - Math.min(560, size * 14);
+      this.tone(pitch, pitch * .45, heavy ? .16 : .07, heavy ? .045 : .028, heavy ? 'sawtooth' : 'triangle', null, pan);
     }
     if (type === 'explosion') {
       // Simultaneous kills share one voice slot per 35 ms instead of stacking.
       if (t - (this.lastExplosion || 0) < .035 && size < 60) return;
       this.lastExplosion = t;
-      if (this.sample('explosion', Math.min(.48, .16 + size / 280), Math.max(.72, 1.17 - size / 350), 1.4)) return;
-      this.burst(Math.min(1.3, .18 + size / 130), Math.min(.5, .09 + size / 220), 1400); this.tone(90, 22, .25 + size / 220, .2);
+      const big = size >= 45, reverb = big ? Math.min(.6, size / 160) : size >= 28 ? .12 : 0;
+      if (!this.sample('explosion', Math.min(.48, .16 + size / 280), Math.max(.72, 1.17 - size / 350), 1.4, pan, reverb)) {
+        this.burst(Math.min(1.3, .18 + size / 130), Math.min(.5, .09 + size / 220), 1400, null, pan, reverb); this.tone(90, 22, .25 + size / 220, .2, 'sine', null, pan);
+      }
+      // Heavier hulls add a sub-bass thump and a short debris crackle.
+      if (size >= 28) {
+        this.tone(72, 26, .3 + size / 300, Math.min(.3, .06 + size / 260), 'sine', null, pan * .5);
+        this.burst(.18 + size / 500, Math.min(.07, .02 + size / 1500), 2600, t + .05, pan, reverb * .5);
+      }
+      if (big) this.duck(Math.min(.5, size / 200), .7);
     }
-    if (type === 'hit') { if (this.sample('impact', .3, 1.15, .35)) return; this.burst(.13, .18, 3200); this.tone(420, 100, .2, .14, 'sawtooth'); }
-    if (type === 'pickup' || type === 'upgrade') { if (this.sample('pickup', .25, type === 'upgrade' ? .92 : 1.12, .6)) return; [440, 660, 880].forEach((f, i) => this.tone(f, f * 1.002, .18, .12, 'sine', t + i * .07)); }
-    if (type === 'boss') { [0, .3, .6].forEach(offset => this.tone(180, 140, .25, .18, 'sawtooth', t + offset)); }
+    if (type === 'hit') {
+      if (variant === 'shield') {
+        // A round spent on the shield: a bright, glassy deflection.
+        if (!this.sample('impact', .16, 1.6, .25, pan)) this.burst(.08, .1, 6400, null, pan);
+        this.tone(1900, 880, .16, .07, 'sine', null, pan);
+      } else {
+        // Hull damage is heavier and lower, so it reads as real harm.
+        if (!this.sample('impact', .34, .82, .4, pan)) { this.burst(.13, .18, 3200, null, pan); this.tone(420, 100, .2, .14, 'sawtooth', null, pan); }
+        this.tone(120, 42, .22, .2, 'sine', null, pan);
+        if (variant === 'kinetic') this.burst(.09, .09, 1800, null, pan);
+      }
+    }
+    if (type === 'shield-break') {
+      // The collapsing shield shatters downward, then its pulse thumps outward.
+      this.tone(1500, 160, .42, .09, 'sawtooth', null, pan);
+      this.burst(.3, .12, 7000, null, pan, .3);
+      this.tone(95, 40, .35, .22, 'sine', t + .02, pan);
+      this.duck(.3, .5);
+    }
+    if (type === 'shield-online') [523, 784, 1046].forEach((f, i) => this.tone(f, f * 1.01, .14, .05, 'triangle', t + i * .06, pan));
+    if (type === 'barrier-break') { this.tone(2200, 300, .3, .06, 'square', null, pan); this.burst(.22, .1, 8000, null, pan, .2); }
+    if (type === 'blocked') {
+      // Barrier and sealed-armor hits tell the pilot whether the gun is working.
+      if (t - (this.lastBlock || 0) < .06) return;
+      this.lastBlock = t;
+      if (variant === 'strong') this.tone(2600, 1900, .06, .035, 'sine', null, pan);
+      else if (variant === 'resist') this.tone(540, 380, .07, .045, 'triangle', null, pan);
+      else this.tone(1500, 1100, .05, .028, variant === 'drone' ? 'triangle' : 'sine', null, pan);
+    }
+    if (type === 'pickup' || type === 'upgrade') { if (this.sample('pickup', .25, type === 'upgrade' ? .92 : 1.12, .6, pan)) return; [440, 660, 880].forEach((f, i) => this.tone(f, f * 1.002, .18, .12, 'sine', t + i * .07, pan)); }
+    // A two-tone klaxon announces the guardian.
+    if (type === 'boss') { for (let i = 0; i < 4; i++) this.tone(i % 2 ? 165 : 196, i % 2 ? 150 : 180, .28, .16, 'sawtooth', t + i * .3); }
     if (type === 'weapon') { if (this.sample('pickup', .16, 1.35, .32)) return; this.tone(520, 860, .12, .07, 'triangle'); }
-    if (type === 'combo') { const notes = variant === 'Rampage' ? [220, 330, 495, 660] : variant === 'Multi kill' ? [330, 495, 660] : [440, 660]; notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055)); }
+    if (type === 'combo') { const notes = variant === 'Rampage' ? [220, 330, 495, 660] : variant === 'Multi kill' ? [330, 495, 660] : [440, 660]; notes.forEach((f, i) => this.tone(f, f * 1.04, .15, .13, 'square', t + i * .055, pan * .5)); }
     if (type === 'boss-open') { this.tone(880, 1320, .28, .12, 'sine'); }
-    if (type === 'weak-break') { if (!this.sample('impact', .24, .85, .5)) this.burst(.16, .12, 4200); this.tone(260, 920, .3, .16, 'sawtooth'); }
+    if (type === 'weak-break') { if (!this.sample('impact', .24, .85, .5, pan, .2)) this.burst(.16, .12, 4200, null, pan); this.tone(260, 920, .3, .16, 'sawtooth', null, pan); }
     if (type === 'dive') {
       // The unmistakable falling whistle of a diving attacker.
       if (t - (this.lastDive || 0) < .12) return;
-      this.lastDive = t; this.tone(1500, 420, .5, .045, 'sine');
+      this.lastDive = t; this.tone(1500, 420, .5, .045, 'sine', null, pan);
     }
-    if (type === 'power') { [392, 523, 659, 784, 1046].forEach((f, i) => this.tone(f, f * 1.01, .14, .11, 'square', t + i * .05)); }
-    if (type === 'drone') { [523, 784, 1046, 1568].forEach((f, i) => this.tone(f, f, .2, .1, 'triangle', t + i * .07)); }
-    if (type === 'nova') { if (!this.sample('explosion', .5, .7, 1.6)) this.burst(1.3, .5, 2600); this.tone(160, 28, 1.1, .34, 'sine'); this.tone(900, 60, .8, .08, 'sawtooth'); }
+    if (type === 'power') { [392, 523, 659, 784, 1046].forEach((f, i) => this.tone(f, f * 1.01, .14, .11, 'square', t + i * .05, pan)); }
+    if (type === 'drone') { [523, 784, 1046, 1568].forEach((f, i) => this.tone(f, f, .2, .1, 'triangle', t + i * .07, pan)); }
+    if (type === 'nova') {
+      if (!this.sample('explosion', .5, .7, 1.6, 0, .6)) this.burst(1.3, .5, 2600, null, 0, .6);
+      this.tone(160, 28, 1.1, .34, 'sine'); this.tone(900, 60, .8, .08, 'sawtooth'); this.duck(.45, 1);
+    }
     if (type === 'extra-life') { [523, 659, 784, 1046, 784, 1046].forEach((f, i) => this.tone(f, f, .16, .12, 'square', t + i * .09)); }
-    if (type === 'squadron') { [659, 830, 988].forEach(f => this.tone(f, f * 1.02, .32, .07, 'triangle')); this.tone(1318, 1320, .22, .05, 'sine', t + .08); }
-    if (type === 'tractor-charge') { this.tone(180, 520, .6, .07, 'sawtooth'); }
+    if (type === 'squadron') { [659, 830, 988].forEach(f => this.tone(f, f * 1.02, .32, .07, 'triangle', null, pan)); this.tone(1318, 1320, .22, .05, 'sine', t + .08, pan); }
+    if (type === 'tractor-charge') { this.tone(180, 520, .6, .07, 'sawtooth', null, pan); }
     if (type === 'tractor') this.warble(2.5, .07);
-    if (type === 'captured') { [620, 520, 410, 330].forEach((f, i) => this.tone(f, f * .96, .18, .1, 'square', t + i * .11)); }
-    if (type === 'rescue') { [440, 554, 659, 880, 1108].forEach((f, i) => this.tone(f, f, .16, .11, 'triangle', t + i * .06)); }
+    if (type === 'captured') { [620, 520, 410, 330].forEach((f, i) => this.tone(f, f * .96, .18, .1, 'square', t + i * .11, pan)); }
+    if (type === 'rescue') { [440, 554, 659, 880, 1108].forEach((f, i) => this.tone(f, f, .16, .11, 'triangle', t + i * .06, pan)); }
     if (type === 'respawn') { this.tone(220, 880, .55, .09, 'triangle'); this.burst(.3, .05, 5200); }
-    if (type === 'beam-charge') { this.tone(300, 1200, .7, .04, 'sine'); }
-    if (type === 'beam') { this.burst(.35, .16, 6000); this.tone(1100, 180, .35, .09, 'sawtooth'); }
-    if (type === 'power-lost') { this.tone(700, 220, .3, .09, 'square'); }
+    if (type === 'beam-charge') { this.tone(300, 1200, .7, .04, 'sine', null, pan); }
+    if (type === 'beam') { this.burst(.35, .16, 6000, null, pan, .25); this.tone(1100, 180, .35, .09, 'sawtooth', null, pan); }
+    if (type === 'power-lost') { this.tone(700, 220, .3, .09, 'square', null, pan); }
     if (type === 'midboss' || type === 'captor') { [0, .22].forEach(offset => this.tone(240, 190, .2, .14, 'sawtooth', t + offset)); }
     if (type === 'wave' && size > 1) { [587, 880].forEach((f, i) => this.tone(f, f, .16, .06, 'triangle', t + i * .09)); }
     if (type === 'challenge') { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, f, .22, .1, 'triangle', t + i * .12)); }
@@ -264,8 +382,8 @@ export class AudioEngine {
       const calm = variant === 'convoy' || variant === 'bonusFlight';
       (calm ? [659, 988, 1318] : [330, 262, 330]).forEach((f, i) => this.tone(f, f, calm ? .18 : .22, calm ? .08 : .11, calm ? 'triangle' : 'sawtooth', t + i * .11));
     }
-    if (type === 'ace-down') { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, f, .18, .11, 'square', t + i * .08)); }
-    if (type === 'split') { this.tone(980, 320, .14, .07, 'square'); this.burst(.1, .08, 5200); }
+    if (type === 'ace-down') { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, f, .18, .11, 'square', t + i * .08, pan)); }
+    if (type === 'split') { this.tone(980, 320, .14, .07, 'square', null, pan); this.burst(.1, .08, 5200, null, pan); }
     if (type === 'challenge-result') {
       const notes = variant === 'perfect' ? [523, 659, 784, 1046, 1318, 1568] : [392, 523, 659];
       notes.forEach((f, i) => this.tone(f, f, .22, .11, 'square', t + i * .1));
@@ -283,11 +401,12 @@ export class AudioEngine {
     this.trackSynth(osc, [gain]); this.trackSynth(lfo, [depth]);
     osc.start(t); lfo.start(t); osc.stop(t + duration + .02); lfo.stop(t + duration + .02);
   }
-  update(playing, level = 0, mood = '') {
+  update(playing, level = 0, mood = '', danger = 0) {
     if (!playing && this.active) this.pause();
     this.active = playing;
     const streamedMusic = this.updateMusic(playing, mood, level);
     if (!this.context || this.muted || !playing || this.context.state !== 'running') return;
+    this.updateDanger(danger);
     if (streamedMusic) { this.nextBeat = this.context.currentTime; return; }
     const now = this.context.currentTime;
     if (this.nextBeat < now - .5) this.nextBeat = now;

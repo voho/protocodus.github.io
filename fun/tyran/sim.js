@@ -550,7 +550,7 @@ function shoot(s, p, id, remainder = 0) {
     : profile.interval / (p.rapidFireTime > 0 ? RAPID_FIRE_MULTIPLIER : 1);
   p.weapon = id === 'plasma' ? 'plasma' : 'pulse';
   if (p.id === 0) s.weapon = p.weapon;
-  s.events.push({ type: 'shot', player: p.id, weapon: id === 'plasma' ? 'plasma' : profile.id });
+  s.events.push({ type: 'shot', player: p.id, weapon: id === 'plasma' ? 'plasma' : profile.id, x: p.x, y: p.y });
 }
 
 function hostileShot(s, e, angle, speed = 220, radius = 5, origin = null) {
@@ -1354,7 +1354,12 @@ export function update(s, dt, input = [], environmentHit = null) {
       const formation = e.formation, geometry = formation?.entry && formationGeometry.get(formation);
       const ready = !geometry || (formation.age * (formation.motionSpeed || 1) >= geometry.entryTime && e.x >= e.radius && e.x <= s.width - e.radius);
       if (ready) e.fire -= dt * difficultyProfile(s.difficulty).fireRate * (e.tacticFire || 1);
-      if (ready && e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) enemyFire(s, e);
+      if (ready && e.fire <= 0 && e.y > 30 && e.y < s.height * .73 && !s.bossDefeated) {
+        const before = s.hostileCount;
+        enemyFire(s, e);
+        // One cue per volley that actually left the hull, never per round.
+        if (s.hostileCount > before) s.events.push({ type: 'volley', x: e.x, y: e.y, size: e.radius, boss: e.boss });
+      }
     }
     if (e.harmless) continue;
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) {
