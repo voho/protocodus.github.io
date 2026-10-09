@@ -319,7 +319,7 @@ export function createGame(seed='ASH-001',difficulty='normal',options={}){
   }
   // Initial footprints must never contain shards, including the generated field fringe.
   for(const e of s.entities)if(e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++){s.terrain[y*W+x]=0;s.minerals[y*W+x]=0;}
-  if(operation)createMissionState(s,options.mission);
+  if(operation)createMissionState(s,options.mission,options);
   rebuildNavigation(s);for(const e of [...s.entities])deliverRefineryHauler(s,e);
   // Statistics start after the opening deployment: starting forces and haulers are not counted as trained.
   s.teams.forEach((team,index)=>{team.stats={...Object.fromEntries(TEAM_STATS.map(key=>[key,0])),peakArmy:armySize(s,index)};});
