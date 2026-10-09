@@ -703,6 +703,20 @@ const FRAG_FOG = `
   {
     float n64Dist = length(vN64View);
     float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist * uFogPull);
+    /* CLEAR AIR IS CLEAR. The curtain has to close by the far edge of the
+       ground, but between the two edges a plain smoothstep put a third of
+       the haze on a face three hundred metres off and two thirds at four
+       hundred — the walls along the run dissolved into the same blue-white
+       as their own snow while the painted massifs kilometres behind them
+       stood out crisp, which is aerial perspective backwards. Raised to a
+       power on a clear day the curve still starts at 0 and still ends at
+       exactly 1 at the same two ranges — the fully fogged early exit and
+       the seam against the massifs are untouched — but the middle distance
+       keeps its form: 16% at three hundred metres, about half at four
+       hundred. Falling snow fills the air evenly, so the storm dial takes
+       the clearing away again. */
+    float n64Clear = 1.0 - smoothstep(0.15, 0.65, uSnowFresh);
+    n64Fog = pow(n64Fog, 1.0 + 0.8 * n64Clear);
     /* Valley mist: the fog's height term. The radial curtain treats a hollow
        and a crest at the same range identically, which discards the one
        depth cue this terrain is actually made of. The mist is a bank with a
@@ -751,7 +765,7 @@ const FRAG_FOG = `
 
        The branch tests the blue factor, the largest of the three, or the
        nearest band of it would switch on with a step. */
-    float n64Air = 0.28 * (1.0 - smoothstep(0.15, 0.65, uSnowFresh));
+    float n64Air = 0.28 * n64Clear;
     vec3 n64FogRgb = pow(vec3(n64Fog),
       vec3(1.0 + n64Air, 1.0 + n64Air * 0.25, 1.0 - n64Air));
     if (n64FogRgb.b > 0.003) {

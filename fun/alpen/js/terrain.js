@@ -3913,12 +3913,20 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         const flank = smoothstep(ctx.half + ctx.bandW * 0.5,
           ctx.half + ctx.bandW + ctx.lipW + 32, toCentre);
         const flankRock = flank * smoothstep(5, 24, relief)
-          * smoothstep(0.30, 0.95, steep) * (0.25 + 0.65 * outcropBand);
+          * smoothstep(0.22, 0.75, steep) * (0.35 + 0.65 * outcropBand);
+        /* Wind scours the ribs. A face's convex ribs and arêtes lose their
+           snow to the wind long before its hollows do, and those dark lines
+           down the snow are most of what makes a mountainside read as one at
+           a distance. Curvature is the lattice's own, so it is there on the
+           widest cells wherever the ribs are. */
+        const ridgeRock = flank * smoothstep(5, 24, relief)
+          * smoothstep(0.003, 0.015, -curvature)
+          * smoothstep(0.10, 0.40, steep) * (0.45 + 0.55 * outcropBand);
         /* No stone inside the corridor at all — the physics has no plate of
            rock under three centimetres of snow in its model, so the picture
            must not either. Outside it, all four reasons apply. */
         const rock = (1 - corridorMask)
-          * Math.max(steepRock, thinRock, zoneRock, flankRock);
+          * Math.max(steepRock, thinRock, zoneRock, flankRock, ridgeRock);
 
         /* Snow, along the axis of what it has been through rather than of how
            bright it is. Deep cover is soft and pale; thin cover is what the
