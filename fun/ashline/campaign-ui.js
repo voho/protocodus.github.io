@@ -253,7 +253,13 @@ export function createCampaign({ launch }) {
     const report = matchReport(s);
     career = addToCareer(career, report, `${s.seed}|${s.mission?.id ?? 'skirmish'}|${s.status}|${s.time.toFixed(2)}|${s.nextId}`);
     store(CAREER_KEY, career);
-    if (s.mission) { progress = recordResult(progress, s, report); save(); }
+    if (s.mission) {
+      progress = recordResult(progress, s, report);
+      // A victory points the briefing at the operation it unlocked.
+      const next = CAMPAIGN[CAMPAIGN.indexOf(s.mission.id) + 1];
+      if (report.status === 'victory' && next && CAMPAIGN.includes(s.mission.id)) progress.selected = next;
+      save();
+    }
     renderList(); renderDetail(); renderCareer(); renderModes();
   }
 

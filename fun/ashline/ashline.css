@@ -252,7 +252,7 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
   .objectives{left:10px;top:60px;width:auto;max-width:calc(100% - 140px)}
   #objectives-toggle{min-height:36px;padding:5px 9px}
   #objectives-list li{font-size:11px}
-  #transmission-text{font-size:11px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  #transmission-text{font-size:11px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   body[data-commands=true] .objectives #objectives-list,body[data-commands=true] .objectives #transmission{display:none}
 }
 @media(prefers-reduced-motion:reduce){#objectives-list li.fresh{animation:none}}
