@@ -1175,7 +1175,8 @@ function frame(time) {
   const frameStarted = performance.now();
   const elapsed = lastTime ? Math.max(0, (time - lastTime) / 1000) : 0;
   const dt = Math.min(.1, elapsed); lastTime = time;
-  const preview = scene === 'menu' && document.body.dataset.preview === 'true';
+  // The opaque manual page hides the preview, so it idles until the manual closes.
+  const preview = scene === 'menu' && document.body.dataset.preview === 'true' && $('help-screen').hidden;
   const fading = (scene === 'end' && endFade && !endFade.complete) || scene === 'bonus-outro';
   const active = scene === 'playing' || preview || fading;
   if (active) clock += dt;
@@ -1434,8 +1435,12 @@ function syncSettings() {
 on('sound-toggle', toggleSound);
 on('pause-sound-toggle', toggleSound);
 on('fullscreen-toggle', async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { $('fullscreen-toggle').title = 'Fullscreen is unavailable in this browser'; } });
-function closeHelp() { $('help-screen').hidden = true; if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
-on('help-button', () => { helpFocus = document.activeElement; helpPaused = scene === 'playing'; if (helpPaused) pause(); $('help-screen').hidden = false; $('help-close').focus(); }); on('help-close', closeHelp);
+function closeHelp() { $('help-screen').hidden = true; requestFrame(); if (helpPaused && scene === 'pause') pause(); else helpFocus?.focus({ preventScroll: true }); helpPaused = false; }
+on('help-button', () => {
+  helpFocus = document.activeElement; helpPaused = scene === 'playing'; if (helpPaused) pause();
+  // The page itself takes focus so Space, Page Down and the arrows scroll it like a document; Tab reaches Back.
+  $('help-screen').hidden = false; $('help-screen').scrollTop = 0; $('help-screen').focus();
+}); on('help-close', closeHelp);
 
 const stick = $('touch-stick');
 if (stick) {

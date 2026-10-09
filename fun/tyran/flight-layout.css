@@ -1,6 +1,8 @@
 /* Separate translucent instruments in reserved space above the flight arena. */
+/* Reserved row sizes live on the root so the title screen can blend its sector preview over them. */
+:root{--flight-header:64px;--flight-dock:0px;--flight-side:0px}
 #flight-layout{
-  --flight-header:64px;--flight-dock:0px;--hud-ink:#e3ece8;--hud-muted:#a0b8ae;
+  --hud-ink:#e3ece8;--hud-muted:#a0b8ae;
   position:fixed;inset:0;display:grid;min-width:0;min-height:0;
   grid-template-columns:minmax(0,1fr);grid-template-rows:var(--flight-header) minmax(0,1fr) var(--flight-dock);
   grid-template-areas:'header' 'arena' 'dock';
@@ -78,7 +80,7 @@
 #flight-layout .pause-button:hover{color:#eff8ef;background:rgba(0,0,0,.10)}
 #flight-layout .pause-button svg{width:18px;height:18px}
 @media(min-width:1800px){
-  #flight-layout{--flight-header:68px}
+  :root{--flight-header:68px}
   #flight-header{grid-template-columns:280px 208px 120px minmax(0,1fr) 244px 44px}
   #flight-layout .player-resources{width:280px}
   #flight-layout .scoreboard{width:244px}
@@ -88,7 +90,7 @@
   #flight-layout .flight-updates{max-width:390px}
 }
 @media(max-width:1199px){
-  #flight-layout{--flight-header:100px}
+  :root{--flight-header:100px}
   #flight-header{display:grid;grid-template-columns:minmax(0,1.25fr) 192px 224px 44px;grid-template-rows:44px 34px;gap:8px 10px;padding:7px 12px;align-content:center}
   #flight-layout .player-resources{grid-column:1;grid-row:1;width:100%;max-width:280px;height:44px;padding:4px 9px;gap:10px}
   #flight-layout .resource-line{grid-template-rows:11px 19px 3px}
@@ -125,7 +127,7 @@
   #flight-layout .score-instrument,#flight-layout .credits-instrument{gap:3px}
 }
 @media(max-width:600px){
-  #flight-layout{--flight-header:120px}
+  :root{--flight-header:120px}
   #flight-header{grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:42px 26px 34px;gap:3px 4px;padding:6px 8px;align-content:center}
   #flight-layout .hud-island{border-radius:8px}
   #flight-layout .player-resources{grid-column:1/11;grid-row:1;max-width:320px;width:100%;height:42px;padding:4px 8px;gap:10px}
@@ -179,11 +181,12 @@
 /* Instruments stay on screen behind the pause overlay and through the final fade, so the reserved header row never reads as a bare band above the arena. */
 body:is([data-scene=menu],[data-scene=hangar]) #flight-header,body:not([data-scene=playing]):not([data-scene=bonus-outro]) #touch-controls{visibility:hidden}
 @media(pointer:coarse){
-  #flight-layout{--flight-dock:92px}
+  :root{--flight-dock:92px}
   #flight-layout #touch-controls:not([hidden]){display:flex}
 }
 @media(pointer:coarse) and (max-height:600px) and (orientation:landscape){
-  #flight-layout{grid-template-columns:88px minmax(0,1fr) 88px;grid-template-rows:var(--flight-header) minmax(0,1fr);grid-template-areas:'header header header' 'steer arena weapons'}
+  :root{--flight-dock:0px;--flight-side:88px}
+  #flight-layout{grid-template-columns:var(--flight-side) minmax(0,1fr) var(--flight-side);grid-template-rows:var(--flight-header) minmax(0,1fr);grid-template-areas:'header header header' 'steer arena weapons'}
   #flight-layout #touch-controls:not([hidden]){display:contents}
   #flight-layout .touch-stick{grid-area:steer;place-self:center;width:76px;height:76px}
   #flight-layout .touch-stick>span{transform:translate(clamp(-18px,var(--stick-x,0px),18px),clamp(-18px,var(--stick-y,0px),18px))}
