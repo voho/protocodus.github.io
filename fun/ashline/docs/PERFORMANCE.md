@@ -28,9 +28,50 @@ ASHLINE_PROFILE=/tmp/ashline-sim.cpuprofile node tests/performance-benchmark.mjs
 node --test tests/performance.test.mjs tests/frame-scheduler.test.mjs tests/ai-defense.test.mjs
 ```
 
-`ASHLINE_TICKS` changes the sample count; `ASHLINE_SCENES` accepts a comma-separated subset of `march,obstructed,battle,harvesting`. `ASHLINE_SIM_URL` can select a baseline simulation module with its dependencies. Compare state digests as well as timing. Timings are reports, never machine-dependent test assertions.
+`ASHLINE_TICKS` changes the sample count; `ASHLINE_SCENES` accepts a comma-separated subset of `march,obstructed,battle,harvesting`, plus the opt-in `duel`: a hard AI-versus-AI match on a vast rift map, where `ASHLINE_UNITS` does not apply. Each scene reports the median, p95 and worst tick (`maxMs`). `ASHLINE_SIM_URL` can select a baseline simulation module with its dependencies. Compare state digests as well as timing. Timings are reports, never machine-dependent test assertions.
 
 The frame scheduler keeps deterministic 50 ms steps and checks an 8 ms CPU budget **between** steps. It bounds pending work and yields to rendering/input instead of chaining several expensive ticks. A single tick can exceed that budget, and sustained overload reduces effective game speed, including at 200%. The 2,000-unit congestion case remains CPU-heavy.
+
+## Simulation, 2026-10-09
+
+Measured against `4563439` on a 4-core container that runs roughly twice as slow as the 2026-09-27 machine and varies about ±20% between runs, so compare these figures only with each other. Baseline and new runs alternated, three of each; the table gives the median of the per-run medians and p95s. The 2,000-unit rows use 30 measured ticks.
+
+| Total units | Scene | Median before → after (ms/tick) | p95 before → after (ms/tick) |
+| --- | --- | --- | --- |
+| 600 | March | 46.91 → 43.30 | 72.11 → 72.15 |
+| 600 | Obstructed routes | 91.59 → 61.57 | 152.66 → 109.87 |
+| 600 | Battle | 53.98 → 49.77 | 86.76 → 86.40 |
+| 600 | Harvesting | 48.86 → 43.11 | 77.43 → 76.45 |
+| 2,000 | March | 203.87 → 187.68 | 263.78 → 265.07 |
+| 2,000 | Obstructed routes | 364.32 → 129.29 | 500.83 → 187.84 |
+| 2,000 | Battle | 214.84 → 201.48 | 327.44 → 246.40 |
+| 2,000 | Harvesting | 172.33 → 131.97 | 236.96 → 181.40 |
+
+A 15-minute hard AI duel (`duel`, 18,000 ticks) shows the tick spikes a real match produces: total simulation time **28.0 → 17.4 s**, p95 **4.69 → 2.72 ms**, worst tick **180.6 → 47.8 ms**. Generating a vast map takes about 36 → 25 ms.
+
+Every change keeps behaviour bit-identical. The final-state digests of all benchmark scenes match the baseline at both populations. So do the behaviour digests of 72 generated maps, four 300-second games and four scenes, and differential traces of 900-second AI duels, placement checks across whole maps, mass exploration, group rallies into rock and corners, and depleting harvest fields.
+
+- **A\*.** Generation stamps replace three whole-map resets per search, the heuristic is cached per cell, and bounds and the Defend leash are resolved once per search. Costs stay `Float32Array` values and heap ties are unchanged, so the same paths come out.
+- **Swept clearance.** When a ray's bounding rectangle touches a blocker, it is split into chunks of 12 samples. A chunk whose slightly widened rectangle is empty in the summed blocked-tile grid is proven clear; only the rest are sampled, and the corner test no longer allocates. Boids neighbours inside an open 8.4-tile square skip their swept checks, since every one would succeed.
+- **Fog.** Each sight disc is stamped row by row: a square root estimates each span, and the original cell-centre test settles both ends. AI memory pruning looks up entities by id instead of scanning the entity list.
+- **Spatial queries.** Grid buckets use integer keys. Cached nearby-entity rectangles are checked against per-bucket versions, so a unit crossing a bucket no longer clears every cached query, and deaths no longer clear the cache, because dead entities keep their bucket until the step ends.
+- **Group orders.** Rally slots are claimed in the original distance, row and column order, but in doubling distance bands. A filled rally stops searching instead of sorting every hex point and fallback tile on the map, and occupancy uses integer keys. In an instrumented duel run, the worst AI think fell from 192 to 45 ms; most of what remains is a one-time cold navigation rebuild.
+- **Construction planning.** `canPlace` splits into position-independent checks, evaluated once, and a per-cell check. Reasons and their order are unchanged. AI building placement and wall-drag previews test hundreds of cells against one evaluation, and units are bucketed by tile once. AI placement, previously up to 43 ms in one think, no longer appears among the duel's worst ticks.
+- **Navigation and economy.** The region flood no longer allocates per cell. Nearest-shard and exploration targets come from ring searches that stop once no farther cell can win, with ties going to the lowest index, as in a full scan. Exploration reuses its crowding grid. AI mining-site matching uses buckets that keep the first-match order. Spawn crowding uses the spatial index, and the armor table is a module constant.
+- **Generation.** Relief quantiles sort the mirrored half of each field once, still as numeric `TypedArray` sorts. Pocket breaching no longer allocates a closure per cell.
+
+A\* expansion still dominates the obstructed scene and the remaining worst AI ticks (up to 16 searches per tick). A shared flow field would change paths, so it needs re-baselined digests. March and battle at 2,000 units remain bound by the per-unit neighbour loops in `navigate`.
+
+From `fun/ashline/`, with the previous simulation checked out beside it:
+
+```sh
+git worktree add /tmp/ashline-base 4563439
+ASHLINE_SIM_URL=file:///tmp/ashline-base/fun/ashline/sim.js node tests/performance-benchmark.mjs
+node tests/performance-benchmark.mjs
+ASHLINE_SIM_URL=file:///tmp/ashline-base/fun/ashline/sim.js ASHLINE_UNITS=2000 ASHLINE_TICKS=30 node tests/performance-benchmark.mjs
+ASHLINE_UNITS=2000 ASHLINE_TICKS=30 node tests/performance-benchmark.mjs
+ASHLINE_SCENES=duel ASHLINE_TICKS=18000 node tests/performance-benchmark.mjs
+```
 
 ## Rendering and memory
 

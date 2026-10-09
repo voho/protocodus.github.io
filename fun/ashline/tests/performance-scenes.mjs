@@ -1,6 +1,8 @@
 // Deterministic fixtures shared by CPU benchmarks and simulation regression checks.
 export function performanceScene(sim, name, count = 600) {
   const {createGame,UNITS,BUILDINGS,raceUnit,raceBuilding}=sim;
+  // A whole AI-versus-AI match: think spikes, expansion and raids rather than one crowd.
+  if(name==='duel')return createGame('PERF-DUEL-2','hard',{width:224,height:168,profile:'rift',races:['aiUnity','organics'],aiTeams:[0,1]});
   const s=createGame(`performance-${name}`,'normal',{width:224,height:168,races:['organics','aiUnity'],aiTeams:[]});
   const unitTemplate=structuredClone(s.entities.find(e=>e.kind==='unit'));
   const buildingTemplate=structuredClone(s.entities.find(e=>e.kind==='building'));

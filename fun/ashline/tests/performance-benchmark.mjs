@@ -17,7 +17,7 @@ const result=[];
 for(const {name,s} of scenes){const times=[];
   for(let i=0;i<ticks;i++){const before=performance.now();sim.updateGame(s,.05);times.push(performance.now()-before);}
   times.sort((a,b)=>a-b);
-  result.push({name,units:count,ticks,medianMs:times[Math.floor(times.length*.5)],p95Ms:times[Math.floor(times.length*.95)],totalMs:times.reduce((a,b)=>a+b,0),
+  result.push({name,units:count,ticks,medianMs:times[Math.floor(times.length*.5)],p95Ms:times[Math.floor(times.length*.95)],maxMs:times.at(-1),totalMs:times.reduce((a,b)=>a+b,0),
     digest:createHash('sha256').update(simulationDigest(s)).digest('hex'),remaining:s.entities.filter(e=>e.kind==='unit').length});
 }
 if(profiler){const {profile}=await post('Profiler.stop');await writeFile(process.env.ASHLINE_PROFILE,JSON.stringify(profile));profiler.disconnect();}

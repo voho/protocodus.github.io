@@ -2,6 +2,7 @@
 // https://www.red3d.com/cwr/boids/
 const RADIUS=4, COMFORT=.2, COHESION_DISTANCE=2.4;
 const clamp=(x,min,max)=>Math.max(min,Math.min(max,x));
+const bucketKey=(x,y)=>(y+64)*65536+x+64;
 
 // Read one immutable neighborhood per simulation tick, independent of update order.
 // The grid is derived state; path legs and movement speed already survive save/load.
@@ -16,16 +17,16 @@ export function createFlockSnapshot(entities){
     const u={id:e.id,team:e.team,x:e.x,y:e.y,size:e.size,
       vx:Math.cos(e.angle)*speed,vy:Math.sin(e.angle)*speed,goal:goal?{x:goal.x,y:goal.y}:null,
       formation:commanded&&goal&&e.order.formation?{...e.order.formation}:null};
-    const key=`${Math.floor(e.x/RADIUS)},${Math.floor(e.y/RADIUS)}`;
+    const key=bucketKey(Math.floor(e.x/RADIUS),Math.floor(e.y/RADIUS));
     if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(u);
   }
   const neighborhoods=new Map();
   return u=>{
-    const cx=Math.floor(u.x/RADIUS),cy=Math.floor(u.y/RADIUS),key=`${cx},${cy}`;
+    const cx=Math.floor(u.x/RADIUS),cy=Math.floor(u.y/RADIUS),key=bucketKey(cx,cy);
     let candidates=neighborhoods.get(key);
     if(!candidates){
       candidates=[];
-      for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++)for(const other of buckets.get(`${x},${y}`)||[])candidates.push(other);
+      for(let y=cy-1;y<=cy+1;y++)for(let x=cx-1;x<=cx+1;x++){const bucket=buckets.get(bucketKey(x,y));if(bucket)for(const other of bucket)candidates.push(other);}
       candidates.sort((a,b)=>a.id-b.id);neighborhoods.set(key,candidates);
     }
     // The snapshot cannot move during a tick. Share its sorted bucket candidates,

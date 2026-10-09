@@ -111,13 +111,17 @@ const completed=(s,t,type)=>own(s,t,type).some(e=>e.kind==='building'&&e.progres
 const definition=e=>e.kind==='building'?BUILDINGS[e.type]:UNITS[e.type];
 // Per-step spatial state is derived, never serialized. Ordering stays identical to entities.
 const spatialStates=new WeakMap(),SPATIAL_CELL=6;
-const spatialKey=e=>{const p=center(e);return `${Math.floor(p.x/SPATIAL_CELL)},${Math.floor(p.y/SPATIAL_CELL)}`;};
+// Integer keys for integer grid buckets; on-map coordinates stay far inside the 16-bit fields.
+const bucketKey=(x,y)=>(y+64)*65536+x+64;
+const spatialKey=e=>{const p=center(e);return bucketKey(Math.floor(p.x/SPATIAL_CELL),Math.floor(p.y/SPATIAL_CELL));};
+const bumpVersion=(versions,key)=>versions.set(key,(versions.get(key)||0)+1);
 function indexEntity(s,e){
   const spatial=spatialStates.get(s);if(!spatial)return;
   const key=spatialKey(e),previous=spatial.entries.get(e.id);
   if(previous?.key===key)return;
-  spatial.queries.clear();
-  if(previous){const bucket=spatial.buckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);}
+  // Only the two touched buckets change membership; cached rectangles check their bucket versions.
+  bumpVersion(spatial.versions,key);
+  if(previous){bumpVersion(spatial.versions,previous.key);const bucket=spatial.buckets.get(previous.key);bucket.splice(bucket.indexOf(previous),1);}
   const entry={e,key,index:previous?.index??spatial.nextIndex++};spatial.entries.set(e.id,entry);
   if(!previous){
     const owned=spatial.owned[e.team];owned.all.push(e);
@@ -129,20 +133,28 @@ function indexEntity(s,e){
   if(!spatial.buckets.has(key))spatial.buckets.set(key,[]);spatial.buckets.get(key).push(entry);
 }
 function beginSpatialStep(s){
-  spatialStates.set(s,{buckets:new Map(),entries:new Map(),queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
+  spatialStates.set(s,{buckets:new Map(),versions:new Map(),entries:new Map(),queries:new Map(),owned:[0,1].map(()=>({all:[],types:new Map()})),nextIndex:0,flock:createFlockSnapshot(s.entities)});
   for(const e of s.entities)if(alive(e))indexEntity(s,e);
 }
 function nearbyEntities(s,p,r){
   const spatial=spatialStates.get(s);if(!spatial)return s.entities;
   const left=Math.floor((p.x-r)/SPATIAL_CELL),right=Math.floor((p.x+r)/SPATIAL_CELL),top=Math.floor((p.y-r)/SPATIAL_CELL),bottom=Math.floor((p.y+r)/SPATIAL_CELL);
-  const key=`${left},${right},${top},${bottom}`,cached=spatial.queries.get(key);if(cached)return cached;
-  const entries=[];
-  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)for(const entry of spatial.buckets.get(`${x},${y}`)||[])entries.push(entry);
+  const {versions,queries}=spatial,key=((left+64)*1024+right+64)*1048576+(top+64)*1024+bottom+64,cached=queries.get(key);
+  if(cached){
+    let valid=true,n=0;
+    for(let y=top;y<=bottom&&valid;y++)for(let x=left;x<=right&&valid;x++)valid=(versions.get(bucketKey(x,y))||0)===cached.stamp[n++];
+    if(valid)return cached.result;
+  }
+  const entries=[],stamp=[];
+  for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++){
+    const k=bucketKey(x,y),bucket=spatial.buckets.get(k);stamp.push(versions.get(k)||0);
+    if(bucket)for(const entry of bucket)entries.push(entry);
+  }
   const result=entries.sort((a,b)=>a.index-b.index).map(entry=>entry.e);
-  // Callers filter live positions; membership/order only changes on bucket moves,
-  // births or deaths. Bound retained queries even for unusually scattered armies.
-  if(spatial.queries.size>=256)spatial.queries.clear();
-  spatial.queries.set(key,result);return result;
+  // Callers filter live positions; membership/order only changes on bucket moves
+  // and births. Bound retained queries even for unusually scattered armies.
+  if(queries.size>=256)queries.clear();
+  queries.set(key,{result,stamp});return result;
 }
 
 export function unitRank(e){return e?.kind==='unit'?Math.min(3,Math.floor(Math.max(0,e.kills||0)/5)):0;}
@@ -276,7 +288,8 @@ function addEntity(s,team,kind,type,x,y,built=true){
 const lat=(x,y,k)=>{let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(k|0,1274126177))|0;h=Math.imul(h^h>>>15,2246822519);h=Math.imul(h^h>>>13,3266489917);return((h^h>>>16)>>>0)/4294967296;};
 function vnoise(x,y,k){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);return(lat(ix,iy,k)*(1-u)+lat(ix+1,iy,k)*u)*(1-v)+(lat(ix,iy+1,k)*(1-u)+lat(ix+1,iy+1,k)*u)*v;}
 function fbm(x,y,k,oct=3){let sum=0,amp=1,norm=0;for(let o=0;o<oct;o++){sum+=vnoise(x,y,k+o*101)*amp;norm+=amp;x=x*2.03+7.1;y=y*1.97+3.3;amp*=.5;}return sum/norm;}
-const quantile=(a,q)=>{const sorted=a.slice().sort();return sorted[Math.min(a.length-1,Math.floor(a.length*q))];};
+// Quantile of a numerically sorted TypedArray whose entries each stand for `copies` cells.
+const quantile=(sorted,q,copies=1)=>{const length=sorted.length*copies;return sorted[Math.floor(Math.min(length-1,Math.floor(length*q))/copies)];};
 const PROFILE_RELIEF={
   rift:{wavelength:23,ridges:.22,mesas:.045,basalt:.22,gap:.43,ring:2.4,route:2.9,flank:2.5,trees:.028,lava:7,outcrop:4.5},
   basin:{wavelength:29,ridges:.10,mesas:.07,basalt:.47,gap:.5,ring:1.9,route:3.9,flank:3.2,trees:.04,lava:2,outcrop:3.8},
@@ -303,7 +316,10 @@ function relief(s){
     else{const a=field(u,v),b=field(-u,-v),t=u/6+.5,w=t*t*(3-2*t);f=[a[0]*w+b[0]*(1-w),a[1]*w+b[1]*(1-w),a[2]*w+b[2]*(1-w)];}
     const m=N-1-i;height[i]=height[m]=f[0];ridge[i]=ridge[m]=f[1];gap[i]=gap[m]=f[2];
   }
-  const open=ridge.filter((_,i)=>gap[i]>rules.gap),mesa=quantile(height,1-rules.mesas),basin=quantile(height,rules.basalt),crest=open.length?quantile(open,Math.max(0,1-rules.ridges*N/open.length)):Infinity;
+  // Point symmetry stores every value at both i and N-1-i, so with an even cell count the
+  // first half, sorted once, yields every quantile. TypedArray sort stays numeric.
+  const copies=N%2?1:2,half=N/copies,heights=height.slice(0,half).sort(),open=ridge.slice(0,half).filter((_,i)=>gap[i]>rules.gap).sort();
+  const mesa=quantile(heights,1-rules.mesas,copies),basin=quantile(heights,rules.basalt,copies),crest=open.length?quantile(open,Math.max(0,1-rules.ridges*N/(open.length*copies)),copies):Infinity;
   for(let i=0;i<N/2;i++)mirroredTerrain(s,i,ridge[i]>crest&&gap[i]>rules.gap||height[i]>mesa?1:height[i]<basin?2:0);
   // Rounded satellite outcrops leave room for maneuver, and supply separate broad lava shores.
   const rng={rng:hash(`${s.seed}:outcrops:${s.mapProfile}`)},target=Math.round(6*Math.sqrt(N/(72*56))),exclusion=19;
@@ -339,31 +355,28 @@ function mineralBowls(s,centers){
 // One flood and one multi-source breadth-first search connect every large or resource-bearing pocket.
 // Unlike the former all-pairs nearest-tile scan, work is linear in map area, even on the vast setting.
 function breachPockets(s,clear){
-  const {width:W}=s,N=s.terrain.length,{start}=mapLayout(s),regions=new Uint32Array(N),queue=new Int32Array(N),sizes=[0],resources=[false];
-  let count=0;
-  const neighbors=(at,visit)=>{const x=at%W;if(x>0)visit(at-1);if(x<W-1)visit(at+1);if(at>=W)visit(at-W);if(at<N-W)visit(at+W);};
+  const {width:W,terrain}=s,N=terrain.length,{start}=mapLayout(s),regions=new Uint32Array(N),queue=new Int32Array(N),sizes=[0],resources=[false];
+  let count=0,id=0,tail=0,at=0;
+  // One visitor per pass, rather than a closure per cell; open ground is terrain 0, 2 or 5.
+  const neighbors=(i,visit)=>{const x=i%W;if(x>0)visit(i-1);if(x<W-1)visit(i+1);if(i>=W)visit(i-W);if(i<N-W)visit(i+W);};
+  const flood=next=>{const t=terrain[next];if(!regions[next]&&(t===0||t===2||t===5)){regions[next]=id;queue[tail++]=next;}};
   for(let i=0;i<N;i++){
-    if(regions[i]||s.terrain[i]===1||s.terrain[i]===3||s.terrain[i]===4)continue;
-    const id=++count;let tail=1;queue[0]=i;regions[i]=id;sizes[id]=0;resources[id]=false;
-    for(let head=0;head<tail;head++){
-      const at=queue[head];sizes[id]++;if(s.minerals[at]>0)resources[id]=true;
-      neighbors(at,next=>{if(!regions[next]&&[0,2,5].includes(s.terrain[next])){regions[next]=id;queue[tail++]=next;}});
-    }
+    if(regions[i]||terrain[i]===1||terrain[i]===3||terrain[i]===4)continue;
+    id=++count;tail=1;queue[0]=i;regions[i]=id;sizes[id]=0;resources[id]=false;
+    for(let head=0;head<tail;head++){at=queue[head];sizes[id]++;if(s.minerals[at]>0)resources[id]=true;neighbors(at,flood);}
   }
   const main=regions[cell(s,start.x,start.y)],needed=new Set();
   for(let id=1;id<=count;id++)if(id!==main&&(sizes[id]>=30||resources[id]))needed.add(id);
   if(!needed.size)return;
-  const parent=new Int32Array(N);parent.fill(-1);let tail=0;
+  const parent=new Int32Array(N);parent.fill(-1);tail=0;
   for(let i=0;i<N;i++)if(regions[i]===main){queue[tail++]=i;parent[i]=i;}
-  for(let head=0;head<tail&&needed.size;head++){
-    const at=queue[head];
-    neighbors(at,next=>{
-      if(parent[next]!==-1)return;parent[next]=at;queue[tail++]=next;
-      const id=regions[next];if(!needed.has(id))return;
-      needed.delete(id);
-      for(let p=next;parent[p]!==p;p=parent[p])clear(p%W,Math.floor(p/W),1.65);
-    });
-  }
+  const connect=next=>{
+    if(parent[next]!==-1)return;parent[next]=at;queue[tail++]=next;
+    const region=regions[next];if(!needed.has(region))return;
+    needed.delete(region);
+    for(let p=next;parent[p]!==p;p=parent[p])clear(p%W,Math.floor(p/W),1.65);
+  };
+  for(let head=0;head<tail&&needed.size;head++){at=queue[head];neighbors(at,connect);}
 }
 
 function generateMap(s){
@@ -513,46 +526,76 @@ function rebuildClearance(s){
 function rebuildNavigation(s){
   const {width:W,height:H}=s,N=W*H;
   if(s.navBuilt===s.navVersion&&s.regionSize){if(!clearanceGrids.has(s))rebuildClearance(s);return;}
-  for(let i=0;i<N;i++)s.blocked[i]=s.terrain[i]===1||s.terrain[i]===3||s.terrain[i]===4?1:0;
-  for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)s.blocked[y*W+x]=1;
+  const {terrain,blocked}=s;
+  for(let i=0;i<N;i++)blocked[i]=terrain[i]===1||terrain[i]===3||terrain[i]===4?1:0;
+  for(const e of s.entities)if(alive(e)&&e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)blocked[y*W+x]=1;
   // Connected regions let haulers skip isolated mineral pockets without repeated A* failures.
-  s.regions=new Uint16Array(N);let region=0;const queue=new Int32Array(N);
-  for(let start=0;start<N;start++)if(!s.blocked[start]&&!s.regions[start]){
-    region++;let head=0,tail=1;queue[0]=start;s.regions[start]=region;
-    while(head<tail){const at=queue[head++],x=at%W,y=Math.floor(at/W);for(const next of [x>0?at-1:-1,x<W-1?at+1:-1,y>0?at-W:-1,y<H-1?at+W:-1])if(next>=0&&!s.blocked[next]&&!s.regions[next]){s.regions[next]=region;queue[tail++]=next;}}
+  const regions=s.regions=new Uint16Array(N),queue=new Int32Array(N);let region=0,tail=0;
+  const visit=next=>{if(!blocked[next]&&!regions[next]){regions[next]=region;queue[tail++]=next;}};
+  for(let start=0;start<N;start++)if(!blocked[start]&&!regions[start]){
+    region++;tail=0;visit(start);
+    for(let head=0;head<tail;head++){const at=queue[head],x=at%W;if(x>0)visit(at-1);if(x<W-1)visit(at+1);if(at>=W)visit(at-W);if(at<N-W)visit(at+W);}
   }
   // Region sizes are derived, never saved: a loaded map rebuilds them once.
-  s.regionSize=new Uint32Array(region+1);for(let i=0;i<N;i++)s.regionSize[s.regions[i]]++;
+  const sizes=s.regionSize=new Uint32Array(region+1);for(let i=0;i<N;i++)sizes[regions[i]]++;
   s.navBuilt=s.navVersion;rebuildClearance(s);
 }
 function walkable(s,x,y,r=.19){
   const {width:W,height:H}=s;
   if(x<r||y<r||x>=W-r||y>=H-r)return false;
-  for(const yy of [y-r,y+r])for(const xx of [x-r,x+r])if(s.blocked[cell(s,xx,yy)])return false;
-  return true;
+  const b=s.blocked,top=Math.floor(y-r)*W,bottom=Math.floor(y+r)*W,left=Math.floor(x-r),right=Math.floor(x+r);
+  return !(b[top+left]||b[top+right]||b[bottom+left]||b[bottom+right]);
 }
 function seen(s,team,e){if(e.team===team)return true;const c=center(e);if(!inside(s,c.x,c.y))return false;if(s.visible[team][cell(s,c.x,c.y)])return true;if(e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++)if(s.visible[team][y*s.width+x])return true;return false;}
 
-export function canPlace(s,team,type,x,y){
-  const {width:W,height:H}=s;
-  const d=BUILDINGS[type];if(s.status!=='playing')return bad('Operation has ended');if(!d||![0,1].includes(team))return bad('Unknown structure');
-  if(d.race!=='both'&&d.race!==teamRace(s,team))return bad('Structure belongs to a different race');
-  if(!Number.isFinite(x)||!Number.isFinite(y)||x!==Math.floor(x)||y!==Math.floor(y))return bad('Place on the ground grid');
-  if(buildingRole(type)==='core')return bad('Deploy a nexus construction vehicle to establish a new nexus');
-  if(s.teams[team].credits<d.cost)return bad('Insufficient credits');
-  const missing=d.requires.find(key=>!completed(s,team,key));if(missing)return bad(`Requires ${BUILDINGS[missing].name}`);
-  if(buildingRole(type)==='refinery'&&reservedUnits(s,team)>=unitCapacity(s,team))return bad(`Unit limit reached (${unitCapacity(s,team)}); refinery includes a hauler`);
-  if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
-  rebuildNavigation(s);
-  for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
-    const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+// Placement validation in two parts: position-independent checks evaluated once, and a
+// per-cell check for planners that test many cells of one unchanged state. Reasons and
+// their order are exactly those of canPlace.
+function placementCheck(s,team,type){
+  const {width:W,height:H}=s,d=BUILDINGS[type];
+  let rejected='',unavailable='';
+  if(s.status!=='playing')rejected='Operation has ended';
+  else if(!d||![0,1].includes(team))rejected='Unknown structure';
+  else if(d.race!=='both'&&d.race!==teamRace(s,team))rejected='Structure belongs to a different race';
+  else{
+    const missing=d.requires.find(key=>!completed(s,team,key));
+    if(buildingRole(type)==='core')unavailable='Deploy a nexus construction vehicle to establish a new nexus';
+    else if(s.teams[team].credits<d.cost)unavailable='Insufficient credits';
+    else if(missing)unavailable=`Requires ${BUILDINGS[missing].name}`;
+    else if(buildingRole(type)==='refinery'&&reservedUnits(s,team)>=unitCapacity(s,team))unavailable=`Unit limit reached (${unitCapacity(s,team)}); refinery includes a hauler`;
   }
-  if(s.entities.some(e=>alive(e)&&e.kind==='unit'&&e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3))return bad('Unit in construction area');
-  const nearFinished=own(s,team).some(e=>e.kind==='building'&&e.progress>=1&&Math.hypot(Math.max(e.x-x-d.size,x-e.x-e.size,0),Math.max(e.y-y-d.size,y-e.y-e.size,0))<=7);
-  const extendsWall=buildingRole(type)==='wall'&&own(s,team).some(e=>e.kind==='building'&&buildingRole(e)==='wall'&&Math.abs(e.x-x)+Math.abs(e.y-y)===1);
-  if(!nearFinished&&!extendsWall)return bad('Build within 7 tiles of a finished structure');
-  return good();
+  let unitChecks=0,unitTiles=null,finished=null,walls=null;
+  // One check scans every unit; repeated checks bucket units by tile once. A unit
+  // strictly inside the widened footprint lies in a tile from x-1 to x+size.
+  const unitInArea=(x,y)=>{
+    const inArea=e=>e.x>x-.3&&e.x<x+d.size+.3&&e.y>y-.3&&e.y<y+d.size+.3;
+    if(!unitChecks++)return s.entities.some(e=>alive(e)&&e.kind==='unit'&&inArea(e));
+    if(!unitTiles){
+      unitTiles=new Map();
+      for(const e of s.entities)if(alive(e)&&e.kind==='unit'){const key=bucketKey(Math.floor(e.x),Math.floor(e.y));if(!unitTiles.has(key))unitTiles.set(key,[]);unitTiles.get(key).push(e);}
+    }
+    for(let yy=y-1;yy<=y+d.size;yy++)for(let xx=x-1;xx<=x+d.size;xx++){const tile=unitTiles.get(bucketKey(xx,yy));if(tile&&tile.some(inArea))return true;}
+    return false;
+  };
+  return(x,y)=>{
+    if(rejected)return bad(rejected);
+    if(!Number.isFinite(x)||!Number.isFinite(y)||x!==Math.floor(x)||y!==Math.floor(y))return bad('Place on the ground grid');
+    if(unavailable)return bad(unavailable);
+    if(x<1||y<1||x+d.size>=W||y+d.size>=H)return bad('Outside construction zone');
+    rebuildNavigation(s);
+    for(let yy=y;yy<y+d.size;yy++)for(let xx=x;xx<x+d.size;xx++){
+      const i=yy*W+xx;if(!s.visible[team][i])return bad('Requires sensor coverage');if(s.terrain[i]===3)return bad('Lava prevents construction');if(s.terrain[i]===4)return bad('Tree roots obstruct construction');if(s.terrain[i]===5)return bad('Crater ground cannot support construction');if(s.blocked[i])return bad('Ground is obstructed');if(s.minerals[i]>0)return bad('Shard field obstructs construction');
+    }
+    if(unitInArea(x,y))return bad('Unit in construction area');
+    finished??=own(s,team).filter(e=>e.kind==='building'&&e.progress>=1);
+    walls??=buildingRole(type)==='wall'?own(s,team).filter(e=>e.kind==='building'&&buildingRole(e)==='wall'):[];
+    const nearFinished=finished.some(e=>Math.hypot(Math.max(e.x-x-d.size,x-e.x-e.size,0),Math.max(e.y-y-d.size,y-e.y-e.size,0))<=7);
+    const extendsWall=walls.some(e=>Math.abs(e.x-x)+Math.abs(e.y-y)===1);
+    if(!nearFinished&&!extendsWall)return bad('Build within 7 tiles of a finished structure');
+    return good();
+  };
 }
+export function canPlace(s,team,type,x,y){return placementCheck(s,team,type)(x,y);}
 export function placeBuilding(s,team,type,x,y){
   const result=canPlace(s,team,type,x,y);if(!result.ok)return result;
   s.teams[team].credits-=BUILDINGS[type].cost;const entity=addEntity(s,team,'building',type,x,y,false);event(s,`${BUILDINGS[type].name}: construction started`,team);return{...result,id:entity.id};
@@ -601,10 +644,10 @@ export function planWallLine(s,team,x1,y1,x2,y2){
   if(![0,1].includes(team)||![x1,y1,x2,y2].every(Number.isFinite))return empty('Choose two ground cells');
   [x1,y1,x2,y2]=[x1,y1,x2,y2].map(Math.floor);
   if(x1<1||x2<1||y1<1||y2<1||x1>=s.width-1||x2>=s.width-1||y1>=s.height-1||y2>=s.height-1)return empty('Outside construction zone');
-  const all=wallLineCells(x1,y1,x2,y2),raw=all.slice(0,48),cost=BUILDINGS.wall.cost,cells=[];
+  const all=wallLineCells(x1,y1,x2,y2),raw=all.slice(0,48),cost=BUILDINGS.wall.cost,cells=[],check=placementCheck(s,team,'wall');
   let remaining=s.teams[team].credits,reason='',count=0;
   for(const point of raw){
-    let result=reason?bad('Previous segment is unavailable'):canPlace(s,team,'wall',point.x,point.y);
+    let result=reason?bad('Previous segment is unavailable'):check(point.x,point.y);
     // A valid preceding segment supplies construction adjacency without altering the real battlefield.
     if(!result.ok&&result.reason==='Build within 7 tiles of a finished structure'&&count>0)result=good();
     if(result.ok&&remaining<cost)result=bad('Insufficient credits for the next wall segment');
@@ -682,7 +725,7 @@ function movementDestinations(s,units,x,y,formation){
   rebuildNavigation(s);
   const members=[...units].sort((a,b)=>a.id-b.id),selected=new Set(members.map(u=>u.id)),occupied=new Map(),assigned=new Map();
   let groupId=2166136261;for(const u of members)groupId=Math.imul(groupId^u.id,16777619)>>>0;
-  const occupy=p=>{const key=`${Math.floor(p.x/2)},${Math.floor(p.y/2)}`;if(!occupied.has(key))occupied.set(key,[]);occupied.get(key).push(p);};
+  const occupy=p=>{const key=bucketKey(Math.floor(p.x/2),Math.floor(p.y/2));if(!occupied.has(key))occupied.set(key,[]);occupied.get(key).push(p);};
   for(const e of s.entities)if(alive(e)&&e.kind==='unit'&&!selected.has(e.id)){
     if(e.team===units[0].team&&['move','attackMove'].includes(e.order.type))occupy({...e.order,size:e.size});
     else if((e.order.type==='idle'||!e.moving)&&seen(s,units[0].team,e))occupy(e);
@@ -690,7 +733,7 @@ function movementDestinations(s,units,x,y,formation){
   const free=(p,size,region,margin=0)=>{
     if(!inside(s,p.x,p.y)||s.regions[cell(s,p.x,p.y)]!==region||!region||!walkable(s,p.x,p.y,size*.43+.08))return false;
     const cx=Math.floor(p.x/2),cy=Math.floor(p.y/2);
-    for(let yy=cy-1;yy<=cy+1;yy++)for(let xx=cx-1;xx<=cx+1;xx++)for(const e of occupied.get(`${xx},${yy}`)||[])if(sq(p.x-e.x)+sq(p.y-e.y)<sq((size+e.size)*.43+margin)-1e-10)return false;
+    for(let yy=cy-1;yy<=cy+1;yy++)for(let xx=cx-1;xx<=cx+1;xx++){const near=occupied.get(bucketKey(xx,yy));if(near)for(const e of near)if(sq(p.x-e.x)+sq(p.y-e.y)<sq((size+e.size)*.43+margin)-1e-10)return false;}
     return true;
   };
   const preserve=Number.isFinite(formation?.angle),angle=preserve?Math.atan2(Math.sin(formation.angle),Math.cos(formation.angle)):0;
@@ -755,17 +798,9 @@ function movementDestinations(s,units,x,y,formation){
   }
   if(!groups.size)return assigned;
   const maxSize=Math.max(...[...groups.values()].map(g=>g.size)),spacing=maxSize*1.72+.25,row=spacing*Math.sqrt(3)/2;
-  const candidates=[];
-  for(let j=Math.ceil(-y/row);j<=(s.height-y)/row;j++){
-    const shift=(j&1)*spacing/2,py=y+j*row;
-    for(let i=Math.ceil((-x-shift)/spacing);i<=(s.width-x-shift)/spacing;i++){
-      const p={x:x+i*spacing+shift,y:py};
-      if(inside(s,p.x,p.y)&&groups.has(s.regions[cell(s,p.x,p.y)]))candidates.push(p);
-    }
-  }
-  const score=p=>sq(p.x-x)+sq(p.y-y),sort=(a,b)=>score(a)-score(b)||a.y-b.y||a.x-b.x;
+  const unfilled=()=>[...groups.values()].some(g=>g.slots.length<g.units.length);
   const collect=points=>{
-    points.sort(sort);
+    points.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);
     for(const p of points){
       const region=s.regions[cell(s,p.x,p.y)],group=groups.get(region);
       if(!group||group.slots.length===group.units.length)continue;
@@ -776,14 +811,34 @@ function movementDestinations(s,units,x,y,formation){
       group.slots.push(p);occupy({...p,size:group.size});
     }
   };
-  collect(candidates);
+  // Candidates are claimed in (distance, y, x) order. Doubling distance bands partition
+  // them by exact score, which keeps that order while a filled rally skips the rest of
+  // the map. Each enumeration covers a box one tile wider than its band.
+  const reach=Math.hypot(Math.max(x,s.width-x),Math.max(y,s.height-y));
+  const sweep=enumerate=>{
+    for(let low=-Infinity,radius=spacing*(2+Math.sqrt(units.length));unfilled();radius*=2){
+      const last=radius>=reach,high=last?Infinity:radius*radius,band=[];
+      enumerate(last?Infinity:radius+1,(px,py)=>{const score=sq(px-x)+sq(py-y);if(score>=low&&score<high)band.push({x:px,y:py,score});});
+      collect(band);if(last)return;low=high;
+    }
+  };
+  // Hex rows around the click, limited to the map and the groups' regions.
+  sweep((limit,visit)=>{
+    for(let j=Math.max(Math.ceil(-y/row),Math.ceil(-limit/row));j<=Math.min((s.height-y)/row,limit/row);j++){
+      const shift=(j&1)*spacing/2,py=y+j*row;
+      for(let i=Math.max(Math.ceil((-x-shift)/spacing),Math.ceil((-limit-shift)/spacing));i<=Math.min((s.width-x-shift)/spacing,(limit-shift)/spacing);i++){
+        const px=x+i*spacing+shift;
+        if(inside(s,px,py)&&groups.has(s.regions[cell(s,px,py)]))visit(px,py);
+      }
+    }
+  });
   // Narrow terrain may miss every hex row. Tile centers provide a bounded,
   // reachable fallback in corridors, disconnected pockets and clipped corners.
-  if([...groups.values()].some(g=>g.slots.length<g.units.length)){
-    const fallback=[];
-    for(let i=0;i<s.blocked.length;i++)if(!s.blocked[i]&&groups.has(s.regions[i]))fallback.push({x:i%s.width+.5,y:Math.floor(i/s.width)+.5});
-    collect(fallback);
-  }
+  if(unfilled())sweep((limit,visit)=>{
+    for(let ty=Math.max(0,Math.floor(y-limit));ty<=Math.min(s.height-1,y+limit);ty++)for(let tx=Math.max(0,Math.floor(x-limit));tx<=Math.min(s.width-1,x+limit);tx++){
+      const i=ty*s.width+tx;if(!s.blocked[i]&&groups.has(s.regions[i]))visit(tx+.5,ty+.5);
+    }
+  });
   // Match spatial ranks recursively. This keeps broad left/right and front/back
   // relationships without copying the source gaps or doing a cubic assignment.
   const match=(members,slots)=>{
@@ -841,13 +896,22 @@ function updateFog(s){
     const v=s.visible[team],explored=s.explored[team];v.fill(0);
     for(const e of own(s,team)){
       const c=center(e),r=e.progress<1?4:definition(e).sight;
-      for(let y=Math.max(0,Math.floor(c.y-r));y<=Math.min(H-1,c.y+r);y++)for(let x=Math.max(0,Math.floor(c.x-r));x<=Math.min(W-1,c.x+r);x++)if(sq(x+.5-c.x)+sq(y+.5-c.y)<=r*r){v[y*W+x]=1;explored[y*W+x]=1;}
+      // Each row of a disc is one contiguous span. Estimate its ends with sqrt, then settle
+      // them with the original cell-centre test so every boundary cell matches exactly.
+      const r2=r*r,lit=(x,dy2)=>sq(x+.5-c.x)+dy2<=r2;
+      for(let y=Math.max(0,Math.floor(c.y-r));y<=Math.min(H-1,c.y+r);y++){
+        const dy2=sq(y+.5-c.y);if(dy2>r2)continue;
+        const half=Math.sqrt(r2-dy2);let a=Math.max(0,Math.ceil(c.x-.5-half)),b=Math.min(W-1,Math.floor(c.x-.5+half));
+        while(a>0&&lit(a-1,dy2))a--;while(a<=b&&!lit(a,dy2))a++;
+        while(b<W-1&&lit(b+1,dy2))b++;while(b>=a&&!lit(b,dy2))b--;
+        if(a<=b){v.fill(1,y*W+a,y*W+b+1);explored.fill(1,y*W+a,y*W+b+1);}
+      }
     }
   }
   for(const team of s.aiTeams||[1]){
     const ai=aiState(s,team);if(!ai)continue;
     for(const e of s.entities)if(e.team!==team&&alive(e)&&seen(s,team,e)){const c=center(e);ai.known[e.id]={id:e.id,kind:e.kind,type:e.type,x:c.x,y:c.y,hp:e.hp,seenAt:s.time};}
-    for(const [id,m] of Object.entries(ai.known))if(s.visible[team][cell(s,m.x,m.y)]&&!s.entities.some(e=>e.id===Number(id)&&alive(e)&&seen(s,team,e)))delete ai.known[id];
+    for(const [id,m] of Object.entries(ai.known))if(s.visible[team][cell(s,m.x,m.y)]){const e=getEntity(s,Number(id));if(!e||!seen(s,team,e))delete ai.known[id];}
   }
 }
 
@@ -857,12 +921,13 @@ let pathBudget=16,scratch={N:0};
 function findPath(s,u,tx,ty,stop=0){
   if(clearStep(s,u,tx,ty))return[{x:tx,y:ty}];
   if(pathBudget<=0)return null;pathBudget--;
-  const {width:W,height:H}=s,N=W*H;
+  const {width:W,height:H}=s,N=W*H,blocked=s.blocked;
   const start=cell(s,u.x,u.y),goalX=clamp(Math.floor(tx),0,W-1),goalY=clamp(Math.floor(ty),0,H-1);
-  if(scratch.N!==N)scratch={N,costs:new Float32Array(N),parent:new Int32Array(N),closed:new Uint8Array(N),heapCells:[],heapScores:[]};
-  const {costs,parent,closed,heapCells,heapScores}=scratch;let heapSize=0;
-  costs.fill(Infinity);costs[start]=0;parent.fill(-1);closed.fill(0);
-  const heuristic=i=>Math.hypot(i%W+.5-tx,Math.floor(i/W)+.5-ty);
+  if(scratch.N!==N)scratch={N,costs:new Float32Array(N),parent:new Int32Array(N),heuristic:new Float64Array(N),opened:new Uint32Array(N),closed:new Uint32Array(N),generation:0,heapCells:[],heapScores:[]};
+  // Generation stamps replace whole-map resets: a cell's cost, parent and heuristic
+  // belong to this search only once it is opened with the current generation.
+  if(scratch.generation===0xffffffff){scratch.opened.fill(0);scratch.closed.fill(0);scratch.generation=0;}
+  const {costs,parent,heuristic,opened,closed,heapCells,heapScores}=scratch,generation=++scratch.generation;let heapSize=0;
   // Reuse numeric heap storage instead of allocating two objects per insertion.
   // Comparisons and left/right tie handling remain identical to the original A*.
   const push=(i,f)=>{
@@ -874,15 +939,24 @@ function findPath(s,u,tx,ty,stop=0){
     if(heapSize){let p=0;while(p*2+1<heapSize){let q=p*2+1;if(q+1<heapSize&&heapScores[q+1]<heapScores[q])q++;if(heapScores[q]>=score)break;heapCells[p]=heapCells[q];heapScores[p]=heapScores[q];p=q;}heapCells[p]=last;heapScores[p]=score;}
     return out;
   };
-  let best=start,bestH=heuristic(start);push(start,bestH);let count=0;
+  // insideMovementLeash, with the stance and range resolved once per search.
+  const leashAnchor=u.defendAnchor&&effectiveUnitStance(u)==='defend'?u.defendAnchor:null,leash=leashAnchor?unitStats(u).range+1e-8:0;
+  let best=start,bestH=Math.hypot(start%W+.5-tx,Math.floor(start/W)+.5-ty),count=0;
+  opened[start]=generation;costs[start]=0;parent[start]=-1;heuristic[start]=bestH;push(start,bestH);
   while(heapSize&&count++<N){
-    const cur=pop();if(closed[cur])continue;closed[cur]=1;
-    const h=heuristic(cur);if(h<bestH){best=cur;bestH=h;}
+    const cur=pop();if(closed[cur]===generation)continue;closed[cur]=generation;
+    const h=heuristic[cur];if(h<bestH){best=cur;bestH=h;}
     const x=cur%W,y=Math.floor(cur/W);if(stop>=.2&&h<=Math.max(.75,stop)||(x===goalX&&y===goalY)){best=cur;break;}
-    for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-      if(!dx&&!dy)continue;const xx=x+dx,yy=y+dy;if(!inside(s,xx,yy))continue;
-      const next=yy*W+xx;if(s.blocked[next]||closed[next]||!insideMovementLeash(u,xx+.5,yy+.5)||(dx&&dy&&(s.blocked[y*W+xx]||s.blocked[yy*W+x])))continue;
-      const g=costs[cur]+(dx&&dy?1.4142:1);if(g>=costs[next])continue;costs[next]=g;parent[next]=cur;push(next,g+heuristic(next));
+    const cost=costs[cur];
+    for(let dy=-1;dy<=1;dy++){
+      const yy=y+dy;if(yy<0||yy>=H)continue;
+      for(let dx=-1;dx<=1;dx++){
+        const xx=x+dx;if(!dx&&!dy||xx<0||xx>=W)continue;
+        const next=yy*W+xx;if(blocked[next]||closed[next]===generation||(dx&&dy&&(blocked[y*W+xx]||blocked[yy*W+x])))continue;
+        if(leashAnchor&&!(Math.hypot(xx+.5-leashAnchor.x,yy+.5-leashAnchor.y)<=leash))continue;
+        const g=cost+(dx&&dy?1.4142:1);if(opened[next]===generation&&g>=costs[next])continue;
+        const estimate=Math.hypot(xx+.5-tx,yy+.5-ty);opened[next]=generation;costs[next]=g;parent[next]=cur;heuristic[next]=estimate;push(next,g+estimate);
+      }
     }
   }
   const path=[];for(let at=best;at!==start&&at>=0;at=parent[at])path.push({x:at%W+.5,y:Math.floor(at/W)+.5});path.reverse();
@@ -908,6 +982,12 @@ function findPath(s,u,tx,ty,stop=0){
 }
 
 function insideMovementLeash(u,x,y){return !u.defendAnchor||effectiveUnitStance(u)!=='defend'||Math.hypot(x-u.defendAnchor.x,y-u.defendAnchor.y)<=unitStats(u).range+1e-8;}
+// True when the summed blocked-tile grid proves no blocked tile touches the rectangle.
+function clearRect(s,grid,left,top,right,bottom){
+  if(!grid||!(left>=0&&top>=0&&right<s.width&&bottom<s.height))return false;
+  const a=grid.sums,x0=Math.floor(left),x1=Math.floor(right)+1,y0=Math.floor(top)*grid.stride,y1=(Math.floor(bottom)+1)*grid.stride;
+  return a[y1+x1]-a[y0+x1]-a[y1+x0]+a[y0+x0]===0;
+}
 function clearStep(s,u,x,y){
   // A circle is convex, so constraining both ends also constrains every swept
   // point. This applies to travel, detours and contact corrections alike.
@@ -916,19 +996,21 @@ function clearStep(s,u,x,y){
   // grid also makes long unobstructed routes cheap; occupied rectangles still use
   // exactly the same corner-safe segment checks below.
   const grid=clearanceGrids.get(s);
-  const left=Math.min(u.x,x)-.19,right=Math.max(u.x,x)+.19,top=Math.min(u.y,y)-.19,bottom=Math.max(u.y,y)+.19;
-  if(grid&&left>=0&&top>=0&&right<s.width&&bottom<s.height){
-    const x0=Math.floor(left),x1=Math.floor(right)+1,y0=Math.floor(top)*grid.stride,y1=(Math.floor(bottom)+1)*grid.stride;
-    const a=grid.sums;
-    if(a[y1+x1]-a[y0+x1]-a[y1+x0]+a[y0+x0]===0)return true;
-  }
+  if(clearRect(s,grid,Math.min(u.x,x)-.19,Math.min(u.y,y)-.19,Math.max(u.x,x)+.19,Math.max(u.y,y)+.19))return true;
   // Check the whole segment so sidesteps and waypoint shortcuts cannot cut solid corners.
+  // Samples are monotonic along the segment, so every corner tested for indices i0..i1
+  // lies between the positions at i0-1 and i1. A clear, slightly widened rectangle
+  // proves a whole chunk; only chunks touching blocked tiles are sampled.
   const steps=Math.max(1,Math.ceil(Math.hypot(x-u.x,y-u.y)/.12));
   let previousX=u.x,previousY=u.y;
-  for(let i=1;i<=steps;i++){
-    const nx=u.x+(x-u.x)*i/steps,ny=u.y+(y-u.y)*i/steps;
-    if(!walkable(s,nx,ny)||!walkable(s,nx,previousY)||!walkable(s,previousX,ny))return false;
-    previousX=nx;previousY=ny;
+  for(let i0=1;i0<=steps;i0+=12){
+    const i1=Math.min(steps,i0+11),ex=u.x+(x-u.x)*i1/steps,ey=u.y+(y-u.y)*i1/steps;
+    if(clearRect(s,grid,Math.min(previousX,ex)-.19-1e-9,Math.min(previousY,ey)-.19-1e-9,Math.max(previousX,ex)+.19+1e-9,Math.max(previousY,ey)+.19+1e-9)){previousX=ex;previousY=ey;continue;}
+    for(let i=i0;i<=i1;i++){
+      const nx=u.x+(x-u.x)*i/steps,ny=u.y+(y-u.y)*i/steps;
+      if(!walkable(s,nx,ny)||!walkable(s,nx,previousY)||!walkable(s,previousX,ny))return false;
+      previousX=nx;previousY=ny;
+    }
   }
   return true;
 }
@@ -1022,7 +1104,10 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   }
   const dx=p.x-u.x,dy=p.y-u.y,d=Math.hypot(dx,dy);
   if(d<1e-6){u.path.shift();return false;}
-  const flock=spatialStates.get(s).flock(u).filter(other=>clearStep(s,u,other.x,other.y));
+  // Boids neighbors lie within 4 tiles. When that whole expanded square is free of
+  // static blockers, every swept clearStep to them succeeds; only the leash remains.
+  const openArea=clearRect(s,clearanceGrids.get(s),u.x-4.2,u.y-4.2,u.x+4.2,u.y+4.2);
+  const flock=spatialStates.get(s).flock(u).filter(openArea?other=>insideMovementLeash(u,other.x,other.y):other=>clearStep(s,u,other.x,other.y));
   const steering=flockSteering(u,{x:tx,y:ty},flock,s.time,p);
   let heading=Math.atan2(dy,dx);
   if(steering&&!p.trafficId){
@@ -1140,10 +1225,26 @@ function navigate(s,u,tx,ty,dt,stop=.2,movement){
   return false;
 }
 
+// Visits cells in square rings of growing radius around (cx,cy), clipped to the map, until
+// done(r) reports that no cell at Chebyshev radius r or beyond can change the result.
+function scanRings(s,cx,cy,visit,done){
+  const W=s.width,H=s.height,last=Math.max(cx,W-1-cx,cy,H-1-cy);
+  for(let r=0;r<=last&&!(r&&done(r));r++){
+    const top=cy-r,bottom=cy+r,left=Math.max(0,cx-r),right=Math.min(W-1,cx+r);
+    if(top>=0&&top<H)for(let x=left;x<=right;x++)visit(top*W+x);
+    if(r&&bottom>=0&&bottom<H)for(let x=left;x<=right;x++)visit(bottom*W+x);
+    for(let y=Math.max(0,top+1);y<=Math.min(H-1,bottom-1);y++){if(cx-r>=0&&cx-r<W)visit(y*W+cx-r);if(r&&cx+r>=0&&cx+r<W)visit(y*W+cx+r);}
+  }
+}
 function nearestMineral(s,u,x=u.x,y=u.y){
-  const W=s.width,N=W*s.height;
-  let best=-1,score=Infinity;const region=s.regions[cell(s,u.x,u.y)];
-  for(let i=0;i<N;i++)if(s.minerals[i]>0&&s.explored[u.team][i]&&!s.blocked[i]&&s.regions[i]===region){const d=sq(i%W+.5-x)+sq(Math.floor(i/W)+.5-y);if(d<score){best=i;score=d;}}
+  const W=s.width,{minerals,blocked,regions}=s,explored=s.explored[u.team],region=regions[cell(s,u.x,u.y)];
+  let best=-1,score=Infinity;
+  // Rings around the search point stop once every remaining cell is farther than the best;
+  // equal distances keep the lowest index, exactly like a row-major scan.
+  scanRings(s,Math.floor(x),Math.floor(y),i=>{
+    if(!(minerals[i]>0&&explored[i]&&!blocked[i]&&regions[i]===region))return;
+    const d=sq(i%W+.5-x)+sq(Math.floor(i/W)+.5-y);if(d<score||d===score&&i<best){best=i;score=d;}
+  },r=>sq(r-1)>score);
   return best;
 }
 function harvest(s,u,dt,movement,power){
@@ -1179,31 +1280,38 @@ function harvest(s,u,dt,movement,power){
   const x=u.mineralTile%W+.5,y=Math.floor(u.mineralTile/W)+.5;
   if(navigate(s,u,x,y,dt,.75,movement)||Math.hypot(u.x-x,u.y-y)<1.1){const type=s.mineralTypes?.[u.mineralTile]||1,amount=Math.min(28*dt*(type===3?2:1),s.minerals[u.mineralTile],cap-u.cargo);if(amount>0)u.cargoType=u.cargo<=0?type:(u.cargoType??1)===type?type:0;s.minerals[u.mineralTile]-=amount;u.cargo+=amount;}
 }
-
+const crowdingGrids=new WeakMap();
 function explore(s,u,dt,movement){
-  const {width:W,height:H}=s,N=W*H;
+  const {width:W,height:H}=s,N=W*H,{blocked,regions}=s,explored=s.explored[u.team];
   const order=u.order;
   if(order.tile!==undefined&&order.navVersion===s.navVersion&&u.path.length&&s.time>=order.nextPlan){
     // Finish a clear straight leg instead of stopping whenever its goal enters vision.
     // Still notice a fully explored reachable region promptly, including shared scouting.
-    order.nextPlan=s.time+1;const region=s.regions[cell(s,u.x,u.y)];
-    if(!s.explored[u.team].some((known,i)=>!known&&!s.blocked[i]&&s.regions[i]===region)){stopUnits(s,[u.id]);event(s,`${UNITS[u.type].name}: reachable territory explored`,u.team);return;}
+    order.nextPlan=s.time+1;const region=regions[cell(s,u.x,u.y)];
+    let unexplored=false;for(let i=0;i<N&&!unexplored;i++)unexplored=!explored[i]&&!blocked[i]&&regions[i]===region;
+    if(!unexplored){stopUnits(s,[u.id]);event(s,`${UNITS[u.type].name}: reachable territory explored`,u.team);return;}
   }
-  if(order.tile===undefined||order.navVersion!==s.navVersion||s.explored[u.team][order.tile]&&s.time>=order.nextPlan){
-    let best=-1,score=Infinity;const region=s.regions[cell(s,u.x,u.y)];
+  if(order.tile===undefined||order.navVersion!==s.navVersion||explored[order.tile]&&s.time>=order.nextPlan){
+    let best=-1,score=Infinity;const region=regions[cell(s,u.x,u.y)],speed=UNITS[u.type].speed;
     // Mark only the nearby cells around other destinations, keeping large scout groups cheap.
-    const crowding=new Float32Array(N);
+    // The derived grid is reused and its marked cells are zeroed again after this plan.
+    let crowding=crowdingGrids.get(s);if(crowding?.length!==N)crowdingGrids.set(s,crowding=new Float32Array(N));
+    const marked=[];
     for(const e of own(s,u.team))if(e!==u&&e.order.type==='explore'&&e.order.tile!==undefined){
       const tx=e.order.tile%W,ty=Math.floor(e.order.tile/W);
-      for(let y=Math.max(0,ty-5);y<=Math.min(H-1,ty+5);y++)for(let x=Math.max(0,tx-5);x<=Math.min(W-1,tx+5);x++)crowding[y*W+x]+=Math.max(0,6-Math.hypot(x-tx,y-ty));
+      for(let y=Math.max(0,ty-5);y<=Math.min(H-1,ty+5);y++)for(let x=Math.max(0,tx-5);x<=Math.min(W-1,tx+5);x++){crowding[y*W+x]+=Math.max(0,6-Math.hypot(x-tx,y-ty));marked.push(y*W+x);}
     }
-    for(let i=0;i<N;i++)if(!s.explored[u.team][i]&&!s.blocked[i]&&s.regions[i]===region){
+    // Every value is at least the travel distance, so rings stop once their inner edge
+    // passes the best value; ties keep the lowest index, exactly like a row-major scan.
+    scanRings(s,Math.floor(u.x),Math.floor(u.y),i=>{
+      if(explored[i]||blocked[i]||regions[i]!==region)return;
       const x=i%W+.5,y=Math.floor(i/W)+.5;
       // Prefer continuing forward now that every heading change requires a stationary turn.
       const heading=Math.atan2(y-u.y,x-u.x),turn=Math.abs(Math.atan2(Math.sin(heading-u.angle),Math.cos(heading-u.angle)));
-      const value=Math.hypot(x-u.x,y-u.y)+turn*UNITS[u.type].speed+crowding[i];
-      if(value<score){best=i;score=value;}
-    }
+      const value=Math.hypot(x-u.x,y-u.y)+turn*speed+crowding[i];
+      if(value<score||value===score&&i<best){best=i;score=value;}
+    },r=>r-1>score);
+    for(const i of marked)crowding[i]=0;
     if(best<0){stopUnits(s,[u.id]);event(s,`${UNITS[u.type].name}: reachable territory explored`,u.team);return;}
     order.tile=best;order.x=best%W+.5;order.y=Math.floor(best/W)+.5;order.navVersion=s.navVersion;order.nextPlan=s.time+1;
     u.path=[];u.repath=0;
@@ -1259,10 +1367,10 @@ function idleMilitary(s,u,dt,movement){
     delete u.defendReturning;u.path=[];u.repath=0;
   }
 }
+const ARMOR_MULTIPLIERS={rifle:{infantry:1,light:.55,heavy:.23,building:.4},rocket:{infantry:.3,light:.9,heavy:1.8,building:.7},scout:{infantry:1.25,light:.65,heavy:.26,building:.4},striker:{infantry:1.5,light:.8,heavy:.22,building:.35},tank:{infantry:.5,light:1.1,heavy:1,building:1},artillery:{infantry:.9,light:1,heavy:.8,building:1.5},turret:{infantry:.75,light:1,heavy:1,building:.8},rocketTower:{infantry:.45,light:1,heavy:1.2,building:.8}};
 function armorMultiplier(attacker,target){
   const armor=target.kind==='building'?'building':UNITS[target.type].armor;
-  const table={rifle:{infantry:1,light:.55,heavy:.23,building:.4},rocket:{infantry:.3,light:.9,heavy:1.8,building:.7},scout:{infantry:1.25,light:.65,heavy:.26,building:.4},striker:{infantry:1.5,light:.8,heavy:.22,building:.35},tank:{infantry:.5,light:1.1,heavy:1,building:1},artillery:{infantry:.9,light:1,heavy:.8,building:1.5},turret:{infantry:.75,light:1,heavy:1,building:.8},rocketTower:{infantry:.45,light:1,heavy:1.2,building:.8}};
-  return table[entityRole(attacker)]?.[armor]??1;
+  return ARMOR_MULTIPLIERS[entityRole(attacker)]?.[armor]??1;
 }
 function hurt(s,target,amount,attacker){
   if(!alive(target))return;
@@ -1272,7 +1380,6 @@ function hurt(s,target,amount,attacker){
   const engaging=target.kind==='unit'&&(target.order.type==='attack'||target.order.type==='attackMove'||s.time-(target.lastShot??-99)<3);
   if(target.team===0&&!engaging&&s.time-(s.alertAt??-99)>8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0);}
   if(target.hp<=0){
-    spatialStates.get(s)?.queries.clear();
     s.teams[attacker.team].kills++;
     const killer=getEntity(s,attacker.id);
     if(killer?.kind==='unit'&&killer.team===attacker.team){
@@ -1416,7 +1523,7 @@ function spawnAt(s,producer,type){
   for(let y=producer.y-2;y<=producer.y+producer.size+2;y++)for(let x=producer.x-2;x<=producer.x+producer.size+2;x++){
     // Never deploy into a sealed pocket between buildings: such a unit could not follow any order.
     if(!walkable(s,x+.5,y+.5,.3)||s.regionSize[s.regions[y*s.width+x]]<40)continue;
-    const crowded=s.entities.filter(e=>e.kind==='unit'&&alive(e)&&Math.hypot(e.x-x-.5,e.y-y-.5)<.8).length;
+    const crowded=nearbyEntities(s,{x:x+.5,y:y+.5},1).filter(e=>e.kind==='unit'&&alive(e)&&Math.hypot(e.x-x-.5,e.y-y-.5)<.8).length;
     const score=distance(c,{x:x+.5,y:y+.5})+crowded*5;if(score<bestScore){best={x:x+.5,y:y+.5};bestScore=score;}
   }
   if(!best)return false;
@@ -1433,7 +1540,7 @@ function deliverRefineryHauler(s,e){
 function separateUnits(s,dt,movement){
   const units=s.entities.filter(e=>e.kind==='unit'&&alive(e));
   // A deterministic spatial broad phase keeps large battles local. Candidate pairs retain entity order.
-  const buckets=new Map(),locations=new Array(units.length),key=u=>`${Math.floor(u.x/2)},${Math.floor(u.y/2)}`;
+  const buckets=new Map(),locations=new Array(units.length),key=u=>bucketKey(Math.floor(u.x/2),Math.floor(u.y/2));
   const relocate=i=>{
     const next=key(units[i]),previous=locations[i];if(previous===next)return false;
     if(previous!==undefined){const list=buckets.get(previous);list.splice(list.indexOf(i),1);if(!list.length)buckets.delete(previous);}
@@ -1442,7 +1549,7 @@ function separateUnits(s,dt,movement){
   units.forEach((_,i)=>relocate(i));
   const neighbors=(i,after)=>{
     const u=units[i],x=Math.floor(u.x/2),y=Math.floor(u.y/2),list=[];
-    for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)for(const j of buckets.get(`${xx},${yy}`)||[])if(j>after)list.push(j);
+    for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){const bucket=buckets.get(bucketKey(xx,yy));if(bucket)for(const j of bucket)if(j>after)list.push(j);}
     return list.sort((a,b)=>a-b);
   };
   for(let i=0;i<units.length;i++){
@@ -1492,10 +1599,10 @@ function aiBuild(s,team,type,near){
   const preferred=near||(BUILDINGS[type].damage?{x:c.x+toward.x*9,y:c.y+toward.y*9}:c);
   const candidates=[];
   if(s.teams[team].credits<BUILDINGS[type].cost||BUILDINGS[type].requires.some(key=>!completed(s,team,key)))return false;
-  const checked=new Set(),anchors=near?own(s,team).filter(e=>e.kind==='building'&&e.progress>=1):[base];
+  const checked=new Set(),anchors=near?own(s,team).filter(e=>e.kind==='building'&&e.progress>=1):[base],check=placementCheck(s,team,type);
   for(const anchor of anchors)for(let y=Math.max(1,anchor.y-11);y<Math.min(H-4,anchor.y+14);y++)for(let x=Math.max(1,anchor.x-12);x<Math.min(W-4,anchor.x+14);x++){
     const at=y*W+x;if(checked.has(at))continue;checked.add(at);
-    if(canPlace(s,team,type,x,y).ok)candidates.push({x,y,score:Math.hypot(x+BUILDINGS[type].size/2-preferred.x,y+BUILDINGS[type].size/2-preferred.y)});
+    if(check(x,y).ok)candidates.push({x,y,score:Math.hypot(x+BUILDINGS[type].size/2-preferred.x,y+BUILDINGS[type].size/2-preferred.y)});
   }
   candidates.sort((a,b)=>a.score-b.score);if(!candidates.length)return false;
   const spot=candidates[Math.min(candidates.length-1,Math.floor(random(s)*3))];return placeBuilding(s,team,type,spot.x,spot.y).ok;
@@ -1506,11 +1613,23 @@ function rememberMiningSites(s,team,ai){
   if(s.time<(ai.nextMineralScan||0))return;
   ai.nextMineralScan=s.time+8;ai.miningSites??=[];
   for(const site of ai.miningSites)if(s.visible[team][cell(s,site.x,site.y)]){site.amount=s.minerals[cell(s,site.x,site.y)];site.seenAt=s.time;}
-  for(let i=0;i<s.minerals.length;i++)if(s.visible[team][i]&&s.minerals[i]>100){
-    const point={x:i%s.width+.5,y:Math.floor(i/s.width)+.5};
-    const site=ai.miningSites.find(site=>distance(site,point)<6);
-    if(site){if(site.amount<s.minerals[i])Object.assign(site,point,{amount:s.minerals[i],seenAt:s.time});}
-    else if(ai.miningSites.length<64)ai.miningSites.push({...point,amount:s.minerals[i],seenAt:s.time});
+  // Sites move while ore is scanned. Eight-tile buckets hold site indices, so a match within
+  // six tiles lies in the surrounding buckets and the lowest index is the first array match.
+  const sites=ai.miningSites,buckets=new Map(),bucketOf=site=>bucketKey(Math.floor(site.x/8),Math.floor(site.y/8));
+  const file=(index,key)=>{if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(index);};
+  sites.forEach((site,index)=>file(index,bucketOf(site)));
+  const visible=s.visible[team],minerals=s.minerals;
+  for(let i=0;i<minerals.length;i++)if(visible[i]&&minerals[i]>100){
+    const point={x:i%s.width+.5,y:Math.floor(i/s.width)+.5},bx=Math.floor(point.x/8),by=Math.floor(point.y/8);
+    let match=-1;
+    for(let y=by-1;y<=by+1;y++)for(let x=bx-1;x<=bx+1;x++)for(const index of buckets.get(bucketKey(x,y))||[])if((match<0||index<match)&&distance(sites[index],point)<6)match=index;
+    if(match>=0){
+      const site=sites[match];
+      if(site.amount<minerals[i]){
+        const previous=bucketOf(site);Object.assign(site,point,{amount:minerals[i],seenAt:s.time});
+        const next=bucketOf(site);if(next!==previous){const list=buckets.get(previous);list.splice(list.indexOf(match),1);file(match,next);}
+      }
+    }else if(sites.length<64){sites.push({...point,amount:minerals[i],seenAt:s.time});file(sites.length-1,bucketOf(sites.at(-1)));}
   }
   ai.miningSites=ai.miningSites.filter(site=>site.amount>100);
 }
