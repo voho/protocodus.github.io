@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { hashLevel, MAP_TILE_SIZE, tileAt } from '../tile-map.js';
+import { hashLevel, MAP_TILE_SIZE, tileAt, terrainLight } from '../tile-map.js';
 
 const worlds = ['jungle', 'snow', 'desert', 'paradise', 'asteroid', 'mars', 'volcanic', 'neon', 'alien', 'void'];
 assert.equal(MAP_TILE_SIZE, 100);
@@ -51,3 +51,23 @@ for (const [biome, id] of worlds.entries()) {
     tileAt(seed, biome, tile.col, tile.row + 256).material !== tile.material));
   console.log(`PASS ${id}: stable infinite terrain, shared corners, material mix [${counts.join(', ')}]`);
 }
+
+// Baked terrain light: a pure function of global corners, bounded around a
+// neutral mean and smooth between neighbouring corners.
+for (const [biome, id] of worlds.entries()) {
+  const seed = hashLevel(id);
+  let sum = 0, count = 0, steepest = 0;
+  for (let row = -60; row < 60; row++) for (let col = -1; col < 14; col++) {
+    const light = terrainLight(seed, biome, col, row);
+    assert.equal(terrainLight(seed, biome, col, row), light);
+    assert.ok(light >= .32 && light <= .68, `${id}: light stays bounded`);
+    steepest = Math.max(steepest, Math.abs(light - terrainLight(seed, biome, col + 1, row)), Math.abs(light - terrainLight(seed, biome, col, row + 1)));
+    sum += light; count++;
+  }
+  assert.ok(Math.abs(sum / count - .5) < .04, `${id}: light keeps the average tone (${(sum / count).toFixed(3)})`);
+  // Bilinear filtering spreads each step across a full 100-unit cell. A valley
+  // floor flips its slope within one cell (one bank lit, the other shaded), so
+  // the bound only rules out a jump across most of the .32-.68 range.
+  assert.ok(steepest < .3, `${id}: neighbouring corners change gently (${steepest.toFixed(3)})`);
+}
+console.log('PASS terrain light: deterministic, bounded, neutral on average and smooth');
