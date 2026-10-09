@@ -212,7 +212,7 @@ export const SNOWPACK = {
 
 const { wander, route, corridor, wall, cliffs, knolls, zones, guide,
   ridges, rolls, moguls, chatter, warp, bulgeVary, character,
-  chapters, sideHits } = TERRAIN;
+  chapters, sideHits, tors, pillows, crests } = TERRAIN;
 const GRADE = TERRAIN.grade;
 const SHADE = TERRAIN.shade;
 
@@ -309,25 +309,31 @@ function forkSplit(z) {
    `oct` is per octave channel: ridges, rolls, moguls, chatter, knolls.
    `icy`/`cover` bias the snowpack (blue scoured hardpack vs deep fill),
    `trees` is read by the props' treeline, and `cliffs` gates the drop
-   generator. The opening block is always the forest vale, so the first
+   generator. `tors`, `pillows` and `crest` weigh the three landforms in
+   TERRAIN — outcrops, powder pillows and the walls' arêtes. The opening block is always the forest vale, so the first
    minute of every run reads as the familiar treelined piste before the
    range starts turning. */
 const CHAPTERS = [
   { name: 'glacier shelf', corridor: 1.30, lip: 0.74, wallH: 0.86, wallW: 2.30,
     powder: 0.62, rock: 1.35, oct: [0.85, 0.72, 0.45, 0.78, 0.70],
-    icy: 0.72, cover: -0.20, trees: 0.15, cliffs: 1.35 },
+    icy: 0.72, cover: -0.20, trees: 0.15, cliffs: 1.35,
+    tors: 0.75, pillows: 0.30, crest: 1.25 },
   { name: 'walled couloir', corridor: 0.88, lip: 1.15, wallH: 1.22, wallW: 1.45,
     powder: 0.72, rock: 1.28, oct: [1.12, 1.18, 0.85, 1.10, 0.85],
-    icy: 0.28, cover: -0.05, trees: 0.40, cliffs: 1.5 },
+    icy: 0.28, cover: -0.05, trees: 0.40, cliffs: 1.5,
+    tors: 1.35, pillows: 0.55, crest: 1.40 },
   { name: 'forest vale', corridor: 1.00, lip: 0.85, wallH: 0.70, wallW: 2.50,
     powder: 1.16, rock: 0.66, oct: [0.85, 1.00, 1.15, 1.00, 1.10],
-    icy: 0.03, cover: 0.15, trees: 1.45, cliffs: 0.55 },
+    icy: 0.03, cover: 0.15, trees: 1.45, cliffs: 0.55,
+    tors: 0.40, pillows: 0.85, crest: 0.55 },
   { name: 'powder bowls', corridor: 1.22, lip: 0.80, wallH: 0.82, wallW: 2.80,
     powder: 1.38, rock: 0.88, oct: [1.22, 1.15, 1.32, 0.85, 1.40],
-    icy: 0.08, cover: 0.22, trees: 0.72, cliffs: 0.85 },
+    icy: 0.08, cover: 0.22, trees: 0.72, cliffs: 0.85,
+    tors: 0.65, pillows: 1.60, crest: 0.85 },
   { name: 'wind crest', corridor: 0.96, lip: 1.00, wallH: 1.05, wallW: 1.90,
     powder: 0.85, rock: 1.14, oct: [1.32, 0.88, 0.62, 1.28, 1.00],
-    icy: 0.40, cover: -0.12, trees: 0.48, cliffs: 1.1 },
+    icy: 0.40, cover: -0.12, trees: 0.48, cliffs: 1.1,
+    tors: 1.40, pillows: 0.60, crest: 1.30 },
 ];
 
 /* The resolved chapter walk, memoised per seed.
@@ -368,7 +374,7 @@ function chapterIndexAt(b) {
 const chapterScratch = {
   z: NaN, seed: NaN, name: '', corridor: 1, lip: 1, wallH: 1, wallW: 1,
   powder: 1, rock: 1, oct: [1, 1, 1, 1, 1], icy: 0, cover: 0,
-  trees: 1, cliffs: 1,
+  trees: 1, cliffs: 1, tors: 1, pillows: 1, crest: 1,
 };
 
 /* The blended profile at z. One shared scratch, memoised on (z, seed):
@@ -400,6 +406,9 @@ function chapterTraitsAt(z) {
   out.cover = cur.cover + (nxt.cover - cur.cover) * t;
   out.trees = cur.trees + (nxt.trees - cur.trees) * t;
   out.cliffs = cur.cliffs + (nxt.cliffs - cur.cliffs) * t;
+  out.tors = cur.tors + (nxt.tors - cur.tors) * t;
+  out.pillows = cur.pillows + (nxt.pillows - cur.pillows) * t;
+  out.crest = cur.crest + (nxt.crest - cur.crest) * t;
   return out;
 }
 
@@ -825,6 +834,9 @@ function makeContext() {
     chapterCover: 0,
     chapterWallH: 1,
     chapterWallW: 1,
+    chapterTors: 1,      // the three landforms' weights — see TERRAIN.tors
+    chapterPillows: 1,
+    chapterCrest: 1,
     plain: 0,            // …and the mixture itself, for anything that wants
     bumps: 0,            // to know what kind of ground this is rather than
     swells: 0,           // merely how rough it is
@@ -883,6 +895,9 @@ function rowContext(z, ctx) {
   ctx.chapterCover = chap.cover;
   ctx.chapterWallH = chap.wallH;
   ctx.chapterWallW = chap.wallW;
+  ctx.chapterTors = chap.tors;
+  ctx.chapterPillows = chap.pillows;
+  ctx.chapterCrest = chap.crest;
   const chapterLip = chap.lip;
   const chapterCliffs = chap.cliffs;
 
@@ -1050,9 +1065,129 @@ function rowContext(z, ctx) {
   return ctx;
 }
 
+/* ==========================================================================
+   Landforms — outcrops, pillows. See TERRAIN.tors and TERRAIN.pillows.
+
+   Both are one candidate per world cell, centred in the middle two fifths
+   of it and never reaching past three tenths of a cell from that centre —
+   so a feature lies wholly inside its own cell, and a sample asks only the
+   cell it stands in and never sees a neighbour's feature end in a step.
+   Presence fades against a per-feature threshold as the chapter's density
+   moves, so a chapter edge grows and shrinks the ground rather than cutting
+   it. Both are pure functions of the seed, like everything else here.
+   ========================================================================== */
+
+// The furthest the crag noise can push an outline out: its own amplitude,
+// shrinking the distance. Every reach test below is against this.
+const TOR_REACH = 1 / (1 - tors.crag);
+
+/* A tor as a lattice of `cell`-metre cells can carry it. Its flanks are a
+   metre or three wide, and once the cells outgrow them the samples alias —
+   and the far lattice slides by a ring's stride on most re-anchors, so an
+   aliased tor is one that changes shape between commits: outcrops beside the
+   run were jumping by metres from one commit to the next. So each is
+   filtered for its cells. The crag and the broken top leave with the chatter
+   octaves; the flanks round into a dome as soon as the cells grow at all;
+   and the dome is lowered until the sag these cells would show across it —
+   an eighth of its curvature times the cell squared, beyond what the finest
+   lattice already sags — is fifteen centimetres. Untouched on the finest
+   lattice, which is the one the board rides. */
+function torAt(x, z, density, cell) {
+  const T = tors;
+  const ci = Math.floor(x / T.cell);
+  const cj = Math.floor(z / T.cell);
+  const u = hash2(ci, cj, T.seed);
+  const present = smoothstep(u - 0.06, u + 0.06, T.chance * density);
+  if (present <= 0) return 0;
+  const cx = (ci + 0.3 + 0.4 * hash2(ci, cj, T.seed + 1)) * T.cell;
+  const cz = (cj + 0.3 + 0.4 * hash2(ci, cj, T.seed + 2)) * T.cell;
+  const r = T.radius[0] + (T.radius[1] - T.radius[0]) * hash2(ci, cj, T.seed + 3);
+  // Turned and stretched, so an outcrop is a fin or a block as often as a stump.
+  const stretch = T.stretch[0] + (T.stretch[1] - T.stretch[0]) * hash2(ci, cj, T.seed + 5);
+  const h = r * (T.aspect[0] + (T.aspect[1] - T.aspect[0]) * hash2(ci, cj, T.seed + 7));
+  // The flank is what the cells must hold, so the narrow axis is what counts.
+  const over = cell - TERRAIN.spacing;
+  const rMin = r * stretch;
+  const edge = 0.45 + 0.55 * smoothstep(0, 0.1, over / rMin);
+  const sag = 0.75 * h * (cell * cell - TERRAIN.spacing ** 2) / (edge * rMin) ** 2;
+  const sink = sag > 0.15 ? 0.15 / sag : 1;
+  if (sink < 0.02) return 0;
+  const dx = x - cx;
+  const dz = z - cz;
+  const reach = r * TOR_REACH;
+  if (dx * dx + dz * dz >= reach * reach) return 0;
+  const a = hash2(ci, cj, T.seed + 4) * Math.PI;
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const along = (dx * ca + dz * sa) / r;
+  const across = (dz * ca - dx * sa) / (r * stretch);
+  // A three-metre wobble, then a metre and a half: gone by the cells that
+  // could only alias them.
+  const crag = T.crag * (1 - smoothstep(0, 0.75, over));
+  const d = Math.sqrt(along * along + across * across)
+    * (1 + crag * snoise2(x * 0.32, z * 0.32, T.seed + 6));
+  const t = 1 - d;
+  if (t <= 0) return 0;
+  const grain = 0.07 * (1 - smoothstep(0, 0.3, over));
+  // Steep flanks over the outer half of the radius, then a broken top.
+  return present * sink * h * smoothstep(0, edge, t)
+    * (0.88 + 0.12 * t + grain * snoise2(x * 0.7, z * 0.7, T.seed + 8));
+}
+
+function pillowAt(x, z, density) {
+  const P = pillows;
+  const ci = Math.floor(x / P.cell);
+  const cj = Math.floor(z / P.cell);
+  const u = hash2(ci, cj, P.seed);
+  const present = smoothstep(u - 0.08, u + 0.08, P.chance * density);
+  if (present <= 0) return 0;
+  const cx = (ci + 0.3 + 0.4 * hash2(ci, cj, P.seed + 1)) * P.cell;
+  const cz = (cj + 0.3 + 0.4 * hash2(ci, cj, P.seed + 2)) * P.cell;
+  const r = P.radius[0] + (P.radius[1] - P.radius[0]) * hash2(ci, cj, P.seed + 3);
+  const dx = (x - cx) / r;
+  const dz = (z - cz) / r;
+  const q = 1 - dx * dx - dz * dz;
+  if (q <= 0) return 0;
+  // The knolls' squared dome, which meets the snow at zero slope.
+  const rise = P.rise[0] + (P.rise[1] - P.rise[0]) * hash2(ci, cj, P.seed + 4);
+  return present * rise * r * q * q;
+}
+
+/* The outcrops a row holds at x, `past` metres beyond its corridor: in the
+   bouldery band and up the face past the lip, never on the lip itself — that
+   quarterpipe is ridden. Each is filtered for the cells it is sampled on;
+   see `torAt`. */
+function torsIn(ctx, x, past, cell) {
+  if (past <= 0 || ctx.chapterTors <= 0.001) return 0;
+  const rocky = smoothstep(ctx.powderW + 4, ctx.powderW + 14, past)
+    * (1 - smoothstep(ctx.bandW - 10, ctx.bandW - 2, past));
+  const top = ctx.bandW + ctx.lipW;
+  const face = smoothstep(top + 6, top + 22, past)
+    * (1 - smoothstep(top + 120, top + 170, past));
+  const mask = Math.max(rocky, face);
+  return mask > 0.001 ? torAt(x, ctx.z, ctx.chapterTors, cell) * mask : 0;
+}
+
+/* |v| with its kink rounded into a parabola over ±e: the same value outside
+   that, and continuous in slope everywhere, so a lattice can sample it. */
+function roundedAbs(v, e) {
+  const a = Math.abs(v);
+  return a >= e ? a : (v * v) / (2 * e) + e / 2;
+}
+
+/* How much of a ridged crest octave's crease to round, per metre of cell.
+   A crease is a kink, and a kink has detail at every scale, so on cells
+   metres wide the arêtes aliased and changed height between commits. Where
+   snoise2 crosses zero it moves about 0.96 per unit of input, so these are
+   twice each octave's own rate per metre: the crease is rounded over about
+   two cells either side, which on the finest lattice is a metre and a half
+   of a ridge a hundred metres long. Rounding lowers the ridge's mean by
+   about 0.45·e² (measured, within a tenth over the range used), and that is
+   added back so the walls still stand where they stood at every distance. */
+const CREST_ROUND = [0.0206, 0.058];
 
 function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
-  mogulDetail = 1, flankDetail = 1, bulkDetail = 1) {
+  mogulDetail = 1, flankDetail = 1, bulkDetail = 1, cell = TERRAIN.spacing) {
   const z = ctx.z;
   let h = ctx.base;
 
@@ -1244,6 +1379,15 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       }
       h += bump * rockZone;
     }
+
+    /* Pillows through the powder band, clear of the groomed edge and gone
+       before the boulders start. Built only where the lattice is fine
+       enough to hold a mound three metres across. */
+    if (coarseDetail > 0.001 && past > 3) {
+      const band = smoothstep(3, 8, past)
+        * (1 - smoothstep(ctx.powderW - 6, ctx.powderW, past));
+      if (band > 0.001) h += pillowAt(x, z, ctx.chapterPillows) * band * coarseDetail;
+    }
   }
   const over = past - ctx.bandW;
   if (over > 0) {
@@ -1294,8 +1438,37 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
         const steep = (2 * u * eu) / WALL_STEEP_PEAK;
         h -= R.depth * flankDetail * steep * steep * t * t;
       }
+      /* Arêtes and couloirs on the face — see TERRAIN.crests. Nothing for the
+         first dozen metres past the lip, which is as far up as a carve off
+         the quarterpipe reaches; then they grow with the face. Not with the
+         wall's own rise, which on a broad chapter is still a fifth a hundred
+         metres out and would have kept the sharpening off everything but the
+         skyline. */
+      const crestScale = smoothstep(12, 70, w) * (0.35 + 0.65 * rise) * ctx.chapterCrest;
+      if (crestScale > 0.001) {
+        const n1 = snoise2(w * 0.0105 + z * 0.0043, z * 0.0072 - w * 0.0021,
+          left ? crests.seed : crests.seed + 7);
+        const e1 = CREST_ROUND[0] * cell;
+        const a1 = 1 - roundedAbs(n1, e1);
+        // A ninety-five metre ridge is four samples a wavelength on the widest
+        // ring, which is too few to keep its shape from one commit to the
+        // next: the gullies leave before that, and this keeps half.
+        const far = 1 - 0.5 * smoothstep(12, 24, cell);
+        h += crestScale * far * crests.amp * (a1 * a1 - 0.35 + 0.45 * e1 * e1);
+        // The second octave is a thirty-five metre ridge, nearer the runnels'
+        // scale than the gullies', so it leaves with the runnels.
+        if (flankDetail > 0.001) {
+          const n2 = snoise2(w * 0.029 + z * 0.0107, z * 0.023 - w * 0.0061,
+            left ? crests.seed + 13 : crests.seed + 19);
+          const e2 = CREST_ROUND[1] * cell;
+          const a2 = 1 - roundedAbs(n2, e2);
+          h += crestScale * crests.fine * (a2 * a2 - 0.35 + 0.45 * e2 * e2) * flankDetail;
+        }
+      }
     }
   }
+
+  h += torsIn(ctx, x, past, cell);
 
   /* Side hits, which are the exception to the rule below and are allowed to
      be one because they are not hidden: each stands beside the ribbon, on
@@ -1345,6 +1518,19 @@ const scratch = makeContext();
 
 export function heightAt(x, z) {
   return heightIn(rowContext(z, scratch), x);
+}
+
+/* Metres of outcrop standing at (x, z) on the finest lattice. Props keep off
+   it: a tor is filtered for the cells it is drawn on (see `torAt`), so
+   anything planted on the full-detail rock would hang over the rounder,
+   lower one the mesh draws a hundred metres out. */
+export function torHeightAt(x, z) {
+  const ctx = rowContext(z, scratch);
+  // The same nearest-branch distance `heightIn` measures.
+  const d = ctx.split > 0
+    ? Math.min(Math.abs(x - (ctx.mid - ctx.split)), Math.abs(x - (ctx.mid + ctx.split)))
+    : Math.abs(x - ctx.mid);
+  return torsIn(ctx, x, d - ctx.half, TERRAIN.spacing);
 }
 
 /* THE SNOW AS IT IS DRAWN, which is not the snow the physics stands on.
@@ -1594,6 +1780,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const mogulDetailMask = new Float32Array(count);
   const flankDetailMask = new Float32Array(count);
   const bulkDetailMask = new Float32Array(count);
+  // And the cell size itself, for the landforms that filter by their own size.
+  const cellSizes = new Float32Array(count);
   let heights = new Float64Array(count);
   let previousHeights = new Float64Array(count);
   /* THE GEOMORPH. Each re-anchor regenerates part of the mesh, and some of
@@ -1691,6 +1879,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       bulkDetailMask[m] = 1 - smoothstep(
         wall.bulk.lod[0], wall.bulk.lod[1], cell,
       );
+      cellSizes[m] = cell;
     }
   }
 
@@ -3207,7 +3396,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           && fineDetailMask[i] === fineDetailMask[old]
           && mogulDetailMask[i] === mogulDetailMask[old]
           && flankDetailMask[i] === flankDetailMask[old]
-          && bulkDetailMask[i] === bulkDetailMask[old]) {
+          && bulkDetailMask[i] === bulkDetailMask[old]
+          && cellSizes[i] === cellSizes[old]) {
           heights[i] = previousHeights[old];
           heightReused[i] = 1;
           reusedHeights++;
@@ -3219,7 +3409,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         }
         heights[i] = heightIn(
           ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
-          mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i],
+          mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i], cellSizes[i],
         );
       }
     }

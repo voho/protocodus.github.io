@@ -846,6 +846,59 @@ export const TERRAIN = {
     shoulder: 9,      // metres the edge of it blends over
   },
 
+  /* THE MOUNTAIN'S OWN FURNITURE, which it did not have.
+
+     Everything off the piste was built from domes and swells — knolls are a
+     squared dome, the boulder band two soft octaves of a metre, the walls a
+     Gaussian with smooth ribs — so the open mountain read as one material
+     poured over a mould: white, rounded and nowhere sharp. Three generators,
+     each living only where the ground it describes lives, and each weighed by
+     the chapter (see CHAPTERS in terrain.js) so a couloir is crag country and
+     a powder bowl is pillows.
+
+     `tors` are rock outcrops: steep-sided, flat-topped and broken in plan,
+     standing out of the bouldery band and studding the lower walls. One
+     candidate per `cell`, centred in the middle two fifths of it with a
+     radius of at most three tenths of a cell, so a tor never reaches past its
+     own cell and a sample need only ask the one cell it is in. `aspect` is
+     height over radius, so the biggest stand nearly eight metres. The
+     snowpack paints them by their own steepness, so the faces come out stone
+     and the tops keep their snow without anything being told to. The mesh
+     draws them rounder and lower as its cells widen (see `torAt`), so no
+     prop is planted on one: it would hang over the lowered rock.
+
+     `pillows` are the freerider's staircase: rounded mounds of snow over
+     buried boulders, half a metre to a metre high, scattered through the
+     powder band between the corduroy and the rocks — rideable, and fine
+     enough that the mesh only builds them where its cells can hold them.
+
+     `crests` sharpen the high walls into arêtes and couloirs: a ridged noise
+     (one minus the absolute value, squared) that is zero for the first dozen
+     metres past the lip and grows up the face, so the quarterpipe a rider can
+     reach is untouched and the skyline is serrated. Centred near zero, so the
+     walls stand roughly where they stood. */
+  tors: {
+    cell: 32,
+    chance: 0.42,
+    radius: [3, 7],
+    aspect: [0.55, 1.1],
+    stretch: [0.55, 1.0],
+    crag: 0.24,
+    seed: 9311,
+  },
+  pillows: {
+    cell: 9,
+    chance: 0.45,
+    radius: [1.6, 2.7],
+    rise: [0.22, 0.38],
+    seed: 9377,
+  },
+  crests: {
+    amp: 18,
+    fine: 6,
+    seed: 9431,
+  },
+
   /* Side hits: a wind lip beside the corduroy, one gate slot in `1/chance`
      at most. See the long note above `sideHitFor` in terrain.js.
 
