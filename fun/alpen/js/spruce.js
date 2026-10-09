@@ -17,11 +17,21 @@ const BARK = { u0: 0.006, u1: 0.116, v0: 0.02, v1: 0.98 };
 
 const SNOW_COL = [0.839, 0.890, 0.957]; // '#d6e3f4', the prop snow everywhere
 const TRUNK_OWN = 0.35;                 // a trunk takes this share of the cast
-/* Solid snow — the well the tree stands in. Below zero on purpose: the card
-   material reads any negative ownership as "opaque, and the vertex colour is
-   the whole answer", so the well needs no opaque texel in an atlas that has
-   none. The shared OWN_MIX clamps it, so every other material sees 0. */
-const SOLID_SNOW_OWN = -1;
+
+/* The foot (see the builder): a buried ring of roots ROOT_DEPTH trunk radii
+   under the snow line, spreading ROOT_SPREAD radii past the trunk before
+   each root's lobe scales it by LOBE[0] up to LOBE[0] + LOBE[1]. */
+const ROOT_DEPTH = 1.9;
+const ROOT_SPREAD = 1.5;
+const LOBE = [0.3, 1.3];
+const trunkBase = (height) => Math.min(0.62, height * 0.020 + 0.10);
+
+/* How far out and how deep that ring reaches on a tree grown at `height`,
+   in its own units: props.js beds every tree so the ring stays buried. */
+export function rootRing(height) {
+  const r0 = trunkBase(height);
+  return { reach: r0 * (1 + ROOT_SPREAD * (LOBE[0] + LOBE[1])), depth: r0 * ROOT_DEPTH };
+}
 
 export const SPRUCE_LAYOUT = {
   cells: CELLS, frostDrop: FROST_DROP, bark: BARK, bare: false,
@@ -105,7 +115,7 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
   const stemZ = (y) => Math.sin(leanYaw) * lean * (y / height) ** 2;
 
   /* ---- trunk: gently curved open frustums, bark-mapped ---- */
-  const r0 = Math.min(0.62, height * 0.020 + 0.10);
+  const r0 = trunkBase(height);
   const r1 = r0 * 0.55;
   const rings = [[0, r0], [height * 0.30, r0 * 0.78],
     [height * 0.62, r1], [height * 0.985, 0.035]];
@@ -143,83 +153,95 @@ export function growCardSpruce(THREE, seed, spec, height, layout = SPRUCE_LAYOUT
     }
   }
 
-  /* ---- the foot: a root flare, and the well of snow the tree stands in.
-     The grown trees had both and the cards lost them in the swap; a bark
-     cylinder meeting the snow along a clean circle is the one place a tree
-     still admits to being furniture. The flare is one more ring of bark
-     under the first; the well is a low cone of solid snow, rim sunk so a
-     tree on a 22° bank still has a mound on its uphill side, in the prop
-     snow colour and owned by nothing so no cast can tint it. Forty-odd
-     triangles on a tree of four hundred. ---- */
+  /* ---- the foot: buttress roots, and the snow simply covers them.
+
+     It used to stand in a mound of solid snow, and the mound was the one
+     part of the tree that could not survive a slope. Trees stand nearly
+     upright (they take a sixth of the ground's normal), so on a bank the
+     mound's downhill rim cleared the snow and drew as white blades in the
+     air beside the trunk; and on flat ground it was a smooth, untextured
+     skirt brighter than the snow round it, because it was prop snow on a
+     tree's material rather than the ground's. A real tree well is a hollow
+     in any case — the crown keeps the snowfall off — which a height field
+     cannot carve and a mesh standing on it cannot fake.
+
+     So the snow is left to the terrain, and the trunk earns its contact
+     the way a real one does: it widens into roots before it goes under.
+     One ring of bark from a foot buried well under the snow line (a full
+     root's tip reaches 3.3 r0 out, and on a 28° bank the snow there is
+     about 1.5 r0 down; steeper stands are bedded deeper by props.js, see
+     `rootRing`) through the snow line to a lip tucked just inside the
+     trunk's nine sides, where its normals are the trunk's own so the join
+     has no crease. Between them the radius falls quadratically, so the
+     roots spread at the snow and close tangentially up the stem, and each
+     tree has three to five of them at its own bearings and strengths,
+     which is what makes the line the snow cuts across them irregular.
+     Twelve sides and two rings: the same forty-eight triangles the flare
+     and the mound cost together. ---- */
   {
-    const yFlare = -r0 * 0.45;
-    const rFlare = r0 * 2.0;
-    const yTop = r0 * 1.7;
-    const rTop = r0 * 1.04;
-    const vF = BARK.v0;
-    const vT = BARK.v0 + (BARK.v1 - BARK.v0) * (yTop / height);
-    for (let k = 0; k < SIDES; k++) {
-      const a0 = (k / SIDES) * Math.PI * 2;
-      const a1 = ((k + 1) / SIDES) * Math.PI * 2;
-      const u0 = BARK.u0 + (BARK.u1 - BARK.u0) * (k / SIDES);
-      const u1 = BARK.u0 + (BARK.u1 - BARK.u0) * ((k + 1) / SIDES);
-      p[0].set(Math.cos(a0) * rFlare, yFlare, Math.sin(a0) * rFlare);
-      p[1].set(Math.cos(a1) * rFlare, yFlare, Math.sin(a1) * rFlare);
-      p[2].set(Math.cos(a1) * rTop, yTop, Math.sin(a1) * rTop);
-      p[3].set(Math.cos(a0) * rTop, yTop, Math.sin(a0) * rTop);
-      nRoot.set(Math.cos(a0), 0.45, Math.sin(a0)).normalize();
-      nTip.set(Math.cos(a1), 0.45, Math.sin(a1)).normalize();
-      const P = [p[0], p[1], p[2], p[0], p[2], p[3]];
-      const N = [nRoot, nTip, nTip, nRoot, nTip, nRoot];
-      const U = [[u0, vF], [u1, vF], [u1, vT], [u0, vF], [u1, vT], [u0, vT]];
-      for (let i = 0; i < 6; i++) {
-        pos.push(P[i].x, P[i].y, P[i].z);
-        nrm.push(N[i].x, N[i].y, N[i].z);
-        uv.push(U[i][0], U[i][1]);
-        col.push(1, 1, 1);
-        own.push(TRUNK_OWN);
-      }
+    const FOOT = 12;
+    const levels = [-r0 * ROOT_DEPTH, r0 * 0.5, r0 * 2.2];
+    const span = levels[2] - levels[0];
+    // One draw from the tree's own sequence, where the mound's yaw used to
+    // be, so every bough above keeps the place it had.
+    const footRnd = mulberry(Math.floor(rnd() * 4294967296));
+    const roots = [];
+    const count = 3 + Math.floor(footRnd() * 3);
+    const phase = footRnd() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      roots.push([phase + (i + (footRnd() - 0.5) * 0.6) * Math.PI * 2 / count,
+        0.6 + 0.4 * footRnd()]);
     }
-    /* A mound with a bell's section rather than a cone's: (1 − ρ²)² from
-       the trunk to the rim, so it leaves the snow at zero slope instead of
-       meeting it along a hard polygon, and its normals are the profile's own
-       rather than twelve facets'. Two rings and the apex: the forest's
-       triangle budget is per tree and there are hundreds of trees. */
-    const WELL = 10;
-    const RINGS = [0, 0.55, 1];
-    const rWell = r0 * 5.0;
-    const yRim = -r0 * 1.6;
-    const yApex = r0 * 1.0;
-    const rise = yApex - yRim;
-    const wellYaw = rnd() * Math.PI * 2;
-    const at = (ring, k, out, n) => {
-      const rho = RINGS[ring];
-      const a = wellYaw + (k / WELL) * Math.PI * 2;
-      // a little scallop at the rim, so it is a drift and not a lampshade
-      const r = rWell * rho * (1 + 0.10 * rho * Math.sin(a * 3 + 1.3));
-      const q = 1 - rho * rho;
-      out.set(Math.cos(a) * r, yRim + rise * q * q, Math.sin(a) * r);
-      const fall = 4 * rho * q * rise / rWell;
-      n.set(Math.cos(a) * fall, 1, Math.sin(a) * fall).normalize();
+    const spread = (a) => {
+      let lobe = 0;
+      for (const [at, strength] of roots) {
+        lobe = Math.max(lobe, strength * Math.max(0, Math.cos(a - at)) ** 8);
+      }
+      return LOBE[0] + LOBE[1] * lobe;
     };
-    const wp = [p[0], p[1], p[2], p[3]];
-    const wn = [nRoot, nTip, new THREE.Vector3(), new THREE.Vector3()];
-    const emit = (i) => {
-      pos.push(wp[i].x, wp[i].y, wp[i].z);
-      nrm.push(wn[i].x, wn[i].y, wn[i].z);
-      uv.push(BARK.u0, BARK.v0);
-      col.push(SNOW_COL[0], SNOW_COL[1], SNOW_COL[2]);
-      own.push(SOLID_SNOW_OWN);
-    };
-    for (let ring = 0; ring + 1 < RINGS.length; ring++) {
-      for (let k = 0; k < WELL; k++) {
-        at(ring, k, wp[0], wn[0]);
-        at(ring, k + 1, wp[1], wn[1]);
-        at(ring + 1, k + 1, wp[2], wn[2]);
-        at(ring + 1, k, wp[3], wn[3]);
-        // Wound to face up, like the cone it replaces.
-        if (ring > 0) { emit(0); emit(2); emit(1); }
-        emit(0); emit(3); emit(2);
+    const trunkR = (y) => r0 + (rings[1][1] - r0) * (y / rings[1][0]);
+    const taper0 = (r0 - rings[1][1]) / rings[1][0] * 0.3;
+    const ring = levels.map((y, j) => {
+      const row = [];
+      for (let k = 0; k <= FOOT; k++) {
+        const a = (k / FOOT) * Math.PI * 2;
+        // 0.92 keeps the lip inside the nonagon's flats (0.94 of its corners).
+        const r = j === 2 ? trunkR(y) * 0.92
+          : trunkR(y) + r0 * ROOT_SPREAD * ((levels[2] - y) / span) ** 2 * spread(a);
+        row.push(new THREE.Vector3(stemX(y) + Math.cos(a) * r, y, stemZ(y) + Math.sin(a) * r));
+      }
+      return row;
+    });
+    const tA = new THREE.Vector3();
+    const tY = new THREE.Vector3();
+    const normals = ring.map((row, j) => row.map((_, k) => {
+      const a = (k / FOOT) * Math.PI * 2;
+      if (j === 2) return new THREE.Vector3(Math.cos(a), taper0, Math.sin(a)).normalize();
+      tA.subVectors(row[(k + 1) % FOOT], row[(k + FOOT - 1) % FOOT]);
+      tY.subVectors(ring[j + 1][k], ring[Math.max(0, j - 1)][k]);
+      return new THREE.Vector3().crossVectors(tY, tA).normalize();
+    }));
+    // Mirrored below the snow line rather than clamped, so the bark keeps
+    // the trunk's grain all the way down instead of smearing into streaks.
+    const vAt = (y) => BARK.v0 + (BARK.v1 - BARK.v0) * (Math.abs(y) / height);
+    for (let j = 0; j < 2; j++) {
+      for (let k = 0; k < FOOT; k++) {
+        const u0 = BARK.u0 + (BARK.u1 - BARK.u0) * (k / FOOT);
+        const u1 = BARK.u0 + (BARK.u1 - BARK.u0) * ((k + 1) / FOOT);
+        const vA = vAt(levels[j]);
+        const vB = vAt(levels[j + 1]);
+        const P = [ring[j][k], ring[j][k + 1], ring[j + 1][k + 1],
+          ring[j][k], ring[j + 1][k + 1], ring[j + 1][k]];
+        const N = [normals[j][k], normals[j][k + 1], normals[j + 1][k + 1],
+          normals[j][k], normals[j + 1][k + 1], normals[j + 1][k]];
+        const U = [[u0, vA], [u1, vA], [u1, vB], [u0, vA], [u1, vB], [u0, vB]];
+        for (let i = 0; i < 6; i++) {
+          pos.push(P[i].x, P[i].y, P[i].z);
+          nrm.push(N[i].x, N[i].y, N[i].z);
+          uv.push(U[i][0], U[i][1]);
+          col.push(1, 1, 1);
+          own.push(TRUNK_OWN);
+        }
       }
     }
   }

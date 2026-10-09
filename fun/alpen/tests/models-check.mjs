@@ -329,7 +329,7 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   run(60);
 }
 
-const { growCardSpruce, SPRUCE_LAYOUT } = await load('spruce.js');
+const { growCardSpruce, SPRUCE_LAYOUT, rootRing } = await load('spruce.js');
 const spec = { whorls: [7, 10], perWhorl: [4, 6], bareTo: 0.12,
   reach: 0.21, liftLow: -0.1, liftHigh: 0.5, droop: 0.3, snow: 0.65, spire: 1.5, flag: 0.25 };
 let treeTriangles = 0;
@@ -344,6 +344,25 @@ for (let i = 0; i < 20; i++) {
   assert.deepEqual(tree.attributes.position.array, again.attributes.position.array, 'seeded model stability');
 }
 assert.ok(treeTriangles <= 7354, 'crossing needle curtains stay within the original tree budget');
+
+// The forest beds every tree against the snow its buried root ring reaches
+// (props.js), from what `rootRing` says; the ring has to be exactly there.
+for (const h of [4, 12, 26]) {
+  const tree = growCardSpruce(THREE, 4242 + h, spec, h);
+  const own = tree.attributes.surfaceOwn.array;
+  const at = tree.attributes.position.array;
+  let reach = 0;
+  let depth = 0;
+  for (let i = 0; i < own.length; i++) {
+    assert.ok(own[i] >= 0, 'no solid-snow mound at the foot');
+    if (Math.abs(own[i] - 0.35) > 1e-6) continue;
+    reach = Math.max(reach, Math.hypot(at[i * 3], at[i * 3 + 2]));
+    depth = Math.max(depth, -at[i * 3 + 1]);
+  }
+  const ring = rootRing(h);
+  assert.ok(reach <= ring.reach * 1.01 && reach > ring.reach * 0.6, `root reach ${reach} within rootRing ${ring.reach}`);
+  assert.ok(Math.abs(depth - ring.depth) < 1e-6, `root depth ${depth} is rootRing's ${ring.depth}`);
+}
 
 // Snow replaces the photographed bough surface instead of adding a floating
 // copy. A heavier snow load must not double stems, polygons, or card seams.

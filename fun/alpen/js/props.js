@@ -106,7 +106,7 @@ import {
   chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
-import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT } from './spruce.js';
+import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose } from './geom.js';
 import { PROPS } from './config.js';
@@ -2391,19 +2391,15 @@ export function createProps(THREE, shading) {
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
-        varying float vCardSolid;`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
         .replace('#include <color_vertex>', `#include <color_vertex>
         #if defined( USE_COLOR ) && defined( USE_INSTANCING_COLOR )
           vColor.rgb = mix( color, vColor.rgb, clamp( surfaceOwn, 0.0, 1.0 ) );
         #endif`)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
-        vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );
-        vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+        vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );`);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>
-        varying float vCardSolid;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
         ${opts.colored ? boughCoverage : ''}
         float n64FrostTexel = ${frost
@@ -2417,7 +2413,6 @@ export function createProps(THREE, shading) {
           float canopyLight = clamp(max(vColor.r, max(vColor.g, vColor.b)) * 5.5, 0.40, 1.15);
           diffuseColor.rgb = sampledDiffuseColor.rgb * canopyLight;
         }` : ''}
-        if (vCardSolid > 0.5) diffuseColor = vec4(vColor.rgb, 1.0);
         /* The sprig cells store needle luminance, not colour: the cast on
            the instance is the colour. Lift them back to needle brightness;
            frost (sheen 1) and bark (sheen ~0.65) keep the map's own level.
@@ -2470,10 +2465,7 @@ export function createProps(THREE, shading) {
           }
         }`);
     };
-    // The snow well at the foot is ground, and takes the ground's canopy.
-    shading.apply(m, {
-      streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE, canopy: 'vCardSolid',
-    });
+    shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
     const programKey = m.customProgramCacheKey();
     m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}`;
     return m;
@@ -2487,16 +2479,10 @@ export function createProps(THREE, shading) {
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
-          varying float vCardSolid;`)
-        .replace('#include <begin_vertex>', `${SWAY}
-          vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>\nvarying float vCardSolid;`)
-        .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`)
-        .replace('#include <alphatest_fragment>', `
-          if (vCardSolid > 0.5) diffuseColor.a = 1.0;
-          #include <alphatest_fragment>`);
+        .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`);
     };
     m.customProgramCacheKey = () => `spruce-depth:${colored}`;
     return m;
@@ -2941,6 +2927,26 @@ export function createProps(THREE, shading) {
       .normalize();
   }
 
+  /* …and bedded against the lowest snow its roots reach. A spruce's root
+     ring is buried at a fixed depth under the trunk (see the foot in
+     spruce.js), and on a steep or breaking bank the snow downhill falls
+     away faster than that: a tenth of the forest stands on ground past 28°
+     and a few trees on 50°, where the ring came out of the snow as a shell
+     of bark. Sinking the tree until the ring is under the lowest snow eight
+     bearings find at its reach costs nothing to see — the trunk only goes
+     in deeper on the uphill side — and only moves trees that need it. The
+     margin covers a bearing that falls between two probes. */
+  function beddedTreeY(x, z, y, height, s, sy) {
+    const ring = rootRing(height);
+    const reach = ring.reach * s;
+    let low = y;
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      low = Math.min(low, heightAt(x + Math.cos(a) * reach, z + Math.sin(a) * reach));
+    }
+    return Math.min(y, low + ring.depth * sy * 0.85);
+  }
+
   /* The outside of the whole route, not merely the nearest branch. At a fork
      `centersAt` is ordered left to right, so choosing the extreme centre and
      then moving another half-width out puts a prop beyond both groomed ways
@@ -3266,7 +3272,8 @@ export function createProps(THREE, shading) {
       const colour = castOf(treeBare[v], v, rnd(), tint);
       if (hash2(b, 3800 + i, 239) > density) continue;
       if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0) || onTor(x, z)) continue;
-      if (!treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour)) continue;
+      const bed = beddedTreeY(x, z, y, treeHeights[v], s, sy);
+      if (!treePools[v].addOnSlope(x, bed, z, yaw, s, sy, s, normal, colour)) continue;
       /* `canopy` is the crown's radius, for the occlusion field the snow
          reads (canopy.js): a conifer's lowest whorl reaches about a quarter
          of its height out from the trunk. A bare snag hides much less sky
