@@ -2,8 +2,10 @@ import { createGpuCanvas } from './gpu-canvas.js';
 import { WORLDS, PARALLAX_LAYERS, WorldRenderer } from './worlds.js';
 import { ENEMY_TYPES, SHIP_PALETTES, drawShip, warmShipSprites, warmGpuShipSprites } from './ships.js';
 import { createCampaign, beginLevel, update, buyUpgrade, upgradeCost, UPGRADES, WEAPONS, BULLET_SPECTRUM, MAX_UPGRADE, clamp, selectWeapon, shipStats, weaponStats, SECONDARY_ENERGY_COST, SECONDARY_RESTART_ENERGY, bossWeakPointPosition, applyGroundReward,
-  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE, freshSalt } from './sim.js';
-import { isDormant } from './waves.js';
+  PRIMARIES, SUPPLIES, buyPrimary, buySupply, supplyCost, supplyStock, primaryStats, firingInterval, MAX_POWER, SHIELD_FIRING_RECHARGE, SHIELD_REST_RECHARGE, freshSalt,
+  resumeFromCheckpoint, sectorClearBonus } from './sim.js';
+import { isDormant, createDirector } from './waves.js';
+import { OBJECTIVES, objectiveProgress, objectiveLabel, sectorRank, RANK_BONUS } from './objectives.js';
 import { Effects, explosionIntensity, warmEffectsTextures, warmGpuEffectTextures } from './effects.js';
 import { CombatFeedback } from './combat-feedback.js';
 import { difficultyProfile, normalizeDifficulty } from './difficulty.js';
@@ -198,6 +200,7 @@ function setScreen(next) {
   // still scroll and must never leave a bare row at the top.
   world.deferStrips = next === 'menu' || next === 'hangar';
   if (next !== 'end') { endFade = null; setEndFade(''); }
+  if (next === 'pause') renderObjectives();
   for (const id of screens) if ($(id)) $(id).hidden = id !== `${next}-screen`;
   document.body.dataset.scene = next;
   // Instruments and touch controls reserve their space even behind menus.
@@ -341,7 +344,7 @@ function announce(kicker, title, description = '', seconds = 3, compact = false)
   announcementUntil = clock + seconds;
 }
 
-function launch(level = 0, checkpoint = null, persist = true) {
+function launch(level = 0, checkpoint = null, persist = true, fromCheckpoint = false) {
   audio.start();
   activeCampaign = persist; lastAutosaveTime = 0;
   level = normalizeLevel(level);
@@ -349,6 +352,7 @@ function launch(level = 0, checkpoint = null, persist = true) {
   state = createCampaign(level, checkpoint, selectedDifficulty, checkpoint ? 0 : freshSalt());
   state.startLevel = checkpoint?.startLevel ?? level;
   state.width = W; state.height = H; beginLevel(state, level);
+  if (fromCheckpoint && checkpoint?.checkpoint) resumeFromCheckpoint(state, checkpoint.checkpoint, checkpoint.director?.objectives);
   world.setWorld(level, sectorSeed(level)); warmFleet(level); fx.reset(); feedback.reset(state); keys.clear(); previousScroll = 0; $('boss-hud').hidden = true;
   setScreen('playing');
   $('announcement').hidden = true;
@@ -362,6 +366,17 @@ function returnToMenu() {
   state = null; activeCampaign = false; fx.reset(); feedback.reset(state); selectWorld(selected); setScreen('menu');
   $('announcement').hidden = true; $('boss-hud').hidden = true; refreshContinue();
   $(campaign.run ? 'continue-button' : 'launch-button').focus({ preventScroll: true });
+}
+
+// Objectives with live progress for the pause screen.
+function renderObjectives() {
+  const objectives = state?.director?.objectives || [];
+  $('pause-objectives').hidden = !objectives.length;
+  $('pause-objectives').innerHTML = objectives.map(objective => {
+    const final = OBJECTIVES[objective.kind].final, progress = objectiveProgress(state, objective);
+    const status = objective.done ? 'Done' : final ? (objective.kind === 'precision' ? `${progress}%` : progress ? 'On track' : 'Missed') : `${Math.min(progress, objective.target)} / ${objective.target}`;
+    return `<li class="${objective.done ? 'met' : ''}"><b aria-hidden="true">${objective.done ? '✓' : '○'}</b><p><strong>${OBJECTIVES[objective.kind].title}</strong> · ${objectiveLabel(objective)}</p><span>${status}</span></li>`;
+  }).join('');
 }
 
 function pause() {
@@ -536,6 +551,19 @@ function renderReport() {
   const perfect = challenge && challenge.hits >= challenge.total;
   $('hangar-report').innerHTML = `<div><dt>Hit ratio</dt><dd>${ratio}<small>${number(hits)} hits · ${number(shots)} shots</small></dd></div><div><dt>Squadrons wiped</dt><dd>${stats.squads || 0}</dd></div><div><dt>Dive kills</dt><dd>${stats.dives || 0}<small>${stats.rescues ? `${stats.rescues} drone${stats.rescues === 1 ? '' : 's'} rescued` : 'Worth double points'}</small></dd></div><div><dt>Challenging stage</dt><dd class="${perfect ? 'perfect' : ''}">${challenge ? `${challenge.hits} / ${challenge.total}` : '—'}<small>${challenge ? (perfect ? 'Perfect!' : `+${number(challenge.credits || 0)} credits`) : 'After odd sectors'}</small></dd></div>`;
   $('hangar-report-note').textContent = [environment(state.level).name, encounterSummary(stats)].filter(Boolean).join(' · ');
+  renderDebrief();
+}
+
+// Rank, this sector's objectives and the goals awaiting the next launch.
+function renderDebrief() {
+  const rank = sectorRank(state), bonus = Math.round(sectorClearBonus(state.level) * RANK_BONUS[rank.grade]);
+  const cells = [`<div><dt>Sector rank</dt><dd class="grade">${rank.grade}<small>${rank.points} points${bonus ? ` · +${number(bonus)} credits` : ''}</small></dd></div>`];
+  for (const objective of state.director?.objectives || []) {
+    cells.push(`<div><dt>${OBJECTIVES[objective.kind].title}</dt><dd class="${objective.done ? 'met' : 'missed'}">${objective.done ? '✓ Met' : '✗ Missed'}<small>${objectiveLabel(objective)}</small></dd></div>`);
+  }
+  const next = nextSector(state.level), goals = createDirector(next, state.salt).objectives;
+  cells.push(`<div><dt>Next sector goals</dt><dd>${String(next + 1).padStart(2, '0')}<small>${goals.map(objectiveLabel).join(' · ')}</small></dd></div>`);
+  $('hangar-debrief').innerHTML = cells.join('');
 }
 
 function renderUpgrades() {
@@ -598,6 +626,10 @@ function showEnd(won, loading = false) {
   $('end-best').classList.toggle('record', record);
   $('end-best').textContent = record ? 'New best score!' : `Best score ${number(bestScore)}`;
   setActionLabel($('retry-button'), 'Retry sector');
+  // A flight that reached its checkpoint can resume from the middle of the sector.
+  const checkpoint = !!state.checkpoint;
+  $('checkpoint-button').hidden = !checkpoint;
+  $('retry-button').classList.toggle('primary-button', !checkpoint); $('retry-button').classList.toggle('secondary-button', checkpoint);
   refreshContinue();
 }
 
@@ -611,7 +643,7 @@ function updateEndFade(dt) {
   endFade.complete = true; fx.reset(); hitstop = 0;
   canvas.style.filter = ''; setEndFade('0');
   $('end-screen').hidden = false;
-  $('retry-button').focus({ preventScroll: true });
+  $(state.checkpoint ? 'checkpoint-button' : 'retry-button').focus({ preventScroll: true });
 }
 
 function refreshContinue() {
@@ -682,7 +714,9 @@ function soundVariant(e) {
 }
 function processEvents() {
   const events = state.events.length ? state.events.splice(0) : state.events;
+  let checkpoint = null;
   for (const e of events) {
+    if (e.type === 'checkpoint') checkpoint = e;
     fx.emit(e);
     const sound = e.type === 'pickup' && (e.bonus === 'power' || e.bonus === 'drone') ? e.bonus : e.type;
     audio.effect(sound, e.size ?? e.wave, soundVariant(e), soundPan(e));
@@ -717,6 +751,7 @@ function processEvents() {
       const brief = ENCOUNTER_BRIEFS[e.kind], calm = e.kind === 'convoy' || e.kind === 'bonusFlight';
       announce(brief.kicker, e.kind === 'ace' ? `${ACE_NAMES[e.aceName] || 'Ace'} inbound` : brief.title, brief.detail, calm ? 2.4 : 2.8);
     }
+    if (e.type === 'objective') announce('Objective complete', e.title, `+${number(e.credits)} credits · +${number(e.score)} score`, 1.8, true);
     if (e.type === 'formation-broken') announce('Leader down', `${e.label} broken`, `+${number(e.bonus)} · survivors dive or scatter`, 1.4, true);
     if (e.type === 'ace-down') announce('Ace down', `${ACE_NAMES[e.aceName] || 'Ace'} destroyed`, 'Its wreck released prizes.', 2, true);
     if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
@@ -731,6 +766,11 @@ function processEvents() {
     if (e.type === 'victory') showEnd(true);
     // Collateral destruction can add ground effects even on the final tick.
     if (state.events.length) events.push(...state.events.splice(0));
+  }
+  // The checkpoint wave also announces itself; share the strip with its briefing.
+  if (checkpoint) {
+    if (!$('announcement').hidden && clock < announcementUntil) $('announcement-kicker').textContent += ' · Checkpoint';
+    else announce('Checkpoint', `Wave ${String(checkpoint.wave).padStart(2, '0')} reached`, 'If your last ship falls, retry from here.', 1.6, true);
   }
   feedback.collect(state, events);
   renderCombatFeedback();
@@ -1356,6 +1396,7 @@ on('hangar-menu-button', returnToMenu);
 on('pause-button', pause); on('resume-button', pause); on('menu-button', returnToMenu); on('end-menu-button', returnToMenu);
 on('restart-button', () => launch(state.level, state, activeCampaign));
 on('retry-button', () => launch(state.level, state, activeCampaign));
+on('checkpoint-button', () => launch(state.level, state, activeCampaign, true));
 on('next-button', () => {
   if (state?.status !== 'hangar') return;
   beginLevel(state, nextSector(state.level)); selected = environmentIndex(state.level); world.setWorld(state.level, sectorSeed(state.level)); warmFleet(state.level); previousScroll = 0; fx.reset(); feedback.reset(state); setScreen('playing'); audio.start(); $('boss-hud').hidden = true;

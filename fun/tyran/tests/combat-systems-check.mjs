@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
-import { createCampaign, update, spawnEnemy, spawnFormation, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
+import { createCampaign, beginLevel, update, spawnEnemy, spawnFormation, resumeFromCheckpoint, sectorClearBonus, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
 import { applyRole, addBarrier } from '../roles.js';
 import { waveTactics } from '../tactics.js';
+import { createDirector, checkpointWave } from '../waves.js';
+import { OBJECTIVES, OBJECTIVE_KINDS, sectorObjectives, objectiveReward, sectorRank, RANK_BONUS } from '../objectives.js';
 import { serializeRun, restoreRun } from '../save-game.js';
 
 // Run with: node fun/tyran/tests/combat-systems-check.mjs
@@ -249,6 +251,106 @@ check('tactical formations fire a rippled salvo at their combined rate, and keep
   }
   assert(order.length >= 3, `the salvo fires (${order})`);
   assert.deepEqual(order, [...order].sort((a, b) => a - b), `in ripple order (${order})`);
+});
+
+check('every sector draws two distinct, salted objectives with at most one judged at the clear', () => {
+  const kinds = new Set();
+  for (let level = 0; level < 30; level++) for (const salt of [0, 7, 991]) {
+    const director = createDirector(level, salt), objectives = director.objectives;
+    assert.deepEqual(objectives, createDirector(level, salt).objectives, 'deterministic');
+    assert.equal(objectives.length, 2);
+    assert.notEqual(objectives[0].kind, objectives[1].kind);
+    assert(objectives.filter(objective => OBJECTIVES[objective.kind].final).length <= 1);
+    if (level === 0) assert(objectives.every(objective => ['squads', 'demolition', 'dives'].includes(objective.kind)), 'the opening sector teaches gently');
+    if (objectives.some(objective => objective.kind === 'ace')) assert(director.encounters.some(encounter => encounter.kind === 'ace'), 'ace goals need an ace');
+    for (const objective of objectives) { kinds.add(objective.kind); assert(objective.target >= 1 && !objective.done); }
+  }
+  assert.deepEqual([...kinds].sort(), [...OBJECTIVE_KINDS].sort(), 'every objective appears somewhere');
+  const differs = Array.from({ length: 10 }, (_, level) => JSON.stringify(sectorObjectives(level + 1, createDirector(level + 1, 1).plan, [], 1)) !== JSON.stringify(sectorObjectives(level + 1, createDirector(level + 1, 2).plan, [], 2)));
+  assert(differs.some(Boolean), 'salts vary the goals');
+});
+
+check('progress objectives pay once when met; flight-long goals are judged at the clear', () => {
+  const state = isolated(3);
+  state.director.objectives = [{ kind: 'squads', target: 2, done: false }, { kind: 'survivor', target: 1, done: false }];
+  const reward = objectiveReward(3), credits = state.credits;
+  state.stats.squads = 2;
+  update(state, 1 / 60, [{}]);
+  assert(state.director.objectives[0].done && state.events.filter(event => event.type === 'objective').length === 1);
+  assert.equal(state.credits, credits + reward.credits);
+  state.events.length = 0; update(state, 1 / 60, [{}]);
+  assert(!state.events.some(event => event.type === 'objective'), 'never paid twice');
+  assert(!state.director.objectives[1].done, 'flight-long goals wait for the clear');
+  killEnemy(state, spawnEnemy(state, 9, 600, 155));
+  const events = [];
+  for (let i = 0; i < 60 * 4 && state.status === 'playing'; i++) { update(state, 1 / 60, [{}]); events.push(...state.events); state.events.length = 0; }
+  assert.equal(state.status, 'hangar');
+  assert(state.director.objectives[1].done, 'no ship lost: survivor met');
+  const clear = events.find(event => event.type === 'hangar');
+  assert.equal(clear.rank, sectorRank(state).grade);
+  assert.equal(clear.bonus, sectorClearBonus(3) + Math.round(sectorClearBonus(3) * RANK_BONUS[clear.rank]));
+  // A lost ship misses the survivor goal.
+  const lossy = isolated(3);
+  lossy.director.objectives = [{ kind: 'survivor', target: 1, done: false }];
+  lossy.stats.lost = 1;
+  killEnemy(lossy, spawnEnemy(lossy, 9, 600, 155));
+  for (let i = 0; i < 60 * 4 && lossy.status === 'playing'; i++) { update(lossy, 1 / 60, [{}]); lossy.events.length = 0; }
+  assert(!lossy.director.objectives[0].done);
+});
+
+check('sector ranks reward objectives, accuracy and clean flying', () => {
+  const graded = (stats, done) => sectorRank({ stats, director: { objectives: [{ done }, { done }] } }).grade;
+  assert.equal(graded({ shots: 100, hits: 60, lost: 0, hullHits: 0 }, true), 'S');
+  assert.equal(graded({ shots: 100, hits: 40, lost: 1, hullHits: 2 }, true), 'A');
+  assert.equal(graded({ shots: 100, hits: 10, lost: 3, hullHits: 9 }, false), 'D');
+  assert(RANK_BONUS.S > RANK_BONUS.A && RANK_BONUS.A > RANK_BONUS.B && RANK_BONUS.D === 0);
+});
+
+check('the middle wave marks a checkpoint that a lost flight resumes from', () => {
+  const state = createCampaign(2), d = state.director, middle = checkpointWave(d.plan);
+  Object.assign(d, { wave: middle - 1, state: 'rest', clock: 0, rest: 0 });
+  state.time = 61; state.scroll = 4321; state.stats.squads = 3; state.stats.lost = 1;
+  update(state, 1 / 60, [{}]);
+  const marked = state.events.find(event => event.type === 'checkpoint');
+  assert(marked && state.checkpoint.wave === middle);
+  assert.equal(state.checkpoint.stats.squads, 3);
+  const run = restoreRun(serializeRun(state));
+  assert.deepEqual(run.state.checkpoint, state.checkpoint, 'the checkpoint survives a save');
+  // A later defeat retries from here; goals already paid stay paid.
+  state.director.objectives[0].done = true;
+  const retry = createCampaign(2, state); retry.width = state.width; beginLevel(retry, 2);
+  resumeFromCheckpoint(retry, state.checkpoint, state.director.objectives);
+  assert.equal(retry.director.wave, middle - 1); assert.equal(retry.director.state, 'rest');
+  assert.equal(retry.time, state.checkpoint.time); assert.equal(retry.scroll, state.checkpoint.scroll);
+  assert.equal(retry.stats.squads, 3);
+  assert(retry.director.objectives[0].done && !retry.director.objectives[1].done);
+  assert(retry.director.encounters.every(encounter => encounter.wave >= middle || encounter.done), 'earlier encounters stay flown');
+  update(retry, 1 / 60, [{}]); for (let i = 0; i < 200 && retry.director.wave < middle; i++) update(retry, 1 / 60, [{}]);
+  assert.equal(retry.director.wave, middle, 'the resumed flight starts with the checkpoint wave');
+  assert(!retry.events.some(event => event.type === 'checkpoint'), 'resuming does not announce the checkpoint again');
+  assert(!createCampaign(3).checkpoint, 'a new sector starts without a checkpoint');
+});
+
+check('a battered pilot gets a longer breather between waves', () => {
+  const rest = hull => {
+    const state = createCampaign(1), d = state.director;
+    Object.assign(d, { wave: 0, kind: 'sweep', state: 'wave', clock: 5, timeout: 99, pending: 0 });
+    state.players[0].hull = state.players[0].maxHull * hull;
+    update(state, 1 / 60, [{}]);
+    return d.rest;
+  };
+  assert.equal(rest(1), 1.5);
+  assert(rest(.2) > 2.5 && rest(.2) <= 3.9);
+});
+
+check('older saves adopt their sector objectives and flights without checkpoints stay valid', () => {
+  const state = createCampaign(5), source = JSON.parse(serializeRun(state));
+  delete source.state.director.objectives; delete source.state.checkpoint;
+  const run = restoreRun(source);
+  assert.deepEqual(run.state.director.objectives, createDirector(5, state.salt).objectives);
+  assert.equal(run.state.checkpoint, null);
+  const corrupt = JSON.parse(serializeRun(state)); corrupt.state.director.objectives = [{ kind: 'pacifist', target: 1, done: false }];
+  assert.equal(restoreRun(corrupt), null);
 });
 
 if (failures) process.exitCode = 1;

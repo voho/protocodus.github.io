@@ -3,6 +3,7 @@ import { ENEMY_TYPES } from './ships.js';
 import { normalizeDifficulty, difficultyProfile } from './difficulty.js';
 import { waveTactics, applyTactics, FORMATION_KINDS } from './tactics.js';
 import { createDirector, updateDirector, enemyGoal, isDormant, startChallenge, updateChallenge, tractorReach, startDive, DIVE_LOOP, ENCOUNTER_WAVE } from './waves.js';
+import { OBJECTIVES, objectiveMet, objectiveReward, sectorRank, RANK_BONUS } from './objectives.js';
 import { applyRole, roleScoreScale, roleCreditScale, roleCollisionDamage, healable, HAZARD_ROLES, MINE_LIFETIME, PHANTOM_CYCLE, PHANTOM_VISIBLE } from './roles.js';
 export { applyRole } from './roles.js';
 
@@ -319,7 +320,8 @@ function segmentHits(b, body, radius) {
   return gapX * gapX + gapY * gapY < radius * radius;
 }
 
-const newStats = () => ({ shots: 0, hits: 0, squads: 0, dives: 0, rescues: 0, encounters: 0, aces: 0, convoys: 0, hazards: 0 });
+export const STAT_KEYS = Object.freeze(['shots', 'hits', 'squads', 'dives', 'rescues', 'encounters', 'aces', 'convoys', 'hazards', 'lost', 'hullHits', 'leaders']);
+const newStats = () => Object.fromEntries(STAT_KEYS.map(key => [key, 0]));
 /** A fresh campaign salt; zero keeps the authored reference choreography. */
 export const freshSalt = () => Math.floor(Math.random() * 4294967296) >>> 0;
 
@@ -370,7 +372,7 @@ export function beginLevel(s, level) {
   s.duration = sectorDuration(s.level);
   s.salt = Number.isFinite(s.salt) ? s.salt >>> 0 : 0;
   s.director = createDirector(s.level, s.salt); s.hive = { age: 0 }; s.squadrons = []; s.nextSquadId = 1;
-  s.challenge = null; s.beams = []; s.respawn = 0; s.stats = newStats();
+  s.challenge = null; s.beams = []; s.respawn = 0; s.stats = newStats(); s.checkpoint = null;
   s.primary = normalizePrimary(s.primary); s.owned = s.owned?.length ? s.owned : ['pulse'];
   s.lives = clamp(Number.isFinite(s.lives) ? s.lives : START_LIVES, 0, MAX_LIVES);
   s.nextLife = s.nextLife || FIRST_EXTRA_LIFE; s.livesBought = s.livesBought || 0;
@@ -1027,9 +1029,11 @@ export function hurtPlayer(s, p, damage, kind = 'energy') {
   p.lastHit = Math.max(s.time, p.lastHit ?? -10);
   resetCombo(s, true);
   s.events.push({ type: 'hit', x: p.x, y: p.y, shield: absorbed > 0, hull: hull > 0, kinetic: bleed > 0 });
+  if (hull > 0 && s.stats) s.stats.hullHits = (s.stats.hullHits || 0) + 1;
   if (shielded && p.shield <= 0 && p.hull > 0) collapseShield(s, p);
   if (p.hull <= 0) {
     p.alive = false; p.rapidFireTime = 0; p.invulnerableTime = 0;
+    if (s.stats) s.stats.lost = (s.stats.lost || 0) + 1;
     // Losing a ship costs two power levels and one wing drone.
     p.power = Math.max(0, (p.power || 0) - 2); p.drones = Math.max(0, (p.drones || 0) - 1);
     if (p.wing) p.wing.length = Math.min(p.wing.length, p.drones);
@@ -1104,6 +1108,7 @@ function breakFormation(s, formation, leader) {
     enemy.formation = null; enemy.formationOffset = null; delete enemy.formationIndex;
   }
   s.score += bonus; s.credits += Math.round(bonus * .06);
+  if (s.stats) s.stats.leaders = (s.stats.leaders || 0) + 1;
   s.events.push({ type: 'formation-broken', x: leader.x, y: leader.y, bonus, label: formation.label });
 }
 
@@ -1210,12 +1215,43 @@ export const challengeSector = s => normalizeLevel(s.level) % 2 === 0;
 // Nominal flight time before the guardian; encounter timing stays independent of terrain speed.
 export const sectorDuration = level => 140 + combatTier(level) * 6;
 
+function completeObjective(s, objective) {
+  const reward = objectiveReward(s.level);
+  objective.done = true;
+  s.credits += reward.credits; s.score += reward.score;
+  s.events.push({ type: 'objective', kind: objective.kind, title: OBJECTIVES[objective.kind].title, credits: reward.credits, score: reward.score });
+}
+
+// Progress goals pay the moment they are met; flight-long goals wait for the clear.
+function updateObjectives(s) {
+  for (const objective of s.director?.objectives || []) {
+    if (!objective.done && !OBJECTIVES[objective.kind].final && objectiveMet(s, objective)) completeObjective(s, objective);
+  }
+}
+
+export const sectorClearBonus = level => Math.round((650 + combatTier(level) * 100) * cycleScale(level, .3));
+
 function finishSector(s) {
   const rewardScale = cycleScale(s.level, .3);
-  const bonus = Math.round((650 + combatTier(s.level) * 100) * rewardScale);
-  s.credits += bonus; s.score += Math.round(2500 * (combatTier(s.level) + 1) * rewardScale);
+  const bonus = sectorClearBonus(s.level);
+  for (const objective of s.director?.objectives || []) if (!objective.done && objectiveMet(s, objective)) completeObjective(s, objective);
+  const rank = sectorRank(s), rankBonus = Math.round(bonus * RANK_BONUS[rank.grade]);
+  s.credits += bonus + rankBonus; s.score += Math.round(2500 * (combatTier(s.level) + 1) * rewardScale);
   s.status = 'hangar';
-  s.events.push({ type: s.status, bonus });
+  s.events.push({ type: s.status, bonus: bonus + rankBonus, rank: rank.grade, rankBonus });
+}
+
+/** Restart a lost flight at its checkpoint; objectives already paid stay paid. */
+export function resumeFromCheckpoint(s, checkpoint, objectives = []) {
+  const d = s.director;
+  Object.assign(d, { wave: checkpoint.wave - 1, state: 'rest', clock: 0, rest: 2.6 });
+  for (const encounter of d.encounters) if (encounter.wave < checkpoint.wave) encounter.done = true;
+  d.objectives.forEach((objective, index) => { objective.done = !!objectives[index]?.done; });
+  s.time = checkpoint.time; s.scroll = checkpoint.scroll;
+  s.stats = { ...newStats(), ...checkpoint.stats };
+  s.checkpoint = { ...checkpoint, stats: { ...checkpoint.stats } };
+  s.scrollSpeed = missionScrollSpeed(s);
+  return s;
 }
 
 function updateWing(p, dt) {
@@ -1577,6 +1613,7 @@ export function update(s, dt, input = [], environmentHit = null) {
   retained = 0;
   for (const p of s.pickups) if (p.age < 14 && p.y < s.height + 50) s.pickups[retained++] = p;
   s.pickups.length = retained;
+  updateObjectives(s);
   // Galaga-style extra ships at score milestones.
   if (s.nextLife && s.nextLife < Number.MAX_SAFE_INTEGER && s.score >= s.nextLife) {
     const awards = Math.floor((Math.min(s.score, Number.MAX_SAFE_INTEGER) - s.nextLife) / EXTRA_LIFE_STEP) + 1;
