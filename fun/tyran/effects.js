@@ -267,6 +267,8 @@ export class Effects {
       this.reserveParticles(10);
       for (let i = 0; i < 10; i++) { const angle = random(0, TAU), speed = random(60, 220); this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.2, .45), random(1.5, 3), '#ffd27a'); }
       this.rings.push({ x, y, age: 0, life: .35, radius: size * 2.4, color: '#ffd27a' });
+    } else if (event.type === 'formation-broken') {
+      this.rings.push({ x, y, age: 0, life: .6, radius: 130, color: '#ffe36d' });
     } else if (event.type === 'ace-down') {
       this.rings.push({ x, y, age: 0, life: .9, radius: 170, color: '#ffe36d' }, { x, y, age: 0, life: 1.2, radius: 260, color: '#fff6d0' });
     } else if (event.type === 'beam') {

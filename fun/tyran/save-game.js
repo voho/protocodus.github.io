@@ -249,7 +249,7 @@ function restoreState(raw) {
     if (!result.offsets.length) invalid();
     result.members = integer(formation.members, result.offsets.length, 0, 16);
     optional(result, formation, {
-      entry: ['enum', 0, 0, ['top', 'left', 'right']], motionSpeed: ['num', .5, 2], drift: ['num', -1, 1], hullRadius: ['num', 1, 256],
+      entry: ['enum', 0, 0, ['top', 'left', 'right']], motionSpeed: ['num', .5, 2], drift: ['num', -1, 1], hullRadius: ['num', 1, 256], salvo: ['num', .1, 20],
     });
     formationsById.set(result.id, result);
     return result;

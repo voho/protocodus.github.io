@@ -198,6 +198,28 @@ const FORMATION_MOTION = {
   spear: { hold: 1.6, depart: 260 }, helix: { helix: true },
 };
 const RADIAL_FORMATIONS = new Set(['orbit', 'diamond', 'ring', 'helix']);
+// Escorts, diamonds and spears fly behind a heavier leader. Shooting it down
+// breaks the group: half the survivors panic-dive, the rest scatter.
+const formationLeader = (kind, index) => (kind === 'escort' && index === 0) || (kind === 'diamond' && index === 4) || (kind === 'spear' && index === 0);
+// Members of a tactical formation fire one rippled salvo along the line.
+const SALVO_STEP = .12;
+// Live members per formation, derived every step: survivors close ranks
+// without saving any extra choreography.
+const formationCohesion = new WeakMap(), formationRank = new WeakMap();
+function updateCohesion(s) {
+  for (const formation of s.formations) {
+    let rx = 0, ry = 0;
+    for (const offset of formation.offsets) { rx = Math.max(rx, Math.abs(offset.x)); ry = Math.max(ry, Math.abs(offset.y)); }
+    formationCohesion.set(formation, { alive: 0, cx: 0, rx, ry });
+  }
+  for (const enemy of s.enemies) {
+    const cohesion = enemy.formation && !enemy.dead && formationCohesion.get(enemy.formation);
+    if (!cohesion) continue;
+    formationRank.set(enemy, cohesion.alive++);
+    cohesion.cx += enemy.formationOffset?.x || 0;
+  }
+  for (const formation of s.formations) { const cohesion = formationCohesion.get(formation); if (cohesion.alive) cohesion.cx /= cohesion.alive; }
+}
 const formationName = kind => kind[0].toUpperCase() + kind.slice(1);
 
 export function bossWeakPointPosition(enemy, point, index = 0) {
@@ -500,7 +522,7 @@ export function spawnFormation(s, kind = null, wave = null, order = 0) {
   const members = [], radii = [];
   offsets.forEach((offset, index) => {
     // Escorts and diamonds fly a heavier leader; spears carry a heavy tip.
-    const escort = (kind === 'escort' && index === 0) || (kind === 'diamond' && index === 4) || (kind === 'spear' && index === 0);
+    const escort = formationLeader(kind, index);
     const type = clamp(tier + (escort ? 2 : index % 3 === 0 ? 1 : 0), 0, 8);
     const enemy = spawnEnemy(s, type, anchor.x + offset.x, anchor.y + offset.y);
     enemy.formation = anchor; enemy.formationOffset = offset; enemy.formationIndex = index;
@@ -508,6 +530,14 @@ export function spawnFormation(s, kind = null, wave = null, order = 0) {
     members.push(enemy); radii.push(enemy.radius);
   });
   anchor.hullRadius = Math.max(...radii, 12);
+  if (tactic) {
+    // The shared interval is the harmonic mean, so the group keeps its total
+    // fire rate while its members ripple in order.
+    let rate = 0;
+    for (const enemy of members) rate += 1 / volleyInterval(s, enemy);
+    anchor.salvo = members.length / rate;
+    members.forEach((enemy, index) => { enemy.fire = 1.2 + index * SALVO_STEP; });
+  }
   const geometry = fitFormation(s, anchor, radii);
   if (tactic) {
     anchor.baseX = clamp(anchor.baseX, geometry.minX, geometry.maxX);
@@ -783,6 +813,7 @@ function chainDamage(s, bullet, origin) {
 }
 
 function updateFormationAnchors(s, dt) {
+  updateCohesion(s);
   let needsFit = false;
   for (const formation of s.formations) {
     const geometry = formationGeometry.get(formation);
@@ -842,16 +873,24 @@ function formationVelocity(enemy) {
   const formation = enemy.formation;
   if (!formation) return null;
   const offset = enemy.formationOffset || { x: 0, y: 0 }, motion = FORMATION_MOTION[formation.kind] || {}, age = formation.age, index = enemy.formationIndex;
+  const cohesion = formationCohesion.get(formation), rank = formationRank.get(enemy);
+  // Rings and orbits spread their survivors evenly; lines re-centre on the anchor.
+  const count = cohesion?.alive || formation.offsets.length, slot = cohesion?.alive ? rank ?? index : index;
   let x = offset.x, y = offset.y;
   if (motion.orbit) {
-    const angle = age * motion.orbit + index * TAU / formation.offsets.length;
+    const angle = age * motion.orbit + slot * TAU / count;
     const radius = Math.hypot(offset.x, offset.y);
     x = Math.cos(angle) * radius; y = Math.sin(angle) * radius;
+  } else if (formation.kind === 'ring' && cohesion) {
+    // Fitted rings may be tall ellipses in narrow arenas; keep their axes.
+    const angle = -Math.PI / 2 + slot * TAU / count + age * motion.spin;
+    x = Math.cos(angle) * cohesion.rx; y = Math.sin(angle) * cohesion.ry;
   } else if (motion.spin || motion.helix) {
     const angle = age * (motion.helix ? (index < 2 ? 1.2 : -.5) : motion.spin), cos = Math.cos(angle), sin = Math.sin(angle);
     x = offset.x * cos - offset.y * sin; y = offset.x * sin + offset.y * cos;
   }
   if (motion.breathe) { const scale = 1 + motion.breathe * Math.sin(age * motion.rate); x *= scale; y *= scale; }
+  if (!RADIAL_FORMATIONS.has(formation.kind) && cohesion?.alive) x -= cohesion.cx;
   if (motion.snake) x += Math.sin(age * motion.rate + index * motion.phase) * motion.snake;
   if (motion.wiggle) {
     x += Math.sin(age * 1.3 + index) * motion.wiggle;
@@ -868,6 +907,11 @@ function formationVelocity(enemy) {
     formationMotion.y = clamp((desiredY - enemy.y) / response, -enemy.speed * 1.3, enemy.speed * 1.3);
   }
   return formationMotion;
+}
+
+function volleyInterval(s, e) {
+  const spacing = e.formation ? 1.32 : e.ai === 'entry' ? 1.2 : 1;
+  return Math.max(.85, Number(ENEMY_TYPES[e.type].fireRate) || 2.2) * spacing / (1 + combatTier(s.level) * .035);
 }
 
 function nearestPilot(s, e) {
@@ -947,8 +991,7 @@ function enemyFire(s, e) {
     if (pattern === 1) for (const i of [-1, 1]) hostileShot(s, e, Math.PI / 2 + i * .23, speed);
     if (pattern === 2) for (let i = -1; i <= 1; i++) hostileShot(s, e, aimed + i * .16, speed * .95);
     if (pattern === 3) for (let i = 0; i < 4; i++) hostileShot(s, e, i * Math.PI / 2 + e.age * .12, speed * .85);
-    const spacing = e.formation ? 1.32 : e.ai === 'entry' ? 1.2 : 1;
-    e.fire = Math.max(.85, Number(ENEMY_TYPES[e.type].fireRate) || 2.2) * spacing / (1 + combatTier(s.level) * .035);
+    e.fire = e.formation?.salvo || volleyInterval(s, e);
   }
 }
 
@@ -1050,6 +1093,20 @@ function squadronCleared(s, e, squad) {
   else s.pickups.push({ x: e.x, y: e.y, age: 0, kind: 'credit', value: Math.round((60 + combatTier(s.level) * 12) * cycleScale(s.level, .3)) });
 }
 
+function breakFormation(s, formation, leader) {
+  const pilot = s.players.find(p => p.alive) || null;
+  const bonus = Math.round((250 + combatTier(s.level) * 50) * cycleScale(s.level, .3));
+  let rank = 0;
+  for (const enemy of s.enemies) {
+    if (enemy.formation !== formation || enemy === leader || enemy.dead) continue;
+    if (pilot && rank++ % 2 === 0) { startDive(s, enemy, pilot); enemy.returnToHive = false; }
+    else enemy.ai = 'retreat';
+    enemy.formation = null; enemy.formationOffset = null; delete enemy.formationIndex;
+  }
+  s.score += bonus; s.credits += Math.round(bonus * .06);
+  s.events.push({ type: 'formation-broken', x: leader.x, y: leader.y, bonus, label: formation.label });
+}
+
 export function killEnemy(s, e, cause = 'shot') {
   if (e.dead) return;
   e.dead = true;
@@ -1079,6 +1136,7 @@ export function killEnemy(s, e, cause = 'shot') {
     if (squad) { squad.killed++; if (squad.killed >= squad.size && !squad.broken) squadronCleared(s, e, squad); }
   }
   if (e.role === 'splitter' && cause !== 'clear') splitEnemy(s, e);
+  if (e.formation && formationLeader(e.formation.kind, e.formationIndex) && !s.bossDefeated) breakFormation(s, e.formation, e);
   if (e.role === 'convoy') s.pickups.push({ x: e.x, y: e.y, age: 0, kind: 'credit', value: Math.round(110 * cycleScale(s.level, .3)) });
   if (e.role === 'ace') {
     const pilot = s.players[0];

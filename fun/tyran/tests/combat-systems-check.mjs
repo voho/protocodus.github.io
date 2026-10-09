@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, update, spawnEnemy, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
+import { createCampaign, update, spawnEnemy, spawnFormation, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
 import { applyRole, addBarrier } from '../roles.js';
 import { waveTactics } from '../tactics.js';
 import { serializeRun, restoreRun } from '../save-game.js';
@@ -171,6 +171,84 @@ check('wing drones swing past their slot on a spring, settle, and keep their vel
   pilot.wing[0].vx = 120; pilot.wing[0].vy = -30;
   const run = restoreRun(serializeRun(state));
   assert.deepEqual([run.state.players[0].wing[0].vx, run.state.players[0].wing[0].vy], [120, -30]);
+});
+
+// Formations never spawn during a guardian fight; hold the director instead.
+function formationArena(level = 0) {
+  const state = createCampaign(level);
+  state.director.hold = true;
+  return state;
+}
+const membersOf = (state, formation) => state.enemies.filter(enemy => enemy.formation === formation && !enemy.dead);
+const calm = state => { for (const enemy of state.enemies) Object.assign(enemy, { noFire: true, harmless: true }); };
+
+check('ring survivors spread evenly around the anchor after losses', () => {
+  const state = formationArena(), ring = spawnFormation(state, 'ring', 1, 0);
+  calm(state); state.players[0].guard = 1e9;
+  const members = membersOf(state, ring);
+  assert.equal(members.length, 8);
+  advance(state, 6);
+  for (const index of [1, 2, 5, 6]) killEnemy(state, members[index]);
+  advance(state, 1.5);
+  const angles = membersOf(state, ring).map(enemy => Math.atan2(enemy.y - ring.y, enemy.x - ring.x)).sort((a, b) => a - b);
+  assert.equal(angles.length, 4);
+  for (let i = 0; i < 4; i++) {
+    const gap = ((angles[(i + 1) % 4] - angles[i]) + Math.PI * 2) % (Math.PI * 2);
+    assert(Math.abs(gap - Math.PI / 2) < .2, `even spacing (${gap.toFixed(3)})`);
+  }
+});
+
+check('a broken line re-centres its survivors on the anchor', () => {
+  const state = formationArena(), wall = spawnFormation(state, 'wall', 1, 0);
+  calm(state); state.players[0].guard = 1e9;
+  const members = membersOf(state, wall);
+  advance(state, 6);
+  for (const index of [0, 1, 2]) killEnemy(state, members[index]);
+  advance(state, 1.5);
+  const survivors = membersOf(state, wall), mean = survivors.reduce((sum, enemy) => sum + enemy.x, 0) / survivors.length;
+  assert(Math.abs(mean - wall.x) < 10, `survivors centre on the anchor (${(mean - wall.x).toFixed(1)})`);
+});
+
+check('downing a leader breaks its formation: half dive, half scatter, and a bonus is paid', () => {
+  for (const kind of ['escort', 'diamond', 'spear']) {
+    const state = formationArena(2), formation = spawnFormation(state, kind);
+    const members = membersOf(state, formation), leader = members.find(enemy => enemy.type === Math.max(...members.map(m => m.type)) && [0, 4].includes(enemy.formationIndex));
+    const score = state.score;
+    killEnemy(state, leader);
+    const broken = state.events.find(event => event.type === 'formation-broken');
+    assert(broken && broken.bonus > 0, `${kind} announces the break`);
+    assert(state.score >= score + broken.bonus);
+    const survivors = members.filter(enemy => enemy !== leader);
+    assert(survivors.every(enemy => enemy.formation === null && enemy.formationIndex === undefined), 'survivors leave the formation');
+    const divers = survivors.filter(enemy => enemy.ai === 'dive').length, fleeing = survivors.filter(enemy => enemy.ai === 'retreat').length;
+    assert.equal(divers + fleeing, survivors.length);
+    assert(Math.abs(divers - fleeing) <= 1, `${kind}: ${divers} dive, ${fleeing} scatter`);
+    update(state, 1 / 60, [{}]);
+    assert(!state.formations.includes(formation), 'the broken group releases its slot');
+    // A follower's death never breaks the group.
+    const intact = formationArena(2), group = spawnFormation(intact, kind);
+    killEnemy(intact, membersOf(intact, group).find(enemy => enemy.formationIndex === 1));
+    assert(!intact.events.some(event => event.type === 'formation-broken'));
+  }
+});
+
+check('tactical formations fire a rippled salvo at their combined rate, and keep it through a save', () => {
+  const state = createCampaign(3), formation = spawnFormation(state, null, 1, 0);
+  const members = membersOf(state, formation);
+  assert(Number.isFinite(formation.salvo) && formation.salvo > .5);
+  members.forEach((enemy, index) => assert(Math.abs(enemy.fire - (1.2 + index * .12)) < 1e-9, 'members ripple in order'));
+  const run = restoreRun(serializeRun(state));
+  assert.equal(run.state.formations.find(entry => entry.id === formation.id).salvo, formation.salvo);
+  // Members fire in their ripple order once the group has entered.
+  state.players[0].guard = 1e9;
+  const order = [];
+  for (let i = 0; i < 60 * 12 && order.length < members.length; i++) {
+    const before = members.map(enemy => enemy.fire);
+    update(state, 1 / 60, [{}]); state.events.length = 0;
+    members.forEach((enemy, index) => { if (!enemy.dead && enemy.fire > before[index] + .3 && !order.includes(index)) order.push(index); });
+  }
+  assert(order.length >= 3, `the salvo fires (${order})`);
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), `in ripple order (${order})`);
 });
 
 if (failures) process.exitCode = 1;

@@ -665,7 +665,7 @@ const WAVE_BRIEFS = {
   hive: ['Swarm inbound', 'Shoot them as they fly in. Divers are worth double.'],
   sweep: ['Strike squadrons', 'Destroy a whole squadron before it escapes for a bonus.'],
   gunship: ['Gunships', 'Lancers paint a firing line before the beam. Leave the line.'],
-  formation: ['Tactical formations', 'Break the formation before it passes.'],
+  formation: ['Tactical formations', 'Break it before it passes. Downing a leader scatters its group.'],
 };
 // Stereo position follows the event across the arena; the pilot's own guns
 // stay closer to the centre so they never pull the mix to one side.
@@ -717,6 +717,7 @@ function processEvents() {
       const brief = ENCOUNTER_BRIEFS[e.kind], calm = e.kind === 'convoy' || e.kind === 'bonusFlight';
       announce(brief.kicker, e.kind === 'ace' ? `${ACE_NAMES[e.aceName] || 'Ace'} inbound` : brief.title, brief.detail, calm ? 2.4 : 2.8);
     }
+    if (e.type === 'formation-broken') announce('Leader down', `${e.label} broken`, `+${number(e.bonus)} · survivors dive or scatter`, 1.4, true);
     if (e.type === 'ace-down') announce('Ace down', `${ACE_NAMES[e.aceName] || 'Ace'} destroyed`, 'Its wreck released prizes.', 2, true);
     if (e.type === 'extra-life') announce('Extra ship', e.credits ? `+$${e.credits}` : 'Reserve ship +1', e.credits ? 'Reserve hangar full.' : `${e.lives} ship${e.lives === 1 ? '' : 's'} in reserve.`, 1.8, true);
     if (e.type === 'respawn') announce('Reserve ship launched', `${e.lives} reserve ship${e.lives === 1 ? '' : 's'} left`, 'Two power levels and one drone lost.', 1.6, true);

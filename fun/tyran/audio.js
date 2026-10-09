@@ -382,6 +382,7 @@ export class AudioEngine {
       const calm = variant === 'convoy' || variant === 'bonusFlight';
       (calm ? [659, 988, 1318] : [330, 262, 330]).forEach((f, i) => this.tone(f, f, calm ? .18 : .22, calm ? .08 : .11, calm ? 'triangle' : 'sawtooth', t + i * .11));
     }
+    if (type === 'formation-broken') { [784, 622, 466].forEach((f, i) => this.tone(f, f * .98, .16, .08, 'square', t + i * .07, pan)); this.tone(1568, 1570, .2, .04, 'sine', t + .22, pan); }
     if (type === 'ace-down') { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, f, .18, .11, 'square', t + i * .08, pan)); }
     if (type === 'split') { this.tone(980, 320, .14, .07, 'square', null, pan); this.burst(.1, .08, 5200, null, pan); }
     if (type === 'challenge-result') {
