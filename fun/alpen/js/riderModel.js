@@ -895,9 +895,9 @@ function buildGeometries(THREE) {
      been wearing the jacket's baffles. */
   const pelvis = compose(THREE, [
     { geo: use(tube(THREE, [
-      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.55 },
-      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.55 },
-      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.6 },
+      { y: -0.155, rx: 0.112, rz: 0.146, round: 0.8, n: 20 },
+      { y: -0.090, rx: 0.130, rz: 0.168, round: 0.8, n: 20 },
+      { y: -0.020, rx: 0.132, rz: 0.172, round: 0.82, n: 20 },
     ], [0.045, 0.07])), color: DENIM },
   ]);
 
@@ -907,27 +907,32 @@ function buildGeometries(THREE) {
      seat and flares back out at the chest — which is most of the difference
      between a jacket and a crate. */
   const torso = compose(THREE, [
+    /* Sections an oval with a little shoulder rather than a superellipse at
+       0.6, which is a crate with its corners sanded: the chest is the
+       deepest ring, the waist pulls in under it, and the top ring rolls the
+       jacket over into the shoulders instead of stopping at a lid. */
     { geo: use(tube(THREE, [
-      { y: -0.075, rx: 0.142, rz: 0.181, round: 0.6 },
-      { y: 0.020, rx: 0.134, rz: 0.175, round: 0.6 },
-      { y: 0.130, rx: 0.142, rz: 0.192, round: 0.62 },
-      { y: 0.250, rx: 0.150, rz: 0.209, round: 0.65 },
-      { y: 0.355, rx: 0.146, rz: 0.212, round: 0.7 },
-      { y: 0.425, rx: 0.126, rz: 0.186, round: 0.8 },
+      { y: -0.075, rx: 0.140, rz: 0.178, round: 0.82, n: 22 },
+      { y: 0.020, rx: 0.130, rz: 0.170, round: 0.84, n: 22 },
+      { y: 0.130, rx: 0.140, rz: 0.186, round: 0.85, n: 22 },
+      { y: 0.250, rx: 0.152, rz: 0.204, round: 0.86, n: 22 },
+      { y: 0.330, rx: 0.150, rz: 0.208, round: 0.86, n: 22 },
+      { y: 0.395, rx: 0.136, rz: 0.196, round: 0.88, n: 22 },
+      { y: 0.440, rx: 0.112, rz: 0.165, round: 0.92, n: 22 },
     ])), color: SHELL },
     // the powder skirt at the hem and the yoke across the shoulders, both a
     // shade down, so the jacket has a top and a bottom in one glance
     { geo: use(tube(THREE, [
-      { y: -0.095, rx: 0.146, rz: 0.186, round: 0.6 },
-      { y: -0.040, rx: 0.144, rz: 0.184, round: 0.6 },
+      { y: -0.095, rx: 0.145, rz: 0.183, round: 0.82, n: 22 },
+      { y: -0.040, rx: 0.140, rz: 0.179, round: 0.83, n: 22 },
     ])), color: SHELL_DARK },
     { geo: use(tube(THREE, [
-      { y: 0.330, rx: 0.150, rz: 0.216, round: 0.68 },
-      { y: 0.412, rx: 0.132, rz: 0.192, round: 0.78 },
+      { y: 0.330, rx: 0.154, rz: 0.212, round: 0.86, n: 22 },
+      { y: 0.412, rx: 0.131, rz: 0.188, round: 0.9, n: 22 },
     ])), color: SHELL_DARK },
     { geo: use(tube(THREE, [
-      { y: 0.055, rx: 0.140, rz: 0.181, round: 0.6 },
-      { y: 0.098, rx: 0.141, rz: 0.182, round: 0.6 },
+      { y: 0.055, rx: 0.137, rz: 0.178, round: 0.85, n: 22 },
+      { y: 0.098, rx: 0.141, rz: 0.185, round: 0.85, n: 22 },
     ])), color: MINT },
     // the collar, which is where the mint belongs and where it reads from
     // behind at any distance
@@ -935,20 +940,24 @@ function buildGeometries(THREE) {
       { y: 0.420, rx: 0.112, rz: 0.150, round: 0.8 },
       { y: 0.487, rx: 0.098, rz: 0.118, round: 0.9 },
     ])), color: MINT },
-    // rounded shoulders, which is the whole reason any of this is lofted
+    /* Rounded shoulders, which is the whole reason any of this is lofted —
+       and points of the shoulder rather than two balls set on it: smaller
+       than the old caps, lower, and sunk into the jacket's own top ring. */
     { geo: use(tube(THREE, [
-      { y: 0.300, rx: 0.086, rz: 0.070, round: 1 },
-      { y: 0.370, rx: 0.098, rz: 0.086, round: 1 },
-      { y: 0.428, rx: 0.084, rz: 0.078, round: 1 },
+      { y: 0.300, rx: 0.074, rz: 0.062, round: 1 },
+      { y: 0.365, rx: 0.082, rz: 0.072, round: 1 },
+      { y: 0.418, rx: 0.070, rz: 0.064, round: 1 },
     ])), color: SHELL_DARK, pos: [0, 0, -SHOULDER_Z] },
     { geo: use(tube(THREE, [
-      { y: 0.300, rx: 0.086, rz: 0.070, round: 1 },
-      { y: 0.370, rx: 0.098, rz: 0.086, round: 1 },
-      { y: 0.428, rx: 0.084, rz: 0.078, round: 1 },
+      { y: 0.300, rx: 0.074, rz: 0.062, round: 1 },
+      { y: 0.365, rx: 0.082, rz: 0.072, round: 1 },
+      { y: 0.418, rx: 0.070, rz: 0.064, round: 1 },
     ])), color: SHELL_DARK, pos: [0, 0, SHOULDER_Z] },
-    { geo: box, color: INK, pos: [0.150, 0.20, 0], scale: [0.012, 0.30, 0.014] },
-    { geo: box, color: YELLOW, pos: [0.158, 0.32, 0], scale: [0.015, 0.035, 0.022] },
-    { geo: box, color: SHELL_DARK, pos: [0.132, 0.24, -0.075], scale: [0.03, 0.26, 0.045] },
+    // Zip, pull and chest pocket, sitting on the rounder front instead of
+    // standing out of it as blocks.
+    { geo: box, color: INK, pos: [0.153, 0.20, 0], scale: [0.010, 0.30, 0.012] },
+    { geo: box, color: YELLOW, pos: [0.159, 0.32, 0], scale: [0.012, 0.035, 0.020] },
+    { geo: box, color: SHELL_DARK, pos: [0.150, 0.24, -0.075], scale: [0.012, 0.22, 0.042] },
     // A compact touring pack follows the torso through every grab and fall.
     { geo: use(tube(THREE, [
       { y: 0.015, x: -0.16, rx: 0.045, rz: 0.11, n: 12 },
@@ -1010,14 +1019,14 @@ function buildGeometries(THREE) {
   // came out was the flat end of a pipe.
   const upperArm = compose(THREE, [
     { geo: use(tube(THREE, [
-      { y: 0.055, rx: 0.078, rz: 0.074, round: 0.95, n: 16 },
-      { y: -0.060, rx: 0.082, rz: 0.078, round: 0.9, n: 16 },
-      { y: -0.180, rx: 0.070, rz: 0.068, round: 0.9, n: 16 },
-      { y: -0.290, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
+      { y: 0.055, rx: 0.070, rz: 0.067, round: 0.95, n: 18 },
+      { y: -0.060, rx: 0.072, rz: 0.069, round: 0.95, n: 18 },
+      { y: -0.180, rx: 0.064, rz: 0.061, round: 0.95, n: 18 },
+      { y: -0.290, rx: 0.057, rz: 0.055, round: 0.95, n: 18 },
     ], [0.05, 0])), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: 0.070, rx: 0.080, rz: 0.076, round: 1, n: 16 },
-      { y: -0.020, rx: 0.086, rz: 0.082, round: 0.95, n: 16 },
+      { y: 0.070, rx: 0.073, rz: 0.070, round: 1, n: 18 },
+      { y: -0.020, rx: 0.076, rz: 0.073, round: 0.97, n: 18 },
     ], [0.05, 0])), color: SHELL_DARK },
   ]);
   /* The one buffer whose parts do not agree about what they are made of, and
@@ -1031,15 +1040,15 @@ function buildGeometries(THREE) {
     // folds. It is a part of this list rather than of the upper arm so the
     // span walk in `clad` stays in step — it takes the sleeve's default
     // mask, quilted and woven, like the fabric either side of it.
-    { geo: use(joint(THREE, 0.068, 0.066, 0.066, 0.92)), color: SHELL },
+    { geo: use(joint(THREE, 0.059, 0.057, 0.064, 0.95)), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: 0.000, rx: 0.065, rz: 0.063, round: 0.95, n: 16 },
-      { y: -0.090, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
-      { y: -0.185, rx: 0.054, rz: 0.052, round: 0.9, n: 16 },
+      { y: 0.000, rx: 0.058, rz: 0.056, round: 0.95, n: 16 },
+      { y: -0.090, rx: 0.053, rz: 0.051, round: 0.95, n: 16 },
+      { y: -0.185, rx: 0.047, rz: 0.046, round: 0.95, n: 16 },
     ])), color: SHELL },
     { geo: use(tube(THREE, [
-      { y: -0.175, rx: 0.062, rz: 0.060, round: 0.9, n: 16 },
-      { y: -0.215, rx: 0.060, rz: 0.058, round: 0.9, n: 16 },
+      { y: -0.175, rx: 0.054, rz: 0.052, round: 0.95, n: 16 },
+      { y: -0.215, rx: 0.053, rz: 0.051, round: 0.95, n: 16 },
     ])), color: YELLOW, cloth: [0.6, 0] },
     // the glove: a mitt with a thumb, which at this size is one extra bump
     // and the entire difference between a hand and a peg. Its fingertips
@@ -1047,46 +1056,49 @@ function buildGeometries(THREE) {
     // hang, and the bounce light off the snow found it as a pale disc at the
     // end of every arm.
     { geo: use(tube(THREE, [
-      { y: -0.210, rx: 0.056, rz: 0.054, round: 0.9, n: 16 },
-      { y: -0.265, x: 0.008, rx: 0.062, rz: 0.058, round: 0.85, n: 16 },
-      { y: -0.320, x: 0.010, rx: 0.058, rz: 0.052, round: 0.85, n: 16 },
-      { y: -0.334, x: 0.008, rx: 0.051, rz: 0.046, round: 0.95, n: 16 },
+      { y: -0.205, rx: 0.049, rz: 0.047, round: 0.92, n: 16 },
+      { y: -0.255, x: 0.006, rx: 0.056, rz: 0.050, round: 0.88, n: 16 },
+      { y: -0.305, x: 0.009, rx: 0.054, rz: 0.046, round: 0.88, n: 16 },
+      { y: -0.334, x: 0.008, rx: 0.047, rz: 0.040, round: 0.95, n: 16 },
     ], [0, 0.019])), color: INK, cloth: [1, 0] },
     { geo: use(tube(THREE, [
-      { y: -0.250, rx: 0.026, rz: 0.024, round: 0.9, n: 12 },
-      { y: -0.290, rx: 0.022, rz: 0.020, round: 0.9, n: 12 },
-    ])), color: INK, pos: [0.05, 0, -0.02], rot: [0, 0, -0.5], cloth: [1, 0] },
+      { y: -0.245, rx: 0.022, rz: 0.020, round: 0.95, n: 12 },
+      { y: -0.290, rx: 0.019, rz: 0.017, round: 0.95, n: 12 },
+    ], [0, 0.012])), color: INK, pos: [0.045, 0, -0.018], rot: [0, 0, -0.5], cloth: [1, 0] },
   ];
   const foreArm = compose(THREE, foreArmParts);
   // Domed at the hip, where the top of the thigh comes out of the seat on
   // the outside of every deep crouch and every grab.
   const thigh = compose(THREE, [
     { geo: use(tube(THREE, [
-      { y: 0.070, rx: 0.108, rz: 0.104, round: 0.9 },
-      { y: -0.080, rx: 0.116, rz: 0.112, round: 0.75 },
-      { y: -0.260, rx: 0.100, rz: 0.098, round: 0.75 },
-      { y: -0.420, rx: 0.086, rz: 0.086, round: 0.85 },
+      { y: 0.070, rx: 0.104, rz: 0.100, round: 0.92, n: 18 },
+      { y: -0.080, rx: 0.110, rz: 0.106, round: 0.9, n: 18 },
+      { y: -0.260, rx: 0.096, rz: 0.094, round: 0.9, n: 18 },
+      { y: -0.420, rx: 0.084, rz: 0.084, round: 0.92, n: 18 },
     ], [0.075, 0])), color: DENIM },
-    { geo: box, color: '#24324c', pos: [0.106, -0.15, 0],
-      scale: [0.025, 0.14, 0.11] },
-    { geo: box, color: INK, pos: [0.122, -0.085, 0],
-      scale: [0.008, 0.016, 0.105] },
+    // A cargo pocket stitched to the cloth rather than a block bolted to it.
+    { geo: use(tube(THREE, [
+      { y: -0.085, rx: 0.010, rz: 0.050, round: 0.55, n: 12 },
+      { y: -0.215, rx: 0.010, rz: 0.048, round: 0.55, n: 12 },
+    ])), color: '#24324c', pos: [0.100, 0, 0] },
+    { geo: box, color: INK, pos: [0.110, -0.085, 0],
+      scale: [0.008, 0.014, 0.100] },
   ]);
   const shin = compose(THREE, [
     // The knee, a touch deeper front to back than across so it reads as a
     // kneecap under the cloth rather than a ball bearing.
     { geo: use(joint(THREE, 0.093, 0.090, 0.090, 0.88)), color: DENIM },
     { geo: use(tube(THREE, [
-      { y: 0.000, rx: 0.089, rz: 0.088, round: 0.85 },
-      { y: -0.120, rx: 0.084, rz: 0.082, round: 0.8 },
-      { y: -0.270, rx: 0.090, rz: 0.088, round: 0.75 },
-      { y: -0.340, rx: 0.101, rz: 0.099, round: 0.7 },
+      { y: 0.000, rx: 0.089, rz: 0.088, round: 0.9, n: 18 },
+      { y: -0.120, rx: 0.083, rz: 0.082, round: 0.9, n: 18 },
+      { y: -0.270, rx: 0.091, rz: 0.090, round: 0.9, n: 18 },
+      { y: -0.340, rx: 0.102, rz: 0.100, round: 0.88, n: 18 },
     ])), color: DENIM },
     // the trouser cuff falls over the boot, which is both what happens and
     // the tidiest way to hide the one joint in the rig that cannot bend
     { geo: use(tube(THREE, [
-      { y: -0.300, rx: 0.104, rz: 0.102, round: 0.7 },
-      { y: -0.372, rx: 0.106, rz: 0.104, round: 0.7 },
+      { y: -0.300, rx: 0.105, rz: 0.104, round: 0.88, n: 18 },
+      { y: -0.372, rx: 0.107, rz: 0.105, round: 0.88, n: 18 },
     ])), color: INK },
   ]);
 
