@@ -3374,7 +3374,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   /* Vertex t's delta, into the morph attributes, from its own surface (the
      `to` arrays) to the `from` surface at the same world point: from-vertex
      `exact` where the lattices share the point, else the `from` cell that
-     `cellCorners` last set up. */
+     `cellCorners` last set up. True if any of it is not zero. */
   function writeDelta(t, exact, fromH, fromN, fromC, fromS, toH, toN, toC, toS) {
     let h, n0, n1, n2, c0, c1, c2, s0, s1, s2, s3;
     if (exact >= 0) {
@@ -3413,6 +3413,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
     morphDS[q + 1] = byte(s1 - toS[q + 1]);
     morphDS[q + 2] = byte(s2 - toS[q + 2]);
     morphDS[q + 3] = byte(s3 - toS[q + 3]);
+    return morphDY[t] !== 0 || (morphDN[p] | morphDN[p + 1] | morphDN[p + 2]
+      | morphDC[p] | morphDC[p + 1] | morphDC[p + 2]
+      | morphDS[q] | morphDS[q + 1] | morphDS[q + 2] | morphDS[q + 3]) !== 0;
   }
 
   // The follow: new vertex i, from the old surface to its own.
@@ -3441,6 +3444,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   // The lead: old vertex j, from its own surface to the new one there. Old
   // ground the new lattice has let go of, at its trailing edge, stays put.
+  // `leadMoved` remembers which ones it moved: a few per cent of them, and
+  // the fold need touch no others.
+  const leadMoved = new Uint8Array(count);
   function fillLeadRows(rowFrom, rowTo) {
     let j = rowFrom * vertsX;
     for (let r = rowFrom; r < rowTo; r++) {
@@ -3450,6 +3456,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       for (let c = 0; c < vertsX; c++, j++) {
         const exactColumn = leadExactColumns[c];
         let exact = -1;
+        leadMoved[j] = 0;
         if (exactRow >= 0 && exactColumn >= 0) {
           exact = exactRow * vertsX + exactColumn;
           if (heightReused[exact] && surfaceReused[exact]) { clearDelta(j); continue; }
@@ -3460,8 +3467,8 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
         }
         // Lead deltas are the old vertex's (from its own surface to the new
         // one), so the roles of the two surfaces swap.
-        writeDelta(j, exact, heights, buildNormals, buildColors, buildSurface,
-          previousHeights, normals, colors, surface);
+        leadMoved[j] = writeDelta(j, exact, heights, buildNormals, buildColors,
+          buildSurface, previousHeights, normals, colors, surface) ? 1 : 0;
       }
     }
   }
@@ -3475,6 +3482,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      slow machine. */
   function foldLeadRows(rowFrom, rowTo) {
     for (let j = rowFrom * vertsX; j < rowTo * vertsX; j++) {
+      if (!leadMoved[j]) continue;
       const p = j * 3;
       const q = j * 4;
       previousHeights[j] += morphDY[j];
