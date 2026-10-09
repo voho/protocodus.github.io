@@ -65,14 +65,14 @@ const DRONE_COLOR = '#ffc46b';
 // for stronger bursts and area damage against clustered ships and ground sites.
 export const WEAPONS = [
   { id: 'pulse', name: 'Pulse Array', tag: 'Rapid precision', description: 'Fast, precise twin bolts with reliable reach.', kind: 'pulse', color: '#9cfff0', interval: .17, damage: 9.8, count: 2, spread: .018, speed: 900, life: 1.35, radius: 3.8 },
-  { id: 'plasma', name: 'Plasma Mortar', tag: 'Guided blast', description: 'Gently guided explosive orbs favor large nearby enemies and consume fire energy.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 58, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46, homing: .65 },
+  { id: 'plasma', name: 'Plasma Mortar', tag: 'Guided blast', description: 'Gently guided explosive orbs favor large nearby enemies and consume fire energy. Overloads barriers.', kind: 'plasma', color: '#ff9e7d', interval: .41, damage: 58, count: 1, spread: .012, speed: 640, life: 2.45, radius: 8, splash: 50, splashFactor: .46, homing: .65 },
 ];
 // Three primary guns for the Space channel, bought once in the shop. Each has
 // five power levels collected in flight; the pattern grows, never the hitbox.
 export const PRIMARIES = [
-  { ...WEAPONS[0], tag: 'Focused stream', description: 'Fast bolts that stack into a dense forward stream.', cost: 0 },
-  { id: 'scatter', name: 'Scatter Cannon', tag: 'Wide fan', description: 'A fan of short-range pellets that covers the whole swarm.', kind: 'scatter', color: '#ffd37a', interval: .22, damage: 7.4, count: 3, spread: .14, speed: 820, life: .95, radius: 3.7, cost: 1100 },
-  { id: 'lance', name: 'Lance Driver', tag: 'Piercing', description: 'Heavy needles that punch through entire columns.', kind: 'lance', color: '#c9b2ff', interval: .3, damage: 25, count: 1, spread: 0, speed: 1350, life: 1, radius: 4.2, pierce: 2, cost: 1600 },
+  { ...WEAPONS[0], tag: 'Focused stream', description: 'Fast bolts that stack into a dense forward stream. Energy: strips barriers.', cost: 0 },
+  { id: 'scatter', name: 'Scatter Cannon', tag: 'Wide fan', description: 'A fan of short-range pellets that covers the whole swarm. Kinetic: glances off barriers.', kind: 'scatter', color: '#ffd37a', interval: .22, damage: 7.4, count: 3, spread: .14, speed: 820, life: .95, radius: 3.7, cost: 1100 },
+  { id: 'lance', name: 'Lance Driver', tag: 'Piercing', description: 'Heavy needles that punch through entire columns and push part of each hit through barriers.', kind: 'lance', color: '#c9b2ff', interval: .3, damage: 25, count: 1, spread: 0, speed: 1350, life: 1, radius: 4.2, pierce: 2, cost: 1600 },
 ];
 const primaryById = new Map(PRIMARIES.map(weapon => [weapon.id, weapon]));
 export const normalizePrimary = id => primaryById.has(id) ? id : 'pulse';
@@ -708,15 +708,31 @@ function bossHit(s, bullet, enemy) {
   return { damage: bullet.damage * (weak ? 1.85 : 1.65), blocked: false, weak };
 }
 
+// How each weapon class meets an energy barrier. Energy bolts strip it, plasma
+// overloads it, kinetic pellets glance off and armor-piercing needles push part
+// of their force straight through. Hull damage is unchanged once it is down.
+export const BARRIER_RESPONSE = Object.freeze({
+  pulse: Object.freeze({ barrier: 1.5, bleed: 0 }),
+  plasma: Object.freeze({ barrier: 1.25, bleed: 0 }),
+  scatter: Object.freeze({ barrier: .65, bleed: 0 }),
+  lance: Object.freeze({ barrier: .6, bleed: .4 }),
+});
+const NEUTRAL_RESPONSE = Object.freeze({ barrier: 1, bleed: 0 });
+
 /** Apply hull damage after any energy barrier; returns the hull damage dealt. */
-export function damageEnemy(s, enemy, amount) {
+export function damageEnemy(s, enemy, amount, kind = null) {
   if (!(amount > 0)) return 0;
   if (enemy.shieldMax && enemy.shieldHp > 0) {
+    const response = BARRIER_RESPONSE[kind] || NEUTRAL_RESPONSE, bleed = amount * response.bleed;
     enemy.shieldHit = s.time;
-    const absorbed = Math.min(enemy.shieldHp, amount);
-    enemy.shieldHp -= absorbed; amount -= absorbed;
-    s.events.push({ type: 'blocked', x: enemy.x, y: enemy.y - enemy.radius * .4, size: 10, shield: true });
-    if (amount <= 0) return 0;
+    // The multiplier applies to the barrier only: overflow returns to raw damage.
+    const absorbed = Math.min(enemy.shieldHp, (amount - bleed) * response.barrier);
+    enemy.shieldHp -= absorbed; amount -= absorbed / response.barrier;
+    const broke = enemy.shieldHp <= 1e-9;
+    if (broke) enemy.shieldHp = 0;
+    s.events.push({ type: broke ? 'barrier-break' : 'blocked', x: enemy.x, y: enemy.y - enemy.radius * .4, size: broke ? enemy.radius : 10, shield: true,
+      strong: response.barrier > 1, resist: response.barrier < 1, pierce: bleed > 0 });
+    if (amount <= 1e-9) return 0;
   }
   enemy.hp -= amount;
   return amount;
@@ -732,7 +748,7 @@ function damageSplash(s, bullet, origin) {
     if (squared >= radiusSquared) continue;
     const falloff = 1 - Math.sqrt(squared) / radius;
     const damage = bullet.damage * bullet.splashFactor * Math.max(.2, falloff);
-    damageEnemy(s, enemy, damage); enemy.hurt = .09;
+    damageEnemy(s, enemy, damage, bullet.kind); enemy.hurt = .09;
     s.events.push({ type: 'spark', x: enemy.x, y: enemy.y, size: 6, splash: true });
     if (enemy.hp <= 0) killEnemy(s, enemy);
   }
@@ -920,15 +936,39 @@ function enemyFire(s, e) {
   }
 }
 
-export function hurtPlayer(s, p, damage) {
+// Energy rounds and beams spend themselves on the shield. Kinetic impacts
+// (rams, meteors, mines and bombs) push part of their force through it.
+export const KINETIC_BLEED = .3;
+// A collapsing shield vents one pulse that clears nearby rounds, then needs a
+// longer reboot than an ordinary hit before it recharges.
+export const SHIELD_BREAK_DELAY = .9, SHIELD_COLLAPSE_RADIUS = 120;
+
+function collapseShield(s, p) {
+  const cancels = [], reach = SHIELD_COLLAPSE_RADIUS * SHIELD_COLLAPSE_RADIUS;
+  // Mark rounds spent rather than filtering: the bullet loop may be iterating.
+  for (const b of s.bullets) {
+    if (b.team >= 0 || b.life <= 0) continue;
+    const dx = b.x - p.x, dy = b.y - p.y;
+    if (dx * dx + dy * dy > reach) continue;
+    b.life = 0; s.hostileCount = Math.max(0, (s.hostileCount || 0) - 1);
+    if (cancels.length < 24) cancels.push([Math.round(b.x), Math.round(b.y)]);
+  }
+  p.lastHit = s.time + SHIELD_BREAK_DELAY;
+  s.events.push({ type: 'shield-break', x: p.x, y: p.y, size: SHIELD_COLLAPSE_RADIUS, cancels });
+}
+
+export function hurtPlayer(s, p, damage, kind = 'energy') {
   if (!p.alive || p.hurt > 0 || p.invulnerableTime > 0 || p.guard > 0) return;
-  const absorbed = Math.min(p.shield, damage), hull = damage - absorbed;
+  const bleed = kind === 'kinetic' ? damage * KINETIC_BLEED : 0, shielded = p.shield > 0;
+  const absorbed = Math.min(p.shield, damage - bleed), hull = damage - absorbed;
   p.shield -= absorbed;
   p.hull = Math.max(0, p.hull - hull);
   p.hurt = .36;
-  p.lastHit = s.time;
+  // A rebooting shield keeps its later restart time.
+  p.lastHit = Math.max(s.time, p.lastHit ?? -10);
   resetCombo(s, true);
-  s.events.push({ type: 'hit', x: p.x, y: p.y, shield: absorbed > 0 });
+  s.events.push({ type: 'hit', x: p.x, y: p.y, shield: absorbed > 0, hull: hull > 0, kinetic: bleed > 0 });
+  if (shielded && p.shield <= 0 && p.hull > 0) collapseShield(s, p);
   if (p.hull <= 0) {
     p.alive = false; p.rapidFireTime = 0; p.invulnerableTime = 0;
     // Losing a ship costs two power levels and one wing drone.
@@ -1157,7 +1197,7 @@ function updateCaptor(s, e, dt, pilot) {
   pilot.shield = Math.max(0, pilot.shield - 26 * dt * drain); pilot.fireEnergy = Math.max(0, pilot.fireEnergy - 34 * dt * drain);
   pilot.fireEnergyDelay = Math.max(pilot.fireEnergyDelay, .5);
   if (pilot.fireEnergy < SECONDARY_ENERGY_COST) pilot.fireEnergyLocked = true;
-  pilot.lastHit = s.time;
+  pilot.lastHit = Math.max(s.time, pilot.lastHit ?? -10);
   pilot.blastVy = Math.max(-MAX_BLAST_SPEED, (pilot.blastVy || 0) - 520 * dt);
   pilot.blastVx = clamp((pilot.blastVx || 0) + Math.sign(e.x - pilot.x) * 240 * dt, -MAX_BLAST_SPEED, MAX_BLAST_SPEED);
 }
@@ -1218,8 +1258,12 @@ export function update(s, dt, input = [], environmentHit = null) {
     const shieldTime = clamp(s.time - p.lastHit - stats.delay, 0, dt);
     const loadedUntil = p.shieldFireDelay > 0 ? dt : Math.min(dt, shieldLoad);
     const loadedTime = Math.max(0, loadedUntil - (dt - shieldTime));
-    if (shieldTime > 0) p.shield = Math.min(stats.shield, p.shield + stats.recharge *
-      (loadedTime * SHIELD_FIRING_RECHARGE + (shieldTime - loadedTime) * SHIELD_REST_RECHARGE));
+    if (shieldTime > 0) {
+      const empty = p.shield <= 0;
+      p.shield = Math.min(stats.shield, p.shield + stats.recharge *
+        (loadedTime * SHIELD_FIRING_RECHARGE + (shieldTime - loadedTime) * SHIELD_REST_RECHARGE));
+      if (empty && p.shield > 0) s.events.push({ type: 'shield-online', x: p.x, y: p.y });
+    }
   }
   const pilot = s.players.find(p => p.alive) || null;
   if (!s.bossSpawned && s.director) {
@@ -1314,7 +1358,7 @@ export function update(s, dt, input = [], environmentHit = null) {
     }
     if (e.harmless) continue;
     for (const p of s.players) if (p.alive && distance(p, e) < p.radius + e.radius * .75) {
-      hurtPlayer(s, p, (e.boss ? 55 : roleCollisionDamage(e)) * difficultyProfile(s.difficulty).damage);
+      hurtPlayer(s, p, (e.boss ? 55 : roleCollisionDamage(e)) * difficultyProfile(s.difficulty).damage, 'kinetic');
       // Light craft are destroyed by the collision; heavy hulls shrug it off.
       if (!e.boss && e.radius < 36 && e.role !== 'midboss') killEnemy(s, e, 'ram');
     }
@@ -1350,7 +1394,7 @@ export function update(s, dt, input = [], environmentHit = null) {
           b.life = 0;
           s.events.push({ type: 'blocked', x: b.x, y: b.y, size: 8 });
         } else {
-          const dealt = damageEnemy(s, target, result.damage); target.hurt = .07;
+          const dealt = damageEnemy(s, target, result.damage, b.drone ? 'pulse' : b.kind); target.hurt = .07;
           if (dealt > 0) s.events.push({ type: result.weak ? 'weak-hit' : 'spark', x: b.x, y: b.y, size: result.weak ? 10 : 5, boss: target.boss });
           if (result.weak) {
             result.weak.hp -= result.damage;
@@ -1373,7 +1417,7 @@ export function update(s, dt, input = [], environmentHit = null) {
     } else if (!s.bossDefeated) {
       for (const p of s.players) {
         if (!p.alive) continue;
-        if (segmentHits(b, p, p.radius * .72 + b.radius)) { hurtPlayer(s, p, b.damage); b.life = 0; break; }
+        if (segmentHits(b, p, p.radius * .72 + b.radius)) { hurtPlayer(s, p, b.damage, b.fuse !== undefined ? 'kinetic' : 'energy'); b.life = 0; break; }
         // Wing drones are armored escorts: they soak up stray rounds.
         const drone = p.wing?.find(item => segmentHits(b, item, 10 + b.radius));
         if (drone) { b.life = 0; s.events.push({ type: 'blocked', x: drone.x, y: drone.y - 6, size: 6, drone: true }); break; }

@@ -859,14 +859,18 @@ function drawMeteor(e, x, y) {
   if (e.hurt > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, e.hurt / .07) * .5; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y, e.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 }
 // Small overlays tell roles apart without any new hull art.
+// Any hull may carry a barrier (shielded gunships, aces, veteran elites and
+// cruisers). Its ring brightens on impact and thins as it drains.
+function drawBarrier(e, x, y) {
+  const fresh = state.time - (e.shieldHit ?? -10) < .15, level = e.shieldHp / (e.shieldMax || 1), r = e.radius * (e.role === 'midboss' ? 1.25 : 1.45);
+  ctx.save(); ctx.globalAlpha = fresh ? .95 : .3 + .4 * level; ctx.strokeStyle = fresh ? '#ffffff' : '#8ad7ff'; ctx.lineWidth = fresh ? 3 : 1.2 + level;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
 function drawRoleMarker(e, x, y, palette) {
   const role = e.role, r = e.radius, top = y - r * 1.6 - 12;
-  if (role === 'shielded') {
-    if (!(e.shieldHp > 0)) return;
-    const fresh = state.time - (e.shieldHit ?? -10) < .15, level = e.shieldHp / (e.shieldMax || 1);
-    ctx.save(); ctx.globalAlpha = fresh ? .95 : .3 + .4 * level; ctx.strokeStyle = fresh ? '#ffffff' : '#8ad7ff'; ctx.lineWidth = fresh ? 3 : 2;
-    ctx.beginPath(); ctx.arc(x, y, r * 1.45, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-  } else if (role === 'elite' || role === 'ace') {
+  if (e.shieldHp > 0) drawBarrier(e, x, y);
+  if (role === 'shielded') return;
+  if (role === 'elite' || role === 'ace') {
     ctx.save(); ctx.fillStyle = '#ffd35c'; ctx.globalAlpha = fx.reduced ? .9 : .7 + .3 * Math.sin(clock * 5 + e.seed);
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {

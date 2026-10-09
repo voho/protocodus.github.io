@@ -1,8 +1,8 @@
-import { environmentIndex, combatTier, cycleScale } from './campaign.js';
+import { environmentIndex, combatTier, cycleScale, campaignCycle } from './campaign.js';
 import { difficultyProfile } from './difficulty.js';
 import { tacticalPlan, waveTactics, applyTactics } from './tactics.js';
 import { sectorEncounters, encounterShips, ENCOUNTER_BUDGET, BUSY_WAVES, ACE_NAMES } from './encounters.js';
-import { applyRole } from './roles.js';
+import { applyRole, addBarrier } from './roles.js';
 
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
@@ -348,7 +348,11 @@ function buildSweep(s, spawn, wave, second = false) {
     const ships = launchLine(s, spawn, { type, count, path, mirror: (k % 2 ? -1 : 1) * tactics.mirror, delay: .5 + k * tactics.squadGap, spacing: reaper ? .3 : tactics.spacing,
       speed: reaper ? speed * 1.45 : speed, wave, squad, ox: reaper ? (k % 2 ? -1 : 1) * Math.min(90, s.width * .06) : 0, tactics });
     // The first squadron may be led by an elite: tougher, faster volleys, double prizes.
-    if (k === 0 && tactics.eliteLeader && ships.length) applyRole(ships[0], 'elite');
+    if (k === 0 && tactics.eliteLeader && ships.length) {
+      applyRole(ships[0], 'elite');
+      // Veteran elites add a barrier once the campaign has taught energy fire.
+      if (combatTier(s.level) + campaignCycle(s.level) * 2 >= 5) addBarrier(ships[0], .25);
+    }
   }
   return 20 + squads * 1.5;
 }
@@ -383,6 +387,8 @@ function buildMidboss(s, spawn, wave) {
   const tactics = waveTactics(s.level, wave, s.salt || 0);
   const boss = stationShip(s, spawn, 8, s.width * (.5 + tactics.stationLane), 230, wave, tactics, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
   boss.hp *= 4; boss.maxHp = boss.hp;
+  // From sector three the cruiser raises a barrier; energy weapons break it fastest.
+  if (combatTier(s.level) >= 2) addBarrier(boss, .3);
   for (let k = 0; k < 2; k++) {
     const squad = newSquad(s, 4, wave);
     launchLine(s, spawn, { type: tactics.sweepTypes.find(type => type > 0 && type < 4) || 2, count: 4, path: tactics.sweepPaths[k % tactics.sweepPaths.length], mirror: (k ? -1 : 1) * tactics.mirror, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad, tactics });
