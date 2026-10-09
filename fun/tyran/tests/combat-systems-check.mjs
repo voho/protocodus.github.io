@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, update, spawnEnemy, spawnFormation, resumeFromCheckpoint, sectorClearBonus, guardianStyle, GUARDIAN_STYLES, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
+import { createCampaign, beginLevel, update, spawnEnemy, spawnFormation, resumeFromCheckpoint, sectorClearBonus, guardianStyle, GUARDIAN_STYLES, GRAZE_RANGE, GRAZE_ENERGY, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
 import { applyRole, addBarrier } from '../roles.js';
 import { waveTactics } from '../tactics.js';
 import { createDirector, checkpointWave } from '../waves.js';
@@ -372,6 +372,28 @@ check('guardians fight in three styles by environment, keeping the opening ring 
       if (style === 'curtain') assert(rounds.every(bullet => bullet.vy > 0), 'a curtain only fires downward');
     }
   }
+});
+
+check('a near miss grazes once for fire energy and score; protected ships and wide misses do not', () => {
+  const state = isolated(2), pilot = state.players[0];
+  pilot.guard = 0; pilot.fireEnergy = 50;
+  const lane = pilot.radius * .72 + 4, near = { ...hostileRound(pilot.x + lane + GRAZE_RANGE * .5, pilot.y - 60), vy: 600 };
+  const wide = { ...hostileRound(pilot.x + lane + GRAZE_RANGE + 30, pilot.y - 60), vy: 600 };
+  state.bullets.push(near, wide);
+  const score = state.score, events = [];
+  for (let i = 0; i < 20; i++) { update(state, 1 / 60, [{}]); events.push(...state.events); state.events.length = 0; }
+  assert(near.grazed && !wide.grazed);
+  assert.equal(events.filter(event => event.type === 'graze').length, 1, 'each round grazes once');
+  assert.equal(pilot.hull, pilot.maxHull, 'a graze never damages');
+  assert(pilot.fireEnergy >= 50 + GRAZE_ENERGY - 1e-9 && state.score > score && state.stats.grazes === 1);
+  const run = restoreRun(serializeRun(Object.assign(state, { bullets: [near] })));
+  assert.equal(run.state.bullets[0].grazed, true, 'a grazed round stays grazed after a save');
+  const guarded = isolated(2), ship = guarded.players[0];
+  ship.guard = 2;
+  const round = { ...hostileRound(ship.x + lane + GRAZE_RANGE * .5, ship.y - 60), vy: 600 };
+  guarded.bullets.push(round);
+  for (let i = 0; i < 20; i++) { update(guarded, 1 / 60, [{}]); guarded.events.length = 0; }
+  assert(!round.grazed, 'a launch shield never grazes');
 });
 
 if (failures) process.exitCode = 1;

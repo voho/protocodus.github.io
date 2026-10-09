@@ -321,7 +321,7 @@ function segmentHits(b, body, radius) {
   return gapX * gapX + gapY * gapY < radius * radius;
 }
 
-export const STAT_KEYS = Object.freeze(['shots', 'hits', 'squads', 'dives', 'rescues', 'encounters', 'aces', 'convoys', 'hazards', 'lost', 'hullHits', 'leaders']);
+export const STAT_KEYS = Object.freeze(['shots', 'hits', 'squads', 'dives', 'rescues', 'encounters', 'aces', 'convoys', 'hazards', 'lost', 'hullHits', 'leaders', 'grazes']);
 const newStats = () => Object.fromEntries(STAT_KEYS.map(key => [key, 0]));
 /** A fresh campaign salt; zero keeps the authored reference choreography. */
 export const freshSalt = () => Math.floor(Math.random() * 4294967296) >>> 0;
@@ -1016,6 +1016,20 @@ function enemyFire(s, e) {
   }
 }
 
+// A round that skims past the hull without striking it feeds the reactor:
+// a little fire energy and score for flying close. Each round grazes once,
+// and protected ships (launch shield, invulnerability) never graze.
+export const GRAZE_RANGE = 22, GRAZE_ENERGY = 3, GRAZE_SCORE = 20;
+function graze(s, p, b, energy) {
+  b.grazed = true;
+  p.fireEnergy = Math.min(energy, p.fireEnergy + GRAZE_ENERGY);
+  if (p.fireEnergyLocked && p.fireEnergy >= SECONDARY_RESTART_ENERGY) p.fireEnergyLocked = false;
+  const score = Math.round(GRAZE_SCORE * (1 + combatTier(s.level) * .15) * cycleScale(s.level, .3));
+  s.score += score;
+  if (s.stats) s.stats.grazes = (s.stats.grazes || 0) + 1;
+  s.events.push({ type: 'graze', x: b.x, y: b.y, score });
+}
+
 // Energy rounds and beams spend themselves on the shield. Kinetic impacts
 // (rams, meteors, mines and bombs) push part of their force through it.
 export const KINETIC_BLEED = .3;
@@ -1558,6 +1572,7 @@ export function update(s, dt, input = [], environmentHit = null) {
         // Wing drones are armored escorts: they soak up stray rounds.
         const drone = p.wing?.find(item => segmentHits(b, item, 10 + b.radius));
         if (drone) { b.life = 0; s.events.push({ type: 'blocked', x: drone.x, y: drone.y - 6, size: 6, drone: true }); break; }
+        if (!b.grazed && !(p.guard > 0) && !(p.invulnerableTime > 0) && segmentHits(b, p, p.radius * .72 + b.radius + GRAZE_RANGE)) graze(s, p, b, stats.energy);
       }
     }
   }

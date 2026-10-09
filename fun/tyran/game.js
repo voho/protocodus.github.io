@@ -549,7 +549,7 @@ function renderReport() {
   const ratio = shots ? `${(hits / shots * 100).toFixed(1)}%` : '—';
   const challenge = state.challenge?.done ? state.challenge : null;
   const perfect = challenge && challenge.hits >= challenge.total;
-  $('hangar-report').innerHTML = `<div><dt>Hit ratio</dt><dd>${ratio}<small>${number(hits)} hits · ${number(shots)} shots</small></dd></div><div><dt>Squadrons wiped</dt><dd>${stats.squads || 0}</dd></div><div><dt>Dive kills</dt><dd>${stats.dives || 0}<small>${stats.rescues ? `${stats.rescues} drone${stats.rescues === 1 ? '' : 's'} rescued` : 'Worth double points'}</small></dd></div><div><dt>Challenging stage</dt><dd class="${perfect ? 'perfect' : ''}">${challenge ? `${challenge.hits} / ${challenge.total}` : '—'}<small>${challenge ? (perfect ? 'Perfect!' : `+${number(challenge.credits || 0)} credits`) : 'After odd sectors'}</small></dd></div>`;
+  $('hangar-report').innerHTML = `<div><dt>Hit ratio</dt><dd>${ratio}<small>${number(hits)} hits · ${number(shots)} shots${stats.grazes ? ` · ${number(stats.grazes)} grazes` : ''}</small></dd></div><div><dt>Squadrons wiped</dt><dd>${stats.squads || 0}</dd></div><div><dt>Dive kills</dt><dd>${stats.dives || 0}<small>${stats.rescues ? `${stats.rescues} drone${stats.rescues === 1 ? '' : 's'} rescued` : 'Worth double points'}</small></dd></div><div><dt>Challenging stage</dt><dd class="${perfect ? 'perfect' : ''}">${challenge ? `${challenge.hits} / ${challenge.total}` : '—'}<small>${challenge ? (perfect ? 'Perfect!' : `+${number(challenge.credits || 0)} credits`) : 'After odd sectors'}</small></dd></div>`;
   $('hangar-report-note').textContent = [environment(state.level).name, encounterSummary(stats)].filter(Boolean).join(' · ');
   renderDebrief();
 }

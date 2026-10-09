@@ -384,6 +384,14 @@ export class AudioEngine {
     }
     if (type === 'objective') { [659, 880, 1175, 1568].forEach((f, i) => this.tone(f, f, .2, .09, 'triangle', t + i * .08)); }
     if (type === 'checkpoint') { [523, 784].forEach((f, i) => this.tone(f, f * 1.005, .26, .07, 'sine', t + i * .14)); }
+    if (type === 'graze') {
+      // A faint high tick; grazes in quick succession climb in pitch.
+      if (t - (this.lastGraze || 0) < .05) return;
+      this.grazeStep = t - (this.lastGraze || 0) < .4 ? Math.min(6, (this.grazeStep || 0) + 1) : 0;
+      this.lastGraze = t;
+      const pitch = 2200 * 2 ** (this.grazeStep / 12);
+      this.tone(pitch, pitch * 1.2, .035, .018, 'sine', null, pan);
+    }
     if (type === 'formation-broken') { [784, 622, 466].forEach((f, i) => this.tone(f, f * .98, .16, .08, 'square', t + i * .07, pan)); this.tone(1568, 1570, .2, .04, 'sine', t + .22, pan); }
     if (type === 'ace-down') { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, f, .18, .11, 'square', t + i * .08, pan)); }
     if (type === 'split') { this.tone(980, 320, .14, .07, 'square', null, pan); this.burst(.1, .08, 5200, null, pan); }

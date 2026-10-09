@@ -324,6 +324,7 @@ function restoreState(raw) {
     }
     if (bullet.hitIds !== undefined) result.hitIds = list(bullet.hitIds, 128).map(id => integer(id, 0, 1));
     if (bullet.drone !== undefined) result.drone = bool(bullet.drone);
+    if (bullet.grazed !== undefined) result.grazed = bool(bullet.grazed);
     if (bullet.ground !== undefined) result.ground = bool(bullet.ground);
     // Collision bounds are derived from the last movement segment.
     result.left = Math.min(result.x, result.px); result.right = Math.max(result.x, result.px);
