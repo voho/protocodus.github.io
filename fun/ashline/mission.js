@@ -21,6 +21,7 @@ const SETTINGS=['width','height','profile','races','aiTeams','aiProfiles'];
 const CONDITIONS=['time','every','limit','until','after','objectiveDone','objectiveFailed','tagDestroyed','tagsLeft','zoneEntered','kills'];
 const ACTIONS=['say','spawn','reveal','credits','directive','rally'];
 const MAX_RADIUS=48,MAX_VETERANS=12;
+export const WAVE_SCALE={easy:.7,normal:1,hard:1.3};
 // A point along the line from the player's base anchor (0) to the rival's (1).
 const LANE=/^lane:(0(?:\.\d+)?|1(?:\.0+)?)$/;
 
@@ -284,19 +285,23 @@ function setDirective(s,team,d){
   m.directives[team]=next;
 }
 
+// A point on rock or a structure moves to the nearest open tile of a region large enough to stand in.
+function openPoint(s,p){
+  const open=i=>!s.blocked[i]&&s.regionSize[s.regions[i]]>=40,i=Math.floor(p.y)*s.width+Math.floor(p.x);
+  if(open(i))return{x:p.x,y:p.y};
+  const tile=nearestTiles(s,p,40,(x,y)=>open(y*s.width+x),1)[0];
+  return tile?{x:tile.x+.5,y:tile.y+.5}:{x:p.x,y:p.y};
+}
 // Builds s.mission after the opening forces; createGame then delivers refinery haulers and fog.
 export function createMissionState(s,id,options={}){
   const def=missionDefinition(id);checkDefinition(def);rebuildNavigation(s);
   const m=s.mission={id,objectives:def.objectives.map(o=>({id:o.id,state:'active',progress:0,revealed:!o.hidden})),fired:{},zones:[],counters:{},nextCheck:s.time+MISSION_INTERVAL,startedAt:s.time};
-  for(const z of def.zones||[]){
-    // A zone whose centre falls on rock or a structure moves to the nearest reachable open tile.
-    let p=resolvePoint(s,z.at);const i=Math.floor(p.y)*s.width+Math.floor(p.x);
-    if(s.blocked[i]||s.regionSize[s.regions[i]]<40){const tile=nearestTiles(s,p,40,(x,y)=>!s.blocked[y*s.width+x]&&s.regionSize[s.regions[y*s.width+x]]>=40,1)[0];if(tile)p={x:tile.x+.5,y:tile.y+.5};}
-    m.zones.push({id:z.id,x:p.x,y:p.y,r:z.r,label:z.label});
-  }
+  for(const z of def.zones||[]){const p=openPoint(s,resolvePoint(s,z.at));m.zones.push({id:z.id,x:p.x,y:p.y,r:z.r,label:z.label});}
   (def.credits||[]).forEach((amount,team)=>{if(Number.isFinite(amount))s.teams[team].credits=Math.max(0,amount);});
   for(const [team,d] of Object.entries(def.directives||{}))setDirective(s,Number(team),d);
   def.setup?.(s,missionApi(s,options));
+  // A structure placed on a zone's centre (an outpost around its archive) moves the marker beside it.
+  rebuildNavigation(s);for(const z of m.zones)Object.assign(z,openPoint(s,z));
   if(def.score)m.score=0;
   lightZones(s,def,m);
   return m;
@@ -374,7 +379,9 @@ function perform(s,m,def,t,action,wave){
   if(action.spawn){
     const {team=RIVAL,units,at='edge',order,tag,kills,stance,text,cap}=action.spawn;
     // [role, count, growth per later wave, first wave]: repeating waves grow and add heavier roles over time.
-    const list=units.map(([role,count=1,growth=0,from=0])=>[role,wave<from?0:count+Math.floor(growth*(wave-from)+1e-9)]);
+    // Rival waves scale with the chosen opposition; a role that appears keeps at least one unit.
+    const scale=team===RIVAL?WAVE_SCALE[s.difficulty]??1:1;
+    const list=units.map(([role,count=1,growth=0,from=0])=>{const n=wave<from?0:count+Math.floor(growth*(wave-from)+1e-9);return[role,n>0?Math.max(1,Math.round(n*scale)):0];});
     const origin=at==='fogEdge'?fogEdge(s,team,`${t.id}:${wave}`):at,ids=spawnForces(s,team,list,origin,{order,tag,kills,stance,cap});
     // Only a named zone is a static mission point; other arrival positions stay unpublished.
     const arrival=typeof at==='string'?point(zoneOf(m,at)):{};

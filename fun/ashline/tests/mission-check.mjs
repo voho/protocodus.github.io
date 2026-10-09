@@ -31,7 +31,8 @@ assert.throws(()=>createGame('x','normal',{mission:'constructor'}),RangeError,'I
 for(const id of Object.keys(MISSIONS))for(const {width,height} of Object.values(MAP_SIZES)){
   const s=createGame(`clone-${id}`,'normal',{width,height,mission:id});
   assert.deepEqual(structuredClone(s.mission),s.mission);assert.deepEqual(JSON.parse(JSON.stringify(s.mission)),s.mission);
-  assert(s.mission.zones.every(z=>z.x>=0&&z.y>=0&&z.x<=width&&z.y<=height&&!s.blocked[Math.floor(z.y)*width+Math.floor(z.x)]),'Zones sit on open ground');
+  // Campaign operations fix their own sector size, so index by the game's width.
+  assert(s.mission.zones.every(z=>z.x>=0&&z.y>=0&&z.x<=s.width&&z.y<=s.height&&!s.blocked[Math.floor(z.y)*s.width+Math.floor(z.x)]),'Zones sit on open ground');
   decodeGame(encodeGame(s));
 }
 

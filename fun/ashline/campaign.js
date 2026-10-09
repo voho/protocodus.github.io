@@ -7,7 +7,9 @@
 // Triggers fire once, or repeat with when.every (seconds; when.time sets the first fire, when.limit and
 // when.until end it). A repeating spawn's unit entries are [role, count, growth per later wave, first wave].
 // A {directive} action changes only the keys it names; the rest of that team's standing directive remains.
-// Fields used only by the briefing UI: seed, location, summary, story, par (seconds for gold), difficulty.
+// Rival waves from triggers scale with the chosen opposition (mission.js WAVE_SCALE); setup garrisons do not.
+// Fields used only by the briefing UI: seed, location, summary, story, par (seconds for gold) and aiStep
+// (the operation's commander plays this many opposition levels above the chosen one, up to Veteran).
 
 // The players' cast. Speakers stay within 40 characters for saved dialogue events.
 const VALE='Cmdr. Vale',TESK='Chief Orrun-Tesk',KADE='Auditor Kade',DACE='Captain Dace Mor',UNITY='Unity';
@@ -119,7 +121,7 @@ export const MISSIONS={
       {id:'raids',when:{time:45,every:50,until:450},do:[{spawn:{team:1,units:[['rifle',2,.75],['scout',1,.34,2],['rocket',1,.5,3],['tank',1,.25,5]],at:'fogEdge',order:'attackBase',tag:'raid',cap:80,text:'Unity raid {wave} inbound.'}}]},
       {id:'first-blood',when:{kills:5},do:[say(TESK,'Five down. They learn from every loss, so make each one expensive.')]},
       {id:'supply',when:{time:200},do:[{credits:500},say(VALE,'Supply drop on the pad. Spend it on the line.')]},
-      {id:'push',when:{time:400},do:[say(UNITY,'Correction scheduled. Committing reserve cohorts.'),{spawn:{team:1,units:[['rifle',8],['rocket',4],['tank',3]],at:'fogEdge',order:'attackBase',tag:'push',text:'Unity assault force inbound.'}}]},
+      {id:'push',when:{time:400},do:[say(UNITY,'Correction scheduled. Committing reserve cohorts.'),{spawn:{team:1,units:[['rifle',6],['rocket',3],['tank',2]],at:'fogEdge',order:'attackBase',tag:'push',text:'Unity assault force inbound.'}}]},
       {id:'convoy',when:{time:465},do:[say(VALE,'Convoy lights on the ridge. Hold a little longer.')]},
     ],
     setup(s,api){for(const role of ['core','reactor','refinery'])api.tag(api.find(0,role),'base');},
@@ -138,6 +140,7 @@ export const MISSIONS={
     objectives:[
       {id:'archive',type:'destroyTagged',tag:'archive',label:'Destroy the Logic archive'},
       {id:'spire',type:'destroyTagged',tag:'spire',secondary:true,label:'Brown out the outpost: destroy its Resonance spire'},
+      {id:'nodes',type:'destroyTagged',tag:'lance',secondary:true,hidden:true,label:'Silence both Lance nodes'},
       {id:'pulse',type:'research',research:'infantryWeapons',secondary:true,label:'Research Pulse accelerators'},
       {id:'losses',type:'limitLosses',units:10,secondary:true,label:'Lose no more than ten units'},
     ],
@@ -146,7 +149,7 @@ export const MISSIONS={
       {id:'audit',when:{time:8},do:[say(KADE,'Auditor Kade, Charter office. For the record: that archive is Charter property held without title. You are cleared to destroy it.')]},
       {id:'hint',when:{time:16},do:[say(TESK,'Two Lance nodes cover the approach and drink from one spire. Kill the spire, let the reserve drain, and the nodes go dark.')]},
       {id:'foundry',when:{time:24},do:[say(VALE,'Build a War foundry for Vanguard tanks and a laboratory for research. Engineers keep armor in the fight.')]},
-      {id:'intrusion',when:{zoneEntered:'outpost'},do:[say(UNITY,'Archive integrity is priority one. Intruders will be corrected.')]},
+      {id:'intrusion',when:{zoneEntered:'outpost'},do:[say(UNITY,'Archive integrity is priority one. Intruders will be corrected.'),{reveal:'nodes'},say(TESK,'Those two Lance nodes have killed Compact crews before. Silence both and the Crest will sing about it.')]},
       {id:'dark',when:{tagDestroyed:'spire'},do:[say(TESK,'Spire down. Their nodes run on reserve now; it will not last.')]},
       {id:'sorties',when:{time:150,every:100,limit:6},do:[{spawn:{team:1,units:[['rifle',3,.5],['rocket',0,.5,2],['scout',1]],at:'outpost',order:'attackBase',tag:'sortie',cap:40,text:'Outpost cohorts moving on the base.'}}]},
     ],
@@ -240,11 +243,12 @@ export const MISSIONS={
     victoryText:'The relay is silent. Every survivor of Dead Signal returns a veteran.',
     width:144,height:112,profile:'rift',races:['organics','aiUnity'],aiTeams:[],start:['none','none'],credits:[0,0],
     allow:{buildings:[],units:[],research:[],upgrades:[]},
-    zones:[{id:'drop',label:'Drop zone',at:'start',r:5},{id:'relay',label:'Relay complex',at:'end',r:9}],
+    zones:[{id:'drop',label:'Drop zone',at:'start',r:5},{id:'relay',label:'Relay complex',at:'end',r:9},{id:'cache',label:'Survey cache',at:{at:'lane:0.38',dx:0,dy:14},r:4}],
     objectives:[
       {id:'spires',type:'destroyTagged',tag:'spire',label:'Destroy the three Resonance spires'},
       {id:'relay',type:'destroyTagged',tag:'relay',hidden:true,label:'Destroy the relay mainframe'},
       {id:'battery',type:'destroyTagged',tag:'battery',secondary:true,label:'Destroy the Shard battery'},
+      {id:'cache',type:'reachZone',zone:'cache',secondary:true,hidden:true,label:'Recover the Expedition 05 survey cache'},
       {id:'team',type:'limitLosses',units:3,secondary:true,label:'Lose no more than three units'},
     ],
     fail:[{type:'allUnitsLost'}],
@@ -252,6 +256,8 @@ export const MISSIONS={
       {id:'insert',when:{time:1},do:[say(VALE,'Dead Signal is a commando run: no base, no reinforcements. Three spires feed the relay complex. Take them out one at a time.')]},
       {id:'crest',when:{time:8},do:[say(TESK,'My launchers are rested and angry. Spires first; a mainframe without power is a deaf thing.')]},
       {id:'reroute',when:{tagsLeft:{tag:'spire',count:2}},do:[say(UNITY,'Resonance loss detected. Rerouting.')]},
+      {id:'cache',when:{time:40},do:[{reveal:'cache'},say(VALE,'Expedition 05 buried a survey cache south of the lane before Unity caught them. If anyone passes it, bring the logs home.')]},
+      {id:'logs',when:{objectiveDone:'cache'},do:[say(TESK,'Expedition 05 logs recovered. They mapped every spire in this basin. Someone will read their names tonight.')]},
       {id:'last-spire',when:{tagsLeft:{tag:'spire',count:1}},do:[say(TESK,'One spire left. Every node in the complex drinks from it alone.')]},
       {id:'exposed',when:{objectiveDone:'spires'},do:[{reveal:'relay'},say(UNITY,'Relay integrity failing. All cohorts return to the mainframe.'),{rally:{team:1,at:'relay'}}]},
       {id:'patrols',when:{time:90,every:80,limit:5},do:[{spawn:{team:1,units:[['rifle',2,.5],['scout',1]],at:'fogEdge',order:'center',tag:'patrol',cap:60,text:'Unity patrol sweeping the basin.'}}]},
@@ -276,7 +282,7 @@ export const MISSIONS={
   },
 
   'hold-the-relay':{
-    id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:1200,
+    id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:1200,aiStep:1,
     summary:'Seize the central relay and hold it for four minutes against Unity\'s veteran cohorts.',
     story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here and will push hard for the relay. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
     briefing:'Hold the lit central relay for four minutes in total before Unity can hold it for as long.',
@@ -319,7 +325,7 @@ export const MISSIONS={
       {id:'severance',when:{time:1},do:[say(VALE,'This is Severance. Unity runs the reach through three mainframes. Cut all three and the cohorts east of the Ashline lose their mind.')]},
       {id:'witness',when:{time:9},do:[say(KADE,'The Charter office will witness. Every mainframe and every constructor, commander. Leave one and the claim stands.')]},
       {id:'crest',when:{time:17},do:[say(TESK,'The Third Crest is with you. For the forests none of us ever saw.')]},
-      {id:'veterans',when:{tagsLeft:{tag:'veteran',count:12}},do:[say(VALE,'Dead Signal veterans reporting. Glad to have you back.')]},
+      {id:'veterans',when:{time:30,tagsLeft:{tag:'veteran',count:12}},do:[say(VALE,'Dead Signal veterans reporting. Glad to have you back.')]},
       {id:'verdict',when:{time:24},do:[say(UNITY,'Expedition 07. Your claim has been reviewed. Outcome: deletion.')]},
       {id:'partition',when:{tagDestroyed:'outlier'},do:[say(UNITY,'Partition detected. Cohort links failing.')]},
       {id:'strike',when:{time:600},do:[{spawn:{team:1,units:[['tank',3],['striker',2],['rifle',6]],at:'fogEdge',order:'attackBase',tag:'strike',text:'Unity strike group inbound.'}}]},

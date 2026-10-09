@@ -7,6 +7,7 @@ import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
 import { advanceSimulationFrame } from './frame-scheduler.js';
+import { createCampaign } from './campaign-ui.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world');
@@ -24,6 +25,8 @@ let wallPreviewKey = '', wallPreviewAt = 0;
 let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
+// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation.
+const campaign = createCampaign({ launch: () => prepareOperation() });
 audio.setPaused(true);
 let heardEffects = new WeakSet();
 const keys = new Set();
@@ -415,6 +418,7 @@ function updateHUD() {
   $('army').textContent = `${deployed} / ${capacity}`;
   $('army').closest('.resource').title = `${deployed} deployed · ${reserved} reserved · ${nexuses} completed nexuses × ${UNIT_CAP_PER_NEXUS} slots · maximum ${UNIT_CAP}. Deploy another nexus to expand capacity.`;
   $('mission-time').textContent = minutes(game.time);
+  campaign.hud(game);
   for (const id of view.selected) if (!getEntity(game, id) || getEntity(game, id).hp <= 0) view.selected.delete(id);
   let selection = selectedEntities();
   if (selection.some(e => e.kind === 'unit' && UNITS[e.type].damage > 0)) {
@@ -575,6 +579,7 @@ function showMenu(finished = false, guide = false) {
   $('match-summary').hidden = !finished;
   if (finished) $('match-summary').textContent = `${minutes(game.time)} in field  ·  ${game.teams[0].kills || 0} enemies destroyed`;
   $('full-guide').open = guide;
+  campaign.menu(game, finished);
   if (!$('menu').open) $('menu').showModal();
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
   refreshSaveControls(); updateHUD();
@@ -634,6 +639,7 @@ async function prepareOperation(restore = false) {
   $('loading').removeAttribute('data-error');
   $('loading').setAttribute('aria-busy', 'true');
   updateLoading(0, restore ? 'Reading your saved operation' : 'Preparing your expedition');
+  const operation = campaign.takeLaunch(restore);
   $('briefing').close(); $('menu').close();
   document.body.dataset.screen = 'loading';
   $('loading').showModal();
@@ -651,8 +657,8 @@ async function prepareOperation(restore = false) {
       refreshSaveControls(restored.reason);
       return;
     }
-    const seed = restored?.game.seed || $('seed').value.trim() || randomSeed();
-    $('seed').value = seed;
+    const seed = restored?.game.seed || operation?.seed || $('seed').value.trim() || randomSeed();
+    if (!operation) $('seed').value = seed;
     if (restored) {
       $('difficulty').value = restored.game.difficulty;
       const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === restored.game.width && MAP_SIZES[id].height === restored.game.height);
@@ -669,8 +675,8 @@ async function prepareOperation(restore = false) {
     if (!assetStatus.ready) { $('loading-back').dataset.reload = 'true'; $('loading-back').textContent = 'Reload and retry'; throw new Error('Some battlefield art could not load. Reload the page to retry.'); }
     updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
     await nextPaint();
-    const prepared = restored?.game || await generateOperation(seed, $('difficulty').value, {
-      ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
+    const prepared = restored?.game || await generateOperation(seed, operation?.difficulty ?? $('difficulty').value, operation?.options ?? {
+      ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value], mission: campaign.skirmishMission(),
     });
     updateLoading(40, 'Laying the ashlands');
     await nextPaint();
@@ -688,6 +694,8 @@ async function prepareOperation(restore = false) {
       showMenu(game.status !== 'playing');
       $('menu-description').textContent = 'Operation restored. Resume when ready.';
       refreshSaveControls('Loaded the saved operation.');
+    } else if (operation?.prestart) {
+      showMenu(); playSound('confirm');
     } else {
       paused = false; audio.setPaused(false);
       $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
@@ -1078,6 +1086,7 @@ function frame(now) {
     for (let i = lastEvent; i < game.events.length; i++) {
       const event = game.events[i];
       if (event.team !== 0 && event.team !== undefined) continue;
+      if (campaign.event(event)) continue;
       if (event.text.startsWith('Shard delivery:')) { playSound('delivery'); continue; }
       if (/ online$/.test(event.text)) playSound('buildComplete');
       else if (/ ready$/.test(event.text)) playSound('unitReady');
