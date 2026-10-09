@@ -1,4 +1,4 @@
-import { normalizeLevel, combatTier, cycleScale } from './campaign.js';
+import { normalizeLevel, combatTier, cycleScale, environmentIndex } from './campaign.js';
 import { ENEMY_TYPES } from './ships.js';
 import { normalizeDifficulty, difficultyProfile } from './difficulty.js';
 import { waveTactics, applyTactics, FORMATION_KINDS } from './tactics.js';
@@ -922,6 +922,13 @@ function nearestPilot(s, e) {
   return target;
 }
 
+// Guardians fight in one of three styles by environment: the original
+// rotating ring, a twin-arm spiral and a downward curtain with a sweeping
+// gap, each beside an aimed fan, so a fight changes shape rather than
+// weight. The opening sector keeps the ring.
+export const GUARDIAN_STYLES = Object.freeze(['ring', 'spiral', 'curtain']);
+export const guardianStyle = level => GUARDIAN_STYLES[environmentIndex(level) % GUARDIAN_STYLES.length];
+
 // Lancers lock a firing line, telegraph it, then fire a short heavy beam.
 const BEAM_FIRE = .42;
 function startBeam(s, e, target) {
@@ -973,9 +980,20 @@ function enemyFire(s, e) {
   if (e.boss) {
     const phase = e.hp / e.maxHp < .3 ? 2 : e.hp / e.maxHp < .65 ? 1 : 0;
     if (phase > e.phase) { e.phase = phase; s.events.push({ type: 'phase', x: e.x, y: e.y }); }
-    const n = phase === 2 ? 10 : phase === 1 ? 8 : 6;
-    for (let i = 0; i < n; i++) hostileShot(s, e, i * Math.PI * 2 / n + e.age * .21 + combatTier(s.level) * .25, speed * .88, 6);
-    for (let i = -1 - phase; i <= 1 + phase; i++) hostileShot(s, e, aimed + i * .14, speed * 1.23, 5);
+    const n = phase === 2 ? 10 : phase === 1 ? 8 : 6, style = guardianStyle(s.level);
+    if (style === 'spiral') {
+      // Two short fans on opposite arms; the arms turn between volleys.
+      for (let i = 0; i < n; i++) hostileShot(s, e, e.age * 1.9 + (i % 2) * Math.PI + (Math.floor(i / 2) - (n / 2 - 1) / 2) * .2, speed * .88, 6);
+    } else if (style === 'curtain') {
+      // A downward curtain with a three-slot gap that sweeps across it. Every
+      // round heads down, where a ring sends only half, so it carries two
+      // fewer rounds and flies slower.
+      const slots = n + 1, gap = Math.floor((Math.sin(e.age * .8) * .5 + .5) * (slots - 3)), span = 2.5;
+      for (let j = 0; j < slots; j++) if (j < gap || j > gap + 2) hostileShot(s, e, Math.PI / 2 - span / 2 + j * span / (slots - 1), speed * .72, 6);
+    } else for (let i = 0; i < n; i++) hostileShot(s, e, i * Math.PI * 2 / n + e.age * .21 + combatTier(s.level) * .25, speed * .88, 6);
+    // A curtain already covers the lane below, so its aimed fan is one round narrower on each side.
+    const fan = style === 'curtain' ? phase : 1 + phase;
+    for (let i = -fan; i <= fan; i++) hostileShot(s, e, aimed + i * .14, speed * 1.23, 5);
     e.fire = [1.35, 1.07, .82][phase];
     e.warning = .2;
   } else if (e.role === 'midboss') {

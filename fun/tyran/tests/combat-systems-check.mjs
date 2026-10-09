@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCampaign, beginLevel, update, spawnEnemy, spawnFormation, resumeFromCheckpoint, sectorClearBonus, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
+import { createCampaign, beginLevel, update, spawnEnemy, spawnFormation, resumeFromCheckpoint, sectorClearBonus, guardianStyle, GUARDIAN_STYLES, damageEnemy, hurtPlayer, killEnemy, shipStats, applyStructureBlast, BARRIER_RESPONSE, KINETIC_BLEED, SHIELD_BREAK_DELAY, SHIELD_COLLAPSE_RADIUS } from '../sim.js';
 import { applyRole, addBarrier } from '../roles.js';
 import { waveTactics } from '../tactics.js';
 import { createDirector, checkpointWave } from '../waves.js';
@@ -351,6 +351,27 @@ check('older saves adopt their sector objectives and flights without checkpoints
   assert.equal(run.state.checkpoint, null);
   const corrupt = JSON.parse(serializeRun(state)); corrupt.state.director.objectives = [{ kind: 'pacifist', target: 1, done: false }];
   assert.equal(restoreRun(corrupt), null);
+});
+
+check('guardians fight in three styles by environment, keeping the opening ring and their volley weight', () => {
+  assert.equal(guardianStyle(0), 'ring', 'the opening guardian keeps its authored ring');
+  assert.deepEqual(new Set(Array.from({ length: 10 }, (_, level) => guardianStyle(level))), new Set(GUARDIAN_STYLES));
+  for (let level = 0; level < 10; level++) assert.equal(guardianStyle(level + 10), guardianStyle(level), 'returning circuits keep each environment\'s style');
+  const volley = (level, hpFraction) => {
+    const state = isolated(level), boss = spawnEnemy(state, 9, 600, 155);
+    boss.hp = boss.maxHp * hpFraction; boss.fire = 0; state.players[0].guard = 1e9;
+    update(state, 1 / 60, [{}]);
+    return state.bullets.filter(bullet => bullet.team < 0);
+  };
+  for (const [level, style] of [[0, 'ring'], [1, 'spiral'], [2, 'curtain']]) {
+    assert.equal(guardianStyle(level), style);
+    for (const [fraction, phase] of [[1, 0], [.5, 1], [.2, 2]]) {
+      const rounds = volley(level, fraction), n = [6, 8, 10][phase];
+      const expected = style === 'curtain' ? n - 2 + 2 * phase + 1 : n + 2 * (1 + phase) + 1;
+      assert.equal(rounds.length, expected, `${style} phase ${phase} round count`);
+      if (style === 'curtain') assert(rounds.every(bullet => bullet.vy > 0), 'a curtain only fires downward');
+    }
+  }
 });
 
 if (failures) process.exitCode = 1;
