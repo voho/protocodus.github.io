@@ -15,7 +15,7 @@ function content(game) {
 
 test('the legacy vast continent retains 2.25 times the area while keeping every existing size unchanged', () => {
   assert.equal(DEFAULT_WORLD_SIZE, 'square512');
-  assert.equal(MAX_WORLD_TILES, 2048 * 2048);
+  assert.equal(MAX_WORLD_TILES, 4096 * 4096);
   for (const [size, dimensions] of [['regional', [128, 96]], ['large', [256, 192]], ['huge', [512, 384]]]) {
     assert.deepEqual([WORLD_SIZES[size].width, WORLD_SIZES[size].height], dimensions);
   }

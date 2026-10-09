@@ -111,6 +111,7 @@
 .goal-meter{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:var(--fs-caption);line-height:var(--lh-caption);color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 .goal-meter>span{flex:0 1 160px;height:5px;border-radius:var(--r-1);background:var(--well);overflow:hidden}
 .goal-meter>span>span{display:block;height:100%;border-radius:var(--r-1);background:var(--ink)}
+.goal-reward{display:block;margin-top:6px;font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:600;color:var(--ok);font-variant-numeric:tabular-nums}
 .goal-row em{align-self:center;padding:4px 8px;border-radius:var(--r-4);background:var(--well);color:var(--signal-ink);font-size:var(--fs-caption);line-height:var(--lh-caption);font-style:normal;font-weight:600;white-space:nowrap}
 #modal{overscroll-behavior:contain;inset:0;max-width:calc(100% - 6px - 2em)}
 /* Cargo payment rates (Guide, Resources): one line per cargo in its class's line colour, the class legend and a table view. */
@@ -224,6 +225,7 @@
 .achievement-cargo-tile{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:var(--r-1);background:var(--well)}
 .achievement-cargo-tile svg{width:16px;height:16px}
 .achievement-text .achievement-earned{margin-top:var(--s-1);font-size:var(--fs-caption);line-height:var(--lh-caption)}
+.achievement-prize{font-size:var(--fs-caption);line-height:var(--lh-caption);font-weight:600;color:var(--ok);white-space:nowrap}
 .rating-achievements,.century-achievements{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:var(--s-2) var(--s-3);margin:var(--s-3) 0 0;padding-top:var(--s-3);border-top:1px solid var(--rule);font-size:var(--fs-body);line-height:var(--lh-body)}
 .rating-achievements strong{font-weight:var(--fw-semibold);white-space:nowrap}
 .century-achievements{grid-template-columns:auto minmax(0,1fr) auto;margin-top:var(--s-4)}

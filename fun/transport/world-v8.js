@@ -3,7 +3,7 @@ import { BUILDINGS, residentialKind, SHOP_KINDS } from './buildings.js';
 import { seedNumber, randomSource, hashNoise, noise } from './world-noise.js';
 import { generatedElevation } from './world-tiles.js';
 import { buildingFootprint, placeBuildingSite } from './building-sites.js';
-import { generatedIndustryFootprint, industrySiteProblem, industrySpacingProblem, legacyIndustrySpacingProblem, MIN_SITE_GAP } from './industry-sites.js';
+import { generatedIndustryFootprint, industrySiteProblem, industrySpacingProblem, worldSpacingProblem, legacyIndustrySpacingProblem, MIN_SITE_GAP, MIN_CONNECTION_LENGTH, MIN_PLOT_GAP } from './industry-sites.js';
 import { generateTerrainV8, levelElevation, WATER_POND } from './world-terrain-v8.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
@@ -24,6 +24,11 @@ const SHOWCASE = ['town-hall', 'church', 'pub', 'school', 'park', 'playground', 
 const PLACE = { 'town-hall': .1, church: .25, pub: .15, 'service-post-office': .2, 'service-bank': .25, 'service-barber': .3, 'service-hotel': .35, park: .4, school: .55, 'police-station': .5, playground: .6, 'fire-station': .6, hospital: .7, 'sports-hall': .7, 'swimming-pool': .75, 'tennis-courts': .8, 'service-garage': .85, 'sports-field': .95, stadium: 1, ballpark: 1 };
 // A town's buildings stay within this many tiles of its centre, the reach that counts them as the town's.
 const REACH = 10;
+// Recipe 13: streets and buildings stay within a town's radius plus one tile, and neighbouring
+// towns keep open country between their outermost lots, as industry plots do (MIN_PLOT_GAP).
+const extentOf = profile => Math.min(REACH, PROFILES[profile].radius + 1);
+const SIZES = ['city', 'town', 'village', 'hamlet'];
+const clearOf = (dx, dy, a, b) => Math.hypot(Math.max(0, Math.abs(dx) - extentOf(a) - extentOf(b)), Math.max(0, Math.abs(dy) - extentOf(a) - extentOf(b))) >= MIN_PLOT_GAP;
 
 // The renderer's vertex heights (terrain-geometry.js): each vertex takes the
 // level of the tile to its south-east, any corner touching water is 0, and
@@ -60,6 +65,22 @@ export function generateWorldV8(biome, seed, size, config, generationVersion = 8
   return game;
 }
 
+// The larger of two crowded towns gives way, a tier at a time; the opening towns never do. Placement
+// spaced every site for a hamlet or more, so every crowded pair resolves by the time both are hamlets.
+function separateTowns(towns) {
+  // Between equals, the poorer site gives way.
+  const rank = town => SIZES.indexOf(town.profile) + (town.score + town.room) / 1e3;
+  for (let changed = true; changed;) {
+    changed = false;
+    for (let i = 0; i < towns.length; i++) for (let j = i + 1; j < towns.length; j++) {
+      const a = towns[i], b = towns[j];
+      if (clearOf(a.x - b.x, a.y - b.y, a.profile, b.profile)) continue;
+      const larger = a.starter ? b : b.starter ? a : rank(a) < rank(b) ? a : b;
+      larger.profile = SIZES[SIZES.indexOf(larger.profile) + 1];changed = true;
+    }
+  }
+}
+
 function settle(game, biome, seed, random, config, terrain) {
   const { width, height, tiles } = game, land = terrain.land, { cx: ax, cy: ay } = terrain.opening;
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;
@@ -88,23 +109,27 @@ function settle(game, biome, seed, random, config, terrain) {
     candidates.push({ x, y, score, room });
   }
   candidates.sort((a, b) => b.score - a.score || a.y - b.y || a.x - b.x);
-  const towns = [{ x: ax, y: ay, starter: true }, { x: ax + 24, y: ay, starter: true }];
-  const far = (x, y, spacing) => towns.every(town => Math.hypot(town.x - x, town.y - y) >= (game.generationVersion>=12?Math.max(spacing,MIN_SITE_GAP):spacing));
+  const towns = [{ x: ax, y: ay, starter: true, profile: 'town' }, { x: ax + 24, y: ay, starter: true, profile: 'village' }];
+  // Recipe 13 spaces each site for the size its place in the queue suggests (the best sites
+  // become the largest towns); separateTowns settles the final ranking. Earlier recipes ignore it.
+  const expected = () => { const share = (towns.length - 2) / Math.max(1, config.towns - 2); return share < .1 ? 'city' : share < .28 ? 'town' : share < .68 ? 'village' : 'hamlet'; };
+  const far = (x, y, spacing, profile) => towns.every(town => Math.hypot(town.x - x, town.y - y) >= (game.generationVersion>=12?Math.max(spacing,MIN_SITE_GAP):spacing) && (game.generationVersion < 13 || clearOf(town.x - x, town.y - y, town.profile, profile)));
   for (const pass of [0, 1, 2]) for (const c of candidates) {
     if (towns.length >= config.towns) break;
-    const spacing = pass === 2 ? 12 : pass === 1 ? 14 : 15 + hashNoise(c.x >> 3, c.y >> 3, seed + 4223) * 6;
-    if (far(c.x, c.y, spacing)) towns.push({ x: c.x, y: c.y, score: c.score, room: c.room });
+    const spacing = pass === 2 ? 12 : pass === 1 ? 14 : 15 + hashNoise(c.x >> 3, c.y >> 3, seed + 4223) * 6, profile = expected();
+    if (far(c.x, c.y, spacing, profile)) towns.push({ x: c.x, y: c.y, score: c.score, room: c.room, profile });
   }
   // A rugged seed still gets every town: any dry tile far enough from the rest.
   for (let attempt = 0; towns.length < config.towns && attempt < config.towns * 2000; attempt++) {
-    const x = 12 + Math.floor(random() * (width - 24)), y = 12 + Math.floor(random() * (height - 24));
-    if (buildable(tile(x, y)) && far(x, y, 12)) towns.push({ x, y, score: 0, room: 0 });
+    const x = 12 + Math.floor(random() * (width - 24)), y = 12 + Math.floor(random() * (height - 24)), profile = expected();
+    if (buildable(tile(x, y)) && far(x, y, 12, profile)) towns.push({ x, y, score: 0, room: 0, profile });
   }
   if (towns.length !== config.towns) throw new Error('Could not find enough habitable town sites in this world.');
   // The best, roomiest sites grow into the largest towns: about a tenth become cities.
   const ranked = towns.slice(2).sort((a, b) => b.score + b.room - a.score - a.room);
   ranked.forEach((town, rank) => { const share = rank / Math.max(1, ranked.length); town.profile = share < .1 ? 'city' : share < .28 ? 'town' : share < .68 ? 'village' : 'hamlet'; });
   towns[0].profile = 'town'; towns[1].profile = 'village';
+  if (game.generationVersion >= 13) separateTowns(towns);
 
   // Level each town's ground: tiles one level above the town's usual level
   // come down to it, so streets and houses stand flat without stone plinths.
@@ -134,6 +159,9 @@ function settle(game, biome, seed, random, config, terrain) {
 
   // Every tile under a building, and the town centres kept open for their first stop.
   const placed = new Set(), centres = new Set(towns.map(town => town.y * width + town.x));
+  // Recipe 13 holds each town's streets, bridges and buildings within its extent, as separateTowns assumed.
+  let bound = null;
+  const within = (x, y) => !bound || Math.max(Math.abs(x - bound.x), Math.abs(y - bound.y)) <= bound.reach;
   const street = (x, y) => {
     const t = tile(x, y);
     if (t.terrain === 'water') t.bridge = true;
@@ -143,12 +171,12 @@ function settle(game, biome, seed, random, config, terrain) {
   // Lay one street tile, or a short bridge to the bank beyond. False ends the street.
   const extend = (x, y, dx, dy) => {
     const t = tile(x, y);
-    if (!t || x < 2 || y < 2 || x >= width - 2 || y >= height - 2 || placed.has(y * width + x)) return false;
+    if (!t || x < 2 || y < 2 || x >= width - 2 || y >= height - 2 || placed.has(y * width + x) || !within(x, y)) return false;
     if (t.road) return true;
     if (t.terrain === 'water') {
       let bank = 0;
       for (let step = 1; step <= 4; step++) { const n = tile(x + dx * step, y + dy * step); if (!n || placed.has((y + dy * step) * width + x + dx * step) || n.terrain === 'mountain' || n.terrain === 'rock') break; if (n.terrain !== 'water') { bank = step; break; } }
-      if (!bank || !buildable(tile(x + dx * bank, y + dy * bank)) || !graded(x + dx * bank, y + dy * bank, dx !== 0)) return false;
+      if (!bank || !within(x + dx * bank, y + dy * bank) || !buildable(tile(x + dx * bank, y + dy * bank)) || !graded(x + dx * bank, y + dy * bank, dx !== 0)) return false;
       for (let step = 0; step <= bank; step++) street(x + dx * step, y + dy * step);
       return true;
     }
@@ -168,6 +196,7 @@ function settle(game, biome, seed, random, config, terrain) {
 
   for (let n = 0; n < towns.length; n++) {
     const town = towns[n], profile = PROFILES[town.profile], R = profile.radius, cx = town.x, cy = town.y;
+    if (game.generationVersion >= 13) bound = { x: cx, y: cy, reach: extentOf(town.profile) };
     const baseName = nameLists.names[n] || nameLists.prefixes[(n - 4) % nameLists.prefixes.length] + suffixes[Math.floor((n - 4) / nameLists.prefixes.length) % suffixes.length];
     const occurrence = (nameCounts.get(baseName) || 0) + 1; nameCounts.set(baseName, occurrence);
     const [low, range] = profile.population;
@@ -223,6 +252,7 @@ function settle(game, biome, seed, random, config, terrain) {
     const frontage = (x, y) => SIDES.some(([dx, dy]) => tile(x + dx, y + dy)?.road);
     const distanceOf = (x, y) => Math.hypot(horizontal ? x - cx : y - cy, (horizontal ? y - cy : x - cx) * 1.25);
     const build = (kind, x, y, extent) => {
+      if (!within(x, y) || !within(x + extent - 1, y + extent - 1)) return false;
       const result = placeBuildingSite(game, kind, x, y, { size: extent });
       if (!result) return false;
       for (let dy = 0; dy < extent; dy++) for (let dx = 0; dx < extent; dx++) placed.add((y + dy) * width + x + dx);
@@ -284,6 +314,7 @@ function settle(game, biome, seed, random, config, terrain) {
       const R = PROFILES[town.profile].radius + 2;
       for (let r = 1; r <= R; r++) for (let y = city.y - r; y <= city.y + r; y++) for (let x = city.x - r; x <= city.x + r; x++) {
         if (Math.max(Math.abs(x - city.x), Math.abs(y - city.y)) !== r || Math.max(x + extent - 1 - city.x, y + extent - 1 - city.y, city.x - x, city.y - y) > REACH) continue;
+        if (game.generationVersion >= 13 && Math.max(x + extent - 1 - town.x, y + extent - 1 - town.y, town.x - x, town.y - y) > extentOf(town.profile)) continue;
         let ok = true, road = false;
         for (let dy = 0; dy < extent && ok; dy++) for (let dx = 0; dx < extent; dx++) {
           const t = tile(x + dx, y + dy);
@@ -312,6 +343,18 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
   for (const city of game.cities) taken[city.y * width + city.x] = 1;
   const open = (x, y, size) => { for (let dy = 0; dy < size; dy++) for (let dx = 0; dx < size; dx++) if (taken[(y + dy) * width + x + dx]) return false; return true; };
   const tile = (x, y) => x >= 0 && y >= 0 && x < width && y < height ? tiles[y * width + x] : null;
+  // Recipe 13 keeps every plot MIN_CONNECTION_LENGTH free tiles from the towns' streets and buildings.
+  // Industries mark `taken` as they go, so the towns' tiles are summed now, before the first plot.
+  let clearOfTowns = () => true;
+  if (game.generationVersion >= 13) {
+    const row = width + 1, sum = new Int32Array(row * (height + 1)), M = MIN_CONNECTION_LENGTH;
+    for (let y = 0; y < height; y++) for (let x = 0, line = 0; x < width; x++) { line += taken[y * width + x]; sum[(y + 1) * row + x + 1] = sum[y * row + x + 1] + line; }
+    clearOfTowns = (x, y, size) => {
+      const x0 = Math.max(0, x - M), y0 = Math.max(0, y - M), x1 = Math.min(width, x + size + M), y1 = Math.min(height, y + size + M);
+      return sum[y1 * row + x1] - sum[y0 * row + x1] - sum[y1 * row + x0] + sum[y0 * row + x0] === 0;
+    };
+  }
+  const spacingProblem = game.generationVersion >= 13 ? worldSpacingProblem : game.generationVersion >= 12 ? industrySpacingProblem : legacyIndustrySpacingProblem;
   const gaussian = () => Math.sqrt(-2 * Math.log(Math.max(.00001, random()))) * Math.cos(random() * Math.PI * 2);
   const kinds = Object.keys(INDUSTRIES).filter(kind => !INDUSTRIES[kind].buildOnly && INDUSTRIES[kind].biomes.includes(biome));
   // Bucket towns by area, so the distance-to-town check stays local.
@@ -376,11 +419,11 @@ function placeIndustries(game, biome, seed, random, config, vertices) {
       const def = INDUSTRIES[kind], size = generatedIndustryFootprint(kind,game.generationVersion), extraction = !Object.keys(def.inputs).length, wanted = resource(kind);
       let best = null, bestScore = -Infinity;
       const consider = (x, y, scale = extent, strict = true) => {
-        if (x < 3 || y < 3 || x + size >= width - 3 || y + size >= height - 3 || !open(x, y, size) || nearTown(x + (size >> 1), y + (size >> 1), 11)) return;
+        if (x < 3 || y < 3 || x + size >= width - 3 || y + size >= height - 3 || !open(x, y, size) || nearTown(x + (size >> 1), y + (size >> 1), 11) || !clearOfTowns(x, y, size)) return;
         const distance = Math.hypot(x - anchor.x, y - anchor.y);
         const score = habitat(kind, x, y, size) + (wanted && tile(x, y).terrain === wanted ? 25 : 0) - rough(x, y, size) * 60 - distance / scale * (extraction ? 35 : 85) + hashNoise(x, y, seed + district * 251) * 22;
         // The deposit and the full site rules only need to confirm a candidate that would win.
-        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size) && !(game.generationVersion>=12?industrySpacingProblem:legacyIndustrySpacingProblem)(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
+        if (score > bestScore && !(strict && wanted && !deposit(kind, x, y, size)) && !industrySiteProblem(game, kind, x, y, size) && !spacingProblem(game, kind, x, y, size)) { best = { x, y }; bestScore = score; }
       };
       for (let attempt = 0; attempt < 140; attempt++) {
         const spread = extent * (extraction ? .75 + random() * 1.7 : .35 + random() * .55);

@@ -24,7 +24,12 @@ export const industryDistance = (industry,point) => Math.hypot(Math.max(industry
 // rivals never share a deposit, and no chain is handed over at the fence without a route.
 export const INDUSTRY_SPACING = 16;
 const feeds = (from,to) => Object.keys(INDUSTRIES[from].outputs).some(cargo => INDUSTRIES[to].inputs[cargo]);
-export const relatedIndustries = (a,b) => a===b||feeds(a,b)||feeds(b,a);
+// Placement asks about the same few kind pairs millions of times on a large map.
+const pairCache = test => {
+  const known = new Map();
+  return (a, b) => { let row = known.get(a); if (!row) known.set(a, row = new Map()); let value = row.get(b); if (value === undefined) row.set(b, value = test(a, b)); return value; };
+};
+export const relatedIndustries = pairCache((a,b) => a===b||feeds(a,b)||feeds(b,a));
 /** Why a related industry is too close to this site, or null. `others` lets a plan count the sites it places first. */
 export function legacyIndustrySpacingProblem(game,kind,x,y,size=industryFootprint(kind),others=game.industries){
   const cx=x+(size-1)/2,cy=y+(size-1)/2;
@@ -40,6 +45,13 @@ export const MIN_SITE_GAP = STATION_RADIUS * 2 + MIN_CONNECTION_LENGTH;
 export function siteGap(a, b) {
   const as = industrySize(a), bs = industrySize(b);
   return Math.hypot(Math.max(a.x - b.x - bs + 1, b.x - a.x - as + 1, 0), Math.max(a.y - b.y - bs + 1, b.y - a.y - as + 1, 0));
+}
+/** siteGap(a, b) < limit, rejecting distant pairs before the square root. */
+function within(a, b, limit) {
+  const as = industrySize(a), bs = industrySize(b), dx = Math.max(a.x - b.x - bs + 1, b.x - a.x - as + 1, 0);
+  if (dx >= limit) return false;
+  const dy = Math.max(a.y - b.y - bs + 1, b.y - a.y - as + 1, 0);
+  return dy < limit && Math.hypot(dx, dy) < limit;
 }
 // Existing five-tile stops retain their service after loading. Account for that
 // extra reach too when a player places a new neighbor beside an older company.
@@ -60,11 +72,29 @@ export function townSpacingProblem(game, x, y) {
   const industry = game.industries.find(other => tooClose(game, site, other));
   return industry ? `Too close to ${industry.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the stop ranges.` : null;
 }
+/** Player construction and recipe 12: a stop range and a 5-tile road from towns and related industries. Players may group unrelated plots. */
 export function industrySpacingProblem(game, kind, x, y, size = industryFootprint(kind), others = game.industries) {
   const site = { x, y, footprint: size }, town = game.cities.find(other => tooClose(game, site, other));
   if (town) return `Too close to ${town.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the plot's and town's stop ranges.`;
   const near = others.find(other => relatedIndustries(kind, other.kind) && tooClose(game, site, other));
   if (near) return `Too close to ${near.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the industries' stop ranges.`;
+  return legacyIndustrySpacingProblem(game, kind, x, y, size, others);
+}
+// Two buyers of one cargo, or two makers of one, compete for it: one stop must never serve both.
+const shares = (a, b, side) => Object.keys(INDUSTRIES[a][side]).some(cargo => INDUSTRIES[b][side][cargo]);
+export const competingIndustries = pairCache((a, b) => relatedIndustries(a, b) || shares(a, b, 'inputs') || shares(a, b, 'outputs'));
+/** siteGap between any two plots: MIN_CONNECTION_LENGTH free tiles, room for a road or track to pass. */
+export const MIN_PLOT_GAP = MIN_CONNECTION_LENGTH + 1;
+/** The world's own sites (recipe 13 generation and openings): rivals keep a stop range and a road apart, any two plots a road's width. */
+export function worldSpacingProblem(game, kind, x, y, size = industryFootprint(kind), others = game.industries) {
+  const site = { x, y, footprint: size }, town = game.cities.find(other => tooClose(game, site, other));
+  if (town) return `Too close to ${town.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the plot's and town's stop ranges.`;
+  let next = null;
+  for (const other of others) {
+    if (competingIndustries(kind, other.kind) && tooClose(game, site, other)) return `Too close to ${other.name}: leave room for a ${MIN_CONNECTION_LENGTH}-tile road between the industries' stop ranges.`;
+    if (!next && within(site, other, MIN_PLOT_GAP)) next = other;
+  }
+  if (next) return `Too close to ${next.name}: leave ${MIN_CONNECTION_LENGTH} free tiles between the plots for a road or track.`;
   return legacyIndustrySpacingProblem(game, kind, x, y, size, others);
 }
 
@@ -78,10 +108,12 @@ export function industrySiteProblem(game,kind,x,y,size=industryFootprint(kind),e
   const anchor=tile(x,y);
   if(def.terrain&&!def.terrain.includes(anchor.terrain))return `${def.name} needs ${def.terrain.join(', ')} terrain.`;
   let coastal=false;
+  // Only towns and industries touching the plot can hold one of its tiles; generation asks thousands of times.
+  const site={x,y,footprint:size},towns=game.cities.filter(c=>industryContains(site,c.x,c.y)),plots=game.industries.filter(i=>i!==exclude&&within(site,i,1));
   for(let dy=0;dy<size;dy++)for(let dx=0;dx<size;dx++){
     const px=x+dx,py=y+dy,t=tile(px,py);
     if(t.terrain==='water'||(t.terrain==='mountain'&&!def.terrain?.includes('mountain')))return `The whole ${size} × ${size} site needs buildable land.`;
-    if(buildingAt(game,px,py)||t.zone||t.road||t.rail||t.bridge||t.tunnel||stationSiteAt(game,px,py)||game.cities.some(c=>c.x===px&&c.y===py)||game.industries.some(i=>i!==exclude&&industryContains(i,px,py)))return `Clear all ${size*size} tiles before building this industry.`;
+    if(buildingAt(game,px,py)||t.zone||t.road||t.rail||t.bridge||t.tunnel||stationSiteAt(game,px,py)||towns.some(c=>c.x===px&&c.y===py)||plots.some(i=>industryContains(i,px,py)))return `Clear all ${size*size} tiles before building this industry.`;
     if([[1,0],[-1,0],[0,1],[0,-1]].some(([ox,oy])=>tile(px+ox,py+oy)?.terrain==='water'))coastal=true;
   }
   if(def.coastal&&!coastal)return 'A fishery site must touch the shoreline.';

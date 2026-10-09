@@ -74,7 +74,7 @@ try {
   await page.waitForTimeout(2500);
   const bronze = await achievementToasts(page, from);
   assert.equal(bronze.length, 1, JSON.stringify(bronze));
-  assert.equal(bronze[0].text, 'Bronze achievement: 100,000 delivered.');
+  assert.match(bronze[0].text, /^Bronze achievement: 100,000 delivered\. \+\$25,\d{3}\.$/, 'the toast names the prize');
   assert.match(bronze[0].className, /\bmilestone\b.*\bachievement\b.*\btier-bronze\b/);
   assert.match(bronze[0].medal, /medal--bronze/);assert.deepEqual(bronze[0].actions, ['Open achievements']);
   await page.evaluate(() => transport.setSpeed(0));
@@ -116,7 +116,7 @@ try {
   await page.evaluate(() => transport.setSpeed(0));
   const fleet = await achievementToasts(page, from);
   assert.equal(fleet.length, 1, JSON.stringify(fleet));
-  assert.equal(fleet[0].text, '2 achievements earned: A hundred vehicles and A thousand vehicles.');
+  assert.match(fleet[0].text, /^2 achievements earned: A hundred vehicles and A thousand vehicles\. \+\$5\d{2},\d{3}\.$/, 'one toast sums both prizes');
   assert.match(fleet[0].className, /\btier-gold\b/);assert.match(fleet[0].medal, /medal--gold/);
   await page.locator('#toast-region .toast.tier-gold').screenshot({ path: `${output}/toast-gold-group-1440.png` });
   await page.waitForTimeout(Math.max(0, 6500 - (await page.evaluate(() => performance.now()) - shownAt)));

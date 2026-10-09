@@ -36,6 +36,9 @@ export function surfaceChangesSince(game,revision){
   return Int32Array.from(union).sort();
 }
 
+/** True when every change in (revision, game.revision] is journaled ecology or town sites: neither moves a height, water or a network. */
+export const heightsKeptSince = (game, revision) => viewChangesSince(game, revision) !== null;
+
 // The map view's span: the sorted unions of the surface and the site cells changed in (revision, game.revision], or
 // null unless journaled entries of either kind cover that whole span contiguously for these tiles.
 export function viewChangesSince(game,revision){

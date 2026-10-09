@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { build, buildPath, addRoute, tick, createGame, restoreGame, validateGame } from '../model.js';
 import { encodeGame } from '../save-codec.js';
-import { MILESTONES, CHAPTERS, evaluateMilestones, nextMilestone, milestoneChapters, metMilestones, progressText } from '../milestones.js';
+import { MILESTONES, CHAPTERS, evaluateMilestones, nextMilestone, milestoneChapters, metMilestones, progressText, milestoneReward } from '../milestones.js';
+import { priceFor } from '../economy-pricing.js';
 import { nextProject } from '../gameplay-insights.js';
 import { emptyGame, line, equivalent, completeFixtureConstruction } from './helpers.mjs';
 
@@ -72,9 +73,26 @@ test('a legacy save gains its milestones silently on the first evaluation', () =
   const nextId = restored.nextId, notices = JSON.stringify(restored.notifications), money = restored.money;
   evaluateMilestones(restored);
   assert.deepEqual(restored.milestones, { 'first-freight': Math.floor(restored.day), 'freight-100': Math.floor(restored.day) });
-  assert.equal(restored.nextId, nextId, 'no notice ids are spent');assert.equal(JSON.stringify(restored.notifications), notices);assert.equal(restored.money, money, 'milestones never grant money');
+  assert.equal(restored.nextId, nextId, 'no notice ids are spent');assert.equal(JSON.stringify(restored.notifications), notices);assert.equal(restored.money, money, 'a quiet credit pays no rewards');
   const again = restoreGame(JSON.parse(JSON.stringify(encodeGame(restored))));
   assert.deepEqual(again.milestones, restored.milestones, 'stamps survive a save');
+});
+
+test('each goal pays its reward once, at the prices of its day, and never as a fare', () => {
+  const game = quarryCompany();
+  assert.ok(MILESTONES.every(m => Number.isInteger(m.reward) && m.reward > 0), 'every goal names its reward');
+  days(game, 120, () => game.milestones['first-freight'] !== undefined);
+  const first = MILESTONES.find(m => m.id === 'first-freight'), day = game.milestones['first-freight'];
+  assert.equal(milestoneReward(game, first, day), priceFor(game, first.reward, day));
+  assert.equal(game.totalRewards, milestoneReward(game, first, day));
+  days(game, 500, () => game.milestones['freight-100'] !== undefined);days(game, 40);
+  const paid = Object.entries(game.milestones).reduce((sum, [id, stamp]) => sum + milestoneReward(game, MILESTONES.find(m => m.id === id), stamp), 0);
+  assert.equal(game.totalRewards, paid, 'one payment per stamp');
+  const months = game.history.filter(h => h.rewards > 0);
+  assert.equal(months.reduce((sum, h) => sum + h.rewards, 0) + (game.monthlyRewards || 0), paid);
+  for (const h of months) assert.equal(h.operatingProfit, h.income - h.operatingExpenses, 'operating profit leaves rewards out');
+  assert.equal(validateGame(game), true);
+  assert.equal(validateGame({ ...game, totalRewards: -1 }), false);
 });
 
 test('validation accepts only past whole days under short ids', () => {
@@ -171,7 +189,7 @@ test('progress reads as counts, money and percentages', () => {
   assert.equal(new Set(MILESTONES.map(m => m.id)).size, MILESTONES.length);assert.ok(MILESTONES.every(m => m.id.length <= 40));
 });
 
-test('milestones are recognition only: nothing but the ladder and its display reads them', async () => {
+test('nothing but the ladder and its display reads the stamps; tick() pays what evaluateMilestones returns', async () => {
   const folder = new URL('../', import.meta.url), readers = [];
   for (const name of (await readdir(folder)).filter(name => name.endsWith('.js'))) if (/\.milestones\b|\[['"]milestones['"]\]/.test(await readFile(new URL(name, folder), 'utf8'))) readers.push(name);
   assert.deepEqual(readers.sort(), ['app.js', 'milestones.js']);

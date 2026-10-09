@@ -81,13 +81,14 @@ function entityIndex(game) {
   }
   for (const item of [...(game.stations || []).flatMap(stationTiles), ...(game.cities || []), ...(game.zones || [])]) occupied.add(item.y * game.width + item.x);
   const activeIds = new Set((game.routes || []).filter(route => route.active).flatMap(route => route.stops));
-  // An airport gives factories no transport access.
+  // An airport gives factories no transport access. Buckets are 8 tiles, keyed by number: every site asks daily.
+  const columns = Math.ceil((game.width || 0) / 8) + 1;
   for (const station of game.stations || []) if (activeIds.has(station.id) && station.mode !== 'air') {
-    const key = `${Math.floor(station.x / 8)},${Math.floor(station.y / 8)}`;
+    const key = Math.floor(station.y / 8) * columns + Math.floor(station.x / 8);
     if (!activeStations.has(key)) activeStations.set(key, []);
     activeStations.get(key).push(station);
   }
-  cache = { day, revision: game.revision, industries: game.industries, stations: game.stations, routes: game.routes, cities: game.cities, zones: game.zones, occupied, industriesAt, activeStations };
+  cache = { day, revision: game.revision, industries: game.industries, stations: game.stations, routes: game.routes, cities: game.cities, zones: game.zones, occupied, industriesAt, activeStations, columns };
   indexCache.set(game, cache);
   return cache;
 }
@@ -130,8 +131,14 @@ export function weatherAt(game, x, y, day = game.day || 0) {
   const north = weatherSample(game, cache, gx, gy) * (1 - sx) + weatherSample(game, cache, gx + 1, gy) * sx;
   const south = weatherSample(game, cache, gx, gy + 1) * (1 - sx) + weatherSample(game, cache, gx + 1, gy + 1) * sx;
   const rain = north * (1 - sy) + south * sy;
-  const summer = cache.summer;
-  const elevation = tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0;
+  return climateAt(game, rain, cache.summer, tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0);
+}
+/** The weather over the next `days` at (x, y) with fronts averaged out: forecasts plan with it. Never touches weatherAt's cache. */
+export function seasonalWeather(game, x, y, day = game.day || 0, days = 180) {
+  const turn = Math.PI * 2 / CLIMATE_YEAR, from = (Math.floor(day) - CLIMATE_SPRING) * turn, to = from + days * turn;
+  return climateAt(game, .5, (Math.cos(from) - Math.cos(to)) / (to - from), tileAt(game, Math.floor(x), Math.floor(y))?.elevation || 0);
+}
+function climateAt(game, rain, summer, elevation) {
   const desert = game.biome === 'desert', tundra = game.biome === 'tundra';
   const wetness = clamp((desert ? .1 : tundra ? .39 : .52) + (rain - .5) * .48 - summer * .07 + elevation * .08);
   const cold = clamp((tundra ? .66 : desert ? .08 : .33) - summer * (tundra ? .24 : .28) + elevation * .26);
@@ -144,8 +151,8 @@ export function weatherAt(game, x, y, day = game.day || 0) {
 export function localTransport(game, x, y, footprint = 1, served = null) {
   const extra = footprint - 1, entities = entityIndex(game), reach = LEGACY_STATION_RADIUS;
   let transport = 0;
-  for (let by = Math.floor((y - reach) / 8); by <= Math.floor((y + extra + reach) / 8); by++) for (let bx = Math.floor((x - reach) / 8); bx <= Math.floor((x + extra + reach) / 8); bx++) {
-    for (const station of entities.activeStations.get(`${bx},${by}`) || []) {
+  for (let by = Math.max(0, Math.floor((y - reach) / 8)); by <= Math.floor((y + extra + reach) / 8); by++) for (let bx = Math.max(0, Math.floor((x - reach) / 8)); bx < entities.columns && bx <= Math.floor((x + extra + reach) / 8); bx++) {
+    for (const station of entities.activeStations.get(by * entities.columns + bx) || []) {
       const distance = industryDistance({x,y,footprint},station);
       if (distance <= stationReach(station)) transport = Math.max(transport, 1 - distance * .08);
     }
@@ -159,6 +166,25 @@ export function localTransport(game, x, y, footprint = 1, served = null) {
 export function hasRoadAccess(game, x, y) {
   for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (tileAt(game, x + dx, y + dy)?.road) return true;
   return false;
+}
+
+/** localEnvironment's police, fire and services counts alone, as daily upkeep reads them around every vehicle and plant. */
+export function localSupport(game, x, y, radius = 3, footprint = 1) {
+  x = Math.floor(x); y = Math.floor(y);
+  const extra = footprint - 1, buildings = neighborhoodBuildings(game, x - radius, y - radius, x + radius + extra, y + radius + extra), support = { police: 0, fire: 0, services: 0 };
+  if (!buildings.any) return support;
+  const seen = new Set();
+  for (let dy = -radius; dy <= radius + extra; dy++) for (let dx = -radius; dx <= radius + extra; dx++) {
+    const site = buildings.at(x + dx, y + dy);
+    if (!site || isUnderConstruction(site.building)) continue;
+    const key = site.y * game.width + site.x, kind = site.building.kind, group = BUILDINGS[kind]?.group;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (group === 'homes' || kind === 'house' || kind === 'apartment' || group === 'shops' || kind === 'shop') continue;
+    if (group === 'services' || kind === 'office') support.services++;
+    else if (group === 'community') { if (kind === 'police-station') support.police++; else if (kind === 'fire-station') support.fire++; }
+  }
+  return support;
 }
 
 export function localEnvironment(game, x, y, radius = 3, footprint = 1, served = null) {

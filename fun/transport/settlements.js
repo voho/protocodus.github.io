@@ -251,23 +251,20 @@ export function stepSettlements(game, { extendStreets = null, reserved = [] } = 
 
     const bonus = reachBonus(city), radius = 3 + Math.floor(randomAt(game, day, city.id, 105) * 4) + bonus;
     // Towns build on level ground while any is left in reach, then on a slope they can level, and only then on any slope.
-    let best = null, bestLevel = null;
-    const sloped = [];
+    // A lot needs a road beside it (localEnvironment's roadAccess), so that cheap test comes before the survey.
+    // Ranked best first (a stable sort keeps the earlier of equal lots), flatness is read only until a flat lot wins.
+    const lots = [];
     for (let dy = -radius; dy <= radius; dy++) for (let dx = -radius; dx <= radius; dx++) {
       const x = city.x + dx, y = city.y + dy, tile = tileAt(game, x, y), key = `${x},${y}`;
-      if (!openLot(game, x, y, occupied, tile)) continue;
+      const kind = residentialKind(tile?.variant, 1);
+      if (!openLot(game, x, y, occupied, tile) || !roadBeside(game, x, y) || buildingSiteProblem(game, kind, x, y)) continue;
       const local = localEnvironment(game, x, y, 2);
-      if (!local.roadAccess) continue;
       const score = suitability(game, { x, y }, 'residential', local, weather, city, connectedCities).score;
       const rank = score * (.5 + randomAt(game, day, key, 106) * .5);
-      const kind = residentialKind(tile.variant, 1);
-      if (buildingSiteProblem(game, kind, x, y)) continue;
-      const lot = { x, y, tile, city, rank, building: { kind, level: 1 } };
-      if (!best || rank > best.rank) best = lot;
-      if (!groundIsFlat(game, x, y)) sloped.push(lot);
-      else if (!bestLevel || rank > bestLevel.rank) bestLevel = lot;
+      lots.push({ x, y, tile, city, rank, building: { kind, level: 1 } });
     }
-    if (best) proposals.push(bestLevel || sloped.sort((a, b) => b.rank - a.rank).slice(0, 6).find(lot => plotLevelPlan(game, lot.x, lot.y, 1)) || best);
+    lots.sort((a, b) => b.rank - a.rank);
+    if (lots.length) proposals.push(lots.find(lot => groundIsFlat(game, lot.x, lot.y)) || lots.slice(0, 6).find(lot => plotLevelPlan(game, lot.x, lot.y, 1)) || lots[0]);
     else if (extendStreets && streets.length < 4 && pull >= 1 && day - (city.lastStreetDay ?? -Infinity) >= 30 && randomAt(game, day, city.id, 107) < .08 * pull * weather.growth * growthFactor && !townLots(game, city, 6 + bonus, occupied, 1)) {
       blocked ??= new Set(reserved.map(point => `${point.x},${point.y}`));
       const street = townStreet(game, city, day, 6 + bonus, occupied, blocked);

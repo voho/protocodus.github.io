@@ -1,6 +1,28 @@
 # Large-world performance
 
-Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit remains **2048 × 2048**.
+Measured on the development machine in Node and headless Chrome in September and October 2026. These are regression workloads, not a promised frame rate on every device. The map-size limit is **4096 × 4096** (see *Practical limits*).
+
+## Busy companies and frame-sliced commits
+
+`tests/busy-company-benchmark.mjs` plays a real company on a generated recipe 13 world. Every producer that can reach its nearest buyer within 70 tiles by road, and every town with a neighbour within 45 tiles, runs a route built with the game's own connection planner, four vehicles each. It then times whole daily steps. With `--model`, a frozen copy builds and ticks the same company in the same process, alternating order, and must reach an identical SHA-1 of every field and tile.
+
+| Company | Daily step before → after (median) | State |
+| --- | ---: | --- |
+| 512², 73 routes, 293 vehicles | 42–45 → 32–34 ms (1.23–1.37×) | identical |
+| 1024², 185 routes, 741 vehicles | 125–133 → 93–101 ms (1.30–1.37×) | identical |
+
+- **Town growth** surveyed every lot in reach with `localEnvironment` before checking that a road runs beside it, then tested every lot's flatness. A lot is now rejected by the road and site checks first. Lots are then ranked with a stable sort, and flatness is read only until a flat lot wins, so ties still keep the earlier lot.
+- **Levelling a sloped lot** (`plotLevelPlan`) wrapped the game in a `Proxy` and rebuilt whole 48 × 48 height chunks through it for every candidate level. `previewVertexHeights` now runs the same distance transform over the plot's own window. Any source more than seven vertices away cannot set a height, so the result is exact.
+- **Height fields** survive towns' journaled new homes as well as ecology: neither moves a height, water or a network. The LRU holds 4,096 1 KiB chunks (4 MiB, a whole 2048² map) instead of 96, so daily growth across a large map stops cycling it. Single-tile flatness reads its four corners from one chunk.
+- **Daily upkeep** needed only the police, fire and service buildings around each vehicle and player plant. `localSupport` counts those exactly, without the full neighbourhood survey. Station buckets use numeric keys instead of building a string per bucket per query.
+- **Commits.** At 8× a second's eight days ran inside one animation frame: about 260 ms on the 512² company and 800 ms at 1024², once a second. `createWorldClock` now stops a frame's commit at a day boundary once it has used `FRAME_BUDGET_MS` (16 ms) and finishes on the following frames. Whole-day slices reach the same state. Pauses, speed changes, saves and any backlog of more than two intervals still commit everything at once, so game time never falls behind.
+- **Recipe 13 placement** pre-filters the towns and plots that can touch a candidate and caches industry relations per kind pair. The worst case (2 towns, 96 districts on 2048²) generates in 12.8 s, against 13.8 s for recipe 12 before. Recipe 12 itself now takes 8.6 s and stays byte-exact.
+
+Ecology remains a fixed cost: about 15 ms a day on maps of 1024² and more. It samples 4,096 random tiles a day, and its time goes to scattered tile reads rather than arithmetic.
+
+```sh
+node --max-old-space-size=8192 fun/transport/tests/busy-company-benchmark.mjs --size=1024 --days=100 --model=/absolute/baseline/model.js
+```
 
 ## October 2026 update
 
@@ -77,7 +99,15 @@ A separate save test mutates over four million tiles in a real generated 2048² 
 
 ## Practical limits
 
-A raw 4096² generation probe used about **1.8 GiB of JavaScript heap**, before renderer surfaces, path buffers, fleets, save reconstruction or browser overhead. It is not exposed as a playable size. Larger supported maps require a packed/lazy tile representation and a save strategy that avoids retaining both worlds while replacing one.
+3072² and 4096² are playable sizes. Node has no pointer compression, so its heap is larger than the browser's: a raw 4096² generation used about **1.8 GiB** in Node. Headless Chromium measured the whole world, created through the menu and its background worker, at seed 1847:
+
+| Map | Create to playable | Main-thread heap | Warm frame | First pan of half a screen | Mini map | Autosave (async) | Reload |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 2048² | 11.7 s | 304 MiB | — | — | — | — | — |
+| 3072² | 22.0 s | 673 MiB | 2 ms | 0.53 s | 0.24 s | 10.5 s | 29.9 s |
+| 4096² | 35.3 s | 1,189 MiB | 2 ms | 0.67 s | 0.22 s | 26.9 s | 50.4 s |
+
+Both large worlds ran four seconds at 8× (about 35 days) with no errors. A sparse save regenerates the landscape, so loading costs about as much as creating. The autosave's capture compares every tile with the generated baseline and holds world commits while it runs, so `autosaveInterval()` stretches the 20-second interval in proportion to tiles beyond 2048²: 45 s at 3072² and 80 s at 4096². The tile representation is unchanged, so memory still grows with tiles: about 76 bytes a tile in the browser. Larger maps would need a packed or lazy tile representation, and a save strategy that avoids retaining both worlds while replacing one.
 
 Normal menu generation/restoration and live save encoding now use background workers (measurements below). Page-leave checkpoints, compatibility callers and worker-unavailable fallbacks still perform synchronous validation/terrain scans. A fully modified 2048² synchronous save can take roughly 1.3–1.8 seconds; loading while keeping the previous company for failure recovery can briefly double world memory. Fully paused unchanged worlds skip periodic autosave scans. Long-network edits can still require multiple route replans, and worst-case winding routes do not compress as well as straight lines. Local-storage quota is shared by all named saves and depends on the browser.
 

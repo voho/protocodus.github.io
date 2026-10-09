@@ -8,9 +8,10 @@ import { nearbyCities, nearbyIndustries } from './simulation-spatial.js';
 import { money, number } from './copy.js';
 import { stationReach, stationServes } from './station-sites.js';
 
-// Company milestones are recognition only: they never grant money or unlock tools,
-// vehicles, speeds or land. The simulation stamps each id with the day it was first
-// met; only this module and the interface read the stamps.
+// Company milestones are the game's challenges. Each pays a one-off cash reward, set in 1950 dollars
+// and paid at the prices of the day it is met; none unlocks tools, vehicles, speeds or land. The
+// simulation stamps each id with the day it was first met; only this module, the payout in tick()
+// and the interface read the stamps.
 const SUPPLIES = ['food', 'goods', 'furniture', 'machinery', 'fuel'];
 const owns = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
 const freight = game => game.routes.filter(route => !isTownTraffic(route.cargo));
@@ -52,29 +53,33 @@ function fullChain(game) {
 
 export const CHAPTERS = ['Getting started', 'A growing network', 'Thriving towns', 'A transport empire'];
 export const MILESTONES = [
-  { id: 'first-freight', chapter: 1, title: 'First freight delivery', detail: 'Carry cargo from a supplier to a buyer.', action: 'chains', button: 'Production chains', progress: game => flag(freight(game).some(route => route.delivered > 0)) },
-  { id: 'freight-100', chapter: 1, title: 'First 100 freight deliveries', detail: 'Every freight delivery counts; passengers and mail don’t.', unit: 'delivered', action: 'routes', button: 'Open routes', progress: game => count(carried(game), 100) },
-  { id: 'processing', chapter: 1, title: 'A factory at work', detail: 'Deliver a factory’s inputs and it makes something new.', action: 'chains', button: 'Production chains', progress: game => flag(game.industries.some(site => Object.keys(INDUSTRIES[site.kind].inputs).length > 0 && site.received > 0 && site.totalProduced > 0)) },
-  { id: 'town-supply', chapter: 1, title: 'Supplies for a town', detail: 'Deliver food, goods, furniture, machinery or fuel to a town stop.', action: 'chains', button: 'Production chains', progress: game => flag(SUPPLIES.some(cargo => townCargo(game).has(cargo))) },
-  { id: 'towns-5', chapter: 2, title: 'Five towns served', detail: 'Running routes stop in five different towns.', unit: 'served', action: 'atlas', button: 'Explore the region', progress: served(5) },
-  { id: 'rail-30', chapter: 2, title: 'A 30-tile railway', detail: 'A rail route that runs 30 tiles or more.', unit: 'tiles', action: 'connect', tool: 'rail', button: 'Build rail', progress: game => count(game.routes.reduce((best, route) => route.mode === 'rail' && route.path ? Math.max(best, route.path.length - 1) : best, 0), 30) },
-  { id: 'first-ship', chapter: 2, title: 'First ship route', detail: 'Ships link two ports on the same river, lake or sea.', action: 'connect', tool: 'port', button: 'Place a port', progress: game => flag(game.routes.some(route => route.mode === 'water')) },
-  { id: 'profit-25k', chapter: 2, title: 'A $25,000 month', detail: 'Operating profit in one month, at 1950 prices.', unit: 'money', action: 'routes', button: 'Open routes', progress: profit(25000) },
-  { id: 'industry-200', chapter: 2, title: 'An industry at 200%', detail: 'Industries grow while your routes carry their output away.', unit: 'percent', action: 'routes', button: 'Open routes', progress: game => count(loadedCapacity(game) * 100, 200) },
-  { id: 'town-2000', chapter: 3, title: 'A town of 2,000', detail: 'Homes zoned near a served stop help any town you serve grow.', unit: 'residents', action: 'city', target: game => (largestTown(game) || game.cities[0])?.id, button: 'Show the town', progress: game => count(largestTown(game)?.population || 0, 2000) },
-  { id: 'prestige-zone', chapter: 3, title: 'Prestige homes', detail: 'A residential zone grows to its third level.', unit: 'level', action: 'towns', button: 'Plan a neighborhood', progress: game => count(game.zones.reduce((best, zone) => zone.kind === 'residential' ? Math.max(best, game.tiles[zone.y * game.width + zone.x]?.building?.level || 0) : best, 0), 3) },
-  { id: 'found-town', chapter: 3, title: 'A town of your own', detail: 'Found a town, then serve it.', action: 'towns', button: 'Open town tools', progress: game => flag(game.cities.some(city => city.founded === true && Number.isFinite(city.lastServiceDay))) },
-  { id: 'freight-10k', chapter: 4, title: '10,000 freight deliveries', detail: 'Every freight delivery counts; passengers and mail don’t.', unit: 'delivered', action: 'routes', button: 'Open routes', progress: game => count(carried(game), 10000) },
-  { id: 'profit-100k', chapter: 4, title: 'A $100,000 month', detail: 'Operating profit in one month, at 1950 prices.', unit: 'money', action: 'routes', button: 'Open routes', progress: profit(100000) },
-  { id: 'towns-20', chapter: 4, title: 'Twenty towns served', detail: 'Running routes stop in twenty different towns.', unit: 'served', action: 'atlas', button: 'Explore the region', progress: served(20) },
-  { id: 'full-chain', chapter: 4, title: 'A full production chain', detail: 'Raw material through two factories, and the product on to a town.', action: 'chains', button: 'Production chains', progress: game => flag(fullChain(game)) },
+  { id: 'first-freight', chapter: 1, reward: 10000, title: 'First freight delivery', detail: 'Carry cargo from a supplier to a buyer.', action: 'chains', button: 'Production chains', progress: game => flag(freight(game).some(route => route.delivered > 0)) },
+  { id: 'freight-100', chapter: 1, reward: 20000, title: 'First 100 freight deliveries', detail: 'Every freight delivery counts; passengers and mail don’t.', unit: 'delivered', action: 'routes', button: 'Open routes', progress: game => count(carried(game), 100) },
+  { id: 'processing', chapter: 1, reward: 25000, title: 'A factory at work', detail: 'Deliver a factory’s inputs and it makes something new.', action: 'chains', button: 'Production chains', progress: game => flag(game.industries.some(site => Object.keys(INDUSTRIES[site.kind].inputs).length > 0 && site.received > 0 && site.totalProduced > 0)) },
+  { id: 'town-supply', chapter: 1, reward: 25000, title: 'Supplies for a town', detail: 'Deliver food, goods, furniture, machinery or fuel to a town stop.', action: 'chains', button: 'Production chains', progress: game => flag(SUPPLIES.some(cargo => townCargo(game).has(cargo))) },
+  { id: 'towns-5', chapter: 2, reward: 40000, title: 'Five towns served', detail: 'Running routes stop in five different towns.', unit: 'served', action: 'atlas', button: 'Explore the region', progress: served(5) },
+  { id: 'rail-30', chapter: 2, reward: 50000, title: 'A 30-tile railway', detail: 'A rail route that runs 30 tiles or more.', unit: 'tiles', action: 'connect', tool: 'rail', button: 'Build rail', progress: game => count(game.routes.reduce((best, route) => route.mode === 'rail' && route.path ? Math.max(best, route.path.length - 1) : best, 0), 30) },
+  { id: 'first-ship', chapter: 2, reward: 50000, title: 'First ship route', detail: 'Ships link two ports on the same river, lake or sea.', action: 'connect', tool: 'port', button: 'Place a port', progress: game => flag(game.routes.some(route => route.mode === 'water')) },
+  { id: 'profit-25k', chapter: 2, reward: 50000, title: 'A $25,000 month', detail: 'Operating profit in one month, at 1950 prices.', unit: 'money', action: 'routes', button: 'Open routes', progress: profit(25000) },
+  { id: 'industry-200', chapter: 2, reward: 60000, title: 'An industry at 200%', detail: 'Industries grow while your routes carry their output away.', unit: 'percent', action: 'routes', button: 'Open routes', progress: game => count(loadedCapacity(game) * 100, 200) },
+  { id: 'town-2000', chapter: 3, reward: 100000, title: 'A town of 2,000', detail: 'Homes zoned near a served stop help any town you serve grow.', unit: 'residents', action: 'city', target: game => (largestTown(game) || game.cities[0])?.id, button: 'Show the town', progress: game => count(largestTown(game)?.population || 0, 2000) },
+  { id: 'prestige-zone', chapter: 3, reward: 60000, title: 'Prestige homes', detail: 'A residential zone grows to its third level.', unit: 'level', action: 'towns', button: 'Plan a neighborhood', progress: game => count(game.zones.reduce((best, zone) => zone.kind === 'residential' ? Math.max(best, game.tiles[zone.y * game.width + zone.x]?.building?.level || 0) : best, 0), 3) },
+  { id: 'found-town', chapter: 3, reward: 100000, title: 'A town of your own', detail: 'Found a town, then serve it.', action: 'towns', button: 'Open town tools', progress: game => flag(game.cities.some(city => city.founded === true && Number.isFinite(city.lastServiceDay))) },
+  { id: 'freight-10k', chapter: 4, reward: 200000, title: '10,000 freight deliveries', detail: 'Every freight delivery counts; passengers and mail don’t.', unit: 'delivered', action: 'routes', button: 'Open routes', progress: game => count(carried(game), 10000) },
+  { id: 'profit-100k', chapter: 4, reward: 250000, title: 'A $100,000 month', detail: 'Operating profit in one month, at 1950 prices.', unit: 'money', action: 'routes', button: 'Open routes', progress: profit(100000) },
+  { id: 'towns-20', chapter: 4, reward: 200000, title: 'Twenty towns served', detail: 'Running routes stop in twenty different towns.', unit: 'served', action: 'atlas', button: 'Explore the region', progress: served(20) },
+  { id: 'full-chain', chapter: 4, reward: 250000, title: 'A full production chain', detail: 'Raw material through two factories, and the product on to a town.', action: 'chains', button: 'Production chains', progress: game => flag(fullChain(game)) },
 ];
 
-/** Runs once per simulated day: stamps every newly met milestone, in any order. A first run also backfills an older company silently. */
+/** Runs once per simulated day: stamps every newly met milestone, in any order, and returns them for their rewards.
+ * A first run backfills an older company silently and returns none: what it met before rewards existed stays unpaid. */
 export function evaluateMilestones(game) {
-  const reached = game.milestones ??= {}, day = Math.floor(game.day);
-  for (const milestone of MILESTONES) if (!owns(reached, milestone.id)) { const { value, target } = milestone.progress(game); if (value >= target) reached[milestone.id] = day; }
+  const backfill = game.milestones === undefined, reached = game.milestones ??= {}, day = Math.floor(game.day), fresh = [];
+  for (const milestone of MILESTONES) if (!owns(reached, milestone.id)) { const { value, target } = milestone.progress(game); if (value >= target) { reached[milestone.id] = day; fresh.push(milestone); } }
+  return backfill ? [] : fresh;
 }
+/** A milestone's reward at the prices of `day`. */
+export const milestoneReward = (game, milestone, day = game.day) => priceFor(game, milestone.reward, day);
 
 /** Ids met right now, stamped or not: what a first evaluation would backfill. */
 export function metMilestones(game) { return MILESTONES.filter(milestone => { const { value, target } = milestone.progress(game); return value >= target; }).map(milestone => milestone.id); }

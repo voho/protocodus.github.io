@@ -1,7 +1,7 @@
 import { terrainLevel, TERRAIN_LEVELS, landHeightLevel, LAND_HEIGHT_LEVELS } from './terrain-elevation.js';
 import { industryContains, industrySize } from './industry-sites.js';
 import { buildingAt, buildingSize } from './building-sites.js';
-import { tileSurface, surfaceHeight } from './terrain-geometry.js';
+import { tileSurface, surfaceHeight, previewVertexHeights } from './terrain-geometry.js';
 import { stationSiteAt, stationTiles } from './station-sites.js';
 
 export const SPAN_TOOLS = new Set(['bridge', 'railbridge', 'tunnel', 'railtunnel']);
@@ -75,13 +75,14 @@ export function plotLevelPlan(game,x,y,size){
   for(const level of [...new Set(corners.map(c=>c.height))].filter(h=>h>=1).sort((a,b)=>steps(a)-steps(b)||a-b)){
     if(corners.some(c=>c.fixed&&c.height!==level))continue;
     const placements=corners.filter(c=>c.height!==level).map(({x,y})=>({x,y,level}));
-    const updates=new Map(placements.map(p=>[String(p.y*game.width+p.x),{...tileAt(game,p.x,p.y),elevation:p.level/LAND_HEIGHT_LEVELS}]));
-    const changed={...game,tiles:new Proxy(game.tiles,{get:(tiles,key)=>updates.get(key)??Reflect.get(tiles,key)})};
-    if(corners.some(c=>surfaceHeight(changed,c.x,c.y)!==level))continue;
+    // Keyed by tile index, as the height field reads tiles; a corner on the map's far edge keys the next row, as it always has.
+    const updates=new Map(placements.map(p=>[p.y*game.width+p.x,{...tileAt(game,p.x,p.y),elevation:p.level/LAND_HEIGHT_LEVELS}]));
+    const changed=previewVertexHeights(game,Math.max(0,x-reach),Math.max(0,y-reach),Math.min(game.width,x+size+reach),Math.min(game.height,y+size+reach),index=>updates.get(index));
+    if(corners.some(c=>changed(c.x,c.y)!==level))continue;
     let settles=false;
     for(let v=y-reach;v<=y+size+reach&&!settles;v++)for(let u=x-reach;u<=x+size+reach;u++){
       if(u>=x&&v>=y&&u<=x+size&&v<=y+size||!fixed(u,v))continue;
-      if(surfaceHeight(game,u,v)!==surfaceHeight(changed,u,v)){settles=true;break;}
+      if(surfaceHeight(game,u,v)!==changed(u,v)){settles=true;break;}
     }
     if(!settles)return placements;
   }

@@ -281,7 +281,7 @@ try {
   assert.equal(freight.ok, true, freight.message);
   await page.waitForTimeout(600);
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 30); });
-  await waitForToast(page, /^First stone delivered on Quarry line · \+\$[\d,]+ · Milestone$/, from);
+  await waitForToast(page, /^First stone delivered on Quarry line · \+\$[\d,]+ · Goal reached, \+\$[\d,]+ reward$/, from);
   await page.evaluate(async () => { const { tick } = await import('./model.js'); tick(transport.game, 20); });
   await page.waitForTimeout(900);
   const firsts = (await toastsSince(page, from)).filter(toast => /^First stone/.test(toast.text));

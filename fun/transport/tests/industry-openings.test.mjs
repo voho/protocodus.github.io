@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { addRoute, build, buildPath, tick, validateGame, createGame, restoreGame, openIndustry, STATION_RADIUS } from '../model.js';
 import { encodeGame } from '../save-codec.js';
 import { planIndustryOpening, openingCeiling, openedCount, hasCarriedFreight, OPENINGS } from '../industry-openings.js';
-import { industrySiteProblem, industrySpacingProblem, industryDistance, industrySize } from '../industry-sites.js';
+import { industrySiteProblem, worldSpacingProblem, industryDistance, industrySize } from '../industry-sites.js';
 import { buildingAt } from '../building-sites.js';
 import { groupNotices } from '../ui-notices.js';
 import { calendarMonth } from '../economy-pricing.js';
@@ -47,7 +47,7 @@ function assertRules(game, site) {
   }
   let low = Infinity, high = -Infinity; for (let v = site.y; v <= site.y + size; v++) for (let u = site.x; u <= site.x + size; u++) { const h = surfaceHeight(game, u, v); low = Math.min(low, h); high = Math.max(high, h); }
   assert.ok(high - low <= 1, 'gentle ground');
-  assert.equal(industrySpacingProblem(game, site.kind, site.x, site.y, size, game.industries.filter(other => other !== site)), null, 'no twin or trading partner too close');
+  assert.equal(worldSpacingProblem(game, site.kind, site.x, site.y, size, game.industries.filter(other => other !== site)), null, 'no twin, rival or trading partner too close');
 }
 
 test('no opening before January 1952 or before any freight delivery', () => {

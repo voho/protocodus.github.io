@@ -43,7 +43,7 @@ test('unfinished industries explain opening dates and a prepared route waits wit
   const status=industryStatus(buyer,game);
   assert.equal(status.state,'construction');assert.equal(status.word,'Under construction');
   assert.deepEqual(status.missing,[],'a closed factory does not ask for ingredients yet');
-  assert.match(status.detail,/opens .*connection can be prepared/);
+  assert.match(status.detail,/opens .*link can be prepared/);
   let health=routeHealth(game,route);
   assert.deepEqual([health.state,health.tone,health.word,health.waiting,health.capacity],['waiting','info','Supplier being built',0,24]);
   assert.match(health.detail,/once construction finishes/);

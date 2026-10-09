@@ -1,6 +1,6 @@
 import { INDUSTRIES, TOWN_CARGO } from './data.js';
 import { randomAt } from './environment.js';
-import { industryFootprint, industrySiteProblem, industrySpacingProblem, industryDistance, industrySize } from './industry-sites.js';
+import { industryFootprint, industrySiteProblem, worldSpacingProblem, industryDistance, industrySize } from './industry-sites.js';
 import { buildingAt } from './building-sites.js';
 import { nearbyCities, nearbyIndustries, nearbyStations } from './simulation-spatial.js';
 import { surfaceHeight } from './terrain-geometry.js';
@@ -65,7 +65,7 @@ export function openingSiteProblem(game, kind, x, y) {
   if (nearbyCities(game, cx, cy, O.nearTown + 3).some(city => Math.max(x - city.x, city.x - (x + size - 1), y - city.y, city.y - (y + size - 1)) < O.nearTown)) return 'town';
   if (nearbyStations(game, cx, cy, LEGACY_STATION_RADIUS + 3).some(stop => stop.mode !== 'air' && industryDistance(site, stop) <= stationReach(stop))) return 'stop';
   const neighbours = nearbyIndustries(game, cx, cy, O.localRadius + 4), center = { x: cx, y: cy };
-  if (industrySpacingProblem(game, kind, x, y, size, neighbours)) return 'spacing';
+  if (worldSpacingProblem(game, kind, x, y, size, neighbours)) return 'spacing';
   if (neighbours.filter(other => industryDistance(other, center) <= O.localRadius).length >= O.localCap) return 'crowded';
   // Industry surveys reach four tiles and settlement surveys three: no new pollution reaches anyone.
   if (neighbours.some(other => Math.max(other.x - (x + size - 1), x - (other.x + industrySize(other) - 1), other.y - (y + size - 1), y - (other.y + industrySize(other) - 1)) <= O.siteGap)) return 'margin';

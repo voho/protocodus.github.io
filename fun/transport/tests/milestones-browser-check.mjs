@@ -47,7 +47,7 @@ try {
   await page.evaluate(async id => { const { tick } = await import('./model.js'), g = transport.game, route = g.routes.find(r => r.id === id); for (let d = 0; d < 80 && !route.delivered; d++) tick(g, 1); }, route);
   await settle(page);
   const first = await toasts(page, /^First stone delivered/);
-  assert.equal(first.length, 1);assert.match(first[0].text, / · Milestone$/);assert.match(first[0].type, /milestone/);
+  assert.equal(first.length, 1);assert.match(first[0].text, / · Goal reached, \+\$10,\d{3} reward$/);assert.match(first[0].type, /milestone/);
   assert.ok(await page.evaluate(() => Number.isInteger(transport.game.milestones['first-freight'])));
   assert.deepEqual(await toasts(page), first, 'no separate first-freight toast');
   // The hundredth delivery in the same month is recorded without another toast.
@@ -62,7 +62,7 @@ try {
   await page.evaluate(() => { transport.game.cities[0].population = 2100; });
   await days(page, 1);await settle(page);
   let celebrated = (await toasts(page)).slice(before);
-  assert.deepEqual(celebrated.map(toast => toast.text), ['Milestone · A town of 2,000']);
+  assert.equal(celebrated.length, 1);assert.match(celebrated[0].text, /^Goal reached · A town of 2,000, \+\$1\d{2},\d{3} reward$/);
   assert.match(celebrated[0].type, /milestone/);assert.equal(celebrated[0].action, 'Goals');
   await page.screenshot({ path: `${output}/desktop-toast.png` });
   // A second milestone that month waits in News and Company goals instead.
@@ -76,7 +76,7 @@ try {
   const months = celebrated.map(toast => month(toast.day));assert.equal(new Set(months).size, months.length, 'one milestone toast per game month');
   await openGameAction(page, 'news-button');
   await page.locator('.news-list').waitFor();
-  assert.match(await page.locator('.news-item[data-type="milestone"]').first().innerText(), /Milestone · A \$25,000 month/);
+  assert.match(await page.locator('.news-item[data-type="milestone"]').first().innerText(), /Goal reached · A \$25,000 month/);
   await page.locator('.news-item[data-type="milestone"] [data-news-goals]').first().click();
 
   // Company goals lists every chapter with dates and progress; the map card never names chapters.

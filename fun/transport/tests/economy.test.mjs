@@ -358,7 +358,8 @@ test('below zero the monthly warning points to the loan, and borrowing ends a so
   assert.equal(borrow(game).ok, true);
   const launched = addRoute(game, { name: 'Forest supply', mode: 'road', stops, cargo: 'timber' });
   assert.equal(launched.ok, true, launched.message);
-  game.money = -5000;
+  // Far enough below zero that the first delivery's goal reward cannot lift the month out of it.
+  game.money = -50000;
   tick(game, 32);
   const warning = game.notifications.find(notice => notice.topic === 'credit');
   assert.ok(warning, 'a month closed below zero warns');

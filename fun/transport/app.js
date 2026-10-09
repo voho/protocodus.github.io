@@ -69,7 +69,7 @@ import { mountVisibility } from './visibility-view.js';
 import { townService, industryStatus, routeHealth, nextProject } from './gameplay-insights.js';
 import { collectNotices, groupNotices, crossedMilestone, newYearNotice, toastType } from './ui-notices.js';
 import { createToastLifetime } from './ui-toast-lifetime.js';
-import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText } from './milestones.js';
+import { MILESTONES, CHAPTERS, milestoneChapters, metMilestones, progressText, milestoneReward } from './milestones.js';
 import { contractState, contractSites } from './contracts.js';
 import { loanTerms, borrow, repay } from './model.js';
 import { CAREER_TITLES, RATING_PARTS, MIN_RATED_FLEET, careerTitle, nextTitle, nextReviewDay, companyValue, partTarget } from './company-rating.js';
@@ -79,7 +79,7 @@ import { routeCapacity } from './gameplay-insights.js';
 import { cargoName } from './copy.js';
 import { creditToast } from './ui-notices.js';
 import { HEADLINE_PRIORITY, headlineKicker, headlineWatch, detectHeadlines, headlineTier, townHeadline, recordHeadline } from './headlines.js';
-import { ACHIEVEMENTS, TIER_NAMES, achievementById, drainAchievementUnlocks, earnedCount } from './achievements.js';
+import { ACHIEVEMENTS, TIER_NAMES, achievementById, achievementPrize, drainAchievementUnlocks, earnedCount } from './achievements.js';
 import { renderAchievements, medalIcon } from './achievements-view.js';
 import { achievementNotices } from './ui-notices.js';
 import { networkTotals } from './model.js';
@@ -394,14 +394,16 @@ function renderGoal() {
  const project=nextProject(game,{source:goalChoice}),steps=project.steps||[],current=steps.findIndex(step=>!step.done),collapsed=goalFolded||(!steps.length&&!goalOpen),visible=mapLayers.goal!==false;
  if(goalSeen===null||visible&&!collapsed){goalSeen=project.title;goalChanged=false;}else if(project.title!==goalSeen)goalChanged=true;
  const currentStep=steps[current],currentLabel=currentStep?.id==='deliver'?(speed===0?'Resume time for the first delivery':'Let the route make its first delivery'):currentStep?.label||'All steps';
- const signature=[project.title,project.detail,project.summaryTemplate,currentLabel,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen,goalChanged,visible].join('|');
+ // An open goal's reward shows at today's prices; onboarding steps name the goal they complete.
+ const rewarding=MILESTONES.find(item=>item.id===(project.milestone??project.reward)&&game.milestones?.[item.id]===undefined),rewardHTML=rewarding?` <span class="objective-reward" data-num>${money(milestoneReward(game,rewarding))} reward</span>`:'';
+ const signature=[project.title,project.detail,project.summaryTemplate,rewarding?.id,pricingYear,currentLabel,steps.map(step=>`${step.done}${step.label}${step.button}`).join(),current,project.progress?.value,project.choice,project.choices?.length,collapsed,goalOpen,goalChanged,visible].join('|');
  if(signature===goalSignature)return;goalSignature=signature;
  const card=$('#objective-card');card.hidden=!visible;card.classList.toggle('collapsed',collapsed);card.classList.toggle('open',goalOpen&&!collapsed);card.classList.toggle('changed',goalChanged);
- $('#objective-chip-title').textContent=project.title;$('#objective-title').textContent=project.title;$('#objective-detail').textContent=project.detail;$('#objective-detail').hidden=steps.length>0;$('#objective-title').title=steps.length?project.detail:'';
+ $('#objective-chip-title').textContent=project.title;$('#objective-title').textContent=project.title;$('#objective-detail').innerHTML=escapeHTML(project.detail)+rewardHTML;$('#objective-detail').hidden=steps.length>0;$('#objective-title').title=steps.length?project.detail:'';
  const figure=project.figure||'';$('#objective-chip-figure').textContent=figure;$('#objective-chip-figure').hidden=!figure;
  $('#objective-chip-progress').hidden=!project.progress;$('#objective-chip-progress').style.width=(project.progress?Math.min(1,project.progress.value/project.progress.max)*100:0)+'%';
  $('#objective-summary').hidden=!project.summaryTemplate;
- const summaryHTML=project.summaryTemplate?renderTemplate(project.summaryTemplate,game):'';
+ const summaryHTML=project.summaryTemplate?renderTemplate(project.summaryTemplate,game)+rewardHTML:'';
  // A live step or speed update must not replace a keyboard-focused map reference.
  if(summaryHTML!==goalSummaryHTML){$('#objective-summary').innerHTML=summaryHTML;goalSummaryHTML=summaryHTML;}
  $('#objective-current').textContent=currentLabel;
@@ -1361,6 +1363,8 @@ function updateHud() {
  $('#balance-exact').textContent=(game.money<0?'−':'')+money(game.money);$('#profit-exact').textContent=(profit>=0?'+':'−')+money(profit);
  $('#income-exact').textContent=money((game.monthlyIncome||0)-(game.monthlyIncomeAtAccountingStart||0));$('#running-exact').textContent=money(game.monthlyOperatingExpenses||0);
  $('#building-exact').textContent=money(Math.max(0,(game.monthlyExpenses||0)-(game.monthlyOperatingExpenses||0)));
+ // Goal rewards and medal prizes this month: cash beside the fares, never part of operating profit.
+ $('#rewards-row').hidden=!(game.monthlyRewards>0);$('#rewards-exact').textContent='+'+money(game.monthlyRewards||0);
  const lastProfit=game.history.at(-1)?.operatingProfit;$('#previous-profit').textContent=Number.isFinite(lastProfit)?(lastProfit>=0?'+':'−')+money(lastProfit):'—';
  const marketBonus=game.history.at(-1)?.marketBonus||0;$('#market-bonus-row').hidden=!(marketBonus>0);$('#market-bonus-exact').textContent=money(marketBonus);
  // Rent from your property: last month's in the finances card, and the first ever as one toast; a saved total keeps a reload from replaying it.
@@ -1852,6 +1856,8 @@ function markSaveFailed(){
 function saveRecovered(){saveHealthy=true;$('#save-status').classList.remove('save-failed');$('#game-menu-button')?.removeAttribute('data-alert');$('#game-menu-button')?.setAttribute('aria-label','Game menu');[...$('#toast-region').children].find(el=>el.toastKey==='autosave-failed')?.dismissToast();toast('Autosave is working again.');}
 function cancelPendingSave(){clearTimeout(constructionSaveTimer);constructionSaveTimer=0;const job=pendingSave;pendingSave=null;capturingSave=false;job?.controller.abort();}
 function saveFinished(world,day,revision){savedWorld=world;savedDay=day;savedRevision=revision;saveAt=performance.now();noteAutosaveTime();$('#save-status').textContent='Saved just now';if(!saveHealthy)saveRecovered();}
+// Autosave scans every tile to find changes: every 20 seconds up to 2048², proportionally less often on larger maps.
+function autosaveInterval(){return 20000*Math.max(1,game.tiles.length/(2048*2048));}
 function persist(notify=false){
  saveAt=performance.now();
  if(pendingSave){pendingSave.again=true;pendingSave.notify||=notify;return pendingSave.promise;}
@@ -2137,7 +2143,8 @@ function watchRoutes() {
   if(!(route.delivered>0&&firstDeliveryPending.delete(route.id)))continue;
   // The company's first freight delivery is also its first milestone; one toast says both.
   const first=!seenMilestones.has('first-freight');if(first){seenMilestones.add('first-freight');milestoneMonth=monthOf(game.day);}
-  noticeQueue.push({message:`First ${CARGO[route.cargo].name.toLowerCase()} delivered on ${route.name} · +${money(route.revenue)}${first?' · Milestone':''}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
+  const goal=first&&game.milestones?.['first-freight']!==undefined?MILESTONES.find(item=>item.id==='first-freight'):null;
+  noticeQueue.push({message:`First ${CARGO[route.cargo].name.toLowerCase()} delivered on ${route.name} · +${money(route.revenue)}${goal?` · Goal reached, +${money(milestoneReward(game,goal,game.milestones['first-freight']))} reward`:first?' · Milestone':''}`,type:'milestone',targets:[{kind:'route',id:route.id}]});
  }
 }
 function watchTowns(activeStops) {
@@ -2157,7 +2164,7 @@ function watchMilestones() {
  for(const milestone of MILESTONES){
   const day=game.milestones[milestone.id];if(day===undefined||seenMilestones.has(milestone.id))continue;seenMilestones.add(milestone.id);
   if(monthOf(day)<=milestoneMonth)continue;milestoneMonth=monthOf(day);
-  noticeQueue.push({message:`Milestone · ${milestone.title}`,type:'milestone',action:{label:'Goals',run:openGoals}});
+  noticeQueue.push({message:`Goal reached · ${milestone.title}, +${money(milestoneReward(game,milestone,day))} reward`,type:'milestone',action:{label:'Goals',run:openGoals}});
  }
 }
 function monthOf(day) { const date=new Date(Date.UTC(1950,0,1+Math.floor(day)));return date.getUTCFullYear()*12+date.getUTCMonth(); }
@@ -2173,7 +2180,7 @@ function openNews() {
  const since=game.notifications.length>=24?Math.floor(game.notifications.at(-1).day):-Infinity,reached=new Map();
  for(const milestone of MILESTONES){const day=game.milestones?.[milestone.id];if(day>=since){if(!reached.has(day))reached.set(day,[]);reached.get(day).push(milestone.title);}}
  const titles=list=>list.length>3?`${list.slice(0,3).join(', ')} and ${list.length-3} more`:list.length>1?`${list.slice(0,-1).join(', ')} and ${list.at(-1)}`:list[0];
- const notices=[...game.notifications,...[...reached].map(([day,list])=>({day,message:list.length>1?`${list.length} milestones reached: ${titles(list)}`:`Milestone · ${list[0]}`,type:'milestone',goals:true})),...(game.headlines||[]).map(entry=>({...entry,headline:true}))].sort((a,b)=>Math.floor(b.day)-Math.floor(a.day)||(b.headline?1:0)-(a.headline?1:0));
+ const notices=[...game.notifications,...[...reached].map(([day,list])=>({day,message:list.length>1?`${list.length} goals reached: ${titles(list)}`:`Goal reached · ${list[0]}`,type:'milestone',goals:true})),...(game.headlines||[]).map(entry=>({...entry,headline:true}))].sort((a,b)=>Math.floor(b.day)-Math.floor(a.day)||(b.headline?1:0)-(a.headline?1:0));
  // Headlines read as small paper cuttings among the notices; on the same day they come first.
  const headlineItem=(notice,index)=>`<li class="news-item news-headline" data-kind="${escapeHTML(notice.kind)}"><span class="headline-art" aria-hidden="true">${icon(headlineArt(notice.art))}</span><div><p class="headline-kicker"><span>${escapeHTML(headlineKicker(notice.kind))}</span><time>${date(notice.day)}</time></p><h3 class="prose">${escapeHTML(notice.title)}</h3>${notice.detail?`<p class="prose">${escapeHTML(notice.detail)}</p>`:''}</div>${noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;
  const items=notices.map((notice,index)=>{if(notice.headline)return headlineItem(notice,index);const type=toastType(notice.type);return `<li class="news-item" data-type="${type}">${icon(type==='ok'||type==='milestone'?'check':'warning')}<div><time>${date(notice.day)}</time><p>${notice.template?renderTemplate(notice.template,game):escapeHTML(notice.message)}</p></div>${notice.goals?'<button class="small-button" data-news-goals>Goals</button>':noticeTargetExists(notice.target)?`<button class="small-button" data-news-target="${index}">Show</button>`:''}</li>`;}).join('');
@@ -2184,13 +2191,13 @@ function openNews() {
  $('[data-news-company]').addEventListener('click',()=>openCompany());
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
-// Company goals: every chapter with the dates reached and live progress. Nothing here is required or rewarded.
+// Company goals: every chapter with the dates reached, live progress and each open goal's reward. Nothing here is required.
 function openGoals() {
  const date=day=>new Date(Date.UTC(1950,0,1+Math.floor(day))).toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}),next=nextProject(game,{source:goalChoice}).milestone;
  const groups=milestoneChapters(game),current=groups.find(chapter=>chapter.items.some(item=>item.milestone.id===next))||groups.find(chapter=>!chapter.complete)||groups.at(-1);
- const row=({milestone,reached,progress,done})=>{const text=progress&&!done?progressText(milestone,progress):'';return `<li class="goal-row${done?' done':''}">${done?icon('check'):'<span class="goal-dot" aria-hidden="true"></span>'}<div><strong>${escapeHTML(milestone.title)}</strong><small>${reached!==null?`Reached ${date(reached)}`:done?'Reached today':escapeHTML(milestone.detail)}</small>${text?`<span class="goal-meter"><span><span style="width:${Math.min(100,progress.value/progress.target*100)}%"></span></span>${escapeHTML(text)}</span>`:''}${milestone.id===next?'<em>Next goal</em>':''}</div>${done?'':`<button class="button button-outline" data-goal-action="${milestone.id}">${escapeHTML(milestone.button)}</button>`}</li>`;};
+ const row=({milestone,reached,progress,done})=>{const text=progress&&!done?progressText(milestone,progress):'';return `<li class="goal-row${done?' done':''}">${done?icon('check'):'<span class="goal-dot" aria-hidden="true"></span>'}<div><strong>${escapeHTML(milestone.title)}</strong><small>${reached!==null?`Reached ${date(reached)}`:done?'Reached today':escapeHTML(milestone.detail)}</small>${text?`<span class="goal-meter"><span><span style="width:${Math.min(100,progress.value/progress.target*100)}%"></span></span>${escapeHTML(text)}</span>`:''}${done?'':`<span class="goal-reward" data-num>Reward ${money(milestoneReward(game,milestone))}</span>`}${milestone.id===next?'<em>Next goal</em>':''}</div>${done?'':`<button class="button button-outline" data-goal-action="${milestone.id}">${escapeHTML(milestone.button)}</button>`}</li>`;};
  const chapters=groups.map(chapter=>`<section class="goal-chapter${chapter.complete?' complete':''}" data-goal-chapter="${chapter.chapter}"${chapter===current?'':' hidden'}><header><div><span class="eyebrow">Chapter ${chapter.chapter} of ${CHAPTERS.length}</span><h3>${escapeHTML(chapter.title)}</h3></div><span class="goal-count">${chapter.done} / ${chapter.items.length}</span></header><ol class="goal-list">${chapter.items.map(row).join('')}</ol></section>`).join('');
- closeManagement();openModal(`<div class="modal-inner goals-dialog"><div class="modal-heading"><div><h2>Company goals</h2><p>Optional milestones. Choose any order.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div><nav class="modal-tabbar" aria-label="Goal chapters">${groups.map(chapter=>`<button class="button button-outline ${chapter===current?'active':''}" data-goal-tab="${chapter.chapter}" aria-pressed="${chapter===current}" title="${escapeHTML(chapter.title)}">${['Start','Network','Towns','Empire'][chapter.chapter-1]}</button>`).join('')}</nav><div class="goal-chapters">${chapters}</div><div class="modal-actions"><button class="button button-outline" data-goals-company>${icon('company')} Company</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ closeManagement();openModal(`<div class="modal-inner goals-dialog"><div class="modal-heading"><div><h2>Company goals</h2><p>Optional challenges in any order. Each pays a one-off reward.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div><nav class="modal-tabbar" aria-label="Goal chapters">${groups.map(chapter=>`<button class="button button-outline ${chapter===current?'active':''}" data-goal-tab="${chapter.chapter}" aria-pressed="${chapter===current}" title="${escapeHTML(chapter.title)}">${['Start','Network','Towns','Empire'][chapter.chapter-1]}</button>`).join('')}</nav><div class="goal-chapters">${chapters}</div><div class="modal-actions"><button class="button button-outline" data-goals-company>${icon('company')} Company</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $$('[data-goal-tab]').forEach(button=>button.addEventListener('click',()=>{
   $$('[data-goal-chapter]').forEach(chapter=>{chapter.hidden=chapter.dataset.goalChapter!==button.dataset.goalTab;});
   $$('[data-goal-tab]').forEach(tab=>{const active=tab===button;tab.classList.toggle('active',active);tab.setAttribute('aria-pressed',String(active));});
@@ -2205,9 +2212,9 @@ function openGoals() {
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
 
-// Achievements (achievements.js): long-term records that change nothing. The dialog only reads, and like every dialog it pauses.
+// Achievements (achievements.js): long-term records, each medal paying a prize. The dialog only reads, and like every dialog it pauses.
 function openAchievements() {
- closeManagement();openModal(`<div class="modal-inner achievements-dialog"><div class="modal-heading"><div><h2>Achievements</h2><p>Your company’s long-term records.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${renderAchievements(game,{served:activeCities(game),network:networkTotals(game)})}<div class="modal-actions"><button class="button button-outline" data-achievement-goals>${icon('check')} Company goals</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
+ closeManagement();openModal(`<div class="modal-inner achievements-dialog"><div class="modal-heading"><div><h2>Achievements</h2><p>Your company’s long-term records. Each medal pays a prize.</p></div><button class="close-modal" aria-label="Close dialog">${icon('close')}</button></div>${renderAchievements(game,{served:activeCities(game),network:networkTotals(game)})}<div class="modal-actions"><button class="button button-outline" data-achievement-goals>${icon('check')} Company goals</button><button class="button button-primary" data-close>Back to game ${icon('arrow')}</button></div></div>`);
  $('[data-achievement-goals]').addEventListener('click',openGoals);
  $('#modal .close-modal')?.focus({preventScroll:true});
 }
@@ -2219,11 +2226,12 @@ function queueAchievements(ids) {
  const toasts=[];
  for(const id of ids){
   const a=achievementById(id);if(!a||id==='years-100'&&game.performance?.century)continue;
-  if((a.tier==='gold'||a.tier==='platinum')&&announceHeadline({key:`achievement:${id}:${a.tier}`,kind:'achievement',art:'achievements',day:game.achievements.unlocked[id],title:`${TIER_NAMES[a.tier]} achievement: ${a.title}`,detail:a.detail}))continue;
+  const day=game.achievements.unlocked[id];
+  if((a.tier==='gold'||a.tier==='platinum')&&announceHeadline({key:`achievement:${id}:${a.tier}`,kind:'achievement',art:'achievements',day,title:`${TIER_NAMES[a.tier]} achievement: ${a.title}`,detail:`${a.detail} Prize ${money(achievementPrize(game,a,day))}.`}))continue;
   toasts.push(id);
  }
  const month=toasts.length?monthOf(game.achievements.unlocked[toasts[0]]??game.day):-1;if(month<=achievementMonth)return;achievementMonth=month;
- for(const entry of achievementNotices(toasts))noticeQueue.push({...entry,type:'milestone',paced:true,action:{label:'Open achievements',run:openAchievements}});
+ for(const entry of achievementNotices(toasts,a=>achievementPrize(game,a,game.achievements.unlocked[a.id])))noticeQueue.push({...entry,type:'milestone',paced:true,action:{label:'Open achievements',run:openAchievements}});
 }
 function achievementsLineHTML() { return `<p class="rating-achievements"><span>Achievements</span><strong data-num>${earnedCount(game)} of ${ACHIEVEMENTS.length}</strong><button type="button" class="small-button" data-open-achievements>Open ${icon('chevronRight')}</button></p>`; }
 // Company: the last 36 closed months as sparklines, yearly summaries, routes by net a month and the optional loan.
@@ -2867,7 +2875,7 @@ function frame(now){
  // No world state changes while paused: avoid rescanning millions of tiles to
  // rewrite the same autosave. Explicit saves and page-leave saves still run.
  // Captures block whole world commits, so every committed day phase is safe.
- if(now-saveAt>20000&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
+ if(now-saveAt>autosaveInterval()&&!saveDialogController){if(savedWorld!==worldSerial||savedDay!==game.day||savedRevision!==game.revision)persist();else saveAt=now;}
  if(now-panelAt>7000&&!$('.sidebar').inert&&(view==='industry'||view==='towns')&&(panelDay!==game.day||panelRevision!==game.revision)){
   if(!$('#entity-list')?.contains(document.activeElement)&&!panelPress&&now-panelReleasedAt>250)refreshEntities();panelAt=now;panelDay=game.day;panelRevision=game.revision;
  }
