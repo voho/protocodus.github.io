@@ -1189,7 +1189,7 @@ export class Renderer {
     for (const pool of this.lavaPools) for (let j = 0; j < pool.cells.length; j++) if (!explored || explored[pool.cells[j]]) c.rect(pool.cx[j] * 2, pool.cy[j] * 2, 2, 2);
     c.filter = 'blur(1.1px)'; c.fillStyle = '#ff7a26'; c.fill(); c.filter = 'none';
     // The molten surface is already bright: keep most of the light on the surrounding banks.
-    c.globalCompositeOperation = 'destination-out'; c.globalAlpha = .7; c.fill();
+    c.globalCompositeOperation = 'destination-out'; c.globalAlpha = .85; c.fill();
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
   }
 
@@ -1498,8 +1498,9 @@ export class Renderer {
   }
 
   // Screen-space ash-fall in three sparse layers. Gusts integrate analytically, so every mote is a pure
-  // function of the drawn clock and camera: paused frames hold still and nothing depends on fog.
-  drawAsh(ctx, view, clock) {
+  // function of the drawn clock and camera and paused frames hold still. Like the lava, ash only moves
+  // over ground in current vision: remembered and unexplored areas show no live motion.
+  drawAsh(ctx, view, clock, state, visible, left, top) {
     const w = this.width + 40, h = this.height + 40, count = Math.round(Math.min(110, this.width * this.height / 13000));
     if (count <= 0) return;
     const calm = this.reducedMotion?.matches ? .35 : 1;
@@ -1513,6 +1514,10 @@ export class Renderer {
         const seed = first + i, phase = noise(seed, 7, 23) * 6.283;
         const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6 * calm) % w + w) % w - 20;
         const y = ((noise(seed, 5, 19) * h + clock * layer.fall * calm - panY * layer.parallax) % h + h) % h - 20;
+        if (visible) {
+          const cx = Math.floor((x - left) / view.zoom), cy = Math.floor((y - top) / view.zoom);
+          if (cx < 0 || cy < 0 || cx >= state.width || cy >= state.height || !visible[cy * state.width + cx]) continue;
+        }
         ctx.rect(x, y, layer.size, layer.size * .6);
       }
       first += n;
@@ -1633,11 +1638,12 @@ export class Renderer {
     return c;
   }
 
-  // Visibility changes only inside a simulation tick, so frames between ticks skip the comparison.
+  // In the live loop visibility changes only inside a simulation tick, so frames between ticks skip the
+  // comparison; fixtures that edit fog in place (live = false) are compared word by word every frame.
   // Returns whether the fog grids changed.
-  updateFog(state) {
+  updateFog(state, live = false) {
     const visible = state.visible[0], explored = state.explored[0];
-    if (state === this.fogState && state.time === this.fogTime && this.fogVisible) return false;
+    if (live && state === this.fogState && state.time === this.fogTime && this.fogVisible) return false;
     this.fogState = state; this.fogTime = state.time;
     let changed = !this.fogVisible || this.fogVisible.length !== visible.length;
     if (!changed) changed = !sameBytes(visible, this.fogVisible) || !sameBytes(explored, this.fogExplored);
@@ -1691,7 +1697,7 @@ export class Renderer {
       this.byId.clear(); for (const e of state.entities) this.byId.set(e.id, e);
       this.byIdSource = state.entities; this.byIdLength = state.entities.length;
     }
-    const fogChanged = visible && explored ? this.updateFog(state) : false;
+    const fogChanged = visible && explored ? this.updateFog(state, this.blending) : false;
     if (this.heat && (fogChanged || this.heatExplored < 0)) this.updateHeat(state, explored);
     this.readEvents(state, visible);
     this.updateShake(view, clock);
@@ -1704,7 +1710,8 @@ export class Renderer {
     const y0 = Math.max(0, Math.floor(view.y - this.height / zoom / 2) - 3);
     const x1 = Math.min(W, Math.ceil(view.x + this.width / zoom / 2) + 2);
     const y1 = Math.min(state.height, Math.ceil(view.y + this.height / zoom / 2) + 3);
-    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // Sprites leave high-quality smoothing behind; the terrain blit keeps the context default.
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
     rect(ctx, 0, 0, this.width, this.height, '#0e1720');
     ctx.drawImage(this.terrain, left, top, W * zoom, state.height * zoom);
     this.drawDecals(state, visible, time, clock);
@@ -1717,7 +1724,7 @@ export class Renderer {
     this.drawLava(state, visible, time, x0, y0, x1, y1);
     if (this.heat && this.heatExplored > 0) {
       // Low-resolution warm light on explored banks; it never animates, so fog keeps nothing live.
-      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .13; ctx.imageSmoothingEnabled = true;
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .16; ctx.imageSmoothingEnabled = true;
       ctx.drawImage(this.heat, x0 * 2, y0 * 2, (x1 - x0) * 2, (y1 - y0) * 2, x0 * TILE, y0 * TILE, (x1 - x0) * TILE, (y1 - y0) * TILE);
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
     }
@@ -2029,7 +2036,7 @@ export class Renderer {
       ctx.imageSmoothingEnabled = true;
       ctx.drawImage(this.fog, left, top, W * zoom, state.height * zoom);
     }
-    this.drawAsh(ctx, view, clock);
+    this.drawAsh(ctx, view, clock, state, visible, left, top);
     // Screen-space overlays stay crisp at every camera zoom.
     this.drawMissionMarkers(state, view, clock);
     this.drawSiteLabels(state, view, explored);
