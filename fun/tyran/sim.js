@@ -209,9 +209,10 @@ const SALVO_STEP = .12;
 const formationCohesion = new WeakMap(), formationRank = new WeakMap();
 function updateCohesion(s) {
   for (const formation of s.formations) {
-    let rx = 0, ry = 0;
-    for (const offset of formation.offsets) { rx = Math.max(rx, Math.abs(offset.x)); ry = Math.max(ry, Math.abs(offset.y)); }
-    formationCohesion.set(formation, { alive: 0, cx: 0, rx, ry });
+    let cohesion = formationCohesion.get(formation);
+    if (!cohesion) formationCohesion.set(formation, cohesion = {});
+    cohesion.alive = 0; cohesion.cx = 0; cohesion.rx = 0; cohesion.ry = 0;
+    for (const offset of formation.offsets) { cohesion.rx = Math.max(cohesion.rx, Math.abs(offset.x)); cohesion.ry = Math.max(cohesion.ry, Math.abs(offset.y)); }
   }
   for (const enemy of s.enemies) {
     const cohesion = enemy.formation && !enemy.dead && formationCohesion.get(enemy.formation);
