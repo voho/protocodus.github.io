@@ -2282,7 +2282,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
 
   const snowTile = { value: new THREE.Vector2(24.0, 4.0) };
   const snowAlbedo = { value: new THREE.Vector2(0.034, 0.030) };
-  const snowHeight = { value: new THREE.Vector2(0.85, 0.72) };
+  // The plates' relief, powder then corduroy. At 0.85 the powder plate drew
+  // terry cloth around the board under a low sun; 0.6 keeps the sastrugi.
+  const snowHeight = { value: new THREE.Vector2(0.6, 0.72) };
 
   /* WHERE THE TEXTURE COORDINATES COUNT FROM, and why they cannot count from
      the top of the mountain.
@@ -2959,15 +2961,17 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
                at a third of the tile, so the nine-centimetre probe becomes
                a three-centimetre one. A whole-number multiple of the wrapped
                uv stays welded through a re-anchor for the same reason the
-               macro and detail tiles do — see the tile origins. */
+               macro and detail tiles do — see the tile origins. At half the
+               plate's strength it was carpet pile at the board's own range;
+               a fifth leaves the crystals and loses the pile. */
             float n64GrainLive = n64PowderDetail
               * (1.0 - smoothstep(14.0, 34.0, vDist));
             if (n64GrainLive > 0.002) {
               vec2 n64GrainSlope = texture2DGradEXT(uSnowPowder,
                 n64DetailUv * 3.0 + vec2(0.37, 0.61),
                 n64DetailDx * 3.0, n64DetailDy * 3.0).ba * 2.0 - 1.0;
-              n64SlopeX += n64GrainSlope.x * uSnowHeight.x * 0.5 * n64GrainLive;
-              n64SlopeZ += n64GrainSlope.y * uSnowHeight.x * 0.5 * n64GrainLive;
+              n64SlopeX += n64GrainSlope.x * uSnowHeight.x * 0.2 * n64GrainLive;
+              n64SlopeZ += n64GrainSlope.y * uSnowHeight.x * 0.2 * n64GrainLive;
             }
           }
           if (n64GroomDetail * n64SnowMask > 0.002) {
