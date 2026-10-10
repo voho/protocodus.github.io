@@ -6,7 +6,7 @@ import {UNITS,alive,getEntity,unitRole,definition,unitRange,targetDistance,stopU
 
 export const ABILITIES={
   rifle:{id:'digIn',names:{organics:'Dig in',aiUnity:'Brace protocol'},target:'self',duration:10,cooldown:30,damageTaken:.65,holdsPosition:true,
-    description:'Halts and digs in: 35% less damage for 10 seconds while holding position. Any new order ends it.'},
+    description:'Halts and digs in: 35% less damage for 10 seconds while holding position. A move, attack or explore order ends it; Stop keeps it.'},
   rocket:{id:'longShot',names:{organics:'Long shot',aiUnity:'Extended lock'},target:'self',duration:8,cooldown:35,range:3,
     description:'Extends firing and attack-move engagement range by 3 tiles for 8 seconds.'},
   scout:{id:'flare',names:{organics:'Flare',aiUnity:'Sensor probe'},target:'ground',reach:14,radius:7,duration:12,cooldown:40,

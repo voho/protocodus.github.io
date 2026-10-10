@@ -127,7 +127,8 @@ for (let i = 0; i < 10; i++) {
   assert.deepEqual(stateJSON(largeRestored.game), stateJSON(large), 'Expanded maps continue exactly alongside an old operation');
   assert.deepEqual(stateJSON(smallRestored.game), stateJSON(small), 'Old maps retain exact navigation, fog, AI and economy alongside an expanded operation');
 }
-const sizesStorage = {value: null, getItem() { return this.value; }, setItem(key, value) { this.value = value; }};
+// Keyed like localStorage: the save slot shares the store with its small metadata entry.
+const sizesStorage = {values: new Map(), getItem(key) { return this.values.get(key) ?? null; }, setItem(key, value) { this.values.set(key, value); }};
 for (const match of [large, small, large, small]) {
   assert(saveGame(match, {}, sizesStorage).ok); const restored = loadGame(sizesStorage); assert(restored.ok);
   assert.deepEqual(stateJSON(restored.game), stateJSON(match), 'The same browser slot can alternate map sizes');
