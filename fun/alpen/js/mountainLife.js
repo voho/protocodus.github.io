@@ -329,21 +329,61 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   };
   shading.apply(figureMat, { sheen: 1 });
 
+  /* The body is turned, not stacked. A cylinder is a rectangle in silhouette
+     from every side, and a figure built of them read as a pile of crates at
+     the distance one rider passes another. The torso, the yoke over it, the
+     hips and every limb are lathes now: a jacket that swells at the chest and
+     rounds over the shoulders, a pelvis rounded underneath, and limbs that
+     taper and end in round joints. Each keeps the length and end radii of
+     the cylinder it replaces, so every part still sits where the layouts
+     below put it. About a thousand triangles a figure. */
+  const lathe = (profile, seg) => new THREE.LatheGeometry(
+    profile.map(([r, y]) => new THREE.Vector2(r, y)), seg,
+  );
+  // A tapered capsule inside the cylinder's own length: round ends of about
+  // their own radius, so a knee or an elbow is two balls overlapping.
+  const limb = (rTop, rBottom, h, seg = 8) => {
+    const half = h / 2;
+    const end = (r, sign) => [0, 0.5, 0.866].map((s, k) => [
+      r * s, sign * (half - Math.min(r, half * 0.45) * (1 - [1, 0.866, 0.5][k])),
+    ]);
+    return lathe([...end(rBottom, -1), [rBottom, -half + Math.min(rBottom, half * 0.45)],
+      [rTop, half - Math.min(rTop, half * 0.45)], ...end(rTop, 1).reverse()], seg);
+  };
+  // The jacket, hem to collar, against the 0.58 m cylinder it replaces.
+  const TORSO = [[0, -0.29], [0.235, -0.285], [0.25, -0.24], [0.243, -0.12],
+    [0.248, 0], [0.25, 0.10], [0.24, 0.18], [0.215, 0.235], [0.17, 0.272],
+    [0.12, 0.29], [0, 0.29]];
+  const torsoAt = (y) => {
+    for (let i = 1; i < TORSO.length; i++) {
+      const [r0, y0] = TORSO[i - 1];
+      const [r1, y1] = TORSO[i];
+      if (y <= y1 && y1 > y0) return r0 + (r1 - r0) * (y - y0) / (y1 - y0);
+    }
+    return TORSO[TORSO.length - 1][0];
+  };
+  // The contrast yoke rides the shoulders 0.19 m up the torso, a few
+  // millimetres proud of it, so it can follow them round instead of
+  // standing off them as a flat-topped band.
+  const YOKE = [0.09, 0.14, 0.18, 0.235, 0.272, 0.29]
+    .map((y) => [torsoAt(y) + 0.008, y - 0.19]);
+
   // Reusable component geometries
   const GEO = {
     // Torso & Body
-    torso: new THREE.CylinderGeometry(0.20, 0.25, 0.58, 10),
-    yoke: new THREE.CylinderGeometry(0.207, 0.221, 0.20, 10),
+    torso: lathe(TORSO, 12),
+    yoke: lathe(YOKE, 12),
     collar: new THREE.CylinderGeometry(0.14, 0.16, 0.10, 10),
     neck: new THREE.CylinderGeometry(0.062, 0.070, 0.11, 8),
     zipper: new THREE.BoxGeometry(0.025, 0.54, 0.04),
-    hip: new THREE.CylinderGeometry(0.21, 0.19, 0.18, 10),
-    thigh: new THREE.CylinderGeometry(0.095, 0.082, 0.40, 8),
-    shin: new THREE.CylinderGeometry(0.080, 0.070, 0.38, 8),
+    hip: lathe([[0, -0.09], [0.13, -0.085], [0.18, -0.06], [0.195, -0.02],
+      [0.205, 0.03], [0.21, 0.09]], 12),
+    thigh: limb(0.095, 0.082, 0.40),
+    shin: limb(0.080, 0.070, 0.38),
     boot: new THREE.BoxGeometry(0.13, 0.15, 0.26),
     bootCuff: new THREE.CylinderGeometry(0.076, 0.076, 0.12, 8),
-    upperArm: new THREE.CylinderGeometry(0.065, 0.055, 0.32, 7),
-    foreArm: new THREE.CylinderGeometry(0.055, 0.048, 0.30, 7),
+    upperArm: limb(0.065, 0.055, 0.32, 7),
+    foreArm: limb(0.055, 0.048, 0.30, 7),
     sleeveCuff: new THREE.CylinderGeometry(0.053, 0.059, 0.075, 7),
     mitten: new THREE.SphereGeometry(0.058, 8, 6),
     head: new THREE.SphereGeometry(0.105, 9, 7),
