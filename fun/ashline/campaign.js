@@ -44,7 +44,7 @@ export const MISSIONS={
       {id:'muster',type:'reachZone',zone:'muster',count:3,label:'Move three units to the muster point'},
       {id:'barracks',type:'build',role:'barracks',count:1,label:'Build a Field barracks'},
       {id:'recruits',type:'train',role:'rifle',count:2,label:'Train two rifle squads'},
-      {id:'range',type:'destroyTagged',tag:'picket',hidden:true,label:'Clear the target range'},
+      {id:'range',type:'destroyTagged',tag:'picket',zone:'range',hidden:true,label:'Clear the target range'},
       {id:'shards',type:'deliver',amount:400,secondary:true,label:'Deliver 400 credits of shards'},
       {id:'depot',type:'protectTagged',tag:'depot',secondary:true,label:'Keep the refinery intact'},
     ],

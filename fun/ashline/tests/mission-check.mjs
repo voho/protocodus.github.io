@@ -203,6 +203,7 @@ for(const broken of [
   {objectives:[{id:'a',type:'survive',label:'x'}]},{objectives:[{id:'a',type:'research',research:'magic',label:'x'}]},{objectives:[{id:'a',type:'kills',label:'x'}]},
   {objectives:[{id:'a',type:'kills',count:1,label:'x'}],allow:{units:['dragon']}},{objectives:[{id:'a',type:'kills',count:1,label:'x'}],fail:[{type:'tagLost'}]},
   {objectives:[{id:'a',type:'deliver',amount:5,mineralType:4,label:'x'}]},{objectives:[{id:'a',type:'kills',count:1,label:'x'}],zones:[{id:'z',label:'',at:'center',r:3}]},
+  {objectives:[{id:'a',type:'destroyTagged',tag:'t',zone:'nowhere',label:'x'}]},
 ]){MISSIONS['check-broken']={id:'check-broken',...broken};assert.throws(()=>createGame('broken','normal',{width:72,height:56,mission:'check-broken'}),/Mission check-broken/);}
 delete MISSIONS['check-broken'];
 

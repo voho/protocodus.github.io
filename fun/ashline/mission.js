@@ -82,7 +82,8 @@ function checkDefinition(def){
   for(const o of def.objectives){
     if(!OBJECTIVE_TYPES.includes(o.type))fail(`unknown objective type ${o.type}`);
     if(!text(o.label,120))fail(`objective ${o.id} needs a label`);
-    if(['holdZone','reachZone','nexusInZone'].includes(o.type))zone(o.zone);
+    // Other objectives may name a zone to mark a briefed target; measuring ignores it.
+    if(['holdZone','reachZone','nexusInZone'].includes(o.type)||o.zone!==undefined)zone(o.zone);
     if(['build','train'].includes(o.type)&&!(o.type==='build'?isBuildingRole:isUnitRole)(o.role))fail(`objective ${o.id} has an unknown role`);
     if(o.roles!==undefined&&!(Array.isArray(o.roles)&&o.roles.every(isUnitRole)))fail(`objective ${o.id} has unknown roles`);
     if(['destroyTagged','protectTagged'].includes(o.type)&&!tag(o.tag))fail(`objective ${o.id} needs a tag`);
@@ -328,6 +329,12 @@ const knownLeft=(m,tag)=>taggedTotal(m,tag)-(m.counters[`seen:${tag}`]||0);
 export const objectiveVoid=(m,id)=>Boolean(m.counters[`void:${id}`]);
 const point=z=>z?{x:z.x,y:z.y}:{};
 const elapsed=(s,m)=>s.time-m.startedAt;
+// Whether the player may already see a zone, by the renderer's rule (Renderer.missionZones): a revealed objective
+// names it, its definition marks it lit or public, it is the deploy zone, or the player has explored its centre.
+function knownZone(s,def,m,id){
+  const z=zoneOf(m,id),spec=(def.zones||[]).find(d=>d.id===id);
+  return Boolean(z&&(spec.lit===true||spec.public===true||def.deployZone===id||def.objectives.some((o,i)=>o.zone===id&&m.objectives[i].revealed)||s.explored[PLAYER][Math.floor(z.y)*s.width+Math.floor(z.x)]));
+}
 // Contested zones broadcast their surroundings to both sides, so holding one never relies on hidden units.
 function lightZones(s,def,m){
   for(const z of def.zones||[]){
@@ -401,8 +408,9 @@ function perform(s,m,def,t,action,wave){
     const scale=team===RIVAL?WAVE_SCALE[s.difficulty]??1:1;
     const list=units.map(([role,count=1,growth=0,from=0])=>{const n=wave<from?0:count+Math.floor(growth*(wave-from)+1e-9);return[role,n>0?Math.max(1,Math.round(n*scale)):0];});
     const origin=at==='fogEdge'?fogEdge(s,team,`${t.id}:${wave}`):at,ids=spawnForces(s,team,list,origin,{order,tag,kills,stance,cap});
-    // Only a named zone is a static mission point; other arrival positions stay unpublished.
-    const arrival=typeof at==='string'?point(zoneOf(m,at)):{};
+    // Only a named zone the player may already see is a static mission point; an alert never points into
+    // unexplored ground at a hidden garrison, and other arrival positions stay unpublished.
+    const arrival=typeof at==='string'&&knownZone(s,def,m,at)?point(zoneOf(m,at)):{};
     if(ids.length)event(s,(text??(team===PLAYER?'Reinforcements have arrived.':'Hostile forces inbound.')).replaceAll('{wave}',String(wave+1)),PLAYER,{kind:team===PLAYER?'mission':'wave',count:ids.length,...arrival});
   }
   if(action.directive){const {team=RIVAL,...d}=action.directive;setDirective(s,team,d);}

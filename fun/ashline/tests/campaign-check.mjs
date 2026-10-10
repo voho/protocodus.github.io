@@ -377,7 +377,25 @@ MISSIONS['check-cap']={id:'check-cap',name:'Cap check',races:['organics','aiUnit
   assert.equal(s.events.filter(e=>e.kind==='wave').at(-1).count,10);
   decodeGame(encodeGame(s));
 }
-delete MISSIONS['check-waves'];delete MISSIONS['check-cap'];
+// A wave names its arrival zone only once the player may see it (a revealed objective's zone, or explored
+// ground), so an alert never points into unexplored ground at a hidden garrison.
+MISSIONS['check-arrival']={id:'check-arrival',name:'Arrival check',races:['organics','aiUnity'],aiTeams:[],start:['standard','none'],
+  zones:[{id:'den',label:'Den',at:'end',r:5},{id:'gate',label:'Gate',at:'center',r:5}],
+  objectives:[{id:'hold',type:'survive',seconds:200,label:'Hold'},{id:'gate',type:'reachZone',zone:'gate',hidden:true,label:'Reach the gate'}],
+  triggers:[
+    {id:'den',when:{time:2,every:4,limit:2},do:[{spawn:{team:1,units:[['rifle',1]],at:'den',text:'Den'}}]},
+    {id:'gate',when:{time:2,every:2,limit:2},do:[{spawn:{team:1,units:[['rifle',1]],at:'gate',text:'Gate'}}]},
+    {id:'open',when:{time:3},do:[{reveal:'gate'}]},
+  ]};
+{
+  const s=createGame('arrival','normal',{width:144,height:112,mission:'check-arrival'}),den=zone(s,'den'),gate=zone(s,'gate');
+  const cell=z=>Math.floor(z.y)*s.width+Math.floor(z.x),arrivals=text=>s.events.filter(e=>e.kind==='wave'&&e.text===text).map(e=>e.x===undefined?null:[e.x,e.y]);
+  assert(!s.explored[0][cell(den)]&&!s.explored[0][cell(gate)]);
+  advance(s,5);s.explored[0][cell(den)]=1;advance(s,2);
+  assert.deepEqual(arrivals('Gate'),[null,[gate.x,gate.y]],'A hidden objective\'s zone is named once the objective is revealed');
+  assert.deepEqual(arrivals('Den'),[null,[den.x,den.y]],'A garrison zone is named once its centre is explored');
+}
+delete MISSIONS['check-waves'];delete MISSIONS['check-cap'];delete MISSIONS['check-arrival'];
 // Authoring errors that saves would refuse are rejected when the operation is created.
 const base={objectives:[{id:'a',type:'kills',count:1,label:'x'}]};
 for(const broken of [
