@@ -2753,9 +2753,16 @@ export function createProps(THREE, shading) {
   /* The last shrub slot becomes a photoscanned stump: forest floor
      furniture where the bramble used to be, same streaming, same bands. It
      keeps the shrubs' no-shadow trade, and being under a metre it never
-     needed the wind. */
+     needed the wind.
+
+     Its height is its own, not the bramble's. The scan is 0.57 m tall and
+     two and a half times that across its roots, and fitted to the bramble's
+     metre it came out 2.6–2.9 m across before the shrubs' own scales
+     (0.6–2.2) took the biggest to six: a white heap the size of a car at the
+     foot of a spruce. Fitted to 0.4 m, the same scales give stumps from a
+     stub of wood to an old-growth bole two and a half metres across. */
   upgrader.upgradeTextured(shrubPools[2], 'tree_stump_01.glb',
-    heightOfGrown(shrubVariants[2]), (map) => photoMat(map, 0.55), 0.06);
+    0.4, (map) => photoMat(map, 0.55), 0.06);
 
   /* --- the young forest and the deadwood --------------------------------
 
