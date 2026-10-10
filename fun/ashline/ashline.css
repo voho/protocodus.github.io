@@ -348,7 +348,7 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
 .objective-locate{grid-column:4;width:26px;height:24px;align-self:center;padding:0;border:1px solid var(--line);background:#8dccca0a;color:var(--accent);font:13px/1 var(--mono)}
 .objective-locate:hover{border-color:var(--accent);background:#8dccca1c}
 @media(pointer:coarse){#objectives-list li:has(.objective-locate){grid-template-columns:14px minmax(0,1fr) auto 36px}.objective-locate{width:36px;height:36px}}
-#objectives-list li.fresh{animation:objective-tick 1.2s ease-out}
+#objectives-list li.fresh,#objectives-toggle.fresh{animation:objective-tick 1.2s ease-out}
 @keyframes objective-tick{0%{background:#8dccca30}100%{background:transparent}}
 #transmission{flex:none;display:grid;gap:3px;padding:8px 10px 9px;border-top:1px solid var(--line);border-left:2px solid var(--amber);background:#0e181dcc}
 #transmission-speaker{font:10px var(--mono);font-weight:400;color:var(--amber);letter-spacing:.4px}
@@ -375,7 +375,7 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
   .objectives{width:320px}
   #notifications{top:calc(var(--top) + var(--edge));left:calc(max(var(--edge),env(safe-area-inset-left)) + 330px);transform:none;max-width:calc(100% - 590px)}
 }
-@media(prefers-reduced-motion:reduce){#objectives-list li.fresh{animation:none}}
+@media(prefers-reduced-motion:reduce){#objectives-list li.fresh,#objectives-toggle.fresh{animation:none}}
 
 /* Pause-menu objective list and the end-of-operation debrief. */
 .menu-objective>ul{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}

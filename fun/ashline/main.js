@@ -33,11 +33,11 @@ let wallPreviewKey = '', wallPreviewAt = 0;
 let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
-// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation
-// and centres the camera on an objective's zone.
-const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => { view.x = x; view.y = y; clampCamera(); } });
 audio.setPaused(true);
 const soundscape = createSoundscape(audio);
+// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation
+// and centres the camera on an objective's zone. A transmission is voiced as it comes on screen.
+const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => centerOn({ x, y }), transmit: line => soundscape.transmission(line) });
 const keys = new Set();
 // Message log, alert history and unit comms are interface state only; none of it enters the save.
 const toasts = [], alerts = [], announcements = new Map();

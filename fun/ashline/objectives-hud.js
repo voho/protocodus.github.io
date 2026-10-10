@@ -78,7 +78,7 @@ function contestLine(s, def) {
 // focus(x, y) centres the camera on a zone; transmit(line) runs as each queued transmission comes on screen
 // (the place for a transmission sound).
 export function createObjectivesHud({ focus, transmit } = {}) {
-  let shownFor = null, structure = '', measured = '', nodes = [], collapsed = matchMedia(COMPACT).matches;
+  let shownFor = null, structure = '', measured = '', nodes = [], collapsed = matchMedia(COMPACT).matches, news = null;
   // Transmissions run on a clock that advances only while the HUD keeps updating, so a line is not used up
   // while the game is paused or the tab is hidden.
   let queue = [], showing = null, clockMs = 0, lastNow = performance.now();
@@ -154,7 +154,7 @@ export function createObjectivesHud({ focus, transmit } = {}) {
 
   function update(s) {
     if (!s) { hide(); return; }
-    if (shownFor !== s) { shownFor = s; structure = ''; done.clear(); queue = []; showing = null; transmission.hidden = true; collapsed = matchMedia(COMPACT).matches; }
+    if (shownFor !== s) { shownFor = s; structure = ''; news = null; done.clear(); queue = []; showing = null; transmission.hidden = true; collapsed = matchMedia(COMPACT).matches; }
     const now = performance.now(), table = objectiveRows(s);
     let items, title, count;
     if (table) {
@@ -173,6 +173,11 @@ export function createObjectivesHud({ focus, transmit } = {}) {
       const steps = required.filter(({ o }) => !o.sufficient), shortcut = required.some(({ o, state }) => o.sufficient && state.state === 'done');
       const finished = shortcut ? steps.length : steps.filter(({ state }) => state.state === 'done').length;
       count = `${finished} / ${steps.length}`;
+      // The message log leaves objective news to the tracker, so a folded tracker flashes its header when an
+      // objective is revealed, completed or failed.
+      const latest = table.rows.map(row => `${row.id}:${row.state}`).join();
+      if (collapsed && news !== null && latest !== news) { toggle.classList.remove('fresh'); void toggle.offsetWidth; toggle.classList.add('fresh'); }
+      news = latest;
     } else {
       const goals = commanderGoals(s);
       if (!goals) { hide(); return; }

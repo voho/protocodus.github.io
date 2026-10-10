@@ -35,6 +35,9 @@ test('event routes give victory a success tone, warnings an alert, and keep chat
   for (const kind of EVENT_KINDS) assert(!('sound' in eventRoute({kind, text: ''})), `${kind} leaves its sound to the soundscape`);
   for (const kind of ['placed', 'walls', 'sold', 'researchStarted', 'upgradeStarted', 'deployed']) assert.equal(eventRoute({kind, text: ''}).toast, false, `${kind} answers a click that already replied`);
   assert.equal(eventRoute({kind: 'dialogue', text: 'Hold.', speaker: 'Range control'}).tone, 'comms');
+  // The objective tracker shows transmissions and objective states; waves and supply drops have no other place.
+  for (const kind of ['dialogue', 'objective', 'objectiveFailed']) assert.equal(eventRoute({kind, text: ''}).toast, false, `${kind} belongs to the tracker`);
+  for (const kind of ['wave', 'mission']) assert.equal(eventRoute({kind, text: ''}).toast, true, `${kind} is logged`);
   const brownout = eventRoute({kind: 'power', status: 'brownout', text: 'Power shortage: defenses offline; production, research, and repairs slowed. Build reactors.'});
   assert.equal(brownout.toast, false, 'The HUD raises its own low-power warning');
   assert.equal(eventRoute({text: 'Capacitor reserve engaged. Restore power before it empties.'}).tone, 'caution');

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGame, updateGame, addEntity} from '../sim.js';
-import {createSoundscape, placeCue, eventKind} from '../soundscape.js';
+import {createSoundscape, placeCue, eventKind, speakerVoice} from '../soundscape.js';
 import {RECIPES} from '../soundbank.js';
 
 // A stand-in for audio.js that records every request.
@@ -136,7 +136,7 @@ test('per-tick scanning hears one-tick shots in multi-tick frames and merges the
   assert(weapons.some(call => call.name === 'organics.rifle') && weapons.some(call => call.name === 'aiUnity.rifle'));
 });
 
-test('typed events drive stingers, voices and transmissions; text-only events from older saves still route', () => {
+test('typed events drive stingers and voices; text-only events from older saves still route', () => {
   const s = field(), {audio, scape, frame, advance} = rig(s);
   const say = (kind, extra = {}, team = 0) => s.events.push({text: extra.text || kind, team, time: s.time, kind, ...extra});
   // A promotion sounds only with its victim's loss logged right after it, on a tile in sight.
@@ -152,7 +152,7 @@ test('typed events drive stingers, voices and transmissions; text-only events fr
   for (const name of ['alert.underAttack', 'alert.research', 'alert.upgrade', 'alert.promotion', 'alert.powerDown', 'alert.objectiveNew', 'alert.objectiveFailed', 'alert.wave', 'alert.warning'])
     assert(names.includes(name), `${name} plays`);
   assert.equal(names.filter(name => name === 'alert.underAttack').length, 1, 'Rival-team events are not announced');
-  assert(calls.some(call => call.type === 'voice' && /^voice\.unity\.\w+\.transmission$/.test(call.name)), 'A Unity speaker transmits as a data chirp');
+  assert(!calls.some(call => /\.transmission$/.test(call.name)), 'Dialogue waits for the tracker to show it');
   assert(calls.every(call => call.pan === undefined || call.type === 'voice'), 'Alerts are centred');
   advance(3);
   say('objective', {text: 'Objective complete: Hold the ridge'}); say('power', {status: 'stable'});
@@ -164,6 +164,24 @@ test('typed events drive stingers, voices and transmissions; text-only events fr
   assert.equal(eventKind({text: 'Shard delivery: +120 credits'}), 'delivery');
   assert.equal(eventKind({text: 'Hostile nexus destroyed'}), '', 'Rival losses never sound like your own');
   assert.equal(eventKind({text: 'Tank lost', kind: 'unitLost'}), 'unitLost');
+});
+
+test('transmissions are voiced as the tracker shows them, each speaker in one voice', () => {
+  const s = field(), {audio, scape, frame} = rig(s);
+  s.events.push({text: 'Claim rejected.', team: 0, time: 0, kind: 'dialogue', speaker: 'Unity'});
+  scape.tick(s); frame();
+  assert.deepEqual(audio.take(), [], 'The event itself is silent, so a line is never heard twice');
+  assert.equal(scape.transmission({speaker: 'Unity', text: 'Claim rejected.'}), true);
+  assert.deepEqual(audio.take().map(call => [call.type, call.name]), [['voice', 'voice.unity.constructor.transmission']]);
+  const cast = {'Cmdr. Vale': 'human', 'Chief Orrun-Tesk': 'vael', 'Auditor Kade': 'human', 'Captain Dace Mor': 'human', 'Unity': 'unity', 'Range control': 'human', 'Command': 'human'};
+  for (const [speaker, family] of Object.entries(cast)) {
+    const voices = new Set(['First line.', 'A second, longer line.', 'Third.'].map(text => speakerVoice(speaker, text).key.split('.').slice(0, 3).join('.')));
+    assert.equal(voices.size, 1, `${speaker} keeps one voice`);
+    assert.equal([...voices][0].split('.')[1], family, `${speaker} speaks as ${family}`);
+  }
+  assert.notEqual(speakerVoice('Cmdr. Vale', 'Hold.').key, speakerVoice('Auditor Kade', 'Hold.').key, 'Vale and Kade sound different');
+  assert.match(speakerVoice('Severed relay', 'Hold.').key, /^voice\.unity\./, 'Unknown speakers fall back to their name');
+  assert.match(speakerVoice('Vael crest', 'Hold.').key, /^voice\.vael\./);
 });
 
 test('own abilities, readiness and deliveries are voiced and placed; rival abilities need vision', () => {

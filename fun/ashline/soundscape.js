@@ -60,8 +60,15 @@ function leadUnit(units) {
   const weight = role => (counts.get(role) || 0) + (['harvester', 'engineer', 'constructor'].includes(role) ? 0 : 1000);
   return units.reduce((best, unit) => weight(unitRole(unit)) > weight(unitRole(best)) ? unit : best, units[0]);
 }
-function speakerVoice(speaker, text) {
+// The operation cast keeps one voice each (campaign.js speakers, plus the tracker's 'Command' fallback);
+// any other speaker is placed by name, with the line choosing among that family's registers.
+const SPEAKERS = {
+  'Cmdr. Vale': ['human', 'striker'], 'Chief Orrun-Tesk': ['vael', 'rocket'], 'Auditor Kade': ['human', 'engineer'],
+  'Captain Dace Mor': ['human', 'tank'], 'Unity': ['unity', 'constructor'], 'Range control': ['human', 'rifle'], 'Command': ['human', 'rifle'],
+};
+export function speakerVoice(speaker, text) {
   const name = String(speaker || ''), seed = [...`${name}|${text}`].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  if (Object.hasOwn(SPEAKERS, name)) { const [family, role] = SPEAKERS[name]; return { key: voiceKey(family, role, 'transmission'), variant: seed % 3 }; }
   const family = /unity|mainframe|relay|archive|cohort|severed|spire/i.test(name) ? 'unity' : /vael/i.test(name) ? 'vael' : 'human';
   const roles = family === 'unity' ? ['constructor', 'artillery', 'tank'] : family === 'vael' ? ['rocket'] : ['engineer', 'rifle', 'tank', 'scout'];
   return { key: voiceKey(family, roles[seed % roles.length], 'transmission'), variant: seed % 3 };
@@ -124,11 +131,8 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
       if (VOICE_ROLES.includes(event.role)) reply(event, 'ability');
       return;
     }
-    if (kind === 'dialogue') {
-      const voice = speakerVoice(event.speaker, event.text);
-      if (audio.voice(voice.key, { variant: voice.variant })) stats.voices++;
-      return;
-    }
+    // Scripted dialogue is voiced by transmission() when the tracker puts the line on screen.
+    if (kind === 'dialogue') return;
     if (kind === 'ready' && VOICE_ROLES.includes(event.role) && clock() - lastAck > 5) reply(event, 'ready');
     // The HUD's rule for promotions: news only for a living unit's kill the player saw; any other waits
     // silently until the unit is next selected.
@@ -304,6 +308,13 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
       }
       speak(role, line === 'explore' ? 'move' : line);
       return { unit: lead, context: line };
+    },
+    // A scripted transmission ({speaker, text}) as it comes on screen; queued lines are voiced in turn.
+    transmission(line) {
+      const voice = speakerVoice(line?.speaker, line?.text);
+      if (!audio.voice(voice.key, { variant: voice.variant })) return false;
+      stats.voices++;
+      return true;
     },
     // Replies voiced from the player's own events since the last call, as [{entityId, context}].
     takeReplies() {
