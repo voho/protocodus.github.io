@@ -4,10 +4,9 @@
    from any distance, and it flies exactly where the terrain's zone model
    says the talus is: past the groomed corridor and the powder field, over
    the boulders no groomer visits. Pylons stand on a fixed 200-metre grid
-   down the run, the cables are drawn tower-top to tower-top, and the
-   cabins hang from the cable with a touch of mid-span sag — not from the
-   terrain, which is what makes a cable car read as suspended rather than
-   floated.
+   down the run, the ropes are drawn tower-top to tower-top with a touch of
+   mid-span sag, and the cabins hang from them — not from the terrain,
+   which is what makes a cable car read as suspended rather than floated.
 
    The NPC skiers and boarders ride the piste the same direction the player
    does (downhill is −z on this mountain), carving S-turns about the
@@ -54,6 +53,11 @@ const NUM_PYLONS = 7;
 const SPAN = PYLON_SPACING * (NUM_PYLONS - 1);
 const CABLE_SIDE = 1.8;   // the two ropes, either side of the arm's wheels
 const SAG = 2.4;          // metres of droop at mid-span
+/* Lengths each rope is drawn in per span. A straight rope tower to tower,
+   under cabins that sag, left every cabin mid-span hanging its own grip
+   2.4 m under a rope that was not there; eight chords follow the same
+   parabola to within four centimetres. */
+const ROPE_SEGMENTS = 8;
 const CABIN_SPEED = 11;   // m/s along the line
 
 export function createMountainLife(THREE, scene, shading, spray, audio) {
@@ -69,6 +73,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _e = new THREE.Euler();
   const _one = new THREE.Vector3(1, 1, 1);
   const _s = new THREE.Vector3();
+  const _a = new THREE.Vector3();
+  const _b = new THREE.Vector3();
   const _qTurn = new THREE.Quaternion();
   const _qStill = new THREE.Quaternion();
 
@@ -185,12 +191,19 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const topZ = new Float64Array(NUM_PYLONS);
   // Where the cabin datum stood last frame — see the slide handover below.
   let lastBackZ = null;
+  // A point on rope `off` of span `i`, `t` of the way along it: the chord
+  // between the tower tops, dropped by the span's parabolic sag.
+  const ropeAt = (i, off, t, out) => out.set(
+    topX[i] + (topX[i + 1] - topX[i]) * t + off,
+    topY[i] + (topY[i + 1] - topY[i]) * t - SAG * 4 * t * (1 - t),
+    topZ[i] + (topZ[i + 1] - topZ[i]) * t,
+  );
 
   const cableMat = shading.apply(
     new THREE.MeshBasicMaterial({ color: 0x22262c }), { sheen: 0 },
   );
   const cableGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 6);
-  const NUM_CABLES = (NUM_PYLONS - 1) * 2;
+  const NUM_CABLES = (NUM_PYLONS - 1) * 2 * ROPE_SEGMENTS;
   const cableMesh = instanced(cableGeo, cableMat, NUM_CABLES, false);
   const UP = new THREE.Vector3(0, 1, 0);
   const cableDir = new THREE.Vector3();
@@ -773,20 +786,21 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       pylonMesh.instanceMatrix.needsUpdate = true;
       wheelMesh.instanceMatrix.needsUpdate = true;
 
-      // The ropes, tower-top to tower-top.
+      // The ropes, tower-top to tower-top, sagging as the cabins on them do.
       for (let i = 0; i < NUM_PYLONS - 1; i++) {
         for (let s = 0; s < 2; s++) {
           const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
-          const x0 = topX[i] + off;
-          const x1 = topX[i + 1] + off;
-          cableDir.set(x1 - x0, topY[i + 1] - topY[i], topZ[i + 1] - topZ[i]);
-          const len = cableDir.length();
-          _p.set((x0 + x1) / 2, (topY[i] + topY[i + 1]) / 2,
-            (topZ[i] + topZ[i + 1]) / 2);
-          _q.setFromUnitVectors(UP, cableDir.normalize());
-          _s.set(1, len, 1);
-          _m.compose(_p, _q, _s);
-          cableMesh.setMatrixAt(i * 2 + s, _m);
+          for (let k = 0; k < ROPE_SEGMENTS; k++) {
+            ropeAt(i, off, k / ROPE_SEGMENTS, _a);
+            ropeAt(i, off, (k + 1) / ROPE_SEGMENTS, _b);
+            cableDir.subVectors(_b, _a);
+            const len = cableDir.length();
+            _p.addVectors(_a, _b).multiplyScalar(0.5);
+            _q.setFromUnitVectors(UP, cableDir.normalize());
+            _s.set(1, len, 1);
+            _m.compose(_p, _q, _s);
+            cableMesh.setMatrixAt((i * 2 + s) * ROPE_SEGMENTS + k, _m);
+          }
         }
       }
       cableMesh.instanceMatrix.needsUpdate = true;
@@ -800,14 +814,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         if (g.at < 0) g.at += SPAN;
         if (g.at >= SPAN) g.at -= SPAN;
         const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
-        const t = g.at / PYLON_SPACING - seg;
-        const cx = topX[seg] + (topX[seg + 1] - topX[seg]) * t + g.side;
-        const cz = topZ[seg] + (topZ[seg + 1] - topZ[seg]) * t;
-        const cy = topY[seg] + (topY[seg + 1] - topY[seg]) * t
-          - SAG * 4 * t * (1 - t);
-        _e.set(0, 0, Math.sin(cz * 0.08 + g.at * 0.02) * 0.05);
+        ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
+        _e.set(0, 0, Math.sin(_p.z * 0.08 + g.at * 0.02) * 0.05);
         _q.setFromEuler(_e);
-        _p.set(cx, cy - 1.7, cz);
+        _p.y -= 1.7;
         _m.compose(_p, _q, _one);
         cabinMesh.setMatrixAt(i, _m);
         glassMesh.setMatrixAt(i, _m);
