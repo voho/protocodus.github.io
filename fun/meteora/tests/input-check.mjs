@@ -1,92 +1,66 @@
 // Run with: node tests/input-check.mjs
-// Pointer lock behaves differently per browser: Chrome returns a promise that
-// settles once locked, Safari returns nothing and locks a moment later, and
-// a refused lock only fires `pointerlockerror`. These fakes reproduce each.
-import { test, run, assert, near } from './harness.mjs';
+// The DOM wiring for keyboard-only flight, against fake window/document.
+import { test, run, assert } from './harness.mjs';
 import { createInput } from '../js/input.js';
 import { createControlState, keyDown, readInput } from '../js/controls.js';
 
-const tick = () => new Promise(resolve => setTimeout(resolve, 0));
-const event = (type, props = {}) => Object.assign(new Event(type), props);
+const event = (type, props = {}) => {
+  const e = Object.assign(new Event(type), props);
+  e.prevented = false;
+  e.preventDefault = () => { e.prevented = true; };
+  return e;
+};
 
-function setup({ request } = {}) {
+function setup({ flying = true } = {}) {
   const win = new EventTarget();
-  const doc = Object.assign(new EventTarget(), {
-    pointerLockElement: null, hidden: false,
-    exits: 0,
-    exitPointerLock() {
-      this.exits++;
-      this.pointerLockElement = null;
-      this.dispatchEvent(event('pointerlockchange'));
-    },
-  });
-  const canvas = Object.assign(new EventTarget(), {
-    requests: 0,
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 800 }),
-  });
-  const grant = () => { doc.pointerLockElement = canvas; doc.dispatchEvent(event('pointerlockchange')); };
-  const refuse = () => doc.dispatchEvent(event('pointerlockerror'));
-  canvas.requestPointerLock = (...args) => { canvas.requests++; return (request ?? (() => { setTimeout(grant); }))({ grant, refuse, args }); };
-  const state = createControlState({ sensitivity: 1, invertPitch: false, vibration: true });
+  const doc = Object.assign(new EventTarget(), { hidden: false });
+  const state = createControlState({ invertPitch: false, vibration: true });
   const pauses = [];
-  const input = createInput(canvas, state, { isFlying: () => true, onPause: reason => pauses.push(reason) },
-    { window: win, document: doc });
-  return { win, doc, canvas, state, input, pauses, grant };
+  const flags = { flying };
+  createInput(state, { isFlying: () => flags.flying, onPause: reason => pauses.push(reason) }, { window: win, document: doc });
+  const press = (code, extra = {}) => { const e = event('keydown', { code, repeat: false, ...extra }); win.dispatchEvent(e); return e; };
+  return { win, doc, state, pauses, flags, press };
 }
 
-test('a lock that arrives after a request returning nothing does not pause (Safari)', async () => {
+test('game keys reach the controls only while flying', () => {
+  const s = setup({ flying: false });
+  s.press('KeyW');
+  assert.equal(readInput(s.state, 1 / 60).pitch, 0);
+  s.flags.flying = true;
+  s.press('KeyW');
+  assert.ok(readInput(s.state, 1 / 60).pitch > 0);
+});
+test('Escape pauses', () => {
   const s = setup();
-  s.input.engage();
-  await tick(); await tick();
-  assert.deepEqual(s.pauses, []);
-  assert.equal(s.input.mode, 'locked');
-});
-test('a lock granted through a promise does not pause (Chrome)', async () => {
-  const s = setup({ request: ({ grant }) => new Promise(resolve => setTimeout(() => { grant(); resolve(); })) });
-  s.input.engage();
-  await tick(); await tick();
-  assert.deepEqual(s.pauses, []);
-  assert.equal(s.input.mode, 'locked');
-});
-test('a refused lock falls back to cursor steering instead of pausing', async () => {
-  const s = setup({ request: ({ refuse }) => { setTimeout(refuse); return Promise.reject(new Error('denied')); } });
-  s.input.engage();
-  await tick(); await tick();
-  assert.deepEqual(s.pauses, []);
-  assert.equal(s.input.mode, 'cursor');
-  s.doc.dispatchEvent(event('mousemove', { clientX: 1000, clientY: 400, movementX: 0, movementY: 0 }));
-  near(readInput(s.state).yaw, 1, 1e-9, 'cursor at the right edge is full right yaw');
-  s.doc.dispatchEvent(event('mousemove', { clientX: 500, clientY: 400, movementX: 0, movementY: 0 }));
-  near(readInput(s.state).yaw, 0, 1e-9, 'centred cursor is no turn');
-});
-test('losing a held lock pauses once and drops held keys', async () => {
-  const s = setup();
-  s.input.engage();
-  await tick(); await tick();
-  keyDown(s.state, 'KeyW');
-  s.doc.pointerLockElement = null;
-  s.doc.dispatchEvent(event('pointerlockchange'));
-  assert.deepEqual(s.pauses, ['lock']);
-  assert.equal(readInput(s.state).throttleDelta, 0);
-  assert.equal(s.input.mode, 'cursor');
-});
-test('Escape pauses when flying without a lock', () => {
-  const s = setup();
-  s.win.dispatchEvent(event('keydown', { code: 'Escape', repeat: false }));
+  s.press('Escape');
   assert.deepEqual(s.pauses, ['escape']);
 });
-test('a click while flying without a lock fires and asks for the lock again', () => {
-  const s = setup({ request: () => undefined });
-  s.canvas.dispatchEvent(event('mousedown', { button: 0 }));
-  assert.equal(readInput(s.state).fire, true);
-  assert.equal(s.canvas.requests, 1);
-});
-test('release gives the pointer back so the pause screen can be clicked', async () => {
+test('leaving the window pauses and drops held keys', () => {
   const s = setup();
-  s.input.engage();
-  await tick(); await tick();
-  s.input.release();
-  assert.equal(s.doc.exits, 1);
-  assert.equal(s.doc.pointerLockElement, null);
+  s.press('KeyP'); s.press('ShiftLeft');
+  s.win.dispatchEvent(event('blur'));
+  assert.deepEqual(s.pauses, ['blur']);
+  const c = readInput(s.state, 1 / 60);
+  assert.equal(c.throttleDelta, 0); assert.equal(c.boost, false);
+});
+test('a hidden tab pauses', () => {
+  const s = setup();
+  s.doc.hidden = true;
+  s.doc.dispatchEvent(event('visibilitychange'));
+  assert.deepEqual(s.pauses, ['hidden']);
+});
+test('Space, Alt and the arrows are kept from the browser while flying', () => {
+  const s = setup();
+  for (const code of ['Space', 'AltLeft', 'ArrowUp', 'KeyW']) assert.equal(s.press(code).prevented, true, code);
+  s.flags.flying = false;
+  assert.equal(s.press('Space').prevented, false, 'menus keep their keys');
+});
+test('a key released while paused does not stay held', () => {
+  const s = setup();
+  s.press('KeyD');
+  s.flags.flying = false;
+  s.win.dispatchEvent(event('keyup', { code: 'KeyD' }));
+  s.flags.flying = true;
+  assert.equal(readInput(s.state, 1 / 60).yaw, 0);
 });
 await run();

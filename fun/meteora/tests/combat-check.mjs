@@ -83,6 +83,26 @@ test('reset after a fight restores the belt and clears everything', () => {
   stepWorld(w, idle, DT); stepWorld(fresh, idle, DT);
   assert.deepEqual(w.enemies.map(e => e.ship.pos.map(v => +v.toFixed(6))), fresh.enemies.map(e => e.ship.pos.map(v => +v.toFixed(6))));
 });
+test('T targets the enemy nearest the crosshair, then cycles', () => {
+  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
+  stepWorld(w, idle, DT);
+  const fwd = [0, 0, -1];
+  const angle = e => Math.acos(dot(normalize([0, 0, 0], sub([0, 0, 0], e.ship.pos, w.player.ship.pos)), fwd));
+  const order = [...w.enemies].sort((a, b) => angle(a) - angle(b));
+  stepWorld(w, { ...idle, cycleTarget: true }, DT);
+  assert.equal(w.target, order[0]);
+  stepWorld(w, { ...idle, cycleTarget: true }, DT);
+  assert.equal(w.target, order[1]);
+});
+test('when the target dies, targeting moves to the enemy nearest the crosshair', () => {
+  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
+  stepWorld(w, idle, DT);
+  stepWorld(w, { ...idle, cycleTarget: true }, DT);
+  const first = w.target;
+  applyDamage(first, 1e6, w.events);
+  stepWorld(w, idle, DT);
+  assert.ok(w.target && w.target !== first && w.target.alive, 'a live enemy is targeted');
+});
 test('player death ends the run and stores the best score', () => {
   const store = memory(); const w = createWorld({ seed: 1234, storage: store }); startRun(w);
   w.score = 777; applyDamage(w.player, 1e6, w.events); stepWorld(w, idle, DT);

@@ -6,7 +6,7 @@
 const KEY = 'meteora.settings';
 const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const DEFAULT_SETTINGS = Object.freeze({
-  sensitivity: 1, volume: 0.8, invertPitch: false, vibration: !reducedMotion, muted: false,
+  volume: 0.8, invertPitch: false, vibration: !reducedMotion, muted: false,
 });
 
 export function loadSettings() {

@@ -3,16 +3,16 @@
    Nothing here decides how the game plays; it wires the simulation to the
    screen and keeps them in step:
 
-     input → world (fixed 120 Hz) → events → effects, sound, HUD
-                                   ↘ interpolated ships, belt, camera
+     keys → world (fixed 120 Hz) → events → flashes, callouts
+                                  ↘ interpolated ships, belt, sky, glow, HUD
 
    Before Launch the world already exists: the fighter idles in the belt and
    the camera circles it behind the title, so the first thing anyone sees is
    the place they are about to fly through.
 
    `?debug` adds a read-out (frame time, draw calls, triangles, entities);
-   `?debug&autopilot` flies a scripted pattern with no pointer lock, which
-   is how the game is screenshotted in automation. */
+   `?debug&autopilot` flies a scripted pattern, which is how the game is
+   screenshotted in automation. */
 
 import * as THREE from 'three';
 import { RENDER, STEP } from './config.js';
@@ -25,6 +25,11 @@ import { createFieldRender } from './field-render.js';
 import { createChaseCamera } from './camera.js';
 import { createInput } from './input.js';
 import { createScreens, loadSettings } from './screens.js';
+import { createSky } from './sky.js';
+import { createGlowBatch } from './glow.js';
+import { createPlumes } from './plumes.js';
+import { createProjectiles } from './projectiles.js';
+import { createHud } from './hud.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -32,19 +37,21 @@ const AUTOPILOT = DEBUG && params.has('autopilot');
 const SUN_DIR = new THREE.Vector3(-0.62, 0.32, -0.72).normalize();
 
 const canvas = document.getElementById('stage');
+const hudCanvas = document.querySelector('canvas.hud');
 const debugOut = document.querySelector('[data-debug]');
+const callout = document.querySelector('[data-callout]');
 const settings = loadSettings();
 const controlState = createControlState(settings);
 let storage = null;
 try { storage = window.localStorage; } catch { /* no best score kept */ }
 
-let world, renderer, scene, camera, chase, fieldRender, models, input;
+let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight;
 let paused = false, deadTimer = 0, playerMesh;
 const enemyMeshes = new Map();
 const beltTime = { value: 0 };
 
 const screens = createScreens(document, settings, {
-  launch, resume, restart, again: restart,
+  launch, resume: launch, restart, again: restart,
   retry: () => location.reload(),
   settings: () => {},
 });
@@ -64,19 +71,24 @@ async function boot() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, RENDER.dprCap));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x010204);
   camera = new THREE.PerspectiveCamera(RENDER.fov, 1, RENDER.near, RENDER.far);
   const sun = new THREE.DirectionalLight(0xfff1e0, 5);
   sun.position.copy(SUN_DIR).multiplyScalar(1000);
   scene.add(sun, sun.target);
-  scene.add(new THREE.AmbientLight(0x8090b0, 0.06));
+  scene.add(new THREE.AmbientLight(0x8090b0, 0.05));
 
-  screens.progress(0.05, 'Charting the belt');
+  screens.progress(0.04, 'Charting the belt');
   world = createWorld({ seed: 1234, storage });
+  screens.progress(0.08, 'Painting the sky');
+  await new Promise(requestAnimationFrame);
+  sky = createSky(renderer, scene, { seed: 7, sunDir: SUN_DIR });
+  scene.environment = sky.environment;
+  scene.environmentIntensity = 0.35;
   try {
-    models = await loadModels((f, file) => screens.progress(0.1 + 0.8 * f, `Loaded ${file}`), { placeholders: DEBUG });
+    models = await loadModels((f, file) => screens.progress(0.15 + 0.8 * f, `Loaded ${file}`), { placeholders: DEBUG });
   } catch (error) {
     screens.error(`${error.message}. Check your connection and try again.`);
     return;
@@ -84,11 +96,17 @@ async function boot() {
   fieldRender = createFieldRender(scene, world.field, models.rocks, beltTime);
   playerMesh = instantiateShip(models.fighter);
   scene.add(playerMesh);
+  engineLight = new THREE.PointLight(0x9fb8ff, 0, 60, 2);
+  scene.add(engineLight);
   chase = createChaseCamera(camera, ANCHORS.fighter.cockpit);
+  glow = createGlowBatch(scene);
+  plumes = createPlumes(glow);
+  projectiles = createProjectiles(glow);
+  hud = createHud(hudCanvas);
 
-  input = createInput(canvas, controlState, {
+  createInput(controlState, {
     isFlying: () => world.state === 'flying' && !paused,
-    onPause: reason => pause(reason),
+    onPause: () => pause(),
   });
 
   resize();
@@ -104,26 +122,23 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  hud?.resize();
 }
 
-// Flying starts now; pointer lock is asked for but never waited on. Whether
-// it arrives, arrives late (Safari) or is refused, input.js steers either
-// way and only a real interruption pauses.
 function launch() {
   if (!world) return;
   if (world.state !== 'flying') startRun(world);
   paused = false;
   dropAll(controlState);
   screens.show(null);
-  if (!AUTOPILOT) input.engage();
+  // The Launch button keeps focus otherwise, and Space would press it again.
+  document.activeElement?.blur?.();
 }
-
-function resume() { launch(); }
 
 function restart() {
   resetWorld(world);
   fieldRender.restoreAll();
-  for (const mesh of enemyMeshes.values()) scene.remove(mesh);
+  for (const [id, mesh] of enemyMeshes) { scene.remove(mesh); plumes.forget(id); }
   enemyMeshes.clear();
   chase.reset();
   deadTimer = 0;
@@ -134,9 +149,6 @@ function pause() {
   if (AUTOPILOT || !world || world.state !== 'flying' || paused) return;
   paused = true;
   dropAll(controlState);
-  // A held lock hides the cursor and sends every click to the canvas, so
-  // the pause screen's buttons could never be pressed.
-  input.release();
   screens.stats({ score: world.score, wave: world.wave });
   screens.show('pause');
 }
@@ -145,12 +157,12 @@ function autopilot(t) {
   return {
     ...NEUTRAL_CONTROLS, throttleSet: 0.6,
     yaw: 0.25 * Math.sin(t * 0.21), pitch: 0.18 * Math.sin(t * 0.37),
-    fire: t % 4 < 1.5, missile: false, cycleTarget: false,
+    fire: t % 4 < 1.5, missile: false, cycleTarget: t % 10 < 0.02, weapon: 'cannon',
   };
 }
 
-const IDLE = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false };
-const tmpV = new THREE.Vector3(), tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion();
+const IDLE = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false, weapon: 'cannon' };
+const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(), tmpV = new THREE.Vector3();
 
 function place(object, ship, alpha) {
   object.position.set(
@@ -162,24 +174,36 @@ function place(object, ship, alpha) {
   object.quaternion.slerpQuaternions(tmpQ, tmpQ2, alpha);
 }
 
+function say(message) {
+  hud.callout(message);
+  callout.textContent = message;
+}
+
 function handleEvents(events) {
   for (const e of events) {
-    if (e.type === 'staticRockRemoved') fieldRender.removeStatic(e.index);
+    switch (e.type) {
+      case 'staticRockRemoved': fieldRender.removeStatic(e.index); break;
+      case 'fire': projectiles.flash(e.pos, e.team); break;
+      case 'wave': say(`Wave ${e.n} incoming · ${e.count} interceptors`); break;
+      case 'shipKilled': if (e.team === 1) say('Interceptor destroyed'); break;
+      case 'missileLaunch': say(e.locked ? 'Missile away · locked' : 'Missile away · unguided'); break;
+    }
   }
 }
 
-let last = performance.now(), debugTimer = 0, frames = 0, frameMs = 0;
+let last = performance.now(), debugTimer = 0, frames = 0, frameMs = 0, lastControls = IDLE;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
 
   const flying = world.state === 'flying' && !paused;
-  canvas.style.cursor = flying && input.mode === 'cursor' ? 'crosshair' : '';
   let controls = IDLE;
   if (flying) {
-    controls = AUTOPILOT ? autopilot(world.time) : readInput(controlState);
+    controls = AUTOPILOT ? autopilot(world.time) : readInput(controlState, dt);
     if (controls.toggleCamera) chase.toggle();
+    if (controls.switchedWeapon) say(controls.weapon === 'missile' ? 'Missiles selected' : 'Cannons selected');
+    lastControls = controls;
   }
   if (!paused) advance(world, controls, dt);
   handleEvents(drainEvents(world));
@@ -189,21 +213,34 @@ function frame(now) {
   place(playerMesh, p.ship, alpha);
   playerMesh.visible = p.alive && !(chase.mode === 'nose' && world.state === 'flying');
 
+  glow.begin();
+  if (p.alive) {
+    const { power, boost } = plumes.add(p, playerMesh, world.time, dt);
+    // The plume lights the tail of the hull it comes out of.
+    tmpV.set(0, 0, 9).applyQuaternion(playerMesh.quaternion).add(playerMesh.position);
+    engineLight.position.copy(tmpV);
+    engineLight.color.setRGB(0.62 + 0.38 * boost, 0.72 + 0.2 * boost, 1);
+    engineLight.intensity = (power * 60 + boost * 120) * (0.9 + 0.2 * Math.random());
+  } else {
+    engineLight.intensity = 0;
+  }
+
   for (const e of world.enemies) {
     let mesh = enemyMeshes.get(e.id);
     if (!e.alive) {
-      if (mesh) { scene.remove(mesh); enemyMeshes.delete(e.id); }
+      if (mesh) { scene.remove(mesh); enemyMeshes.delete(e.id); plumes.forget(e.id); }
       continue;
     }
     if (!mesh) { mesh = instantiateShip(models.interceptor); enemyMeshes.set(e.id, mesh); scene.add(mesh); }
     place(mesh, e.ship, alpha);
+    plumes.add(e, mesh, world.time, dt);
   }
   fieldRender.syncDynamic(world.field.dynamic);
+  projectiles.add(world.weapons, alpha, dt);
 
   if (world.state === 'dead') {
     deadTimer += dt;
     if (deadTimer > 2.5 && screens.current !== 'dead') {
-      input.release();
       screens.stats({ score: world.score, wave: world.wave, best: world.best });
       screens.show('dead');
     }
@@ -212,8 +249,13 @@ function frame(now) {
   chase.update(playerMesh.position, playerMesh.quaternion, p.ship.accelLocal, p.ship.afterburner, dt,
     null, world.state === 'attract');
   if (!paused) beltTime.value += dt;
+  sky.update(camera, paused ? 0 : dt, glow);
+  glow.end();
   fieldRender.update(camera);
   renderer.render(scene, camera);
+
+  if (world.state === 'flying') hud.draw(world, camera, { position: playerMesh.position, quaternion: playerMesh.quaternion, weapon: lastControls.weapon }, dt);
+  else hud.clear();
 
   if (DEBUG) {
     frames++; frameMs += dt * 1000; debugTimer += dt;
@@ -222,7 +264,7 @@ function frame(now) {
       debugOut.hidden = false;
       debugOut.textContent = [
         `fps ${(frames / debugTimer).toFixed(0)}  ${(frameMs / frames).toFixed(1)} ms`,
-        `draws ${info.calls}  tris ${(info.triangles / 1e6).toFixed(2)}M`,
+        `draws ${info.calls}  tris ${(info.triangles / 1e6).toFixed(2)}M  glow ${glow.count}`,
         `cells ${fieldRender.stats.visible}/${fieldRender.stats.cells}`,
         `state ${world.state}  wave ${world.wave}  enemies ${world.enemies.filter(e => e.alive).length}`,
         `speed ${Math.hypot(...p.ship.vel).toFixed(0)} m/s  throttle ${p.ship.throttle.toFixed(2)}  FA ${p.ship.fa ? 'on' : 'off'}`,

@@ -53,19 +53,18 @@
         <summary>Flight controls</summary>
         <table>
           <tbody>
-            <tr><th>Mouse</th><td>Steer: the cursor's distance from centre is your turn rate</td></tr>
-            <tr><th>W / S</th><td>Throttle up / down</td></tr>
-            <tr><th>X</th><td>Throttle to zero (with flight assist: full stop)</td></tr>
-            <tr><th>A / D</th><td>Strafe left / right</td></tr>
-            <tr><th>R or Space / F or C</th><td>Thrust up / down</td></tr>
+            <tr><th>W / S</th><td>Nose up / down</td></tr>
+            <tr><th>A / D</th><td>Nose left / right</td></tr>
             <tr><th>Q / E</th><td>Roll left / right</td></tr>
+            <tr><th>P / L</th><td>Speed up / slow down (throttle)</td></tr>
+            <tr><th>Space</th><td>Fire the selected weapon</td></tr>
+            <tr><th>Alt</th><td>Switch cannons / missiles</td></tr>
+            <tr><th>T</th><td>Cycle targets</td></tr>
             <tr><th>Shift</th><td>Afterburner</td></tr>
+            <tr><th>X</th><td>Throttle to zero (with flight assist: full stop)</td></tr>
+            <tr><th>Arrows</th><td>Strafe and lift</td></tr>
             <tr><th>Z</th><td>Flight assist on / off</td></tr>
-            <tr><th>Left mouse</th><td>Plasma cannons</td></tr>
-            <tr><th>Right mouse</th><td>Missile (locks onto your target)</td></tr>
-            <tr><th>T</th><td>Target the enemy nearest your crosshair</td></tr>
             <tr><th>V</th><td>Chase / nose camera</td></tr>
-            <tr><th>M</th><td>Mute</td></tr>
             <tr><th>Esc</th><td>Pause</td></tr>
           </tbody>
         </table>
@@ -82,13 +81,12 @@
         <p><span>Wave</span><strong data-stat="wave">0</strong></p>
       </div>
       <div class="settings">
-        <label>Mouse sensitivity <input type="range" min="0.3" max="2.5" step="0.05" data-setting="sensitivity"></label>
         <label>Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
         <label class="check"><input type="checkbox" data-setting="invertPitch"> Invert pitch</label>
         <label class="check"><input type="checkbox" data-setting="vibration"> Ship vibration</label>
       </div>
       <div class="go">
-        <button class="launch" type="button" data-action="resume">Click to fly <span aria-hidden="true">↗</span></button>
+        <button class="launch" type="button" data-action="resume">Resume <span aria-hidden="true">↗</span></button>
         <button class="ghost" type="button" data-action="restart">Restart the run</button>
       </div>
     </div>

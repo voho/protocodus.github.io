@@ -75,17 +75,20 @@ export function startRun(world) {
 
 export function drainEvents(world) { return world.events.splice(0); }
 
-function cycleTarget(world) {
+// Live enemies ordered by how far they sit from the crosshair.
+function byCrosshair(world) {
   const p = world.player.ship, fwd = forward([0, 0, 0], p);
-  const alive = world.enemies.filter(e => e.alive);
-  if (!alive.length) { world.target = null; return; }
   const angle = e => {
     const d = normalize([0, 0, 0], sub([0, 0, 0], e.ship.pos, p.pos));
     return Math.acos(Math.max(-1, Math.min(1, dot(d, fwd))));
   };
-  alive.sort((a, b) => angle(a) - angle(b));
-  const i = alive.indexOf(world.target);
-  world.target = alive[(i + 1) % alive.length];
+  return world.enemies.filter(e => e.alive).sort((a, b) => angle(a) - angle(b));
+}
+
+function cycleTarget(world) {
+  const alive = byCrosshair(world);
+  if (!alive.length) { world.target = null; return; }
+  world.target = alive[(alive.indexOf(world.target) + 1) % alive.length];
 }
 
 function spawnWave(world) {
@@ -118,7 +121,7 @@ export function stepWorld(world, input, dt) {
     stepShip(p.ship, flying ? input : NEUTRAL_CONTROLS, dt);
     if (flying) {
       if (input.cycleTarget) cycleTarget(world);
-      if (world.target && !world.target.alive) world.target = null;
+      if (world.target && !world.target.alive) world.target = byCrosshair(world)[0] ?? null;
       updateLock(world.lock, p.ship, world.target, dt);
       if (triggerGun(p.gun, !!input.fire, dt)) {
         const muzzle = ANCHORS.fighter.muzzles[p.gun.muzzle];
@@ -183,7 +186,8 @@ export function stepWorld(world, input, dt) {
     if (e.team === 1) {
       world.kills++;
       if (world.state === 'flying') world.score += scoreKill(world.wave);
-      if (world.target === e) world.target = null;
+      // A kill moves the target on to whoever is nearest the crosshair.
+      if (world.target === e) world.target = byCrosshair(world)[0] ?? null;
     } else {
       world.state = 'dead';
       saveBest(world.storage, world.score);
