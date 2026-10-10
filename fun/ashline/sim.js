@@ -186,8 +186,8 @@ export function random(s){let x=s.rng|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.rng=x>>>0;r
 export const EVENT_KINDS=['opening','power','researchStarted','researchComplete','upgradeStarted','upgradeComplete','placed','online','deployed','walls','sold','delivery','explored','underAttack','promotion','unitLost','structureLost','haulersLost','victory','defeat','ready','bayBlocked','objective','objectiveFailed','dialogue','wave','mission','ability','trainingCancelled'];
 export function event(s,text,team=0,extra){s.events.push({text,team,time:s.time,...extra});}
 const subject=e=>{const c=center(e);return{entityId:e.id,role:entityRole(e),x:c.x,y:c.y};};
-// Match statistics are optional (older saves lack them) and never feed back into the simulation. The unseen
-// kill counts are the part of the kill counts that the killing team did not see happen.
+// Match statistics are optional (older saves lack them); only mission objectives and the interface read them.
+// The unseen kill counts are the part of the kill counts that the killing team did not see happen.
 export const TEAM_STATS=['trained','lost','built','structuresLost','unitKills','structureKills','mined','spent','damageDealt','damageTaken','peakArmy','researched','unseenUnitKills','unseenStructureKills'];
 export function tally(s,team,key,amount=1){const stats=s.teams[team]?.stats;if(stats)stats[key]=Math.max(0,(stats[key]??0)+amount);}
 // The kills a team has confirmed. A kill out of its sight (splash, a barrage on remembered ground) is confirmed
