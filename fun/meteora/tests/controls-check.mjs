@@ -1,6 +1,6 @@
 // Run with: node tests/controls-check.mjs
 // Mouse: aim, left click cannons, right click missile.
-// Keys: W/S speed, Q/E roll, T targets, Z lock speed to the target's.
+// Keys: W/S speed, Q/E roll, Tab afterburner, T targets, Z lock speed to the target's.
 import { test, run, assert, near } from './harness.mjs';
 import {
   createControlState, keyDown, keyUp, mouseDown, mouseUp, setCursor, moveCursor, dropAll, readInput,
@@ -22,6 +22,11 @@ test('Q/E roll; a tap is gentle and a held key ramps to full', () => {
   assert.ok(first > 0.2 && first < 0.45, `tap ${first}`);
   near(hold(s, 0.7).roll, 1, 1e-9);
   keyUp(s, 'KeyE'); keyDown(s, 'KeyQ'); assert.ok(readInput(s, DT).roll < 0);
+});
+test('Tab burns the afterburner while held', () => {
+  const s = S(); keyDown(s, 'Tab');
+  assert.equal(readInput(s, DT).boost, true); assert.equal(readInput(s, DT).boost, true);
+  keyUp(s, 'Tab'); assert.equal(readInput(s, DT).boost, false);
 });
 test('T cycles targets and Z toggles the speed lock, once per press', () => {
   const s = S(); keyDown(s, 'KeyT'); keyDown(s, 'KeyZ');

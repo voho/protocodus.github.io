@@ -4,10 +4,11 @@
    normalised screen coordinates, x right and y down, each −1…1), and the
    ship flies toward wherever it points — the farther from the centre, the
    harder it turns. Left click fires the cannons, right click a missile.
-   The keyboard does four things:
+   The keyboard does five things:
 
      W / S   speed up / slow down
      Q / E   roll left / right
+     Tab     afterburner (hold)
      T       cycle targets
      Z       lock the speed to the target's (W or S lets go)
      Esc     pause (handled in input.js)
@@ -78,7 +79,8 @@ export function readInput(state, dt) {
     cursor: [state.cursor[0], state.cursor[1] * invert],
     pitch: 0, yaw: 0, roll, strafe: 0, lift: 0,
     throttleDelta: axis(state, ['KeyW'], ['KeyS']),
-    throttleSet: null, throttleZero: false, boost: false, toggleFA: false, toggleCamera: false,
+    throttleSet: null, throttleZero: false, toggleFA: false, toggleCamera: false,
+    boost: state.held.has('Tab'),
     fire: state.mouse.left,
     missile: take('Missile'),
     cycleTarget: take('KeyT'),

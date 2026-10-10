@@ -19,6 +19,7 @@ export const KEY_GUIDE = [
     items: [
       { caps: ['W', 'S'], codes: ['KeyW', 'KeyS'], label: 'Speed up / slow down' },
       { caps: ['Q', 'E'], codes: ['KeyQ', 'KeyE'], label: 'Roll left / right' },
+      { caps: ['Tab'], codes: ['Tab'], label: 'Afterburner (hold)' },
     ],
   },
   {

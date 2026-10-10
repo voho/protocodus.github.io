@@ -23,7 +23,8 @@
 
 import { dropAll, keyDown, keyUp, mouseDown, mouseUp, moveCursor, setCursor } from './controls.js';
 
-export const GAME_KEYS = new Set(['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ']);
+// Tab is kept from the browser while flying, so it burns instead of moving focus.
+export const GAME_KEYS = new Set(['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'Tab', 'KeyT', 'KeyZ']);
 
 export function createInput(canvas, state, { isFlying, onPause, onResume }, env = globalThis) {
   const { window: win, document: doc } = env;

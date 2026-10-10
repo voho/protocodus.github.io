@@ -69,7 +69,7 @@ test('a hidden tab pauses', () => {
 });
 test('the game keys are kept from the browser while flying, and only those', () => {
   const s = setup();
-  for (const code of ['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ']) assert.equal(s.press(code).prevented, true, code);
+  for (const code of ['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ', 'Tab']) assert.equal(s.press(code).prevented, true, code);
   assert.equal(s.press('KeyA').prevented, false, 'unbound keys stay the browser\'s');
   s.flags.flying = false;
   assert.equal(s.press('KeyW').prevented, false, 'menus keep their keys');
