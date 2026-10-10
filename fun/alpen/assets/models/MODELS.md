@@ -127,6 +127,18 @@ normals. `props.js#alpineTreeGeometry` turns a node into pool geometry.
 744–1156 triangles a tree. If either file fails to load, the card conifers
 below take over.
 
+The same script then photographs every finished tree from three bearings
+(0°, 60°, 120°) with an orthographic camera into
+`textures/tree/alpine-impostors.webp` (2048 × 1024, one 170 px column per
+tree, one row per bearing), and writes the frame each was drawn in to its
+node as `extras.impostor` = [column, half-width, bottom, top].
+`props.js#treeImpostorGeometry` stands those three photographs as crossed
+cards — six triangles — and the far forest draws every tree that way,
+sharing the pool's own instance buffers. The whole tree is drawn only for
+the nearest six rings of bands; between 170 m and 220 m the two dissolve
+into each other on a per-pixel hash. Without the impostor atlas every tree
+is drawn whole.
+
 ## nature/alpine-flora.glb — trackside flora and ground cover (built in Blender)
 
 Written by `tools/blender/flora.py` (no rendering, so it builds anywhere):
@@ -145,11 +157,13 @@ them for the shared flora material, which adds the procedural snow and bark
 grain each role asks for.
 
 `props.js` places them in two layers, neither of which is a solid: the
-trackside flora over the soft snow of the outer corridor and the verge
-(never on the groomer's racing ribbon), in clumps, by ecology; and the
-ground cover — the grass tuft and bilberry sprig in their thousands — in
-meadow patches across the whole run, thinned on the ribbon, each its own
-size, turn and lean.
+trackside flora off the groomed piste — out across the verge and the
+terrain beyond, thickest near the edge, one in ten surviving in the
+piste's last two metres — in clumps, by ecology; and the ground cover —
+the grass tuft and bilberry sprig in their thousands — in meadow patches
+over the ground either side, each its own size, turn and lean. Both are
+placed in every streamed band but drawn only for the nearest four rings
+(at least 160 m ahead), dissolving out between 115 m and 150 m.
 
 ## Card conifer atlas (fallback)
 

@@ -700,6 +700,12 @@ const COVER_FIRST = 7;
 const DECOR_CLUMP = [3, 3, 1, 1, 2, 1, 3];
 const DECOR_CLUMP_MAX = 3;
 const COVER_CLUMP_MAX = 4;
+/* Drawn for the nearest four rings of bands only — at least 160 m ahead,
+   past which a knee-high tuft is a few pixels — and dissolved by 150 m so
+   that ring's edge is never seen. Everything further is streamed and placed
+   all the same; only the draw stops, so the band cache is untouched. */
+const DECOR_RINGS = 4;
+const DECOR_FADE = [115, 150];
 /* Straw and the bilberry's twigs take little of the flora snow: their faces
    are flat ribbons turned to the sky, and at a third of the snow a tuft went
    as white as the slope it stood in and vanished from twenty metres. */
@@ -749,6 +755,67 @@ export function floraGeometry(THREE, node) {
   g.setAttribute('color', new THREE.BufferAttribute(color, 3));
   g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
   g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
+/* THE FAR FOREST. A modelled tree is a thousand triangles, and the stream
+   holds four hundred of them, most of them far enough away to be a few
+   dozen pixels. So the trees are drawn whole only for the nearest
+   `TREE_RINGS` rings of bands (at least 240 m ahead), and every tree is also
+   drawn as an impostor — three crossed cards photographed from the same tree
+   in Blender (`alpine-impostors.webp`, see `tools/blender/trees.py`) — that
+   shares the pool's own instance buffers. Between `TREE_LOD[0]` and
+   `TREE_LOD[1]` metres from the camera the one dissolves into the other on
+   the same per-pixel hash, so every pixel is drawn by exactly one of them and
+   the hand-over is never a pop. */
+const TREE_RINGS = 6;
+const TREE_LOD = [170, 220];
+const LOD_HASH = 'fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453)';
+const IMPOSTOR_PX = [2048, 1024];
+const IMPOSTOR_COLS = 12;
+const IMPOSTOR_VIEWS = 3;
+
+/* One tree's impostor: a card per bearing (0°, 60°, 120°) standing through
+   the trunk, at the frame the bake drew it in (`extras.impostor` =
+   [column, half-width, bottom, top] in the file's units), scaled to the
+   pool's grown height like the tree itself. */
+export function treeImpostorGeometry(THREE, node, height) {
+  const [col, R, bottom, top] = node.extras.impostor;
+  const k = height / node.extras.height;
+  const cw = Math.floor(IMPOSTOR_PX[0] / IMPOSTOR_COLS);
+  const ch = Math.floor(IMPOSTOR_PX[1] / IMPOSTOR_VIEWS);
+  const position = [];
+  const normal = [];
+  const uv = [];
+  const index = [];
+  for (let r = 0; r < IMPOSTOR_VIEWS; r++) {
+    const a = (r * Math.PI) / IMPOSTOR_VIEWS;
+    const nx = Math.sin(a);
+    const nz = Math.cos(a);
+    const rx = Math.cos(a);
+    const rz = -Math.sin(a);
+    // half a texel in from the cell's edge, so no neighbour bleeds in
+    const u0 = (col * cw + 0.5) / IMPOSTOR_PX[0];
+    const u1 = ((col + 1) * cw - 0.5) / IMPOSTOR_PX[0];
+    const v0 = ((IMPOSTOR_VIEWS - 1 - r) * ch + 0.5) / IMPOSTOR_PX[1];
+    const v1 = ((IMPOSTOR_VIEWS - r) * ch - 0.5) / IMPOSTOR_PX[1];
+    const base = position.length / 3;
+    for (const [s, h, u, v] of [[-1, bottom, u0, v0], [1, bottom, u1, v0], [1, top, u1, v1], [-1, top, u0, v1]]) {
+      position.push(rx * R * s * k, h * k, rz * R * s * k);
+      // lit from mostly above, as a crown seen whole is
+      const l = Math.hypot(nx * 0.35, 0.65, nz * 0.35);
+      normal.push((nx * 0.35) / l, 0.65 / l, (nz * 0.35) / l);
+      uv.push(u, v);
+    }
+    index.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(normal, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(new Array(position.length).fill(1), 3));
+  g.setIndex(index);
   g.computeBoundingSphere();
   return g;
 }
@@ -2258,13 +2325,27 @@ export function createProps(THREE, shading) {
   /* Low vegetation shares one wind program and organic botanical textures */
   const floraSnow = new THREE.Color(SNOW);
   const floraSnowColour = `vec3(${floraSnow.r.toFixed(4)}, ${floraSnow.g.toFixed(4)}, ${floraSnow.b.toFixed(4)})`;
-  const floraMat = () => {
+  /* `fadeFar` [start, end] dissolves the material out by distance from the
+     camera — the trackside flora's, which is only ever drawn for the nearest
+     rings of bands (see `DECOR_RINGS`): a hashed discard, the same kind the
+     stream edge uses, finished well inside the nearest ring that can stop
+     being drawn, so the cut is never seen. */
+  const floraMat = (fadeFar = null) => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, {
         uSwayHeight: { value: 1.2 },
         uBarkTex: barkTex,
       });
+      if (fadeFar) {
+        shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>', `
+        {
+          float floraFar = distance(vFloraWorldPos.xz, cameraPosition.xz);
+          float floraGone = smoothstep(${fadeFar[0].toFixed(1)}, ${fadeFar[1].toFixed(1)}, floraFar);
+          if (floraGone > 0.0 && fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453) < floraGone) discard;
+        }
+        #include <clipping_planes_fragment>`);
+      }
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
         varying vec3 vFloraWorldPos;
@@ -2321,7 +2402,12 @@ export function createProps(THREE, shading) {
           diffuseColor.rgb = mix(diffuseColor.rgb, ${floraSnowColour}, floraSnow);
         }`);
     };
-    return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
+    const out = shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
+    if (fadeFar) {
+      const key = out.customProgramCacheKey();
+      out.customProgramCacheKey = () => `${key}|floraFar:${fadeFar.join(',')}`;
+    }
+    return out;
   };
 
   /* Photoscanned props wear their own scan. The baseColor map (diffuse with
@@ -2609,8 +2695,23 @@ export function createProps(THREE, shading) {
     });
     m.alphaToCoverage = true;
     const frost = opts.frost === true;
+    const lod = opts.lod === true;
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
+      if (lod) {
+        // the far forest takes over from here — see TREE_RINGS
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', `#include <common>
+          varying float vLodFar;`)
+          .replace('#include <project_vertex>', `#include <project_vertex>
+          vLodFar = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz);`);
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', `#include <common>
+          varying float vLodFar;`)
+          .replace('#include <clipping_planes_fragment>', `
+          if (${LOD_HASH} < smoothstep(${TREE_LOD[0].toFixed(1)}, ${TREE_LOD[1].toFixed(1)}, vLodFar)) discard;
+          #include <clipping_planes_fragment>`);
+      }
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
         .replace('#include <color_vertex>', `#include <color_vertex>
@@ -2688,7 +2789,47 @@ export function createProps(THREE, shading) {
     };
     shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_TREE });
     const programKey = m.customProgramCacheKey();
-    m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}`;
+    m.customProgramCacheKey = () => `${programKey}|bough:${!!opts.colored}|frost:${frost}|lod:${lod}`;
+    return m;
+  };
+
+  /* The far forest's cards (see TREE_RINGS): the impostor photograph, lit by
+     the scene, brightened by the stand's cast the way the near trees' needles
+     are, and drawn only where the near trees have dissolved — the vertices of
+     every tree still inside the near distance are collapsed to nothing. */
+  const impostorMat = (atlas) => {
+    const m = new THREE.MeshLambertMaterial({
+      map: atlas, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide,
+    });
+    m.alphaToCoverage = true;
+    m.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', `#include <common>
+        varying float vLodFar;`)
+        .replace('#include <project_vertex>', `#include <project_vertex>
+        vLodFar = distance((modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz, cameraPosition.xz);
+        if (vLodFar < ${TREE_LOD[0].toFixed(1)}) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+        vN64Sheen = 0.0;`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+        varying float vLodFar;`)
+        .replace('#include <clipping_planes_fragment>', `
+        if (${LOD_HASH} >= smoothstep(${TREE_LOD[0].toFixed(1)}, ${TREE_LOD[1].toFixed(1)}, vLodFar)) discard;
+        #include <clipping_planes_fragment>`)
+        .replace('#include <alphamap_fragment>', `
+        {
+          float canopyLight = clamp(max(vColor.r, max(vColor.g, vColor.b)) * 5.5, 0.40, 1.15);
+          float snowTexel = smoothstep(0.55, 0.8, dot(sampledDiffuseColor.rgb, vec3(0.3333)));
+          diffuseColor.rgb = sampledDiffuseColor.rgb * mix(canopyLight, 1.0, snowTexel);
+        }
+        #include <alphamap_fragment>`)
+        .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        normal = normalize( vNormal );
+        nonPerturbedNormal = normal;`);
+    };
+    shading.apply(m, { streamFade: true, cameraFade: false, sheen: 0, fogPull: FOG_PULL_TREE });
+    const key = m.customProgramCacheKey();
+    m.customProgramCacheKey = () => `${key}|impostor`;
     return m;
   };
 
@@ -2776,7 +2917,9 @@ export function createProps(THREE, shading) {
 
      Both files or neither: until both arrive the forest is whatever stood
      before, and if either fails it becomes the card conifers above. */
-  const adoptAlpineForest = (atlas, nodes) => {
+  let forestLod = false;
+  const impostorMeshes = [];
+  const adoptAlpineForest = (atlas, nodes, impostors) => {
     // Every pool's tree is built before any is swapped: a file missing one
     // species leaves the whole forest as it was rather than half of it.
     const built = treePools.map((pool, i) => {
@@ -2794,8 +2937,35 @@ export function createProps(THREE, shading) {
       old.dispose();
       // Thin bare twigs keep the larch's lower cutout.
       const cut = treeBare[i] ? 0.22 : 0.36;
-      mesh.material = spruceMat(treeHeights[i], atlas, { colored: true, frost: true, alphaTest: cut });
+      mesh.material = spruceMat(treeHeights[i], atlas,
+        { colored: true, frost: true, alphaTest: cut, lod: !!impostors });
       mesh.customDepthMaterial = spruceDepth(treeHeights[i], atlas, cut, true);
+    });
+    if (!impostors) return;
+    impostors.colorSpace = THREE.SRGBColorSpace;
+    impostors.wrapS = impostors.wrapT = THREE.ClampToEdgeWrapping;
+    impostors.anisotropy = 4;
+    const cardMaterial = impostorMat(impostors);
+    treePools.forEach((pool, i) => {
+      const node = nodes['tree_' + SPECIES[i % SPECIES.length].name];
+      const cards = new THREE.InstancedMesh(
+        treeImpostorGeometry(THREE, node, treeHeights[i]), cardMaterial, pool.capacity);
+      // the same instances, read from the same buffers the pool writes
+      cards.instanceMatrix = pool.mesh.instanceMatrix;
+      cards.instanceColor = pool.mesh.instanceColor;
+      cards.count = pool.n;
+      cards.frustumCulled = false;
+      cards.castShadow = false;
+      cards.receiveShadow = false;
+      cards.userData.noShadow = true;
+      cards.name = 'far-forest';
+      group.add(cards);
+      impostorMeshes.push(cards);
+    });
+    forestLod = true;
+    // and draw the near trees for the near rings only, from the next rebuild
+    treePools.forEach((p, i) => {
+      p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);
     });
   };
   Promise.all([
@@ -2805,7 +2975,11 @@ export function createProps(THREE, shading) {
     fetch(new URL('../assets/models/nature/alpine-trees.glb', import.meta.url).href)
       .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
       .then(parseGlb),
-  ]).then(([atlas, nodes]) => adoptAlpineForest(atlas, nodes))
+    // the far forest's photographs: optional, without them every tree is drawn whole
+    new Promise((resolve) => texLoader.load(
+      new URL('../assets/textures/tree/alpine-impostors.webp', import.meta.url).href,
+      resolve, undefined, () => resolve(null))),
+  ]).then(([atlas, nodes, impostors]) => adoptAlpineForest(atlas, nodes, impostors))
     .catch((err) => {
       console.warn('Alpen: keeping the card conifers —', err);
       cardConifers();
@@ -2940,8 +3114,9 @@ export function createProps(THREE, shading) {
      the band rebuild all the same, so it appears in place. Capacity is the
      whole candidate budget per plant, three to a clump: a run of the verge
      can be all one kind. */
+  const decorMaterial = floraMat(DECOR_FADE);
   const decorPools = FLORA_PLANTS.map((name, i) => new Pool(
-    THREE, new THREE.BufferGeometry(), floraMaterial,
+    THREE, new THREE.BufferGeometry(), decorMaterial,
     (i < COVER_FIRST ? BIOMES.decorCandidates * DECOR_CLUMP_MAX
       : BIOMES.coverCandidates * COVER_CLUMP_MAX) * bands + 16,
   ));
@@ -3750,13 +3925,12 @@ export function createProps(THREE, shading) {
     }
 
     /* THE TRACKSIDE FLORA. Small plants and stones along the run, in clumps
-       and runs with bare stretches between: across the soft snow of the
-       outer corridor — everywhere the groomer's racing ribbon is not, which
-       is where the snow over a buried meadow is thinnest and the first tufts
-       come through — and out onto the verge beyond. A forty-metre corridor
-       seen from its middle puts anything only at its edge at a few pixels,
-       and the point of these is to be seen from the board, so they are also
-       drawn a little over life size. Which plant grows where follows the
+       and runs with bare stretches between: off the groomed piste — a
+       groomer leaves nothing standing, so only a rare tuft survives in its
+       last metre or two — and out across the verge and the terrain beyond,
+       thickest near the edge where the rider can see them. They are drawn a
+       little over life size, because the point of them is to be seen from
+       the board. Which plant grows where follows the
        ground: alpenrose, bilberry and juniper in the heath and under trees,
        the thistle and the umbels on open alpine meadow, stones where the
        rock comes near the surface, the grass nearly everywhere.
@@ -3771,14 +3945,13 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < BIOMES.decorCandidates; i++) {
       const z = z0 + hash2(b, 4700 + i, 271) * band;
       const side = hash2(b, 4700 + i, 272) < 0.5 ? -1 : 1;
-      const half = corridorHalfAt(z);
-      // from three quarters of the way in from the groomed edge to 12 m past it
-      const distance = lerp(-0.75 * half, 12, Math.pow(hash2(b, 4700 + i, 273), 0.85));
+      // from two metres inside the groomed edge to thirty out, most of them near it
+      const distance = lerp(-2, 30, Math.pow(hash2(b, 4700 + i, 273), 1.3));
       const x = vergeXAt(z, side, distance, hash2(b, 4700 + i, 274), hash2(b, 4700 + i, 275));
       if (occupied(x, z)) continue;
-      // never on the machine-hard ribbon, freely on the soft corridor snow
+      // the groomed snow keeps one in ten that land on it; the rest is open ground
       const surf = getTerrainMaterialAt(x, z);
-      const soft = clamp01((1 - surf.groomed) * 1.9);
+      const soft = distance < 0 ? 0.1 : clamp01((1 - surf.groomed) * 1.9);
       const rocky = surf.rock;
       ecologyAt(x, z, eco);
       const runs = Math.pow(0.5 + 0.5 * snoise2(z * 0.045, side * 17.0 + x * 0.02, 557), 1.4);
@@ -3809,22 +3982,21 @@ export function createProps(THREE, shading) {
     }
 
     /* THE GROUND COVER. The same grass and bilberry again, in lighter cuts
-       and far more of them, across the whole run: patches of meadow
-       showing through wherever the snow lies thin, thick in some stretches
-       and gone in others, thinned but not stopped on the groomer's racing
-       ribbon. Every one a different size — from a few blades to a tussock
-       as high as a knee — turned and leaning its own way, so that hundreds
-       of copies of two plants never read as a pattern. Decoration again:
-       nothing here is a solid. */
+       and far more of them, over the ground either side of the run: patches
+       of meadow showing through wherever the snow lies thin, thick in some
+       stretches and gone in others. Off the piste — the groomed snow keeps
+       only the odd tuft at its very edge. Every one a different size — from
+       a few blades to a tussock as high as a knee — turned and leaning its
+       own way, so that hundreds of copies of two plants never read as a
+       pattern. Decoration again: nothing here is a solid. */
     for (let i = 0; i < BIOMES.coverCandidates; i++) {
       const z = z0 + hash2(b, 5200 + i, 301) * band;
       const side = hash2(b, 5200 + i, 302) < 0.5 ? -1 : 1;
-      const half = corridorHalfAt(z);
-      const distance = lerp(-half, 10, hash2(b, 5200 + i, 303));
+      const distance = lerp(-1.5, 40, Math.pow(hash2(b, 5200 + i, 303), 1.15));
       const x = vergeXAt(z, side, distance, hash2(b, 5200 + i, 304), hash2(b, 5200 + i, 305));
       if (occupied(x, z)) continue;
       const surf = getTerrainMaterialAt(x, z);
-      const soft = 0.45 + 0.55 * clamp01((1 - surf.groomed) * 1.9);
+      const soft = distance < 0 ? 0.1 : (1 - surf.rock * 0.6);
       const meadow = Math.pow(0.5 + 0.5 * snoise2(x * 0.06, z * 0.06, 991), 1.5);
       if (hash2(b, 5200 + i, 306) > soft * (0.25 + 0.75 * meadow) * density) continue;
       ecologyAt(x, z, eco);
@@ -4320,15 +4492,26 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < shadowPools.length; i++) {
       shadowPools[i].shadowEnds[0] = shadowPools[i].n;
     }
+    let decorEnds = null;
     for (let k = 1; k <= streamSpan; k++) {
       if (k <= behind) placeRemembered(bi + k);
       if (k <= ahead) placeRemembered(bi - k);
       for (let i = 0; i < shadowPools.length; i++) {
         shadowPools[i].shadowEnds[k] = shadowPools[i].n;
       }
+      if (k === DECOR_RINGS) decorEnds = decorPools.map((p) => p.n);
     }
 
     allPools.forEach((p) => p.end());
+    // The trees past the nearest rings are drawn as the far forest (see TREE_RINGS).
+    if (forestLod) {
+      treePools.forEach((p, i) => {
+        p.mesh.count = Math.min(p.mesh.count, p.shadowEnds[Math.min(TREE_RINGS, streamSpan)]);
+        impostorMeshes[i].count = p.n;
+      });
+    }
+    // The flora past the nearest rings is placed but not drawn (see DECOR_RINGS).
+    if (decorEnds) decorPools.forEach((p, i) => { p.mesh.count = Math.min(p.mesh.count, decorEnds[i]); });
 
     const first = bi - ahead;
     const last = bi + behind;
@@ -4356,7 +4539,7 @@ export function createProps(THREE, shading) {
      has always already been filled. It moves with the rider continuously,
      never a band at a time, which is what keeps the fade from stepping. */
   const STREAM_GUARD = 6;
-  const STREAM_FADE = 110;
+  const STREAM_FADE = 200;
   const streamEdge = shading.uniforms?.uStreamEdge?.value || null;
   function setStreamEdge(riderZ) {
     if (streamEdge) streamEdge.set(riderZ - (ahead * band - STREAM_GUARD), STREAM_FADE);

@@ -40,6 +40,8 @@ import math
 import os
 import random
 import sys
+
+import numpy as np
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
@@ -637,6 +639,167 @@ def export_trees(path):
     return os.path.getsize(path)
 
 
+# ---------------------------------------------------------------------------
+# Impostors: every tree photographed from three bearings, for the far forest
+# ---------------------------------------------------------------------------
+
+IMPOSTOR_PX = (2048, 1024)       # atlas: one column per tree, one row per view
+IMPOSTOR_VIEWS = 3               # bearings 0°, 60°, 120° — three crossed cards
+IMPOSTOR_ASPECT = 0.5            # a cell's width over its height
+
+
+def impostor_material(atlas_path):
+    """Albedo only — the atlas, keyed the way the game keys it, times the
+    baked occlusion — so the game can light the card itself."""
+    m = bpy.data.materials.get('impostorBake') or bpy.data.materials.new('impostorBake')
+    if hasattr(m, 'use_nodes'):
+        m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    tex = nt.nodes.new('ShaderNodeTexImage')
+    img = bpy.data.images.load(atlas_path, check_existing=True)
+    img.reload()
+    tex.image = img
+    tex.interpolation = 'Linear'
+    attr = nt.nodes.new('ShaderNodeAttribute')
+    attr.attribute_name = '_AO'
+    mul = nt.nodes.new('ShaderNodeMix')
+    mul.data_type = 'RGBA'
+    mul.blend_type = 'MULTIPLY'
+    mul.inputs[0].default_value = 1.0
+    nt.links.new(tex.outputs['Color'], mul.inputs[6])
+    nt.links.new(attr.outputs['Fac'], mul.inputs[7])
+    emit = nt.nodes.new('ShaderNodeEmission')
+    nt.links.new(mul.outputs[2], emit.inputs['Color'])
+    # coverage: the bark strip is solid, everything else keyed off black
+    sep = nt.nodes.new('ShaderNodeSeparateColor')
+    nt.links.new(tex.outputs['Color'], sep.inputs[0])
+    mx1 = nt.nodes.new('ShaderNodeMath')
+    mx1.operation = 'MAXIMUM'
+    nt.links.new(sep.outputs[0], mx1.inputs[0])
+    nt.links.new(sep.outputs[1], mx1.inputs[1])
+    mx2 = nt.nodes.new('ShaderNodeMath')
+    mx2.operation = 'MAXIMUM'
+    nt.links.new(mx1.outputs[0], mx2.inputs[0])
+    nt.links.new(sep.outputs[2], mx2.inputs[1])
+    key = nt.nodes.new('ShaderNodeMath')
+    key.operation = 'GREATER_THAN'
+    key.inputs[1].default_value = 0.035
+    nt.links.new(mx2.outputs[0], key.inputs[0])
+    uvn = nt.nodes.new('ShaderNodeUVMap')
+    sepuv = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(uvn.outputs[0], sepuv.inputs[0])
+    bark = nt.nodes.new('ShaderNodeMath')
+    bark.operation = 'LESS_THAN'
+    bark.inputs[1].default_value = 0.116
+    nt.links.new(sepuv.outputs[0], bark.inputs[0])
+    cover = nt.nodes.new('ShaderNodeMath')
+    cover.operation = 'MAXIMUM'
+    nt.links.new(key.outputs[0], cover.inputs[0])
+    nt.links.new(bark.outputs[0], cover.inputs[1])
+    clear = nt.nodes.new('ShaderNodeBsdfTransparent')
+    mix = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(cover.outputs[0], mix.inputs[0])
+    nt.links.new(clear.outputs[0], mix.inputs[1])
+    nt.links.new(emit.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs[0])
+    if hasattr(m, 'surface_render_method'):
+        m.surface_render_method = 'DITHERED'
+    return m
+
+
+def _dilate(px, steps=12):
+    """Bleed colour into the transparent gutter so a mipmapped card does not
+    grow a dark rim: each step fills empty texels with the mean of their
+    filled neighbours, alpha untouched."""
+    rgb = px[..., :3].copy()
+    filled = px[..., 3] > 0.02
+    for _ in range(steps):
+        acc = np.zeros_like(rgb)
+        cnt = np.zeros(filled.shape, dtype=np.float32)
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            m = np.roll(filled, (dy, dx), axis=(0, 1))
+            acc += np.roll(rgb, (dy, dx), axis=(0, 1)) * m[..., None]
+            cnt += m
+        grow = (~filled) & (cnt > 0)
+        rgb[grow] = acc[grow] / cnt[grow][:, None]
+        filled = filled | grow
+    out = px.copy()
+    out[..., :3] = rgb
+    return out
+
+
+def bake_impostors(trees, atlas_path, out_path, tmp_dir):
+    """One column per tree (in SLOTS order), one row per bearing. Each view is
+    an orthographic camera looking horizontally at the trunk from bearing
+    k·60°, with image-right along the card that will stand there in the game,
+    framed to the tree's height and a half-width of `IMPOSTOR_ASPECT`·height
+    (or the crown's own reach, if wider). Returns, per slot, the cell column
+    and the frame (`R`, `H`) the card has to be drawn at."""
+    import numpy as np  # noqa: F811
+    scene = bpy.context.scene
+    W, Hpx = IMPOSTOR_PX
+    cols = len(trees)
+    cw, ch = W // cols, Hpx // IMPOSTOR_VIEWS
+    atlas = np.zeros((Hpx, W, 4), dtype=np.float32)
+    mat = impostor_material(atlas_path)
+    cam_data = bpy.data.cameras.new('impostor_cam')
+    cam_data.type = 'ORTHO'
+    cam = bpy.data.objects.new('impostor_cam', cam_data)
+    bpy.context.scene.collection.objects.link(cam)
+    scene.camera = cam
+    scene.render.engine = 'BLENDER_EEVEE'
+    scene.view_settings.view_transform = 'Standard'
+    scene.render.film_transparent = True
+    scene.render.image_settings.file_format = 'PNG'
+    scene.render.image_settings.color_mode = 'RGBA'
+    scene.render.resolution_x, scene.render.resolution_y = cw, ch
+    scene.render.resolution_percentage = 100
+    frames = {}
+    all_obs = list(trees.values())
+    for col, (slot, ob) in enumerate(trees.items()):
+        old = list(ob.data.materials)
+        ob.data.materials.clear()
+        ob.data.materials.append(mat)
+        for o in all_obs:
+            o.hide_render = o is not ob
+        H = ob['height']
+        reach = max(math.hypot(v.co.x, v.co.y) for v in ob.data.vertices if v.co.z > 0.5)
+        R = max(H * 0.26, reach * 1.02)
+        Hf = 2 * R / IMPOSTOR_ASPECT
+        cam_data.ortho_scale = Hf
+        for row in range(IMPOSTOR_VIEWS):
+            a = row * math.pi / IMPOSTOR_VIEWS
+            # three.js bearing a → Blender: the card's normal is (sin a, cos a)
+            # in game xz; the camera looks back along it at the trunk
+            d = Vector((math.sin(a), -math.cos(a), 0))
+            cam.location = Vector((0, 0, Hf / 2 - 0.02 * Hf)) + d * (R * 4 + 50)
+            cam.rotation_euler = (-d).to_track_quat('-Z', 'Y').to_euler()
+            path = os.path.join(tmp_dir, '%s_%d.png' % (slot, row))
+            scene.render.filepath = path
+            bpy.ops.render.render(write_still=True)
+            img = bpy.data.images.load(path, check_existing=False)
+            px = np.array(img.pixels[:], dtype=np.float32).reshape(ch, cw, 4)
+            bpy.data.images.remove(img)
+            y0 = (IMPOSTOR_VIEWS - 1 - row) * ch      # row 0 at the top
+            atlas[y0:y0 + ch, col * cw:(col + 1) * cw] = _dilate(px)
+        ob.data.materials.clear()
+        for m in old:
+            ob.data.materials.append(m)
+        frames[slot] = {'col': col, 'R': round(R, 4), 'H': round(Hf - 0.02 * Hf, 4), 'bottom': round(-0.02 * Hf, 4)}
+    for o in all_obs:
+        o.hide_render = False
+    img = bpy.data.images.new('alpine-impostors', W, Hpx, alpha=True)
+    img.pixels.foreach_set(atlas.ravel())
+    img.file_format = 'WEBP'
+    img.save(filepath=out_path, quality=90)
+    bpy.data.images.remove(img)
+    bpy.data.objects.remove(cam)
+    return frames
+
+
 if __name__ == '__main__' and '--' in sys.argv:
     args = sys.argv[sys.argv.index('--') + 1:]
     import sprigs
@@ -652,6 +815,14 @@ if __name__ == '__main__' and '--' in sys.argv:
         tex = os.path.join(assets, 'textures', 'tree')
         sprigs.build_atlas(stems, os.path.join(tex, 'alpine-sprigs.webp'),
                            os.path.join(bpy.app.tempdir, 'sprig-cells'), tex)
-    build_trees()
+    trees = build_trees()
     if assets:
+        tex = os.path.join(assets, 'textures', 'tree')
+        cells = os.path.join(bpy.app.tempdir, 'impostor-cells')
+        os.makedirs(cells, exist_ok=True)
+        frames = bake_impostors(trees, os.path.join(tex, 'alpine-sprigs.webp'),
+                                os.path.join(tex, 'alpine-impostors.webp'), cells)
+        # the frame each impostor was drawn in travels with its tree
+        for slot, f in frames.items():
+            trees[slot]['impostor'] = [f['col'], f['R'], f['bottom'], f['H']]
         print(export_trees(os.path.join(assets, 'models', 'nature', 'alpine-trees.glb')))

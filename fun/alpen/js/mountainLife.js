@@ -44,13 +44,13 @@ import { riderGeometry } from './riderAssets.js';
 const RECOVER = 0.5;
 
 const PYLON_SPACING = 200;
-/* Seven, so the span's ends stand ±600 m from the rider — past the 560 m
-   clear-day fog distance. A cabin recycles by jumping one full span from
+/* Eleven, so the span reaches 1400 m ahead — past the kilometre of the
+   clear-day fog. (It was seven against a 560 m curtain.) A cabin recycles by jumping one full span from
    one end to the other, and with five pylons the ends sat ±400 m out,
    inside the curtain's visibility: the jump was watchable in clear
    weather. Two more towers are two instances on meshes that already
    exist, and they buy the handover happening behind the haze. */
-const NUM_PYLONS = 7;
+const NUM_PYLONS = 11;
 const SPAN = PYLON_SPACING * (NUM_PYLONS - 1);
 const CABLE_SIDE = 1.8;   // the two ropes, either side of the arm's wheels
 const SAG = 2.4;          // metres of droop at mid-span

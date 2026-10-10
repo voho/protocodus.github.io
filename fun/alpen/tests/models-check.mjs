@@ -836,6 +836,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
   const BARK_U = 0.116;   // where spruceMat starts keying black (SPRUCE_LAYOUT.bark.u1)
   let species = new Set();
+  const impostorCols = new Set();
   for (const spec of props.SPECIES) {
     const node = nodes['tree_' + spec.name];
     assert.ok(node, 'a modelled tree for ' + spec.name);
@@ -876,7 +877,30 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     if (node.extras.species !== 'larch') assert.ok(snow > 10, spec.name + ': snow lies on the boughs');
     const c = g.attributes.color;
     assert.ok(c.array.every((x) => x > 0.3 && x <= 1.0), spec.name + ': occlusion is a gentle value');
+    // Its far-forest impostor: three crossed cards in the tree's own column
+    // of alpine-impostors.webp, framed round the whole tree from under the
+    // snow line, in the shape of the cell it was photographed into
+    // (2048 × 1024 over 12 columns and 3 views).
+    const [col] = node.extras.impostor;
+    impostorCols.add(col);
+    const card = props.treeImpostorGeometry(THREE, node, 24);
+    assert.equal(valid('impostor.' + spec.name, card), 6, spec.name + ': three cards');
+    card.computeBoundingBox();
+    const cb = card.boundingBox;
+    assert.ok(cb.max.y >= 23.9, spec.name + ': the frame holds the crown');
+    assert.ok(cb.min.y <= 0.05 && cb.min.y > -3, spec.name + ': impostor stands in the snow');
+    const wide = Math.hypot(card.attributes.position.getX(1) - card.attributes.position.getX(0),
+      card.attributes.position.getZ(1) - card.attributes.position.getZ(0));
+    const cell = Math.floor(2048 / 12) / Math.floor(1024 / 3);
+    assert.ok(Math.abs(wide / (cb.max.y - cb.min.y) - cell) < 0.02, spec.name + ': impostor keeps the cell aspect');
+    const cu = card.attributes.uv;
+    for (let i = 0; i < cu.count; i++) {
+      const px = cu.getX(i) * 2048;
+      assert.ok(px > col * 170 && px < (col + 1) * 170, spec.name + ': impostor reads its own column');
+      assert.ok(cu.getY(i) > 0 && cu.getY(i) < 1, spec.name + ': impostor inside the atlas');
+    }
   }
+  assert.equal(impostorCols.size, props.SPECIES.length, 'every tree has its own impostor column');
   assert.deepEqual([...species].sort(), ['fir', 'larch', 'pine', 'spruce'], 'four Alpine species');
   // The bare SPECIES stay bare: the larch slots get the larch.
   props.SPECIES.forEach((spec) => {

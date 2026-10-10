@@ -38,6 +38,7 @@ height channel ever changes.
 - **`tree/tree-bark.jpg`**: Deep conifer pine bark texture.
 - **`tree/weathered-tree-bark.jpg`**: Rugged alpine conifer pine bark with deep vertical furrows and settled snow.
 - **`tree/alpine-sprigs.webp`**: Not generated — spruce, fir, stone pine and larch sprigs modelled and rendered in Blender by `tools/blender/sprigs.py`, with their snow-loaded twins and three bark strips. The atlas the Alpine forest's cards point into. See `assets/models/MODELS.md`.
+- **`tree/alpine-impostors.webp`**: Not generated — each modelled Alpine tree rendered in Blender by `tools/blender/trees.py` from three bearings, the far forest's crossed cards. See `assets/models/MODELS.md`.
 - **`tree/sapling-impostors.webp`**: Not generated — a render of the Poly Haven CC0 fir and pine sapling models, three views each, used as impostor cards for the young forest. See `assets/models/MODELS.md`.
 
 ### 5. Mountains & Sky Panoramas (`assets/textures/sky/`)

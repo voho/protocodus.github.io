@@ -62,8 +62,13 @@ export const RENDER = {
      Both numbers moved out with the resolution. At 288 lines a ridge at
      three hundred metres was four pixels tall and pushing the curtain back
      bought nothing but fill rate; at native resolution it is a ridge. */
-  fogNear: 120,
-  fogFar: 560,
+  fogNear: 220,
+  /* A kilometre, from 560 m. The far forest is impostor cards past a couple
+     of hundred metres and the trackside flora stops at 150, so the haze no
+     longer has to hide what the scene cannot afford: it can stand where the
+     air would put it, and the valley below the run reads as a valley. The
+     terrain, the prop window and the huts all moved out with it. */
+  fogFar: 1000,
 };
 
 /* The final atmospheric grade. Snow is the hardest thing to light well: it is
@@ -998,9 +1003,9 @@ export const TERRAIN = {
      lattices, behind fog that hides the remaining LOD movement. */
   spacing: 0.75,
   uniformNear: 72,    // stable 75-centimetre lattice around the board
-  ahead: 900,         // and ahead, well past the curtain
+  ahead: 1500,        // and ahead, well past the curtain
   aheadGrowth: 1.045, // per row
-  side: 700,          // half-width at the far edge
+  side: 1150,         // half-width at the far edge
   sideGrowth: 1.052,  // per column
   /* And behind, which used to be thirty metres of uniform cells and is now a
      graded fan like the other three.
@@ -1028,7 +1033,7 @@ export const TERRAIN = {
      the eighty-two the front spends getting to nine hundred. The back remains
      intentionally coarser than the route ahead, but no longer breaks into
      fifty-metre panels while it is still visible. */
-  behind: 560,
+  behind: 1000,       // to the curtain, which is RENDER.fogFar
   behindGrowth: 1.11,
 
   /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
@@ -2063,7 +2068,11 @@ export const PROPS = {
      edge (FRAG_STREAM in shading.js), so a band arriving is never seen. Two
      bands more of instances is the price; the pools size themselves from
      this number. */
-  ahead: 13,          // bands kept in front of the rider
+  /* Twenty-four since the fog curtain moved to a kilometre: the window's far
+     edge stands at 960 m, where the curtain is all but drawn, and the far
+     forest past 220 m is impostor cards, so a band of trees costs a few
+     dozen triangles a tree rather than a thousand. */
+  ahead: 24,          // bands kept in front of the rider
   /* …and behind, which is the forest's half of the same fix the terrain's
      `behind` is. Two bands was eighty metres, against thirty metres of ground
      — so the two disagreed, and the fifty metres where they disagreed was a
