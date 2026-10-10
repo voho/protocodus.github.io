@@ -15,3 +15,6 @@ node_modules
 node_modules/
 **/node_modules
 **/node_modules/
+
+# Python bytecode (Blender build scripts import each other)
+__pycache__/

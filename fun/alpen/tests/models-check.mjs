@@ -535,7 +535,8 @@ assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
    of eight triangles whose texture rectangles sit inside the atlas and keep
    the aspect ratio of the frame the tree was drawn in (1024 × 2048). */
 const props = await load('props.js',
-  ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL', 'SWAY', 'GUST_X', 'GUST_Z']);
+  ['raceGatePanelGeometry', 'saplingCardGeometry', 'SAPLINGS', 'GATE_PANEL', 'SWAY', 'GUST_X', 'GUST_Z',
+    'SPECIES']);
 // The forest's gust field is sampled at the same wavelengths `setAir` wraps
 // its drift at — otherwise the wrap is a visible jump across every tree.
 assert.ok(props.SWAY.includes(`mod(n64At.x, ${props.GUST_X.toFixed(1)})`)
@@ -821,5 +822,65 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       assert.ok(m.matrixWorld.elements.every(Number.isFinite), 'figures ride');
     }
   }
+}
+/* The modelled Alpine forest (`tools/blender/trees.py` → alpine-trees.glb,
+   dressed from alpine-sprigs.webp). Every SPECIES slot has its tree, each
+   stands on its own trunk at the origin and inside its budget; every corner
+   is needles (1), snow (0) or bark (0.35); bark samples only the strip left
+   of the keyed foliage, foliage only the cells right of it, and a snow card
+   only the frost half; and the pool geometry the game builds from it stands
+   at the pool's grown height with its atlas read the right way up. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/nature/alpine-trees.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  const BARK_U = 0.116;   // where spruceMat starts keying black (SPRUCE_LAYOUT.bark.u1)
+  let species = new Set();
+  for (const spec of props.SPECIES) {
+    const node = nodes['tree_' + spec.name];
+    assert.ok(node, 'a modelled tree for ' + spec.name);
+    species.add(node.extras.species);
+    const g = props.alpineTreeGeometry(THREE, node, 24);
+    const tris = valid('alpine.' + spec.name, g);
+    assert.ok(tris <= 1200, spec.name + ': tree budget ' + tris);
+    g.computeBoundingBox();
+    assert.ok(Math.abs(g.boundingBox.max.y - 24) < 0.05, spec.name + ': stands at the pool height');
+    assert.ok(g.boundingBox.min.y < -0.5, spec.name + ': the trunk goes on under the snow line');
+    const p = g.attributes.position;
+    const uv = g.attributes.uv;
+    const own = g.attributes.surfaceOwn;
+    let foot = Infinity;
+    let bark = 0;
+    let snow = 0;
+    for (let i = 0; i < p.count; i++) {
+      const o = own.getX(i);
+      assert.ok(o === 0 || o === 1 || Math.abs(o - 0.35) < 1e-6, spec.name + ': ownership is needle, snow or bark');
+      const u = uv.getX(i);
+      const v = uv.getY(i);
+      assert.ok(u >= 0 && u <= 1 && v >= 0 && v <= 1, spec.name + ': uv inside the atlas');
+      if (Math.abs(o - 0.35) < 1e-6) {
+        bark++;
+        assert.ok(u <= BARK_U, spec.name + ': bark stays left of the keyed foliage');
+        if (Math.abs(p.getY(i)) < 0.05) foot = Math.min(foot, Math.hypot(p.getX(i), p.getZ(i)));
+      } else {
+        assert.ok(u > 0.125, spec.name + ': foliage samples a sprig cell');
+        if (o === 0) {
+          snow++;
+          assert.ok(v <= 0.5, spec.name + ': a snow card samples the frost half');
+        } else {
+          assert.ok(v >= 0.5, spec.name + ': a green card samples the green half');
+        }
+      }
+    }
+    assert.ok(bark > 50 && foot < 1.2, spec.name + ': a trunk on the axis at the foot (' + foot + ')');
+    if (node.extras.species !== 'larch') assert.ok(snow > 10, spec.name + ': snow lies on the boughs');
+    const c = g.attributes.color;
+    assert.ok(c.array.every((x) => x > 0.3 && x <= 1.0), spec.name + ': occlusion is a gentle value');
+  }
+  assert.deepEqual([...species].sort(), ['fir', 'larch', 'pine', 'spruce'], 'four Alpine species');
+  // The bare SPECIES stay bare: the larch slots get the larch.
+  props.SPECIES.forEach((spec) => {
+    if (!spec.foliage) assert.equal(nodes['tree_' + spec.name].extras.species, 'larch', spec.name + ' is a larch');
+  });
 }
 console.log('All model geometry checks passed.');

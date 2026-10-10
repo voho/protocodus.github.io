@@ -109,6 +109,7 @@ import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
 import { compose, weld } from './geom.js';
+import { parseGlb } from './glb.js';
 import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { onHutGround } from './huts.js';
@@ -670,6 +671,63 @@ function makeCasts(THREE) {
                    had a bad time of it
    `broken`        the leader stops short and there is no crown, only splinters
    `branchy`       spend the recursion on twigs instead of hanging needles */
+/* One tree of `alpine-trees.glb` (see `tools/blender/trees.py` and the
+   forest's adoption in `createProps`) as the geometry a forest pool draws:
+   scaled to the pool's grown `height` about its own foot, which stands on
+   the trunk axis at the origin; UVs turned back to the flipY atlas; the
+   baked occlusion as colour value (snow cards in the prop snow colour); and
+   `surfaceOwn` exactly as the file says. Indexed, as the card trees are. */
+const ALPINE_SNOW = [0.839, 0.890, 0.957];
+export function alpineTreeGeometry(THREE, node, height) {
+  let verts = 0;
+  let indices = 0;
+  for (const p of node.prims) {
+    verts += p.attributes.POSITION.length / 3;
+    indices += p.index.length;
+  }
+  const position = new Float32Array(verts * 3);
+  const normal = new Float32Array(verts * 3);
+  const uv = new Float32Array(verts * 2);
+  const color = new Float32Array(verts * 3);
+  const own = new Float32Array(verts);
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+  const k = height / node.extras.height;
+  let v = 0;
+  let o = 0;
+  for (const p of node.prims) {
+    const a = p.attributes;
+    const n = a.POSITION.length / 3;
+    for (let i = 0; i < n; i++) {
+      const j = v + i;
+      position[j * 3] = a.POSITION[i * 3] * k;
+      position[j * 3 + 1] = a.POSITION[i * 3 + 1] * k;
+      position[j * 3 + 2] = a.POSITION[i * 3 + 2] * k;
+      normal.set(a.NORMAL.subarray(i * 3, i * 3 + 3), j * 3);
+      // glTF counts v from the top of the image; the atlas is read flipY
+      uv[j * 2] = a.TEXCOORD_0[i * 2];
+      uv[j * 2 + 1] = 1 - a.TEXCOORD_0[i * 2 + 1];
+      const ao = a._AO[i];
+      own[j] = a._OWN[i];
+      const snow = own[j] === 0;
+      color[j * 3] = (snow ? ALPINE_SNOW[0] : 1) * ao;
+      color[j * 3 + 1] = (snow ? ALPINE_SNOW[1] : 1) * ao;
+      color[j * 3 + 2] = (snow ? ALPINE_SNOW[2] : 1) * ao;
+    }
+    for (let i = 0; i < p.index.length; i++) index[o + i] = p.index[i] + v;
+    v += n;
+    o += p.index.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
 const SPECIES = [
   {
     name: 'swissHighPine',     // Swiss Stone Pine / Zirbelkiefer — majestic, tall, tufted crown
@@ -2598,8 +2656,8 @@ export function createProps(THREE, shading) {
   /* The needled species become photo-textured card conifers the moment
      their atlas lands: real fir sprigs on a few dozen instanced cards per
      tree (see spruce.js). Until the file arrives (or if it never does) the
-     grown trees simply keep standing. */
-  texLoader.load(
+     grown trees simply keep standing. This is now the fallback: see below. */
+  const cardConifers = () => texLoader.load(
     new URL('../assets/textures/tree/spruce-boughs-v2.png', import.meta.url).href,
     (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
@@ -2617,6 +2675,65 @@ export function createProps(THREE, shading) {
       }
     },
   );
+
+  /* THE ALPINE FOREST, AS MODELLED.
+
+     Every card tree above was one spruce in different proportions: the same
+     two sprigs on the same whorls, so a "stone pine" and a "silver fir" were
+     told apart by their height. The forest is now four species, built in
+     Blender by `tools/blender/trees.py` the way each grows above 1500 m —
+     the narrow Norway spruce with its hanging curtains, the silver fir in
+     level tiers, the Swiss stone pine as a dense rounded column of brushes,
+     the larch bare for the winter — and dressed in sprigs modelled needle by
+     needle and photographed into `alpine-sprigs.webp` (`tools/blender/
+     sprigs.py`). One tree per slot of SPECIES, each slot standing in for
+     the real tree its name was reaching for.
+
+     The file keeps to the card trees' contract, so nothing else changes:
+     every pool keeps its grown height (the tree is scaled to it, about its
+     own foot on the trunk axis, never re-centred), the atlas keeps bark left
+     of the keyed foliage and the snow twins half an atlas down, and the
+     corners carry what `spruceMat` reads — canopy normals, occlusion as
+     colour (baked in Blender by casting rays through the finished crown),
+     and `surfaceOwn` (needles 1, snow 0, bark 0.35). Snow-loaded cards take
+     the prop snow colour, as the frost boughs always have.
+
+     Both files or neither: until both arrive the forest is whatever stood
+     before, and if either fails it becomes the card conifers above. */
+  const adoptAlpineForest = (atlas, nodes) => {
+    // Every pool's tree is built before any is swapped: a file missing one
+    // species leaves the whole forest as it was rather than half of it.
+    const built = treePools.map((pool, i) => {
+      const node = nodes['tree_' + SPECIES[i % SPECIES.length].name];
+      if (!node) throw new Error('alpine-trees.glb: no tree for ' + SPECIES[i % SPECIES.length].name);
+      return alpineTreeGeometry(THREE, node, treeHeights[i]);
+    });
+    atlas.colorSpace = THREE.SRGBColorSpace;
+    atlas.wrapS = atlas.wrapT = THREE.ClampToEdgeWrapping;
+    atlas.anisotropy = 8;
+    built.forEach((g, i) => {
+      const mesh = treePools[i].mesh;
+      const old = mesh.geometry;
+      mesh.geometry = g;
+      old.dispose();
+      // Thin bare twigs keep the larch's lower cutout.
+      const cut = treeBare[i] ? 0.22 : 0.36;
+      mesh.material = spruceMat(treeHeights[i], atlas, { colored: true, frost: true, alphaTest: cut });
+      mesh.customDepthMaterial = spruceDepth(treeHeights[i], atlas, cut, true);
+    });
+  };
+  Promise.all([
+    new Promise((resolve, reject) => texLoader.load(
+      new URL('../assets/textures/tree/alpine-sprigs.webp', import.meta.url).href,
+      resolve, undefined, reject)),
+    fetch(new URL('../assets/models/nature/alpine-trees.glb', import.meta.url).href)
+      .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+      .then(parseGlb),
+  ]).then(([atlas, nodes]) => adoptAlpineForest(atlas, nodes))
+    .catch((err) => {
+      console.warn('Alpen: keeping the card conifers —', err);
+      cardConifers();
+    });
 
   /* The shadow pass draws only the prefix that can reach its own camera.
 

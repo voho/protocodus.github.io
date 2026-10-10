@@ -85,9 +85,51 @@ lossless alpha. The UV rectangles and each sapling's frame (half-width
 In game, each view is a 3 × 3 card at the bearing it was drawn from:
 24 triangles per young tree.
 
-## Card conifer atlas
+## nature/alpine-trees.glb — the Alpine forest (built in Blender)
 
-The needled tree species are card conifers built at runtime by
+Not downloaded: `tools/blender/trees.py` builds it, together with the
+atlas its cards point into (`textures/tree/alpine-sprigs.webp`), from the
+repository root:
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/trees.py -- --out fun/alpen/assets
+
+(The sprigs are rendered with EEVEE, so this needs a GPU — it will not run
+inside a sandbox that hides Metal.)
+
+Four species, as they grow above 1500 m: **Norway spruce** (*Picea abies*,
+the narrow subalpine spire with hanging curtains of shoots), **silver fir**
+(*Abies alba*, level tiers of flat sprays; an old one flattens into a
+stork's nest), **Swiss stone pine** (*Pinus cembra*, a dense rounded column
+of upturned five-needle brushes, often with two or three leaders, one
+wind-flagged), and **European larch** (*Larix decidua*, bare in winter).
+One tree per slot of `props.js`'s `SPECIES` table (node `tree_<name>`,
+with `extras.height` and `extras.species`); the 24 pools scale them to
+their grown heights.
+
+`tools/blender/sprigs.py` models each species' foliage needle by needle —
+spiralled spruce shoots, two-ranked fir sprays, pine fascicles of five,
+larch twigs with their spur stubs and cones — adds a snow mantle (flattened
+metaballs) for the evergreens and hoar frost for the larch, and photographs
+them straight down onto black: two sprigs per species in the top half of
+the atlas, their snow twins half an atlas below, and three bark strips
+(spruce/fir from the old bough atlas, stone pine and larch from the two bark
+photographs) left of u = 0.116, where `spruceMat` starts keying black.
+
+Each tree is a trunk with buttress roots running on under the snow line,
+the lowest branch stubs, and 300–550 cards: boughs drawn as skirts sloping
+down off the trunk (split in two on long boughs so the sprig is never
+stretched to a frond), curtains facing out of the crown, brush rosettes on
+the pines. Occlusion is baked in Blender by casting rays through the
+finished tree and exported as the custom attribute `_AO`; `_OWN` is the
+`surfaceOwn` contract (needles 1, snow 0, bark 0.35); normals are canopy
+normals. `props.js#alpineTreeGeometry` turns a node into pool geometry.
+744–1156 triangles a tree. If either file fails to load, the card conifers
+below take over.
+
+## Card conifer atlas (fallback)
+
+The needled tree species were card conifers built at runtime by
 `js/spruce.js` from `assets/textures/tree/spruce-card-atlas.webp`. The
 atlas is composed offline from the Poly Haven **fir_tree_01** asset
 (CC0): its `twig_diff/_ao/_alpha` maps supply two needle sprigs (stored

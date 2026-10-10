@@ -5,13 +5,9 @@
    per rigid segment of the rig) and `npcs.glb` (each figure's deck and body
    halves, plus the headgear and pack they are dressed in). See MODELS.md.
 
-   THIS IS NOT A GLTF LOADER, and it is deliberately not one. The files are
-   ours and their shape is fixed by the script that writes them: float
-   positions and normals, integer indices, one material per primitive and
-   nothing else — no textures, no skins, no compression. Reading exactly that
-   is fifty lines, and it means the same code runs in the browser and in the
-   node checks (`tests/models-check.mjs`), which cannot resolve the bare
-   `three` import the vendored GLTFLoader needs.
+   The files are read by `glb.js`, not the glTF loader: they are ours and
+   their shape is fixed by the script that writes them, so the same small
+   reader runs in the browser and in the node checks.
 
    COLOUR IS A ROLE, NOT A PIXEL. Every primitive's material is named for
    what it is — `shell`, `trim`, `npcJacket` — and carries nothing else. The
@@ -20,62 +16,23 @@
    dress stay written down where the rest of the art direction is, and a
    rebuild in Blender can never quietly change a colour. */
 
-const GLB_MAGIC = 0x46546c67;
-const CHUNK_JSON = 0x4e4f534a;
-const CHUNK_BIN = 0x004e4942;
-const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
-const TYPED = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
+import { parseGlb } from './glb.js';
 
 export const RIDER_GLB = new URL('../assets/models/riders/rider.glb', import.meta.url).href;
 export const NPC_GLB = new URL('../assets/models/riders/npcs.glb', import.meta.url).href;
 
 /* name → { prims: [{ role, position, normal, index }], extras } for every
-   node that carries a mesh. A node with a transform of its own is refused
-   rather than half-honoured: every node is authored at the origin of its own
-   segment's frame, and one that is not means the build has gone wrong. */
+   node that carries a mesh (see glb.js, which refuses any node not at its
+   segment's origin). */
 export function parseRiderGlb(buffer) {
-  const view = new DataView(buffer);
-  if (view.getUint32(0, true) !== GLB_MAGIC) throw new Error('rider model: not a GLB');
-  let json = null;
-  let bin = null;
-  for (let at = 12; at + 8 <= view.byteLength;) {
-    const length = view.getUint32(at, true);
-    const type = view.getUint32(at + 4, true);
-    if (type === CHUNK_JSON) {
-      json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, at + 8, length)));
-    } else if (type === CHUNK_BIN) {
-      // Copied out so every view below starts on an aligned offset.
-      bin = buffer.slice(at + 8, at + 8 + length);
-    }
-    at += 8 + length;
-  }
-  if (!json || !bin) throw new Error('rider model: missing chunk');
-
-  const read = (i) => {
-    const acc = json.accessors[i];
-    const bv = json.bufferViews[acc.bufferView];
-    const Typed = TYPED[acc.componentType];
-    const size = COMPONENTS[acc.type];
-    if (!Typed || !size) throw new Error('rider model: unexpected accessor');
-    if (bv.byteStride && bv.byteStride !== size * Typed.BYTES_PER_ELEMENT) {
-      throw new Error('rider model: interleaved buffers');
-    }
-    return new Typed(bin, (bv.byteOffset || 0) + (acc.byteOffset || 0), acc.count * size);
-  };
-
-  const nodes = {};
-  for (const node of json.nodes || []) {
-    if (node.mesh === undefined) continue;
-    if (node.matrix || node.translation || node.rotation || node.scale) {
-      throw new Error(`rider model: node ${node.name} is not at its segment's origin`);
-    }
-    const prims = json.meshes[node.mesh].primitives.map((p) => ({
-      role: json.materials[p.material].name,
-      position: read(p.attributes.POSITION),
-      normal: read(p.attributes.NORMAL),
-      index: read(p.indices),
+  const nodes = parseGlb(buffer);
+  for (const node of Object.values(nodes)) {
+    node.prims = node.prims.map((p) => ({
+      role: p.role,
+      position: p.attributes.POSITION,
+      normal: p.attributes.NORMAL,
+      index: p.index,
     }));
-    nodes[node.name] = { prims, extras: node.extras || {} };
   }
   return nodes;
 }

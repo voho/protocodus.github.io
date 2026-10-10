@@ -77,6 +77,12 @@ where the beam starts), lead and rear limbs mirror, only the hem and upper
 sleeves flutter, the eight figures bake in their own colours on the hip the
 file carries — and under the rig the kneecaps face the toe edge and the
 elbows point behind, which is the bend-plane roll the IK now applies.
+It reads the modelled Alpine forest too (`assets/models/nature/alpine-trees.glb`,
+built by `tools/blender/trees.py`): every `SPECIES` slot has its tree, four
+species in all and the bare slots larches; each stands on its trunk at the
+origin, under 1200 triangles, at the pool's height once converted, with its
+trunk running on under the snow line; every corner is needles, snow or bark,
+bark samples only left of the keyed foliage, snow cards only the frost half.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
