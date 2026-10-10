@@ -3250,6 +3250,7 @@ export function createProps(THREE, shading) {
               key: `boulder:${b}`,
               type: 'boulder', x, z, r: shape.r,
               kind: HARD, groundY, top: shape.top, cameraPad: 0.55, volume: true,
+              ao: shape.top - groundY,
             };
             solids.push(solid);
             bandHazards.push(solid);
@@ -3484,6 +3485,7 @@ export function createProps(THREE, shading) {
       solids.push({
         type: 'rock', x, z, r: shape.r,
         kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
+        ao: shape.top - groundY,
       });
     }
 
@@ -3510,6 +3512,7 @@ export function createProps(THREE, shading) {
         solids.push({
           type: 'rock', x, z, r: shape.r,
           kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
+          ao: shape.top - groundY,
         });
       }
     }

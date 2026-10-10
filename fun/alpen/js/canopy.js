@@ -49,6 +49,8 @@ const DEPTH = 0.5;
 // How much wider than the crown the dimmed ring reaches. The sky a crown
 // hides is not only the sky straight overhead.
 const REACH = 1.45;
+// The share of the sky a rock hides from the snow at its foot.
+const CONTACT = 0.42;
 
 export function createCanopy(THREE, shading) {
   const data = new Uint8Array(SIZE * SIZE);
@@ -77,10 +79,45 @@ export function createCanopy(THREE, shading) {
      crowns combines as the product of what each lets through, so two trees
      side by side are darker than one and a thicket saturates towards the
      depth of the thickest canopy rather than towards black. */
+  /* A rock takes the sky from the snow at its foot, not from under its
+     middle: next to a face, the face is half of what the snow can see, and
+     the share falls away over about the rock's own height. So a rock is a
+     ring from its drawn edge (`r` is the collider, 88% of it) outward,
+     deepest at the face. Without it a boulder in the open stood on snow lit
+     exactly like the snow around it on every side its sun shadow was not. */
+  function splatContact(s, ox, oz) {
+    const edge = s.r / 0.88;
+    const span = Math.min(6, Math.max(0.8, s.ao * 0.9));
+    const reach = edge + span;
+    const cx = (s.x - ox) / TEXEL;
+    const cz = (s.z - oz) / TEXEL;
+    const rt = reach / TEXEL;
+    if (cx + rt < 0 || cz + rt < 0 || cx - rt >= SIZE || cz - rt >= SIZE) return;
+    const x0 = Math.max(0, Math.floor(cx - rt));
+    const x1 = Math.min(SIZE - 1, Math.ceil(cx + rt));
+    const z0 = Math.max(0, Math.floor(cz - rt));
+    const z1 = Math.min(SIZE - 1, Math.ceil(cz + rt));
+    for (let z = z0; z <= z1; z++) {
+      const dz = (z + 0.5 - cz) * TEXEL;
+      const row = z * SIZE;
+      for (let x = x0; x <= x1; x++) {
+        const dx = (x + 0.5 - cx) * TEXEL;
+        const t = (Math.hypot(dx, dz) - edge) / span;
+        if (t >= 1) continue;
+        const q = t <= 0 ? 1 : 1 - t;
+        field[row + x] *= 1 - CONTACT * q * q;
+      }
+    }
+  }
+
   function draw(solids, ox, oz) {
     field.fill(1);
     for (let i = 0; i < solids.length; i++) {
       const s = solids[i];
+      if (s.ao) {
+        splatContact(s, ox, oz);
+        continue;
+      }
       const crown = s.canopy;
       if (!crown) continue;
       const reach = crown * REACH;

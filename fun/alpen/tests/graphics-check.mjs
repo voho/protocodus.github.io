@@ -263,6 +263,7 @@ for (const fps of [30, 60, 144]) {
     { x: -20, z: -60, canopy: 3 }, { x: -18.5, z: -60, canopy: 3 },
     { x: 30, z: -50, canopy: 3, canopyDensity: 0.35 },
     { x: 0, z: -48, r: 1 },   // a rock: no crown, no occlusion
+    { x: -40, z: -80, r: 1.76, ao: 2 },   // a boulder, 2 m tall, 2 m to its edge
   ];
   const ahead = new THREE.Vector3(0, 0, -1);
   canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 1);
@@ -273,6 +274,8 @@ for (const fps of [30, 60, 144]) {
   assert.ok(pair > trunk && pair < 0.9, `two crowns are darker than one and never black: ${pair}`);
   assert.ok(canopy.sample(30, -50) < trunk * 0.5, 'a bare snag hides much less sky');
   assert.equal(canopy.sample(0, -48), 0, 'solids without a crown do not occlude');
+  assert.ok(canopy.sample(-37.6, -80) > 0.2, 'a boulder takes the sky from the snow at its foot');
+  assert.equal(canopy.sample(-35, -80), 0, 'and from nothing past about its own height out');
   assert.equal(shading.uniforms.uCanopyWin.value.w, 0, 'full sun shadows keep the direct light');
   canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 0.25);
   close(shading.uniforms.uCanopyWin.value.w, 0.75, 'faded sun shadows hand the crown the direct light');
