@@ -718,7 +718,8 @@ export class Renderer {
     this.fogState = null; this.fogTime = NaN; this.byIdSource = null; this.byIdLength = -1; this.byId = new Map();
     this.seenShells = new WeakSet(); this.drawVisible = null; this.pendingRuins = []; this.alphaFloor = 0;
     this.flights = []; this.flightLife = []; this.flightState = null; this.flightTime = NaN; this.landed = [];
-    this.impacts = []; this.dying = []; this.held = new WeakSet(); this.impactAt = new WeakMap();
+    this.impacts = []; this.dying = []; this.held = new WeakSet(); this.impactAt = new WeakMap(); this.blastAt = new WeakMap();
+    this.drawClock = 0;
   }
   // Props bucketed by tile row, so a frame visits only the rows on screen.
   propRowsFor(state) {
@@ -1316,6 +1317,7 @@ export class Renderer {
       if (fx.weapon === 'artillery') {
         // A barrage blast and its scorch wait for the shell to land.
         const land = born + SHELL_FLIGHT;
+        this.blastAt.set(fx, land);
         this.pendingRuins.push({ born: land, fx, body: null, gated: true });
         this.addParticle({ kind: 'blast', born: land, life: .5, x: fx.x * TILE, y: fx.y * TILE - 3, size: fx.size || .8, gate: i, sx: fx.x, sy: fx.y });
         this.blast(state, fx, land);
@@ -1323,6 +1325,7 @@ export class Renderer {
       }
       // A rocket's blast waits for the drawn rocket to arrive, and a death a shell caused waits for the shell.
       const land = fx.weapon ? this.impactAt.get(fx) ?? born : this.shellLanding(fx, born);
+      this.blastAt.set(fx, land);
       const body = this.blast(state, fx, land);
       if (land > born) {
         this.held.add(fx);
@@ -1344,6 +1347,12 @@ export class Renderer {
       for (const impact of this.impacts) if (clock < impact.land + .5 && impact.land < clock + 2) this.impacts[keep++] = impact;
       this.impacts.length = keep;
     }
+  }
+
+  // When a seen explosion plays on the drawn clock (renderer.drawClock): a shell's kills and a rocket's blast wait
+  // for the projectile to arrive. Null until a frame has drawn it, so sound can stay in step with the picture.
+  blastTime(fx) {
+    return this.blastAt.get(fx) ?? null;
   }
 
   // Shells splash 1.6 tiles (the barrage uses the same reach). A death born on a shell's launch tick within
@@ -1776,6 +1785,7 @@ export class Renderer {
       this.drawLag = (1 - this.blendAlpha) * (time - this.poseTime);
     } else { this.blendAlpha = 1; this.drawLag = 0; }
     const clock = time - this.drawLag, lag = this.drawLag;
+    this.drawClock = clock;
     this.drawVisible = visible; this.drawWidth = W;
     const commandAge = view.commandMarker ? performance.now() / 1000 - view.commandMarker.time : -1;
     const attackPulse = view.commandMarker?.type === 'attack' && commandAge >= 0 && commandAge < .85

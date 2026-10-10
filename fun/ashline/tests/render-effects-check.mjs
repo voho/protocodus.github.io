@@ -234,7 +234,8 @@ try {
     victim.hp = 0; s.entities = [survivor]; survivor.lastHit = launch; s.time = launch;
     s.effects = [{ type: 'shell', weapon: 'artillery', x: 26, y: 30, tx: 32, ty: 30, life: .3, maxLife: .35, team: 0 }, death];
     const launched = render();
-    result.shellKill = { dying: renderer.dying.length, held: renderer.held.has(death), wreckEarly: decalSum(decals(), 32, 30, .8) - decalSum(beforeShell, 32, 30, .8) };
+    result.shellKill = { dying: renderer.dying.length, held: renderer.held.has(death), wreckEarly: decalSum(decals(), 32, 30, .8) - decalSum(beforeShell, 32, 30, .8),
+      blastTime: renderer.blastTime(death) - launch };
     delete survivor.lastHit; result.shellKill.flashEarly = difference(launched, render()); survivor.lastHit = launch;
     s.time = launch + .32; death.life = .23; s.effects = [death];
     const landed = render();
@@ -346,7 +347,7 @@ try {
   assert(c.foundation.decal > 200 && c.foundation.decal < c.seen.decal * .3 && c.half.decal > c.foundation.decal && c.half.decal < c.seen.decal * .92,
     `An unfinished structure leaves only the built part of its husk (${JSON.stringify(c)})`);
   const k = checks.shellKill;
-  assert(k.dying === 1 && k.held && k.wreckEarly === 0 && k.flashEarly === 0,
+  assert(k.dying === 1 && k.held && k.wreckEarly === 0 && k.flashEarly === 0 && Math.abs(k.blastTime - .3) < 1e-9,
     `A shell kill keeps the body and holds its blast, wreck and survivor flashes until landing (${JSON.stringify(k)})`);
   assert(k.dyingAfter === 0 && k.wreckLanded > 1000 && k.blast && k.flashLanded > 30, `The shell's kill shows when it lands (${JSON.stringify(k)})`);
   const t = checks.rocketTail;

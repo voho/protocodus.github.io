@@ -1,6 +1,7 @@
 // Renderer workload report: counts Canvas 2D operations for one battlefield frame at three
 // populations and times repeated draws. Counts are the stable signal; headless timings depend on
-// the machine and on software rasterization, so they are reported, never asserted.
+// the machine and on software rasterization, so they are reported, never asserted. This is a
+// measurement tool, not a pass/fail check: run it alone, never alongside other browser checks.
 // Run with ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs against a local server (ASHLINE_URL).
 // ASHLINE_DPR (default 1), ASHLINE_DRAWS (timed draws per scene, default 12) and
 // ASHLINE_SCREENSHOTS (optional output folder) adjust the run.
