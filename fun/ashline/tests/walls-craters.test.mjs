@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGame,updateGame,BUILDINGS,UNITS,MAP_SIZES,MAP_PROFILES,buildingRole,unitRole,planWallLine,buildWallLine,canPlace,placeBuilding,issueOrder,getEntity,toggleRepair,sellBuilding,terrainCover} from '../sim.js';
 import {encodeGame,decodeGame} from '../save.js';
+import {mapRoutes} from '../terrain.js';
 
 function fixture(race='organics'){
   const s=createGame('WALL-FIXTURE','hard',{...MAP_SIZES.standard,races:[race,'organics'],aiTeams:[]});
@@ -78,6 +79,19 @@ test('generated craters are mirrored, reachable cover outside resource and base 
   }
 });
 
+test('impact steppe belts lay passable crater cover across every lane on both sides',()=>{
+  for(const [size,dimensions] of Object.entries(MAP_SIZES))for(const seed of ['BELT-1','BELT-2']){
+    const s=createGame(seed,'normal',{...dimensions,profile:'steppe'}),routes=mapRoutes(s),covers=s.sites.filter(site=>site.kind==='cover');
+    assert.equal(covers.length,2,'one named crater line on each side');
+    const [from,to]=[routes[1].points[0],routes[1].points[120]],length=Math.hypot(to.x-from.x,to.y-from.y),axial=p=>((p.x-from.x)*(to.x-from.x)+(p.y-from.y)*(to.y-from.y))/length;
+    for(const cover of covers)for(const route of routes){
+      const point=route.points.reduce((best,p)=>Math.abs(axial(p)-axial(cover))<Math.abs(axial(best)-axial(cover))?p:best);
+      let bowls=0;
+      for(let y=Math.floor(point.y)-5;y<=point.y+5;y++)for(let x=Math.floor(point.x)-5;x<=point.x+5;x++)if(s.terrain[y*s.width+x]===5){bowls++;assert.equal(s.blocked[y*s.width+x],0);assert.ok(s.regions[y*s.width+x]);}
+      assert.ok(bowls>=8,`${size} ${seed}: the ${route.id} lane crosses the ${cover.id} crater line`);
+    }
+  }
+});
 
 test('attack orders breach an intervening wall while siege weapons can reach the nexus behind it',()=>{
   for(const type of ['rifle','artillery']){

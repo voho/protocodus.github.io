@@ -43,6 +43,24 @@ for(let seed=0;seed<48;seed++){
 }
 assert.equal(layouts.size,48,'Different seeds vary pool locations and shapes');
 
+// Every profile keeps compact, bounded, mirrored pools; ember channels chain many of them across the lanes. The
+// renderer bakes a few surfaces per pool sized to its bounding box, so size and compactness bound terrain memory.
+for(const profile of Object.keys(MAP_PROFILES))for(const [size,dimensions] of Object.entries(MAP_SIZES))for(let seed=0;seed<3;seed++){
+  const s=createGame(`lava-profile-${seed}`,'normal',{...dimensions,profile}),groups=pools(s),area=s.width*s.height/(72*56),{start,end}=mapLayout(s),label=`${profile} ${size} lava-profile-${seed}`;
+  assert(groups.length<=16*Math.sqrt(area),`${label}: a bounded number of pools`);
+  if(profile==='ember')assert(groups.length>=6*Math.sqrt(area),`${label}: ember channels chain many pools`);
+  for(const group of groups){
+    const xs=group.map(at=>at%s.width),ys=group.map(at=>Math.floor(at/s.width)),box=(Math.max(...xs)-Math.min(...xs)+1)*(Math.max(...ys)-Math.min(...ys)+1);
+    assert(group.length>=12&&group.length<=220,`${label}: pools hold 12–220 tiles (${group.length})`);
+    assert(group.length/box>=.3,`${label}: pools stay compact basins, not long rivers`);
+    for(const at of group){
+      const x=at%s.width,y=Math.floor(at/s.width);
+      assert(x>=3&&x<s.width-3&&y>=3&&y<s.height-3&&Math.hypot(x-start.x,y-start.y)>11&&Math.hypot(x-end.x,y-end.y)>11,`${label}: pools keep the margin and base clearings`);
+      assert.equal(s.terrain[s.terrain.length-1-at],3);assert.equal(s.minerals[at],0);assert.equal(s.blocked[at],1);
+    }
+  }
+}
+
 // A previously legal, covered construction footprint becomes invalid without charging credits.
 {
   const s=createGame('lava-placement'),core=s.entities.find(e=>e.team===0&&e.type==='core');let site;
@@ -75,4 +93,4 @@ for(const type of Object.keys(UNITS))for(const passing of [false,true]){
   assert(detour>3,'Units take the safe route around the pool');assert.equal(u.hp,u.maxHp);
 }
 
-console.log('Ashline lava checks passed: deterministic connected pools, independent distribution RNG, safe bases/minerals, routes, construction/fog, and every unit class during friendly jam passage.');
+console.log('Ashline lava checks passed: deterministic connected pools, compact bounded pools on every profile, independent distribution RNG, safe bases/minerals, routes, construction/fog, and every unit class during friendly jam passage.');

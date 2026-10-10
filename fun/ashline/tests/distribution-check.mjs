@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createGame,MAP_SIZES,MAP_PROFILES,mapLayout,canPlace,placeBuilding,updateGame,issueOrder} from '../sim.js';
+import {createGame,MAP_SIZES,MAP_PROFILES,mapLayout,canPlace,placeBuilding,updateGame,issueOrder,buildingRole} from '../sim.js';
 
 const dimensions=[{width:72,height:56},...Object.values(MAP_SIZES)];
 const mineralTotal=s=>s.minerals.reduce((n,v)=>n+v,0);
@@ -36,6 +36,31 @@ for(const size of dimensions)for(let seed=0;seed<24;seed++){
   summary.push({width:s.width,trees,minerals,loose});
 }
 
+// Every profile scatters isolated trees and loose, reachable, mirrored deposits. The basin grows slightly more deadwood
+// than the rift (its root chance is higher), and deadwood groves may grow far denser,
+// within their own bound, without sealing ground or touching base clearings and deposits.
+const treeCap={basin:85,deadwood:170};
+for(const profile of Object.keys(MAP_PROFILES))for(const size of Object.values(MAP_SIZES))for(let seed=0;seed<2;seed++){
+  const s=createGame(`distribution-${profile}-${seed}`,'normal',{...size,profile}),area=s.width*s.height/(72*56),{start,end}=mapLayout(s),label=`${profile} ${s.width}x${s.height} seed ${seed}`;
+  const scouts=s.entities.filter(e=>e.type==='scout'),region=s.regions[Math.floor(scouts[0].y)*s.width+Math.floor(scouts[0].x)],quadrants=new Set();
+  let trees=0,minerals=0,loose=0;
+  for(let i=0;i<s.terrain.length;i++){
+    const x=i%s.width,y=Math.floor(i/s.width);
+    if(s.terrain[i]===4){
+      trees++;quadrants.add(Math.floor(x/(s.width/2))+2*Math.floor(y/(s.height/2)));
+      assert(Math.hypot(x-start.x,y-start.y)>11&&Math.hypot(x-end.x,y-end.y)>11,`${label}: base clearings stay tree-free`);
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy){const j=(y+dy)*s.width+x+dx;assert([0,2,5].includes(s.terrain[j]),`${label}: every tree keeps an open ring`);assert.equal(s.minerals[j],0);}
+    }
+    if(s.minerals[i]>0){minerals++;assert.equal(s.regions[i],region,`${label}: deposits are reachable`);assert.equal(s.minerals[i],s.minerals[s.minerals.length-1-i]);if([i-1,i+1,i-s.width,i+s.width].filter(j=>s.minerals[j]>0).length<=1)loose++;}
+  }
+  assert(trees>=4*area&&trees<=(treeCap[profile]??70)*area,`${label}: tree count ${trees} within the profile's bound`);assert(quadrants.size>=4);
+  if(profile==='deadwood')assert(trees>=75*area,`${label}: deadwood grows groves`);
+  assert(minerals>=150&&minerals/s.terrain.length>.015&&minerals/s.terrain.length<.065,`${label}: deposits stay sparse`);assert(loose/minerals>.2,`${label}: loose satellites remain`);
+  // Measured around the two nexus centres, which mirror each other exactly.
+  const local=s.entities.filter(e=>buildingRole(e)==='core').map(e=>s.minerals.reduce((n,v,i)=>n+(Math.hypot(i%s.width+.5-e.x-1.5,Math.floor(i/s.width)+.5-e.y-1.5)<14?v:0),0));
+  assert(local.length===2&&Math.min(...local)>14000&&local[0]===local[1],`${label}: nearby resources stay balanced`);
+}
+
 // Changing terrain profiles preserves safe starting resources; additional value sits in exposed red expansions.
 for(const seed of ['ASH-001','smoke','player-victory'])for(const size of Object.values(MAP_SIZES)){
   const budgets=Object.keys(MAP_PROFILES).map(profile=>{const s=createGame(seed,'normal',{...size,profile});return s.minerals.reduce((sum,amount,i)=>sum+(s.mineralTypes[i]===1?amount:0),0);});
@@ -56,4 +81,4 @@ for(const seed of ['ASH-001','smoke','player-victory'])for(const size of Object.
   for(let i=0;i<200;i++){updateGame(s,.05);for(const dx of [-.189,.189])for(const dy of [-.189,.189])assert.equal(s.blocked[Math.floor(u.y+dy)*s.width+Math.floor(u.x+dx)],0,'Moving units route around tree roots');}
   assert(Math.hypot(u.x-35.5,u.y-28.5)<=.081);
 }
-console.log('Distribution checks passed: 96 deterministic current/legacy maps, scattered trees and mineral satellites, balanced budgets, connected bases/deposits, working haulers, and root navigation/construction/fog.',JSON.stringify(summary.filter((_,i)=>i%24===0)));
+console.log('Distribution checks passed: 96 deterministic current/legacy maps plus every profile, scattered trees, deadwood groves and mineral satellites, balanced budgets, connected bases/deposits, working haulers, and root navigation/construction/fog.',JSON.stringify(summary.filter((_,i)=>i%24===0)));
