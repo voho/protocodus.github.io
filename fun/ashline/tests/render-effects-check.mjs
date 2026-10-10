@@ -43,7 +43,6 @@ try {
       }
       return out;
     };
-    const sameRegion = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
     const tick = (mutate, pending) => { renderer.snapshot(s); s.time += .05; mutate(); renderer.pendingTime = pending; };
     const result = {};
 
@@ -66,8 +65,7 @@ try {
     renderer = new Renderer(world, null); render(); result.freshExact = renderer.poseOf(friend) === friend;
 
     // Shake: only visible explosions near the camera, off for the view setting, capped.
-    s.entities = []; s.effects = [];
-    const clean = render();
+    s.entities = []; s.effects = []; render();
     s.effects.push({ type: 'explosion', x: 31, y: 30, life: .55, maxLife: .6, team: 1, size: 3 });
     render(); s.time += .1; render(); result.shake = Math.hypot(renderer.shakeX, renderer.shakeY); result.particles = renderer.particles.length;
     view.screenShake = false; render(); result.shakeOff = Math.hypot(renderer.shakeX, renderer.shakeY); delete view.screenShake;
