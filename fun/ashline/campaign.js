@@ -87,10 +87,10 @@ export const MISSIONS={
     ],
     triggers:[
       {id:'welcome',when:{time:1},do:[say(VALE,'Expedition 07, this is Vale. Welcome to Tephra. The Charter gives this sector to whoever keeps a working nexus on it, so ours stays standing.')]},
-      {id:'first-steps',when:{time:8,objectiveActive:'marker'},do:[say(VALE,'First, walk the ground. Select two units and right-click the survey marker.')]},
+      {id:'first-steps',when:{time:8,objectiveActive:'marker'},do:[say(VALE,'First, walk the ground. Select two units, then right-click or tap the survey marker; the locate button beside the objective finds it.')]},
       {id:'ground',when:{objectiveDone:'marker'},do:[{reveal:'barracks'},say(VALE,'Ground holds. Open the command console, choose the Field barracks and place it within reach of the base.')]},
       {id:'recruit',when:{objectiveDone:'barracks'},do:[{reveal:'rifles'},{reveal:'shards'},say(VALE,'Barracks online. Train three rifle squads. Your hauler is already working the mint field; keep the credits coming.')]},
-      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Clearing it closes the operation, so finish the rover\'s survey first. Gather the squads, press Q, then click to attack-move.')]},
+      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Clearing it closes the operation, so finish the rover\'s survey first. Gather the squads and attack-move with Attack or Q.')]},
       {id:'classified',when:{zoneEntered:'picket'},do:[say(UNITY,'Unregistered claim detected. Classification: interference.')]},
       {id:'pressure',when:{tagsLeft:{tag:'picket',count:2}},do:[say(VALE,'They hold their ground and fire at anything in range. Keep the pressure on.')]},
     ],
@@ -187,7 +187,7 @@ export const MISSIONS={
     triggers:[
       {id:'claim',when:{time:1},do:[say(VALE,'The construction vehicle is our claim. If it dies, so does the expedition. Keep the armor between it and anything with a gun.')]},
       {id:'charter',when:{time:8},do:[say(KADE,'The Charter recognises a claim when its nexus is operating, not before. Deploy inside the marked site and keep it standing until it comes online.')]},
-      {id:'formation',when:{time:16},do:[say(VALE,'Tanks lead, infantry on the flanks, engineer behind the armor. Hold right-click and drag to set a formation.')]},
+      {id:'formation',when:{time:16},do:[say(VALE,'Tanks lead, infantry on the flanks, engineer behind the armor. With a mouse, hold right-click and drag to set a formation.')]},
       {id:'interception',when:{zoneEntered:'ridge'},do:[say(UNITY,'Mobile claim detected. Interception authorised.'),{spawn:{team:1,units:[['scout',3],['rifle',3]],at:'fogEdge',order:{zone:'ridge'},tag:'hunters',text:'Unity hunters closing on the convoy.'}}]},
       {id:'arrival',when:{zoneEntered:'gap'},do:[say(VALE,'Claim site reached. Silence any Lance sentry covering it, then select the construction vehicle, choose Deploy nexus and pick clear ground inside the site.')]},
       // Dispatched from the lane beyond the gap, the counterattack reaches the site while a nexus is still building.

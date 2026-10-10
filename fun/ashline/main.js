@@ -17,7 +17,7 @@ import { missionAllows } from './mission.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world'), tacticalMap = document.querySelector('.tactical-map');
-const compactScreen = matchMedia('(max-width: 680px)');
+const compactScreen = matchMedia('(max-width: 680px)'), coarsePointer = matchMedia('(pointer: coarse)');
 const renderer = new Renderer(canvas, $('minimap'));
 const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, formationPreview: null, commandMarker: null, showGrid: false };
 let frameRequest = 0;
@@ -337,7 +337,9 @@ function setTab(tab) {
   $('catalog').dataset.category = tab;
   updateBuildingUpgrades();
   if (tab === 'research') { createResearchCatalog(); updateCatalog(); return; }
-  $('catalog-tip').textContent = tab === 'build' ? 'Build within 7 tiles of a finished structure. Shift-click the ground to keep placing.' : 'Recruit into an available production queue. Shift-click or Shift + key recruits five.';
+  // Touch has no Shift, so touch screens leave out the Shift shortcuts.
+  const shift = !coarsePointer.matches;
+  $('catalog-tip').textContent = tab === 'build' ? `Build within 7 tiles of a finished structure.${shift ? ' Shift-click the ground to keep placing.' : ''}` : `Recruit into an available production queue.${shift ? ' Shift-click or Shift + key recruits five.' : ''}`;
   $('catalog').replaceChildren();
   const defs = tab === 'build' ? BUILDINGS : UNITS;
   // Operations list only the structures and units they authorize; hotkeys follow the listed cards.
@@ -454,7 +456,7 @@ function tooltipRows(card) {
 function showCardTooltip(card) {
   if (!card) return;
   if (card.dataset.type) $('catalog-tip').textContent = catalogTip(card.dataset.type, card.dataset.reason);
-  if (!settings.tooltips || !game || $('command-console').hidden) { hideCardTooltip(); return; }
+  if (!settings.tooltips || !game || $('command-console').hidden || touchInput) { hideCardTooltip(); return; }
   const tip = $('card-tooltip');
   tip.replaceChildren(...tooltipRows(card).map(([kind, text]) => { const row = document.createElement(kind === 'title' ? 'strong' : 'span'); row.className = `tip-${kind}`; row.textContent = text; return row; }));
   tip.hidden = false; tooltipCard = card;
@@ -465,6 +467,11 @@ function showCardTooltip(card) {
   tip.style.left = `${Math.round(left)}px`; tip.style.top = `${Math.round(Math.max(56, Math.min(top, innerHeight - size.height - 8)))}px`;
 }
 function hideCardTooltip() { tooltipCard = null; $('card-tooltip').hidden = true; }
+// A tap focuses the card it presses; the floating tooltip is for the mouse and keyboard, and a tap reads the
+// description below the cards instead.
+let touchInput = false;
+for (const type of ['pointerover', 'pointerdown']) addEventListener(type, event => { touchInput = event.pointerType === 'touch'; }, true);
+addEventListener('keydown', () => { touchInput = false; }, true);
 $('catalog').addEventListener('pointerover', event => { const card = event.target.closest?.('.build-card, .research-card'); if (card && card !== tooltipCard && event.pointerType !== 'touch') showCardTooltip(card); });
 $('catalog').addEventListener('pointerleave', hideCardTooltip);
 $('catalog').addEventListener('pointerout', event => { if (tooltipCard && !tooltipCard.contains(event.relatedTarget)) hideCardTooltip(); });
@@ -641,7 +648,7 @@ function setOrderHint() {
     $('order-hint-text').textContent = status ? `${status.name} · Select a target within ${Number(status.range.toFixed(1))} tiles${ability.id === 'barrage' ? ' on explored ground' : ''} · Tactical map works too` : 'Ability · Select a target';
     return;
   }
-  $('order-hint-text').textContent = view.placement ? `${view.deployUnitId ? 'Deploy' : 'Place'} ${BUILDINGS[view.placement].name} · ${view.placementReason || (view.deployUnitId ? 'Within 4 tiles of the vehicle · consumes vehicle' : 'Click to build · Shift keeps placing')}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
+  $('order-hint-text').textContent = view.placement ? `${view.deployUnitId ? 'Deploy' : 'Place'} ${BUILDINGS[view.placement].name} · ${view.placementReason || (view.deployUnitId ? 'Within 4 tiles of the vehicle · consumes vehicle' : coarsePointer.matches ? 'Tap to build' : 'Click to build · Shift keeps placing')}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
 }
 
 function cancelOrder() { cancelFormationGesture(); view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; abilityRole = null; view.drag = null; setOrderHint(); updateCatalog(); }

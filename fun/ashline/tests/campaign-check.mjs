@@ -38,6 +38,8 @@ for(const id of CAMPAIGN){
   assert.equal(def.races[0],'organics','The player commands Expedition 07');
   for(const t of def.triggers)for(const action of t.do)if(action.say)assert(action.say.speaker.length<=40&&!/!/.test(action.say.text),`${id} dialogue keeps the house tone`);
 }
+// Touch players read the same transmissions: a mouse gesture comes with its tap, or is named as needing a mouse.
+for(const id of PLAYABLE)for(const t of MISSIONS[id].triggers||[])for(const action of t.do)if(action.say&&/click/i.test(action.say.text))assert(/\btap\b|with a mouse/i.test(action.say.text),`${id} ${t.id} gives touch players their gesture`);
 // Every zone does a job: an unused zone still draws a labelled ring once explored, inviting a defence there.
 for(const id of PLAYABLE){
   const def=MISSIONS[id],uses=JSON.stringify({...def,zones:undefined})+String(def.setup??'');

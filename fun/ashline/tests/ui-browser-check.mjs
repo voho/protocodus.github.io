@@ -400,6 +400,24 @@ try {
   await phone.screenshot({ path: `${output}/ui-console-phone.png` });
   await phone.close();
 
+  // Tablet: a tapped card reads its description below the cards instead of opening the mouse tooltip, and touch
+  // copy leaves out the Shift shortcuts.
+  const tablet = await browser.newPage({ viewport: { width: 768, height: 1024 }, hasTouch: true }); watch(tablet, 'tablet');
+  await tablet.addInitScript(() => localStorage.removeItem('ashline.settings.v1'));
+  await deploy(tablet); await fixture(tablet);
+  await tablet.locator('#command-toggle').tap(); await tablet.locator('#train-tab').tap();
+  assert.equal(await tablet.locator('#catalog-tip').textContent(), 'Recruit into an available production queue.');
+  const recruit = tablet.locator('#catalog .build-card:not([disabled])').first();
+  await recruit.tap(); await tablet.waitForTimeout(300);
+  assert(await tablet.locator('#card-tooltip').isHidden(), 'A tap opens no floating tooltip');
+  assert.equal(await tablet.locator('#catalog-tip').textContent(), await recruit.evaluate(async card => (await import('./sim.js')).UNITS[card.dataset.type].description), 'A tap reads the card description');
+  await tablet.locator('#build-tab').tap();
+  assert.equal(await tablet.locator('#catalog-tip').textContent(), 'Build within 7 tiles of a finished structure.');
+  await tablet.locator('#catalog .build-card:not([disabled])').first().tap();
+  assert.match(await tablet.locator('#order-hint-text').textContent(), /^Place .+ · Tap to build$/, 'Touch placement asks for a tap');
+  await tablet.screenshot({ path: `${output}/ui-tablet-placement.png` });
+  await tablet.close();
+
   assert.deepEqual(errors, []);
-  console.log(`Interface browser check passed: setup commanders and modes, routed message log with jumps and alerts, armed-only army, idle cycling, card keys and five-unit queues, queue and research cancellation, tooltips, abilities with ground and tactical-map targeting, tactical-map orders, group centering, hover readout and comms, fog-gated promotion boasts and held promotion news, ability targeting that follows the selection, rank line forms, commander intercepts, repeat placement, persisted settings, phone layout. Screenshots: ${output}`);
+  console.log(`Interface browser check passed: setup commanders and modes, routed message log with jumps and alerts, armed-only army, idle cycling, card keys and five-unit queues, queue and research cancellation, tooltips, abilities with ground and tactical-map targeting, tactical-map orders, group centering, hover readout and comms, fog-gated promotion boasts and held promotion news, ability targeting that follows the selection, rank line forms, commander intercepts, repeat placement, Escape stepping back to a pause, persisted settings, phone layout, tablet taps on console cards and touch copy. Screenshots: ${output}`);
 } finally { await browser.close(); }
