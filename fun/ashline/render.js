@@ -156,6 +156,9 @@ function sameBytes(a, b) {
 const pulse = (age, length) => age < 0 ? 0 : Math.max(0, 1 - age / length);
 const shortestArc = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const SHELL_FLIGHT = .35, GRAVITY = 260, PARTICLE_LIMIT = 900, HIT_FLASH = .11;
+// Tiles a particle or effect may draw beyond its anchor or flight path: a size-3 collapse's debris and sparks
+// land within four tiles, and so does the field patch ring. Anything farther outside the view draws nothing.
+const EFFECT_REACH = 4;
 const SHAKE_LENGTH = .55, SHAKE_LIMIT = 4, VIGNETTE_STEP = 8;
 const WRECK = '#0d0f10';
 const ASH_LAYERS = [
@@ -1544,13 +1547,15 @@ export class Renderer {
     this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null;
   }
 
-  drawParticles(ctx, clock, visible) {
+  drawParticles(ctx, clock, visible, x0, y0, x1, y1) {
+    const left = (x0 - EFFECT_REACH) * TILE, top = (y0 - EFFECT_REACH) * TILE, right = (x1 + EFFECT_REACH) * TILE, bottom = (y1 + EFFECT_REACH) * TILE;
     let keep = 0;
     for (const p of this.particles) {
       const age = clock - p.born;
       if (age >= p.life) continue;
       this.particles[keep++] = p;
       if (age < 0 || p.gate !== undefined && visible && !visible[p.gate]) continue;
+      if (p.x < left || p.x > right || p.y < top || p.y > bottom) continue;
       const k = age / p.life;
       if (p.kind === 'debris') {
         const land = 2 * p.vz / GRAVITY, t = Math.min(age, land), z = Math.max(0, p.vz * t - GRAVITY * t * t / 2);
@@ -2090,9 +2095,12 @@ export class Renderer {
           tx * TILE + Math.cos(angle) * r, ty * TILE - 3 + Math.sin(angle) * r, '#ffdda888', .7);
       }
     }
-    this.drawParticles(ctx, clock, visible);
+    this.drawParticles(ctx, clock, visible, x0, y0, x1, y1);
     const effects = this.landed.length ? (state.effects || []).concat(this.landed) : state.effects || [];
+    const nearX0 = x0 - EFFECT_REACH, nearY0 = y0 - EFFECT_REACH, nearX1 = x1 + EFFECT_REACH, nearY1 = y1 + EFFECT_REACH;
     for (const fx of effects) {
+      const toX = fx.tx ?? fx.x, toY = fx.ty ?? fx.y;
+      if (Math.max(fx.x, toX) < nearX0 || Math.min(fx.x, toX) > nearX1 || Math.max(fx.y, toY) < nearY0 || Math.min(fx.y, toY) > nearY1) continue;
       // Effects advance on the drawn clock: between ticks each one is shown slightly younger.
       const maxLife = fx.maxLife || .3, alpha = Math.max(0, Math.min(1, (fx.life + lag) / maxLife)), age = 1 - alpha;
       const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
