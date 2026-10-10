@@ -75,6 +75,37 @@ ASHLINE_SCENES=duel ASHLINE_TICKS=18000 node tests/performance-benchmark.mjs
 
 The state digest covers every saved field. Typed events and team statistics, added after this pass, therefore change the digests relative to `4563439`; with team statistics removed and events reduced to text, team and time, all four scenes still match it.
 
+## Rendering, 2026-10-10
+
+`tests/render-benchmark.mjs` instruments `CanvasRenderingContext2D` in headless Chromium and counts the operations of one battlefield frame (minimap overlay included, full minimap rebuild excluded) on the vast `PERF-VAST-2026` rift at 1440 × 900, DPR 1, with every cell visible. The scenes add 0, 200 and 2,000 mixed units of both teams near the camera, with a quarter of that number in shots, rockets, shells and explosions; some units are firing, damaged, freshly hit or selected. Counts are deterministic. Frame times come from 30 draws per scene in a software-rasterised headless browser on the shared 4-core container (load average 10–14 during the runs, so individual runs vary by up to ±40%); baseline (`cfd3dab`) and new runs alternated three times each, and the table gives the median and the best of the three per-run medians.
+
+| Scene | Canvas operations | `save`/`restore` pairs | Radial gradients | `shadowBlur` sets | Ellipses | Fills | Frame median (median / best run, ms) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Base (10 units) | 1,303 → 939 | 280 → 10 | 8 → 0 | 18 → 0 | 34 → 10 | 36 → 16 | 23.7 / 23.3 → 34.0 / 23.4 |
+| +200 units, 50 effects | 7,527 → 3,816 | 1,380 → 32 | 311 → 0 | 18 → 0 | 710 → 323 | 776 → 388 | 89.0 / 78.1 → 78.9 / 72.0 |
+| +2,000 units, 500 effects | 63,568 → 29,760 | 11,265 → 232 | 3,031 → 0 | 18 → 0 | 6,803 → 3,156 | 7,457 → 3,764 | 632.9 / 591.9 → 482.0 / 478.5 |
+
+`drawImage` calls rise (477 → 505, 1,077 → 1,497, 6,477 → 10,410) because soft shapes are now stamps of cached sprites, and the new frame also draws hit flashes, burning hulls, ash-fall, lava heat light and explosion flashes. Linear gradients fall from one per frame to none. In a layer-by-layer timing of the base scene, removing ash-fall, heat light or embers each changed the frame by less than the run-to-run noise (about 2 ms); removing the stretched vignette saves about 3.5 ms under software rasterisation, and with everything enabled the base frame matches the baseline's best run.
+
+What changed:
+
+- **Cached soft sprites.** Glows, lamps (formerly a `shadowBlur` per lamp), soot, fire, smoke, steam, flames, the production-bay floor and labels are baked once into small canvases and stamped with `drawImage`; no gradient or blur is created per frame. The vignette is a one-eighth-resolution bake per viewport size.
+- **Transforms instead of state stacks.** Bodies, shadows and rockets get one computed `setTransform` each; sprite drawing restores only the sampling settings it changes; attached unit effects rotate their points rather than the context; prop shadows set and reset alpha.
+- **Fewer scans.** Props are bucketed by tile row and only the rows on screen are visited; canopy fading checks units bucketed by row instead of every visible unit per tree; hauler unload streams and engineer beams look up their targets in an id map rebuilt only when the entity list changes; lava pools are rejected by their tile bounds before any cell is visited, with cell coordinates precomputed.
+- **Fog.** In the live loop the fog grids are compared only once per simulation tick, and then word by word; fixtures that edit fog in place are still compared every frame.
+- **Terrain bake.** The 8 px-per-tile material masks reuse a small scratch-canvas pool and clear every backing store when the bake ends, the noise bake and each lava bank surface are released as soon as they are composited, and the lava heat light is rebuilt only when exploration changes.
+
+Reproduce from `fun/ashline/` against a local server of each checkout (`ASHLINE_DRAWS` sets the timed draws, `ASHLINE_DPR` the device pixel ratio, `ASHLINE_SCREENSHOTS` an optional output folder):
+
+```sh
+git worktree add /tmp/ashline-render-base cfd3dab
+(cd /tmp/ashline-render-base && python3 -m http.server 8001 --bind 127.0.0.1 &)
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs ASHLINE_URL=http://127.0.0.1:8001/fun/ashline/ ASHLINE_DRAWS=30 node tests/render-benchmark.mjs
+ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs ASHLINE_DRAWS=30 node tests/render-benchmark.mjs
+```
+
+The baseline checkout has no copy of the benchmark; run this checkout's script against the baseline server, as above.
+
 ## Rendering and memory
 
 Chrome, a 1440 × 900 desktop viewport at DPR 2, Vast volcanic rift, seed `PERF-VAST-2026`:

@@ -12,7 +12,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const TESTS = dirname(fileURLToPath(import.meta.url)), ASHLINE = dirname(TESTS), ROOT = resolve(ASHLINE, '../..');
 // Long-running measurement tools rather than pass/fail checks.
-const TOOLS = new Set(['performance-benchmark', 'race-balance']);
+const TOOLS = new Set(['performance-benchmark', 'race-balance', 'render-benchmark']);
 const KIND_ORDER = ['node', 'suite', 'browser', 'tool'];
 const HELP = `Usage: node tests/run-checks.mjs [options] [filter ...]
 

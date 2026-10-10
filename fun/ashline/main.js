@@ -660,11 +660,12 @@ function isVisible(entity) {
 
 function entityAt(point) {
   // Units get pointer priority when standing in front of a structure. Position is tested before
-  // visibility so the hover readout does not scan every footprint on each refresh.
+  // visibility so the hover readout does not scan every footprint on each refresh; units are hit
+  // where they are drawn, which can trail the simulation by part of a tick.
   let building = null;
   for (const e of game.entities) {
     if (e.hp <= 0) continue;
-    if (e.kind === 'unit') { if (Math.hypot(e.x - point.x, e.y - point.y) < .55 && isVisible(e)) return e; }
+    if (e.kind === 'unit') { const p = renderer.poseOf(e); if (Math.hypot(p.x - point.x, p.y - point.y) < .55 && isVisible(e)) return e; }
     else if (!building && point.x >= e.x && point.y >= e.y && point.x <= e.x + e.size && point.y <= e.y + e.size && isVisible(e)) building = e;
   }
   return building;
@@ -1467,7 +1468,7 @@ canvas.addEventListener('pointerup', event => {
     if (view.drag && !active.pan) {
       if (!active.shift) view.selected.clear();
       const a = renderer.screenToWorld(view.drag.x1, view.drag.y1, view), b = renderer.screenToWorld(view.drag.x2, view.drag.y2, view);
-      for (const e of game.entities) if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && e.x >= Math.min(a.x, b.x) && e.x <= Math.max(a.x, b.x) && e.y >= Math.min(a.y, b.y) && e.y <= Math.max(a.y, b.y)) view.selected.add(e.id);
+      for (const e of game.entities) { const p = renderer.poseOf(e); if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x) && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)) view.selected.add(e.id); }
       playSound('select'); updateHUD(); selectionBark();
     }
     view.drag = null; return;
@@ -1702,6 +1703,7 @@ function requestFrame() {
 function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
 function simulateFrameStep(dt) {
+  renderer.snapshot(game); // Frames until the next tick blend from these poses.
   updateGame(game, dt);
   if (game.status === 'playing') return true;
   showMenu(true); playSound(game.status); return false;
@@ -1746,6 +1748,7 @@ function frame(now) {
   view.placementValid = Boolean(check?.ok);
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
+  renderer.pendingTime = accumulator; // How far the drawn frame has progressed toward the next tick.
   renderer.draw(game, view);
   drawAbilityPreview(); drawAlertPings(now);
   if (!busy()) checkIntercept(now);
