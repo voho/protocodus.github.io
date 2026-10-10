@@ -69,7 +69,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _e = new THREE.Euler();
   const _one = new THREE.Vector3(1, 1, 1);
   const _s = new THREE.Vector3();
-  const _qRide = new THREE.Quaternion();
+  const _qTurn = new THREE.Quaternion();
+  const _qStill = new THREE.Quaternion();
 
   // Both plates are shared with the modules that also wear them — the
   // rider's weave and the boulders' slate — so each is decoded and uploaded
@@ -927,7 +928,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         // ends, 1 once they are riding. Speed returns with it rather than
         // in one frame, since nobody stands up already doing forty km/h.
         let up = 1;
+        let rising = false;
         if (npc.recover > 0) {
+          rising = npc.recover === RECOVER;
           npc.recover = Math.max(0, npc.recover - dt);
           const t = 1 - npc.recover / RECOVER;
           up = t * t * (3 - 2 * t);
@@ -971,14 +974,22 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
         /* …and while they are still getting up, both halves of the figure
            are swung from the attitude the tumble left them in towards the
-           pose just written. A slerp takes the short way round whatever the
-           tumble's angles added up to, so the recovery is at most half a
-           turn and usually far less. */
+           pose just written. On the first frame that attitude becomes a
+           turn away from the riding pose, and it is the turn that unwinds,
+           on top of whatever the riding pose does meanwhile. Slerping
+           straight from the attitude to the live pose took the short way
+           round, which is at most half a turn, but the pose keeps moving
+           as they steer back to the line, and when it crossed the point
+           half a turn from where they fell, the short way changed sides
+           and the figure snapped round by up to three radians in a frame.
+           A fixed turn has one short way for the whole recovery. */
         if (up < 1) {
-          _qRide.copy(npc.mesh.quaternion);
-          npc.mesh.quaternion.copy(npc.recoverFrom).slerp(_qRide, up);
-          _qRide.copy(b.quaternion);
-          b.quaternion.copy(npc.bodyFrom).slerp(_qRide, up);
+          if (rising) {
+            npc.recoverFrom.multiply(_qTurn.copy(npc.mesh.quaternion).invert());
+            npc.bodyFrom.multiply(_qTurn.copy(b.quaternion).invert());
+          }
+          npc.mesh.quaternion.premultiply(_qTurn.copy(npc.recoverFrom).slerp(_qStill, up));
+          b.quaternion.premultiply(_qTurn.copy(npc.bodyFrom).slerp(_qStill, up));
         }
 
         // A little carve spray off their turns
