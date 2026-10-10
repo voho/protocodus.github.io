@@ -1375,42 +1375,78 @@ function growCrag(THREE, seed, geos, palette) {
 }
 
 /* A winter shrub keeps its dark mass below the snow instead of becoming a
-   white scrap. */
+   white scrap.
+
+   This slot is the bare willow and alder scrub — leafless in winter, which
+   is the one thing about it everybody knows — and it was four lobes of
+   foliage green half a metre across with a few blue-grey twigs lost inside
+   them: at the side of the run, a mossy boulder in a snow cap, on almost half
+   the shrubs on the hill. So the shrub is its stems now: a sheaf of
+   red-brown and grey wands fanned up out of a little drift at their foot,
+   each forking twice. Bare scrub is meant to fade at range; the forest and
+   the dwarf pines keep the green on the hill. */
 function growShrub(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
-  const foliage = '#506057';
+  const bark = ['#6b4a3a', '#7a5a45', '#5e4b3f', '#836553', '#6f6a64'];
 
-  const twigCount = 7 + ((rnd() * 3) | 0);
-  const stem = rnd() * TAU;
-  for (let i = 0; i < twigCount; i++) {
-    const a = stem + (i / twigCount) * TAU + (rnd() - 0.5) * 0.75;
-    const d = dirOf(a, 0.88 + rnd() * 0.48);
-    const len = 0.48 + rnd() * 0.42;
+  // The drift that collects where the stems leave the ground
+  for (let i = 0; i < 2; i++) {
+    const a = rnd() * TAU;
+    const r = 0.2 + rnd() * 0.06;
+    const g = weather(THREE, geos.stone, rnd, 0.4, true);
+    spent.push(g);
     parts.push({
-      geo: geos.twig, color: THICKET, own: OWN_ALL,
-      pos: [Math.cos(a) * 0.10, 0.05 + rnd() * 0.10, Math.sin(a) * 0.10],
-      rot: aim(d[0], d[1], d[2]), scale: [0.036, len, 0.036],
+      geo: g, color: SNOW, own: OWN_SNOW,
+      pos: [Math.cos(a) * 0.07, 0.04 + rnd() * 0.03, Math.sin(a) * 0.07],
+      rot: [0, rnd() * TAU, 0],
+      scale: [r * 1.2, r * 0.36, r],
     });
   }
 
-  const lobeCount = 4;
-  const base = rnd() * TAU;
-  for (let i = 0; i < lobeCount; i++) {
-    const a = base + (i / lobeCount) * TAU + (rnd() - 0.5) * 0.65;
-    const r = 0.27 + rnd() * 0.13;
-    const off = 0.12 + rnd() * 0.25;
-    const y = 0.25 + rnd() * 0.28;
-    const g = weather(THREE, geos.stone, rnd, 0.48, true);
-    spent.push(g);
+  /* Each stem is two lengths of the same slim stock, the upper one leaning
+     further out, so it bows and thins to under a third of its base: a
+     straight rod of one girth was a bundle of dowels. */
+  const stems = 18;
+  const turn = rnd() * TAU;
+  for (let i = 0; i < stems; i++) {
+    const a = turn + (i / stems) * TAU + (rnd() - 0.5) * 0.6;
+    const pitch = 0.92 + rnd() * 0.5;
+    const len = 0.6 + rnd() * 0.5;
+    const r = 0.011 + rnd() * 0.004;
+    const colour = bark[i % bark.length];
+    const x = Math.cos(a) * (0.04 + rnd() * 0.16);
+    const z = Math.sin(a) * (0.04 + rnd() * 0.16);
+    const lower = dirOf(a, pitch);
+    const upper = dirOf(a + (rnd() - 0.5) * 0.3, pitch - 0.2 - rnd() * 0.2);
+    const l0 = len * 0.58;
+    const kx = x + lower[0] * l0;
+    const ky = 0.04 + lower[1] * l0;
+    const kz = z + lower[2] * l0;
     parts.push({
-      geo: g, color: new THREE.Color(foliage).multiplyScalar(0.82 + rnd() * 0.22),
-      own: OWN_ALL,
-      pos: [Math.cos(a) * off, y, Math.sin(a) * off],
-      rot: [(rnd() - 0.5) * 0.42, rnd() * TAU, (rnd() - 0.5) * 0.42],
-      scale: [r, r * (0.66 + rnd() * 0.14), r * (0.82 + rnd() * 0.16)],
+      geo: geos.wand, color: colour, own: OWN_ALL,
+      pos: [x, 0.04, z], rot: aim(lower[0], lower[1], lower[2]), scale: [r, l0, r],
     });
+    parts.push({
+      geo: geos.wand, color: colour, own: OWN_ALL,
+      pos: [kx, ky, kz], rot: aim(upper[0], upper[1], upper[2]),
+      scale: [r * 0.55, len - l0, r * 0.55],
+    });
+    // Two forks, off the top of the lower length and the upper one
+    for (let k = 0; k < 2; k++) {
+      const from = k === 0 ? [kx, ky, kz] : [
+        kx + upper[0] * (len - l0) * 0.5,
+        ky + upper[1] * (len - l0) * 0.5,
+        kz + upper[2] * (len - l0) * 0.5,
+      ];
+      const fd = dirOf(a + (rnd() < 0.5 ? -1 : 1) * (0.4 + rnd() * 0.5), 0.75 + rnd() * 0.35);
+      parts.push({
+        geo: geos.wand, color: colour, own: OWN_ALL,
+        pos: from, rot: aim(fd[0], fd[1], fd[2]),
+        scale: [r * 0.45, len * (0.25 + rnd() * 0.2), r * 0.45],
+      });
+    }
   }
 
   const geometry = compose(THREE, parts);
@@ -2347,6 +2383,7 @@ export function createProps(THREE, shading) {
     flare: hull(0.45, radial + 6),      // where it meets the ground
     limb: hull(0.5, radial - 2),        // a length of branch
     twig: hull(0.55, Math.max(8, sides + 2)),
+    wand: hull(0.55, 6),                // a willow stem, in two of these
     swell: hull(1.5, radial - 2),       // needles widening away from the trunk
     frond: hull(0.5, radial - 2),       // needles narrowing towards the tip
     sprig: spike(radial - 2),           // and the point they finish in
