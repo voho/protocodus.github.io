@@ -374,9 +374,13 @@ const VERT = `
   uniform float uSnowFresh;
   uniform float uGlint;
   uniform float uTime;
+  uniform vec4 uLamp;      // the rider's headlamp: world position, level
+  uniform vec4 uLampDir;   // its axis, and the cone's half-angle
+  varying float vLamp;
   void main() {
     vScatter = 0.0;
     vGlint = 0.0;
+    vLamp = 0.0;
     vTint = aTint;
     /* Gusting. Two sine bands at incommensurate spacings, travelling with
        the wind, so the field surges and lulls instead of falling evenly. It
@@ -426,6 +430,20 @@ const VERT = `
     sd *= sd;
     float low = 1.0 - smoothstep(0.08, 0.42, uSunDir.y);
     vScatter = sd * sd * low * min(uSunLevel, 1.3);
+
+    /* Flakes in the headlamp's beam. A head torch in falling snow is seen
+       in the snow it lights more than on the ground: every flake inside the
+       cone is a lit point, brightest close in. The same profile and inverse
+       square the lit snow uses — see POOL_FRAG in headlamp.js. */
+    if (uLamp.w > 0.002) {
+      vec3 toFlake = (modelMatrix * vec4(position, 1.0)).xyz - uLamp.xyz;
+      float d2 = max(dot(toFlake, toFlake), 0.25);
+      float x = acos(clamp(dot(toFlake * inversesqrt(d2), uLampDir.xyz), -1.0, 1.0))
+        / uLampDir.w;
+      float profile = exp(-8.5 * x * x) * 1.75
+        + exp(-2.2 * x * x) * (1.0 - smoothstep(0.65, 1.0, x));
+      vLamp = uLamp.w * profile * min(9.0 / d2, 4.0);
+    }
 
     vec3 flowView = (viewMatrix * vec4(uFlow, 0.0)).xyz;
     vec4 was = projectionMatrix * (mv + vec4(flowView * uExposure, 0.0));
@@ -501,6 +519,7 @@ const FRAG = `
   uniform float uNear;
   uniform float uFar;
   uniform vec2 uDepthFade;
+  uniform vec3 uLampColor;
   varying float vAlpha;
   varying float vDepth;
   varying float vStretch;
@@ -509,6 +528,7 @@ const FRAG = `
   varying float vScatter;
   varying float vGlint;
   varying float vTint;
+  varying float vLamp;
   varying vec2 vAxis;
   void main() {
     if (vAlpha <= 0.002) discard;
@@ -554,6 +574,10 @@ const FRAG = `
     // colour, and it is brief, rare, near, and gone in a storm.
     col = mix(col, vec3(1.0), vGlint * 0.85);
     a = min(a * (1.0 + vGlint * 1.6), 1.0);
+    // …and the headlamp: a flake in the beam takes its colour and stands out.
+    float lamp = min(vLamp, 1.0);
+    col = mix(col, uLampColor, lamp * 0.85);
+    a = min(a * (1.0 + lamp * 1.5), 1.0);
     // Anything the width cap is clipping is on its way to being a sheet
     // across the lens, and dissolves at the rate it would have grown
     a *= vClip * vClip;
@@ -605,6 +629,10 @@ function pointMaterial(THREE, shading) {
       uSnowFresh: sun.uSnowFresh,
       uGlint: { value: 0 },
       uTime: { value: 0 },
+      // Dark until a headlamp is shared in — see `shareLamp`.
+      uLamp: { value: new THREE.Vector4() },
+      uLampDir: { value: new THREE.Vector4(0, 0, -1, 1) },
+      uLampColor: { value: new THREE.Color(1, 1, 1) },
     },
     vertexShader: VERT,
     fragmentShader: FRAG,
@@ -1122,7 +1150,13 @@ export function createSnowfall(THREE, shading) {
       WEATHER.gustScale, gustPhase + anchorPhase);
   }
 
-  return { points: cloud.points, update, setIntensity };
+  /* The rider's headlamp arrives by reference, like the sun: the lamp owns
+     the uniform objects and writes them once a frame. */
+  function shareLamp(lamp) {
+    Object.assign(uniforms, lamp);
+  }
+
+  return { points: cloud.points, update, setIntensity, shareLamp };
 }
 
 /* ==========================================================================

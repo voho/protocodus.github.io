@@ -1326,9 +1326,14 @@ export function createRiderModel(THREE, shading) {
     float n64Fres = 0.04 + 0.96 * pow(1.0 - n64NoV, 5.0);
     vec3 n64Mirror = n64SkyReflect(n64R)
       * (n64Fres * (${envBase.toFixed(3)} + ${envTrim.toFixed(3)} * n64Trim));
+    /* The lamp's spill is light arriving too, so it takes the garment's
+       colour for the same reason the bounce above does. Added flat, it was
+       a pale veil the size of the whole figure: at night a tenth of a unit
+       of linear light is as much as the moon puts on the jacket, and the
+       first lit night turned the rider into a grey ghost. */
     reflectedLight.directDiffuse += uSunTint * (uSunLevel * n64Spec)
       + uSkyMid * (n64Rim * 0.22) + n64SnowBounceColor + n64Mirror
-      + vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);${fabric ? `
+      + diffuseColor.rgb * vec3(0.45, 0.62, 0.85) * (uLampGlow * (0.35 + 0.65 * n64NoV) * 0.12);${fabric ? `
     /* THE SHEEN CLOTH HAS AND PLASTIC DOES NOT.
 
        The tight lobe above is a lacquer highlight: it is small, it moves

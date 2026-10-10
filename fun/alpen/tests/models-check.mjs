@@ -132,6 +132,7 @@ const huts = await load('huts.js', ['hutGeometry', 'paneGeometry']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
 const rider = await load('riderModel.js',
   ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH']);
+const lampModule = await load('headlamp.js');
 const riderGeo = rider.buildGeometries(THREE);
 let riderTriangles = 0;
 for (const [key, geo] of Object.entries(riderGeo)) {
@@ -231,7 +232,11 @@ for (const [key, geo] of Object.entries(riderGeo)) {
     getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
   }) };
   const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
-  const model = rider.createRiderModel(headless, { apply: (m) => m });
+  const model = rider.createRiderModel(headless, {
+    apply: (m) => m,
+    // The headlamp draws into the same fog as everything else.
+    uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
+  });
   globalThis.document = prevDocument;
   const V = THREE.Vector3;
   const r = {
@@ -327,6 +332,54 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   for (const kind of [1, 2]) { r.grabKind = kind; run(30); }
   r.grab = 0; r.state = 'ride'; r.grounded = true; r.vel.set(0, 0, -6);
   run(60);
+
+  /* The headlamp, on a plane falling away down -z. Dark by day; at night the
+     beam lands where a ray dropped `drop` below the line of travel lands,
+     the lit fan lies its lift above the snow with the snow's own normal, and
+     the snowfall's shared uniforms carry the same level. */
+  {
+    const lamp = model.headlamp;
+    const grade = 0.3;
+    const height = (x, z) => grade * z;
+    r.world = { height };
+    r.normal = new V(0, 1, -grade).normalize();
+    r.heading = new V(0, 0, -1);
+    r.right = new V(1, 0, 0);
+    r.pos.set(0, 0, 0);
+    r.vel.set(0, -grade * 15, -15);
+    const camera = { position: new V(0, 3, 6) };
+    const night = (value, frames) => {
+      for (let i = 0; i < frames; i++) {
+        r.pos.addScaledVector(r.vel, dt);
+        r.pos.y = height(r.pos.x, r.pos.z);
+        camera.position.set(r.pos.x, r.pos.y + 3, r.pos.z + 6);
+        model.update(r, dt, { night: value, snow: 0.5 }, camera);
+      }
+    };
+    night(0, 30);
+    assert.ok(lamp.level < 0.002 && !lamp.beam.visible && !lamp.pool.visible
+      && lamp.uniforms.uLamp.value.w === 0, 'no lamp by day');
+    night(1, 120);
+    assert.ok(lamp.level > 0.99, 'the lamp is up at night: ' + lamp.level);
+    const d = lamp.debug();
+    assert.ok(d.hit, 'the beam reaches the snow');
+    const o = lamp.origin;
+    const hit = o.clone().addScaledVector(lamp.direction, d.distance);
+    assert.ok(Math.abs(hit.y - height(hit.x, hit.z)) < 0.05, 'the march ends on the snow');
+    const above = (o.y - height(o.x, o.z)) * r.normal.y;
+    const expect = above / Math.sin(lampModule.HEADLAMP.drop);
+    assert.ok(Math.abs(d.distance - expect) < expect * 0.1,
+      `the beam lands at ${d.distance}, a dropped ray at ${expect}`);
+    const fan = lamp.pool.children[0].geometry.attributes;
+    for (let i = 0; i < fan.position.count; i++) {
+      const lift = fan.position.getY(i) - height(fan.position.getX(i), fan.position.getZ(i));
+      assert.ok(Math.abs(lift - 0.1) < 1e-4, 'the lit fan lies on the snow');
+      const n = new V().fromBufferAttribute(fan.normal, i);
+      assert.ok(n.dot(r.normal) > 0.999, 'with the snow\'s normal');
+    }
+    assert.ok(lamp.uniforms.uLamp.value.clone().sub(new THREE.Vector4(o.x, o.y, o.z, lamp.level))
+      .length() < 1e-9, 'the snowfall sees the same lamp');
+  }
 }
 
 const { growCardSpruce, SPRUCE_LAYOUT, rootRing } = await load('spruce.js');

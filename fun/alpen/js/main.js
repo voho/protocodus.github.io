@@ -374,6 +374,7 @@ const flashWhite = new THREE.Color(1, 1, 1);
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
 scene.add(model.root, model.shadow, model.headlamp.beam, model.headlamp.pool);
+snowfall.shareLamp(model.headlamp.uniforms);
 shadowCasting(model.root);
 /* The blob is a fake shadow and stays out of the real one. Left in the pass
    it would cast a hard disc of its own onto the snow underneath it, and
