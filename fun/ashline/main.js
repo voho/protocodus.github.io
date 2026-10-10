@@ -35,8 +35,12 @@ audio.setPaused(true);
 let heardEffects = new WeakSet();
 const keys = new Set();
 // Message log, alert history and unit comms are interface state only; none of it enters the save.
-const toasts = [], alerts = [], announcements = [];
+const toasts = [], alerts = [], announcements = new Map();
 let alertCursor = -1, alertCursorAt = 0, announcing = false;
+// Promotions earned on kills the player did not see wait here until the unit is next selected.
+const heldPromotions = new Map();
+// The role whose ground ability the pending target click belongs to.
+let abilityRole = null;
 let lastBark = { at: 0, priority: 0, until: 0 }, lastReadyBark = 0, barkSequence = 0, selectStreak = { id: null, count: 0, at: 0 };
 let lastGroupPress = { group: null, at: 0 }, interceptAt = -Infinity, interceptCheckAt = 0, sliderPointer = false;
 const idleCursor = { units: 0, production: 0 };
@@ -81,7 +85,10 @@ function playSound(kind = 'confirm') {
 const TOAST_LIFE = { info: 4300, success: 5000, caution: 5500, loss: 5500, warning: 6500, comms: 7000 };
 // A short stacked log: each line fades on its own, repeats refresh their line with a count, and a
 // full log drops its oldest routine line before any warning. Lines about a place can be clicked.
-function notify(text, tone = 'info', detail = {}) {
+function notify(text, tone = 'info', detail = {}, legacyQuiet = false) {
+  // Calls written for the earlier (text, warning, soft, quiet) form keep their warning styling and sound.
+  if (typeof tone !== 'string') tone = tone ? 'warning' : 'info';
+  if (!detail || typeof detail !== 'object') detail = { quiet: legacyQuiet };
   const log = $('notifications'), now = performance.now();
   let toast = toasts.find(t => t.text === text && t.tone === tone);
   if (toast) {
@@ -103,7 +110,8 @@ function notify(text, tone = 'info', detail = {}) {
   toast.point = Number.isFinite(detail.x) && Number.isFinite(detail.y) ? { x: detail.x, y: detail.y } : toast.point;
   // Only the small jump mark takes clicks, so a message never swallows an order aimed at the ground beneath it.
   if (toast.point && !toast.element.querySelector('.toast-jump')) {
-    const jump = document.createElement('button'); jump.type = 'button'; jump.className = 'toast-jump'; jump.textContent = '⌖';
+    // Out of the tab order: the log is hidden from assistive technology and Backspace covers the keyboard.
+    const jump = document.createElement('button'); jump.type = 'button'; jump.className = 'toast-jump'; jump.textContent = '⌖'; jump.tabIndex = -1;
     jump.setAttribute('aria-label', `Center on: ${text}`); jump.title = 'Center the camera here · Backspace';
     toast.element.append(jump); toast.element.classList.add('jump');
   }
@@ -126,15 +134,23 @@ function expireToasts(now) {
 }
 function clearLog() {
   for (const toast of [...toasts]) removeToast(toast);
-  alerts.length = 0; alertCursor = -1; announcements.length = 0; $('announcer').textContent = '';
+  alerts.length = 0; alertCursor = -1; announcements.clear(); $('announcer').textContent = '';
+  heldPromotions.clear();
   lastBark = { at: 0, priority: 0, until: 0 }; $('comms').hidden = true;
 }
 // Screen readers hear one combined announcement per burst (a frame's events, or one click's feedback).
+// Repeats collapse with a count as they do in the visible log, and a long burst ends in a summary.
+const ANNOUNCE_LINES = 6;
 function announce(text) {
-  announcements.push(text);
+  announcements.set(text, (announcements.get(text) || 0) + 1);
   if (announcing) return;
   announcing = true;
-  queueMicrotask(() => { $('announcer').textContent = announcements.join(' '); announcements.length = 0; announcing = false; });
+  queueMicrotask(() => {
+    const lines = [...announcements].map(([line, count]) => { const said = count > 1 ? `${line} ×${count}` : line; return /[.!?]$/.test(said) ? said : `${said}.`; });
+    const extra = lines.length - ANNOUNCE_LINES;
+    $('announcer').textContent = (extra > 1 ? [...lines.slice(0, ANNOUNCE_LINES), `${extra} more messages.`] : lines).join(' ');
+    announcements.clear(); announcing = false;
+  });
 }
 $('notifications').addEventListener('click', event => {
   const toast = event.target.closest('.toast-jump') && toasts.find(t => t.element === event.target.closest('.toast'));
@@ -205,18 +221,41 @@ function reportEvents(from) {
     if (route.sound) playSound(route.sound);
     let text = event.text;
     const subject = route.kind === 'promotion' || route.kind === 'ready' ? getEntity(game, event.entityId) : null;
-    if (route.kind === 'promotion' && subject?.kind === 'unit') {
+    if (route.kind === 'promotion') {
+      // A promotion with no living unit to name (or a text-only one) cannot be checked against vision.
+      if (subject?.kind !== 'unit' || subject.hp <= 0) continue;
       text = `${callsign(game, subject)} (${UNITS[subject.type].name}) promoted to rank ${event.rank ?? unitRank(subject)}`;
       const victim = events[i + 1];
       const witnessed = victim && victim.time === event.time && victim.team !== 0 && ['unitLost', 'structureLost'].includes(victim.kind) && Number.isFinite(victim.x)
         && game.visible[0][Math.floor(victim.y) * game.width + Math.floor(victim.x)];
-      if (witnessed) bark(subject, 'promotion');
+      // A kill the player did not see is never confirmed as it happens: the news waits, without a place
+      // or a time, until the unit is next selected (releaseHeldPromotions). Its chevrons update at once.
+      if (!witnessed) { holdPromotion(subject, event.rank ?? unitRank(subject)); continue; }
+      bark(subject, 'promotion');
     } else if (route.kind === 'unitLost' && event.rank > 0 && Number.isInteger(event.entityId) && event.role) {
       const type = raceUnit(game, 0, event.role);
       if (UNITS[type]) text = `${callsign(game, { id: event.entityId, type })} (${UNITS[type].name}) lost · rank ${event.rank} veteran`;
     } else if (route.kind === 'ready' && subject?.kind === 'unit') bark(subject, 'ready');
     if (route.alert && Number.isFinite(point.x)) pushAlert(point.x, point.y, text, route.tone);
     if (route.toast) notify(text, route.tone, { ...point, speaker: route.kind === 'dialogue' ? event.speaker : undefined, quiet: true });
+  }
+}
+
+function holdPromotion(unit, rank) {
+  const held = heldPromotions.get(unit.id);
+  heldPromotions.set(unit.id, { rank: Math.max(rank, held?.rank ?? 0), armed: !view.selected.has(unit.id) });
+}
+// Runs with each HUD refresh. A unit selected when it was promoted must be deselected and chosen again,
+// so the line never lands at the moment of the unseen kill.
+function releaseHeldPromotions() {
+  for (const [id, held] of heldPromotions) {
+    const unit = getEntity(game, id);
+    if (!unit || unit.hp <= 0 || unit.team !== 0) heldPromotions.delete(id);
+    else if (!view.selected.has(id)) held.armed = true;
+    else if (held.armed) {
+      heldPromotions.delete(id);
+      notify(`${callsign(game, unit)} (${UNITS[unit.type].name}) promoted to rank ${held.rank}`, 'success', { quiet: true });
+    }
   }
 }
 
@@ -597,7 +636,7 @@ function setOrderHint() {
   $('order-hint-text').textContent = view.placement ? `${view.deployUnitId ? 'Deploy' : 'Place'} ${BUILDINGS[view.placement].name} · ${view.placementReason || (view.deployUnitId ? 'Within 4 tiles of the vehicle · consumes vehicle' : 'Click to build · Shift keeps placing')}` : orderMode === 'rally' ? 'Rally point · Select a destination' : orderMode === 'attackMove' ? 'Attack move · Select a destination' : 'Move · Select a destination';
 }
 
-function cancelOrder() { cancelFormationGesture(); view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; view.drag = null; setOrderHint(); updateCatalog(); }
+function cancelOrder() { cancelFormationGesture(); view.deployUnitId = null; view.placement = null; view.placementReason = ''; view.showGrid = false; view.wallStart = null; view.wallPlan = null; orderMode = null; abilityRole = null; view.drag = null; setOrderHint(); updateCatalog(); }
 $('cancel-order').addEventListener('click', () => { cancelOrder(); canvas.focus({preventScroll:true}); });
 
 function setOrder(type) {
@@ -605,6 +644,7 @@ function setOrder(type) {
   cancelFormationGesture();
   view.placement = null; view.deployUnitId = null; view.showGrid = false;
   orderMode = orderMode === type ? null : type;
+  abilityRole = orderMode === 'ability' ? unitRole(abilityGroup(selectedUnits())[0]) : null;
   setOrderHint(); updateCatalog();
 }
 
@@ -660,7 +700,11 @@ function commandAt(point, explicitType) {
   }
   if (!units.length) return;
   if (explicitType === 'ability') {
-    const result = useAbility(game, 0, abilityGroup(units).map(e => e.id), { x, y });
+    // The click belongs to the ability targeting began with; a selection that has since changed to
+    // another ability leaves targeting instead of spending that one.
+    const group = abilityGroup(units);
+    if (!group.length || unitRole(group[0]) !== abilityRole) { cancelOrder(); return; }
+    const result = useAbility(game, 0, group.map(e => e.id), { x, y });
     // A refused target keeps the targeting mode so the next click can correct it.
     if (!result.ok) { notify(result.reason, 'warning'); return; }
     view.commandMarker = { x, y, time: performance.now() / 1000, type: 'ability' };
@@ -731,6 +775,7 @@ function updateHUD() {
   $('army').closest('.resource').title = `${deployed} deployed · ${reserved} reserved · ${nexuses} completed nexuses × ${UNIT_CAP_PER_NEXUS} slots · maximum ${UNIT_CAP}. Deploy another nexus to expand capacity.`;
   $('mission-time').textContent = minutes(game.time);
   for (const id of view.selected) if (!owned.has(id)) view.selected.delete(id);
+  if (heldPromotions.size) releaseHeldPromotions();
   let selection = game.entities.filter(e => e.team === 0 && e.hp > 0 && view.selected.has(e.id));
   if (selection.some(e => e.kind === 'unit' && UNITS[e.type].damage > 0)) {
     for (const e of selection) if (unitRole(e) === 'harvester') view.selected.delete(e.id);
@@ -771,17 +816,36 @@ function updateHUD() {
     const rank = unitRank(rankedUnit), kills = rankedUnit.kills || 0, stats = unitStats(rankedUnit);
     const next = rank < 3 ? (rank + 1) * 5 : null, bonus = rank * 20;
     rankInfo.dataset.rank = rank; rankInfo.dataset.kills = kills;
-    // Damage and HP share the large bonus; speed gets its own, smaller figure.
-    const part = (className, text) => { const span = document.createElement('span'); span.className = className; span.textContent = text; return span; };
-    const speed = part('rank-speed', ` · +${rank * 5}% spd`);
-    rankInfo.replaceChildren(part('rank-kills', `Rank ${rank}/3 · ${kills}${next ? `/${next}` : ''} kills`), part('rank-damage', ` · +${bonus}% dmg/HP`), speed);
-    // A narrow panel keeps the line whole by leaving the speed figure to the tooltip.
-    if (rankInfo.scrollWidth > rankInfo.clientWidth) speed.hidden = true;
+    // Damage and HP share the large bonus; speed gets its own, smaller figure. A narrow panel keeps the
+    // line whole by stepping down to shorter forms: the speed figure goes to the tooltip first, then the
+    // wording tightens, and as a last resort the bonus wraps onto a second line, so it always says what
+    // it applies to. Rebuilt only when the figures or the panel width change, or a late font swap makes
+    // the chosen form overflow.
+    const width = rankInfo.clientWidth, key = `${rank}:${kills}:${width}`;
+    const tally = `${kills}${next ? `/${next}` : ''}`, damage = ` · +${bonus}% dmg/HP`;
+    const forms = [
+      [`Rank ${rank}/3 · ${tally} kills`, damage, ` · +${rank * 5}% spd`],
+      [`Rank ${rank}/3 · ${tally} kills`, damage],
+      [`R${rank} · ${tally} kills`, damage],
+      [`R${rank} · ${tally}`, damage],
+      [`R${rank} · ${tally} kills`, damage],
+    ];
+    const last = forms.length - 1;
+    if (rankInfo.dataset.layout !== key || (rankInfo.scrollWidth > width && rankInfo.dataset.form !== String(last))) {
+      const part = (className, text) => { const span = document.createElement('span'); span.className = className; span.textContent = text; return span; };
+      for (const [index, [tallyText, damageText, speedText]] of forms.entries()) {
+        rankInfo.classList.toggle('wrap', index === last);
+        rankInfo.replaceChildren(part('rank-kills', tallyText), part('rank-damage', damageText), ...(speedText ? [part('rank-speed', speedText)] : []));
+        rankInfo.dataset.form = index;
+        if (index === last || rankInfo.scrollWidth <= width) break;
+      }
+      rankInfo.dataset.layout = key;
+    }
     const summary = `Rank ${rank} of 3. ${kills} kills. ${next ? `${next - kills} kills to next rank.` : 'Maximum rank.'} +${bonus}% damage and maximum HP, +${rank * 5}% speed. Damage ${Number(stats.damage.toFixed(2))}, speed ${Number(stats.speed.toFixed(2))} tiles/second, maximum HP ${stats.hp}.`;
     rankInfo.title = summary; rankInfo.setAttribute('aria-label', summary);
   } else {
-    rankInfo.textContent = ''; rankInfo.removeAttribute('title'); rankInfo.removeAttribute('aria-label');
-    delete rankInfo.dataset.rank; delete rankInfo.dataset.kills;
+    rankInfo.textContent = ''; rankInfo.removeAttribute('title'); rankInfo.removeAttribute('aria-label'); rankInfo.classList.remove('wrap');
+    delete rankInfo.dataset.rank; delete rankInfo.dataset.kills; delete rankInfo.dataset.layout; delete rankInfo.dataset.form;
   }
   $('selected-count').textContent = first ? `${selection.length}`.padStart(2, '0') : '07';
   $('selection-health').hidden = selection.length !== 1;
@@ -790,6 +854,8 @@ function updateHUD() {
   if (portraitKey !== lastPortrait) { drawIcon($('portrait'), first?.type || raceBuilding(game, 0, 'core'), 0, { ...first, powerRatio: power.ratio, powerStatus: power.status }); lastPortrait = portraitKey; }
   for (const id of ['move-order', 'attack-order', 'explore-order', 'stop-order']) { $(id).disabled = busy() || !units.length; $(id).hidden = !units.length; }
   updateAbilityButton(abilityGroup(units));
+  // A pending destination order needs something left to command.
+  if (((orderMode === 'attackMove' || orderMode === 'move') && !units.length) || (orderMode === 'rally' && !producers.length)) cancelOrder();
   const military = units.filter(unit => UNITS[unit.type].damage > 0);
   $('unit-stance').hidden = !military.length;
   const preferredDefend = military.filter(unit => unit.stance === 'defend').length;
@@ -952,8 +1018,8 @@ function updateIdleButtons() {
   const now = performance.now();
   if (now - idleCheckedAt > 450) { idle = idleSummary(game); idleCheckedAt = now; }
   const units = idle.constructors.length + idle.engineers.length + idle.combat.length, production = idle.producers.length + idle.labs.length;
-  const unitsText = units ? `${units} idle: ${[[idle.constructors.length, 'construction'], [idle.engineers.length, 'engineering'], [idle.combat.length, 'armed away from base']].filter(([n]) => n).map(([n, label]) => `${n} ${label}`).join(', ')}. Next idle unit · Period; Shift selects all armed` : 'No idle units';
-  const productionText = production ? `${production} idle: ${[[idle.producers.length, 'production bay'], [idle.labs.length, 'laboratory']].filter(([n]) => n).map(([n, label]) => `${n} ${label}${n === 1 ? '' : label.endsWith('y') ? '' : 's'}`).join(', ')}. Next · Comma` : 'No idle production';
+  const unitsText = units ? `${units} idle: ${[[idle.constructors.length, 'construction'], [idle.engineers.length, 'engineering'], [idle.combat.length, 'armed away from base']].filter(([n]) => n).map(([n, label]) => `${n} ${label}`).join(', ')}. Next idle unit · Period; Shift selects the armed units away from base` : 'No idle units';
+  const productionText = production ? `${production} idle: ${[[idle.producers.length, 'production bay'], [idle.labs.length, 'laboratory']].filter(([n]) => n).map(([n, label]) => `${n} ${n === 1 ? label : label === 'laboratory' ? 'laboratories' : `${label}s`}`).join(', ')}. Next · Comma` : 'No idle production';
   for (const [id, count, text] of [['idle-units', units, unitsText], ['idle-production', production, productionText]]) {
     const button = $(id);
     button.querySelector('.idle-count').textContent = count;
@@ -965,11 +1031,12 @@ function cycleIdle(group, all = false) {
   if (busy()) return;
   idle = idleSummary(game); idleCheckedAt = performance.now();
   const list = group === 'units' ? [...idle.constructors, ...idle.engineers, ...idle.combat] : [...idle.producers, ...idle.labs];
+  // Shift + . gathers only the armed units waiting away from the base; it never falls back to workers.
+  if (all && group === 'units' && !idle.combat.length) { notify('No idle armed units away from base.'); return; }
   if (!list.length) { notify(group === 'units' ? 'No idle units.' : 'No idle production.'); return; }
   cancelOrder();
   if (all && group === 'units') {
-    const chosen = idle.combat.length ? idle.combat : list;
-    view.selected = new Set(chosen.map(e => e.id)); centerOnSelection(); selectionBark(chosen);
+    view.selected = new Set(idle.combat.map(e => e.id)); centerOnSelection(); selectionBark(idle.combat);
   } else {
     const next = list[(list.findIndex(e => e.id === idleCursor[group]) + 1) % list.length];
     idleCursor[group] = next.id;
@@ -989,12 +1056,20 @@ function abilityGroup(units) {
 function updateAbilityButton(group) {
   const button = $('ability-order');
   button.hidden = !group.length;
-  if (!group.length) { if (orderMode === 'ability') cancelOrder(); return; }
+  // Targeting follows the selection: another ability (or none) leaves it, and the hint tracks the
+  // reach of the units now selected.
+  if (orderMode === 'ability') {
+    if (!group.length || unitRole(group[0]) !== abilityRole || ABILITIES[abilityRole]?.target !== 'ground') cancelOrder();
+    else setOrderHint();
+  }
+  if (!group.length) return;
   const ability = ABILITIES[unitRole(group[0])], statuses = group.map(u => abilityStatus(game, u));
   const ready = statuses.filter(status => status.ready).length, active = statuses.some(status => status.active);
   const remaining = Math.min(...statuses.map(status => status.remaining)), name = statuses[0].name;
   const reason = ready ? '' : `${active ? `${name} active · ` : ''}Recharging · ${seconds(remaining)}`;
-  $('ability-label').textContent = ready ? `${name}${group.length > 1 ? ` ×${ready}` : ''}` : `${name} · ${seconds(remaining)}`;
+  // The countdown replaces the icon, so the button keeps its width (and the panel its layout) as it ticks.
+  $('ability-label').textContent = ready && group.length > 1 ? `${name} ×${ready}` : name;
+  button.firstElementChild.textContent = ready ? '✦' : String(Math.ceil(remaining));
   $('ability-reason').textContent = reason;
   button.style.setProperty('--cooldown', ready ? '0' : String(Math.min(1, remaining / ability.cooldown)));
   button.disabled = busy();
@@ -1445,7 +1520,8 @@ minimap.addEventListener('pointerdown', event => {
   // Orders reach the tactical map too: right click commands the selection there, and an armed
   // attack-move, rally or ability target takes the next click instead of moving the camera.
   const point = minimapPoint(event), inside = point.x >= 0 && point.y >= 0 && point.x <= game.width && point.y <= game.height;
-  if (event.button === 2) { if (inside && !view.placement && !view.formationPreview) commandAt(point); return; }
+  // As on the battlefield, a right click first cancels a pending order or placement.
+  if (event.button === 2) { if (orderMode || view.placement) cancelOrder(); else if (inside && !view.formationPreview) commandAt(point); return; }
   if (event.button === 0 && orderMode && inside) { commandAt(point, orderMode); return; }
   mapDragging = true; minimap.setPointerCapture(event.pointerId); navigateMinimap(event);
 });

@@ -254,3 +254,9 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
   /* The console stops above a selection panel instead of running underneath it. */
   body[data-selection=true] .sidebar{max-height:calc(100dvh - var(--top) - 36px - var(--selection-height,0px))}
 }
+/* Last-resort rank line: the bonus wraps whole onto a second line rather than being cut off. */
+#selection-rank.wrap{white-space:normal;overflow:visible;text-overflow:clip}
+#selection-rank.wrap>span{display:inline-block;white-space:nowrap}
+#ability-order>span:first-child{font-variant-numeric:tabular-nums}
+/* The smallest phones drop action icons, but a recharging ability keeps its countdown. */
+@media(max-width:370px){#ability-order.recharging>span:first-child{display:inline-block}}

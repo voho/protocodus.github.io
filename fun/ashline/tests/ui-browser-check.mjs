@@ -97,6 +97,18 @@ try {
   await desktop.locator('#home').click(); await desktop.locator('#world').focus(); await desktop.keyboard.press('Backspace');
   camera = await desktop.evaluate(() => ({ x: ashline.view.x, y: ashline.view.y }));
   assert(Math.hypot(camera.x - ids.core.x - 20, camera.y - ids.core.y + 20) < 1, 'Backspace jumps to the latest alert');
+  // Screen readers get the same collapsed burst as the visible log, and the hidden log keeps its jump
+  // marks out of the tab order (Backspace serves the keyboard).
+  await desktop.evaluate(async () => {
+    const { event } = await import('./sim.js');
+    for (let i = 0; i < 40; i++) event(ashline.state, 'Rifle squad lost', 0, { kind: 'unitLost', rank: 0 });
+    for (let i = 0; i < 9; i++) event(ashline.state, `Survey note ${i}`, 0, { kind: 'mission' });
+  });
+  await desktop.waitForFunction(() => /Rifle squad lost ×40/.test(document.querySelector('#announcer').textContent));
+  const said = await desktop.locator('#announcer').textContent();
+  assert.equal(said.match(/Rifle squad lost/g).length, 1, 'Repeats are announced once with a count');
+  assert.match(said, /\d+ more messages\.$/, 'A long burst ends in a summary'); assert(said.length < 300);
+  assert(await desktop.locator('#notifications .toast-jump').evaluateAll(list => list.length > 0 && list.every(b => b.tabIndex === -1)), 'Jump marks stay out of the tab order');
 
   // Army selection is armed units only; idle buttons cycle what waits.
   await desktop.keyboard.press('e');
@@ -112,6 +124,11 @@ try {
   assert.deepEqual([...cycled].sort((a, b) => a - b), [ids.engineer, ids.constructor, ids.far].sort((a, b) => a - b), 'Period cycles every idle unit');
   await desktop.keyboard.press('Shift+Period');
   assert.deepEqual(await desktop.evaluate(() => [...ashline.view.selected]), [ids.far], 'Shift + period selects the idle armed units away from base');
+  await desktop.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id); e.order = { type: 'move', x: e.x + 1, y: e.y }; }, ids.far);
+  await desktop.keyboard.press('Shift+Period');
+  assert.deepEqual(await desktop.evaluate(() => [...ashline.view.selected]), [ids.far], 'Without idle armed units Shift + period leaves the selection alone');
+  assert.match(await desktop.locator('#notifications').innerText(), /No idle armed units away from base/);
+  await desktop.evaluate(id => { ashline.state.entities.find(e => e.id === id).order = { type: 'idle' }; }, ids.far);
   await desktop.keyboard.press(',');
   assert([ids.barracks, ids.factory, ids.lab].includes(await desktop.evaluate(() => [...ashline.view.selected][0])), 'Comma selects an idle production building');
   await desktop.keyboard.press('Escape');
@@ -119,7 +136,8 @@ try {
   // Console keys and five-unit queueing, then click-to-cancel rows with full refunds.
   await desktop.locator('#train-tab').click();
   assert.equal(await desktop.locator(`[data-type="${ids.rifleType}"] .card-key`).textContent(), 'T');
-  const credits = () => desktop.evaluate(() => ashline.state.teams[0].credits);
+  // Haulers keep delivering during the check; credits net of mined income isolate costs and refunds.
+  const credits = () => desktop.evaluate(() => { const team = ashline.state.teams[0]; return team.credits - (team.stats?.mined ?? 0); });
   const queueOf = id => desktop.evaluate(id => ashline.state.entities.find(e => e.id === id).queue.map(q => q.type), id);
   const before = await credits();
   await desktop.locator('#world').focus(); await desktop.keyboard.press('t');
@@ -171,6 +189,31 @@ try {
   await desktop.keyboard.press('f');
   assert.match(await desktop.locator('#order-hint-text').textContent(), /within 14 tiles/);
   const scout = await entity(desktop, ids.scout);
+  // Targeting belongs to the ability it began with: recalling a group with another ability leaves it,
+  // and the next ground click selects instead of spending that ability.
+  await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.engineer);
+  await desktop.keyboard.press('Shift+Digit4');
+  await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.scout);
+  await desktop.waitForFunction(() => /Flare|Sensor probe/.test(document.querySelector('#ability-label').textContent));
+  await desktop.keyboard.press('f');
+  assert(await desktop.locator('#ability-order').evaluate(e => e.classList.contains('active')));
+  await desktop.keyboard.press('Digit4');
+  await desktop.waitForFunction(() => /Field patch|Nano-patch/.test(document.querySelector('#ability-label').textContent));
+  assert(await desktop.locator('#order-hint').isHidden(), 'Changing the selection leaves ground targeting');
+  assert(!(await desktop.locator('#ability-order').evaluate(e => e.classList.contains('active'))));
+  const ground = await point(desktop, scout.x + 2.5, scout.y + 2.5);
+  await desktop.mouse.click(ground.x, ground.y);
+  const patched = await entity(desktop, ids.engineer);
+  assert(!(patched.abilityReadyAt > 0), 'A ground click after the switch does not fire the new selection\'s ability');
+  // A right click on the tactical map cancels pending targeting, as it does on the battlefield.
+  await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.scout);
+  await desktop.waitForFunction(() => /Flare|Sensor probe/.test(document.querySelector('#ability-label').textContent));
+  await desktop.keyboard.press('f');
+  const away = await mapPoint(desktop, scout.x + 20, scout.y + 20);
+  await desktop.mouse.click(away.x, away.y, { button: 'right' });
+  assert(await desktop.locator('#order-hint').isHidden(), 'Right click on the tactical map cancels targeting');
+  assert.notEqual((await entity(desktop, ids.scout)).order.type, 'move', 'The cancelling right click sends no move order');
+  await desktop.keyboard.press('f');
   const flareAt = await mapPoint(desktop, scout.x + 6, scout.y - 4);
   await desktop.mouse.click(flareAt.x, flareAt.y);
   const reveal = await desktop.evaluate(() => ashline.state.reveals?.[0]);
@@ -226,12 +269,20 @@ try {
     event(s, 'Rifle squad lost', 1, { kind: 'unitLost', rank: 0, entityId: 1, role: 'rifle', x, y });
   }, { id: ids.rifles[1], visible });
   await desktop.waitForTimeout(1300); await promote(false);
-  await desktop.waitForFunction(() => /\(.+\) promoted to rank 1/.test(document.querySelector('#notifications').textContent));
   const named = await desktop.evaluate(async id => (await import('./character.js')).callsign(ashline.state, ashline.state.entities.find(e => e.id === id)), ids.rifles[1]);
-  assert.match(await desktop.locator('#notifications').innerText(), new RegExp(`${named} \\(Rifle squad\\) promoted to rank 1`), 'Promotion messages name the veteran');
+  await desktop.waitForTimeout(600);
+  assert(!/promoted to rank/.test(await desktop.locator('#notifications').textContent()), 'A promotion for a kill made out of sight is not announced as it happens');
+  assert(!/promoted to rank/.test(await desktop.locator('#announcer').textContent()));
   assert(!promotionLines.includes(await desktop.locator('#comms-text').textContent()), 'No boast for a kill made out of sight');
+  await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.rifles[1]);
+  await desktop.waitForFunction(() => /\(.+\) promoted to rank 1/.test(document.querySelector('#notifications').textContent));
+  const held = (await tones(desktop)).find(t => /promoted to rank 1/.test(t.text));
+  assert.match(held.text, new RegExp(`${named} \\(Rifle squad\\) promoted to rank 1`), 'Promotion messages name the veteran');
+  assert(!held.jump, 'A promotion held back from an unseen kill carries no location');
+  await desktop.evaluate(() => ashline.view.selected.clear());
   await desktop.waitForTimeout(1300); await promote(true);
   await desktop.waitForFunction(lines => lines.includes(document.querySelector('#comms-text').textContent), promotionLines);
+  assert((await tones(desktop)).some(t => /promoted to rank 1/.test(t.text) && t.jump), 'A seen promotion is announced at once with a location');
 
   // Signals intercept: five or more visible armed rivals closing on a structure name their commander.
   const column = await desktop.evaluate(async core => {
@@ -260,6 +311,23 @@ try {
   assert(await desktop.evaluate(() => Boolean(ashline.view.placement)), 'Shift-placing keeps the structure selected');
   await desktop.keyboard.press('Escape');
   await desktop.screenshot({ path: `${output}/ui-hud-desktop.png` });
+
+  // The rank line steps down to shorter forms instead of cutting off what its bonus applies to.
+  await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.rifles[2]);
+  for (const [width, height] of [[1190, 800], [1000, 760], [900, 700], [700, 900], [681, 900], [600, 900], [390, 844]]) {
+    await desktop.setViewportSize({ width, height });
+    for (const kills of [0, 7, 15]) {
+      await desktop.evaluate(({ id, kills }) => { ashline.state.entities.find(e => e.id === id).kills = kills; }, { id: ids.rifles[2], kills });
+      await desktop.waitForFunction(kills => { const e = document.querySelector('#selection-rank'); return !e.hidden && e.dataset.kills === String(kills) && e.dataset.layout?.endsWith(`:${e.clientWidth}`); }, kills);
+      const rank = await desktop.locator('#selection-rank').evaluate(e => ({ over: e.scrollWidth > e.clientWidth, text: e.textContent, width: e.clientWidth }));
+      assert(rank.width > 60, `Rank line is shown at ${width}px`); assert(!rank.over, `Rank line fits at ${width}px with ${kills} kills: ${rank.text}`);
+      assert.match(rank.text, /\+\d+% dmg\/HP/, `Rank line keeps its bonus readable at ${width}px`);
+    }
+    if (width === 700) await desktop.screenshot({ path: `${output}/ui-rank-700.png` });
+  }
+  await desktop.evaluate(id => { ashline.state.entities.find(e => e.id === id).kills = 0; ashline.view.selected.clear(); }, ids.rifles[2]);
+  await desktop.setViewportSize({ width: 1440, height: 900 });
+  await desktop.waitForTimeout(300);
 
   // Settings persist; the speed slider gives the arrow keys back to the camera after a drag.
   await desktop.locator('#pause').click();
@@ -298,6 +366,13 @@ try {
   assert(layout.idle.top >= layout.top.bottom, 'Idle chips sit below the topbar');
   await phone.screenshot({ path: `${output}/ui-hud-phone.png` });
   await phone.locator('#command-toggle').tap();
+  // Fresh lines, so a slow screenshot under load cannot let the earlier ones expire first.
+  await phone.evaluate(async () => {
+    const { event } = await import('./sim.js');
+    event(ashline.state, 'Field barracks under attack', 0, { kind: 'underAttack', x: 22, y: 22 });
+    event(ashline.state, 'Report from the shard convoy', 0, { kind: 'mission' });
+  });
+  await phone.waitForFunction(() => [...document.querySelectorAll('#notifications .toast')].some(t => t.textContent.includes('shard convoy')) && document.querySelectorAll('#notifications .toast').length >= 2);
   await phone.waitForTimeout(250);
   const open = await phone.evaluate(() => ({ sidebar: document.querySelector('#command-console').getBoundingClientRect(), toasts: [...document.querySelectorAll('#notifications .toast')].filter(t => getComputedStyle(t).display !== 'none').map(t => t.getBoundingClientRect()) }));
   assert.equal(open.toasts.length, 1, 'With the console open only the newest message shows');
@@ -306,5 +381,5 @@ try {
   await phone.close();
 
   assert.deepEqual(errors, []);
-  console.log(`Interface browser check passed: setup commanders and modes, routed message log with jumps and alerts, armed-only army, idle cycling, card keys and five-unit queues, queue and research cancellation, tooltips, abilities with ground and tactical-map targeting, tactical-map orders, group centering, hover readout and comms, fog-gated promotion boasts, commander intercepts, repeat placement, persisted settings, phone layout. Screenshots: ${output}`);
+  console.log(`Interface browser check passed: setup commanders and modes, routed message log with jumps and alerts, armed-only army, idle cycling, card keys and five-unit queues, queue and research cancellation, tooltips, abilities with ground and tactical-map targeting, tactical-map orders, group centering, hover readout and comms, fog-gated promotion boasts and held promotion news, ability targeting that follows the selection, rank line forms, commander intercepts, repeat placement, persisted settings, phone layout. Screenshots: ${output}`);
 } finally { await browser.close(); }
