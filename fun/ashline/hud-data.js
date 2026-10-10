@@ -25,27 +25,35 @@ function powerStatus(event) {
 // tone: info, success, caution, warning, loss or comms. alert: worth a jump-to entry and a minimap ping.
 // toast: false keeps the line out of the log: deliveries are a sound, brownouts already raise the HUD's
 // own low-power warning, and placements, sales and project starts answer a click that has its own reply.
-// sound names an existing effect; kinds without one stay quiet.
+// Routes carry no sound: soundscape.js gives every event its one cue, so the log never doubles it.
 const ROUTES = {
-  opening: { tone: 'info' }, delivery: { toast: false, sound: 'delivery' }, explored: { tone: 'info' },
-  researchStarted: { toast: false }, researchComplete: { tone: 'success', sound: 'buildComplete' },
-  upgradeStarted: { toast: false }, upgradeComplete: { tone: 'success', sound: 'buildComplete' },
-  placed: { toast: false }, online: { tone: 'success', sound: 'buildComplete' }, deployed: { toast: false },
+  opening: { tone: 'info' }, delivery: { toast: false }, explored: { tone: 'info' },
+  researchStarted: { toast: false }, researchComplete: { tone: 'success' },
+  upgradeStarted: { toast: false }, upgradeComplete: { tone: 'success' },
+  placed: { toast: false }, online: { tone: 'success' }, deployed: { toast: false },
   walls: { toast: false }, sold: { toast: false }, trainingCancelled: { tone: 'info' }, mission: { tone: 'info' }, ability: { tone: 'info' },
-  underAttack: { tone: 'warning', alert: true, sound: 'error' }, structureLost: { tone: 'warning', alert: true, sound: 'error' },
-  haulersLost: { tone: 'warning', alert: true, sound: 'error' }, bayBlocked: { tone: 'warning', alert: true, sound: 'error' },
-  wave: { tone: 'warning', alert: true, sound: 'error' }, objectiveFailed: { tone: 'warning', sound: 'error' },
-  unitLost: { tone: 'loss', alert: true }, promotion: { tone: 'success' }, ready: { tone: 'info', sound: 'unitReady' },
+  underAttack: { tone: 'warning', alert: true }, structureLost: { tone: 'warning', alert: true },
+  haulersLost: { tone: 'warning', alert: true }, bayBlocked: { tone: 'warning', alert: true },
+  wave: { tone: 'warning', alert: true }, objectiveFailed: { tone: 'warning' },
+  unitLost: { tone: 'loss', alert: true }, promotion: { tone: 'success' }, ready: { tone: 'info' },
   victory: { tone: 'success' }, defeat: { tone: 'warning' }, objective: { tone: 'success' }, dialogue: { tone: 'comms' }, message: { tone: 'info' },
 };
 export function eventRoute(event) {
   const kind = eventKind(event);
   if (kind === 'power') {
     const status = powerStatus(event);
-    return { kind, status, tone: status === 'reserve' ? 'caution' : status === 'brownout' ? 'warning' : 'success', toast: status !== 'brownout', alert: false, sound: null };
+    return { kind, status, tone: status === 'reserve' ? 'caution' : status === 'brownout' ? 'warning' : 'success', toast: status !== 'brownout', alert: false };
   }
   const route = Object.hasOwn(ROUTES, kind) ? ROUTES[kind] : ROUTES.message;
-  return { kind, tone: route.tone ?? 'info', toast: route.toast !== false, alert: Boolean(route.alert), sound: route.sound ?? null };
+  return { kind, tone: route.tone ?? 'info', toast: route.toast !== false, alert: Boolean(route.alert) };
+}
+
+// Whether the player saw the kill behind a promotion. The simulation logs the victim's loss right after
+// the promotion, in the same step; only a loss on a tile in current vision confirms it. The log, the
+// crew's boast and the promotion stinger all follow this one rule.
+export function witnessedKill(game, promotion, victim) {
+  return Boolean(victim && victim.time === promotion.time && victim.team !== promotion.team && (victim.kind === 'unitLost' || victim.kind === 'structureLost')
+    && Number.isFinite(victim.x) && Number.isFinite(victim.y) && game.visible[0][Math.floor(victim.y) * game.width + Math.floor(victim.x)]);
 }
 
 export const ARMOR_CLASSES = { infantry: 'Infantry', light: 'Light vehicles', heavy: 'Heavy armor', building: 'Structures' };

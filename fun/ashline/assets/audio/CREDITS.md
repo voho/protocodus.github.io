@@ -13,6 +13,15 @@
 
 ## Original generated sound effects
 
-`audio.js` synthesizes Ashline's effects as short mono PCM buffers when the player first enables audio. No third-party samples or recordings are used. Noise transients, filtered rumble, pitched mechanical tails, and enveloped tones distinguish rifle bursts, recon fire, tank fire, artillery, and explosions. Separate cues cover selection, orders, errors, construction start/completion, trained units, mineral delivery, victory, and defeat.
+All effects are synthesized in code by `soundbank.js` from noise, oscillators, filters, envelopes and bit reduction, rendered to mono PCM at 24 kHz. No third-party samples or recordings are used, and no voice imitates real speech or an existing franchise. Every recipe has its own seed, so the bank is identical on every load.
 
-The buffers are reused through native Web Audio. Per-effect rate limits, a simultaneous-voice limit, and a shared compressor keep large battles controlled. Sound effects and music have independent controls; playback begins only after a user gesture. Battle sounds and music pause with the game; victory and defeat cues can finish over the result menu.
+- **Interface:** selection, move, attack and harvest orders, rally, control groups, errors, cancellation, construction start and completion, unit ready, shard delivery, sale and repair.
+- **Weapons by race:** Organics powder rifles, recon guns, autocannons, tank and siege cannons, rocket launchers, the rail sentry and the rocket battery, with gritty reports and mechanical clanks. AI Unity pulse, rail, laser and FM weapons for the same roles. Each weapon has three variants and slight pitch variation.
+- **Impacts and losses:** rocket and heavy-rocket bursts, the artillery landing and incoming whistle, an infantry thud, a robot break-up, a vehicle burst, a small-structure crumble and a building collapse.
+- **Alerts:** under-attack klaxon, unit and structure lost, research and upgrade complete, promotion, power loss, reserve and recovery, new, complete and failed objectives, incoming wave, enemy contact, warnings and exploration finished.
+- **Abilities:** one cue per ability and race (Dig in / Brace protocol, Long shot / Extended lock, Flare / Sensor probe, Overdrive / Overclock, Afterburner / Sprint, Barrage / Arc barrage, Field patch / Nano-patch).
+- **Unit voices and transmissions:** wordless lines for each role and context (select, move, attack, attack-move, harvest, ready, ability, annoyed, transmission). Human crews use squelched radio and two-formant syllables. Vael launcher teams use a lower, growling register. AI Unity uses bit-crushed chirp motifs.
+- **Ambient beds:** seamless loops for wind, lava rumble and bubbles, and friendly industry.
+- **Result stingers:** longer victory and defeat cues that play while the soundtrack fades out.
+
+The bank renders in a background worker after the first user gesture. A mixer with glue compression, a limiter, ducking and a voice budget keeps large battles controlled. Effects, voices, ambience and music have separate volume controls. Playback begins only after a user gesture, battle sounds pause with the game, and result stingers finish over the result menu.

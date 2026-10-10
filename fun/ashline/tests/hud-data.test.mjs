@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BUILDINGS, UNITS, EVENT_KINDS, createGame, updateGame, canPlace, placeBuilding, getEntity, addEntity, armorMultiplier, raceUnit, raceBuilding, unitRole, issueOrder} from '../sim.js';
-import {eventKind, eventRoute, cardStats, idleSummary, IDLE_GROUPS, readSettings, writeSettings, DEFAULT_SETTINGS, SETTINGS_KEY} from '../hud-data.js';
+import {eventKind, eventRoute, witnessedKill, cardStats, idleSummary, IDLE_GROUPS, readSettings, writeSettings, DEFAULT_SETTINGS, SETTINGS_KEY} from '../hud-data.js';
 
 const memoryStorage = (entries = {}) => { const memory = new Map(Object.entries(entries)); return {memory, getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, String(value))}; };
 
@@ -31,7 +31,8 @@ test('event routes give victory a success tone, warnings an alert, and keep chat
   }
   assert.deepEqual([eventRoute({kind: 'unitLost', text: 'Rifle squad lost'}).tone, eventRoute({kind: 'unitLost', text: 'Rifle squad lost'}).alert], ['loss', true]);
   assert.equal(eventRoute({kind: 'delivery', text: 'Shard delivery: +200 credits'}).toast, false, 'Deliveries are a sound, not a message');
-  assert.equal(eventRoute({kind: 'delivery', text: ''}).sound, 'delivery');
+  // The soundscape owns event sounds; a route naming one too would play it twice.
+  for (const kind of EVENT_KINDS) assert(!('sound' in eventRoute({kind, text: ''})), `${kind} leaves its sound to the soundscape`);
   for (const kind of ['placed', 'walls', 'sold', 'researchStarted', 'upgradeStarted', 'deployed']) assert.equal(eventRoute({kind, text: ''}).toast, false, `${kind} answers a click that already replied`);
   assert.equal(eventRoute({kind: 'dialogue', text: 'Hold.', speaker: 'Range control'}).tone, 'comms');
   const brownout = eventRoute({kind: 'power', status: 'brownout', text: 'Power shortage: defenses offline; production, research, and repairs slowed. Build reactors.'});
@@ -39,6 +40,19 @@ test('event routes give victory a success tone, warnings an alert, and keep chat
   assert.equal(eventRoute({text: 'Capacitor reserve engaged. Restore power before it empties.'}).tone, 'caution');
   assert.equal(eventRoute({text: 'Power grid restored.'}).tone, 'success');
   for (const kind of EVENT_KINDS) assert(['info', 'success', 'caution', 'warning', 'loss', 'comms'].includes(eventRoute({kind, text: ''}).tone), `${kind} has a tone`);
+});
+
+test('a promotion counts as witnessed only when the victim fell on a tile in current vision', () => {
+  const s = createGame('hud-witness', 'normal', {width: 72, height: 56, aiTeams: []});
+  s.visible[0].fill(0); s.visible[0][20 * s.width + 30] = 1;
+  const promotion = {text: 'Rifle squad promoted to rank 1', team: 0, time: 4, kind: 'promotion', rank: 1, entityId: 1};
+  const loss = (x, y, extra = {}) => ({text: 'Rifle squad lost', team: 1, time: 4, kind: 'unitLost', x, y, ...extra});
+  assert.equal(witnessedKill(s, promotion, loss(30.5, 20.5)), true);
+  assert.equal(witnessedKill(s, promotion, loss(40.5, 20.5)), false, 'A kill under fog is not witnessed');
+  assert.equal(witnessedKill(s, promotion, loss(30.5, 20.5, {time: 5})), false, 'Only the loss logged in the same step counts');
+  assert.equal(witnessedKill(s, promotion, loss(30.5, 20.5, {team: 0})), false, 'A friendly loss is not the victim');
+  assert.equal(witnessedKill(s, promotion, {text: 'Rifle squad lost', team: 1, time: 4}), false, 'Text-only events from older saves name no place');
+  assert.equal(witnessedKill(s, promotion, undefined), false);
 });
 
 test('card statistics derive DPS from damage per interval and counters from the armor table', () => {

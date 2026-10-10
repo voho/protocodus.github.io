@@ -3,11 +3,12 @@ import { ABILITIES, abilityFor, abilityStatus, useAbility } from './abilities.js
 import { DOCTRINES } from './ai.js';
 import { MISSIONS, SKIRMISH_MODES } from './campaign.js';
 import { callsign, barkLine, rivalCommander, approachingColumn } from './character.js';
-import { eventRoute, cardStats, ARMOR_CLASSES, idleSummary, readSettings, writeSettings } from './hud-data.js';
+import { eventRoute, witnessedKill, cardStats, ARMOR_CLASSES, idleSummary, readSettings, writeSettings } from './hud-data.js';
 import { Renderer, drawIcon } from './render.js';
 import { startAssets, assetStatus, spriteNativeZoom } from './assets.js';
 import { zoomLevels, nearestZoom, steppedZoom, cameraDirection } from './camera.js';
 import { createAudio } from './audio.js';
+import { createSoundscape, bindAudioControls } from './soundscape.js';
 import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
@@ -32,7 +33,7 @@ let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
 audio.setPaused(true);
-let heardEffects = new WeakSet();
+const soundscape = createSoundscape(audio);
 const keys = new Set();
 // Message log, alert history and unit comms are interface state only; none of it enters the save.
 const toasts = [], alerts = [], announcements = new Map();
@@ -41,7 +42,7 @@ let alertCursor = -1, alertCursorAt = 0, announcing = false;
 const heldPromotions = new Map();
 // The role whose ground ability the pending target click belongs to.
 let abilityRole = null;
-let lastBark = { at: 0, priority: 0, until: 0 }, lastReadyBark = 0, barkSequence = 0, selectStreak = { id: null, count: 0, at: 0 };
+let barkUntil = 0, barkSequence = 0;
 let lastGroupPress = { group: null, at: 0 }, interceptAt = -Infinity, interceptCheckAt = 0, sliderPointer = false;
 const idleCursor = { units: 0, production: 0 };
 let idle = idleSummary(null), idleCheckedAt = -Infinity;
@@ -69,26 +70,27 @@ const chosenProducer = (type, producers = selectedProducers()) => {
   return matching.length === 1 ? matching[0] : null;
 };
 const seconds = value => Number.isFinite(value) ? `${Math.ceil(value)}s` : 'stalled';
-// The unit that speaks for a group: the lowest id of the most numerous type.
-function leadUnit(units) {
-  const counts = new Map();
-  for (const u of units) counts.set(u.type, (counts.get(u.type) || 0) + 1);
-  return units.filter(u => u.kind === 'unit').sort((a, b) => counts.get(b.type) - counts.get(a.type) || a.id - b.id)[0];
-}
 const busy = () => !launched || paused || game.status !== 'playing';
 const cardMeta = def => `${def.buildTime || def.trainTime}s` + (def.power < 0 ? ` · ${-def.power}ϟ` : def.power > 0 ? ` · +${def.power}ϟ` : '');
 
 function playSound(kind = 'confirm') {
   audio.play(kind);
 }
+// One answer per command: the interface cue, then a single reply from the units. The soundscape picks
+// who answers and with which line (it owns the annoyed-reselect count); the comms line shows that same
+// line, so the voice and the text always agree.
+function acknowledge(context = 'select', cue = 'select', units = selectedUnits()) {
+  playSound(cue);
+  const reply = game && soundscape.acknowledge(context, units);
+  if (reply) bark(reply.unit, reply.context);
+}
 
 const TOAST_LIFE = { info: 4300, success: 5000, caution: 5500, loss: 5500, warning: 6500, comms: 7000 };
 // A short stacked log: each line fades on its own, repeats refresh their line with a count, and a
 // full log drops its oldest routine line before any warning. Lines about a place can be clicked.
-function notify(text, tone = 'info', detail = {}, legacyQuiet = false) {
-  // Calls written for the earlier (text, warning, soft, quiet) form keep their warning styling and sound.
-  if (typeof tone !== 'string') tone = tone ? 'warning' : 'info';
-  if (!detail || typeof detail !== 'object') detail = { quiet: legacyQuiet };
+// detail: {x, y, speaker, quiet}. A warning buzzes the error cue unless it is quiet; every simulation
+// event is quiet because the soundscape already gives it its own stinger.
+function notify(text, tone = 'info', detail = {}) {
   const log = $('notifications'), now = performance.now();
   let toast = toasts.find(t => t.text === text && t.tone === tone);
   if (toast) {
@@ -136,7 +138,7 @@ function clearLog() {
   for (const toast of [...toasts]) removeToast(toast);
   alerts.length = 0; alertCursor = -1; announcements.clear(); $('announcer').textContent = '';
   heldPromotions.clear();
-  lastBark = { at: 0, priority: 0, until: 0 }; $('comms').hidden = true;
+  barkUntil = 0; $('comms').hidden = true;
 }
 // Screen readers hear one combined announcement per burst (a frame's events, or one click's feedback).
 // Repeats collapse with a count as they do in the visible log, and a long burst ends in a summary.
@@ -194,48 +196,41 @@ function drawAlertPings(now) {
   ctx.restore();
 }
 
-// Barks are flavour on the comms line: friendly units only, throttled, and never for unseen kills.
-const BARK_PRIORITY = { select: 1, ready: 1, annoyed: 2, harvest: 2, move: 2, attack: 2, attackMove: 2, explore: 2, ability: 3, promotion: 3 };
+// The comms line shows a unit's reply as text: the line the soundscape voices for a command or for the
+// unit's own news (ready, ability), or a crew's boast about a promotion the player saw it earn. The
+// soundscape decides who answers and when, so the text never runs ahead of or behind the voice.
 function bark(unit, context) {
   if (!unit || unit.team !== 0 || unit.kind !== 'unit' || unit.hp <= 0) return;
-  const now = performance.now(), priority = BARK_PRIORITY[context] ?? 1;
-  if (now - lastBark.at < 1200 && priority <= lastBark.priority) return;
-  if (context === 'ready') { if (now - lastReadyBark < 5000) return; lastReadyBark = now; }
   const line = barkLine(unit.type, context, barkSequence++);
   if (!line) return;
   $('comms-callsign').textContent = callsign(game, unit); $('comms-text').textContent = line;
   $('comms').classList.remove('leaving'); $('comms').hidden = false;
-  lastBark = { at: now, priority, until: now + 3200 };
+  barkUntil = performance.now() + 3200;
 }
-function selectionBark(units = selectedUnits()) { const lead = leadUnit(units); if (lead) bark(lead, 'select'); }
 
-// New simulation events for the player: kind picks the tone, sound, alert and comms reaction; saves
-// from before typed events fall back to their text. Only the player's own events are read, except to
-// check that a promotion's kill happened in sight before a crew brags about it.
+// New simulation events for the player: kind picks the tone, alert and comms reaction; saves from before
+// typed events fall back to their text. Every toast here is quiet: the soundscape gives each event its
+// own sound. Only the player's own events are read, except to check that a promotion's kill was seen.
 function reportEvents(from) {
   const events = game.events;
   for (let i = from; i < events.length; i++) {
     const event = events[i];
     if (event.team !== 0 && event.team !== undefined) continue;
     const route = eventRoute(event), point = Number.isFinite(event.x) && Number.isFinite(event.y) ? { x: event.x, y: event.y } : {};
-    if (route.sound) playSound(route.sound);
     let text = event.text;
-    const subject = route.kind === 'promotion' || route.kind === 'ready' ? getEntity(game, event.entityId) : null;
     if (route.kind === 'promotion') {
+      const subject = getEntity(game, event.entityId);
       // A promotion with no living unit to name (or a text-only one) cannot be checked against vision.
       if (subject?.kind !== 'unit' || subject.hp <= 0) continue;
       text = `${callsign(game, subject)} (${UNITS[subject.type].name}) promoted to rank ${event.rank ?? unitRank(subject)}`;
-      const victim = events[i + 1];
-      const witnessed = victim && victim.time === event.time && victim.team !== 0 && ['unitLost', 'structureLost'].includes(victim.kind) && Number.isFinite(victim.x)
-        && game.visible[0][Math.floor(victim.y) * game.width + Math.floor(victim.x)];
       // A kill the player did not see is never confirmed as it happens: the news waits, without a place
       // or a time, until the unit is next selected (releaseHeldPromotions). Its chevrons update at once.
-      if (!witnessed) { holdPromotion(subject, event.rank ?? unitRank(subject)); continue; }
+      if (!witnessedKill(game, event, events[i + 1])) { holdPromotion(subject, event.rank ?? unitRank(subject)); continue; }
       bark(subject, 'promotion');
     } else if (route.kind === 'unitLost' && event.rank > 0 && Number.isInteger(event.entityId) && event.role) {
       const type = raceUnit(game, 0, event.role);
       if (UNITS[type]) text = `${callsign(game, { id: event.entityId, type })} (${UNITS[type].name}) lost · rank ${event.rank} veteran`;
-    } else if (route.kind === 'ready' && subject?.kind === 'unit') bark(subject, 'ready');
+    }
     if (route.alert && Number.isFinite(point.x)) pushAlert(point.x, point.y, text, route.tone);
     if (route.toast) notify(text, route.tone, { ...point, speaker: route.kind === 'dialogue' ? event.speaker : undefined, quiet: true });
   }
@@ -269,7 +264,7 @@ function checkIntercept(now) {
   interceptAt = now;
   const commander = rivalCommander(game), text = `Intercept: ${commander ? `${commander} column` : 'hostile column'} advancing · ${column.count} contacts`;
   pushAlert(column.target.x, column.target.y, text, 'warning');
-  notify(text, 'warning', { ...column.target, speaker: 'Signals' });
+  notify(text, 'warning', { ...column.target, speaker: 'Signals', quiet: true }); playSound('alert.enemySpotted');
 }
 
 async function reset(prepared, restored) {
@@ -282,7 +277,7 @@ async function reset(prepared, restored) {
   lastPortrait = ''; lastQueue = null; view.showGrid = false; lowPower = false; touches.clear();
   clearLog(); idle = idleSummary(null); idleCheckedAt = -Infinity; idleCursor.units = idleCursor.production = 0; interceptAt = -Infinity; lastGroupPress = { group: null, at: 0 };
   delete $('building-upgrades').dataset.entity;
-  heardEffects = new WeakSet(game.effects);
+  soundscape.reset(game);
   renderer.terrainSource = null;
   await renderer.prepareTerrain(game, ({ value, label }) => updateLoading(40 + value * 58, label));
   if (restored) {
@@ -557,7 +552,7 @@ function updateBuildingUpgrades(selected = selectedEntities()) {
 
 function cancelProject(lab) {
   const name = RESEARCH[lab.research.id].name, result = cancelResearch(game, lab.id, 0);
-  if (result.ok) { notify(`${name} research cancelled · +${fmt(result.refund)} credits`); playSound('confirm'); }
+  if (result.ok) { notify(`${name} research cancelled · +${fmt(result.refund)} credits`); playSound('cancel'); }
   else notify(result.reason, 'warning');
   updateHUD();
 }
@@ -567,7 +562,7 @@ function cancelQueued(producerId, type) {
   // The newest matching entry goes first, so a row of waiting units drains from the back.
   const index = type ? producer?.queue.findLastIndex(q => q.type === type) ?? -1 : 0;
   const result = cancelTraining(game, 0, producerId, index);
-  if (!result.ok) notify(result.reason, 'warning'); else playSound('confirm');
+  if (!result.ok) notify(result.reason, 'warning'); else playSound('cancel');
   updateHUD();
 }
 
@@ -676,13 +671,9 @@ function selectAt(point, additive = false, touch = false) {
   if (hit?.team === 0) {
     if (!additive) view.selected.clear();
     if (additive && view.selected.has(hit.id)) view.selected.delete(hit.id); else view.selected.add(hit.id);
-    if (hit.kind === 'unit' && view.selected.has(hit.id)) {
-      // Clicking the same unit over and over earns a weary reply.
-      const now = performance.now();
-      selectStreak = selectStreak.id === hit.id && now - selectStreak.at < 2500 ? { id: hit.id, count: selectStreak.count + 1, at: now } : { id: hit.id, count: 1, at: now };
-      bark(hit, selectStreak.count >= 4 ? 'annoyed' : 'select');
-    }
-    playSound('select'); updateHUD();
+    // The clicked unit answers; clicking it over and over earns a weary reply.
+    if (hit.kind === 'unit' && view.selected.has(hit.id)) acknowledge('select', 'select', [hit]); else playSound('select');
+    updateHUD();
   } else if (touch && (selectedUnits().length || selectedProducers().length)) commandAt(point);
   else if (!additive) { view.selected.clear(); updateHUD(); }
 }
@@ -695,7 +686,7 @@ function commandAt(point, explicitType) {
     const result = setRallyPoint(game, 0, producers.map(e => e.id), { x, y });
     if (!result.ok) { notify(result.reason, 'warning'); return; }
     view.commandMarker = { x, y, time: performance.now() / 1000, type: 'rally' };
-    orderMode = null; setOrderHint(); updateHUD(); playSound('order');
+    orderMode = null; setOrderHint(); updateHUD(); playSound('rally');
     notify(`Rally point set for ${producers.length === 1 ? BUILDINGS[producers[0].type].name : `${producers.length} producers`}.`);
     return;
   }
@@ -709,7 +700,8 @@ function commandAt(point, explicitType) {
     // A refused target keeps the targeting mode so the next click can correct it.
     if (!result.ok) { notify(result.reason, 'warning'); return; }
     view.commandMarker = { x, y, time: performance.now() / 1000, type: 'ability' };
-    orderMode = null; setOrderHint(); playSound('confirm'); bark(getEntity(game, result.used[0]), 'ability'); updateHUD();
+    // The ability event brings its own cue and the unit's reply (soundscape), so the click adds none.
+    orderMode = null; setOrderHint(); updateHUD();
     return;
   }
   const hit = entityAt({ x, y });
@@ -724,8 +716,8 @@ function commandAt(point, explicitType) {
     issueOrder(game, units.filter(e => unitRole(e) !== 'harvester').map(e => e.id), { type: 'move', x, y });
   } else issueOrder(game, units.map(e => e.id), { type, x, y, targetId: type === 'attack' ? hit.id : undefined });
   view.commandMarker = { x, y, time: performance.now() / 1000, type, ...(type === 'attack' ? { targetId: hit.id } : {}) };
-  orderMode = null; setOrderHint(); playSound('confirm');
-  bark(leadUnit(type === 'harvest' ? units.filter(e => unitRole(e) === 'harvester') : units), type);
+  orderMode = null; setOrderHint();
+  acknowledge(type, type === 'attack' || type === 'attackMove' ? 'attackOrder' : type === 'harvest' ? 'harvestOrder' : 'order', type === 'harvest' ? units.filter(e => unitRole(e) === 'harvester') : units);
   updateHUD();
 }
 
@@ -744,7 +736,8 @@ function updateHUD() {
   $('credits').textContent = fmt(game.teams[0].credits);
   const power = powerStats(game, 0);
   const low = power.ratio < 1;
-  if (low !== lowPower) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, 'warning'); }
+  // Quiet: the brownout's power event already sounds its stinger.
+  if (low !== lowPower) { lowPower = low; if (low && game.status === 'playing' && !paused) notify(`Low power: defenses offline and production slowed. Build ${BUILDINGS[raceBuilding(game, 0, 'reactor')].name}.`, 'warning', { quiet: true }); }
   $('power').textContent = `${Math.floor(power.supply)} / ${Math.ceil(power.demand)}`;
   $('power-resource').classList.toggle('low-power', low);
   $('power-resource').classList.toggle('reserve-power', power.usingReserve);
@@ -1037,15 +1030,15 @@ function cycleIdle(group, all = false) {
   if (!list.length) { notify(group === 'units' ? 'No idle units.' : 'No idle production.'); return; }
   cancelOrder();
   if (all && group === 'units') {
-    view.selected = new Set(idle.combat.map(e => e.id)); centerOnSelection(); selectionBark(idle.combat);
+    view.selected = new Set(idle.combat.map(e => e.id)); centerOnSelection(); acknowledge('select', 'select', idle.combat);
   } else {
     const next = list[(list.findIndex(e => e.id === idleCursor[group]) + 1) % list.length];
     idleCursor[group] = next.id;
     view.selected = new Set([next.id]); centerOn(entityCenter(next));
-    if (next.kind === 'unit') bark(next, 'select');
-    else if (!$('command-console').hidden) setTab(buildingRole(next) === 'lab' ? 'research' : 'train');
+    if (next.kind === 'unit') acknowledge('select', 'select', [next]);
+    else { playSound('select'); if (!$('command-console').hidden) setTab(buildingRole(next) === 'lab' ? 'research' : 'train'); }
   }
-  playSound('select'); updateHUD();
+  updateHUD();
 }
 
 // The largest group of units sharing an ability acts for a mixed selection.
@@ -1088,7 +1081,8 @@ function triggerAbility() {
   if (ABILITIES[unitRole(group[0])].target === 'ground') { setOrder('ability'); return; }
   const result = useAbility(game, 0, group.map(u => u.id));
   if (!result.ok) { notify(result.reason, 'warning'); return; }
-  cancelOrder(); playSound('confirm'); bark(getEntity(game, result.used[0]), 'ability'); updateHUD();
+  // The ability event brings its own cue and the unit's reply (soundscape), so the key adds none.
+  cancelOrder(); updateHUD();
 }
 // Ground abilities preview each ready unit's reach and the area the click would cover.
 function drawAbilityPreview() {
@@ -1321,7 +1315,7 @@ function showBriefing() {
 function selectArmy() {
   if (busy()) return;
   view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0 && UNITS[e.type].damage > 0).map(e => e.id));
-  updateHUD(); playSound('select'); selectionBark();
+  updateHUD(); acknowledge('select');
 }
 
 function stopSelection() {
@@ -1334,8 +1328,8 @@ function toggleExplore() {
   if (busy() || !units.length) return;
   const stop = units.every(e => e.order?.type === 'explore');
   if (stop) stopUnits(game, units.map(e => e.id));
-  else { issueOrder(game, units.map(e => e.id), { type: 'explore' }); bark(leadUnit(units), 'explore'); }
-  cancelOrder(); playSound('confirm'); updateHUD();
+  else issueOrder(game, units.map(e => e.id), { type: 'explore' });
+  cancelOrder(); if (stop) playSound('confirm'); else acknowledge('explore', 'order', units); updateHUD();
   notify(stop ? 'Auto-explore stopped.' : 'Auto-explore enabled. Units scout the unexplored frontier.');
 }
 
@@ -1390,7 +1384,7 @@ function commitFormation(active) {
   const ids = new Set(preview.positions.map(unit => unit.id)), offsets = active.formation.offsets.filter(unit => ids.has(unit.id));
   issueOrder(game, [...ids], { type: 'move', x: preview.x, y: preview.y, formationAngle: preview.angle, facing: preview.heading, formationOffsets: offsets.map(({id, x, y}) => ({id, x, y})) });
   view.commandMarker = { x: preview.x, y: preview.y, time: performance.now() / 1000, type: 'move' };
-  orderMode = null; setOrderHint(); playSound('confirm'); updateHUD();
+  orderMode = null; setOrderHint(); acknowledge('move', 'order'); updateHUD();
   return true;
 }
 
@@ -1469,7 +1463,7 @@ canvas.addEventListener('pointerup', event => {
       if (!active.shift) view.selected.clear();
       const a = renderer.screenToWorld(view.drag.x1, view.drag.y1, view), b = renderer.screenToWorld(view.drag.x2, view.drag.y2, view);
       for (const e of game.entities) { const p = renderer.poseOf(e); if (e.team === 0 && e.kind === 'unit' && e.hp > 0 && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x) && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)) view.selected.add(e.id); }
-      playSound('select'); updateHUD(); selectionBark();
+      acknowledge('select'); updateHUD();
     }
     view.drag = null; return;
   }
@@ -1489,7 +1483,8 @@ canvas.addEventListener('dblclick', event => {
     const topLeft = renderer.screenToWorld(0, 0, view), bottomRight = renderer.screenToWorld(renderer.width, renderer.height, view);
     view.selected = new Set(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.type === entity.type && e.hp > 0
       && e.x >= topLeft.x && e.x <= bottomRight.x && e.y >= topLeft.y && e.y <= bottomRight.y).map(e => e.id));
-    updateHUD(); selectionBark();
+    // The double click's own clicks already brought the cue and the reply.
+    updateHUD();
   }
 });
 canvas.addEventListener('wheel', event => {
@@ -1560,13 +1555,13 @@ document.addEventListener('keydown', event => {
       const assigned = assignControlGroup(game, view.selected, Number(digit));
       notify(assigned.length ? `Control group ${digit}: ${assigned.length} assigned. Previous group membership removed.` : `Control group ${digit} cleared.`);
       lastGroupPress = { group: null, at: 0 };
-      updateHUD();
+      updateHUD(); playSound('group');
     } else {
-      // A second press of the same group in quick succession brings the camera to it.
+      // A second press of the same group in quick succession brings the camera to it; only the first answers.
       const now = performance.now(), again = lastGroupPress.group === digit && now - lastGroupPress.at < 450;
       view.selected = new Set(controlGroupMembers(game, Number(digit)));
       lastGroupPress = { group: digit, at: again ? 0 : now };
-      if (again) centerOnSelection(); else if (view.selected.size) { selectionBark(); playSound('select'); }
+      if (again) centerOnSelection(); else if (view.selected.size) acknowledge('select');
       updateHUD();
     }
   }
@@ -1617,7 +1612,7 @@ $('repair-building').addEventListener('click', () => {
   if (busy()) return;
   const selection = selectedEntities(); if (selection.length !== 1) return;
   const result = toggleRepair(game, selection[0].id);
-  if (!result.ok) notify(result.reason, 'warning'); else playSound('confirm');
+  if (!result.ok) notify(result.reason, 'warning'); else playSound('repair');
   updateHUD();
 });
 $('sell-building').addEventListener('click', () => {
@@ -1625,7 +1620,7 @@ $('sell-building').addEventListener('click', () => {
   const selection = selectedEntities(); if (selection.length !== 1) return;
   const result = sellBuilding(game, selection[0].id);
   if (!result.ok) notify(result.reason, 'warning');
-  else { cancelOrder(); playSound('confirm'); notify(`Structure sold · +${fmt(result.refund)} credits`); }
+  else { cancelOrder(); playSound('sell'); notify(`Structure sold · +${fmt(result.refund)} credits`); }
   updateHUD(); updateCatalog();
 });
 $('stop-order').addEventListener('click', stopSelection);
@@ -1652,7 +1647,8 @@ $('game-speed').addEventListener('change', event => {
 });
 $('game-speed').addEventListener('pointerdown', () => { sliderPointer = true; });
 $('game-speed').addEventListener('focus', () => keys.clear());
-// Interface preferences persist in this browser; screen shake is read by the renderer from view.shake.
+// Interface preferences persist in this browser (hud-data settings); screen shake is read by the renderer
+// from view.shake. Sound mutes and levels are the audio engine's own settings, stored apart from these.
 const SETTING_LABELS = { edgeScroll: ['edge-scroll-toggle', 'Edge scroll'], shake: ['shake-toggle', 'Screen shake'], tooltips: ['tooltips-toggle', 'Tooltips'] };
 function updateSettingButtons() {
   for (const [key, [id, label]] of Object.entries(SETTING_LABELS)) { $(id).setAttribute('aria-pressed', String(settings[key])); $(id).textContent = `${label} ${settings[key] ? 'on' : 'off'}`; }
@@ -1704,7 +1700,7 @@ function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); fr
 
 function simulateFrameStep(dt) {
   renderer.snapshot(game); // Frames until the next tick blend from these poses.
-  updateGame(game, dt);
+  updateGame(game, dt); soundscape.tick(game);
   if (game.status === 'playing') return true;
   showMenu(true); playSound(game.status); return false;
 }
@@ -1725,14 +1721,7 @@ function frame(now) {
     if (game.events.length < lastEvent) lastEvent = 0;
     reportEvents(lastEvent);
     lastEvent = game.events.length;
-    for (const effect of game.effects) {
-      if (heardEffects.has(effect)) continue;
-      heardEffects.add(effect);
-      const v = game.visible[0], W = game.width, at = (x, y) => v[Math.floor(y) * W + Math.floor(x)];
-      if (!at(effect.x, effect.y) && !((effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') && Number.isFinite(effect.tx) && at(effect.tx, effect.ty))) continue;
-      if (effect.type === 'shot' || effect.type === 'shell' || effect.type === 'rocket') playSound(UNITS[effect.weapon] ? unitRole(effect.weapon) : BUILDINGS[effect.weapon] ? buildingRole(effect.weapon) : 'rifle');
-      else if (effect.type === 'explosion') playSound('explosion');
-    }
+    for (const reply of soundscape.takeReplies()) bark(getEntity(game, reply.entityId), reply.context);
   }
   if (pointerPosition && !busy()) view.hover = renderer.screenToWorld(pointerPosition.x, pointerPosition.y, view);
   if (pointer?.formation && view.formationPreview && !busy()) updateFormationPreview(pointer, pointer.last, true);
@@ -1750,19 +1739,21 @@ function frame(now) {
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
   renderer.pendingTime = accumulator; // How far the drawn frame has progressed toward the next tick.
   renderer.draw(game, view);
+  // After the draw, so blasts the renderer holds for an arriving shell are heard when they are shown.
+  if (!busy()) soundscape.frame(game, view, { width: renderer.width, height: renderer.height, levels: cameraLevels() }, renderer);
   drawAbilityPreview(); drawAlertPings(now);
   if (!busy()) checkIntercept(now);
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;
   }
   expireToasts(now);
-  if (lastBark.until && now > lastBark.until) { $('comms').classList.add('leaving'); if (now > lastBark.until + 400) { $('comms').hidden = true; lastBark.until = 0; } }
+  if (barkUntil && now > barkUntil) { $('comms').classList.add('leaving'); if (now > barkUntil + 400) { $('comms').hidden = true; barkUntil = 0; } }
   requestFrame();
 }
 
 $('seed').value = randomSeed();
 setGameSpeed(settings.speed); updateSettingButtons();
-updateMapDescription(); updateSoundButton();
+updateMapDescription(); updateSoundButton(); bindAudioControls(audio);
 $('deploy').disabled = false;
 showBriefing();
 
