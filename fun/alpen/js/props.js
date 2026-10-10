@@ -1415,14 +1415,6 @@ function growShrub(THREE, seed, geos) {
       rot: [(rnd() - 0.5) * 0.42, rnd() * TAU, (rnd() - 0.5) * 0.42],
       scale: [r, r * (0.66 + rnd() * 0.14), r * (0.82 + rnd() * 0.16)],
     });
-    if (i !== 1 || rnd() < 0.55) {
-      parts.push({
-        geo: g, color: SNOW, own: OWN_SNOW,
-        pos: [Math.cos(a) * off - 0.025, y + r * 0.54, Math.sin(a) * off],
-        rot: [0, rnd() * TAU, 0],
-        scale: [r * 0.84, r * 0.18, r * 0.76],
-      });
-    }
   }
 
   const geometry = compose(THREE, parts);
@@ -1453,11 +1445,6 @@ function growPlantPatch(THREE, seed, geos) {
       geo: g, color: green[i % green.length], own: OWN_ALL,
       pos: [x, 0.10 + rnd() * 0.08, z], rot: [0, rnd() * TAU, 0],
       scale: [r, r * 0.44, r * 0.86],
-    });
-    if (i < 2) parts.push({
-      geo: g, color: SNOW, own: OWN_SNOW,
-      pos: [x, 0.21 + rnd() * 0.04, z], rot: [0, rnd() * TAU, 0],
-      scale: [r * 0.82, r * 0.12, r * 0.70],
     });
   }
 
@@ -1520,14 +1507,6 @@ function growDwarfPine(THREE, seed, geos) {
         rot: [(rnd() - 0.5) * 0.35, rnd() * TAU, (rnd() - 0.5) * 0.35],
         scale: [br * 1.25, br * 0.45, br * 0.85],
       });
-      if (rnd() < 0.75) {
-        parts.push({
-          geo: g, color: SNOW, own: OWN_SNOW,
-          pos: [bx, by + br * 0.28, bz],
-          rot: [0, rnd() * TAU, 0],
-          scale: [br * 1.05, br * 0.16, br * 0.75],
-        });
-      }
     }
   }
   const geometry = compose(THREE, parts);
@@ -1602,13 +1581,6 @@ function growTussockPatch(THREE, seed, geos) {
       pos: [x, 0.08 + rnd() * 0.06, z], rot: [0, rnd() * TAU, 0],
       scale: [r * 1.1, r * 0.38, r * 0.9],
     });
-    if (i < 3) {
-      parts.push({
-        geo: g, color: SNOW, own: OWN_SNOW,
-        pos: [x, 0.16 + rnd() * 0.03, z], rot: [0, rnd() * TAU, 0],
-        scale: [r * 0.85, r * 0.10, r * 0.75],
-      });
-    }
   }
   for (let i = 0; i < 16; i++) {
     const a = rnd() * TAU;
@@ -2089,6 +2061,8 @@ export function createProps(THREE, shading) {
   };
 
   /* Low vegetation shares one wind program and organic botanical textures */
+  const floraSnow = new THREE.Color(SNOW);
+  const floraSnowColour = `vec3(${floraSnow.r.toFixed(4)}, ${floraSnow.g.toFixed(4)}, ${floraSnow.b.toFixed(4)})`;
   const floraMat = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
@@ -2099,7 +2073,8 @@ export function createProps(THREE, shading) {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
         varying vec3 vFloraWorldPos;
-        varying vec3 vFloraNormal;`)
+        varying vec3 vFloraNormal;
+        varying float vFloraOwn;`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
@@ -2110,14 +2085,17 @@ export function createProps(THREE, shading) {
           vFloraWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
           vFloraNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #endif
-        vN64Sheen = 1.0 - surfaceOwn;`);
+        vFloraOwn = surfaceOwn;
+        // Whatever can hold snow takes the snow response: see the fragment.
+        vN64Sheen = max(1.0 - surfaceOwn, smoothstep(0.15, 0.55, vFloraNormal.y));`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
         varying vec3 vFloraWorldPos;
         varying vec3 vFloraNormal;
+        varying float vFloraOwn;
         uniform sampler2D uBarkTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        float floraOwn = 1.0 - vN64Sheen;
+        float floraOwn = vFloraOwn;
         if (floraOwn > 0.05) {
           /* Projected three ways and blended by the normal. Taken down the
              world's z alone, the bark smeared into long stripes across
@@ -2129,6 +2107,23 @@ export function createProps(THREE, shading) {
             + texture2D(uBarkTex, vFloraWorldPos.xz * 1.6).rgb * floraW.y
             + texture2D(uBarkTex, vFloraWorldPos.xy * 1.6).rgb * floraW.z;
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * twigSample * 5.0, 0.72 * floraOwn);
+          /* THE SNOW ON IT, worked out here rather than modelled. It was a
+             second copy of each lobe squashed to a fifth of its height and
+             laid on top, which drew a flat white plate whose edge was
+             wherever one eighty-face ball happened to cut another: a jagged
+             paper outline on every cushion near the run. Snow lies on
+             whatever faces the sky, so it is the smooth normal that decides,
+             broken up by two octaves fixed to the world so the edge wanders
+             the way a real one does and stays put as the camera moves. The
+             twigs take it along their tops for the same reason. The colour is
+             the props' snow, and the shared snow response treats it as snow
+             because the vertex stage lets every up-facing face ask. */
+          vec3 floraN = normalize(vFloraNormal);
+          float floraBreak = n64Noise(vFloraWorldPos.xz * 5.0 + vFloraWorldPos.y * 3.0) * 0.65
+            + n64Noise(vFloraWorldPos.zx * 11.0 - vFloraWorldPos.y * 7.0) * 0.35;
+          float floraSnow = smoothstep(0.66, 0.9, floraN.y + (floraBreak - 0.5) * 0.45)
+            * floraOwn;
+          diffuseColor.rgb = mix(diffuseColor.rgb, ${floraSnowColour}, floraSnow);
         }`);
     };
     return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
