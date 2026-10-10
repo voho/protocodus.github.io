@@ -169,9 +169,9 @@ MISSIONS['check-economy']={id:'check-economy',name:'Economy check',races:['organ
   objectives:[{id:'nexus',type:'nexusInZone',zone:'home',label:'Hold the nexus'},{id:'mint',type:'deliver',amount:150,mineralType:1,label:'Deliver mint'},
     {id:'grid',type:'build',role:'reactor',count:2,label:'Two reactors'},{id:'study',type:'research',research:'infantryWeapons',label:'Research'},
     {id:'patrol',type:'reachZone',zone:'field',roles:['scout'],count:1,label:'Scout the field'},{id:'hold',type:'holdZone',zone:'field',seconds:2,label:'Hold the field'},
-    {id:'wait',type:'survive',seconds:4,hidden:true,label:'Wait'}],
+    {id:'wait',type:'survive',seconds:4,hidden:true,label:'Wait'},{id:'quota',type:'deliver',amount:100000,hidden:true,secondary:true,label:'Keep delivering'}],
   fail:[{type:'coreLost'},{type:'timeLimit',seconds:400}],
-  triggers:[{id:'later',when:{objectiveDone:'grid'},do:[{reveal:'wait'},{credits:50}]}],
+  triggers:[{id:'later',when:{objectiveDone:'grid'},do:[{reveal:'wait'},{reveal:'quota'},{credits:50}]}],
 };
 {
   const e=createGame('economy','normal',{width:144,height:112,mission:'check-economy'});
@@ -181,12 +181,15 @@ MISSIONS['check-economy']={id:'check-economy',name:'Economy check',races:['organ
   build(e,'reactor');advance(e,.3);assert.equal(objective(e,'grid').progress,1,'Construction sites do not count');
   for(let i=0;i<60&&objective(e,'grid').state==='active';i++)advance(e,.5);
   assert.equal(objective(e,'grid').state,'done');advance(e,.3);assert(objective(e,'wait').revealed);
+  // A quota revealed later counts only the deliveries made since it appeared.
+  const before=e.mission.counters['from:quota'];assert(objective(e,'quota').revealed&&before>=150&&before<=e.mission.counters.delivered);
   e.teams[0].research={infantryWeapons:true};
   const field=e.mission.zones.find(z=>z.id==='field'),scout=own(e,0,'scout')[0];
   issueOrder(e,[scout.id],{type:'move',x:field.x,y:field.y});
   for(let i=0;i<120&&e.status==='playing';i++)advance(e,.5);
   assert.equal(e.status,'victory');
-  assert.deepEqual(e.mission.objectives.map(o=>o.state),Array(7).fill('done'));
+  assert.deepEqual(e.mission.objectives.map(o=>o.state),[...Array(7).fill('done'),'active']);
+  assert.equal(objective(e,'quota').progress,e.mission.counters.delivered-before);
   assert.equal(objective(e,'hold').progress,2);assert.equal(objective(e,'wait').progress,4);
   const late=createGame('economy-late','normal',{width:144,height:112,mission:'check-economy'});late.mission.startedAt=-399.8;advance(late,.3);
   assert.equal(late.status,'defeat');assert.equal(late.events.at(-1).text,'The operation window has closed. Operation failed.');

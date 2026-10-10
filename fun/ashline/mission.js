@@ -8,7 +8,8 @@
 // 'rivalHold:<zone>' for the rival's cumulative hold of a contested zone. Tags keep 'tagged:<tag>' (members
 // ever tagged), 'mobile:<tag>' (members that are units or arrived after setup, so their total is never
 // published) and 'seen:<tag>' (members whose loss the player witnessed). An objective that cannot apply,
-// such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally.
+// such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally. A delivery
+// quota revealed during the operation keeps 'from:<objective>', the deliveries made before it appeared.
 import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,confirmedKills,seen as seenBy} from './sim.js';
 import {mapLayout,hash} from './terrain.js';
 import {MISSIONS} from './campaign.js';
@@ -329,6 +330,7 @@ const knownLeft=(m,tag)=>taggedTotal(m,tag)-(m.counters[`seen:${tag}`]||0);
 export const objectiveVoid=(m,id)=>Boolean(m.counters[`void:${id}`]);
 const point=z=>z?{x:z.x,y:z.y}:{};
 const elapsed=(s,m)=>s.time-m.startedAt;
+const delivered=(m,o)=>m.counters[o.mineralType?`delivered:${o.mineralType}`:'delivered']||0;
 // Whether the player may already see a zone, by the renderer's rule (Renderer.missionZones): a revealed objective
 // names it, its definition marks it lit or public, it is the deploy zone, or the player has explored its centre.
 function knownZone(s,def,m,id){
@@ -363,7 +365,7 @@ function measure(s,m,o,state){
     case 'holdZone':if(zoneHolder(s,zone)===PLAYER)state.progress=Math.min(o.seconds,state.progress+MISSION_INTERVAL);return state.progress>=o.seconds?'done':'';
     case 'reachZone':state.progress=own(s,PLAYER).filter(e=>e.kind==='unit'&&(!o.roles||o.roles.includes(entityRole(e)))&&inZone(e,zone)).length;return state.progress>=(o.count??1)?'done':'';
     case 'nexusInZone':state.progress=own(s,PLAYER,'core').some(e=>e.progress>=1&&inZone(e,zone))?1:0;return state.progress?'done':'';
-    case 'deliver':state.progress=m.counters[o.mineralType?`delivered:${o.mineralType}`:'delivered']||0;return state.progress>=o.amount?'done':'';
+    case 'deliver':state.progress=delivered(m,o)-(m.counters[`from:${o.id}`]||0);return state.progress>=o.amount?'done':'';
     case 'research':state.progress=s.teams[PLAYER].research?.[o.research]?1:0;return state.progress?'done':'';
     case 'build':state.progress=own(s,PLAYER,o.role).filter(e=>e.kind==='building'&&e.progress>=1).length;return state.progress>=(o.count??1)?'done':'';
     case 'train':state.progress=m.counters[`trained:${o.role}`]||0;return state.progress>=(o.count??1)?'done':'';
@@ -398,7 +400,11 @@ function perform(s,m,def,t,action,wave){
   if(action.say)event(s,action.say.text,PLAYER,{kind:'dialogue',speaker:action.say.speaker});
   if(action.reveal!==undefined){
     const index=def.objectives.findIndex(o=>o.id===action.reveal),o=def.objectives[index],state=m.objectives[index];
-    if(!state.revealed){state.revealed=true;event(s,`New objective: ${o.label}`,PLAYER,{kind:'objective',status:'new',objective:o.id,...point(zoneOf(m,o.zone))});}
+    if(!state.revealed){
+      // A quota counts from its reveal, so a step shown late is never complete the moment it appears.
+      if(o.type==='deliver')m.counters[`from:${o.id}`]=delivered(m,o);
+      state.revealed=true;event(s,`New objective: ${o.label}`,PLAYER,{kind:'objective',status:'new',objective:o.id,...point(zoneOf(m,o.zone))});
+    }
   }
   if(action.credits){s.teams[PLAYER].credits+=action.credits;event(s,`Field supply: +${action.credits} credits`,PLAYER,{kind:'mission',amount:action.credits});}
   if(action.spawn){

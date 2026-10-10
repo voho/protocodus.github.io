@@ -90,7 +90,7 @@ export const MISSIONS={
       {id:'first-steps',when:{time:8,objectiveActive:'marker'},do:[say(VALE,'First, walk the ground. Select two units and right-click the survey marker.')]},
       {id:'ground',when:{objectiveDone:'marker'},do:[{reveal:'barracks'},say(VALE,'Ground holds. Open the command console, choose the Field barracks and place it within reach of the base.')]},
       {id:'recruit',when:{objectiveDone:'barracks'},do:[{reveal:'rifles'},{reveal:'shards'},say(VALE,'Barracks online. Train three rifle squads. Your hauler is already working the mint field; keep the credits coming.')]},
-      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Gather the squads and clear it. Press Q, then click, to attack-move.')]},
+      {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Clearing it closes the operation, so finish the rover\'s survey first. Gather the squads, press Q, then click to attack-move.')]},
       {id:'classified',when:{zoneEntered:'picket'},do:[say(UNITY,'Unregistered claim detected. Classification: interference.')]},
       {id:'pressure',when:{tagsLeft:{tag:'picket',count:2}},do:[say(VALE,'They hold their ground and fire at anything in range. Keep the pressure on.')]},
     ],

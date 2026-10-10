@@ -134,6 +134,7 @@ const place=(s,type,near,radius=14)=>{
   const done=s.events.find(e=>e.kind==='objective'&&e.objective==='marker');assert.equal(done.status,'complete');assert.deepEqual([done.x,done.y],[marker.x,marker.y]);
   const barracks=place(s,'barracks',own(s,0,'core')[0]);
   advance(s,2);assert.equal(objective(s,'barracks').state,'done');advance(s,1);
+  assert(objective(s,'shards').revealed&&objective(s,'shards').state==='active','The shard quota counts from its reveal');
   for(let i=0;i<3;i++)assert(trainUnit(s,0,'rifle',barracks.id).ok);
   for(let i=0;i<60&&objective(s,'rifles').state==='active';i++)advance(s,1);
   assert.equal(objective(s,'rifles').state,'done');
