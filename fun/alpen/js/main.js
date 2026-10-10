@@ -1679,7 +1679,7 @@ function frame(now) {
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
     // Where the rider is drawn, which between steps is not where they are
-    riderShadow.update(scene, model.root.position, camera, sky.shadowLevel);
+    riderShadow.update(scene, model.root, camera, sky.shadowLevel);
     retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }

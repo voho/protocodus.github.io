@@ -103,7 +103,7 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
-  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt,
+  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt, pillowHeightAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spruce.js';
@@ -3139,8 +3139,10 @@ export function createProps(THREE, shading) {
 
   /* Bare outcrop: nothing is planted on a tor. The mesh draws one rounder
      and lower the further off it stands (see `torAt` in terrain.js), so a
-     tree or a stone bedded on the full-detail rock would hang over it. */
-  const onTor = (x, z) => torHeightAt(x, z) > 0.2;
+     tree or a stone bedded on the full-detail rock would hang over it. The
+     powder band's pillows are the same story with snow, and the far mesh
+     leaves them out altogether. */
+  const onLandform = (x, z) => torHeightAt(x, z) > 0.2 || pillowHeightAt(x, z) > 0.1;
 
   function clearOfBandHazards(x, z, r, hazards, margin = 1.5) {
     for (let i = 0; i < hazards.length; i++) {
@@ -3354,7 +3356,7 @@ export function createProps(THREE, shading) {
       if (normal.y < 0.88) continue;
       const colour = castOf(treeBare[v], v, rnd(), tint);
       if (hash2(b, 3800 + i, 239) > density) continue;
-      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0) || onTor(x, z)) continue;
+      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0) || onLandform(x, z)) continue;
       const bed = beddedTreeY(x, z, y, treeHeights[v], s, sy);
       if (!treePools[v].addOnSlope(x, bed, z, yaw, s, sy, s, normal, colour)) continue;
       /* `canopy` is the crown's radius, for the occlusion field the snow
@@ -3383,7 +3385,7 @@ export function createProps(THREE, shading) {
         z, side, distance,
         hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
       );
-      if (onTor(x, z)) continue;
+      if (onLandform(x, z)) continue;
       ecologyAt(x, z, eco);
 
       /* Multi-scale procedural density: alternating groves, tight clumps & clearings */
@@ -3419,7 +3421,7 @@ export function createProps(THREE, shading) {
         z, side, distance,
         hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
       );
-      if (onTor(x, z)) continue;
+      if (onLandform(x, z)) continue;
       ecologyAt(x, z, eco);
 
       /* Multi-scale procedural density: dense alpine thickets vs open snowy basins */
@@ -3458,7 +3460,7 @@ export function createProps(THREE, shading) {
       const distance = lerp(12.0, 60, Math.pow(hash2(b, 3540 + i, 229), 1.3))
         + s * 1.5;
       const x = outerEdgeAt(z, side) + side * distance;
-      if (onTor(x, z)) continue;
+      if (onLandform(x, z)) continue;
       ecologyAt(x, z, eco);
       const rockCover = clamp01(0.12 + 0.50 * Math.max(eco.talus, eco.exposure));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
@@ -3504,7 +3506,7 @@ export function createProps(THREE, shading) {
       const shape = stoneTransform(grown, groundY, sx, sy, sz);
       const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
         + (hash2(b, 3710, 233) - 0.5) * 0.9;
-      if (!onTor(x, z) && cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
+      if (!onLandform(x, z) && cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
         solids.push({
           type: 'rock', x, z, r: shape.r,
           kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
@@ -3540,7 +3542,7 @@ export function createProps(THREE, shading) {
       const cover = clamp01(0.08 + 0.50 * edge * (0.4 + 0.6 * down)
         + 0.30 * eco.understory + 0.32 * eco.alpine + 0.12 * eco.avalanche);
       if (hash2(b, 4280 + i, 241) > cover * density) continue;
-      if (!clearOfBandHazards(x, z, crown, bandHazards, 1.0) || onTor(x, z)) continue;
+      if (!clearOfBandHazards(x, z, crown, bandHazards, 1.0) || onLandform(x, z)) continue;
       const ground = heightAt(x, z);
       normalFrom(heightAt, x, z, floraNormal);
       floraNormal.lerp(worldUp, 0.82).normalize();
@@ -3570,7 +3572,7 @@ export function createProps(THREE, shading) {
       const distance = lerp(DEADWOOD.logNear, DEADWOOD.logFar,
         Math.pow(hash2(b, 4420 + i, 251), 1.1));
       const x = outerEdgeAt(z, side) + side * distance;
-      if (onTor(x, z)) continue;
+      if (onLandform(x, z)) continue;
       ecologyAt(x, z, eco);
       const woods = eco.stand * (0.25 + 0.75 * down) * lineCover;
       if (hash2(b, 4430 + i, 251) > woods * 0.55 * density) continue;
@@ -3611,7 +3613,7 @@ export function createProps(THREE, shading) {
         Math.pow(hash2(b, 4540 + i, 257), 1.15));
       const x = vergeXAt(z, side, distance,
         hash2(b, 4560 + i, 257), hash2(b, 4580 + i, 257));
-      if (onTor(x, z)) continue;
+      if (onLandform(x, z)) continue;
       ecologyAt(x, z, eco);
       if (hash2(b, 4600 + i, 257) > (0.10 + 0.75 * eco.stand * down) * density) continue;
       const v = Math.min(2, Math.floor(hash2(b, 4620 + i, 257) * 3));
@@ -3647,7 +3649,7 @@ export function createProps(THREE, shading) {
         const z = centreZ + (i - (sections - 1) * 0.5) * ALPINE.fence.step;
         const stagger = (hash2(b, 2010 + i, 141) - 0.5) * 1.4;
         const x = outerEdgeAt(z, fenceSide) + fenceSide * (margin + stagger);
-        if (onTor(x, z)) continue;
+        if (onLandform(x, z)) continue;
         const y = heightAt(x, z) + 0.06;
         normalFrom(heightAt, x, z, bankNormal);
         const yaw = courseYawAt(z, fenceSide) + Math.PI / 2

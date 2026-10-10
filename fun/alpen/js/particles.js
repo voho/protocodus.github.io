@@ -129,7 +129,7 @@
 
 import { SNOW, STREAKS, SKY, RENDER } from './config.js';
 import { heightAt, gradeAt } from './terrain.js';
-import { HUT_LIGHT_GLSL } from './shading.js';
+import { HUT_LIGHT_GLSL, FOG_CURVE_GLSL } from './shading.js';
 
 /* ==========================================================================
    The numbers this file owns
@@ -530,6 +530,7 @@ const FRAG = `
      whole point cloud with it. */
   uniform highp vec3 uSunView;
   uniform highp float uSunLevel;
+  uniform highp float uSnowFresh;
   uniform float uNear;
   uniform float uFar;
   uniform vec2 uDepthFade;
@@ -545,6 +546,7 @@ const FRAG = `
   varying float vLamp;
   varying vec3 vHut;
   varying vec2 vAxis;
+  ${FOG_CURVE_GLSL}
   void main() {
     if (vAlpha <= 0.002) discard;
     vec2 d = gl_PointCoord - 0.5;
@@ -602,7 +604,8 @@ const FRAG = `
     a *= vClip * vClip;
     // …and anything inside arm's reach of it has gone regardless
     a *= smoothstep(uDepthFade.x, uDepthFade.y, vDepth);
-    float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
+    // The surfaces' own haze, so a flake fades with the slope behind it
+    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
     gl_FragColor = vec4(mix(col, uFog, f * 0.8), a * (1.0 - f));
   }
 `;

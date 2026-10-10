@@ -379,7 +379,7 @@ export function createTrail(THREE, shading) {
       .replace('#include <alphamap_fragment>',
         `#include <alphamap_fragment>${TRACK_ALPHA}`);
   };
-  shading.apply(material, { sheen: 0.58, canopy: true });
+  shading.apply(material, { sheen: 0.58, canopy: true, hutLight: true });
   material.userData.trailUniforms = trackUniforms;
 
   const mesh = new THREE.Mesh(geo, material);
@@ -394,7 +394,7 @@ export function createTrail(THREE, shading) {
      section underneath. */
   const clodGeo = new THREE.IcosahedronGeometry(1, 0);
   const clodMaterial = new THREE.MeshLambertMaterial({ color: SNOW.clod });
-  shading.apply(clodMaterial, { sheen: 0.24, canopy: true });
+  shading.apply(clodMaterial, { sheen: 0.24, canopy: true, hutLight: true });
   const clods = new THREE.InstancedMesh(
     clodGeo, clodMaterial, clodCapacity,
   );

@@ -44,6 +44,7 @@ export function createRiderShadow(THREE, renderer, shading) {
   u.uRiderShadowMap.value = target.depthTexture;
 
   const focus = new THREE.Vector3();
+  const chest = new THREE.Vector3(0, 0.9, 0);
   const up = new THREE.Vector3();
   const toCamera = new THREE.Matrix4();
   // NDC to texture space, as three builds its own shadow matrices
@@ -55,16 +56,20 @@ export function createRiderShadow(THREE, renderer, shading) {
   );
 
   /* Once a frame, after the rider is posed and the camera has moved, and
-     before the frame is drawn. `at` is where the rider is drawn, which
-     between physics steps is not where the physics has them. `level` is how
-     much the sun's shadow is worth right now; at zero the pass is skipped and
-     the receivers ignore it. */
-  function update(scene, at, view, level) {
+     before the frame is drawn. `root` is the rider model's root: where the
+     rider is drawn, which between physics steps is not where the physics has
+     them, and turned however the rider is turned. The box is centred on the
+     chest in that turned frame, because a flip carries the chest round the
+     board: centred 0.9 m straight up from the board, the box missed an
+     inverted rider by nearly two metres. `level` is how much the sun's
+     shadow is worth right now; at zero the pass is skipped and the receivers
+     ignore it. */
+  function update(scene, root, view, level) {
     u.uRiderShadowLevel.value = level;
     if (level <= 0.001) return;
 
     const sun = u.uSunDir.value;
-    focus.set(at.x, at.y + 0.9, at.z);
+    focus.copy(chest).applyQuaternion(root.quaternion).add(root.position);
     camera.position.copy(focus).addScaledVector(sun, BACK);
     // Any up that is not the sun itself; world up unless the sun is overhead
     up.set(0, 1, 0);

@@ -269,6 +269,30 @@ vec3 n64DeckShade(float thick, float lobe, vec3 haze, vec3 horizon, vec3 glow) {
 
    The cloud deck is no longer transcribed at all: it is `SKY_GLSL` above,
    included by this file and by `sky.js`, and there is exactly one copy of it. */
+/* The haze over distance, as one function, because more than this file
+   draws fog: the chimney smoke has its own shader, and when it kept its own
+   linear ramp a plume three hundred metres off was a third dissolved while
+   the chimney under it was barely hazed at all.
+
+   CLEAR AIR IS CLEAR. The curtain has to close by the far edge of the
+   ground, but between the two edges a plain smoothstep put a third of the
+   haze on a face three hundred metres off and two thirds at four hundred —
+   the walls along the run dissolved into the same blue-white as their own
+   snow while the painted massifs kilometres behind them stood out crisp,
+   which is aerial perspective backwards. Raised to a power on a clear day
+   the curve still starts at 0 and still ends at exactly 1 at the same two
+   ranges — the fully fogged early exit and the seam against the massifs are
+   untouched — but the middle distance keeps its form: 16% at three hundred
+   metres, about half at four hundred. Falling snow fills the air evenly, so
+   the storm dial takes the clearing away again. */
+export const FOG_CURVE_GLSL = `
+float n64ClearAir(float snowFresh) {
+  return 1.0 - smoothstep(0.15, 0.65, snowFresh);
+}
+float n64FogCurve(float d, float near, float far, float clear) {
+  return pow(smoothstep(near, far, d), 1.0 + 0.8 * clear);
+}`;
+
 const FRAG_PARS = `
 varying vec3 vN64View;
 varying float vN64Ice;
@@ -308,6 +332,7 @@ uniform vec4 uCanopyWin;
 uniform vec2 uStreamEdge;
 
 ${SKY_GLSL}
+${FOG_CURVE_GLSL}
 
 vec3 n64Sky(vec3 dir) {
   float up = dir.y;
@@ -839,21 +864,9 @@ function lightPatch(sheen) {
 const FRAG_FOG = `
   {
     float n64Dist = length(vN64View);
-    float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist * uFogPull);
-    /* CLEAR AIR IS CLEAR. The curtain has to close by the far edge of the
-       ground, but between the two edges a plain smoothstep put a third of
-       the haze on a face three hundred metres off and two thirds at four
-       hundred — the walls along the run dissolved into the same blue-white
-       as their own snow while the painted massifs kilometres behind them
-       stood out crisp, which is aerial perspective backwards. Raised to a
-       power on a clear day the curve still starts at 0 and still ends at
-       exactly 1 at the same two ranges — the fully fogged early exit and
-       the seam against the massifs are untouched — but the middle distance
-       keeps its form: 16% at three hundred metres, about half at four
-       hundred. Falling snow fills the air evenly, so the storm dial takes
-       the clearing away again. */
-    float n64Clear = 1.0 - smoothstep(0.15, 0.65, uSnowFresh);
-    n64Fog = pow(n64Fog, 1.0 + 0.8 * n64Clear);
+    // See FOG_CURVE_GLSL for the shape, and for why it is shared.
+    float n64Clear = n64ClearAir(uSnowFresh);
+    float n64Fog = n64FogCurve(n64Dist * uFogPull, uFogNear, uFogFar, n64Clear);
     /* Valley mist: the fog's height term. The radial curtain treats a hollow
        and a crest at the same range identically, which discards the one
        depth cue this terrain is actually made of. The mist is a bank with a
@@ -1187,6 +1200,8 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
 
 const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
+// The line after the light loop's last include, in every lit material
+const HUT_ANCHOR = '#include <aomap_fragment>';
 const GRADIENT_ANCHOR = '#include <clipping_planes_fragment>';
 const FOG_ANCHOR = '#include <fog_fragment>';
 const HASH_ANCHOR = '#include <alphahash_fragment>';
@@ -1358,11 +1373,13 @@ export function createShading(THREE) {
         frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE)
           .replace(GRADIENT_ANCHOR, `${FRAG_SHADE_GRADIENTS}${GRADIENT_ANCHOR}`);
       }
-      // Inserted before the snow response so that it lands after it: that
-      // response divides the sun's own shadow back out of the direct light,
-      // and a lamp added ahead of it would read as the sun coming out.
-      if (hutLight && frag.indexOf(LIGHT_ANCHOR) !== -1) {
-        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_HUT_LIGHT}`);
+      // After everything that hangs off the end of the light loop: the snow
+      // response below, and a material's own patch there, like the rider's
+      // rig light. Each of those divides the sun's own shadow back out of the
+      // direct light, and a lamp added ahead of them reads as the sun coming
+      // out. Spliced in at the loop's end it landed ahead of the rider's.
+      if (hutLight && frag.indexOf(HUT_ANCHOR) !== -1) {
+        frag = frag.replace(HUT_ANCHOR, `${FRAG_HUT_LIGHT}\n${HUT_ANCHOR}`);
       }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.

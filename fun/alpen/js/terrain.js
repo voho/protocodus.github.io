@@ -1537,13 +1537,32 @@ export function heightAt(x, z) {
    it: a tor is filtered for the cells it is drawn on (see `torAt`), so
    anything planted on the full-detail rock would hang over the rounder,
    lower one the mesh draws a hundred metres out. */
-export function torHeightAt(x, z) {
-  const ctx = rowContext(z, scratch);
-  // The same nearest-branch distance `heightIn` measures.
+// How far past its corridor x lies: the nearest-branch distance `heightIn`
+// measures, less the half-width.
+function pastCorridor(ctx, x) {
   const d = ctx.split > 0
     ? Math.min(Math.abs(x - (ctx.mid - ctx.split)), Math.abs(x - (ctx.mid + ctx.split)))
     : Math.abs(x - ctx.mid);
-  return torsIn(ctx, x, d - ctx.half, TERRAIN.spacing);
+  return d - ctx.half;
+}
+
+export function torHeightAt(x, z) {
+  const ctx = rowContext(z, scratch);
+  return torsIn(ctx, x, pastCorridor(ctx, x), TERRAIN.spacing);
+}
+
+/* The pillows' share of the snow at x, z, at full detail: the other
+   landform the far lattice drops (see where `heightIn` adds them), so props
+   keep off pillows as they keep off tors. A shrub planted on one stood up
+   to a metre above the snow at range, where the mound is not drawn, and
+   settled into it as the rider came close. */
+export function pillowHeightAt(x, z) {
+  const ctx = rowContext(z, scratch);
+  const past = pastCorridor(ctx, x);
+  if (past <= 3) return 0;
+  const band = smoothstep(3, 8, past)
+    * (1 - smoothstep(ctx.powderW - 6, ctx.powderW, past));
+  return band > 0.001 ? pillowAt(x, z, ctx.chapterPillows) * band : 0;
 }
 
 /* THE SNOW AS IT IS DRAWN, which is not the snow the physics stands on.

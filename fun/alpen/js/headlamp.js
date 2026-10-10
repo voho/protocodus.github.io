@@ -27,6 +27,8 @@
    the snow. The lamp therefore stays on the forehead but always illuminates
    the downhill line being ridden, including through a carve or switch run. */
 
+import { FOG_CURVE_GLSL } from './shading.js';
+
 export const HEADLAMP = {
   nightFrom: 0.22,      // begins to glow in blue hour / twilight
   nightFull: 0.65,      // fully established earlier for crisp night vision
@@ -93,9 +95,11 @@ const BEAM_FRAG = `
   uniform float uNear;
   uniform float uFar;
   uniform float uStrength;
+  uniform float uSnowFresh;
   varying vec2 vUv;
   varying float vDepth;
   varying float vClear;
+  ${FOG_CURVE_GLSL}
   void main() {
     if (uStrength <= 0.001) discard;
     float along = vUv.x;
@@ -110,19 +114,22 @@ const BEAM_FRAG = `
     // under the slope, and the depth test alone draws that as a hard line.
     float a = uStrength * radial * enter * leave
       * (0.35 + 0.65 * (1.0 - along)) * smoothstep(0.0, 0.8, vClear);
-    float f = clamp((vDepth - uNear) / max(0.001, uFar - uNear), 0.0, 1.0);
+    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
     gl_FragColor = vec4(mix(uColor, uFog, f * 0.75), a * (1.0 - f));
   }
 `;
 
 // The fan is written in world space, so its positions are the world.
 const POOL_VERT = `
+  attribute float aLit;
   varying vec3 vWorld;
   varying vec3 vSnowNormal;
   varying float vDepth;
+  varying float vLit;
   void main() {
     vWorld = position;
     vSnowNormal = normal;
+    vLit = aLit;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
     gl_Position = projectionMatrix * mv;
@@ -143,9 +150,12 @@ const POOL_FRAG = `
   uniform vec3 uLampPos;
   uniform vec3 uLampDir;
   uniform float uAngle;
+  uniform float uSnowFresh;
   varying vec3 vWorld;
   varying vec3 vSnowNormal;
   varying float vDepth;
+  varying float vLit;
+  ${FOG_CURVE_GLSL}
   void main() {
     if (uStrength <= 0.001) discard;
     vec3 ray = vWorld - uLampPos;
@@ -154,8 +164,8 @@ const POOL_FRAG = `
     float x = acos(clamp(dot(l, uLampDir), -1.0, 1.0)) / uAngle;
     float profile = exp(-8.5 * x * x) * 1.75
       + exp(-2.2 * x * x) * (1.0 - smoothstep(0.65, 1.0, x));
-    float lit = profile * max(dot(normalize(vSnowNormal), -l), 0.0) * (36.0 / d2);
-    float f = clamp((vDepth - uNear) / max(0.001, uFar - uNear), 0.0, 1.0);
+    float lit = profile * max(dot(normalize(vSnowNormal), -l), 0.0) * (36.0 / d2) * vLit;
+    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
     float a = min(uStrength * lit, 2.5) * (1.0 - f);
     gl_FragColor = vec4(mix(uColor, uFog, f * 0.75) * a, a);
   }
@@ -224,6 +234,9 @@ function poolGeometry(THREE) {
     .setUsage(THREE.DynamicDrawUsage));
   geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3)
     .setUsage(THREE.DynamicDrawUsage));
+  // How much of the lamp each vertex can see past the ground in front of it
+  geometry.setAttribute('aLit', new THREE.BufferAttribute(new Float32Array(count).fill(1), 1)
+    .setUsage(THREE.DynamicDrawUsage));
   geometry.setIndex(index);
   return geometry;
 }
@@ -255,6 +268,7 @@ export function createHeadlamp(THREE, shading, head) {
     uFog: shading.uniforms.uSkyHaze,
     uNear: shading.uniforms.uFogNear,
     uFar: shading.uniforms.uFogFar,
+    uSnowFresh: shading.uniforms.uSnowFresh,
   };
 
   const beamMat = new THREE.ShaderMaterial({
@@ -338,7 +352,10 @@ export function createHeadlamp(THREE, shading, head) {
   function march(height) {
     let prev = 0;
     let step = HEADLAMP.marchStep;
-    for (let t = step; t <= HEADLAMP.reach; t += step) {
+    // The last stride is cut short at the reach, or growing strides would
+    // jump from 47 m straight past the 60 m end and never test the ground
+    // between: a ridge there let the beam carry on through it.
+    for (let t = step; prev < HEADLAMP.reach; t = Math.min(t + step, HEADLAMP.reach)) {
       p.copy(origin).addScaledVector(direction, t);
       if (p.y <= height(p.x, p.z)) {
         let lo = prev;
@@ -396,6 +413,26 @@ export function createHeadlamp(THREE, shading, head) {
         pos.setXYZ(i * POOL_COLS + j, x, height(x, z) + POOL_LIFT, z);
       }
     }
+    /* What the lamp cannot see, it does not light. The light itself is
+       worked out per pixel and knows nothing of the ground between, so a
+       crest ahead lit the snow beyond it as if it were glass. Each column of
+       the fan runs straight out from the lamp along the ground it is draped
+       on, which makes this the horizon test for free: walking out, a vertex
+       lower in the lamp's view than the highest ground before it is behind
+       that ground. The soft edge is three degrees, the width of a lamp
+       seen past a rounded crest, and the mesh blends it across a row. */
+    const lit = poolGeo.attributes.aLit;
+    for (let j = 0; j < POOL_COLS; j++) {
+      let horizon = -Infinity;
+      for (let i = 0; i < POOL_ROWS; i++) {
+        const k = i * POOL_COLS + j;
+        const d = POOL_NEAR * (POOL_FAR / POOL_NEAR) ** (i / (POOL_ROWS - 1));
+        const view = (pos.getY(k) - POOL_LIFT - origin.y) / d;
+        lit.setX(k, Math.min(1, Math.max(0, (view - horizon) / 0.05 + 1)));
+        horizon = Math.max(horizon, view);
+      }
+    }
+    lit.needsUpdate = true;
     for (let i = 0; i < POOL_ROWS; i++) {
       const up = Math.min(i + 1, POOL_ROWS - 1) * POOL_COLS;
       const down = Math.max(i - 1, 0) * POOL_COLS;

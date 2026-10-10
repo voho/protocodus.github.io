@@ -60,6 +60,7 @@ import { hash2, stream } from './noise.js';
 import { getPointSizeCap } from './particles.js';
 import { RENDER, SKY, HUT_LIGHT } from './config.js';
 import { sharedTexture } from './textures.js';
+import { FOG_CURVE_GLSL } from './shading.js';
 
 /* ==========================================================================
    Every number the huts lean on
@@ -500,12 +501,14 @@ const SMOKE_FRAG = `
   uniform float uWarm;
   uniform float uNear;
   uniform float uFar;
+  uniform float uSnowFresh;
   uniform sampler2D uPuff;
   varying float vAlpha;
   varying float vDepth;
   varying vec3 vView;
   varying vec2 vTurn;
   varying vec2 vCell;
+  ${FOG_CURVE_GLSL}
   void main() {
     vec2 d = gl_PointCoord - 0.5;
     float r = dot(d, d);
@@ -517,7 +520,7 @@ const SMOKE_FRAG = `
     vec2 dn = d * 2.0;
     vec3 ball = vec3(dn.x, -dn.y, sqrt(max(0.0, 1.0 - dot(dn, dn))));
     c *= 1.0 + dot(ball, uSunV) * 0.22 * min(uSunLevel, 1.3);
-    float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
+    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
     gl_FragColor = vec4(mix(c, uFog, f * 0.85), a * (1.0 - f));
   }
 `;
@@ -683,6 +686,7 @@ export function createHuts(THREE, shading) {
       uPuff: { value: puffAtlas(THREE) },
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
+      uSnowFresh: shading.uniforms.uSnowFresh,
       uScale: { value: 300 },
       uMaxSize: { value: 120 },
     },
