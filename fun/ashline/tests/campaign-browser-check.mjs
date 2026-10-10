@@ -1,8 +1,9 @@
 // Run with ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs and ASHLINE_URL.
 // Plays Landfall and Hold the Line from the briefing with real commands through window.ashline and the
 // game's own modules: campaign tab, loading line, pre-start pause, objective tracker, transmissions,
-// victory debrief with medals, Next operation, persistence across a reload, the Field archive, a skirmish
-// mode that starts unpaused, and the phone layout.
+// victory debrief with medals, Next operation, persistence across a reload, the Field archive, queued
+// transmissions and the pause-menu Retry in Signal in the Ash, a skirmish mode that starts unpaused, and the
+// phone and landscape-phone layouts.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -84,6 +85,9 @@ try {
   await until(page, () => ashline.state.mission.objectives.find(o => o.id === 'rifles').state === 'done');
   await until(page, () => ashline.state.mission.objectives.find(o => o.id === 'shards').state === 'done');
   await page.screenshot({ path: `${output}/campaign-landfall-tracker.png` });
+  // The picket includes units, so the tracker never totals it (that would count forces under fog).
+  await until(page, () => [...document.querySelectorAll('#objectives-list li')].some(li => /Clear the Unity picket/.test(li.textContent)));
+  assert.doesNotMatch(await page.evaluate(() => [...document.querySelectorAll('#objectives-list li')].find(li => /Clear the Unity picket/.test(li.textContent)).textContent), /\d+ \/ \d+/);
   await command(page, `const picket=s.mission.zones.find(z=>z.id==='picket');const army=s.entities.filter(e=>e.team===0&&e.kind==='unit'&&e.hp>0&&sim.UNITS[e.type].damage>0);sim.issueOrder(s,army.map(e=>e.id),{type:'attackMove',x:picket.x,y:picket.y});`);
   await until(page, () => ashline.state.status !== 'playing' && document.querySelector('#menu').open, null, 240000);
   assert.equal(await page.evaluate(() => ashline.state.status), 'victory', 'Landfall is won with real orders');
@@ -152,10 +156,34 @@ try {
   assert.equal(after.progress, '2 / 8'); assert.match(after.career, /2 operations · 2 victories/);
   await page.screenshot({ path: `${output}/campaign-progress.png` });
 
+  // Signal in the Ash: two speakers answer the same intrusion, and the tracker plays both lines in order.
+  await page.locator('.campaign-entry[data-mission="signal-in-the-ash"]').click();
+  await page.locator('#campaign-start').click(); await prestart(page);
+  await page.locator('#resume').click(); await setSpeed(page);
+  await until(page, () => ashline.state.time > 30);
+  const lines = await page.evaluate(async () => {
+    const seen = [], text = document.querySelector('#transmission-text'), box = document.querySelector('#transmission');
+    const note = () => { if (!box.hidden && seen.at(-1) !== text.textContent) seen.push(text.textContent); };
+    const watcher = new MutationObserver(note); watcher.observe(box, { subtree: true, childList: true, characterData: true, attributes: true });
+    const s = ashline.state, outpost = s.mission.zones.find(z => z.id === 'outpost'), scout = s.entities.find(e => e.team === 0 && e.type === 'scout');
+    scout.x = outpost.x; scout.y = outpost.y;
+    for (let wait = 0; wait < 120 && !seen.some(line => /^Those two Lance nodes/.test(line)); wait++) await new Promise(resolve => setTimeout(resolve, 250));
+    watcher.disconnect();
+    return seen;
+  });
+  const unity = lines.findIndex(line => /^Archive integrity is priority one/.test(line)), tesk = lines.findIndex(line => /^Those two Lance nodes/.test(line));
+  assert(unity >= 0 && tesk > unity, `Both intrusion lines play in order: ${JSON.stringify(lines)}`);
+  // A running operation can be restarted from the pause menu.
+  await page.locator('#pause').click();
+  assert(await page.locator('#retry-operation').isVisible(), 'Retry is offered while paused');
+  await page.locator('#retry-operation').click(); await prestart(page);
+  assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, ashline.state.time, ashline.state.seed]), ['signal-in-the-ash', 0, 'SIGNAL-ASH']);
+  await page.locator('#new-game').click();
+
   // A skirmish mode starts unpaused, with its own tracker; annihilation keeps the commander's goals.
   await page.locator('#skirmish-tab').click();
   await page.locator('#map-size').selectOption('standard'); await page.locator('#skirmish-mode').selectOption('lastLight');
-  assert.match(await page.locator('#mode-description').textContent(), /Score is time survived/);
+  assert.match(await page.locator('#mode-description').textContent(), /Score is seconds survived × kills ÷ 10/);
   await page.locator('#deploy').click();
   await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
   await until(page, () => !document.querySelector('#objectives').hidden);
@@ -186,6 +214,22 @@ try {
   await phone.screenshot({ path: `${output}/campaign-tracker-phone.png` });
   await phone.close();
 
+  // Landscape phone: the tracker starts folded and, open or folded, stays above the tactical map.
+  const landscape = await browser.newPage({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); watch(landscape);
+  await landscape.goto(url); await ready(landscape);
+  await landscape.locator('#campaign-tab').tap(); await landscape.locator('#campaign-start').tap(); await prestart(landscape);
+  await landscape.locator('#resume').tap();
+  await until(landscape, () => !document.querySelector('#objectives').hidden && !document.querySelector('#transmission').hidden);
+  const clear = () => landscape.evaluate(() => { const a = document.querySelector('#objectives').getBoundingClientRect(), b = document.querySelector('.tactical-map').getBoundingClientRect(), t = document.querySelector('#transmission').getBoundingClientRect(); return { collapsed: document.querySelector('#objectives').dataset.collapsed, gap: b.top - a.bottom, transmission: t.height > 0 && t.bottom <= a.bottom + 1 }; });
+  const folded = await clear();
+  assert.equal(folded.collapsed, 'true'); assert(folded.gap >= 0 && folded.transmission, `Folded tracker clears the map: ${JSON.stringify(folded)}`);
+  await landscape.screenshot({ path: `${output}/campaign-landscape-phone.png` });
+  await landscape.locator('#objectives-toggle').tap();
+  const opened = await clear();
+  assert.equal(opened.collapsed, 'false'); assert(opened.gap >= 0, `Open tracker clears the map: ${JSON.stringify(opened)}`);
+  await landscape.screenshot({ path: `${output}/campaign-landscape-phone-open.png` });
+  await landscape.close();
+
   // Without browser storage the campaign still opens and launches; progress simply is not kept.
   const blocked = await browser.newPage({ viewport: { width: 1280, height: 800 } }); watch(blocked);
   await blocked.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage is blocked', 'SecurityError'); } }); });
@@ -196,5 +240,5 @@ try {
   assert.equal(await blocked.evaluate(() => ashline.state.mission.id), 'landfall');
   await blocked.close();
   assert.deepEqual(errors, []);
-  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, skirmish modes, phone layout and blocked storage. Screenshots: ${output}`);
+  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, queued transmissions and pause-menu Retry, skirmish modes, phone and landscape layouts and blocked storage. Screenshots: ${output}`);
 } finally { await browser.close(); }

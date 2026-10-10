@@ -1,12 +1,14 @@
 // Operation Ashline: every campaign operation and skirmish mode is well-formed, plays 600 s under AI
 // without errors, gates the player's roster, fires each trigger exactly once across save and load, and can
 // be completed. Also covers the engine extensions (repeating waves, population cap, directive merging,
-// lit zones, fog-edge arrivals) and the campaign progress, medal, debrief and career rules.
+// lit zones, fog-edge arrivals, witnessed tag counts, deployment zones) and the campaign progress, medal,
+// debrief and career rules.
 import assert from 'node:assert/strict';
 import {UNITS,BUILDINGS,RESEARCH,BUILDING_UPGRADES,UNIT_CAP,MAP_SIZES,createGame,updateGame,canPlace,trainUnit,researchStatus,buildingUpgradeStatus,issueOrder,addEntity,deploymentStatus,deployNexus,entityRole,mapLayout} from '../sim.js';
 import {newAI} from '../ai.js';
 import {MISSIONS,CAMPAIGN,SKIRMISH_MODES,ARCHIVE} from '../campaign.js';
-import {missionAllows,missionDirective,noteDelivery,WAVE_SCALE} from '../mission.js';
+import {missionAllows,missionDirective,noteDelivery,noteTagLost,objectiveVoid,missionDeployment,WAVE_SCALE} from '../mission.js';
+import {objectiveRows,objectiveProgress} from '../objectives-hud.js';
 import {encodeGame,decodeGame} from '../save.js';
 import {matchReport,medalFor,commanderGoals,survivingVeterans,addToCareer,readCareer,emptyCareer,rivalName,COMMANDER_GOALS} from '../debrief.js';
 import {readProgress,emptyProgress,isUnlocked,recordResult,launchSettings,newlyCleared,archiveEntries,steppedDifficulty} from '../campaign-ui.js';
@@ -19,6 +21,9 @@ const tagged=(s,tag)=>s.entities.filter(e=>e.tag===tag&&e.hp>0);
 const zone=(s,id)=>s.mission.zones.find(z=>z.id===id);
 const destroy=list=>{for(const e of list)e.hp=0;};
 const rivals=s=>s.entities.filter(e=>e.team===1&&e.kind==='unit'&&e.hp>0);
+// A loss on ground the player sees, as combat reports it; destroy() stands for losses under fog.
+const witness=(s,list)=>{for(const e of list){const x=Math.floor(e.kind==='building'?e.x+e.size/2:e.x),y=Math.floor(e.kind==='building'?e.y+e.size/2:e.y);s.visible[0][y*s.width+x]=1;noteTagLost(s,e);e.hp=0;}};
+const progressText=(s,id)=>{const def=MISSIONS[s.mission.id],i=def.objectives.findIndex(o=>o.id===id);return objectiveProgress(s,def.objectives[i],s.mission.objectives[i]);};
 // Modes take the skirmish settings; campaign operations fix their own sector.
 const MODE_SETTINGS={width:144,height:112,profile:'rift',races:['organics','aiUnity']};
 const start=(id,seed,difficulty='normal',extra={})=>createGame(seed??MISSIONS[id].seed??`MODE-${id}`,difficulty,{...(MISSIONS[id].seed?{}:MODE_SETTINGS),mission:id,...extra});
@@ -117,9 +122,13 @@ const place=(s,type,near,radius=14)=>{
   const s=start('landfall'),marker=zone(s,'marker');
   assert.deepEqual(s.mission.objectives.filter(o=>o.revealed).map(o=>o.id),['marker','overlook','hauler','losses']);
   const squad=s.entities.filter(e=>e.team===0&&e.kind==='unit'&&UNITS[e.type].damage>0);
+  // The picket's units are never totalled, so the tracker cannot count forces under fog.
+  assert.equal(s.mission.counters['mobile:picket'],4);assert.equal(progressText(s,'picket'),'');
   issueOrder(s,squad.map(e=>e.id),{type:'move',x:marker.x,y:marker.y});
   for(let i=0;i<90&&objective(s,'marker').state==='active';i++)advance(s,1);
   assert.equal(objective(s,'marker').state,'done');advance(s,1);
+  // A quick commander reaches the marker before the walking hint is due; the stale hint never plays.
+  assert(s.events.find(e=>e.objective==='marker').time<8);advance(s,8);assert(!s.mission.fired['first-steps']);
   assert(objective(s,'barracks').revealed,'Reaching the marker reveals the barracks step');
   const reveal=s.events.find(e=>e.kind==='objective'&&e.objective==='barracks');assert.equal(reveal.status,'new');assert.equal(reveal.text,'New objective: Build a Field barracks');
   const done=s.events.find(e=>e.kind==='objective'&&e.objective==='marker');assert.equal(done.status,'complete');assert.deepEqual([done.x,done.y],[marker.x,marker.y]);
@@ -138,6 +147,14 @@ const place=(s,type,near,radius=14)=>{
   for(let i=0;i<200&&s.status==='playing';i++)advance(s,1);
   win(s,'Landfall');
   assert.equal(objective(s,'picket').state,'done');assert.equal(objective(s,'losses').state,'done','A loss limit that holds is complete at victory');
+  assert.equal(s.mission.counters['seen:picket'],4,'Losses in sight are witnessed');assert.equal(progressText(s,'picket'),'4 destroyed');
+}
+// An idle commander gets the walking hint on time; an unseen loss is never witnessed.
+{
+  const s=start('landfall');advance(s,9);assert(s.mission.fired['first-steps']);
+  const [scout]=tagged(s,'picket').filter(e=>e.type==='unityScout');
+  assert(!s.visible[0][Math.floor(scout.y)*s.width+Math.floor(scout.x)]);noteTagLost(s,scout);assert.equal(s.mission.counters['seen:picket'],undefined);
+  witness(s,[scout]);assert.equal(s.mission.counters['seen:picket'],1);
 }
 // Hold the Line: raids arrive every 50 s from hidden edges; the defenders clear them and raise sentries.
 {
@@ -166,12 +183,23 @@ const place=(s,type,near,radius=14)=>{
   destroy(tagged(s,'archive'));advance(s,1);
   win(s,'Signal in the Ash');
   assert.equal(medalFor(s),'bronze','Unfinished secondaries leave a bronze medal');
+  // A unit loss limit counts unit losses only.
+  const g=start('signal-in-the-ash');g.teams[0].stats.lost=9;g.teams[0].stats.structuresLost=3;advance(g,1);
+  assert.equal(objective(g,'losses').state,'active');assert.equal(objective(g,'losses').progress,9);assert.equal(progressText(g,'losses'),'9 / 10 lost');
+  g.teams[0].stats.lost=11;advance(g,1);assert.equal(objective(g,'losses').state,'failed');assert.equal(progressText(g,'losses'),'11 / 10 lost');
+  // The two Lance nodes are structures placed with the operation: their total is a published fact.
+  assert.equal(progressText(g,'nodes'),'0 / 2');
 }
 // Convoy: the construction vehicle deploys inside Cinder Gap and the nexus comes online.
 {
   const s=start('convoy'),gap=zone(s,'gap'),vehicle=own(s,0,'constructor')[0];
   assert(vehicle&&!own(s,0,'core').length,'The convoy starts with no base');
   assert.equal(tagged(s,'mechanic').length,1);
+  // The only construction vehicle cannot file the claim anywhere but the gap, so it is never stranded.
+  const near={x:Math.floor(vehicle.x)+1,y:Math.floor(vehicle.y)-4};
+  assert(Math.hypot(near.x+1.5-gap.x,near.y+1.5-gap.y)>gap.r);
+  assert.equal(deploymentStatus(s,0,vehicle.id,near.x,near.y).reason,'Deploy inside the Cinder Gap claim site');
+  assert.equal(missionDeployment(s,1,near.x,near.y),'','The rival deploys anywhere');
   vehicle.x=gap.x;vehicle.y=gap.y;advance(s,2);
   for(let y=-4;y<=4;y++)for(let x=-4;x<=4;x++)s.explored[0][(Math.floor(gap.y)+y)*s.width+Math.floor(gap.x)+x]=1;
   let site=null;
@@ -199,14 +227,22 @@ const place=(s,type,near,radius=14)=>{
   assert(!own(s,0,'core').length&&own(s,0,'rifle').every(e=>e.kills===5),'A ranked strike team without a base');
   assert(!objective(s,'relay').revealed);
   const spires=tagged(s,'spire');assert.equal(spires.length,3);
-  destroy(spires.slice(0,1));advance(s,1);assert(s.mission.fired.reroute);
-  destroy(spires.slice(1));advance(s,1);
+  assert.equal(progressText(s,'spires'),'0 / 3','The three spires are published targets');
+  witness(s,spires.slice(0,1));advance(s,1);assert(s.mission.fired.reroute);assert.equal(progressText(s,'spires'),'1 / 3');
+  // One falls out of sight as the last is seen: the objective completes, and "one spire left" never plays late.
+  destroy(spires.slice(1,2));witness(s,spires.slice(2));advance(s,1);
+  assert(!s.mission.fired['last-spire']);assert.equal(progressText(s,'spires'),'3 / 3');
   assert(objective(s,'relay').revealed,'Silencing the spires exposes the relay mainframe');
   assert(s.events.some(e=>e.kind==='objective'&&e.status==='new'&&e.objective==='relay'));
   destroy(tagged(s,'relay'));advance(s,1);
   win(s,'Dead Signal');
   const veterans=survivingVeterans(s);
   assert(veterans.length>=5&&veterans.every(v=>v.kills>=5&&UNITS[v.role].damage>0),'Ranked survivors carry over');
+  // A spire lost under fog is not announced.
+  const fog=start('dead-signal');destroy(tagged(fog,'spire').slice(0,1));advance(fog,1);assert(!fog.mission.fired.reroute);assert.equal(progressText(fog,'spires'),'0 / 3');
+  // The unarmed engineer alone cannot finish the strike, so the operation ends with the last armed unit.
+  const alone=start('dead-signal');destroy(alone.entities.filter(e=>e.team===0&&e.kind==='unit'&&entityRole(e)!=='engineer'));advance(alone,1);
+  assert.equal(alone.status,'defeat');assert.equal(alone.events.at(-1).text,'All armed units lost. Operation failed.');
 }
 // Hold the Relay: armor holds the lit relay; rival units that enter are cleared.
 {
@@ -235,6 +271,13 @@ const place=(s,type,near,radius=14)=>{
   win(s,'Severance');
   assert.equal(objective(s,'veterans').state,'done');
   assert.throws(()=>start('severance',undefined,'normal',{veterans:[{role:'harvester',kills:5}]}),RangeError,'Only combat veterans carry over');
+  assert(!objectiveVoid(s.mission,'veterans')&&objectiveRows(s).rows.some(r=>r.id==='veterans'));
+  // Without veterans their objective does not apply: it is not listed, classified or counted for medals.
+  const bare=start('severance');
+  assert(objectiveVoid(bare.mission,'veterans'));assert.deepEqual(objectiveRows(bare).rows.map(r=>r.id),['sever','outliers']);assert.equal(objectiveRows(bare).classified,0);
+  destroy(tagged(bare,'outlier'));destroy([...own(bare,1,'core'),...own(bare,1,'constructor')]);advance(bare,1);
+  assert.equal(bare.status,'victory');assert.equal(objective(bare,'veterans').state,'active');
+  assert.deepEqual(matchReport(bare).secondary,{done:1,total:1});assert.equal(medalFor(bare),'gold');
 }
 // Relay control: either side can win the relay.
 {
@@ -272,6 +315,11 @@ const place=(s,type,near,radius=14)=>{
   destroy([...own(s,0,'core')]);advance(s,1);
   assert.equal(s.status,'defeat');
   const report=matchReport(s);assert.equal(report.survival,s.mission.score);assert(report.score===report.survival&&'SABCD'.includes(report.grade));
+  // The briefing states the formula the score uses.
+  for(const text of [MISSIONS['last-light'].briefing,SKIRMISH_MODES.find(m=>m.id==='lastLight').description])assert.match(text,/Score is seconds survived × kills ÷ 10\./);
+  // Twenty seconds before the first wave, ten kills: about 20 points, where seconds × kills would be 200.
+  const scored=start('last-light');scored.teams[0].kills=10;advance(scored,20);
+  assert(scored.mission.score>=19&&scored.mission.score<=20,`score ${scored.mission.score}`);
 }
 assert.deepEqual(Object.keys(completed).sort(),[...CAMPAIGN,'relay-control'].sort(),'Every operation and the relay mode were completed');
 
@@ -327,6 +375,7 @@ for(const broken of [
   {triggers:[{id:'t',when:{},do:[{spawn:{units:[['rifle',1]],cap:0}}]}]},{triggers:[{id:'t',when:{},do:[{spawn:{units:[['rifle',1]],kills:2000}}]}]},
   {triggers:[{id:'t',when:{after:{trigger:'t',seconds:1}},do:[]}]},{triggers:[{id:'t',when:{},do:[{say:{speaker:'x'.repeat(41),text:'Hello.'}}]}]},
   {fail:[{type:'rivalHold',zone:'nowhere',seconds:5}]},{triggers:[{id:'t',when:{},do:[{spawn:{units:[['rifle',1]],at:'fogEdge',order:{zone:'fogEdge'}}}]}]},
+  {fail:[{type:'coreLost',armed:true}]},{deployZone:'nowhere'},{triggers:[{id:'t',when:{objectiveActive:'nope'},do:[]}]},
 ]){MISSIONS['check-broken']={id:'check-broken',...base,...broken};assert.throws(()=>createGame('broken','normal',{width:72,height:56,mission:'check-broken'}),/Mission check-broken/,JSON.stringify(broken));}
 delete MISSIONS['check-broken'];
 
@@ -377,4 +426,4 @@ delete MISSIONS['check-broken'];
   const playing=matchReport(createGame('goals','normal',{width:144,height:112}));assert.equal(playing.rival,null,'No rival record while the operation is live');
 }
 
-console.log(`Ashline campaign checks passed: ${CAMPAIGN.length} operations and ${SKIRMISH_MODES.length-1} skirmish modes build on canonical and remixed seeds, gate their rosters, play 600 s under AI with exact save continuation and single-fire triggers, and are completed (${Object.keys(completed).join(', ')}); repeating and scaled waves, population caps, directive merging, lit zones, fog-edge arrivals, authoring validation, medals, progress, veterans, debrief and career records.`);
+console.log(`Ashline campaign checks passed: ${CAMPAIGN.length} operations and ${SKIRMISH_MODES.length-1} skirmish modes build on canonical and remixed seeds, gate their rosters, play 600 s under AI with exact save continuation and single-fire triggers, and are completed (${Object.keys(completed).join(', ')}); repeating and scaled waves, population caps, directive merging, lit zones, fog-edge arrivals, witnessed tag counts, deployment zones, armed-unit fail rules, void objectives, authoring validation, medals, progress, veterans, debrief and career records.`);
