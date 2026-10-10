@@ -79,12 +79,13 @@ try {
     const frame = () => { renderer.draw(s, view); return renderer.ctx.getImageData(0, 0, world.width, world.height).data; };
     s.visible[0][30 * s.width + 29] = 1; const noMissile = frame(); s.effects = [projectile]; const hiddenHead = frame();
     s.visible[0].fill(0); s.visible[0][30 * s.width + 32] = 1;
-    const puffs = [], nativeEllipse = renderer.ctx.ellipse;
-    renderer.ctx.ellipse = function (x, y, rx, ry, ...rest) {
-      if (Array.from({length: 7}, (_, index) => index + 1).some(j => Math.abs(rx - (1.5 + j * .35)) < 1e-8 && Math.abs(ry - (1 + j * .3)) < 1e-8)) puffs.push(x / 32);
-      return nativeEllipse.call(this, x, y, rx, ry, ...rest);
+    // Trail puffs are stamped from a cached gradient sprite with radii of 2.2 + 0.45j by 1.5 + 0.4j pixels.
+    const puffs = [], nativeImage = renderer.ctx.drawImage;
+    renderer.ctx.drawImage = function (source, x, y, w, h, ...rest) {
+      if (!rest.length && Array.from({length: 7}, (_, index) => index + 1).some(j => Math.abs(w - (2.2 + j * .45) * 2) < 1e-8 && Math.abs(h - (1.5 + j * .4) * 2) < 1e-8)) puffs.push((x + w / 2) / 32);
+      return nativeImage.call(this, source, x, y, w, h, ...rest);
     };
-    const visibleHead = frame(); renderer.ctx.ellipse = nativeEllipse;
+    const visibleHead = frame(); renderer.ctx.drawImage = nativeImage;
     s.effects = []; const noVisibleHead = frame(); world.remove();
     return {heavier, loaded: spriteStats().loaded, rocketPoses: spriteStats().frames.rocket, rows, rifleDifference: difference(rifle.data, rocket.data), towerDifference: difference(rail.data, tower.data), walkDifference: difference(idle.data, walking.data), bayPoses: poses.size, productionPoses: productionSources.size, hiddenHeadDifference: difference(noMissile, hiddenHead), visibleHeadDifference: difference(visibleHead, noVisibleHead), puffs};
   });
