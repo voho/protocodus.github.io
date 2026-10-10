@@ -576,10 +576,16 @@ function drawUnitDirection(ctx, cached, size, pixels, dy = 0) {
 }
 
 // Sprites are drawn with offsets instead of a save/restore pair per body; thousands of bodies per frame
-// made the state stack a measurable cost. Callers keep high-quality smoothing afterwards.
+// made the state stack a measurable cost. Only the sampling state changes, and the caller's is restored.
+let callerSmoothing = true, callerQuality = 'low';
 function smoothSprites(ctx) {
-  if (ctx.imageSmoothingEnabled !== true) ctx.imageSmoothingEnabled = true;
-  if (ctx.imageSmoothingQuality !== 'high') ctx.imageSmoothingQuality = 'high';
+  callerSmoothing = ctx.imageSmoothingEnabled; callerQuality = ctx.imageSmoothingQuality;
+  if (callerSmoothing !== true) ctx.imageSmoothingEnabled = true;
+  if (callerQuality !== 'high') ctx.imageSmoothingQuality = 'high';
+}
+function restoreSampling(ctx) {
+  if (callerSmoothing !== true) ctx.imageSmoothingEnabled = callerSmoothing;
+  if (callerQuality !== 'high') ctx.imageSmoothingQuality = callerQuality;
 }
 
 // A tiny fixed-screen step pulse distinguishes grounded walkers from wheeled hulls.
@@ -618,6 +624,7 @@ export function drawSpriteShadow(ctx, entity, time = 0) {
   } else {
     smoothSprites(ctx);
     drawUnitDirection(ctx, frame.directions[unitDirection(entity.angle)].castShadow, size, frame.teams[0].width);
+    restoreSampling(ctx);
   }
   return true;
 }
@@ -640,6 +647,7 @@ export function drawSprite(ctx, entity, time = 0) {
   } else {
     drawUnitDirection(ctx, unitBodyDirection(frame, entity, unitDirection(entity.angle)), size, frame.teams[0].width, walkerLift(entity, time));
   }
+  restoreSampling(ctx);
   return true;
 }
 
@@ -675,6 +683,7 @@ export function drawSpriteOverlay(ctx, entity, time = 0, color = '#ffffff') {
     const image = overlayImage(`${entity.type}:${pose}:${direction}:${color}`, body.image, color);
     drawUnitDirection(ctx, { image, x: body.x, y: body.y }, size, frame.teams[0].width, walkerLift(entity, time));
   }
+  restoreSampling(ctx);
   return true;
 }
 export function releaseSpriteOverlays() {
