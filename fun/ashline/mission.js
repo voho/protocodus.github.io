@@ -25,7 +25,9 @@ const CONDITIONS=['time','every','limit','until','after','objectiveDone','object
 const ACTIONS=['say','spawn','reveal','credits','directive','rally'];
 const MAX_RADIUS=48,MAX_VETERANS=12;
 export const WAVE_SCALE={easy:.7,normal:1,hard:1.3};
-// A point along the line from the player's base anchor (0) to the rival's (1).
+// A point along the line from the player's base anchor (0) to the rival's (1). The straight line follows the
+// lane on the classic profiles that every campaign operation using lane points plays; the skirmish modes use
+// none. An operation set on a curved-lane profile (terrain.js mapRoutes) would need the route sampled instead.
 const LANE=/^lane:(0(?:\.\d+)?|1(?:\.0+)?)$/;
 
 export function missionDefinition(id){

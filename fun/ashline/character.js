@@ -4,6 +4,7 @@
 import { hash } from './terrain.js';
 import { UNITS, unitRole, center } from './sim.js';
 import { aiCommander } from './ai.js';
+import { MISSIONS } from './campaign.js';
 
 const SQUADS = ['Harrier', 'Cinder', 'Lantern', 'Juniper', 'Basalt', 'Magpie', 'Tinder', 'Rook', 'Thistle', 'Pilgrim', 'Corvid', 'Heron', 'Wicket', 'Spindle', 'Larkspur', 'Furrow', 'Quarry', 'Sable', 'Tallow', 'Vesper', 'Marten', 'Osprey', 'Bramble', 'Flint', 'Copper', 'Gannet', 'Hollow', 'Sorrel'];
 // The Vael carry launcher teams; given names are built from clan syllables, family from the crest line.
@@ -117,11 +118,12 @@ export function barkLine(type, context, sequence = 0) {
   return pool[(hash(`${type}:${context}`) + sequence) % pool.length];
 }
 
-// The commander named in intercepts: the rival AI's doctrine commander in its race's naming, or null for a
-// side no AI commands. Callers name it only once the player sees that commander's forces.
+// The commander named in intercepts: an operation's named rival (Red Ledger's captain), otherwise the rival
+// AI's doctrine commander in its race's naming, or null for a side no AI commands. Callers name it only
+// once the player sees that commander's forces.
 export function rivalCommander(game, team = 1) {
   if (!(game?.aiTeams ?? [1]).includes(team)) return null;
-  return aiCommander(game, team)?.commander || null;
+  return (game.mission && MISSIONS[game.mission.id]?.commander) || aiCommander(game, team)?.commander || null;
 }
 
 // A column is at least `minimum` armed enemy units the player sees right now, each heading for a

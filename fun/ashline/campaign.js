@@ -12,6 +12,7 @@
 // support. A trigger's objectiveActive holds only while that objective is open, so a hint never trails its step.
 // Fields used only by the briefing UI: seed, location, summary, story, par (seconds for gold) and aiStep
 // (the operation's commander plays this many opposition levels above the chosen one, up to Veteran).
+// commander names the rival commander in signals intercepts when the story gives the rival a face.
 
 // The players' cast. Speakers stay within 40 characters for saved dialogue events.
 const VALE='Cmdr. Vale',TESK='Chief Orrun-Tesk',KADE='Auditor Kade',DACE='Captain Dace Mor',UNITY='Unity';
@@ -217,7 +218,7 @@ export const MISSIONS={
     briefing:'Outbuild the Red Ledger claim-jumpers: hold three operating nexuses and deliver red seam crystal.',
     opening:'Counter-claim filed against Expedition 07. The audit is open.',
     victoryText:'The audit rules for Expedition 07. The Red Ledger claim is struck.',
-    width:192,height:144,profile:'highlands',races:['organics','organics'],aiTeams:[1],credits:[2400,2400],
+    width:192,height:144,profile:'highlands',races:['organics','organics'],aiTeams:[1],credits:[2400,2400],commander:DACE,
     allow:EXPANSION,
     zones:[],
     objectives:[

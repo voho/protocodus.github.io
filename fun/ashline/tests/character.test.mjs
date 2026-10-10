@@ -69,6 +69,8 @@ test('rival commanders name the doctrine leading an AI side, and only an AI side
   assert.equal(rivalCommander(createGame('commander', 'normal', {width: 72, height: 56, races: ['organics', 'aiUnity'], aiProfiles: {1: {doctrine: chosen}}})), DOCTRINES[chosen].unity.commander, 'Unity rivals carry machine designations');
   assert.equal(rivalCommander(createGame('commander', 'normal', {width: 72, height: 56, aiProfiles: {1: {doctrine: 'random'}}})), DOCTRINES[randomDoctrine('commander', 1)].commander, 'Random names the commander the seed drew');
   assert.equal(rivalCommander(quiet('no-commander')), null, 'A rival no AI commands has no commander to intercept');
+  assert.equal(rivalCommander(createGame('commander', 'normal', {mission: 'red-ledger'})), 'Captain Dace Mor', 'An operation names the rival its story introduced');
+  assert.equal(rivalCommander(createGame('commander', 'normal', {mission: 'hold-the-relay'})), DOCTRINES.balanced.unity.commander);
 });
 
 test('intercepts use only current vision and point at the threatened friendly structure', () => {
