@@ -38,6 +38,11 @@ for(const id of CAMPAIGN){
   assert.equal(def.races[0],'organics','The player commands Expedition 07');
   for(const t of def.triggers)for(const action of t.do)if(action.say)assert(action.say.speaker.length<=40&&!/!/.test(action.say.text),`${id} dialogue keeps the house tone`);
 }
+// Every zone does a job: an unused zone still draws a labelled ring once explored, inviting a defence there.
+for(const id of PLAYABLE){
+  const def=MISSIONS[id],uses=JSON.stringify({...def,zones:undefined})+String(def.setup??'');
+  for(const z of def.zones||[])assert(uses.includes(`"${z.id}"`)||uses.includes(`'${z.id}'`),`${id} uses its ${z.id} zone`);
+}
 assert.deepEqual(SKIRMISH_MODES.map(m=>m.id),['annihilation','relay','lastLight']);
 assert(SKIRMISH_MODES.every(m=>m.name&&m.description&&(m.mission===undefined||Object.hasOwn(MISSIONS,m.mission))));
 // Every unit and structure of both races has an archive entry with an original flavor line.
@@ -268,6 +273,8 @@ const place=(s,type,near,radius=14)=>{
   for(let i=0;i<260&&s.status==='playing';i++){updateGame(s,1);for(const e of rivals(s))if(Math.hypot(e.x-relay.x,e.y-relay.y)<12)e.hp=0;}
   win(s,'Hold the Relay');
   assert(holders.some(e=>e.hp>0));assert.equal(objective(s,'hold').progress,240);
+  // The rival's opening units head straight for the relay, so its clock is called out early.
+  assert(s.events.some(e=>e.kind==='dialogue'&&/counts against us/.test(e.text)&&e.time<21),'The rival hold is called out early');
   // The alternative: voiding every rival claim wins outright.
   const alt=start('hold-the-relay');destroy([...own(alt,1,'core'),...own(alt,1,'constructor')]);advance(alt,1);
   assert.equal(alt.status,'victory');assert.equal(objective(alt,'claims').state,'done');
@@ -298,6 +305,7 @@ const place=(s,type,near,radius=14)=>{
   addEntity(s,0,'unit','tank',relay.x,relay.y);
   for(let i=0;i<320&&s.status==='playing';i++){updateGame(s,1);for(const e of rivals(s))if(Math.hypot(e.x-relay.x,e.y-relay.y)<12)e.hp=0;}
   win(s,'Relay control');
+  assert(s.events.some(e=>e.kind==='dialogue'&&/Its clock runs/.test(e.text)&&e.time<21),'The rival hold is called out early');
   // Without its commander's own orders, a rival tank parked on the relay holds it.
   const lost=start('relay-control'),hub=zone(lost,'relay');lost.aiTeams=[];
   addEntity(lost,1,'unit','unityTank',hub.x,hub.y);
