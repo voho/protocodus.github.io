@@ -40,6 +40,7 @@ import {
   Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
 } from './rider.js';
 import { createRiderModel } from './riderModel.js';
+import { createRiderShadow, RIDER_SHADOW_LAYER } from './riderShadow.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
 import { createShading } from './shading.js';
@@ -383,6 +384,16 @@ shadowCasting(model.root);
    the rider is over a hollow the real shadow has fallen into. */
 model.shadow.castShadow = false;
 model.shadow.receiveShadow = false;
+/* And the rider casts into a shadow of their own, redrawn every frame at a
+   few millimetres a texel, rather than into the sun's 30 Hz map, where they
+   fell half a metre behind themselves on every other frame at speed — see
+   riderShadow.js. The sun's map still shadows the rider. */
+model.root.traverse((o) => {
+  if (!o.isMesh || o.userData.noShadow) return;
+  o.castShadow = false;
+  o.layers.enable(RIDER_SHADOW_LAYER);
+});
+const riderShadow = createRiderShadow(THREE, renderer, shading);
 
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
@@ -1667,6 +1678,8 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
+    // Where the rider is drawn, which between steps is not where they are
+    riderShadow.update(scene, model.root.position, camera, sky.shadowLevel);
     retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }

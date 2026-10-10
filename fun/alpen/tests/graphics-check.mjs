@@ -136,6 +136,40 @@ for (const fps of [30, 60, 144]) {
   close(shading.uniforms.uCamWrap.value.x, 51.75, 'camera x wraps into the glint period');
   close(shading.uniforms.uCamWrap.value.y, 16.5, 'camera z wraps into the glint period');
 
+  /* The rider's own shadow box: built relative to the camera, so a point
+     handed over as its offset from the lens lands where the world point
+     would. The chest is the box's centre; ground further down the sun's ray
+     is deeper, and so shadowed; the pass leaves the sun's map alone. */
+  {
+    const { createRiderShadow } = await import('../js/riderShadow.js');
+    const calls = [];
+    const stub = {
+      shadowMap: { autoUpdate: true, needsUpdate: true },
+      autoClear: true,
+      getRenderTarget: () => null,
+      setRenderTarget: (t) => calls.push(['target', t]),
+      clear: () => calls.push(['clear']),
+      render: () => calls.push(['render', stub.shadowMap.autoUpdate, stub.shadowMap.needsUpdate]),
+    };
+    const pass = createRiderShadow(THREE, stub, shading);
+    lens.updateMatrixWorld();
+    const feet = new THREE.Vector3(-30, -9000, -26000);
+    pass.update(new THREE.Scene(), feet, lens, 0.8);
+    const toBox = (world) => world.clone().sub(lens.position).applyMatrix4(shading.uniforms.uRiderShadowMatrix.value);
+    const chest = toBox(new THREE.Vector3(feet.x, feet.y + 0.9, feet.z));
+    assert.ok(Math.abs(chest.x - 0.5) < 1e-3 && Math.abs(chest.y - 0.5) < 1e-3, 'the chest is the box centre');
+    const sun = shading.uniforms.uSunDir.value;
+    const ground = toBox(new THREE.Vector3(feet.x, feet.y + 0.9, feet.z).addScaledVector(sun, -4));
+    assert.ok(Math.abs(ground.x - 0.5) < 1e-3 && ground.z > chest.z, 'down the ray is behind the rider');
+    assert.equal(shading.uniforms.uRiderShadowLevel.value, 0.8);
+    const drawn = calls.find((c) => c[0] === 'render');
+    assert.ok(drawn && drawn[1] === false && drawn[2] === false, 'the pass never spends the sun map');
+    assert.ok(stub.shadowMap.autoUpdate === true && stub.shadowMap.needsUpdate === true, 'and hands its flags back');
+    calls.length = 0;
+    pass.update(new THREE.Scene(), feet, lens, 0);
+    assert.equal(calls.length, 0, 'no pass when the sun casts nothing');
+  }
+
   /* Streamed props dissolve into the backdrop before the window's far edge;
      only materials that ask for it carry the term, it reads the view
      direction after it is declared, and it has its own program key. */

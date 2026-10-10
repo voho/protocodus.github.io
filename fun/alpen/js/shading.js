@@ -8,6 +8,7 @@
    intentionally been retired. */
 
 import { RENDER, MIST, TERRAIN, HUT_LIGHT } from './config.js';
+import { RIDER_SHADOW_SIZE } from './riderShadow.js';
 
 // The height the shade field's second layer sits at — see `FRAG_SHADE`.
 // The torus is 5 tiles across the run and 6 along it (the extra one
@@ -273,6 +274,9 @@ varying vec3 vN64View;
 varying float vN64Ice;
 varying float vN64Sheen;
 uniform vec3 uFocusView;
+uniform sampler2D uRiderShadowMap;
+uniform mat4 uRiderShadowMatrix;
+uniform float uRiderShadowLevel;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyMid;
 uniform vec3 uSkyHorizon;
@@ -1154,6 +1158,31 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
       reflectedLight.directDiffuse *= 1.0 - n64CloudShade;
       n64SunVis *= 1.0 - n64CloudShade;
     }
+  }
+  /* THE RIDER'S OWN SHADOW, redrawn every frame in a small map of its own —
+     see riderShadow.js. Looked up from the fragment's offset from the camera
+     (the matrix carries the camera's position), pushed a centimetre and a
+     half off the surface along its normal against acne, and filtered over
+     nine taps a texel and a half apart, which is a penumbra of about two
+     centimetres: what the sun's half degree gives a body a metre over the
+     snow. Taken off the direct light like the sun's own map, and off the
+     sun's visibility so the snow's reflected sun goes with it. */
+  if (uRiderShadowLevel > 0.001) {
+    vec3 n64RiderS = (uRiderShadowMatrix * vec4(vN64View * mat3(viewMatrix)
+      + inverseTransformDirection(normal, viewMatrix) * 0.015, 1.0)).xyz;
+    if (n64RiderS.x > 0.0 && n64RiderS.x < 1.0
+      && n64RiderS.y > 0.0 && n64RiderS.y < 1.0 && n64RiderS.z < 1.0) {
+      float n64RiderLit = 0.0;
+      for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+          n64RiderLit += step(n64RiderS.z - 0.00015, texture2DLodEXT(uRiderShadowMap,
+            n64RiderS.xy + vec2(float(i), float(j)) * ${asFloat(1.5 / RIDER_SHADOW_SIZE)}, 0.0).r);
+        }
+      }
+      float n64RiderK = 1.0 - (1.0 - n64RiderLit / 9.0) * uRiderShadowLevel;
+      reflectedLight.directDiffuse *= n64RiderK;
+      n64SunVis *= n64RiderK;
+    }
   }`;
 
 const SHADE_ANCHOR = '#include <lights_fragment_maps>';
@@ -1240,6 +1269,11 @@ export function createShading(THREE) {
     // The rider's chest in view space, for the camera fade's sightline. Far
     // down the lens until the first frame says otherwise.
     uFocusView: { value: new THREE.Vector3(0, 0, -1e4) },
+    /* The rider's own shadow — see riderShadow.js, which owns all three.
+       Off until it has drawn one. */
+    uRiderShadowMap: { value: neutralCanopy },
+    uRiderShadowMatrix: { value: new THREE.Matrix4() },
+    uRiderShadowLevel: { value: 0 },
     /* The huts' light — see FRAG_HUT_LIGHT. `huts.js` owns all three: each
        standing hut's place (w is 1 while the slot holds a hut; one slot
        for each of the HUTS.live it keeps standing) and the cosine and sine
