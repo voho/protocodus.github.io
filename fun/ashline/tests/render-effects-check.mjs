@@ -124,7 +124,7 @@ try {
     s.visible[0].fill(0); const fogA = render(); s.time += 1.3; const fogB = render(); s.visible[0].fill(1);
     result.ash = { moving: difference(ashA, ashB), frozen: difference(ashA, ashSame), underFog: difference(fogA, fogB) };
 
-    // Mission zones: a zone shows through fog once a revealed objective uses it or its definition marks it lit;
+    // Mission zones: a zone shows through fog once a revealed objective uses it, its definition marks it lit or deploys there;
     // a zone only a hidden objective uses, or a bare spawn anchor, appears only once its centre is explored.
     const zoneDiff = mission => { s.mission = mission; const a = render(); delete s.mission; return difference(a, render()); };
     // In the drill, objective 'muster' uses zone 'muster'; the hidden picket's 'range' zone is used by no objective.
@@ -133,8 +133,10 @@ try {
       zones: [{ id: zone, x: 30, y: 30, r: 3, label: 'Zone ' + zone }] });
     s.visible[0].fill(0); s.explored[0].fill(0);
     MISSIONS['render-lit'] = { id: 'render-lit', objectives: [], zones: [{ id: 'relay', label: 'Central relay', at: 'center', r: 3, lit: true }] };
+    // A deploy zone is the only ground the player's nexus may use, so it shows without an objective.
+    MISSIONS['render-deploy'] = { id: 'render-deploy', objectives: [], deployZone: 'gap', zones: [{ id: 'gap', label: 'Claim site', at: 'center', r: 3 }] };
     result.zones = { revealed: zoneDiff(drill('muster')), done: zoneDiff(drill('muster', true, 'done')), hiddenObjective: zoneDiff(drill('muster', false)),
-      unreferenced: zoneDiff(drill('range')), lit: zoneDiff({ ...drill('relay'), id: 'render-lit', objectives: [] }) };
+      unreferenced: zoneDiff(drill('range')), lit: zoneDiff({ ...drill('relay'), id: 'render-lit', objectives: [] }), deploy: zoneDiff({ ...drill('gap'), id: 'render-deploy', objectives: [] }) };
     for (let y = 28; y < 33; y++) for (let x = 28; x < 33; x++) s.explored[0][y * s.width + x] = 1;
     result.zones.explored = zoneDiff(drill('range'));
     s.explored[0].fill(0);
@@ -197,7 +199,7 @@ try {
     s.explored[0].fill(1);
     result.minimap.exploredSite = mapDiff(() => { s.sites = site; }, () => { delete s.sites; });
     s.visible[0].fill(1);
-    delete MISSIONS['render-lit'];
+    delete MISSIONS['render-lit']; delete MISSIONS['render-deploy'];
 
     // Incoming shells mark their landing only where the target cell is visible, even when the shell itself is seen.
     const shellAt = () => ({ type: 'shell', weapon: 'artillery', x: 25, y: 30, tx: 33.5, ty: 30.5, life: .2, maxLife: .35, team: 1 });
@@ -322,8 +324,8 @@ try {
   assert(checks.burning > 4, `Vehicles below 25% health burn visibly (${checks.burning})`);
   assert.equal(checks.hiddenBurning, 0, 'A hidden burning enemy draws nothing');
   assert(checks.ash.moving > 0 && checks.ash.frozen === 0 && checks.ash.underFog === 0, `Ash-fall moves only over visible ground and holds on one clock (${JSON.stringify(checks.ash)})`);
-  assert(checks.zones.revealed > 200 && checks.zones.done > 200 && checks.zones.lit > 200,
-    `Zones of revealed objectives and lit zones show through fog (${JSON.stringify(checks.zones)})`);
+  assert(checks.zones.revealed > 200 && checks.zones.done > 200 && checks.zones.lit > 200 && checks.zones.deploy > 200,
+    `Zones of revealed objectives, lit zones and the deploy zone show through fog (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,
     `A zone only a hidden objective uses, or no objective uses, draws nothing over unexplored ground (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.explored > 200, 'An explored zone centre shows its ring');

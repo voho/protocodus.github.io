@@ -1622,8 +1622,9 @@ export class Renderer {
   }
 
   // Objectives: zone rings with pulsing beacons for active goals. A zone is a deliberate static reveal only
-  // once a revealed objective uses it or its definition marks it lit (public); otherwise it appears when its
-  // centre is explored. Zones also anchor hidden garrisons and spawns, so nothing else draws through fog.
+  // once a revealed objective uses it, its definition marks it lit (public), or it is the operation's deploy
+  // zone (the only ground a nexus may deploy on); otherwise it appears when its centre is explored. Zones
+  // also anchor hidden garrisons and spawns, so nothing else draws through fog.
   // Returns [[zone, goalState], ...] for the zones the player may see.
   missionZones(state) {
     const mission = state.mission;
@@ -1633,7 +1634,7 @@ export class Renderer {
       try { definition = missionDefinition(mission.id); } catch { definition = null; }
       const objectives = definition?.objectives || [];
       this.goalZones = new Map(objectives.filter(d => typeof d.zone === 'string').map(d => [d.id, d.zone]));
-      this.publicZones = new Set((definition?.zones || []).filter(z => z.lit === true || z.public === true).map(z => z.id));
+      this.publicZones = new Set((definition?.zones || []).filter(z => z.lit === true || z.public === true || z.id === definition.deployZone).map(z => z.id));
       this.goalSource = mission.id;
     }
     const goals = new Map();
