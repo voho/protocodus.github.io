@@ -156,6 +156,7 @@ try {
   // Progress survives a reload: the campaign tab returns with medals and the third operation open.
   await page.reload(); await ready(page);
   assert(await page.locator('#campaign-panel').isVisible(), 'The briefing reopens on the campaign');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'campaign-start', 'Focus starts on the open tab\'s launch button, not the way out');
   const after = await page.evaluate(() => ({ entries: [...document.querySelectorAll('.campaign-entry')].map(b => ({ disabled: b.disabled, medal: b.querySelector('.medal').dataset.medal, pressed: b.getAttribute('aria-pressed') })),
     name: document.querySelector('#campaign-name').textContent, progress: document.querySelector('#campaign-progress').textContent, career: document.querySelector('#career-line').textContent }));
   assert.deepEqual(after.entries.map(e => e.disabled), [false, false, false, true, true, true, true, true]);
@@ -266,6 +267,12 @@ try {
   const opened = await clear();
   assert.equal(opened.collapsed, 'false'); assert(opened.gap >= 0, `Open tracker clears the map: ${JSON.stringify(opened)}`);
   await landscape.screenshot({ path: `${output}/campaign-landscape-phone-open.png` });
+  // The end menu opens at its top: on a short screen focusing its first button would scroll the title and grade away.
+  await landscape.evaluate(async () => { const sim = await import('./sim.js'); for (const e of ashline.state.entities) if (e.team === 0 && ['core', 'constructor'].includes(sim.entityRole(e))) e.hp = 0; });
+  await until(landscape, () => ashline.state.status === 'defeat' && document.querySelector('#menu').open);
+  const top = await landscape.evaluate(() => { const menu = document.querySelector('#menu'), box = menu.getBoundingClientRect(), inside = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return r.top >= box.top && r.bottom <= box.bottom; }; return { scroll: menu.scrollTop, title: inside('#menu-title'), grade: inside('#match-summary .grade') }; });
+  assert.deepEqual(top, { scroll: 0, title: true, grade: true }, 'The debrief opens on its title and grade');
+  await landscape.screenshot({ path: `${output}/campaign-landscape-debrief.png` });
   await landscape.close();
 
   // Without browser storage the campaign still opens and launches; progress simply is not kept.

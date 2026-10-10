@@ -1176,7 +1176,8 @@ function showMenu(finished = false, guide = false) {
   if (finished) $('match-summary').textContent = `${minutes(game.time)} in field  ·  ${game.teams[0].kills || 0} enemies destroyed`;
   $('full-guide').open = guide;
   campaign.menu(game, finished);
-  if (!$('menu').open) $('menu').showModal();
+  // Opening focuses the first button, which on a short screen scrolls the title, briefing or debrief out of view.
+  if (!$('menu').open) { $('menu').showModal(); $('menu').scrollTop = 0; }
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
   refreshSaveControls(); updateHUD();
 }
@@ -1334,7 +1335,8 @@ function showBriefing() {
   $('loading').close(); $('menu').close();
   refreshSaveControls();
   if (!$('briefing').matches(':modal')) { $('briefing').close(); $('briefing').showModal(); }
-  $('deploy').focus({ preventScroll: true });
+  // The open tab's launch button; otherwise the dialog leaves focus on its first link, the way out of the game.
+  ($('campaign-panel').hidden ? $('deploy') : $('campaign-start')).focus({ preventScroll: true });
 }
 
 // Army means every armed unit: haulers, engineers and construction vehicles stay where they are.
