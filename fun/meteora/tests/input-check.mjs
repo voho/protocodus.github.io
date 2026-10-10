@@ -57,28 +57,29 @@ test('Escape pauses; Escape while paused resumes; one press never does both', ()
 });
 test('leaving the window pauses and drops held keys', () => {
   const s = setup();
-  s.press('KeyW'); s.press('ShiftLeft');
+  s.press('KeyW'); s.press('KeyE');
   s.win.dispatchEvent(event('blur'));
   assert.deepEqual(s.pauses, ['blur']);
-  const c = s.read(); assert.equal(c.throttleDelta, 0); assert.equal(c.boost, false);
+  const c = s.read(); assert.equal(c.throttleDelta, 0); assert.equal(c.roll, 0);
 });
 test('a hidden tab pauses', () => {
   const s = setup();
   s.doc.hidden = true; s.doc.dispatchEvent(event('visibilitychange'));
   assert.deepEqual(s.pauses, ['hidden']);
 });
-test('Space and the game keys are kept from the browser while flying', () => {
+test('the game keys are kept from the browser while flying, and only those', () => {
   const s = setup();
-  for (const code of ['Space', 'KeyW', 'KeyA', 'ShiftLeft']) assert.equal(s.press(code).prevented, true, code);
+  for (const code of ['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ']) assert.equal(s.press(code).prevented, true, code);
+  assert.equal(s.press('KeyA').prevented, false, 'unbound keys stay the browser\'s');
   s.flags.flying = false;
-  assert.equal(s.press('Space').prevented, false, 'menus keep their keys');
+  assert.equal(s.press('KeyW').prevented, false, 'menus keep their keys');
 });
 test('a key released while paused does not stay held', () => {
   const s = setup();
-  s.press('KeyD'); s.flags.flying = false;
-  s.win.dispatchEvent(event('keyup', { code: 'KeyD' }));
+  s.press('KeyW'); s.flags.flying = false;
+  s.win.dispatchEvent(event('keyup', { code: 'KeyW' }));
   s.flags.flying = true;
-  assert.equal(s.read().strafe, 0);
+  assert.equal(s.read().throttleDelta, 0);
 });
 test('without a lock the aim cursor follows the pointer across the screen', () => {
   const s = setup({ request: () => undefined });

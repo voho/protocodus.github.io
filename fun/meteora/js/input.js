@@ -23,10 +23,7 @@
 
 import { dropAll, keyDown, keyUp, mouseDown, mouseUp, moveCursor, setCursor } from './controls.js';
 
-export const GAME_KEYS = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyX', 'KeyZ',
-  'KeyT', 'KeyV', 'Space', 'ShiftLeft', 'ShiftRight',
-]);
+export const GAME_KEYS = new Set(['KeyW', 'KeyS', 'KeyQ', 'KeyE', 'KeyT', 'KeyZ']);
 
 export function createInput(canvas, state, { isFlying, onPause, onResume }, env = globalThis) {
   const { window: win, document: doc } = env;

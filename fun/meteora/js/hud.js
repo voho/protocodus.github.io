@@ -215,9 +215,13 @@ export function createHud(canvas) {
       ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
       text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
-      bar(x0, y0 + 52, 180, Math.max(0, ship.throttle), CYAN, `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
-      bar(x0, y0 + 82, 180, ship.boost / ship.stats.boost.capacity, ship.boostLocked ? '#8a6040' : AMBER, 'AFTERBURNER · Shift');
-      text(ship.fa ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF', x0, y0 + 104, 11, ship.fa ? MUTED : AMBER, 'left');
+      // The throttle bar shows the speed being held, which the speed lock can
+      // push past full throttle (up to the afterburner's speed).
+      const holding = Math.max(0, ship.cruise) / ship.stats.fa.forwardSpeed;
+      bar(x0, y0 + 52, 180, Math.min(1, holding), world.speedLock ? AMBER : CYAN,
+        world.speedLock ? `SPEED LOCK ${ship.cruise.toFixed(0)} m/s · W / S to release` : `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
+      if (world.speedLock) text('MATCHING TARGET SPEED', x0, y0 + 76, 11, AMBER, 'left');
+      else if (target) text('Z  match target speed', x0, y0 + 76, 11, MUTED, 'left');
 
       // Bottom right: ship and weapons.
       const x1 = w - 208;

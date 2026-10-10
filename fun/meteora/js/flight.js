@@ -30,6 +30,7 @@ import {
 export const NEUTRAL_CONTROLS = Object.freeze({
   pitch: 0, yaw: 0, roll: 0, strafe: 0, lift: 0,
   throttleDelta: 0, throttleSet: null, throttleZero: false, boost: false, toggleFA: false,
+  speedSet: null,   // m/s: hold this forward speed (speed lock); null = throttle
 });
 
 export function createShip(stats, { pos, vel, q } = {}) {
@@ -48,6 +49,7 @@ export function createShip(stats, { pos, vel, q } = {}) {
     alphaLocal: [0, 0, 0],
     afterburner: false,
     thrust: 0,
+    cruise: 0,   // the forward speed flight assist is holding, m/s
   };
 }
 
@@ -78,7 +80,12 @@ const vLocal = [0, 0, 0], aWorld = [0, 0, 0], cmd = [0, 0, 0], raw = [0, 0, 0];
 export function stepShip(ship, c, dt) {
   const S = ship.stats, A = S.accel;
   if (c.toggleFA) ship.fa = !ship.fa;
-  if (c.throttleSet != null) ship.throttle = c.throttleSet;
+  // A speed lock holds a speed directly — up to the afterburner's, without
+  // spending its energy — and the throttle follows it, so letting go of the
+  // lock leaves the ship where it was.
+  const speedSet = c.speedSet != null ? clamp(c.speedSet, 0, S.fa.boostSpeed) : null;
+  if (speedSet != null) ship.throttle = speedSet / S.fa.forwardSpeed;
+  else if (c.throttleSet != null) ship.throttle = c.throttleSet;
   else if (c.throttleZero) ship.throttle = 0;
   else ship.throttle += c.throttleDelta * S.throttle.rampPerSecond * dt;
   ship.throttle = clamp(ship.throttle, S.throttle.min, 1);
@@ -104,7 +111,8 @@ export function stepShip(ship, c, dt) {
   const forwardMax = burning ? A.boost : A.forward;
   if (ship.fa) {
     const tau = Math.max(S.fa.tau, dt);
-    const target = burning ? S.fa.boostSpeed : ship.throttle * S.fa.forwardSpeed;
+    const target = burning ? S.fa.boostSpeed : speedSet ?? ship.throttle * S.fa.forwardSpeed;
+    ship.cruise = target;
     qRotateInv(vLocal, ship.q, ship.vel);
     a[0] = clamp((c.strafe * S.fa.strafeSpeed - vLocal[0]) / tau, -A.lateral, A.lateral);
     a[1] = clamp((c.lift * S.fa.strafeSpeed - vLocal[1]) / tau, -A.lateral, A.lateral);

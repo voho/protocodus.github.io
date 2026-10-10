@@ -48,7 +48,7 @@ export function createWorld({ seed = 1234, storage = null, fieldCfg = FIELD } = 
     seed, storage, field: createField(seed, fieldCfg), events: [],
     time: 0, accumulator: 0, weapons: null, rng: null, player: null, enemies: [],
     score: 0, wave: 0, waveTimer: 0, kills: 0, best: loadBest(storage), state: 'attract',
-    lock: null, target: null, nextId: 1, leaving: false,
+    lock: null, target: null, nextId: 1, leaving: false, speedLock: false,
   };
   resetWorld(world);
   return world;
@@ -64,7 +64,7 @@ export function resetWorld(world) {
   world.player = makeEntity(world, 'fighter', PLAYER, 0, world.field.cfg.spawn, [0, 0, 0, 1]);
   world.score = 0; world.wave = 0; world.waveTimer = 0; world.kills = 0;
   world.time = 0; world.accumulator = 0;
-  world.lock = createLock(); world.target = null;
+  world.lock = createLock(); world.target = null; world.speedLock = false;
   world.state = 'attract'; world.leaving = false;
 }
 
@@ -118,16 +118,22 @@ export function stepWorld(world, input, dt) {
   // The player.
   if (p.alive) {
     const flying = world.state === 'flying';
-    // Mouse flight: an aim point replaces the stick's pitch and yaw.
     let controls = flying ? input : NEUTRAL_CONTROLS;
-    if (flying && input.aimPoint) {
-      const steer = aimCommands(p.ship, sub([0, 0, 0], input.aimPoint, p.ship.pos));
-      controls = { ...input, pitch: steer.pitch, yaw: steer.yaw };
-    }
-    stepShip(p.ship, controls, dt);
     if (flying) {
       if (input.cycleTarget) cycleTarget(world);
       if (world.target && !world.target.alive) world.target = byCrosshair(world)[0] ?? null;
+      // Speed lock: Z holds the target's speed; W or S, or losing every
+      // target, hands the throttle back.
+      if (input.toggleSpeedLock) world.speedLock = !world.speedLock && !!world.target;
+      if (input.throttleDelta || input.throttleZero || !world.target) world.speedLock = false;
+      const overrides = {};
+      if (world.speedLock) overrides.speedSet = len(world.target.ship.vel);
+      // Mouse flight: an aim point replaces the stick's pitch and yaw.
+      if (input.aimPoint) Object.assign(overrides, aimCommands(p.ship, sub([0, 0, 0], input.aimPoint, p.ship.pos)));
+      controls = { ...input, ...overrides };
+    }
+    stepShip(p.ship, controls, dt);
+    if (flying) {
       updateLock(world.lock, p.ship, world.target, dt);
       if (triggerGun(p.gun, !!input.fire, dt)) {
         const muzzle = ANCHORS.fighter.muzzles[p.gun.muzzle];

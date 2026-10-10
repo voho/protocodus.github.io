@@ -115,4 +115,15 @@ test('aimCommands: still on the nose, toward the point otherwise, full stick beh
   c = aimCommands(s, normalize([0, 0, 0], [0.004, 0, -1])); near(c.yaw, 0, 1e-12, 'inside the deadzone');
   c = aimCommands(s, [0, 0, 0]); assert.equal(c.pitch, 0); assert.equal(c.yaw, 0);
 });
+test('speedSet holds a commanded forward speed, even above full throttle', () => {
+  const s = createShip(PLAYER);
+  fly(s, ctl({ speedSet: 250 }), 10);
+  near(-local(s)[2], 250, 0.5); near(s.cruise, 250, 1e-9);
+  assert.equal(s.afterburner, false, 'no afterburner energy spent');
+  near(s.boost, PLAYER.boost.capacity, 1e-9);
+  stepShip(s, ctl({ speedSet: 5000 }), DT);
+  near(s.cruise, PLAYER.fa.boostSpeed, 1e-9, 'capped at the afterburner speed');
+  stepShip(s, ctl({ speedSet: 90 }), DT);
+  near(s.throttle, 90 / PLAYER.fa.forwardSpeed, 1e-9, 'the throttle follows, so letting go is seamless');
+});
 await run();

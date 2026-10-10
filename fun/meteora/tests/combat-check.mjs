@@ -5,7 +5,7 @@ import { createWorld, startRun, resetWorld, stepWorld, advance, drainEvents } fr
 import { NEUTRAL_CONTROLS, forward } from '../js/flight.js';
 import { PLAYER, COMBAT, FIELD, MAX_STEPS, STEP as DT } from '../js/config.js';
 import { makeRng } from '../js/rng.js';
-import { dist, dot, normalize, sub } from '../js/vec.js';
+import { dist, dot, len, normalize, sub } from '../js/vec.js';
 
 const idle = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false };
 const memory = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)) }; };
@@ -115,6 +115,30 @@ test('with an aim point the fighter turns toward it and its guns converge on it'
   const far = [600, 0, -1000];
   for (let i = 0; i < 120; i++) stepWorld(w, { ...idle, aimPoint: far }, DT);
   assert.ok(forward([0, 0, 0], w.player.ship)[0] > 0.2, 'nose swung toward the aim');
+});
+test('Z locks the speed to the target\'s; W or S hands the throttle back', () => {
+  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
+  stepWorld(w, idle, DT);
+  stepWorld(w, { ...idle, cycleTarget: true }, DT);
+  stepWorld(w, { ...idle, toggleSpeedLock: true }, DT);
+  assert.equal(w.speedLock, true);
+  for (let i = 0; i < 60; i++) {
+    // The player steps before the enemies, so it matches the speed the
+    // target had at the start of the step.
+    const speed = len(w.target.ship.vel);
+    stepWorld(w, idle, DT);
+    near(w.player.ship.cruise, Math.min(speed, PLAYER.fa.boostSpeed), 1e-9);
+  }
+  stepWorld(w, { ...idle, throttleDelta: 1 }, DT);
+  assert.equal(w.speedLock, false);
+  stepWorld(w, { ...idle, toggleSpeedLock: true }, DT);
+  stepWorld(w, { ...idle, toggleSpeedLock: true }, DT);
+  assert.equal(w.speedLock, false, 'Z again lets go');
+});
+test('with nothing targeted the speed lock does not engage', () => {
+  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
+  stepWorld(w, { ...idle, toggleSpeedLock: true }, DT);
+  assert.equal(w.speedLock, false);
 });
 test('player death ends the run and stores the best score', () => {
   const store = memory(); const w = createWorld({ seed: 1234, storage: store }); startRun(w);
