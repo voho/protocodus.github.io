@@ -202,8 +202,11 @@ function aiBuild(s,team,v,role,near,preferred){
 function towerType(v){
   const turrets=v.role('turret').length,rockets=v.role('rocketTower').length,{heavy,infantry}=v.seen;
   if(!turrets)return'turret';
-  if(heavy>infantry*1.2)return'rocketTower';
-  if(infantry>heavy*1.5)return'turret';
+  // A starting escort says little about the army to come; the mix leans only once a real force was seen.
+  if(heavy+infantry>=900){
+    if(heavy>infantry*1.2)return'rocketTower';
+    if(infantry>heavy*1.5)return'turret';
+  }
   return rockets<turrets?'rocketTower':'turret';
 }
 // Towers fan out across the approach from the enemy side instead of stacking on one spot.
