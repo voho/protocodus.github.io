@@ -1270,7 +1270,8 @@ async function prepareOperation(restore = false) {
     if (!assetStatus.ready) { $('loading-back').dataset.reload = 'true'; $('loading-back').textContent = 'Reload and retry'; throw new Error('Some battlefield art could not load. Reload the page to retry.'); }
     updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
     await nextPaint();
-    // A campaign operation brings its own settings, rival commander included; a skirmish reads the setup form.
+    // A campaign operation brings its own settings and ignores the rival commander choice; a skirmish, in
+    // any mode, reads the setup form.
     const doctrine = $('rival-doctrine').value, mission = campaign.skirmishMission();
     const prepared = restored?.game || await generateOperation(seed, operation?.difficulty ?? $('difficulty').value, operation?.options ?? {
       ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
