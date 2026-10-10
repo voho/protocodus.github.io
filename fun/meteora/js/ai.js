@@ -35,8 +35,11 @@ const ATTACK_RANGE = 1200, BREAK_RANGE = 150, ATTACK_TIME = 6;
 const FIRE_CONE = 4 * Math.PI / 180;
 
 export function createBrain(seed) {
+  const rng = makeRng(seed);
   return {
-    state: 'approach', timer: 0, rng: makeRng(seed), think: 0,
+    // Each pilot's first decision lands at a random point in the 1/20 s
+    // cycle, so a wave of ten does not all think on the same step.
+    state: 'approach', timer: 0, rng, think: rng.range(0, THINK),
     burstOn: false, burstTimer: 0, aim: [0, 0, 0], aimTimer: 0,
     breakDir: [0, 1, 0], extend: 700, jink: { strafe: 0, lift: 0, roll: 0, pitch: 0 }, jinkTimer: 0,
     wasLocked: false, lastControls: { ...NEUTRAL_CONTROLS, fire: false },

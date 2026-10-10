@@ -33,7 +33,7 @@ const FONT = '"Space Grotesk", system-ui, sans-serif';
 export function createHud(canvas) {
   const ctx = canvas.getContext('2d');
   let w = 0, h = 0, dpr = 1;
-  const v = new THREE.Vector3();
+  const v = new THREE.Vector3(), forwardV = new THREE.Vector3();
   const callouts = [];
 
   const resize = () => {
@@ -105,7 +105,7 @@ export function createHud(canvas) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const p = world.player, ship = p.ship;
       const pos = view.position;
-      const fwdV = new THREE.Vector3(0, 0, -1).applyQuaternion(view.quaternion);
+      const fwdV = forwardV.set(0, 0, -1).applyQuaternion(view.quaternion);
       const fwd = [fwdV.x, fwdV.y, fwdV.z];
       const target = world.target && world.target.alive ? world.target : null;
       const range = target ? Math.hypot(...target.ship.pos.map((c, i) => c - ship.pos[i])) : 1200;

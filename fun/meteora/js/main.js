@@ -30,6 +30,7 @@ import { createGlowBatch } from './glow.js';
 import { createPlumes } from './plumes.js';
 import { createProjectiles } from './projectiles.js';
 import { createHud } from './hud.js';
+import { createResolution } from './resolution.js';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -45,7 +46,7 @@ const controlState = createControlState(settings);
 let storage = null;
 try { storage = window.localStorage; } catch { /* no best score kept */ }
 
-let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight, input;
+let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight, input, resolution;
 let paused = false, deadTimer = 0, playerMesh;
 const enemyMeshes = new Map();
 const beltTime = { value: 0 };
@@ -68,7 +69,8 @@ async function boot() {
   renderer = new THREE.WebGLRenderer({
     canvas, antialias: true, powerPreference: 'high-performance', reversedDepthBuffer: true,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, RENDER.dprCap));
+  resolution = createResolution({ devicePixelRatio: window.devicePixelRatio || 1 });
+  renderer.setPixelRatio(resolution.ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -141,7 +143,6 @@ function launch() {
 
 function restart() {
   resetWorld(world);
-  fieldRender.restoreAll();
   for (const [id, mesh] of enemyMeshes) { scene.remove(mesh); plumes.forget(id); }
   enemyMeshes.clear();
   chase.reset();
@@ -201,7 +202,6 @@ function say(message) {
 function handleEvents(events) {
   for (const e of events) {
     switch (e.type) {
-      case 'staticRockRemoved': fieldRender.removeStatic(e.index); break;
       case 'fire': projectiles.flash(e.pos, e.team); break;
       case 'wave': say(`Wave ${e.n} incoming · ${e.count} interceptors`); break;
       case 'shipKilled': if (e.team === 1) say('Interceptor destroyed'); break;
@@ -213,8 +213,18 @@ function handleEvents(events) {
 let last = performance.now(), debugTimer = 0, frames = 0, frameMs = 0, lastControls = IDLE;
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const raw = now - last;
+  const dt = Math.min(0.1, raw / 1000);
   last = now;
+  // Adaptive resolution, fed only with frames that say something about the
+  // GPU: not while paused, hidden, or right after a stall.
+  if (!paused && document.visibilityState === 'visible' && raw > 0 && raw < 250) {
+    const ratio = resolution.frame(raw);
+    if (ratio !== renderer.getPixelRatio()) {
+      renderer.setPixelRatio(ratio);
+      renderer.setSize(window.innerWidth, window.innerHeight, false);
+    }
+  }
 
   const flying = world.state === 'flying' && !paused;
   document.body.classList.toggle('flying', flying);
@@ -291,7 +301,7 @@ function frame(now) {
       debugOut.textContent = [
         `fps ${(frames / debugTimer).toFixed(0)}  ${(frameMs / frames).toFixed(1)} ms`,
         `draws ${info.calls}  tris ${(info.triangles / 1e6).toFixed(2)}M  glow ${glow.count}`,
-        `cells ${fieldRender.stats.visible}/${fieldRender.stats.cells}`,
+        `rocks drawn ${fieldRender.stats.drawn}  pixel ratio ${renderer.getPixelRatio()}`,
         `state ${world.state}  wave ${world.wave}  enemies ${world.enemies.filter(e => e.alive).length}`,
         `speed ${Math.hypot(...p.ship.vel).toFixed(0)} m/s  throttle ${p.ship.throttle.toFixed(2)}  FA ${p.ship.fa ? 'on' : 'off'}`,
       ].join('\n');

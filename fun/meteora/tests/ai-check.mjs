@@ -37,7 +37,8 @@ test('it fires only inside the angle and range gates', () => {
     assert.ok(lead, 'lead exists');
     const to = normalize([0, 0, 0], sub([0, 0, 0], lead, e.ship.pos));
     assert.ok(Math.acos(Math.min(1, dot(to, forward([0, 0, 0], e.ship)))) <= 4 * Math.PI / 180 + 1e-6, 'angle gate');
-    assert.ok(dist(e.ship.pos, p.ship.pos) <= 1200, 'range gate');
+    // The gate was judged before this step moved both ships; allow one step of closing.
+    const r = dist(e.ship.pos, p.ship.pos); assert.ok(r <= 1200 + 3, `range gate: ${r.toFixed(3)} m`);
   });
   assert.ok(shots > 0, 'it did shoot');
 });
@@ -75,5 +76,18 @@ test('an enemy exactly on the player, both at rest, yields finite controls', () 
   const ctx = { field: createField(1, EMPTY), player: p, threat: calm, wasHit: false };
   const c = thinkEnemy(createBrain(1), e, ctx, DT);
   finite([c.pitch, c.yaw, c.roll, c.strafe, c.lift, c.throttleSet ?? 0]);
+});
+test('a wave of pilots spreads its decisions across steps', () => {
+  const p = ent(1, 0, PLAYER);
+  const ctx = { field: createField(1, EMPTY), player: p, threat: calm, wasHit: false };
+  const pilots = Array.from({ length: 10 }, (_, k) => ({ e: ent(10 + k, 1, ENEMY, { pos: [k * 50, 0, -2000] }), b: createBrain(100 + k) }));
+  const perStep = [];
+  for (let step = 0; step < 6; step++) {
+    let thinking = 0;
+    for (const { e, b } of pilots) { const before = b.lastControls; thinkEnemy(b, e, ctx, DT); if (b.lastControls !== before) thinking++; }
+    perStep.push(thinking);
+  }
+  assert.ok(Math.max(...perStep) <= 5, `decisions per step ${perStep}`);
+  assert.equal(perStep.reduce((a, c) => a + c, 0), 10, 'each pilot decides once per 1/20 s');
 });
 await run();

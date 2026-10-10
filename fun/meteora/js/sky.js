@@ -244,6 +244,26 @@ function bake(renderer, size, fragmentShader, uniforms) {
   return target;
 }
 
+function bakeFlat(renderer, width, height, fragmentShader) {
+  const target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: false });
+  target.texture.wrapS = THREE.RepeatWrapping;
+  const scene = new THREE.Scene();
+  const material = new THREE.ShaderMaterial({
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader, depthTest: false, depthWrite: false,
+  });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const previous = renderer.getRenderTarget(), toneMapping = renderer.toneMapping;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setRenderTarget(target);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(previous);
+  renderer.toneMapping = toneMapping;
+  material.dispose();
+  return target.texture;
+}
+
 const LAYER_VERTEX = /* glsl */`
 varying vec3 vDir;
 uniform mat3 uSpin;
@@ -332,35 +352,48 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * w;
 }
 `;
+const PLANET_BAKE = /* glsl */`
+varying vec2 vUv;
+${COMMON}
+void main() {
+  float latitude = (vUv.y - 0.5) * 3.14159265;
+  float lat = sin(latitude);
+  float lon = (vUv.x - 0.5) * 6.2831853;
+  // Sample the noise on the sphere, not the map, so there is no seam at the
+  // date line and no pinch at the poles.
+  vec3 p = vec3(cos(latitude) * cos(lon), lat, cos(latitude) * sin(lon));
+  float turb = fbm(vec3(lat * 9.0, p.x * 1.6, p.z * 1.6 + 3.0)) * 0.55 + fbm(vec3(lat * 30.0, p.x * 5.0, p.z * 5.0 + 7.0)) * 0.2;
+  float bands = 0.5 + 0.5 * sin(lat * 26.0 + turb * 3.5);
+  vec3 col = mix(vec3(0.78, 0.6, 0.42), vec3(0.95, 0.88, 0.74), bands);
+  col = mix(col, vec3(0.62, 0.42, 0.32), smoothstep(0.55, 0.8, fbm(vec3(lat * 14.0, p.x * 3.0, p.z * 3.0 + 11.0))) * 0.5);
+  // A great storm south of the equator.
+  vec2 storm = vec2((lon - 0.9) * 2.2, (lat + 0.32) * 7.0);
+  col = mix(col, vec3(0.85, 0.45, 0.32), exp(-dot(storm, storm) * 3.0) * 0.8);
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
 const PLANET_FRAGMENT = /* glsl */`
 varying vec3 vNormal;
 varying vec3 vLocal;
 varying vec3 vWorld;
+uniform sampler2D uAlbedo;
 uniform vec3 uSun;
 uniform vec3 uCenter;
 uniform vec3 uPole;
 uniform float uRadius;
-${COMMON}
 void main() {
   vec3 n = normalize(vNormal);
-  float lat = vLocal.y;
-  float lon = atan(vLocal.z, vLocal.x);
-  float turb = fbm(vec3(lat * 9.0, lon * 1.6, 3.0)) * 0.55 + fbm(vec3(lat * 30.0, lon * 5.0, 7.0)) * 0.2;
-  float bands = 0.5 + 0.5 * sin(lat * 26.0 + turb * 3.5);
-  vec3 col = mix(vec3(0.78, 0.6, 0.42), vec3(0.95, 0.88, 0.74), bands);
-  col = mix(col, vec3(0.62, 0.42, 0.32), smoothstep(0.55, 0.8, fbm(vec3(lat * 14.0, lon * 3.0, 11.0))) * 0.5);
-  // A great storm south of the equator.
-  vec2 storm = vec2((lon - 0.9) * 2.2, (lat + 0.32) * 7.0);
-  col = mix(col, vec3(0.85, 0.45, 0.32), exp(-dot(storm, storm) * 3.0) * 0.8);
+  vec3 l = normalize(vLocal);
+  vec2 uv = vec2(atan(l.z, l.x) / 6.2831853 + 0.5, asin(clamp(l.y, -1.0, 1.0)) / 3.14159265 + 0.5);
+  vec3 col = texture2D(uAlbedo, uv).rgb;
   float ndl = dot(n, uSun);
   float light = smoothstep(-0.08, 0.35, ndl) * (0.25 + 0.75 * max(ndl, 0.0));
   // Shadow of the rings on the cloud tops.
-  vec3 toSun = uSun;
-  float denom = dot(toSun, uPole);
+  float denom = dot(uSun, uPole);
   if (abs(denom) > 1e-3) {
     float t = -dot(vWorld - uCenter, uPole) / denom;
     if (t > 0.0) {
-      float rr = length(vWorld + toSun * t - uCenter) / uRadius;
+      float rr = length(vWorld + uSun * t - uCenter) / uRadius;
       float ring = smoothstep(1.4, 1.5, rr) * smoothstep(2.3, 2.15, rr) * (0.55 + 0.45 * sin(rr * 60.0));
       light *= 1.0 - 0.75 * ring;
     }
@@ -474,6 +507,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
   const pole = new THREE.Vector3(0.25, 1, -0.18).normalize();
   const planetUniforms = {
     uSun: { value: sunDir }, uCenter: { value: center }, uPole: { value: pole }, uRadius: { value: radius },
+    uAlbedo: { value: bakeFlat(renderer, 1024, 512, PLANET_BAKE) },
   };
   const planet = new THREE.Mesh(new THREE.SphereGeometry(radius, 96, 64),
     new THREE.ShaderMaterial({ vertexShader: PLANET_VERTEX, fragmentShader: PLANET_FRAGMENT, uniforms: planetUniforms }));
@@ -502,6 +536,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
         v.mesh.material.uniforms.uSpin.value.copy(m3.setFromMatrix4(spin));
       }
       for (const s of stars) {
+        s.points.material.uniforms.uScale.value = renderer.getPixelRatio();
         s.points.position.copy(camera.position).multiplyScalar(1 - s.parallax);
         s.points.setRotationFromAxisAngle(s.axis, time * s.rate);
       }
