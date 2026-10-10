@@ -252,7 +252,7 @@ function expansionGround(s,team,v,ore,origin){
 // Returns {held, saving}: credits to hold back for the expansion. Production continues from everything above
 // it. While saving for the vehicle the hold grows from 35% to its full price over 45 seconds; once the
 // vehicle is paid only the outpost's next structure is held.
-function expandAI(s,team,ai,v,k,directive){
+function expandAI(s,team,ai,v,k,directive,pressed){
   rememberMiningSites(s,team,ai);
   const cores=v.cores,constructors=v.role('constructor');
   if(ai.outpostId){
@@ -277,7 +277,7 @@ function expandAI(s,team,ai,v,k,directive){
     const spot=expansionGround(s,team,v,ore,unit)||{x:Math.floor(unit.x)-1,y:Math.floor(unit.y)-1};
     ai.expansion={x:spot.x,y:spot.y,oreX:ore.x,oreY:ore.y,unitId:unit.id,startedAt:s.time,lastProgressAt:s.time,lastX:unit.x,lastY:unit.y};
   }
-  if(!ai.expansion&&cores.length<k.bases&&v.done('factory').length&&s.time>=(ai.nextExpand??k.expandAt)){
+  if(!ai.expansion&&!pressed&&cores.length<k.bases&&v.done('factory').length&&s.time>=(ai.nextExpand??k.expandAt)){
     const base=cores.find(e=>e.progress>=1);if(!base)return{held:0};
     const origin=center(base),threats=v.intel.filter(m=>m.kind==='building'||s.time-m.seenAt<60);
     const sites=(ai.miningSites||[]).filter(site=>cores.every(core=>distance(center(core),site)>20)&&threats.every(m=>distance(m,site)>18)).sort((a,b)=>distance(a,origin)-distance(b,origin)||a.y-b.y||a.x-b.x);
@@ -290,7 +290,8 @@ function expandAI(s,team,ai,v,k,directive){
   if(plan.unitId&&!unit){delete ai.expansion;ai.nextExpand=s.time+30;return{held:0};}
   const cost=UNITS[raceUnit(s,team,'constructor')].cost;
   if(!unit){
-    if(!v.done('factory').length)return{held:0};
+    // A broken army or a base under attack comes first: the vehicle waits, and nothing is held for it.
+    if(!v.done('factory').length||pressed&&!v.queued.constructor)return{held:0};
     if(!v.queued.constructor&&trainUnit(s,team,raceUnit(s,team,'constructor')).ok)v.queued.constructor=1;
     ai.mode='Preparing a nexus construction vehicle';
     return{held:v.queued.constructor?0:cost*clamp((s.time-plan.startedAt)/45,.35,1),saving:true};
@@ -328,13 +329,15 @@ function wallPlan(s,team,ai,v,k,rally){
   const flooded={};
   for(const tower of [...v.done('turret'),...v.done('rocketTower')].sort(byId)){
     if(tried.includes(tower.id)||tried.length>=64)continue;
-    tried.push(tower.id);
     const at=center(tower);
-    if(v.role('wall').some(w=>distance(center(w),at)<tower.size/2+3.5))continue;
+    if(v.role('wall').some(w=>distance(center(w),at)<tower.size/2+3.5)){tried.push(tower.id);continue;}
     const front=direction(enemy.x-at.x,enemy.y-at.y),side={x:-front.y,y:front.x},reach=tower.size/2+2,half=tower.size===1?1:2;
     const mid={x:at.x+front.x*reach,y:at.y+front.y*reach};
     const plan=planWallLine(s,team,Math.floor(mid.x-side.x*half),Math.floor(mid.y-side.y*half),Math.floor(mid.x+side.x*half),Math.floor(mid.y+side.y*half));
     const cells=[];for(const c of plan.cells){if(!c.ok)break;cells.push(c);}
+    // Passing units or a momentary shortfall only postpone the wall; ground that cannot take it settles it.
+    if(cells.length<2&&['Insufficient credits','Unit in construction area'].includes(plan.cells.find(c=>!c.ok)?.reason))continue;
+    tried.push(tower.id);
     if(cells.length<2||!keepsGroundOpen(s,team,ai,v,cells,rally,flooded))continue;
     return{tower,cells,from:cells[0],to:cells.at(-1)};
   }
@@ -394,16 +397,19 @@ function buildBase(s,team,ai,v,k,power,rally,held){
   else if(power.supply-power.demand<25)want={role:'reactor',essential:true};
   else if(!done('barracks'))want={role:'barracks',essential:true};
   else if(!done('factory')&&s.time>(easy?70:35))want={role:'factory',essential:true};
-  else if(k.lab&&!count('lab')&&s.time>(hard?105:160))want={role:'lab'};
-  else if(count('factory')<k.foundries&&s.time>(hard?90:150))want={role:'factory'};
-  else if(baseTowers<k.towers&&s.time>75)want={role:towerType(v),preferred:frontSpot(s,team,core,baseTowers)};
-  else if(!easy&&count('refinery')<(hard?4:3)+v.cores.length-1&&(ore=site()))want={role:'refinery',near:ore};
-  // A single busy foundry cannot keep up with the doctrine's vehicle share: add another.
-  else if(!easy&&vehicleGap&&count('factory')<Math.min(k.producers-1,1+v.cores.length))want={role:'factory'};
-  else if(!easy&&!count('capacitor')&&s.time>160&&credits-held>600)want={role:'capacitor',optional:true};
-  else if(k.walls&&s.time>150&&credits-held>200&&(ai.nextWalls??0)<=s.time){
+  // Once two towers stand, walls in front of them come before anything else on the list.
+  if(!want&&k.walls&&baseTowers>=2&&s.time>150&&credits-held>200&&(ai.nextWalls??0)<=s.time){
     const plan=wallPlan(s,team,ai,v,k,rally);ai.nextWalls=s.time+20;
     if(plan){const result=buildWallLine(s,team,plan.from.x,plan.from.y,plan.to.x,plan.to.y);for(const id of result.ids||[])v.add(s.entities.find(e=>e.id===id));if(result.ok){v.placed=true;ai.mode='Walling the sentry line';}return 0;}
+  }
+  if(!want){
+    if(k.lab&&!count('lab')&&s.time>(hard?105:160))want={role:'lab'};
+    else if(count('factory')<k.foundries&&s.time>(hard?90:150))want={role:'factory'};
+    else if(baseTowers<k.towers&&s.time>75)want={role:towerType(v),preferred:frontSpot(s,team,core,baseTowers)};
+    else if(!easy&&count('refinery')<(hard?4:3)+v.cores.length-1&&(ore=site()))want={role:'refinery',near:ore};
+    // A single busy foundry cannot keep up with the doctrine's vehicle share: add another.
+    else if(!easy&&vehicleGap&&count('factory')<Math.min(k.producers-1,1+v.cores.length))want={role:'factory'};
+    else if(!easy&&!count('capacitor')&&s.time>160&&credits-held>600)want={role:'capacitor',optional:true};
   }
   if(!want){
     if(!easy&&count('barracks')<2&&credits-held>(k.mix.rifle>.4?500:900)&&s.time>(hard?0:240))want={role:'barracks',optional:true};
@@ -493,7 +499,9 @@ function produce(s,team,v,k,power,held){
   if(k.engineers&&vehicles>=6&&v.count('engineer')<Math.max(1,Math.floor(vehicles*k.engineers))&&free('tank'))train('engineer',free('tank'));
   if(!['rifle','tank'].some(role=>free(role)))return;
   // Shares cover only what can be built right now, so a missing foundry does not turn its share into rockets.
-  const shares=composition(s,team,v,k,role=>producers[['rifle','rocket','scout'].includes(role)?'barracks':'factory'].some(e=>role!=='striker'||research.advancedBallistics&&e.upgrades?.advancedProduction));
+  // A foundry under construction keeps its roles' share, so the barracks do not spend it all on infantry.
+  const planned=role=>['rifle','rocket','scout'].includes(role)?v.role('barracks').length>0:role==='striker'?producers.factory.some(e=>research.advancedBallistics&&e.upgrades?.advancedProduction):v.role('factory').length>0;
+  const shares=composition(s,team,v,k,planned);
   for(let n=0;n<8;n++){
     const army=COMBAT.reduce((sum,role)=>sum+v.count(role),0),scoutShort=v.count('scout')<k.scouts;
     if(army>=k.armyCap&&!scoutShort)break;
@@ -948,11 +956,13 @@ export function thinkAI(s,team=1){
     (byBase(e)||distance(e,ctx.rally)<12)&&(entityRole(e)!=='scout'||shooters.has(e.id))||
     zone&&distance(e,zone)<zone.r+4||raiders.has(e.id)));
   if(v.core){
-    // Saving for an expansion never outranks rebuilding a broken army or answering an attack.
-    const plan=expandAI(s,team,ai,v,k,directive),held=plan.saving&&(intruders.length||v.army.length<k.waveMin)?0:plan.held;
+    // Saving for an expansion never outranks rebuilding a broken army, answering an attack or matching the
+    // force last seen in the field, unless the treasury already covers both.
+    const ours=v.army.reduce((sum,u)=>sum+aiCombatPower(u),0),seenForce=v.intel.reduce((sum,m)=>sum+(m.kind==='unit'?memoryPower(m):0),0);
+    const pressed=(intruders.length>0||v.army.length<k.waveMin||ours<seenForce*.8)&&s.teams[team].credits<UNITS[raceUnit(s,team,'constructor')].cost+800;
+    const plan=expandAI(s,team,ai,v,k,directive,pressed),held=plan.held;
     const waiting=buildBase(s,team,ai,v,k,power,ctx.rally,held);
     for(const b of v.buildings)if(b.progress>=1&&b.hp<b.maxHp*.7&&s.teams[team].credits>150)b.repairing=true;
-    const pressed=intruders.length>0||v.army.length<k.waveMin;
     const tech=researchAI(s,team,v,k,power,held+waiting,pressed);
     produce(s,team,v,k,power,held+waiting+tech);
     for(const b of v.buildings){

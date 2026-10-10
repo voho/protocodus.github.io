@@ -79,8 +79,8 @@ function fortify(s,core){
   void length;
 }
 // Each doctrine plays a passive opponent whose nexus is kept standing, so the game runs its full course.
-function signature(doctrine,{seconds=480,seed='SIGNATURE-1',fortified=false}={}){
-  const s=createGame(seed,'hard',{...MAP_SIZES.standard,profile:'rift',aiProfiles:{1:{doctrine}}}),core=s.entities.find(e=>e.team===0&&entityRole(e)==='core');
+function signature(doctrine,{seconds=480,seed='SIGNATURE-1',profile='rift',fortified=false}={}){
+  const s=createGame(seed,'hard',{...MAP_SIZES.standard,profile,aiProfiles:{1:{doctrine}}}),core=s.entities.find(e=>e.team===0&&entityRole(e)==='core');
   if(fortified)fortify(s,core);
   const out={doctrine,s,firstRaid:null,harass:false,siege:false,peak:Object.create(null),nexusAt:null,maxWave:0};
   for(let tick=0;tick<seconds*4;tick++){
@@ -97,7 +97,7 @@ function signature(doctrine,{seconds=480,seed='SIGNATURE-1',fortified=false}={})
   return out;
 }
 const results={};
-const run=(doctrine,options={})=>results[`${doctrine}${options.fortified?':fortified':''}`]??=signature(doctrine,options);
+const run=(doctrine,options={})=>results[`${doctrine}:${JSON.stringify(options)}`]??=signature(doctrine,options);
 const infantry=r=>((r.peak.rifle||0)+(r.peak.rocket||0)+(r.peak.scout||0))/Math.max(1,ROLES.reduce((n,role)=>n+(r.peak[role]||0),0));
 
 test('Swarm raids early and often with infantry, rovers and strikers, and hunts haulers',{timeout:120000},()=>{
@@ -134,9 +134,9 @@ test('Siegebreaker brings guns, spotters and stand-off sieges',{timeout:120000},
 });
 
 test('AI walls never seal production bays, hauler lanes or the way out',{timeout:120000},()=>{
-  for(const r of [run('ironclad'),run('balanced')]){
+  for(const r of [run('ironclad'),run('ironclad',{seed:'SIGNATURE-2',profile:'highlands'})]){
     const {s}=r;rebuildNavigation(s);
-    assert(s.entities.some(e=>e.team===1&&entityRole(e)==='wall'),`${r.doctrine} built walls`);
+    assert(s.entities.filter(e=>e.team===1&&entityRole(e)==='wall').length>=4,`${r.doctrine} built walls`);
     const open=(x,y)=>x>=0&&y>=0&&x<s.width&&y<s.height&&!s.blocked[y*s.width+x]&&s.regionSize[s.regions[y*s.width+x]]>=40;
     const ring=e=>{const cells=[];for(let y=e.y-2;y<=e.y+e.size+1;y++)for(let x=e.x-2;x<=e.x+e.size+1;x++)if(open(x,y))cells.push(y*s.width+x);return cells;};
     const home=s.entities.find(e=>e.team===1&&entityRole(e)==='core'),homeRegion=s.regions[ring(home)[0]];

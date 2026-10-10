@@ -275,9 +275,10 @@ test('mission directives steer the commander: attack point, wave size and defend
   void units;
 });
 
-test('noExpand directives stop nexus expansion',()=>{
+test('noExpand directives stop nexus expansion, and a depleted army postpones it',()=>{
   const plan=noExpand=>{
-    const {s,building,field}=scene();
+    const {s,unit,building,field}=scene();
+    for(let i=0;i<6;i++)unit('tank',52+i*1.2,14);
     s.mission=createGame('directive-check','hard',{width:72,height:56,mission:'drill'}).mission;s.mission.directives={1:{attack:null,defend:null,noExpand}};
     building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=5000;
     s.ai.nextExpand=0;field(30,30);
@@ -285,11 +286,16 @@ test('noExpand directives stop nexus expansion',()=>{
   };
   assert(plan(false),'Without the directive the commander plans an expansion');
   assert.equal(plan(true),undefined,'noExpand holds it back');
+  const {s,building,field}=scene();
+  building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=1500;s.ai.nextExpand=0;field(30,30);
+  think(s);
+  assert.equal(s.ai.expansion,undefined,'With no army left and a thin treasury the commander rebuilds before it expands');
 });
 
 test('expansion sites ignore concealed enemy structures but respect remembered ones',()=>{
   const plan=variant=>{
-    const {s,building,remember,field}=scene();
+    const {s,unit,building,remember,field}=scene();
+    for(let i=0;i<6;i++)unit('tank',52+i*1.2,14);
     building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=5000;
     s.ai.nextExpand=0;field(30,30);
     const intruder=variant==='open'?null:building('refinery',24,26,0);
