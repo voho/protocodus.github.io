@@ -361,6 +361,10 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
   #objectives-list li{font-size:11px}
   #transmission-text{font-size:11px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
   body[data-commands=true] .objectives #objectives-list,body[data-commands=true] .objectives #transmission{display:none}
+  /* The message log rises from the selection panel, so an open list ends above it and scrolls, and a
+     transmission takes the list's place while it plays. */
+  #objectives-list{max-height:max(76px,calc(100dvh - 530px))}
+  .objectives:has(#transmission:not([hidden])) #objectives-list{display:none}
 }
 /* Short landscape screens: a wider, folded tracker whose transmission stays clear of the tactical map
    (objectives-hud.js also caps its height above the map, scrolling the list), and toasts beside it rather
@@ -375,13 +379,15 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
   #notifications{top:calc(var(--top) + var(--edge));left:calc(max(var(--edge),env(safe-area-inset-left)) + 330px);transform:none;max-width:calc(100% - 590px)}
 }
 /* The tracker owns the top-left corner. On wide screens the message log runs beside it; on phones the idle
-   buttons and the comms line stack below it (--objectives-height); on short landscape screens the comms line
+   buttons and the comms line stack below it (--objectives-height), and the comms line gives way to an open list
+   or a transmission, which would push it into the message log; on short landscape screens the comms line
    moves to the top right, and gives way to an open console as it does on phones. */
 @media(min-width:901px) and (min-height:501px){body:has(#objectives:not([hidden])) #notifications{left:calc(max(var(--edge),env(safe-area-inset-left)) + 288px);width:min(460px,calc(100% - 580px))}}
 @media(min-width:901px) and (max-width:1190px) and (min-height:501px){body:has(#objectives:not([hidden])) #notifications{left:calc(max(var(--edge),env(safe-area-inset-left)) + 252px);width:min(440px,calc(100% - 544px))}}
 @media(max-width:680px){
   body:has(#objectives:not([hidden])) .idle-group{top:calc(66px + var(--objectives-height,0px))}
   body:has(#objectives:not([hidden])) #comms{top:calc(108px + var(--objectives-height,0px))}
+  body:has(#objectives:not([hidden])[data-collapsed=false]) #comms,body:has(#objectives:not([hidden]) #transmission:not([hidden])) #comms{display:none}
 }
 @media(max-height:500px) and (min-width:681px){
   #comms{top:calc(var(--top) + var(--edge));bottom:auto;left:auto;right:max(var(--edge),env(safe-area-inset-right));max-width:min(300px,calc(100% - 610px))}

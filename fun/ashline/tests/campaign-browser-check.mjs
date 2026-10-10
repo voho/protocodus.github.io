@@ -248,12 +248,23 @@ try {
   await until(phone, () => !document.querySelector('#objectives').hidden && ashline.state.time > 1);
   const layout = await phone.evaluate(() => { const box = id => document.querySelector(id).getBoundingClientRect(); const a = box('#objectives'), b = box('#command-toggle'); return { collapsed: document.querySelector('#objectives').dataset.collapsed, overlap: a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom, right: a.right, width: innerWidth }; });
   assert.equal(layout.collapsed, 'true'); assert.equal(layout.overlap, false); assert(layout.right <= layout.width);
-  // The idle buttons and the comms line stack below the tracker in its corner.
-  const stack = await phone.evaluate(() => { document.querySelector('#comms').hidden = false; const box = selector => document.querySelector(selector).getBoundingClientRect(), a = box('#objectives'); return { idle: box('.idle-group').top >= a.bottom, comms: box('#comms').top >= box('.idle-group').top + 36 }; });
-  assert.deepEqual(stack, { idle: true, comms: true }, 'Idle buttons and comms sit below the tracker');
+  // The message log rises from the selection panel, so the comms line gives way to a transmission or an open
+  // list, and a transmission takes the open list's place while it plays.
+  const shown = selector => phone.evaluate(selector => getComputedStyle(document.querySelector(selector)).display !== 'none', selector);
+  await until(phone, () => !document.querySelector('#transmission').hidden);
+  await phone.evaluate(() => { document.querySelector('#comms').hidden = false; });
+  assert.equal(await shown('#comms'), false, 'The comms line gives way to a transmission');
   await phone.locator('#objectives-toggle').tap();
+  assert.equal(await shown('#objectives-list'), false, 'A transmission takes the open list\'s place');
+  await phone.screenshot({ path: `${output}/campaign-transmission-phone.png` });
+  await until(phone, () => document.querySelector('#transmission').hidden, null, 60000);
   assert(await phone.locator('#objectives-list').isVisible());
+  assert.equal(await shown('#comms'), false, 'The comms line gives way to the open list');
   await phone.screenshot({ path: `${output}/campaign-tracker-phone.png` });
+  // Folded and quiet, the tracker has the idle buttons and the comms line below it in its corner.
+  await phone.locator('#objectives-toggle').tap();
+  const stack = await phone.evaluate(() => { const box = selector => document.querySelector(selector).getBoundingClientRect(), a = box('#objectives'); return { idle: box('.idle-group').top >= a.bottom, comms: box('#comms').top >= box('.idle-group').top + 36 }; });
+  assert.deepEqual(stack, { idle: true, comms: true }, 'Idle buttons and comms sit below the tracker');
   await phone.close();
 
   // Landscape phone: the tracker starts folded and, open or folded, stays above the tactical map.
