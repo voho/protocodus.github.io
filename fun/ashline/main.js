@@ -13,6 +13,8 @@ import { saveGame, loadGame, getSaveInfo } from './save.js';
 import { nextPaint, generateOperation } from './loading.js';
 import { assignControlGroup, controlGroupMembers } from './control-groups.js';
 import { advanceSimulationFrame } from './frame-scheduler.js';
+import { createCampaign } from './campaign-ui.js';
+import { missionAllows } from './mission.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('world'), tacticalMap = document.querySelector('.tactical-map');
@@ -32,6 +34,9 @@ let wallPreviewKey = '', wallPreviewAt = 0;
 let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
+// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation
+// and centres the camera on an objective's zone.
+const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => { view.x = x; view.y = y; clampCamera(); } });
 audio.setPaused(true);
 const soundscape = createSoundscape(audio);
 const keys = new Set();
@@ -211,11 +216,13 @@ function bark(unit, context) {
 // New simulation events for the player: kind picks the tone, alert and comms reaction; saves from before
 // typed events fall back to their text. Every toast here is quiet: the soundscape gives each event its
 // own sound. Only the player's own events are read, except to check that a promotion's kill was seen.
+// Scripted dialogue belongs to the objective tracker, which queues it as transmissions.
 function reportEvents(from) {
   const events = game.events;
   for (let i = from; i < events.length; i++) {
     const event = events[i];
     if (event.team !== 0 && event.team !== undefined) continue;
+    if (campaign.event(event)) continue;
     const route = eventRoute(event), point = Number.isFinite(event.x) && Number.isFinite(event.y) ? { x: event.x, y: event.y } : {};
     let text = event.text;
     if (route.kind === 'promotion') {
@@ -329,7 +336,9 @@ function setTab(tab) {
   $('catalog-tip').textContent = tab === 'build' ? 'Build within 7 tiles of a finished structure. Shift-click the ground to keep placing.' : 'Recruit into an available production queue. Shift-click or Shift + key recruits five.';
   $('catalog').replaceChildren();
   const defs = tab === 'build' ? BUILDINGS : UNITS;
-  for (const [index, type] of (tab === 'build' ? buildTypes.map(role => raceBuilding(game, 0, role)) : unitTypes.map(role => raceUnit(game, 0, role))).entries()) {
+  // Operations list only the structures and units they authorize; hotkeys follow the listed cards.
+  const listed = tab === 'build' ? buildTypes.filter(role => missionAllows(game, 0, 'buildings', role)).map(role => raceBuilding(game, 0, role)) : unitTypes.filter(role => missionAllows(game, 0, 'units', role)).map(role => raceUnit(game, 0, role));
+  for (const [index, type] of listed.entries()) {
     const def = defs[type], button = document.createElement('button');
     button.className = 'build-card'; button.dataset.type = type;
     button.setAttribute('aria-label', `${tab === 'build' ? 'Construct' : 'Recruit'} ${def.name}, ${def.cost} credits`);
@@ -768,6 +777,7 @@ function updateHUD() {
   $('army').textContent = `${deployed} / ${capacity}`;
   $('army').closest('.resource').title = `${deployed} deployed · ${reserved} reserved · ${nexuses} completed nexuses × ${UNIT_CAP_PER_NEXUS} slots · maximum ${UNIT_CAP}. Deploy another nexus to expand capacity.`;
   $('mission-time').textContent = minutes(game.time);
+  campaign.hud(game);
   for (const id of view.selected) if (!owned.has(id)) view.selected.delete(id);
   if (heldPromotions.size) releaseHeldPromotions();
   let selection = game.entities.filter(e => e.team === 0 && e.hp > 0 && view.selected.has(e.id));
@@ -1160,6 +1170,7 @@ function showMenu(finished = false, guide = false) {
   $('match-summary').hidden = !finished;
   if (finished) $('match-summary').textContent = `${minutes(game.time)} in field  ·  ${game.teams[0].kills || 0} enemies destroyed`;
   $('full-guide').open = guide;
+  campaign.menu(game, finished);
   if (!$('menu').open) $('menu').showModal();
   $('pause').textContent = '▶'; $('pause').setAttribute('aria-label', 'Resume game');
   refreshSaveControls(); updateHUD();
@@ -1219,6 +1230,7 @@ async function prepareOperation(restore = false) {
   $('loading').removeAttribute('data-error');
   $('loading').setAttribute('aria-busy', 'true');
   updateLoading(0, restore ? 'Reading your saved operation' : 'Preparing your expedition');
+  const operation = campaign.takeLaunch(restore);
   $('briefing').close(); $('menu').close();
   document.body.dataset.screen = 'loading';
   $('loading').showModal();
@@ -1236,8 +1248,8 @@ async function prepareOperation(restore = false) {
       refreshSaveControls(restored.reason);
       return;
     }
-    const seed = restored?.game.seed || $('seed').value.trim() || randomSeed();
-    $('seed').value = seed;
+    const seed = restored?.game.seed || operation?.seed || $('seed').value.trim() || randomSeed();
+    if (!operation) $('seed').value = seed;
     if (restored) {
       $('difficulty').value = restored.game.difficulty;
       const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === restored.game.width && MAP_SIZES[id].height === restored.game.height);
@@ -1259,8 +1271,9 @@ async function prepareOperation(restore = false) {
     if (!assetStatus.ready) { $('loading-back').dataset.reload = 'true'; $('loading-back').textContent = 'Reload and retry'; throw new Error('Some battlefield art could not load. Reload the page to retry.'); }
     updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
     await nextPaint();
+    // A campaign operation brings its own settings, rival commander included; a skirmish reads the setup form.
     const doctrine = $('rival-doctrine').value, mission = skirmishMission($('skirmish-mode').value);
-    const prepared = restored?.game || await generateOperation(seed, $('difficulty').value, {
+    const prepared = restored?.game || await generateOperation(seed, operation?.difficulty ?? $('difficulty').value, operation?.options ?? {
       ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
       ...(doctrine === 'random' || Object.hasOwn(DOCTRINES, doctrine) ? { aiProfiles: { 1: { doctrine } } } : {}), ...(mission ? { mission } : {}),
     });
@@ -1280,11 +1293,14 @@ async function prepareOperation(restore = false) {
       showMenu(game.status !== 'playing');
       $('menu-description').textContent = 'Operation restored. Resume when ready.';
       refreshSaveControls('Loaded the saved operation.');
+    } else if (operation?.prestart) {
+      showMenu(); playSound('confirm');
     } else {
       paused = false; audio.setPaused(false);
       $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
       canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
-      notify(`${RACES[teamRace(game, 0)].name} deployed. Build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
+      // The simulation's opening line is pinned by save and digest checks; the Charter framing lives here.
+      if (!game.mission) notify(`${RACES[teamRace(game, 0)].name} claim filed. Keep the nexus running: build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
     }
     requestFrame();
   } catch (error) {

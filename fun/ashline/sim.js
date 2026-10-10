@@ -5,7 +5,7 @@ import {createFlockSnapshot,flockSteering} from './flocking.js';
 import {findTrafficDetour} from './traffic.js';
 import {MAP_SIZES,MAP_PROFILES,mapLayout,hash,generateMap} from './terrain.js';
 import {newAI,aiState,thinkAI,teamPace} from './ai.js';
-import {missionDefinition,missionSettings,createMissionState,updateMission,settleMission,missionAllows,noteDelivery,noteTrained} from './mission.js';
+import {missionDefinition,missionSettings,createMissionState,updateMission,settleMission,missionAllows,noteDelivery,noteTrained,missionDeployment,noteTagLost} from './mission.js';
 import {ABILITIES,abilitySpeed,abilityRange,abilityDamageTaken,endHeldAbility} from './abilities.js';
 export {MAP_SIZES,MAP_PROFILES,mapLayout};
 export const UNIT_CAP=2000;
@@ -319,7 +319,7 @@ export function createGame(seed='ASH-001',difficulty='normal',options={}){
   }
   // Initial footprints must never contain shards, including the generated field fringe.
   for(const e of s.entities)if(e.kind==='building')for(let y=e.y;y<e.y+e.size;y++)for(let x=e.x;x<e.x+e.size;x++){s.terrain[y*W+x]=0;s.minerals[y*W+x]=0;}
-  if(operation)createMissionState(s,options.mission);
+  if(operation)createMissionState(s,options.mission,options);
   rebuildNavigation(s);for(const e of [...s.entities])deliverRefineryHauler(s,e);
   // Statistics start after the opening deployment: starting forces and haulers are not counted as trained.
   s.teams.forEach((team,index)=>{team.stats={...Object.fromEntries(TEAM_STATS.map(key=>[key,0])),peakArmy:armySize(s,index)};});
@@ -424,6 +424,7 @@ export function deploymentStatus(s,team,unitId,x,y){
   if(!Number.isInteger(x)||!Number.isInteger(y))return bad('Place on the ground grid');
   const d=BUILDINGS[raceBuilding(s,team,'core')];
   if(x<1||y<1||x+d.size>=s.width||y+d.size>=s.height)return bad('Outside construction zone');
+  if(s.mission){const reason=missionDeployment(s,team,x+d.size/2,y+d.size/2);if(reason)return bad(reason);}
   if(distance(u,{x:x+d.size/2,y:y+d.size/2})>NEXUS_DEPLOY_RANGE)return bad(`Deploy within ${NEXUS_DEPLOY_RANGE} tiles of the construction vehicle`);
   rebuildNavigation(s);
   // Check exploration first so an invalid preview cannot disclose unseen ground.
@@ -1220,6 +1221,7 @@ function hurt(s,target,amount,attacker){
   const engaging=target.kind==='unit'&&(target.order.type==='attack'||target.order.type==='attackMove'||s.time-(target.lastShot??-99)<3);
   if(target.team===0&&!engaging&&s.time-(s.alertAt??-99)>8){s.alertAt=s.time;event(s,`${definition(target).name} under attack`,0,{kind:'underAttack',...subject(target)});}
   if(target.hp<=0){
+    if(s.mission&&target.tag)noteTagLost(s,target);
     s.teams[attacker.team].kills++;
     const structure=target.kind==='building';tally(s,attacker.team,structure?'structureKills':'unitKills');tally(s,target.team,structure?'structuresLost':'lost');
     // Walls count toward team kills, but a cheap unarmed barrier never earns a unit its rank.
