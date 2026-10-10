@@ -2011,6 +2011,8 @@ export function createSky(THREE) {
        logic in `update` swaps it in through the ordinary out-of-sight dip. */
     if (platesBound) return;
     if (!clearSettled || !stormSettled) return;
+    // Loaded or failed, the boot has its answer either way
+    settled();
     const any = clearPlate || stormPlate || sunrisePlate || nightPlate;
     if (!any) return;
     panoClear.value = clearPlate || sunrisePlate || stormPlate || any;
@@ -2018,6 +2020,23 @@ export function createSky(THREE) {
     panoStage = 1;
     platesBound = true;
   };
+  /* The weather pair settled, for the boot to wait on — see `snapPlates`. */
+  let settled = null;
+  const platesReady = new Promise((resolve) => { settled = resolve; });
+  /* THE TITLE OPENS ON THE PHOTOGRAPH. The reveal above eases each plate in
+     over about a second, which in play is a picture arriving through the
+     sky; at boot it was the first thing anybody saw — the curtain lifted on
+     the procedural ranges, and the backdrop of the title screen turned from
+     grey cones into the Alps while it was being read. The boot waits for the
+     pair (a hundred kilobytes) beside the snow, and then this finishes the
+     stages and the reveal at once, behind the curtain: the warm-up render
+     uploads both plates, so the first frame shown has them at full strength. */
+  function snapPlates() {
+    if (!platesBound) return;
+    panoStage = 0;
+    panoTarget = 1;
+    panoReady = panoWish;
+  }
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
     new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
@@ -3721,7 +3740,7 @@ export function createSky(THREE) {
      One number, owned in one place, read by both. */
   return {
     group, lights, sunDir, sun, update, project, renderProbe,
-    probe: probe.texture,
+    probe: probe.texture, platesReady, snapPlates,
     get shadowLevel() { return key.shadow.intensity; },
   };
 }

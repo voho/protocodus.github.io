@@ -2094,8 +2094,9 @@ function afterPaint(fn) {
    the honest thing for the read-out to say is that the wait is over, and the
    plate is welcome to arrive afterwards. */
 const SNOW_PATIENCE = 6000;
+// The sky's plates too, so the title opens on the photographed range
 const surfacesPromise = Promise.race([
-  terrain.surfacesReady,
+  Promise.all([terrain.surfacesReady, sky.platesReady]),
   new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
 ]);
 
@@ -2117,6 +2118,7 @@ afterPaint(async () => {
   await surfacesPromise;
   boot.step('snow');
   terrain.snapSnowReady();
+  sky.snapPlates();
 
   afterPaint(() => {
     /* Compile every currently resident world material, allocate the shadow
