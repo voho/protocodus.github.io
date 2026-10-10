@@ -1,6 +1,6 @@
 # Race and doctrine balance trials
 
-Engine SHA-256: `228054d930edb4eaf7dab069a7ea3af878f5429453f9113d9547c83c2d9b6ac5`, over `sim.js`, `ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js` and `abilities.js` in that order. Trials recorded on 2026-10-10 (race trials on Veteran; doctrine trials on Commander and Veteran).
+Engine SHA-256: `c1d77024d42608606c9d18e8ccccb1efeefb6a5273b4befe74062cdafd3e4d0d`, over `sim.js`, `ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js` and `abilities.js` in that order. Trials recorded on 2026-10-10 (race trials on Veteran; doctrine trials on Commander and Veteran).
 
 **Races.** AI Unity's combat units were repriced (no health or weapon values changed). Over 48 Standard race trials on the calibration, held-out and fresh seeds, both orientations, Organics won 23 and AI Unity 25 (52.1% Unity); before the change Organics won 25 of the 30 calibration and held-out games. All 52 race trials, including Frontier and Vast, split 26–26.
 
@@ -216,7 +216,7 @@ Operations with a rival commander now set its doctrine in `campaign.js` (`aiProf
 | Severance | Prospector | won at 293 s | won at 647 s |
 
 - **Red Ledger → Swarm.** Dace Mor jumps claims for a living; Swarm's raids on the shard runs fit the claim-jumpers, and the probe won both games against it (it won only the macro game against Balanced). Prospector was tried first: the probe lost its rush game and, in the macro game, filed its three claims but had not delivered the red seam crystal when the 2,400-second limit ended it.
-- **Hold the Relay → Ironclad.** Unity's veteran cohorts wall in and come for the relay late and heavy. Contesting the relay early wins against either rival; waiting until 420 seconds loses either way, because the rival holds the relay for four minutes first.
+- **Hold the Relay → Ironclad.** Unity's veteran cohorts wall in and garrison the relay from the first minute, then reinforce it with walkers. Contesting the relay early wins against either rival; waiting until 420 seconds loses either way, because the rival holds the relay for four minutes first.
 - **Severance → Prospector.** Unity runs the reach from outlying mainframes on the expansion shelves; a Survey core that keeps claiming fields fits the finale. The probe won both games, as against Balanced. Siegebreaker was tried first, on an intermediate engine whose Siegebreaker still held a wave for one crawler, and dropped: the probe lost both games against it (at 819 and 763 seconds).
 
 The briefing copy names the rivals' plans. A rival doctrine changes only how the commander plays: it is stored when an operation starts, so an operation saved before this change continues against Balanced.

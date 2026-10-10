@@ -291,7 +291,7 @@ export const MISSIONS={
   'hold-the-relay':{
     id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:600,aiStep:1,
     summary:'Seize the central relay and hold it for four minutes against Unity\'s veteran cohorts.',
-    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here under Bastion mind OR-4, which walls in its sentries and comes for the relay late and heavy. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
+    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here under Bastion mind OR-4, which walls in its sentries and garrisons the relay from the first minute, then reinforces it with walkers. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
     briefing:'Hold the lit central relay for four minutes in total before Unity can hold it for as long.',
     opening:'Relay traffic intercepted. Expedition 07, take the relay.',
     victoryText:'The relay is ours. Unity\'s eastern cohorts are cut off.',

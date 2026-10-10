@@ -1,4 +1,4 @@
-{"simulationSha256":"228054d930edb4eaf7dab069a7ea3af878f5429453f9113d9547c83c2d9b6ac5",
+{"simulationSha256":"c1d77024d42608606c9d18e8ccccb1efeefb6a5273b4befe74062cdafd3e4d0d",
 "simulationSources":["sim.js","ai.js","terrain.js","flocking.js","traffic.js","mission.js","campaign.js","abilities.js"],
 "reports":[
 {"source":"race-calibration-rift.json","parameters":{"suite":"calibration","size":"standard","difficulty":"hard","doctrines":null,"unitCap":2000,"width":144,"height":112,"step":0.25,"timeLimitSeconds":2400,"seeds":["BALANCE-CINDER-01","BALANCE-VAULT-02","BALANCE-DUSK-03"],"profiles":["rift"],"aiTeams":[0,1],"pairedSideSwaps":true},"summary":{"matches":6,"completed":6,"draws":0,"wins":{"aiUnity":3,"organics":3},"sideWins":{"1":6}}},
