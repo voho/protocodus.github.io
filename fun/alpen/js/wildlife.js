@@ -37,7 +37,7 @@
    the budget that justified four identical cylinders for legs no longer
    exists. */
 
-import { compose } from './geom.js';
+import { compose, sculpt, weld } from './geom.js';
 import { WILDLIFE } from './config.js';
 import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js';
 
@@ -116,60 +116,89 @@ function branchAt(z, riderX, away) {
   return Math.random() < away ? (near === c0 ? c1 : c0) : near;
 }
 
+/* A tapered cylinder hung from `top` to `foot` (radius `r` at the top), as
+   a `compose` part: the lower legs, which are thinner than any grid a whole
+   animal can afford. `geo` is a unit cylinder whose bottom is the foot. */
+function limb(THREE, geo, top, foot, r, color) {
+  const a = new THREE.Vector3(...top);
+  const b = new THREE.Vector3(...foot);
+  const along = b.clone().sub(a);
+  const length = along.length();
+  const e = new THREE.Euler().setFromQuaternion(
+    new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), along.normalize()),
+  );
+  return {
+    geo, color, pos: a.add(b).multiplyScalar(0.5).toArray(),
+    rot: [e.x, e.y, e.z], scale: [r * 2, length, r * 2],
+  };
+}
+
 /* A mountain hare, facing -Z, feet at y = 0.
 
-   The old one was seven parts and read as a lump with ears: one body ball,
-   one head ball, and nothing to say which end was which until it moved. A
-   hare's silhouette is almost entirely about weight distribution — the rump
-   is the tallest thing on it, the back falls away forwards to a much
+   A hare's silhouette is almost entirely about weight distribution — the
+   rump is the tallest thing on it, the back falls away forwards to a much
    narrower chest, and the head is carried up and forward on a visible neck.
-   Building it as a chain of five tapering masses down that line costs a few
-   hundred triangles and is the whole difference between a rabbit and a
-   potato. The long flat hind feet and the shaded haunches do the rest: they
-   are what makes a crouched hare look coiled rather than seated. */
+   That line used to be a chain of separate balls, and close up it read as a
+   balloon animal: a crease at every join, a neck of stacked beads, a flat
+   shaded disc stuck on each flank for a haunch. It is one skin now (see
+   `sculpt`): the folded hind legs swell out of the rump the way muscle
+   does, the long flat hind feet run forward under them, which is what makes
+   a crouched hare look coiled rather than seated, and the fur goes a shade
+   bluer where it turns under. Ears and eyes are thinner than the grid and
+   are laid on top. Proportioned from the animal rather than for distance:
+   the winter mountain hare's ears are short, about the length of its head. */
 function rabbitGeometry(THREE) {
-  // Smooth normals keep the silhouette round at this animal's screen size;
-  // spending thousands of triangles on eyes and paws cannot improve it.
-  const ball = new THREE.SphereGeometry(0.5, 16, 10);
-  const bead = new THREE.SphereGeometry(0.5, 10, 8);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-
   const fur = '#eef3fb';
-  const shade = '#c9d6e6';
+  const under = '#d3dcea';
   const dark = '#1b1f27';
-  const snow = '#ffffff';
+  const bead = new THREE.SphereGeometry(0.5, 10, 6);
 
-  // Both ears share an axis; the tip rides further along the same one so the
-  // black tips stay glued to the ear whatever the sweep is set to
-  const ear = (side) => ([
-    { geo: bead, color: fur, pos: [side * 0.082, 0.514, -0.268], rot: [0.26, 0, -side * 0.16], scale: [0.074, 0.29, 0.046] },
-    { geo: bead, color: shade, pos: [side * 0.082, 0.528, -0.291], rot: [0.26, 0, -side * 0.16], scale: [0.036, 0.19, 0.012] },
-    { geo: bead, color: dark, pos: [side * 0.101, 0.633, -0.237], rot: [0.26, 0, -side * 0.16], scale: [0.050, 0.065, 0.039] },
-  ]);
+  const skin = sculpt(THREE, [
+    // rump, the highest point, then the back falling away to the chest
+    { pos: [0, 0.18, 0.11], radii: [0.13, 0.15, 0.155], color: fur },
+    { pos: [0, 0.15, -0.04], radii: [0.11, 0.115, 0.14], color: fur },
+    { pos: [0, 0.13, -0.14], radii: [0.085, 0.1, 0.085], color: fur },
+    { pos: [0, 0.075, 0], radii: [0.085, 0.055, 0.15], color: under },
+    // the folded hind legs, swelling out of either flank low and behind
+    { pos: [-0.095, 0.11, 0.1], radii: [0.065, 0.115, 0.145], rot: [0.4, 0, 0], color: fur, k: 0.05 },
+    { pos: [0.095, 0.11, 0.1], radii: [0.065, 0.115, 0.145], rot: [0.4, 0, 0], color: fur, k: 0.05 },
+    { pos: [-0.078, 0.022, 0.03], radii: [0.032, 0.022, 0.115], color: under, k: 0.03 },
+    { pos: [0.078, 0.022, 0.03], radii: [0.032, 0.022, 0.115], color: under, k: 0.03 },
+    // neck, head and muzzle
+    { pos: [0, 0.16, -0.16], to: [0, 0.25, -0.225], r: [0.062, 0.053], color: fur },
+    { pos: [0, 0.28, -0.26], radii: [0.06, 0.065, 0.085], rot: [0.25, 0, 0], color: fur },
+    { pos: [0, 0.257, -0.325], radii: [0.035, 0.037, 0.045], rot: [0.3, 0, 0], color: fur, k: 0.03 },
+    // short forelegs and the paws flat in front
+    { pos: [-0.045, 0.11, -0.16], to: [-0.042, 0.025, -0.195], r: [0.026, 0.02], color: fur, k: 0.03 },
+    { pos: [0.045, 0.11, -0.16], to: [0.042, 0.025, -0.195], r: [0.026, 0.02], color: fur, k: 0.03 },
+    { pos: [-0.042, 0.016, -0.215], radii: [0.024, 0.016, 0.038], color: under, k: 0.02 },
+    { pos: [0.042, 0.016, -0.215], radii: [0.024, 0.016, 0.038], color: under, k: 0.02 },
+    // the scut, white all year
+    { pos: [0, 0.2, 0.27], radii: [0.035, 0.035, 0.028], color: '#ffffff', k: 0.025 },
+  ], { cell: 0.025, k: 0.045 });
 
-  const side = (s) => ([
-    // haunch, shaded so the rear leg reads as a separate mass against the flank
-    { geo: ball, color: shade, pos: [s * 0.135, 0.165, 0.115], scale: [0.145, 0.25, 0.30] },
-    // the long hind foot, laid flat under the body — the giveaway that this is a hare
-    { geo: bead, color: fur, pos: [s * 0.115, 0.042, 0.055], rot: [0.05, s * 0.10, 0], scale: [0.095, 0.085, 0.33] },
-    { geo: box, color: fur, pos: [s * 0.085, 0.085, -0.245], rot: [0.16, 0, 0], scale: [0.055, 0.175, 0.07] },
-    { geo: box, color: shade, pos: [s * 0.085, 0.022, -0.268], scale: [0.06, 0.045, 0.105] },
-    { geo: bead, color: dark, pos: [s * 0.076, 0.352, -0.388], scale: [0.046, 0.05, 0.038] },
-    ...ear(s),
-  ]);
+  /* The ear is coloured along its own length, so the black is the end of
+     the ear rather than a bead stuck on it, which read as an antenna. */
+  const earGeo = new THREE.SphereGeometry(0.5, 10, 8);
+  const tip = new THREE.Color(dark);
+  const base = new THREE.Color(fur);
+  const earPos = earGeo.attributes.position;
+  const earColor = new Float32Array(earPos.count * 3);
+  for (let i = 0; i < earPos.count; i++) {
+    const t = Math.min(1, Math.max(0, (earPos.getY(i) - 0.22) / 0.08));
+    earColor[i * 3] = base.r + (tip.r - base.r) * t;
+    earColor[i * 3 + 1] = base.g + (tip.g - base.g) * t;
+    earColor[i * 3 + 2] = base.b + (tip.b - base.b) * t;
+  }
+  earGeo.setAttribute('color', new THREE.BufferAttribute(earColor, 3));
 
+  // Laid back along the neck and splayed a little
   return compose(THREE, [
-    // the line of the back: rump highest, falling away forwards to the chest
-    { geo: ball, color: fur, pos: [0, 0.200, 0.150], scale: [0.33, 0.31, 0.36] },
-    { geo: ball, color: fur, pos: [0, 0.175, -0.055], scale: [0.285, 0.265, 0.33] },
-    { geo: ball, color: fur, pos: [0, 0.175, -0.215], scale: [0.245, 0.235, 0.245] },
-    { geo: ball, color: fur, pos: [0, 0.245, -0.285], scale: [0.175, 0.185, 0.185] },
-    { geo: ball, color: fur, pos: [0, 0.325, -0.350], scale: [0.185, 0.19, 0.235] },
-    { geo: ball, color: fur, pos: [0, 0.290, -0.440], scale: [0.115, 0.105, 0.135] },
-    { geo: bead, color: dark, pos: [0, 0.283, -0.500], scale: [0.038, 0.03, 0.032] },
-    { geo: ball, color: snow, pos: [0, 0.235, 0.300], scale: [0.125, 0.12, 0.095] },
-    ...side(-1),
-    ...side(1),
+    { geo: skin },
+    { geo: earGeo, pos: [-0.03, 0.37, -0.23], rot: [0.55, 0, 0.22], scale: [0.042, 0.15, 0.022] },
+    { geo: earGeo, pos: [0.03, 0.37, -0.23], rot: [0.55, 0, -0.22], scale: [0.042, 0.15, 0.022] },
+    { geo: bead, color: dark, pos: [-0.048, 0.293, -0.29], scale: [0.022, 0.024, 0.02] },
+    { geo: bead, color: dark, pos: [0.048, 0.293, -0.29], scale: [0.022, 0.024, 0.02] },
   ]);
 }
 
@@ -196,41 +225,51 @@ const DEER_RUMP = '#bfb6a4';    // the pale patch, which is most of the silhouet
 const DEER_HOOF = '#221c17';
 
 function deerBodyGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 14, 10);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  const limb = new THREE.CylinderGeometry(0.5, 0.36, 1, 10, 1);
+  const cannon = new THREE.CylinderGeometry(0.5, 0.4, 1, 8, 1, true);
+  const hoof = new THREE.SphereGeometry(0.5, 8, 5);
 
-  /* A leg, hung from the shoulder or the haunch. `bend` is the sign of the
-     joint: the front pair fold forwards and the rear pair backwards, which is
-     the difference between a deer and a trestle.
+  /* Each leg swings about the top of its forearm or gaskin, where it leaves
+     the body (see `aGait` in createWildlife). A gallop's phases: the fronts
+     a beat apart, the hinds a beat apart, the pairs half a stride apart. */
+  const legs = {
+    '-1': [[0.86, -0.36, 0], [0.76, 0.46, Math.PI]],
+    1: [[0.86, -0.36, 0.5], [0.76, 0.46, Math.PI + 0.5]],
+  };
 
-     The proportion is the thing to get right and the first attempt did not.
-     A deer is leggy, so the temptation is to make the legs long — but what
-     actually makes an animal read as leggy is a DEEP BODY sitting high, and
-     lengthening the legs against a shallow barrel just produces a small
-     animal on stilts. The barrel below is half again as deep as it was and
-     the legs are shorter, and the silhouette got taller. */
-  const leg = (s, z, bend) => ([
-    { geo: limb, color: DEER_COAT, pos: [s * 0.20, 0.59, z], rot: [bend * 0.09, 0, 0], scale: [0.100, 0.46, 0.100] },
-    { geo: limb, color: DEER_DARK, pos: [s * 0.20, 0.21, z + bend * 0.05], rot: [-bend * 0.15, 0, 0], scale: [0.072, 0.42, 0.072] },
-    { geo: box, color: DEER_HOOF, pos: [s * 0.20, 0.035, z + bend * 0.08], scale: [0.085, 0.07, 0.115] },
-  ]);
+  // One skin from the withers to the tail, the upper legs swelling out of it
+  const skin = sculpt(THREE, [
+    // chest deepest, the withers over it, the barrel, a loin tucked up
+    // behind and the rump back up again
+    { pos: [0, 0.98, -0.32], radii: [0.17, 0.25, 0.24], color: DEER_COAT },
+    { pos: [0, 1.12, -0.36], radii: [0.12, 0.12, 0.2], color: DEER_LIGHT },
+    { pos: [0, 0.97, 0.04], radii: [0.16, 0.23, 0.26], color: DEER_COAT },
+    { pos: [0, 1.02, 0.26], radii: [0.145, 0.18, 0.17], color: DEER_COAT },
+    { pos: [0, 1.0, 0.44], radii: [0.165, 0.21, 0.19], color: DEER_COAT },
+    { pos: [0, 0.8, -0.02], radii: [0.13, 0.11, 0.34], color: DEER_DARK },
+    // shoulders down to the knee, and the haunches down to the hock, which
+    // points backwards — the joint a quadruped reads as furniture without
+    ...[-1, 1].flatMap((x) => [
+      { pos: [x * 0.11, 0.98, -0.38], radii: [0.065, 0.19, 0.11], rot: [0.25, 0, 0], color: DEER_COAT },
+      { pos: [x * 0.125, 0.86, -0.36], to: [x * 0.13, 0.47, -0.37], r: [0.07, 0.042], color: DEER_COAT, limb: legs[x][0] },
+      { pos: [x * 0.11, 0.9, 0.42], radii: [0.08, 0.21, 0.14], rot: [-0.15, 0, 0], color: DEER_COAT },
+      { pos: [x * 0.13, 0.76, 0.46], to: [x * 0.14, 0.46, 0.53], r: [0.07, 0.04], color: DEER_DARK, limb: legs[x][1] },
+    ]),
+    // the short tail, on the pale patch that is most of a deer at range
+    { pos: [0, 1.07, 0.6], to: [0, 0.93, 0.66], r: [0.04, 0.028], color: DEER_LIGHT, k: 0.03 },
+    { paint: true, pos: [0, 1.0, 0.62], radii: [0.12, 0.16, 0.1], color: DEER_RUMP, k: 0.03 },
+  ], { cell: 0.06, k: 0.08 });
 
+  // The cannon bones are thinner than the grid: a deer's are near enough
+  // cylinders anyway. The hind ones slant forward from the hock.
   return compose(THREE, [
-    // chest deepest, barrel behind it, rump back up again
-    { geo: ball, color: DEER_COAT, pos: [0, 0.96, -0.30], scale: [0.36, 0.50, 0.50] },
-    { geo: ball, color: DEER_COAT, pos: [0, 0.95, 0.06], scale: [0.33, 0.44, 0.46] },
-    { geo: ball, color: DEER_COAT, pos: [0, 0.99, 0.40], scale: [0.35, 0.46, 0.44] },
-    // the withers, which is the highest point on a standing deer
-    { geo: ball, color: DEER_LIGHT, pos: [0, 1.15, -0.34], scale: [0.27, 0.22, 0.38] },
-    // and the underline, which is what fills the gap the legs used to hang in
-    { geo: ball, color: DEER_DARK, pos: [0, 0.78, 0.02], scale: [0.30, 0.22, 0.74] },
-    // rump patch and the short tail sitting on it
-    { geo: ball, color: DEER_RUMP, pos: [0, 1.02, 0.58], scale: [0.24, 0.28, 0.16] },
-    { geo: box, color: DEER_LIGHT, pos: [0, 0.96, 0.62], rot: [0.6, 0, 0], scale: [0.06, 0.22, 0.055] },
-    ...leg(-1, -0.34, 1), ...leg(1, -0.34, 1),
-    ...leg(-1, 0.40, -1), ...leg(1, 0.40, -1),
-  ]);
+    { geo: skin },
+    ...[-1, 1].flatMap((x) => [
+      { ...limb(THREE, cannon, [x * 0.13, 0.5, -0.37], [x * 0.13, 0.05, -0.34], 0.03, DEER_DARK), limb: legs[x][0] },
+      { ...limb(THREE, cannon, [x * 0.14, 0.49, 0.53], [x * 0.13, 0.05, 0.46], 0.028, DEER_DARK), limb: legs[x][1] },
+      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, -0.35], scale: [0.065, 0.07, 0.09], limb: legs[x][0] },
+      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, 0.45], scale: [0.06, 0.07, 0.085], limb: legs[x][1] },
+    ]),
+  ], { limb: true });
 }
 
 /* The head, built from the base of the neck so a rotation about its own X is
@@ -239,38 +278,43 @@ function deerBodyGeometry(THREE) {
    muzzle is in the snow. `antlers` is the only difference between the two
    variants, so the stag is the same call with one flag. */
 function deerHeadGeometry(THREE, antlers) {
-  const ball = new THREE.SphereGeometry(0.5, 14, 10);
   const bead = new THREE.SphereGeometry(0.5, 8, 6);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  const taper = new THREE.CylinderGeometry(0.34, 0.5, 1, 12, 1);
+  const tine = new THREE.CylinderGeometry(0.3, 0.5, 1, 6, 1, true);
+  const eye = new THREE.SphereGeometry(0.5, 6, 4);
+
+  // Neck, throat, skull and muzzle as one skin. The neck is thick — a
+  // stag's is the width of its skull twice over, and a thin one reads as
+  // a llama — and its base is centred on the pivot, the one place a
+  // browse can turn it without swinging it up out of the back as a hump
+  const skin = sculpt(THREE, [
+    { pos: [0, 0, 0], to: [0, 0.45, -0.3], r: [0.15, 0.1], color: DEER_COAT },
+    { pos: [0, 0.48, -0.33], radii: [0.085, 0.1, 0.1], color: DEER_LIGHT },
+    { pos: [0, 0.6, -0.41], radii: [0.08, 0.085, 0.11], color: DEER_COAT },
+    { pos: [0, 0.6, -0.46], to: [0, 0.53, -0.68], r: [0.062, 0.045], color: DEER_LIGHT },
+    { paint: true, pos: [0, 0.535, -0.7], radii: [0.05, 0.045, 0.04], color: DEER_HOOF, k: 0.02 },
+  ], { cell: 0.055, k: 0.05 });
 
   const parts = [
-    // the neck: up and forward out of the withers, and thick — a stag's neck
-    // is the width of its skull twice over and a thin one reads as a llama
-    { geo: taper, color: DEER_COAT, pos: [0, 0.24, -0.15], rot: [-0.56, 0, 0], scale: [0.22, 0.62, 0.24] },
-    { geo: ball, color: DEER_LIGHT, pos: [0, 0.52, -0.31], scale: [0.17, 0.19, 0.18] },
-    // skull, then the muzzle carried on from it
-    { geo: ball, color: DEER_COAT, pos: [0, 0.60, -0.41], scale: [0.16, 0.17, 0.22] },
-    { geo: taper, color: DEER_LIGHT, pos: [0, 0.555, -0.585], rot: [-1.28, 0, 0], scale: [0.115, 0.28, 0.125] },
-    { geo: bead, color: DEER_HOOF, pos: [0, 0.535, -0.715], scale: [0.085, 0.07, 0.065] },
-    { geo: bead, color: DEER_HOOF, pos: [-0.095, 0.645, -0.44], scale: [0.05, 0.05, 0.045] },
-    { geo: bead, color: DEER_HOOF, pos: [0.095, 0.645, -0.44], scale: [0.05, 0.05, 0.045] },
+    { geo: skin },
+    { geo: eye, color: DEER_HOOF, pos: [-0.077, 0.64, -0.45], scale: [0.034, 0.036, 0.032] },
+    { geo: eye, color: DEER_HOOF, pos: [0.077, 0.64, -0.45], scale: [0.034, 0.036, 0.032] },
     // ears, set wide and swept back, which is what says deer at any distance
-    { geo: bead, color: DEER_LIGHT, pos: [-0.15, 0.695, -0.31], rot: [0.34, -0.50, -0.34], scale: [0.070, 0.20, 0.13] },
-    { geo: bead, color: DEER_LIGHT, pos: [0.15, 0.695, -0.31], rot: [0.34, 0.50, 0.34], scale: [0.070, 0.20, 0.13] },
+    { geo: bead, color: DEER_LIGHT, pos: [-0.14, 0.69, -0.32], rot: [0.34, -0.50, -0.34], scale: [0.035, 0.19, 0.11] },
+    { geo: bead, color: DEER_LIGHT, pos: [0.14, 0.69, -0.32], rot: [0.34, 0.50, 0.34], scale: [0.035, 0.19, 0.11] },
   ];
 
   if (antlers) {
-    /* Four thin members a side and no attempt at a real beam-and-tine
+    /* Four members a side and no attempt at a real beam-and-tine
        structure: at the range these are seen from, an antler is a fan of
        lines above the skull and anything more is triangles nobody resolves.
-       They are pale because a dark antler against dark trees disappears, and
-       the whole point of a stag is that you can tell it is one. */
+       Round and tapering, though, rather than square. They are pale
+       because a dark antler against dark trees disappears, and the whole
+       point of a stag is that you can tell it is one. */
     const beam = (s) => ([
-      { geo: box, color: DEER_RUMP, pos: [s * 0.10, 0.82, -0.37], rot: [-0.20, 0, -s * 0.42], scale: [0.030, 0.28, 0.030] },
-      { geo: box, color: DEER_RUMP, pos: [s * 0.21, 0.99, -0.42], rot: [-0.42, 0, -s * 0.70], scale: [0.026, 0.24, 0.026] },
-      { geo: box, color: DEER_RUMP, pos: [s * 0.18, 0.98, -0.53], rot: [-0.95, 0, -s * 0.30], scale: [0.021, 0.19, 0.021] },
-      { geo: box, color: DEER_RUMP, pos: [s * 0.28, 1.10, -0.34], rot: [0.25, 0, -s * 0.95], scale: [0.021, 0.17, 0.021] },
+      { geo: tine, color: DEER_RUMP, pos: [s * 0.10, 0.82, -0.37], rot: [-0.20, 0, -s * 0.42], scale: [0.034, 0.28, 0.034] },
+      { geo: tine, color: DEER_RUMP, pos: [s * 0.21, 0.99, -0.42], rot: [-0.42, 0, -s * 0.70], scale: [0.03, 0.24, 0.03] },
+      { geo: tine, color: DEER_RUMP, pos: [s * 0.18, 0.98, -0.53], rot: [-0.95, 0, -s * 0.30], scale: [0.024, 0.19, 0.024] },
+      { geo: tine, color: DEER_RUMP, pos: [s * 0.28, 1.10, -0.34], rot: [0.25, 0, -s * 0.95], scale: [0.024, 0.17, 0.024] },
     ]);
     parts.push(...beam(-1), ...beam(1));
   }
@@ -302,45 +346,57 @@ const WOLF_PALE = '#b9c0cc';
 const WOLF_DARK = '#23262c';
 
 function wolfGeometry(THREE) {
-  const ball = new THREE.SphereGeometry(0.5, 14, 10);
+  const cannon = new THREE.CylinderGeometry(0.5, 0.42, 1, 8, 1, true);
   const bead = new THREE.SphereGeometry(0.5, 10, 8);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  const limb = new THREE.CylinderGeometry(0.44, 0.34, 1, 10, 1);
-  const taper = new THREE.CylinderGeometry(0.30, 0.5, 1, 12, 1);
 
-  const leg = (s, z, bend) => ([
-    { geo: limb, color: WOLF_COAT, pos: [s * 0.17, 0.36, z], rot: [bend * 0.11, 0, 0], scale: [0.095, 0.30, 0.095] },
-    { geo: limb, color: WOLF_PALE, pos: [s * 0.17, 0.14, z + bend * 0.04], rot: [-bend * 0.13, 0, 0], scale: [0.068, 0.26, 0.068] },
-    { geo: box, color: WOLF_DARK, pos: [s * 0.17, 0.030, z + bend * 0.06], scale: [0.090, 0.060, 0.120] },
-  ]);
+  // A trot: the legs swing in diagonal pairs (see the deer for the pivots)
+  const legs = {
+    '-1': [[0.48, -0.3, 0], [0.45, 0.4, Math.PI]],
+    1: [[0.48, -0.3, Math.PI], [0.45, 0.4, 0]],
+  };
 
-  return compose(THREE, [
+  const skin = sculpt(THREE, [
     // deep chest forward — it drops below the elbow, which is the one
     // proportion that separates a wolf from a large dog — then a tucked loin
-    { geo: ball, color: WOLF_COAT, pos: [0, 0.60, -0.24], scale: [0.30, 0.40, 0.44] },
-    { geo: ball, color: WOLF_COAT, pos: [0, 0.62, 0.08], scale: [0.25, 0.32, 0.40] },
-    { geo: ball, color: WOLF_COAT, pos: [0, 0.64, 0.36], scale: [0.29, 0.35, 0.36] },
-    { geo: ball, color: WOLF_PALE, pos: [0, 0.44, -0.16], scale: [0.24, 0.22, 0.44] },
-    // the saddle, which is the marking that gives the back line an edge
-    { geo: ball, color: WOLF_SADDLE, pos: [0, 0.78, -0.02], scale: [0.25, 0.16, 0.66] },
-    // a straight brush carried low and back, not out — the horizontal tail
-    // that came out of the first attempt reads as a weathervane
-    { geo: taper, color: WOLF_SADDLE, pos: [0, 0.47, 0.66], rot: [2.05, 0, 0], scale: [0.105, 0.50, 0.105] },
-    { geo: bead, color: WOLF_DARK, pos: [0, 0.26, 0.85], scale: [0.085, 0.085, 0.095] },
+    { pos: [0, 0.6, -0.24], radii: [0.15, 0.21, 0.22], color: WOLF_COAT },
+    { pos: [0, 0.63, 0.06], radii: [0.12, 0.155, 0.2], color: WOLF_COAT },
+    { pos: [0, 0.65, 0.33], radii: [0.135, 0.165, 0.17], color: WOLF_COAT },
+    ...[-1, 1].flatMap((x) => [
+      { pos: [x * 0.1, 0.56, -0.3], radii: [0.06, 0.16, 0.09], rot: [0.2, 0, 0], color: WOLF_COAT },
+      { pos: [x * 0.11, 0.48, -0.3], to: [x * 0.115, 0.27, -0.31], r: [0.055, 0.035], color: WOLF_PALE, limb: legs[x][0] },
+      { pos: [x * 0.1, 0.57, 0.36], radii: [0.065, 0.16, 0.11], rot: [-0.2, 0, 0], color: WOLF_COAT },
+      { pos: [x * 0.11, 0.45, 0.4], to: [x * 0.12, 0.25, 0.46], r: [0.055, 0.032], color: WOLF_COAT, limb: legs[x][1] },
+    ]),
     // neck low and level — a wolf carries its head at the height of its back
-    { geo: ball, color: WOLF_COAT, pos: [0, 0.68, -0.48], scale: [0.21, 0.23, 0.26] },
-    { geo: ball, color: WOLF_COAT, pos: [0, 0.70, -0.68], scale: [0.16, 0.16, 0.18] },
-    { geo: taper, color: WOLF_PALE, pos: [0, 0.665, -0.85], rot: [-1.44, 0, 0], scale: [0.100, 0.24, 0.105] },
-    { geo: bead, color: WOLF_DARK, pos: [0, 0.655, -0.965], scale: [0.070, 0.058, 0.052] },
-    { geo: bead, color: WOLF_DARK, pos: [-0.078, 0.755, -0.76], scale: [0.040, 0.040, 0.034] },
-    { geo: bead, color: WOLF_DARK, pos: [0.078, 0.755, -0.76], scale: [0.040, 0.040, 0.034] },
+    { pos: [0, 0.66, -0.4], to: [0, 0.7, -0.62], r: [0.12, 0.09], color: WOLF_COAT },
+    { pos: [0, 0.71, -0.68], radii: [0.085, 0.08, 0.09], color: WOLF_COAT },
+    { pos: [0, 0.69, -0.72], to: [0, 0.66, -0.9], r: [0.05, 0.035], color: WOLF_PALE },
+    // a straight brush carried low and back, thickest along its middle
+    { pos: [0, 0.6, 0.44], to: [0, 0.45, 0.65], r: [0.04, 0.065], color: WOLF_SADDLE, k: 0.04 },
+    { pos: [0, 0.45, 0.65], to: [0, 0.3, 0.86], r: [0.065, 0.03], color: WOLF_SADDLE, k: 0.04 },
+    // the saddle, which gives the back line an edge, the paler throat and
+    // underside, and the dark tip of the brush
+    { paint: true, pos: [0, 0.8, -0.02], radii: [0.13, 0.09, 0.42], color: WOLF_SADDLE, k: 0.06 },
+    { paint: true, pos: [0, 0.45, -0.25], radii: [0.12, 0.12, 0.3], color: WOLF_PALE, k: 0.06 },
+    { paint: true, pos: [0, 0.3, 0.84], radii: [0.06, 0.07, 0.08], color: WOLF_DARK, k: 0.03 },
+  ], { cell: 0.05, k: 0.06 });
+
+  return compose(THREE, [
+    { geo: skin },
+    ...[-1, 1].flatMap((x) => [
+      { ...limb(THREE, cannon, [x * 0.115, 0.29, -0.31], [x * 0.115, 0.04, -0.3], 0.03, WOLF_PALE), limb: legs[x][0] },
+      { ...limb(THREE, cannon, [x * 0.12, 0.27, 0.46], [x * 0.12, 0.04, 0.42], 0.028, WOLF_PALE), limb: legs[x][1] },
+      { geo: bead, color: WOLF_DARK, pos: [x * 0.115, 0.028, -0.32], scale: [0.075, 0.055, 0.1], limb: legs[x][0] },
+      { geo: bead, color: WOLF_DARK, pos: [x * 0.12, 0.028, 0.4], scale: [0.07, 0.055, 0.095], limb: legs[x][1] },
+    ]),
+    { geo: bead, color: WOLF_DARK, pos: [0, 0.655, -0.935], scale: [0.06, 0.05, 0.045] },
+    { geo: bead, color: WOLF_DARK, pos: [-0.06, 0.74, -0.74], scale: [0.032, 0.032, 0.028] },
+    { geo: bead, color: WOLF_DARK, pos: [0.06, 0.74, -0.74], scale: [0.032, 0.032, 0.028] },
     // upright ears, kept small — a wolf's are short and round-tipped, and the
     // tall pointed pair the first attempt had belong on a shepherd dog
-    { geo: bead, color: WOLF_SADDLE, pos: [-0.082, 0.815, -0.63], rot: [-0.10, -0.25, -0.16], scale: [0.067, 0.13, 0.061] },
-    { geo: bead, color: WOLF_SADDLE, pos: [0.082, 0.815, -0.63], rot: [-0.10, 0.25, 0.16], scale: [0.067, 0.13, 0.061] },
-    ...leg(-1, -0.30, 1), ...leg(1, -0.30, 1),
-    ...leg(-1, 0.34, -1), ...leg(1, 0.34, -1),
-  ]);
+    { geo: bead, color: WOLF_SADDLE, pos: [-0.07, 0.8, -0.64], rot: [-0.10, -0.25, -0.16], scale: [0.06, 0.12, 0.035] },
+    { geo: bead, color: WOLF_SADDLE, pos: [0.07, 0.8, -0.64], rot: [-0.10, 0.25, 0.16], scale: [0.06, 0.12, 0.035] },
+  ], { limb: true });
 }
 
 /* FOR THE UNBUILT BEAR — see the header. Kept so its eventual builder does
@@ -393,13 +449,42 @@ export function createWildlife(THREE, shading) {
       .replace('#include <common>', REVEAL_FRAG[0])
       .replace('#include <clipping_planes_fragment>', REVEAL_FRAG[1]);
   };
+  /* THE LEGS. A running deer and a trotting wolf used to glide over the
+     snow on four rigid posts, the body bobbing over them. Each vertex now
+     turns, in the body's own YZ plane, about its leg's pivot (`aLimb`,
+     baked by `sculpt` and `compose`) by the instance's stride (`aGait`:
+     phase and swing) times how much of the vertex is leg. The depth pass
+     gets the same, so the shadow runs with the animal. Anything without
+     legs, or not moving, reads zeros and stays exactly where it was. */
+  const STRIDE = `
+        attribute vec4 aLimb;
+        attribute vec2 aGait;
+        vec2 n64Stride(vec2 p, float pivot) {
+          float a = aGait.y * aLimb.z * sin(aGait.x + aLimb.w);
+          float c = cos(a);
+          float s = sin(a);
+          vec2 d = p - aLimb.xy * pivot;
+          return aLimb.xy * pivot + vec2(c * d.x - s * d.y, s * d.x + c * d.y);
+        }`;
+  const withStride = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>${STRIDE}`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal.yz = n64Stride(objectNormal.yz, 0.0);`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed.yz = n64Stride(transformed.yz, 1.0);`);
+  };
   const revealDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-  revealDepth.onBeforeCompile = withReveal;
+  revealDepth.onBeforeCompile = (shader) => {
+    withReveal(shader);
+    withStride(shader);
+  };
 
   const animalMaterial = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       withReveal(shader);
+      withStride(shader);
       shader.uniforms.uFurTex = { value: furTex };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
@@ -416,14 +501,17 @@ export function createWildlife(THREE, shading) {
         varying vec3 vAnimalWorldPos;
         uniform sampler2D uFurTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        vec3 furDetail = texture2D(uFurTex, vAnimalWorldPos.xy * 4.5 + vAnimalWorldPos.yz * 4.5).rgb;
+        // Only the grain of the weave: its colour tinted a white hare with
+        // pink and blue speckles
+        float furDetail = dot(texture2D(uFurTex,
+          vAnimalWorldPos.xy * 4.5 + vAnimalWorldPos.yz * 4.5).rgb, vec3(0.299, 0.587, 0.114));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * furDetail * 1.5, 0.45);`);
     };
     return shading.apply(m);
   };
   const furMaterial = animalMaterial();
   const rabbits = new THREE.InstancedMesh(
-    rabbitGeometry(THREE), furMaterial, WILDLIFE.rabbits,
+    weld(THREE, rabbitGeometry(THREE)), furMaterial, WILDLIFE.rabbits,
   );
   rabbits.frustumCulled = false;
   rabbits.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -434,16 +522,16 @@ export function createWildlife(THREE, shading) {
      body pool is shared between the two, which is why a stag costs one extra
      draw call for the whole herd rather than a duplicate of everything. */
   const deerBodies = new THREE.InstancedMesh(
-    deerBodyGeometry(THREE), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerBodyGeometry(THREE)), furMaterial, WILDLIFE.deer,
   );
   const deerHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, false), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerHeadGeometry(THREE, false)), furMaterial, WILDLIFE.deer,
   );
   const stagHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, true), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerHeadGeometry(THREE, true)), furMaterial, WILDLIFE.deer,
   );
   const wolves = new THREE.InstancedMesh(
-    wolfGeometry(THREE), furMaterial, WILDLIFE.wolves,
+    weld(THREE, wolfGeometry(THREE)), furMaterial, WILDLIFE.wolves,
   );
   const coatTint = new THREE.Color();
   for (let i = 0; i < WILDLIFE.rabbits; i++) {
@@ -472,6 +560,16 @@ export function createWildlife(THREE, shading) {
   const markReveal = (mesh) => {
     mesh.geometry.attributes.aReveal.needsUpdate = true;
   };
+  // And the stride of every animal that has legs to move, beside its matrix
+  const strideOf = (mesh) => {
+    const gait = new THREE.InstancedBufferAttribute(
+      new Float32Array(mesh.instanceMatrix.count * 2), 2);
+    gait.setUsage(THREE.DynamicDrawUsage);
+    mesh.geometry.setAttribute('aGait', gait);
+    return gait.array;
+  };
+  const deerStride = strideOf(deerBodies);
+  const wolfStride = strideOf(wolves);
   // Seconds of simulated time, for the arrival stamps.
   let clock = 0;
   const arrival = (born) => Math.min(1, Math.max(0, (clock - born) / REVEAL_SECONDS));
@@ -868,7 +966,7 @@ export function createWildlife(THREE, shading) {
            bob rides on top so a running deer is not a sliding statue. */
         const feeding = clamp((Math.sin(d.clock * 0.62 + d.ox) - 0.15) * 3, 0, 1)
           * (1 - herd.alert);
-        const gait = d.clock * 9;
+        const gait = d.clock * 12;
         const bob = Math.sin(gait) * 0.055 * herd.alert;
         // A running herd all faces the way it is going; a grazing one does not
         const yaw = lerp(d.yaw, Math.atan2(herd.dir, -0.45), herd.alert);
@@ -880,6 +978,8 @@ export function createWildlife(THREE, shading) {
         m.compose(v, q, s);
         const herdIn = arrival(herd.born);
         deerReveal[dn] = herdIn;
+        deerStride[dn * 2] = gait;
+        deerStride[dn * 2 + 1] = herd.run > 0 ? 0.5 * herd.alert : 0;
         deerBodies.setMatrixAt(dn++, m);
 
         /* The head, hung off the same transform. `m` is still the body's, so
@@ -907,6 +1007,7 @@ export function createWildlife(THREE, shading) {
     if (dn > 0) {
       deerBodies.instanceMatrix.needsUpdate = true;
       markReveal(deerBodies);
+      deerBodies.geometry.attributes.aGait.needsUpdate = true;
       if (dn - sn > 0) {
         deerHeads.instanceMatrix.needsUpdate = true;
         markReveal(deerHeads);
@@ -939,11 +1040,13 @@ export function createWildlife(THREE, shading) {
       pack.x += hx * WILDLIFE.wolfSpeed * dt;
       pack.z += hz * WILDLIFE.wolfSpeed * dt;
       for (const w of pack.members) {
-        w.gait += dt * 5.4;
+        // Two strides a second, which a trot at this speed is; the legs
+        // swing on it (`aGait`), so it has to be the real rate or they skate
+        w.gait += dt * 12;
         // Behind the leader along the line of travel, plus a little sideways
         const x = pack.x - hx * w.file - hz * w.drift;
         const z = pack.z - hz * w.file + hx * w.drift;
-        const bob = Math.abs(Math.sin(w.gait)) * 0.045;
+        const bob = Math.abs(Math.sin(w.gait)) * 0.03;
         slopeUnder(x, z, pack.yaw, 0.32 * w.scale, 0.17 * w.scale, slope);
         v.set(x, heightAt(x, z) + bob, z);
         e.set(slope.pitch, pack.yaw + Math.PI, Math.sin(w.gait) * 0.045 + slope.roll, 'YXZ');
@@ -951,6 +1054,8 @@ export function createWildlife(THREE, shading) {
         s.set(w.scale, w.scale * (1 + Math.cos(w.gait * 2) * 0.03), w.scale);
         m.compose(v, q, s);
         wolfReveal[wn] = arrival(pack.born);
+        wolfStride[wn * 2] = w.gait;
+        wolfStride[wn * 2 + 1] = 0.42;
         wolves.setMatrixAt(wn++, m);
       }
     }
@@ -958,6 +1063,7 @@ export function createWildlife(THREE, shading) {
     if (wn > 0) {
       wolves.instanceMatrix.needsUpdate = true;
       markReveal(wolves);
+      wolves.geometry.attributes.aGait.needsUpdate = true;
     }
 
     eyes.count = eyeCount;

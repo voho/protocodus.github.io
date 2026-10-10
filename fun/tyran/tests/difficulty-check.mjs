@@ -88,8 +88,9 @@ for(const profile of DIFFICULTIES){
   beam.beams.push({owner:owner.id,angle:Math.PI/2,t:0,warn:0,dx:0,dy:0});update(beam,.001);
   near(200-bp.shield,(15+3*.9)*profile.damage,'Beam damage');
   const ram=isolated(id),rp=ram.players[0];Object.assign(rp,{guard:0,lastHit:0,shield:200});
-  const rammer=spawnEnemy(ram,8,rp.x,rp.y);rammer.noFire=true;update(ram,.001);
-  near(200-rp.shield,22*profile.damage,'Contact damage');
+  const rammer=spawnEnemy(ram,8,rp.x,rp.y);rammer.noFire=true;const hull=rp.hull;update(ram,.001);
+  // Contact is kinetic: part of it bleeds through the shield into the hull.
+  near(200-rp.shield+hull-rp.hull,22*profile.damage,'Contact damage');
   const tractor=isolated(id),tp=tractor.players[0];Object.assign(tp,{guard:0,lastHit:0,shield:200,y:400,py:400,fireEnergy:100,fireEnergyDelay:1});
   const cap=spawnEnemy(tractor,6,tp.x,226);Object.assign(cap,{ai:'captor',capState:2,capTimer:2,capX:tp.x,noFire:true});update(tractor,.025);
   near(200-tp.shield,26*.025*profile.damage,'Tractor shield drain');near(100-tp.fireEnergy,34*.025*profile.damage,'Tractor energy drain');

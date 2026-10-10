@@ -103,14 +103,15 @@
 
 import {
   heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
-  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn,
+  chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt, pillowHeightAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
-import { growCardSpruce, createTwigAtlas } from './spruce.js';
+import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
-import { compose } from './geom.js';
-import { PROPS } from './config.js';
+import { compose, weld } from './geom.js';
+import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
+import { onHutGround } from './huts.js';
 
 const {
   band, ahead, behind, biomes: BIOMES,
@@ -124,11 +125,6 @@ const smoothstep = (a, b, v) => {
   const t = Math.min(1, Math.max(0, (v - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-
-/* Kinds, as the collision list reports them */
-export const HARD = 0;   // puts a rider down
-export const SOFT = 1;   // costs speed and throws powder
-export const JUMPABLE = 2; // hard, but low enough to clear
 
 /* Snow on anything standing on the mountain.
 
@@ -1168,16 +1164,24 @@ function growTree(THREE, seed, spec, geos) {
    millimetre, which is safe here because the duplicates were written by the
    same arithmetic and are bit-identical. Miss one and the solid comes apart
    along a seam, which is a very memorable bug to look at.
+
+   The same separateness gives every face its own normal, which is right for
+   stone and wrong for anything soft. `smooth` averages the normals of the
+   faces that meet at each corner, matched the same way: a snow cap is a
+   pillow and a clump of needles is a cushion, and with a normal per face
+   they drew as folded paper and cut stone.
    ========================================================================== */
 
-function weather(THREE, geo, rnd, amount) {
+function weather(THREE, geo, rnd, amount, smooth = false) {
   const g = geo.clone();
   const p = g.attributes.position;
   const moved = new Map();
+  const keys = new Array(p.count);
   const v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     const key = `${Math.round(v.x * 1e4)},${Math.round(v.y * 1e4)},${Math.round(v.z * 1e4)}`;
+    keys[i] = key;
     let o = moved.get(key);
     if (!o) {
       // A radial squeeze plus a small shove: the first makes faces of unequal
@@ -1192,6 +1196,21 @@ function weather(THREE, geo, rnd, amount) {
     p.setXYZ(i, v.x * o[0] + o[1], v.y * o[0] + o[2], v.z * o[0] + o[3]);
   }
   g.computeVertexNormals();
+  if (smooth) {
+    const n = g.attributes.normal;
+    const sum = new Map();
+    for (let i = 0; i < n.count; i++) {
+      const acc = sum.get(keys[i]) || sum.set(keys[i], new THREE.Vector3()).get(keys[i]);
+      acc.x += n.getX(i);
+      acc.y += n.getY(i);
+      acc.z += n.getZ(i);
+    }
+    for (const acc of sum.values()) acc.normalize();
+    for (let i = 0; i < n.count; i++) {
+      const acc = sum.get(keys[i]);
+      n.setXYZ(i, acc.x, acc.y, acc.z);
+    }
+  }
   return g;
 }
 
@@ -1356,48 +1375,76 @@ function growCrag(THREE, seed, geos, palette) {
 }
 
 /* A winter shrub keeps its dark mass below the snow instead of becoming a
-   white scrap. */
+   white scrap.
+
+   This slot is the bare willow and alder scrub — leafless in winter, which
+   is the one thing about it everybody knows — and it was four lobes of
+   foliage green half a metre across with a few blue-grey twigs lost inside
+   them: at the side of the run, a mossy boulder in a snow cap, on almost half
+   the shrubs on the hill. So the shrub is its stems now: a sheaf of
+   red-brown and grey wands fanned up out of a little drift at their foot,
+   each forking twice. Bare scrub is meant to fade at range; the forest and
+   the dwarf pines keep the green on the hill. */
 function growShrub(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
-  const foliage = '#506057';
+  const bark = ['#6b4a3a', '#7a5a45', '#5e4b3f', '#836553', '#6f6a64'];
 
-  const twigCount = 7 + ((rnd() * 3) | 0);
-  const stem = rnd() * TAU;
-  for (let i = 0; i < twigCount; i++) {
-    const a = stem + (i / twigCount) * TAU + (rnd() - 0.5) * 0.75;
-    const d = dirOf(a, 0.88 + rnd() * 0.48);
-    const len = 0.48 + rnd() * 0.42;
+  // The drift that collects where the stems leave the ground
+  for (let i = 0; i < 2; i++) {
+    const a = rnd() * TAU;
+    const r = 0.2 + rnd() * 0.06;
+    const g = weather(THREE, geos.stone, rnd, 0.4, true);
+    spent.push(g);
     parts.push({
-      geo: geos.twig, color: THICKET, own: OWN_ALL,
-      pos: [Math.cos(a) * 0.10, 0.05 + rnd() * 0.10, Math.sin(a) * 0.10],
-      rot: aim(d[0], d[1], d[2]), scale: [0.036, len, 0.036],
+      geo: g, color: SNOW, own: OWN_SNOW,
+      pos: [Math.cos(a) * 0.07, 0.04 + rnd() * 0.03, Math.sin(a) * 0.07],
+      rot: [0, rnd() * TAU, 0],
+      scale: [r * 1.2, r * 0.36, r],
     });
   }
 
-  const lobeCount = 4;
-  const base = rnd() * TAU;
-  for (let i = 0; i < lobeCount; i++) {
-    const a = base + (i / lobeCount) * TAU + (rnd() - 0.5) * 0.65;
-    const r = 0.27 + rnd() * 0.13;
-    const off = 0.12 + rnd() * 0.25;
-    const y = 0.25 + rnd() * 0.28;
-    const g = weather(THREE, geos.stone, rnd, 0.48);
-    spent.push(g);
+  /* Each stem is two lengths of the same slim stock, the upper one leaning
+     further out, so it bows and thins to under a third of its base: a
+     straight rod of one girth was a bundle of dowels. */
+  const stems = 18;
+  const turn = rnd() * TAU;
+  for (let i = 0; i < stems; i++) {
+    const a = turn + (i / stems) * TAU + (rnd() - 0.5) * 0.6;
+    const pitch = 0.92 + rnd() * 0.5;
+    const len = 0.6 + rnd() * 0.5;
+    const r = 0.011 + rnd() * 0.004;
+    const colour = bark[i % bark.length];
+    const x = Math.cos(a) * (0.04 + rnd() * 0.16);
+    const z = Math.sin(a) * (0.04 + rnd() * 0.16);
+    const lower = dirOf(a, pitch);
+    const upper = dirOf(a + (rnd() - 0.5) * 0.3, pitch - 0.2 - rnd() * 0.2);
+    const l0 = len * 0.58;
+    const kx = x + lower[0] * l0;
+    const ky = 0.04 + lower[1] * l0;
+    const kz = z + lower[2] * l0;
     parts.push({
-      geo: g, color: new THREE.Color(foliage).multiplyScalar(0.82 + rnd() * 0.22),
-      own: OWN_ALL,
-      pos: [Math.cos(a) * off, y, Math.sin(a) * off],
-      rot: [(rnd() - 0.5) * 0.42, rnd() * TAU, (rnd() - 0.5) * 0.42],
-      scale: [r, r * (0.66 + rnd() * 0.14), r * (0.82 + rnd() * 0.16)],
+      geo: geos.wand, color: colour, own: OWN_ALL,
+      pos: [x, 0.04, z], rot: aim(lower[0], lower[1], lower[2]), scale: [r, l0, r],
     });
-    if (i !== 1 || rnd() < 0.55) {
+    parts.push({
+      geo: geos.wand, color: colour, own: OWN_ALL,
+      pos: [kx, ky, kz], rot: aim(upper[0], upper[1], upper[2]),
+      scale: [r * 0.55, len - l0, r * 0.55],
+    });
+    // Two forks, off the top of the lower length and the upper one
+    for (let k = 0; k < 2; k++) {
+      const from = k === 0 ? [kx, ky, kz] : [
+        kx + upper[0] * (len - l0) * 0.5,
+        ky + upper[1] * (len - l0) * 0.5,
+        kz + upper[2] * (len - l0) * 0.5,
+      ];
+      const fd = dirOf(a + (rnd() < 0.5 ? -1 : 1) * (0.4 + rnd() * 0.5), 0.75 + rnd() * 0.35);
       parts.push({
-        geo: g, color: SNOW, own: OWN_SNOW,
-        pos: [Math.cos(a) * off - 0.025, y + r * 0.54, Math.sin(a) * off],
-        rot: [0, rnd() * TAU, 0],
-        scale: [r * 0.84, r * 0.18, r * 0.76],
+        geo: geos.wand, color: colour, own: OWN_ALL,
+        pos: from, rot: aim(fd[0], fd[1], fd[2]),
+        scale: [r * 0.45, len * (0.25 + rnd() * 0.2), r * 0.45],
       });
     }
   }
@@ -1410,50 +1457,70 @@ function growShrub(THREE, seed, geos) {
 
 /* One instance is a whole alpine ground patch: cushions, dry blades and seed
    heads. Opaque wedges stay stable under motion where alpha grass cards would
-   shimmer against the snow. */
+   shimmer against the snow.
+
+   Winter grass, which is what pokes through on a scoured bank in January, is
+   dead: straw and tan, fine, and in tufts. It was eleven wedges five to
+   eight centimetres across and up to three quarters of a metre long,
+   scattered singly, with an eight-sided yellow diamond on every fourth — at
+   the side of the run, a few metres from the lens, a bed of stakes flying
+   flags. So the blades are two or three centimetres across now, bunched in
+   tufts at the cushions' rims and splayed out of their crowns, and the seed
+   heads are what a grass carries: a slender spikelet on a stalk that stands
+   above the tuft. */
 function growPlantPatch(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
   const green = ['#566555', '#68705a'];
-  const dry = ['#7a715b', '#918467'];
+  const straw = ['#a8976e', '#8f7f5c', '#bcab80', '#7d6f52'];
 
+  const cushions = [];
   for (let i = 0; i < 4; i++) {
     const a = rnd() * TAU;
     const off = 0.18 + rnd() * 0.52;
     const r = 0.15 + rnd() * 0.12;
-    const g = weather(THREE, geos.stone, rnd, 0.42);
+    const g = weather(THREE, geos.stone, rnd, 0.42, true);
     spent.push(g);
     const x = Math.cos(a) * off;
     const z = Math.sin(a) * off;
+    cushions.push({ x, z, r });
     parts.push({
       geo: g, color: green[i % green.length], own: OWN_ALL,
       pos: [x, 0.10 + rnd() * 0.08, z], rot: [0, rnd() * TAU, 0],
       scale: [r, r * 0.44, r * 0.86],
     });
-    if (i < 2) parts.push({
-      geo: g, color: SNOW, own: OWN_SNOW,
-      pos: [x, 0.21 + rnd() * 0.04, z], rot: [0, rnd() * TAU, 0],
-      scale: [r * 0.82, r * 0.12, r * 0.70],
-    });
   }
 
-  for (let i = 0; i < 11; i++) {
-    const a = rnd() * TAU;
-    const off = 0.16 + rnd() * 0.58;
-    const d = dirOf(a, 1.04 + rnd() * 0.36);
-    const len = 0.25 + rnd() * 0.50;
-    const x = Math.cos(a) * off;
-    const z = Math.sin(a) * off;
+  // A tuft grows from the rim of a cushion, not out of the middle of one
+  for (let t = 0; t < 3; t++) {
+    const c = cushions[t];
+    const ta = rnd() * TAU;
+    const tx = c.x + Math.cos(ta) * c.r * 1.05;
+    const tz = c.z + Math.sin(ta) * c.r * 0.9;
+    for (let i = 0; i < 11; i++) {
+      const a = rnd() * TAU;
+      const d = dirOf(a, 0.75 + rnd() * 0.55);
+      parts.push({
+        geo: geos.blade, color: straw[(t + i) % straw.length], own: OWN_ALL,
+        pos: [tx + Math.cos(a) * 0.03, 0.02, tz + Math.sin(a) * 0.03],
+        rot: aim(d[0], d[1], d[2]),
+        scale: [0.009 + rnd() * 0.005, 0.14 + rnd() * 0.2, 0.007 + rnd() * 0.004],
+      });
+    }
+    // The tuft's seed stalk, standing above it, and its spikelet
+    const d = dirOf(rnd() * TAU, 1.2 + rnd() * 0.25);
+    const len = 0.3 + rnd() * 0.15;
     parts.push({
-      geo: geos.blade, color: dry[i % dry.length], own: OWN_ALL,
-      pos: [x, 0.02, z], rot: aim(d[0], d[1], d[2]),
-      scale: [0.025 + rnd() * 0.016, len, 0.020 + rnd() * 0.012],
+      geo: geos.blade, color: '#8a7a58', own: OWN_ALL,
+      pos: [tx, 0.02, tz], rot: aim(d[0], d[1], d[2]),
+      scale: [0.005, len, 0.005],
     });
-    if (i % 4 === 0) parts.push({
-      geo: geos.berry, color: '#b7a46f', own: OWN_ALL,
-      pos: [x + d[0] * len, 0.02 + d[1] * len, z + d[2] * len],
-      scale: [0.045, 0.065, 0.045],
+    parts.push({
+      geo: geos.blade, color: '#9c8a62', own: OWN_ALL,
+      pos: [tx + d[0] * len * 0.82, 0.02 + d[1] * len * 0.82, tz + d[2] * len * 0.82],
+      rot: aim(d[0], d[1], d[2]),
+      scale: [0.013, 0.07, 0.013],
     });
   }
 
@@ -1488,7 +1555,7 @@ function growDwarfPine(THREE, seed, geos) {
       const bz = Math.sin(a) * (0.15 + len * frac * 0.75);
       const by = 0.12 + len * frac * 0.35;
       const br = 0.22 + rnd() * 0.14;
-      const g = weather(THREE, geos.stone, rnd, 0.52);
+      const g = weather(THREE, geos.stone, rnd, 0.52, true);
       spent.push(g);
       parts.push({
         geo: g, color: new THREE.Color(pineNeedles[(i + j) % pineNeedles.length]).multiplyScalar(0.85 + rnd() * 0.25),
@@ -1497,14 +1564,6 @@ function growDwarfPine(THREE, seed, geos) {
         rot: [(rnd() - 0.5) * 0.35, rnd() * TAU, (rnd() - 0.5) * 0.35],
         scale: [br * 1.25, br * 0.45, br * 0.85],
       });
-      if (rnd() < 0.75) {
-        parts.push({
-          geo: g, color: SNOW, own: OWN_SNOW,
-          pos: [bx, by + br * 0.28, bz],
-          rot: [0, rnd() * TAU, 0],
-          scale: [br * 1.05, br * 0.16, br * 0.75],
-        });
-      }
     }
   }
   const geometry = compose(THREE, parts);
@@ -1545,7 +1604,7 @@ function growWinterBramble(THREE, seed, geos) {
   }
   for (let i = 0; i < 3; i++) {
     const r = 0.12 + rnd() * 0.08;
-    const g = weather(THREE, geos.stone, rnd, 0.35);
+    const g = weather(THREE, geos.stone, rnd, 0.35, true);
     spent.push(g);
     parts.push({
       geo: g, color: SNOW, own: OWN_SNOW,
@@ -1559,44 +1618,41 @@ function growWinterBramble(THREE, seed, geos) {
   return geometry;
 }
 
-/* Alpine tussock grass and cushion moss patch */
+/* An alpine tussock: one bunch of grass, a fountain of dead blades out of a
+   crown of its own thatch. Sixteen wedges up to seventy centimetres long and
+   six to nine thick, in greens, stood off the crown on five lobes, which at
+   the side of the run was a hedgehog the size of a chair.
+   Thirty fine blades out of one tight crown, splayed from upright to nearly
+   flat, are what a tussock is — and in winter they are straw. */
 function growTussockPatch(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
-  const tussockColors = ['#697159', '#7e765d', '#535b48'];
+  const thatch = ['#6f6650', '#5f5a48', '#77705a'];
+  const straw = ['#b3a27a', '#9c8b65', '#c2b28a', '#857654', '#a49372'];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const a = rnd() * TAU;
-    const off = 0.12 + rnd() * 0.45;
-    const r = 0.18 + rnd() * 0.14;
-    const g = weather(THREE, geos.stone, rnd, 0.45);
+    const off = rnd() * 0.12;
+    const r = 0.16 + rnd() * 0.08;
+    const g = weather(THREE, geos.stone, rnd, 0.45, true);
     spent.push(g);
-    const x = Math.cos(a) * off;
-    const z = Math.sin(a) * off;
     parts.push({
-      geo: g, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
-      pos: [x, 0.08 + rnd() * 0.06, z], rot: [0, rnd() * TAU, 0],
-      scale: [r * 1.1, r * 0.38, r * 0.9],
+      geo: g, color: thatch[i], own: OWN_ALL,
+      pos: [Math.cos(a) * off, 0.05 + rnd() * 0.03, Math.sin(a) * off],
+      rot: [0, rnd() * TAU, 0],
+      scale: [r * 1.1, r * 0.32, r * 0.95],
     });
-    if (i < 3) {
-      parts.push({
-        geo: g, color: SNOW, own: OWN_SNOW,
-        pos: [x, 0.16 + rnd() * 0.03, z], rot: [0, rnd() * TAU, 0],
-        scale: [r * 0.85, r * 0.10, r * 0.75],
-      });
-    }
   }
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 30; i++) {
     const a = rnd() * TAU;
-    const off = 0.10 + rnd() * 0.55;
-    const d = dirOf(a, 0.95 + rnd() * 0.45);
-    const len = 0.30 + rnd() * 0.40;
+    const off = 0.02 + rnd() * 0.14;
+    const d = dirOf(a, 0.5 + rnd() * 0.75);
     parts.push({
-      geo: geos.blade, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
-      pos: [Math.cos(a) * off, 0.02, Math.sin(a) * off],
+      geo: geos.blade, color: straw[i % straw.length], own: OWN_ALL,
+      pos: [Math.cos(a) * off, 0.04, Math.sin(a) * off],
       rot: aim(d[0], d[1], d[2]),
-      scale: [0.028 + rnd() * 0.015, len, 0.022 + rnd() * 0.012],
+      scale: [0.010 + rnd() * 0.006, 0.18 + rnd() * 0.27, 0.008 + rnd() * 0.005],
     });
   }
   const geometry = compose(THREE, parts);
@@ -1843,7 +1899,7 @@ function saplingCardGeometry(THREE, spec) {
 
 class Pool {
   constructor(THREE, geometry, material, capacity, tinted = false) {
-    this.mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    this.mesh = new THREE.InstancedMesh(weld(THREE, geometry), material, capacity);
     /* THREE STARTS AN InstancedMesh AT count = capacity WITH EVERY MATRIX
        ZERO, and a zero matrix is not an invisible object: it collapses every
        vertex onto w = 0, which the rasteriser is free to turn into a triangle
@@ -2066,6 +2122,8 @@ export function createProps(THREE, shading) {
   };
 
   /* Low vegetation shares one wind program and organic botanical textures */
+  const floraSnow = new THREE.Color(SNOW);
+  const floraSnowColour = `vec3(${floraSnow.r.toFixed(4)}, ${floraSnow.g.toFixed(4)}, ${floraSnow.b.toFixed(4)})`;
   const floraMat = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
@@ -2076,7 +2134,8 @@ export function createProps(THREE, shading) {
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
         varying vec3 vFloraWorldPos;
-        varying vec3 vFloraNormal;`)
+        varying vec3 vFloraNormal;
+        varying float vFloraOwn;`)
         .replace('#include <color_vertex>', OWN_MIX)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
@@ -2087,17 +2146,45 @@ export function createProps(THREE, shading) {
           vFloraWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
           vFloraNormal = inverseTransformDirection(transformedNormal, viewMatrix);
         #endif
-        vN64Sheen = 1.0 - surfaceOwn;`);
+        vFloraOwn = surfaceOwn;
+        // Whatever can hold snow takes the snow response: see the fragment.
+        vN64Sheen = max(1.0 - surfaceOwn, smoothstep(0.15, 0.55, vFloraNormal.y));`);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>
         varying vec3 vFloraWorldPos;
         varying vec3 vFloraNormal;
+        varying float vFloraOwn;
         uniform sampler2D uBarkTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        float floraOwn = 1.0 - vN64Sheen;
+        float floraOwn = vFloraOwn;
         if (floraOwn > 0.05) {
-          vec3 twigSample = texture2D(uBarkTex, vFloraWorldPos.xy * 0.75).rgb;
+          /* Projected three ways and blended by the normal. Taken down the
+             world's z alone, the bark smeared into long stripes across
+             every top face, and a juniper cushion wore camouflage. At this
+             scale its crevices read as needles and twig bark alike. */
+          vec3 floraW = abs(normalize(vFloraNormal));
+          floraW /= floraW.x + floraW.y + floraW.z;
+          vec3 twigSample = texture2D(uBarkTex, vFloraWorldPos.zy * 1.6).rgb * floraW.x
+            + texture2D(uBarkTex, vFloraWorldPos.xz * 1.6).rgb * floraW.y
+            + texture2D(uBarkTex, vFloraWorldPos.xy * 1.6).rgb * floraW.z;
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * twigSample * 5.0, 0.72 * floraOwn);
+          /* THE SNOW ON IT, worked out here rather than modelled. It was a
+             second copy of each lobe squashed to a fifth of its height and
+             laid on top, which drew a flat white plate whose edge was
+             wherever one eighty-face ball happened to cut another: a jagged
+             paper outline on every cushion near the run. Snow lies on
+             whatever faces the sky, so it is the smooth normal that decides,
+             broken up by two octaves fixed to the world so the edge wanders
+             the way a real one does and stays put as the camera moves. The
+             twigs take it along their tops for the same reason. The colour is
+             the props' snow, and the shared snow response treats it as snow
+             because the vertex stage lets every up-facing face ask. */
+          vec3 floraN = normalize(vFloraNormal);
+          float floraBreak = n64Noise(vFloraWorldPos.xz * 5.0 + vFloraWorldPos.y * 3.0) * 0.65
+            + n64Noise(vFloraWorldPos.zx * 11.0 - vFloraWorldPos.y * 7.0) * 0.35;
+          float floraSnow = smoothstep(0.66, 0.9, floraN.y + (floraBreak - 0.5) * 0.45)
+            * floraOwn;
+          diffuseColor.rgb = mix(diffuseColor.rgb, ${floraSnowColour}, floraSnow);
         }`);
     };
     return shading.apply(m, { streamFade: true, cameraFade: true, sheen: 1, fogPull: FOG_PULL_FLORA });
@@ -2296,6 +2383,7 @@ export function createProps(THREE, shading) {
     flare: hull(0.45, radial + 6),      // where it meets the ground
     limb: hull(0.5, radial - 2),        // a length of branch
     twig: hull(0.55, Math.max(8, sides + 2)),
+    wand: hull(0.55, 6),                // a willow stem, in two of these
     swell: hull(1.5, radial - 2),       // needles widening away from the trunk
     frond: hull(0.5, radial - 2),       // needles narrowing towards the tip
     sprig: spike(radial - 2),           // and the point they finish in
@@ -2303,7 +2391,6 @@ export function createProps(THREE, shading) {
     drift: spike(radial + 2),           // snow that has settled to a point
     loaf: hull(0.42, radial),           // and snow lying along a bough
     stone: new THREE.IcosahedronGeometry(1, 1),
-    berry: new THREE.OctahedronGeometry(1, 0),
     blade: spike(3),
   };
 
@@ -2369,11 +2456,16 @@ export function createProps(THREE, shading) {
      `opts.frost` is the bare larch's snow: drawn a shade bluer than grey
      into an atlas that is otherwise luminance, and turned back into the
      prop snow colour per texel here. */
-  // The coloured bough atlas uses black outside the foliage. Derive the
-  // same coverage in both passes, including filtered edges and distant mips.
+  /* The coloured bough atlas uses black outside the foliage. Derive the
+     same coverage in both passes, including filtered edges and distant mips.
+     Not across the bark strip at the atlas's left edge, which fills its cell
+     with no background at all: keyed like the boughs, the quarter of it
+     darker than the cutout — every crevice — went straight through the
+     trunk, and the snow behind showed through a tree in lace. */
   const boughCoverage = `
-    diffuseColor.a *= smoothstep(0.006, 0.065,
-      max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
+    if (vMapUv.x > ${SPRUCE_LAYOUT.bark.u1.toFixed(3)})
+      diffuseColor.a *= smoothstep(0.006, 0.065,
+        max(sampledDiffuseColor.r, max(sampledDiffuseColor.g, sampledDiffuseColor.b)));`;
   const spruceMat = (height, atlas, opts = {}) => {
     const m = new THREE.MeshLambertMaterial({
       map: atlas,
@@ -2386,19 +2478,15 @@ export function createProps(THREE, shading) {
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
-        varying float vCardSolid;`)
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
         .replace('#include <color_vertex>', `#include <color_vertex>
         #if defined( USE_COLOR ) && defined( USE_INSTANCING_COLOR )
           vColor.rgb = mix( color, vColor.rgb, clamp( surfaceOwn, 0.0, 1.0 ) );
         #endif`)
         .replace('#include <begin_vertex>', SWAY)
         .replace('#include <project_vertex>', `#include <project_vertex>
-        vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );
-        vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+        vN64Sheen = 1.0 - clamp( surfaceOwn, 0.0, 1.0 );`);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>
-        varying float vCardSolid;`)
         .replace('#include <map_fragment>', `#include <map_fragment>
         ${opts.colored ? boughCoverage : ''}
         float n64FrostTexel = ${frost
@@ -2412,7 +2500,6 @@ export function createProps(THREE, shading) {
           float canopyLight = clamp(max(vColor.r, max(vColor.g, vColor.b)) * 5.5, 0.40, 1.15);
           diffuseColor.rgb = sampledDiffuseColor.rgb * canopyLight;
         }` : ''}
-        if (vCardSolid > 0.5) diffuseColor = vec4(vColor.rgb, 1.0);
         /* The sprig cells store needle luminance, not colour: the cast on
            the instance is the colour. Lift them back to needle brightness;
            frost (sheen 1) and bark (sheen ~0.65) keep the map's own level.
@@ -2479,16 +2566,10 @@ export function createProps(THREE, shading) {
     m.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, air, { uSwayHeight: { value: height } });
       shader.vertexShader = shader.vertexShader
-        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}
-          varying float vCardSolid;`)
-        .replace('#include <begin_vertex>', `${SWAY}
-          vCardSolid = surfaceOwn < -0.5 ? 1.0 : 0.0;`);
+        .replace('#include <common>', `#include <common>${OWN_DECL}${AIR_DECL}`)
+        .replace('#include <begin_vertex>', SWAY);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', `#include <common>\nvarying float vCardSolid;`)
-        .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`)
-        .replace('#include <alphatest_fragment>', `
-          if (vCardSolid > 0.5) diffuseColor.a = 1.0;
-          #include <alphatest_fragment>`);
+        .replace('#include <map_fragment>', `#include <map_fragment>${colored ? boughCoverage : ''}`);
     };
     m.customProgramCacheKey = () => `spruce-depth:${colored}`;
     return m;
@@ -2503,7 +2584,8 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < treePools.length; i++) {
       if (!treeBare[i]) continue;
       const spec = SPECIES[i % SPECIES.length];
-      const g = growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i], twig.layout);
+      const g = weld(THREE, growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i],
+        twig.layout));
       const old = treePools[i].mesh.geometry;
       treePools[i].mesh.geometry = g;
       old.dispose();
@@ -2526,7 +2608,7 @@ export function createProps(THREE, shading) {
       for (let i = 0; i < treePools.length; i++) {
         if (treeBare[i]) continue;
         const spec = SPECIES[i % SPECIES.length];
-        const g = growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]);
+        const g = weld(THREE, growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]));
         const old = treePools[i].mesh.geometry;
         treePools[i].mesh.geometry = g;
         old.dispose();
@@ -2644,23 +2726,60 @@ export function createProps(THREE, shading) {
   /* The first two are the hazard families and stay first: the verge
      boulder picks between them by index. The three after them are granite
      from one Poly Haven set, stand-ins until the scans land. */
+  /* THE STONE YOU HIT IS THE STONE YOU SEE. Each pool's scan (see below)
+     replaces its grown stone at the grown stone's height, and every one of
+     them is flatter than the stone it replaces, while the collision is still
+     the grown stone's radius. Drawn, they reached 1.6 to 4 times that radius,
+     so a rider went through the outer half of a visible rock, and the flat
+     iron slab came out up to 31 m across. So each grown stone is first
+     brought to its scan's proportions: height over half-width, as each file
+     lies (rock_07, rock_09, then the granite set's stone_10, 11 and 13). A
+     scan fitted to that height then fills exactly the radius the rider
+     collides with, and the stone is as tall as its own shape says. */
+  const SCAN_ASPECT = [0.90, 0.45, 0.70, 1.34, 1.20];
   const boulderVariants = [
     growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
     growBoulder(THREE, 0x9d2b1f + 11213, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 16301, geos, SNOWPACK.iron),
     growBoulder(THREE, 0x9d2b1f + 21347, geos, SNOWPACK.slate),
-  ];
+  ].map((grown, i) => {
+    const k = (grown.radius * SCAN_ASPECT[i]) / (grown.top - grown.bottom);
+    grown.geometry.scale(1, k, 1);
+    return { ...grown, bottom: grown.bottom * k, top: grown.top * k };
+  });
   const rockPools = boulderVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial,
     bands * (BIOMES.sideRockCandidates + 1) + 16,
   ));
   /* Natural rock buttresses along the mountain flanks */
+  /* The crags the same way, from the other side. Their scans are broad
+     faces and the grown stones pillars: fitted to the pillar's height,
+     rock_face_01 and boulder_01 drew 2.3 and 2.8 times the collision radius,
+     and every scan stood 2–4.6 m lower than its collision top, because a
+     scan is sunk a fifth of its height and the pillar less than a tenth. A
+     face that wide was also bedded against the ground under the pillar's
+     footprint, not its own. The faces are the composition, so here it is
+     the collision that moves: each grown crag takes its scan's half-width
+     (height over `CRAG_ASPECT`, as each file lies) and its sink, so it is
+     bedded, and collided with, as the face that is drawn. */
+  const CRAG_ASPECT = [1.44, 2.06, 1.10];
+  const CRAG_SINK = 0.20;
   const cragVariants = [
     growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
     growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
     growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
-  ];
+  ].map((grown, i) => {
+    const height = grown.top - grown.bottom;
+    const radius = height / CRAG_ASPECT[i];
+    const k = radius / grown.radius;
+    // The stand-in, drawn until the scan lands, matches as well.
+    grown.geometry.scale(k, 1, k);
+    grown.geometry.translate(0, -height * CRAG_SINK - grown.bottom, 0);
+    return {
+      ...grown, radius, bottom: -height * CRAG_SINK, top: height * (1 - CRAG_SINK),
+    };
+  });
   const cragPools = cragVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial, bands * 2 + 16,
   ));
@@ -2702,22 +2821,42 @@ export function createProps(THREE, shading) {
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
 
   /* The flank buttresses go the same way: cliff-face photoscans, less snow
-     — a near-vertical face holds a dusting at most. */
+     — a near-vertical face holds a dusting at most.
+
+     Two of the three are faces and nothing else: rock_face_01 and
+     mountainside were scanned from the front, and under one per cent of
+     either faces away from it. They are turned to face the run, but from
+     the wall side — looking back from the quarterpipe — a single-sided
+     shell is not there at all, and what was left was a few black shards
+     standing in the air. Drawn from both sides, the inside of the face is
+     rock seen from behind. The boulder is closed and keeps its culling. */
   {
     const scans = ['rock_face_01.glb', 'mountainside.glb', 'boulder_01.glb'];
+    const open = [true, true, false];
     for (let i = 0; i < cragPools.length; i++) {
       upgrader.upgradeTextured(cragPools[i], scans[i],
         heightOfGrown(cragVariants[i].geometry),
-        (map) => photoMat(map, 0.42), 0.20);
+        (map) => {
+          const m = photoMat(map, 0.42);
+          if (open[i]) m.side = THREE.DoubleSide;
+          return m;
+        }, CRAG_SINK);
     }
   }
 
   /* The last shrub slot becomes a photoscanned stump: forest floor
      furniture where the bramble used to be, same streaming, same bands. It
      keeps the shrubs' no-shadow trade, and being under a metre it never
-     needed the wind. */
+     needed the wind.
+
+     Its height is its own, not the bramble's. The scan is 0.57 m tall and
+     two and a half times that across its roots, and fitted to the bramble's
+     metre it came out 2.6–2.9 m across before the shrubs' own scales
+     (0.6–2.2) took the biggest to six: a white heap the size of a car at the
+     foot of a spruce. Fitted to 0.4 m, the same scales give stumps from a
+     stub of wood to an old-growth bole two and a half metres across. */
   upgrader.upgradeTextured(shrubPools[2], 'tree_stump_01.glb',
-    heightOfGrown(shrubVariants[2]), (map) => photoMat(map, 0.55), 0.06);
+    0.4, (map) => photoMat(map, 0.55), 0.06);
 
   /* --- the young forest and the deadwood --------------------------------
 
@@ -2933,6 +3072,26 @@ export function createProps(THREE, shading) {
       .normalize();
   }
 
+  /* …and bedded against the lowest snow its roots reach. A spruce's root
+     ring is buried at a fixed depth under the trunk (see the foot in
+     spruce.js), and on a steep or breaking bank the snow downhill falls
+     away faster than that: a tenth of the forest stands on ground past 28°
+     and a few trees on 50°, where the ring came out of the snow as a shell
+     of bark. Sinking the tree until the ring is under the lowest snow eight
+     bearings find at its reach costs nothing to see — the trunk only goes
+     in deeper on the uphill side — and only moves trees that need it. The
+     margin covers a bearing that falls between two probes. */
+  function beddedTreeY(x, z, y, height, s, sy) {
+    const ring = rootRing(height);
+    const reach = ring.reach * s;
+    let low = y;
+    for (let k = 0; k < 8; k++) {
+      const a = k * Math.PI / 4;
+      low = Math.min(low, heightAt(x + Math.cos(a) * reach, z + Math.sin(a) * reach));
+    }
+    return Math.min(y, low + ring.depth * sy * 0.85);
+  }
+
   /* The outside of the whole route, not merely the nearest branch. At a fork
      `centersAt` is ordered left to right, so choosing the extreme centre and
      then moving another half-width out puts a prop beyond both groomed ways
@@ -3040,6 +3199,14 @@ export function createProps(THREE, shading) {
     return true;
   }
 
+  /* Bare outcrop: nothing is planted on a tor. The mesh draws one rounder
+     and lower the further off it stands (see `torAt` in terrain.js), so a
+     tree or a stone bedded on the full-detail rock would hang over it. The
+     powder band's pillows are the same story with snow, and the far mesh
+     leaves them out altogether. And nothing grows on a hut's ground. */
+  const occupied = (x, z) => torHeightAt(x, z) > 0.2 || pillowHeightAt(x, z) > 0.1
+    || onHutGround(x, z);
+
   function clearOfBandHazards(x, z, r, hazards, margin = 1.5) {
     for (let i = 0; i < hazards.length; i++) {
       const h = hazards[i];
@@ -3138,7 +3305,9 @@ export function createProps(THREE, shading) {
              stands half a metre clear of the snow on its downhill side. */
           const groundY = beddedGroundY(x, z, rough.r, 0.05 + rough.r * 0.16);
           const shape = boulderTransform(v, groundY, sx, sy, sz);
-          if (visibleFromApproach(x, z, shape.top)
+          // Only the hut test of `occupied`: the shoulder is where the
+          // pillows are, and refusing those would thin the hazard out
+          if (!onHutGround(x, z) && visibleFromApproach(x, z, shape.top)
             && rockPools[v].add(
               x, shape.y, z, hash2(b, 3410, 227) * TAU, sx, sy, sz,
             )) {
@@ -3146,6 +3315,7 @@ export function createProps(THREE, shading) {
               key: `boulder:${b}`,
               type: 'boulder', x, z, r: shape.r,
               kind: HARD, groundY, top: shape.top, cameraPad: 0.55, volume: true,
+              ao: shape.top - groundY,
             };
             solids.push(solid);
             bandHazards.push(solid);
@@ -3252,14 +3422,20 @@ export function createProps(THREE, shading) {
       if (normal.y < 0.88) continue;
       const colour = castOf(treeBare[v], v, rnd(), tint);
       if (hash2(b, 3800 + i, 239) > density) continue;
-      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0)) continue;
-      if (!treePools[v].addOnSlope(x, y, z, yaw, s, sy, s, normal, colour)) continue;
+      if (!clearOfBandHazards(x, z, radius, bandHazards, 2.0) || occupied(x, z)) continue;
+      const bed = beddedTreeY(x, z, y, treeHeights[v], s, sy);
+      if (!treePools[v].addOnSlope(x, bed, z, yaw, s, sy, s, normal, colour)) continue;
       /* `canopy` is the crown's radius, for the occlusion field the snow
          reads (canopy.js): a conifer's lowest whorl reaches about a quarter
          of its height out from the trunk. A bare snag hides much less sky
          than a needled crown of the same size. */
+      /* A volume, like the rocks: held out of rather than passed through.
+         As a trigger a trunk answered once — a fall at 20 m/s carried the
+         body on through it at twelve, `fall` keeping the speed the rider
+         brought, and a rider who got up from it, or steered back into one
+         already grazed, rode straight through the tree. */
       solids.push({
-        x, z, r: radius, kind: HARD, top: 99,
+        x, z, r: radius, kind: HARD, top: 99, volume: true,
         canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
         canopyDensity: treeBare[v] ? 0.35 : 1,
       });
@@ -3280,6 +3456,7 @@ export function createProps(THREE, shading) {
         z, side, distance,
         hash2(b, 3260 + i, 211), hash2(b, 3280 + i, 211),
       );
+      if (occupied(x, z)) continue;
       ecologyAt(x, z, eco);
 
       /* Multi-scale procedural density: alternating groves, tight clumps & clearings */
@@ -3315,6 +3492,7 @@ export function createProps(THREE, shading) {
         z, side, distance,
         hash2(b, 3060 + i, 223), hash2(b, 3080 + i, 223),
       );
+      if (occupied(x, z)) continue;
       ecologyAt(x, z, eco);
 
       /* Multi-scale procedural density: dense alpine thickets vs open snowy basins */
@@ -3353,6 +3531,7 @@ export function createProps(THREE, shading) {
       const distance = lerp(12.0, 60, Math.pow(hash2(b, 3540 + i, 229), 1.3))
         + s * 1.5;
       const x = outerEdgeAt(z, side) + side * distance;
+      if (occupied(x, z)) continue;
       ecologyAt(x, z, eco);
       const rockCover = clamp01(0.12 + 0.50 * Math.max(eco.talus, eco.exposure));
       if (hash2(b, 3560 + i, 229) > rockCover) continue;
@@ -3376,6 +3555,7 @@ export function createProps(THREE, shading) {
       solids.push({
         type: 'rock', x, z, r: shape.r,
         kind: JUMPABLE, top: shape.top, cameraPad: 0.55, volume: true,
+        ao: shape.top - groundY,
       });
     }
 
@@ -3398,10 +3578,11 @@ export function createProps(THREE, shading) {
       const shape = stoneTransform(grown, groundY, sx, sy, sz);
       const yaw = (side < 0 ? Math.PI / 2 : -Math.PI / 2)
         + (hash2(b, 3710, 233) - 0.5) * 0.9;
-      if (cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
+      if (!occupied(x, z) && cragPools[v].add(x, shape.y, z, yaw, sx, sy, sz)) {
         solids.push({
           type: 'rock', x, z, r: shape.r,
           kind: HARD, top: shape.top, cameraPad: 0.55, volume: true,
+          ao: shape.top - groundY,
         });
       }
     }
@@ -3434,7 +3615,7 @@ export function createProps(THREE, shading) {
       const cover = clamp01(0.08 + 0.50 * edge * (0.4 + 0.6 * down)
         + 0.30 * eco.understory + 0.32 * eco.alpine + 0.12 * eco.avalanche);
       if (hash2(b, 4280 + i, 241) > cover * density) continue;
-      if (!clearOfBandHazards(x, z, crown, bandHazards, 1.0)) continue;
+      if (!clearOfBandHazards(x, z, crown, bandHazards, 1.0) || occupied(x, z)) continue;
       const ground = heightAt(x, z);
       normalFrom(heightAt, x, z, floraNormal);
       floraNormal.lerp(worldUp, 0.82).normalize();
@@ -3464,6 +3645,7 @@ export function createProps(THREE, shading) {
       const distance = lerp(DEADWOOD.logNear, DEADWOOD.logFar,
         Math.pow(hash2(b, 4420 + i, 251), 1.1));
       const x = outerEdgeAt(z, side) + side * distance;
+      if (occupied(x, z)) continue;
       ecologyAt(x, z, eco);
       const woods = eco.stand * (0.25 + 0.75 * down) * lineCover;
       if (hash2(b, 4430 + i, 251) > woods * 0.55 * density) continue;
@@ -3504,6 +3686,7 @@ export function createProps(THREE, shading) {
         Math.pow(hash2(b, 4540 + i, 257), 1.15));
       const x = vergeXAt(z, side, distance,
         hash2(b, 4560 + i, 257), hash2(b, 4580 + i, 257));
+      if (occupied(x, z)) continue;
       ecologyAt(x, z, eco);
       if (hash2(b, 4600 + i, 257) > (0.10 + 0.75 * eco.stand * down) * density) continue;
       const v = Math.min(2, Math.floor(hash2(b, 4620 + i, 257) * 3));
@@ -3539,6 +3722,7 @@ export function createProps(THREE, shading) {
         const z = centreZ + (i - (sections - 1) * 0.5) * ALPINE.fence.step;
         const stagger = (hash2(b, 2010 + i, 141) - 0.5) * 1.4;
         const x = outerEdgeAt(z, fenceSide) + fenceSide * (margin + stagger);
+        if (occupied(x, z)) continue;
         const y = heightAt(x, z) + 0.06;
         normalFrom(heightAt, x, z, bankNormal);
         const yaw = courseYawAt(z, fenceSide) + Math.PI / 2

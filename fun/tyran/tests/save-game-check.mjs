@@ -784,7 +784,8 @@ check('tactical entries, a live dive and a side formation continue identically a
 
 check('a formation retains its original hull clearance after its largest member dies and the flight reloads', () => seeded(93, () => {
   const state = createCampaign(4); state.width = 320; state.director.hold = true; state.players[0].hurt = 1e6;
-  const anchor = spawnFormation(state, 'escort', 0);
+  // A wall's heavier hulls are not leaders, so losing them keeps the group together.
+  const anchor = spawnFormation(state, 'wall', 0);
   const largest = Math.max(...state.enemies.map(enemy => enemy.radius));
   assert.equal(anchor.hullRadius, largest);
   assert(state.enemies.some(enemy => enemy.radius < largest), 'the surviving ships are smaller');

@@ -31,18 +31,19 @@
 
    A hut faces the rider. Square on to the piste it presents a gable to
    somebody who only ever arrives from above, so the front is aimed twenty
-   metres up the run instead: the windows, the door, the terrace and the pool
-   of light are all pointed at the person they are for.
+   metres up the run instead: the windows, the door, the terrace and the light
+   they throw are all pointed at the person they are for.
 
-   And the light is faked twice over. There is no lamp — a real light per hut
-   would be a fourth and fifth shadowless point light in a scene that lights
-   a whole mountain with two — so the windows are an unlit material whose
-   opacity is the night, and the warmth they throw on the snow is one quad
-   with a radial gradient painted into it, the same trick `sky.js` uses for
-   the sun. That pool started as a Sprite, which was wrong for a reason worth
-   recording: a sprite faces the camera, and light lying on snow does not, so
-   from anywhere but head-on the hut stood in a glowing paper lantern. It is
-   a quad on the ground now, tilted to the hill's own normal.
+   And the light is two lamps no light loop ever sees: the windows are an
+   unlit material whose opacity is the night, and what the room's lamp and
+   the terrace lantern throw on the snow, the timber and the rider is worked
+   out in their own shaders — see `HUT_LIGHT` in config.js and
+   `FRAG_HUT_LIGHT` in shading.js. Real point lights would be two more per
+   hut in a scene that lights a whole mountain with two, and three's are
+   shadowless: they would have lit the snow straight through the walls. The
+   light used to be a painted gradient on a quad laid flat in front of the
+   terrace; on the convex lip a hut stands on, its rim hovered metres off the
+   snow.
 
    The hut itself is one baked geometry through `compose`, so all of it —
    walls, roof, chimney, woodpile, bench, terrace — is one draw call, and the
@@ -53,12 +54,13 @@
 
 import { compose } from './geom.js';
 import {
-  heightAt, normalFrom, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
+  heightAt, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
-import { hash2, stream } from './noise.js';
+import { hash2, stream, getWorldSeed } from './noise.js';
 import { getPointSizeCap } from './particles.js';
-import { RENDER, SKY } from './config.js';
+import { RENDER, SKY, HUT_LIGHT, HARD, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
+import { FOG_CURVE_GLSL } from './shading.js';
 
 /* ==========================================================================
    Every number the huts lean on
@@ -122,12 +124,6 @@ export const HUTS = {
      rectangle, but close. */
   glow: { storm: 0.45, gamma: 0.75, floor: 0.16, warm: '#ffbe6e' },
 
-  /* The pool of warm light on the snow. Its opacity is the square of the
-     night, because a light that is half on at dusk should read as much less
-     than half. Its size never changes: a light that grows is a light that is
-     coming towards you. */
-  pool: { radius: 9, forward: 7, lift: 0.3, opacity: 0.62, colour: '#ffa445' },
-
   /* Chimney smoke.
 
      A slow plume that is buoyant for the first second and then belongs to
@@ -146,7 +142,8 @@ export const HUTS = {
     jitter: 0.16,
     size: 0.5,        // metres across, at the chimney
     growth: 3.2,      // and how many times that by the end of its life
-    alpha: 0.34,
+    alpha: 0.6,
+    spin: 0.8,        // rad/s either way at most, as a puff rolls over
     range: 300,
     stoke: 16,        // extra puffs when somebody comes in for a cocoa
   },
@@ -166,6 +163,11 @@ export const HUTS = {
    and the smoke both read it, because a plume that starts anywhere else is
    the kind of bug nobody spots for a week. */
 const CHIMNEY = { x: 1.75, y: 6.6, z: 0.9 };
+// The top of the terrace deck, and how far the stone base reaches below the
+// floor, both from the planting height; see the terrace and the plinth in
+// `hutGeometry`.
+const TERRACE_DECK = 0.55;
+const PLINTH_DEPTH = 4.595;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -191,8 +193,23 @@ function hutGeometry(THREE) {
   // The rest of the hut can use smooth lighting for its round timber. Keep
   // the two roof pitches architectural by baking a separate normal per face.
   prism.computeVertexNormals();
+  /* The snow banked against the walls, on the ledge the plinth leaves round
+     them: a four-sided frustum with no caps, because its top edge is buried
+     in the timber and its foot sits on the stone, so all that ever shows is
+     the slope between. Turned in its own frame, before the scale, so the
+     faces come out square to the walls, and faceted like the roof. This was
+     a box, wider than the plinth under it, which drew a white shelf jutting
+     out over the stonework on every side. */
+  const bankCone = new THREE.CylinderGeometry(0.9, 1, 1, 4, 1, true);
+  bankCone.rotateY(Math.PI / 4);
+  const bank = bankCone.toNonIndexed();
+  bankCone.dispose();
+  bank.computeVertexNormals();
 
   const stone = '#4a4d55';
+  // The cellar storey's rubble: paler and warmer than the chimney's slate,
+  // or two to four metres of it under a chalet reads as a dark pedestal
+  const masonry = '#6f6c67';
   const stoneDark = '#383b43';
   const timber = '#6d4a30';
   const beam = '#4a3221';
@@ -226,8 +243,23 @@ function hutGeometry(THREE) {
        one of these is built on. Levelling the building against the mean
        instead — which is what this did first — buried the uphill windows to
        the sill about a third of the time. */
-    { geo: box, color: stone, pos: [0, -2.02, 0], scale: [5.5, 5.15, 4.7] },
-    { geo: box, color: drift, pos: [0, 0.63, 0], scale: [5.9, 0.66, 5.05] },
+    { geo: box, color: masonry, pos: [0, -2.02, 0], scale: [5.5, 5.15, 4.7] },
+    /* …and on the downhill side it stands two to four metres clear of the
+       snow, which is a storey: the cellar every real one has, with small
+       windows in the masonry on the three sides that are not dug into the
+       hill. Windows, not a door: the ground under them is anywhere from two
+       to four and a half metres down, and a door has to meet it. Whichever
+       of them a site buries is under the snow. */
+    { geo: box, color: beam, pos: [1.1, -0.8, 2.37], scale: [0.64, 0.5, 0.05] },
+    { geo: box, color: dark, pos: [1.1, -0.8, 2.385], scale: [0.48, 0.34, 0.04] },
+    { geo: box, color: beam, pos: [-1.3, -0.8, 2.37], scale: [0.64, 0.5, 0.05] },
+    { geo: box, color: dark, pos: [-1.3, -0.8, 2.385], scale: [0.48, 0.34, 0.04] },
+    { geo: box, color: beam, pos: [2.77, -0.8, 0.6], scale: [0.05, 0.5, 0.64] },
+    { geo: box, color: dark, pos: [2.785, -0.8, 0.6], scale: [0.04, 0.34, 0.48] },
+    { geo: box, color: beam, pos: [-2.77, -0.8, -1.5], scale: [0.05, 0.5, 0.64] },
+    { geo: box, color: dark, pos: [-2.785, -0.8, -1.5], scale: [0.04, 0.34, 0.48] },
+    // Its foot just past the plinth's edge, its top inside the walls
+    { geo: bank, color: drift, pos: [0, 0.765, 0], scale: [2.76 * Math.SQRT2, 0.47, 2.36 * Math.SQRT2] },
 
     // --- walls --------------------------------------------------------------
     { geo: box, color: timber, pos: [0, 1.8, 0], scale: [5.1, 2.5, 4.3] },
@@ -290,14 +322,15 @@ function hutGeometry(THREE) {
 
     // --- firewood -----------------------------------------------------------
     // The one part of the hut that says somebody is coming back to it
-    { geo: box, color: stoneDark, pos: [-3.15, -1.95, 0.5], scale: [1.15, 4.5, 2.2] },
+    { geo: box, color: masonry, pos: [-3.15, -1.95, 0.5], scale: [1.15, 4.5, 2.2] },
     { geo: log, color: split, pos: [-3.45, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.15, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: split, pos: [-2.85, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.3, 0.7, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: split, pos: [-3.0, 0.7, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.15, 0.98, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
-    { geo: box, color: snow, pos: [-3.15, 1.15, 0.5], scale: [1.0, 0.16, 2.0] },
+    // and the snow on it, a pillow along the top log rather than a board
+    { geo: log, color: snow, pos: [-3.15, 1.04, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.8, 1.96, 0.34] },
   ];
   // Open shutters, divided glass and exposed rafters give the facade scale.
   for (const x of [0.35, 1.85]) {
@@ -358,7 +391,7 @@ function hutGeometry(THREE) {
       rot: [-0.13, 0, 0.16], scale: [0.13, 1.82, 0.06] });
   }
   const geometry = compose(THREE, parts);
-  for (const g of [box, post, log, prism, icicle]) g.dispose();
+  for (const g of [box, post, log, prism, icicle, bank]) g.dispose();
   return geometry;
 }
 
@@ -372,34 +405,21 @@ function hutGeometry(THREE) {
    every window is the same temperature is a hut nobody lives in. */
 function paneGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
+  // Built from the light's own table, so the glass is where the light leaves
+  const { front, side, glass, lantern } = HUT_LIGHT;
+  const tints = ['#fff3da', '#ffdfab', '#ffe9bd'];
   return compose(THREE, [
-    { geo: box, color: '#fff3da', pos: [0.35, 1.75, -2.25], scale: [0.98, 0.86, 0.1] },
-    { geo: box, color: '#ffdfab', pos: [1.85, 1.75, -2.25], scale: [0.98, 0.86, 0.1] },
-    { geo: box, color: '#ffdba0', pos: [2.65, 1.75, 0.3], scale: [0.1, 0.86, 0.98] },
-    { geo: box, color: '#ffe9bd', pos: [-1.3, 2.35, -2.29], scale: [0.72, 0.3, 0.1] },
-    // and a lantern on the terrace rail, which is the bit you see first
-    { geo: box, color: '#ffd28a', pos: [2.3, 1.55, -4.35], scale: [0.22, 0.3, 0.22] },
+    ...glass.front.map((p, i) => ({
+      geo: box, color: tints[i],
+      pos: [p.at[0], p.at[1], front - (p.proud || 0)], scale: [p.size[0], p.size[1], 0.1],
+    })),
+    ...glass.side.map((p) => ({
+      geo: box, color: '#ffdba0',
+      pos: [side, p.at[1], p.at[0]], scale: [0.1, p.size[1], p.size[0]],
+    })),
+    // and the lantern on the terrace rail, which is the bit you see first
+    { geo: box, color: '#ffd28a', pos: lantern.at, scale: [0.22, 0.3, 0.22] },
   ]);
-}
-
-/* The pool of light: a radial gradient painted into a canvas, exactly as the
-   sun's glow is built in `sky.js`. Warmer in the middle than at the edge is
-   not physical, it is just what a lit window looks like on snow. */
-function poolTexture(THREE) {
-  const s = 128;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = s;
-  const g = cv.getContext('2d');
-  const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-  grd.addColorStop(0.22, 'rgba(255,255,255,0.55)');
-  grd.addColorStop(0.55, 'rgba(255,255,255,0.16)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, s, s);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }
 
 /* ==========================================================================
@@ -407,21 +427,69 @@ function poolTexture(THREE) {
 
    The same shape of point cloud as everything in `particles.js`: a size and
    an alpha per particle, one small ShaderMaterial, and the fog folded in by
-   hand because a custom shader does not inherit three's. The only difference
-   is the falloff, which is much softer — a snowflake has an edge and a puff
-   of woodsmoke does not.
+   hand because a custom shader does not inherit three's. The difference is
+   the puff itself. A snowflake is a round point; a puff of woodsmoke is not
+   round at all, and a column of soft discs read as a string of beads at any
+   distance the hut is legible from. So each puff is one of four cloudy
+   shapes, turned to its own angle and turning slowly as it rises.
    ========================================================================== */
+
+/* The four shapes, in a 2 × 2 atlas: each a dozen small soft lobes
+   scattered off the centre, the way a puff billows, with their sum taken
+   through a saturating curve so the overlaps fill out instead of burning
+   to a hot spot. Gone by the cell's inscribed circle, so a puff turned to
+   any angle never reads its neighbour. A shape covers about 0.18 of its
+   square where the old disc covered 0.39, which `smoke.alpha` makes up.
+   Built once, as data, from a fixed stream. */
+function puffAtlas(THREE) {
+  const N = 64;
+  const data = new Uint8Array(4 * N * N);
+  const rnd = stream(9127);
+  for (let k = 0; k < 4; k++) {
+    const lobes = [];
+    for (let j = 0; j < 12; j++) {
+      const a = rnd() * Math.PI * 2;
+      const r = Math.sqrt(rnd()) * 0.28;
+      lobes.push([Math.cos(a) * r, Math.sin(a) * r, 0.06 + rnd() * 0.07, 0.4 + rnd() * 0.6]);
+    }
+    const ox = (k % 2) * N;
+    const oy = (k >> 1) * N;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const u = (x + 0.5) / N - 0.5;
+        const v = (y + 0.5) / N - 0.5;
+        let d = 0;
+        for (const [cx, cy, w, h] of lobes) {
+          d += h * Math.exp(-((u - cx) ** 2 + (v - cy) ** 2) / (w * w));
+        }
+        const edge = Math.max(0, 1 - (u * u + v * v) / 0.25);
+        data[(oy + y) * 2 * N + ox + x] = Math.round((1 - Math.exp(-2.5 * d)) * edge * edge * 255);
+      }
+    }
+  }
+  const tex = new THREE.DataTexture(data, 2 * N, 2 * N, THREE.RedFormat);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 const SMOKE_VERT = `
   attribute float aSize;
   attribute float aAlpha;
+  attribute float aTurn;
+  attribute float aShape;
   varying float vAlpha;
   varying float vDepth;
   varying vec3 vView;
+  varying vec2 vTurn;
+  varying vec2 vCell;
   uniform float uScale;
   uniform float uMaxSize;
   void main() {
     vAlpha = aAlpha;
+    vTurn = vec2(cos(aTurn), sin(aTurn));
+    vCell = vec2(mod(aShape, 2.0), floor(aShape * 0.5)) * 0.5;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
     // Normalised here, in the vertex shader's highp, because the raw view
@@ -441,30 +509,214 @@ const SMOKE_VERT = `
    plume between the rider and a sunset goes amber while the same plume seen
    down-sun stays ash. `uSunV` and `uGlow` are the shared shading's own uniform
    records, handed over by reference, and `uWarm` is the one number computed
-   here: how low and how present the sun is this frame. */
+   here: how low and how present the sun is this frame. A puff is roughly a
+   ball, so its sprite also takes a ball's normal and a wrapped light from
+   the same key the ground uses, faintly: a lit side and a shaded side, the
+   thing that makes a plume look like it has a volume. */
 const SMOKE_FRAG = `
   precision mediump float;
   uniform vec3 uColor;
   uniform vec3 uFog;
   uniform vec3 uGlow;
   uniform vec3 uSunV;
+  uniform float uSunLevel;
   uniform float uWarm;
   uniform float uNear;
   uniform float uFar;
+  uniform float uSnowFresh;
+  uniform sampler2D uPuff;
   varying float vAlpha;
   varying float vDepth;
   varying vec3 vView;
+  varying vec2 vTurn;
+  varying vec2 vCell;
+  ${FOG_CURVE_GLSL}
   void main() {
     vec2 d = gl_PointCoord - 0.5;
     float r = dot(d, d);
     if (r > 0.25 || vAlpha <= 0.001) discard;
-    float a = vAlpha * (1.0 - smoothstep(0.0, 0.25, r));
+    vec2 t = vec2(vTurn.x * d.x - vTurn.y * d.y, vTurn.y * d.x + vTurn.x * d.y);
+    float a = vAlpha * texture2D(uPuff, vCell + (t + 0.5) * 0.5).r;
     float fwd = max(0.0, dot(vView, uSunV));
     vec3 c = mix(uColor, uGlow, fwd * fwd * uWarm);
-    float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
+    vec2 dn = d * 2.0;
+    vec3 ball = vec3(dn.x, -dn.y, sqrt(max(0.0, 1.0 - dot(dn, dn))));
+    c *= 1.0 + dot(ball, uSunV) * 0.22 * min(uSunLevel, 1.3);
+    float f = n64FogCurve(vDepth, uNear, uFar, n64ClearAir(uSnowFresh));
     gl_FragColor = vec4(mix(c, uFog, f * 0.85), a * (1.0 - f));
   }
 `;
+
+/* ==========================================================================
+   Sites
+   ========================================================================== */
+
+/* How level the hill is under a building planted here, and how far the
+   highest corner of it stands above the middle.
+
+   The first is measured against the grade rather than against flat — the
+   mountain is tilted everywhere, and a hut is not on a slope for being on a
+   mountain — and it is what decides whether this is a site at all. The
+   second is measured raw, because it is what the building is planted at:
+   the ground under a hut here falls two and a half metres from corner to
+   corner and it has to be the *top* corner, or the uphill wall is buried to
+   the windowsill. Both come out of the same four samples. */
+const probe = { drop: 0, rise: 0, base: 0 };
+
+function shelf(x, z, grade) {
+  const f = HUTS.footprint;
+  const h0 = heightAt(x, z);
+  let lo = 0;
+  let hi = 0;
+  let crest = 0;
+  /* The four corners, walked so that BOTH samples at one z come before
+     both at the other. `heightAt` rebuilds its row context whenever z
+     changes, and the old order alternated z on every sample — four row
+     builds for four corners, where two will do. The set of corners is
+     identical and the loop only takes minima and maxima over it, so the
+     result is unchanged to the bit. */
+  for (let i = 0; i < 4; i++) {
+    const dz = i < 2 ? -f : f;
+    const dx = i % 2 === 0 ? -f : f;
+    const d = heightAt(x + dx, z + dz) - h0;
+    if (d > crest) crest = d;
+    const r = d - grade * dz;
+    if (r < lo) lo = r;
+    if (r > hi) hi = r;
+  }
+  probe.drop = hi - lo;
+  probe.rise = crest;
+  // The centre sample, kept so the caller planting the hut does not pay
+  // for the same lookup — and the same row rebuild — a second time.
+  probe.base = h0;
+}
+
+/* One block of hill, one hut or none. Everything here is a pure function of
+   the block index, so the same stretch of mountain always grows the same
+   hut in the same place — and a block the mountain refused stays refused. */
+/* THE SITE SEARCH, ASKED ONCE PER BLOCK.
+
+   `siteAt` is documented as a pure function of the block index, and it
+   is — every draw in it comes off that index's own stream. But the window
+   it is asked over slides only 130 m of a 520 m block per rebuild, so
+   three quarters of the blocks searched had already been answered,
+   identically, on the previous rebuild. Each miss costs up to six tries
+   of an eight-stride walk, and every stride is a `shelf` of five terrain
+   samples.
+
+   Memoising is safe for the same reason the prop bands' snapshot cache is:
+   the world seed is set once per page and a new mountain is a page reload,
+   so a block's answer cannot change inside a session. The cache lives out
+   here rather than on the instance because the props ask as well (see
+   `onHutGround`), and so it is keyed on the seed, the way terrain.js keys
+   its rows. A live hut is built from a COPY — `emit` and `dwell` are
+   advanced every frame on it, and the cached record has to stay the
+   pristine one a fresh search would have produced. */
+const siteCache = new Map();
+let siteSeed = NaN;
+
+function siteAt(b) {
+  const seed = getWorldSeed();
+  if (seed !== siteSeed) {
+    siteCache.clear();
+    siteSeed = seed;
+  }
+  if (!siteCache.has(b)) siteCache.set(b, searchSite(b));
+  return siteCache.get(b);
+}
+
+function searchSite(b) {
+  if (b < 1) return null;    // the first half-kilometre is left to itself
+  if (hash2(b, 4441, 71) > HUTS.chance) return null;
+
+  const rnd = stream(b * 2654435761 + 7717);
+  const top = -(b * HUTS.period) - (HUTS.period - HUTS.spread) * rnd();
+
+  for (let k = 0; k < HUTS.tries; k++) {
+    const z = top - rnd() * HUTS.spread;
+    const grade = gradeAt(z);
+    if (grade > HUTS.maxGrade) continue;
+
+    const side = rnd() < 0.5 ? -1 : 1;
+    /* Probed far out to one side, because after the fork there are two
+       centre lines and `nearestCenter` has to be asked which one this hut
+       is standing beside. Asking about the hut's own x would answer with
+       whichever branch it drifted nearest to, which is how the first
+       version put a hut in the middle of an island. */
+    const branch = nearestCenter(pisteCenter(z) + side * 400, z);
+    const edge = corridorHalfAt(z);
+
+    // Walk outward until the ground stops falling away sideways
+    const [near, far] = HUTS.reach;
+    for (let i = 0; i < HUTS.strides; i++) {
+      const off = edge + near + ((far - near) * i) / (HUTS.strides - 1);
+      const x = branch + side * off;
+      shelf(x, z, grade);
+      if (probe.drop > HUTS.maxDrop) continue;
+
+      // Aimed up the run rather than across it: a rider only ever arrives
+      // from above, and the windows should be pointed at them
+      const ax = nearestCenter(branch, z + HUTS.facing) - x;
+      const az = HUTS.facing;
+      const len = Math.hypot(ax, az) || 1;
+      const yaw = Math.atan2(-ax / len, -az / len);
+
+      // Planted at its highest corner, with a hand's breadth over for the
+      // true corners the four axis-aligned samples cannot see
+      let y = probe.base + probe.rise + 0.15;
+      const cos = Math.cos(yaw);
+      const sin = Math.sin(yaw);
+      /* The terrace runs four metres on up the hill from the front wall,
+         onto ground the shelf never sampled, and about a site in four had
+         snow standing over the front of its deck, the rail and boards cut
+         off by the slope. So the hut rises until the deck clears it by a
+         hand, and a site where that would lift the stone base to within
+         forty centimetres of the bottom of its lowest corner is refused:
+         a building on a plinth that stops short of the snow is floating. */
+      const at = (lx, lz) => heightAt(x + lx * cos + lz * sin, z - lx * sin + lz * cos);
+      const front = Math.max(at(-2.65, -4.4), at(0, -4.4), at(2.65, -4.4));
+      y = Math.max(y, front + 0.1 - TERRACE_DECK);
+      const low = Math.min(at(-2.75, -2.35), at(2.75, -2.35), at(-2.75, 2.35), at(2.75, 2.35));
+      if (y - PLINTH_DEPTH > low - 0.4) continue;
+      return {
+        key: b,
+        x, y, z, yaw,
+        // The chimney, carried through the same rotation the building took
+        cx: x + CHIMNEY.x * cos + CHIMNEY.z * sin,
+        cy: y + CHIMNEY.y,
+        cz: z - CHIMNEY.x * sin + CHIMNEY.z * cos,
+        off,
+        emit: hash2(b, 13, 3),
+        dwell: 0,
+      };
+    }
+  }
+  return null;
+}
+
+/* The ground a hut stands on, for anything else that would grow there: the
+   building under its roof, the woodpile and the terrace, in the hut's own
+   frame, and three metres round all of it, which keeps an ordinary spruce's
+   crown off the eaves. Without it the props grew straight through about
+   half the huts on a run: a spruce out of a roof, a boulder through a
+   terrace, a sapling standing in the parlour. */
+const GROUND = { x: -0.2, z: -0.8, hw: 3.5 + 3, hd: 3.6 + 3 };
+
+export function onHutGround(x, z) {
+  const b = Math.floor(-z / HUTS.period);
+  for (let k = b - 1; k <= b + 1; k++) {
+    const h = siteAt(k);
+    // Its ground's far corner is under ten metres out
+    if (!h || Math.abs(z - h.z) > 12) continue;
+    const ux = x - h.x;
+    const uz = z - h.z;
+    const cos = Math.cos(h.yaw);
+    const sin = Math.sin(h.yaw);
+    if (Math.abs(ux * cos - uz * sin - GROUND.x) < GROUND.hw
+      && Math.abs(ux * sin + uz * cos - GROUND.z) < GROUND.hd) return true;
+  }
+  return false;
+}
 
 /* ==========================================================================
    The huts
@@ -566,7 +818,7 @@ export function createHuts(THREE, shading) {
   // stone and beams matte — every one of them sits well under its lower stop.
   const shell = new THREE.InstancedMesh(
     hutGeometry(THREE),
-    shading.apply(hutMat, { sheen: 1 }),
+    shading.apply(hutMat, { sheen: 1, hutLight: true }),
     HUTS.live,
   );
 
@@ -588,29 +840,7 @@ export function createHuts(THREE, shading) {
   // turn every pane back into an opaque square.
   panes.userData.noShadow = true;
 
-  /* The pool is additive, and additive surfaces cannot be fogged: three's fog
-     mixes towards the haze colour, and adding the haze to the picture is the
-     opposite of disappearing into it. So it is drawn unfogged and faded by
-     hand, per instance, against the same two distances the fog is using. */
-  const poolGeo = new THREE.PlaneGeometry(1, 1);
-  poolGeo.rotateX(-Math.PI / 2);
-  const poolMat = new THREE.MeshBasicMaterial({
-    map: poolTexture(THREE),
-    color: new THREE.Color(HUTS.pool.colour),
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    fog: false,
-  });
-  const pools = new THREE.InstancedMesh(poolGeo, poolMat, HUTS.live);
-  pools.setColorAt(0, new THREE.Color(0xffffff));
-  // An additive pool is light painted on the snow, not geometry standing in
-  // front of the sun. Without this opt-out the generic scene traversal makes
-  // each 18-metre quad cast a solid square into the shadow map.
-  pools.userData.noShadow = true;
-
-  for (const mesh of [shell, panes, pools]) {
+  for (const mesh of [shell, panes]) {
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
@@ -626,9 +856,14 @@ export function createHuts(THREE, shading) {
   const sBase = new Float32Array(S.count);
   const sLife = new Float32Array(S.count);
   const sMax = new Float32Array(S.count);
+  const sTurn = new Float32Array(S.count);
+  const sSpin = new Float32Array(S.count);
+  const sShape = new Float32Array(S.count);
   smokeGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
   smokeGeo.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
   smokeGeo.setAttribute('aAlpha', new THREE.BufferAttribute(sAlpha, 1));
+  smokeGeo.setAttribute('aTurn', new THREE.BufferAttribute(sTurn, 1));
+  smokeGeo.setAttribute('aShape', new THREE.BufferAttribute(sShape, 1));
   smokeGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
 
   const smokeMat = new THREE.ShaderMaterial({
@@ -638,10 +873,13 @@ export function createHuts(THREE, shading) {
       // The shared shading's own records, not copies: the view-space sun and
       // the sky glow arrive here already moved by its one write per frame.
       uSunV: shading.uniforms.uSunView,
+      uSunLevel: shading.uniforms.uSunLevel,
       uGlow: shading.uniforms.uSkyGlow,
       uWarm: { value: 0 },
+      uPuff: { value: puffAtlas(THREE) },
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
+      uSnowFresh: shading.uniforms.uSnowFresh,
       uScale: { value: 300 },
       uMaxSize: { value: 120 },
     },
@@ -663,13 +901,15 @@ export function createHuts(THREE, shading) {
   // --- scratch -------------------------------------------------------------
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
-  const qFlat = new THREE.Quaternion();
   const e = new THREE.Euler();
   const v = new THREE.Vector3();
   const s3 = new THREE.Vector3();
-  const up = new THREE.Vector3(0, 1, 0);
-  const normal = new THREE.Vector3();
   const warm = new THREE.Color(HUTS.glow.warm);
+  // The shared shading's own records; see FRAG_HUT_LIGHT
+  const lampAt = shading.uniforms.uHutAt.value;
+  const lampAxis = shading.uniforms.uHutAxis.value;
+  const lampWarm = shading.uniforms.uHutWarm.value;
+  const lampColour = new THREE.Color(HUT_LIGHT.colour);
   const tint = new THREE.Color();
   const smokeDay = new THREE.Color('#cfd2d6');
   const smokeNight = new THREE.Color('#f0e6d6');
@@ -682,138 +922,45 @@ export function createHuts(THREE, shading) {
      Placement
      ========================================================================== */
 
-  /* How level the hill is under a building planted here, and how far the
-     highest corner of it stands above the middle.
+  /* THE HUT AS THE RIDER MEETS IT. It had no collider at all: a rider who
+     missed the stop went straight through the walls and out of the back.
+     Three boxes in the hut's own frame (metres, x across, z towards the
+     front, which is negative): the building on its plinth, the woodpile at
+     one end and the terrace. Boxes, not the circles every prop is, because
+     a hut can stand three metres off the groomed edge and circles large
+     enough to fill its walls bulge a metre past them, an invisible wall
+     right where a rider carves by. One contact for all three, so a hut is
+     one hit however many of them a line crosses. The building stands to its
+     chimney; the woodpile and the terrace rail can be cleared. The cocoa
+     radius is far outside all of it, so the stop is untouched. */
+  const HUT_BOXES = [
+    { x: 0, z: 0, hw: 2.75, hd: 2.35, kind: HARD, top: 6.5 },
+    { x: -3.15, z: 0.5, hw: 0.58, hd: 1.1, kind: JUMPABLE, top: 1.25 },
+    { x: 0, z: -3.3, hw: 2.65, hd: 1.1, kind: JUMPABLE, top: 1.5 },
+  ];
+  const solids = [];
 
-     The first is measured against the grade rather than against flat — the
-     mountain is tilted everywhere, and a hut is not on a slope for being on a
-     mountain — and it is what decides whether this is a site at all. The
-     second is measured raw, because it is what the building is planted at:
-     the ground under a hut here falls two and a half metres from corner to
-     corner and it has to be the *top* corner, or the uphill wall is buried to
-     the windowsill. Both come out of the same four samples. */
-  const probe = { drop: 0, rise: 0, base: 0 };
-
-  function shelf(x, z, grade) {
-    const f = HUTS.footprint;
-    const h0 = heightAt(x, z);
-    let lo = 0;
-    let hi = 0;
-    let crest = 0;
-    /* The four corners, walked so that BOTH samples at one z come before
-       both at the other. `heightAt` rebuilds its row context whenever z
-       changes, and the old order alternated z on every sample — four row
-       builds for four corners, where two will do. The set of corners is
-       identical and the loop only takes minima and maxima over it, so the
-       result is unchanged to the bit. */
-    for (let i = 0; i < 4; i++) {
-      const dz = i < 2 ? -f : f;
-      const dx = i % 2 === 0 ? -f : f;
-      const d = heightAt(x + dx, z + dz) - h0;
-      if (d > crest) crest = d;
-      const r = d - grade * dz;
-      if (r < lo) lo = r;
-      if (r > hi) hi = r;
-    }
-    probe.drop = hi - lo;
-    probe.rise = crest;
-    // The centre sample, kept so the caller planting the hut does not pay
-    // for the same lookup — and the same row rebuild — a second time.
-    probe.base = h0;
-  }
-
-  /* One block of hill, one hut or none. Everything here is a pure function of
-     the block index, so the same stretch of mountain always grows the same
-     hut in the same place — and a block the mountain refused stays refused. */
-  /* THE SITE SEARCH, ASKED ONCE PER BLOCK.
-
-     `siteFor` is documented as a pure function of the block index, and it
-     is — every draw in it comes off that index's own stream. But the window
-     it is asked over slides only 130 m of a 520 m block per rebuild, so
-     three quarters of the blocks searched had already been answered,
-     identically, on the previous rebuild. Each miss costs up to six tries
-     of an eight-stride walk, and every stride is a `shelf` of five terrain
-     samples.
-
-     Memoising is safe for the same reason the prop bands' snapshot cache is:
-     the world seed is set once per page and a new mountain is a page reload,
-     so a block's answer cannot change inside a session. What is handed back
-     is a COPY — `emit` and `dwell` are advanced every frame on the live hut,
-     and the cached record has to stay the pristine one a fresh search would
-     have produced. */
-  const siteCache = new Map();
-
-  function siteFor(b) {
-    if (siteCache.has(b)) {
-      const hit = siteCache.get(b);
-      return hit && { ...hit };
-    }
-    const found = searchSite(b);
-    siteCache.set(b, found);
-    return found && { ...found };
-  }
-
-  function searchSite(b) {
-    if (b < 1) return null;    // the first half-kilometre is left to itself
-    if (hash2(b, 4441, 71) > HUTS.chance) return null;
-
-    const rnd = stream(b * 2654435761 + 7717);
-    const top = -(b * HUTS.period) - (HUTS.period - HUTS.spread) * rnd();
-
-    for (let k = 0; k < HUTS.tries; k++) {
-      const z = top - rnd() * HUTS.spread;
-      const grade = gradeAt(z);
-      if (grade > HUTS.maxGrade) continue;
-
-      const side = rnd() < 0.5 ? -1 : 1;
-      /* Probed far out to one side, because after the fork there are two
-         centre lines and `nearestCenter` has to be asked which one this hut
-         is standing beside. Asking about the hut's own x would answer with
-         whichever branch it drifted nearest to, which is how the first
-         version put a hut in the middle of an island. */
-      const branch = nearestCenter(pisteCenter(z) + side * 400, z);
-      const edge = corridorHalfAt(z);
-
-      // Walk outward until the ground stops falling away sideways
-      const [near, far] = HUTS.reach;
-      for (let i = 0; i < HUTS.strides; i++) {
-        const off = edge + near + ((far - near) * i) / (HUTS.strides - 1);
-        const x = branch + side * off;
-        shelf(x, z, grade);
-        if (probe.drop > HUTS.maxDrop) continue;
-
-        // Aimed up the run rather than across it: a rider only ever arrives
-        // from above, and the windows should be pointed at them
-        const ax = nearestCenter(branch, z + HUTS.facing) - x;
-        const az = HUTS.facing;
-        const len = Math.hypot(ax, az) || 1;
-        const yaw = Math.atan2(-ax / len, -az / len);
-
-        // Planted at its highest corner, with a hand's breadth over for the
-        // true corners the four axis-aligned samples cannot see
-        const y = probe.base + probe.rise + 0.15;
-        const cos = Math.cos(yaw);
-        const sin = Math.sin(yaw);
-        return {
-          key: b,
-          x, y, z, yaw,
-          // The chimney, and the pool of light in front of the terrace, both
-          // carried through the same rotation the building took
-          cx: x + CHIMNEY.x * cos + CHIMNEY.z * sin,
-          cy: y + CHIMNEY.y,
-          cz: z - CHIMNEY.x * sin + CHIMNEY.z * cos,
-          px: x - sin * HUTS.pool.forward,
-          pz: z - cos * HUTS.pool.forward,
-          off,
-          emit: hash2(b, 13, 3),
-          dwell: 0,
-        };
+  function writeSolids() {
+    solids.length = 0;
+    for (let i = 0; i < huts.length; i++) {
+      const h = huts[i];
+      const cos = Math.cos(h.yaw);
+      const sin = Math.sin(h.yaw);
+      const contact = { hit: false };
+      for (const b of HUT_BOXES) {
+        solids.push({
+          type: 'hut', x: h.x + b.x * cos + b.z * sin, z: h.z - b.x * sin + b.z * cos,
+          // `r` is the circle round the box, which is all the broad passes
+          // read; the sweep itself reads the box
+          r: Math.hypot(b.hw, b.hd), hw: b.hw, hd: b.hd, cos, sin,
+          kind: b.kind, top: h.y + b.top, cameraPad: 0.55, volume: true, contact,
+        });
       }
     }
-    return null;
   }
 
   function writeInstances() {
+    writeSolids();
     for (let i = 0; i < huts.length; i++) {
       const h = huts[i];
       e.set(0, h.yaw, 0);
@@ -823,22 +970,21 @@ export function createHuts(THREE, shading) {
       m.compose(v, q, s3);
       shell.setMatrixAt(i, m);
       panes.setMatrixAt(i, m);
-
-      // The pool lies on the snow rather than facing the camera, so it takes
-      // the hill's own normal
-      normalFrom(heightAt, h.px, h.pz, normal);
-      qFlat.setFromUnitVectors(up, normal);
-      v.set(h.px, heightAt(h.px, h.pz) + HUTS.pool.lift, h.pz);
-      s3.setScalar(HUTS.pool.radius * 2);
-      m.compose(v, qFlat, s3);
-      pools.setMatrixAt(i, m);
+    }
+    // The lamps go where the buildings went, and an empty slot is dark
+    for (let i = 0; i < lampAt.length; i++) {
+      const h = huts[i];
+      if (h) {
+        lampAt[i].set(h.x, h.y, h.z, 1);
+        lampAxis[i].set(Math.cos(h.yaw), Math.sin(h.yaw));
+      } else {
+        lampAt[i].w = 0;
+      }
     }
     shell.count = huts.length;
     panes.count = huts.length;
-    pools.count = huts.length;
     shell.instanceMatrix.needsUpdate = true;
     panes.instanceMatrix.needsUpdate = true;
-    pools.instanceMatrix.needsUpdate = true;
   }
 
   function rebuild(riderZ) {
@@ -853,8 +999,8 @@ export function createHuts(THREE, shading) {
       }
     }
     for (let b = Math.max(1, first); b <= last && huts.length < HUTS.live; b++) {
-      const site = siteFor(b);
-      if (site) huts.push(site);
+      const site = siteAt(b);
+      if (site) huts.push({ ...site });
     }
     writeInstances();
   }
@@ -878,6 +1024,9 @@ export function createHuts(THREE, shading) {
     sMax[i] = S.life * (0.7 + Math.random() * 0.6);
     sLife[i] = sMax[i];
     sBase[i] = S.size * (0.7 + Math.random() * 0.7);
+    sTurn[i] = Math.random() * Math.PI * 2;
+    sSpin[i] = (Math.random() - 0.5) * S.spin;
+    sShape[i] = Math.floor(Math.random() * 4);
   }
 
   function stepSmoke(dt, windX, windZ) {
@@ -911,12 +1060,15 @@ export function createHuts(THREE, shading) {
       // Puffs grow as they cool, which is the whole of why a column of them
       // reads as smoke rather than as a queue of dots
       sSize[i] = sBase[i] * (1 + u * S.growth);
+      sTurn[i] += sSpin[i] * dt;
       const fade = (1 - u) * (1 - u);
       sAlpha[i] = S.alpha * Math.min(1, u * 6) * fade;
     }
     smokeGeo.attributes.position.needsUpdate = true;
     smokeGeo.attributes.aSize.needsUpdate = true;
     smokeGeo.attributes.aAlpha.needsUpdate = true;
+    smokeGeo.attributes.aTurn.needsUpdate = true;
+    smokeGeo.attributes.aShape.needsUpdate = true;
   }
 
   /* ==========================================================================
@@ -949,7 +1101,8 @@ export function createHuts(THREE, shading) {
     tint.copy(w.haze).lerp(warm, lit);
     paneMat.color.copy(tint);
     paneMat.opacity = HUTS.glow.floor + (1 - HUTS.glow.floor) * lit;
-    poolMat.opacity = HUTS.pool.opacity * lit * lit;
+    // The lamps come on with the glass they shine through
+    lampWarm.copy(lampColour).multiplyScalar(lit);
 
     smokeMat.uniforms.uColor.value.copy(smokeDay).lerp(smokeNight, lit);
     smokeMat.uniforms.uFog.value.copy(w.haze);
@@ -1005,12 +1158,6 @@ export function createHuts(THREE, shading) {
         if (h.emit >= 1) h.emit = 0;
       }
 
-      // The pool of light, faded by hand against the fog it cannot use
-      const dist = Math.sqrt(d2);
-      const f = clamp((dist - w.fogNear) / (w.fogFar - w.fogNear), 0, 1);
-      tint.setScalar(1 - f);
-      pools.setColorAt(i, tint);
-
       // The cocoa. Generous about stopping — the hill is doing its best to
       // stop you stopping — and paid exactly once.
       if (claimed.has(h.key)) continue;
@@ -1030,7 +1177,6 @@ export function createHuts(THREE, shading) {
         h.dwell = 0;
       }
     }
-    if (pools.instanceColor) pools.instanceColor.needsUpdate = true;
 
     stepSmoke(dt, w.windX, w.windZ);
   }
@@ -1049,5 +1195,5 @@ export function createHuts(THREE, shading) {
   // The huts themselves are on the returned object, the way the animals are:
   // it is the whole debugger, and it is also the only way anything else could
   // ever be told where a building is standing.
-  return { group, update, reset, huts, smoke };
+  return { group, update, reset, huts, smoke, solids };
 }

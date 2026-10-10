@@ -23,7 +23,7 @@ const textures = new Map();
 const sparkTextures = new Map();
 const SPARK_SIZES = [8, 16, 32, 64, 128];
 const SPARK_PIXELS = SPARK_SIZES.reduce((sum, size) => sum + size * size, 0);
-const SPARK_COLORS = ['#fffbea', '#ffbb6b', '#ffc985', '#ddffed', '#ffe88d', '#ffe38a', '#8affd7', '#ff7a8a'];
+const SPARK_COLORS = ['#fffbea', '#ffbb6b', '#ffc985', '#ddffed', '#ffe88d', '#ffe38a', '#8affd7', '#ff7a8a', '#8ad7ff', '#c9d4dc', '#ffd7a0', '#91ffee'];
 function warmSparkTexture(color) {
   if (sparkTextures.has(color) || sparkTextures.size >= EFFECT_LIMITS.sparkTextures) return;
   const levels = SPARK_SIZES.map(size => {
@@ -159,13 +159,20 @@ export class Effects {
     const { x = 0, y = 0, size = 20 } = event;
     if (event.type === 'explosion' || event.type === 'phase') {
       const boss = event.boss, weight = explosionIntensity(event), count = Math.min(boss ? 130 : 55, Math.round(size * 1.1)) * (this.quality === 'high' ? 1 : .55);
+      // A dying hull's momentum carries its fireball; the cap keeps a fast
+      // diver's burst readable instead of smearing it across the screen.
+      const momentum = Math.hypot(event.vx || 0, event.vy || 0), carry = momentum > 0 ? Math.min(.55, 220 / momentum) : 0;
+      const driftX = (event.vx || 0) * carry, driftY = (event.vy || 0) * carry;
       const charges = boss ? 18 : !event.player && weight >= .35 ? (event.midboss ? 6 : 3) : 0;
-      for (let i = 0; i < charges; i++) this.delayed.push({ delay: .1 + i * (boss ? .085 : .09), event: { type: 'explosion', x: x + random(-size, size) * .8, y: y + random(-size * .7, size * .7), size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
+      for (let i = 0; i < charges; i++) {
+        const delay = .1 + i * (boss ? .085 : .09);
+        this.delayed.push({ delay, event: { type: 'explosion', x: x + random(-size, size) * .8 + driftX * delay * .6, y: y + random(-size * .7, size * .7) + driftY * delay * .6, size: random(19, boss ? 56 : Math.max(24, size * .68)), secondary: true } });
+      }
       const color = event.ground ? (event.color || '#ffc985') : '#ffbb6b';
       this.reserveParticles(count);
       for (let i = 0; i < count; i++) {
         const angle = random(0, TAU), speed = random(25, boss ? 470 : (size * 5 + 50) * (1 + weight * .3));
-        this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !!event.ground);
+        this.particle(x, y, Math.cos(angle) * speed + driftX, Math.sin(angle) * speed + driftY, random(.3, boss ? 2.3 : 1.2), random(1.2, size * .12 + 2), color, i % 4 === 0, !!event.ground);
       }
       this.rings.push({ x, y, age: 0, life: boss ? 1.35 : .5 + weight * .25, radius: size * (boss ? 7 : 3 + weight * 2), color, explosion: true, diameter: size * (4 + weight), ground: !!event.ground });
       if (weight >= .35) this.rings.push({ x, y, age: 0, life: boss ? 1.05 : .75, radius: size * (boss ? 8.5 : 5), color: '#ffd7a0' });
@@ -206,6 +213,27 @@ export class Effects {
         const t = (i + .5) / segments;
         this.particle(x + (event.toX - x) * t, y + (event.toY - y) * t, random(-32, 32), random(-32, 32), .16, random(1.5, 3.5), event.color || '#ffe88d');
       }
+    } else if (event.type === 'blocked' && event.shield) {
+      // Energy strips a barrier with a bright flare; kinetic rounds glance off
+      // in dull sparks; piercing needles also show a hot exit spark.
+      this.rings.push({ x, y, age: 0, life: .2, radius: event.strong ? 21 : event.resist ? 11 : 15, color: event.strong ? '#d6f7ff' : event.resist ? '#9fb0bf' : '#8ad7ff' });
+      if (event.resist || event.pierce) {
+        this.reserveParticles(3);
+        for (let i = 0; i < 3; i++) this.particle(x + random(-8, 8), y, random(-140, 140), random(-90, 30), random(.08, .18), random(1, 2.2), event.pierce ? '#ffd7a0' : '#c9d4dc');
+      }
+    } else if (event.type === 'barrier-break') {
+      // The barrier shatters into cyan shards around the hull it protected.
+      this.reserveParticles(14);
+      for (let i = 0; i < 14; i++) { const angle = i * TAU / 14 + random(-.2, .2), speed = random(90, 240); this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.25, .5), random(1.6, 3), '#8ad7ff'); }
+      this.rings.push({ x, y, age: 0, life: .4, radius: size * 2.6 + 30, color: '#d6f7ff' });
+      this.shake = Math.min(18, this.shake + 2.5);
+    } else if (event.type === 'shield-break') {
+      // The pilot's collapsing shield vents a pulse; cancelled rounds fizzle.
+      this.rings.push({ x, y, age: 0, life: .35, radius: size * 1.15, color: '#91ffee' }, { x, y, age: 0, life: .5, radius: size * .7, color: '#e7fff8' });
+      const cancels = event.cancels || [];
+      this.reserveParticles(cancels.length);
+      for (const [cx, cy] of cancels) this.particle(cx, cy, random(-40, 40), random(-60, 20), random(.2, .4), random(1.4, 2.4), '#91ffee');
+      this.damagePulse = Math.max(this.damagePulse, .8); this.shake = Math.min(23, this.shake + 4);
     } else if (event.type === 'weak-hit' || event.type === 'blocked') {
       this.rings.push({ x, y, age: 0, life: .2, radius: event.type === 'blocked' ? 15 : 25, color: event.type !== 'blocked' ? '#fff1a6' : event.shield ? '#8ad7ff' : '#ff8b78' });
     } else if (event.type === 'weak-break') {
@@ -239,6 +267,11 @@ export class Effects {
       this.reserveParticles(10);
       for (let i = 0; i < 10; i++) { const angle = random(0, TAU), speed = random(60, 220); this.particle(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, random(.2, .45), random(1.5, 3), '#ffd27a'); }
       this.rings.push({ x, y, age: 0, life: .35, radius: size * 2.4, color: '#ffd27a' });
+    } else if (event.type === 'graze') {
+      this.reserveParticles(2);
+      for (let i = 0; i < 2; i++) this.particle(x, y, random(-70, 70), random(-70, 70), random(.08, .16), random(.9, 1.6), '#ddffed');
+    } else if (event.type === 'formation-broken') {
+      this.rings.push({ x, y, age: 0, life: .6, radius: 130, color: '#ffe36d' });
     } else if (event.type === 'ace-down') {
       this.rings.push({ x, y, age: 0, life: .9, radius: 170, color: '#ffe36d' }, { x, y, age: 0, life: 1.2, radius: 260, color: '#fff6d0' });
     } else if (event.type === 'beam') {

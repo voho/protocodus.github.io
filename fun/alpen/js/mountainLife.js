@@ -4,10 +4,9 @@
    from any distance, and it flies exactly where the terrain's zone model
    says the talus is: past the groomed corridor and the powder field, over
    the boulders no groomer visits. Pylons stand on a fixed 200-metre grid
-   down the run, the cables are drawn tower-top to tower-top, and the
-   cabins hang from the cable with a touch of mid-span sag — not from the
-   terrain, which is what makes a cable car read as suspended rather than
-   floated.
+   down the run, the ropes are drawn tower-top to tower-top with a touch of
+   mid-span sag, and the cabins hang from them — not from the terrain,
+   which is what makes a cable car read as suspended rather than floated.
 
    The NPC skiers and boarders ride the piste the same direction the player
    does (downhill is −z on this mountain), carving S-turns about the
@@ -54,6 +53,11 @@ const NUM_PYLONS = 7;
 const SPAN = PYLON_SPACING * (NUM_PYLONS - 1);
 const CABLE_SIDE = 1.8;   // the two ropes, either side of the arm's wheels
 const SAG = 2.4;          // metres of droop at mid-span
+/* Lengths each rope is drawn in per span. A straight rope tower to tower,
+   under cabins that sag, left every cabin mid-span hanging its own grip
+   2.4 m under a rope that was not there; eight chords follow the same
+   parabola to within four centimetres. */
+const ROPE_SEGMENTS = 8;
 const CABIN_SPEED = 11;   // m/s along the line
 
 export function createMountainLife(THREE, scene, shading, spray, audio) {
@@ -69,7 +73,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const _e = new THREE.Euler();
   const _one = new THREE.Vector3(1, 1, 1);
   const _s = new THREE.Vector3();
-  const _qRide = new THREE.Quaternion();
+  const _a = new THREE.Vector3();
+  const _b = new THREE.Vector3();
+  const _qTurn = new THREE.Quaternion();
+  const _qStill = new THREE.Quaternion();
 
   // Both plates are shared with the modules that also wear them — the
   // rider's weave and the boulders' slate — so each is decoded and uploaded
@@ -87,10 +94,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
      an unfogged pylon at four hundred metres was the one object in the
      scene that stayed at full contrast while the mountain behind it went
      white, and it read as a bug because it was one. */
-  const hardwareMat = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, map: metalTex }),
-    { sheen: 0.10 },
-  );
+  /* The plate is a slate photograph standing in for weathered metal, and a
+     photograph of slate is dark: its mean is about 0.06 in linear light, so
+     multiplied straight into the paint it took every cabin, tower and snow
+     gun to a sixteenth of its colour — near-black steel, oxblood cabins and
+     a fan-gun housing the brown of an old barrel where the paint says
+     yellow. So the plate is grain, not pigment: divided by its own mean and
+     a third of its contrast kept, the paint is the colour it is written as
+     and the plate still breaks it up. */
+  const hardware = new THREE.MeshLambertMaterial({ vertexColors: true, map: metalTex });
+  hardware.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #ifdef USE_MAP
+        vec3 hardwareGrain = texture2D( map, vMapUv ).rgb / vec3( 0.057, 0.064, 0.073 );
+        diffuseColor.rgb *= mix( vec3( 1.0 ), hardwareGrain, 0.35 );
+      #endif`);
+  };
+  const hardwareMat = shading.apply(hardware, { sheen: 0.10 });
 
   const instanced = (geo, mat, count, cast = true) => {
     const mesh = new THREE.InstancedMesh(geo, mat, count);
@@ -184,12 +204,19 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const topZ = new Float64Array(NUM_PYLONS);
   // Where the cabin datum stood last frame — see the slide handover below.
   let lastBackZ = null;
+  // A point on rope `off` of span `i`, `t` of the way along it: the chord
+  // between the tower tops, dropped by the span's parabolic sag.
+  const ropeAt = (i, off, t, out) => out.set(
+    topX[i] + (topX[i + 1] - topX[i]) * t + off,
+    topY[i] + (topY[i + 1] - topY[i]) * t - SAG * 4 * t * (1 - t),
+    topZ[i] + (topZ[i + 1] - topZ[i]) * t,
+  );
 
   const cableMat = shading.apply(
     new THREE.MeshBasicMaterial({ color: 0x22262c }), { sheen: 0 },
   );
   const cableGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 6);
-  const NUM_CABLES = (NUM_PYLONS - 1) * 2;
+  const NUM_CABLES = (NUM_PYLONS - 1) * 2 * ROPE_SEGMENTS;
   const cableMesh = instanced(cableGeo, cableMat, NUM_CABLES, false);
   const UP = new THREE.Vector3(0, 1, 0);
   const cableDir = new THREE.Vector3();
@@ -329,21 +356,61 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   };
   shading.apply(figureMat, { sheen: 1 });
 
+  /* The body is turned, not stacked. A cylinder is a rectangle in silhouette
+     from every side, and a figure built of them read as a pile of crates at
+     the distance one rider passes another. The torso, the yoke over it, the
+     hips and every limb are lathes now: a jacket that swells at the chest and
+     rounds over the shoulders, a pelvis rounded underneath, and limbs that
+     taper and end in round joints. Each keeps the length and end radii of
+     the cylinder it replaces, so every part still sits where the layouts
+     below put it. About a thousand triangles a figure. */
+  const lathe = (profile, seg) => new THREE.LatheGeometry(
+    profile.map(([r, y]) => new THREE.Vector2(r, y)), seg,
+  );
+  // A tapered capsule inside the cylinder's own length: round ends of about
+  // their own radius, so a knee or an elbow is two balls overlapping.
+  const limb = (rTop, rBottom, h, seg = 8) => {
+    const half = h / 2;
+    const end = (r, sign) => [0, 0.5, 0.866].map((s, k) => [
+      r * s, sign * (half - Math.min(r, half * 0.45) * (1 - [1, 0.866, 0.5][k])),
+    ]);
+    return lathe([...end(rBottom, -1), [rBottom, -half + Math.min(rBottom, half * 0.45)],
+      [rTop, half - Math.min(rTop, half * 0.45)], ...end(rTop, 1).reverse()], seg);
+  };
+  // The jacket, hem to collar, against the 0.58 m cylinder it replaces.
+  const TORSO = [[0, -0.29], [0.235, -0.285], [0.25, -0.24], [0.243, -0.12],
+    [0.248, 0], [0.25, 0.10], [0.24, 0.18], [0.215, 0.235], [0.17, 0.272],
+    [0.12, 0.29], [0, 0.29]];
+  const torsoAt = (y) => {
+    for (let i = 1; i < TORSO.length; i++) {
+      const [r0, y0] = TORSO[i - 1];
+      const [r1, y1] = TORSO[i];
+      if (y <= y1 && y1 > y0) return r0 + (r1 - r0) * (y - y0) / (y1 - y0);
+    }
+    return TORSO[TORSO.length - 1][0];
+  };
+  // The contrast yoke rides the shoulders 0.19 m up the torso, a few
+  // millimetres proud of it, so it can follow them round instead of
+  // standing off them as a flat-topped band.
+  const YOKE = [0.09, 0.14, 0.18, 0.235, 0.272, 0.29]
+    .map((y) => [torsoAt(y) + 0.008, y - 0.19]);
+
   // Reusable component geometries
   const GEO = {
     // Torso & Body
-    torso: new THREE.CylinderGeometry(0.20, 0.25, 0.58, 10),
-    yoke: new THREE.CylinderGeometry(0.207, 0.221, 0.20, 10),
+    torso: lathe(TORSO, 12),
+    yoke: lathe(YOKE, 12),
     collar: new THREE.CylinderGeometry(0.14, 0.16, 0.10, 10),
     neck: new THREE.CylinderGeometry(0.062, 0.070, 0.11, 8),
     zipper: new THREE.BoxGeometry(0.025, 0.54, 0.04),
-    hip: new THREE.CylinderGeometry(0.21, 0.19, 0.18, 10),
-    thigh: new THREE.CylinderGeometry(0.095, 0.082, 0.40, 8),
-    shin: new THREE.CylinderGeometry(0.080, 0.070, 0.38, 8),
+    hip: lathe([[0, -0.09], [0.13, -0.085], [0.18, -0.06], [0.195, -0.02],
+      [0.205, 0.03], [0.21, 0.09]], 12),
+    thigh: limb(0.095, 0.082, 0.40),
+    shin: limb(0.080, 0.070, 0.38),
     boot: new THREE.BoxGeometry(0.13, 0.15, 0.26),
     bootCuff: new THREE.CylinderGeometry(0.076, 0.076, 0.12, 8),
-    upperArm: new THREE.CylinderGeometry(0.065, 0.055, 0.32, 7),
-    foreArm: new THREE.CylinderGeometry(0.055, 0.048, 0.30, 7),
+    upperArm: limb(0.065, 0.055, 0.32, 7),
+    foreArm: limb(0.055, 0.048, 0.30, 7),
     sleeveCuff: new THREE.CylinderGeometry(0.053, 0.059, 0.075, 7),
     mitten: new THREE.SphereGeometry(0.058, 8, 6),
     head: new THREE.SphereGeometry(0.105, 9, 7),
@@ -732,20 +799,21 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       pylonMesh.instanceMatrix.needsUpdate = true;
       wheelMesh.instanceMatrix.needsUpdate = true;
 
-      // The ropes, tower-top to tower-top.
+      // The ropes, tower-top to tower-top, sagging as the cabins on them do.
       for (let i = 0; i < NUM_PYLONS - 1; i++) {
         for (let s = 0; s < 2; s++) {
           const off = s === 0 ? -CABLE_SIDE : CABLE_SIDE;
-          const x0 = topX[i] + off;
-          const x1 = topX[i + 1] + off;
-          cableDir.set(x1 - x0, topY[i + 1] - topY[i], topZ[i + 1] - topZ[i]);
-          const len = cableDir.length();
-          _p.set((x0 + x1) / 2, (topY[i] + topY[i + 1]) / 2,
-            (topZ[i] + topZ[i + 1]) / 2);
-          _q.setFromUnitVectors(UP, cableDir.normalize());
-          _s.set(1, len, 1);
-          _m.compose(_p, _q, _s);
-          cableMesh.setMatrixAt(i * 2 + s, _m);
+          for (let k = 0; k < ROPE_SEGMENTS; k++) {
+            ropeAt(i, off, k / ROPE_SEGMENTS, _a);
+            ropeAt(i, off, (k + 1) / ROPE_SEGMENTS, _b);
+            cableDir.subVectors(_b, _a);
+            const len = cableDir.length();
+            _p.addVectors(_a, _b).multiplyScalar(0.5);
+            _q.setFromUnitVectors(UP, cableDir.normalize());
+            _s.set(1, len, 1);
+            _m.compose(_p, _q, _s);
+            cableMesh.setMatrixAt((i * 2 + s) * ROPE_SEGMENTS + k, _m);
+          }
         }
       }
       cableMesh.instanceMatrix.needsUpdate = true;
@@ -759,14 +827,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         if (g.at < 0) g.at += SPAN;
         if (g.at >= SPAN) g.at -= SPAN;
         const seg = Math.min(NUM_PYLONS - 2, Math.floor(g.at / PYLON_SPACING));
-        const t = g.at / PYLON_SPACING - seg;
-        const cx = topX[seg] + (topX[seg + 1] - topX[seg]) * t + g.side;
-        const cz = topZ[seg] + (topZ[seg + 1] - topZ[seg]) * t;
-        const cy = topY[seg] + (topY[seg + 1] - topY[seg]) * t
-          - SAG * 4 * t * (1 - t);
-        _e.set(0, 0, Math.sin(cz * 0.08 + g.at * 0.02) * 0.05);
+        ropeAt(seg, g.side, g.at / PYLON_SPACING - seg, _p);
+        _e.set(0, 0, Math.sin(_p.z * 0.08 + g.at * 0.02) * 0.05);
         _q.setFromEuler(_e);
-        _p.set(cx, cy - 1.7, cz);
+        _p.y -= 1.7;
         _m.compose(_p, _q, _one);
         cabinMesh.setMatrixAt(i, _m);
         glassMesh.setMatrixAt(i, _m);
@@ -887,7 +951,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         // ends, 1 once they are riding. Speed returns with it rather than
         // in one frame, since nobody stands up already doing forty km/h.
         let up = 1;
+        let rising = false;
         if (npc.recover > 0) {
+          rising = npc.recover === RECOVER;
           npc.recover = Math.max(0, npc.recover - dt);
           const t = 1 - npc.recover / RECOVER;
           up = t * t * (3 - 2 * t);
@@ -931,14 +997,22 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
         /* …and while they are still getting up, both halves of the figure
            are swung from the attitude the tumble left them in towards the
-           pose just written. A slerp takes the short way round whatever the
-           tumble's angles added up to, so the recovery is at most half a
-           turn and usually far less. */
+           pose just written. On the first frame that attitude becomes a
+           turn away from the riding pose, and it is the turn that unwinds,
+           on top of whatever the riding pose does meanwhile. Slerping
+           straight from the attitude to the live pose took the short way
+           round, which is at most half a turn, but the pose keeps moving
+           as they steer back to the line, and when it crossed the point
+           half a turn from where they fell, the short way changed sides
+           and the figure snapped round by up to three radians in a frame.
+           A fixed turn has one short way for the whole recovery. */
         if (up < 1) {
-          _qRide.copy(npc.mesh.quaternion);
-          npc.mesh.quaternion.copy(npc.recoverFrom).slerp(_qRide, up);
-          _qRide.copy(b.quaternion);
-          b.quaternion.copy(npc.bodyFrom).slerp(_qRide, up);
+          if (rising) {
+            npc.recoverFrom.multiply(_qTurn.copy(npc.mesh.quaternion).invert());
+            npc.bodyFrom.multiply(_qTurn.copy(b.quaternion).invert());
+          }
+          npc.mesh.quaternion.premultiply(_qTurn.copy(npc.recoverFrom).slerp(_qStill, up));
+          b.quaternion.premultiply(_qTurn.copy(npc.bodyFrom).slerp(_qStill, up));
         }
 
         // A little carve spray off their turns

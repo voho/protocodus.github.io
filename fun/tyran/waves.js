@@ -1,8 +1,9 @@
-import { environmentIndex, combatTier, cycleScale } from './campaign.js';
+import { environmentIndex, combatTier, cycleScale, campaignCycle } from './campaign.js';
 import { difficultyProfile } from './difficulty.js';
 import { tacticalPlan, waveTactics, applyTactics } from './tactics.js';
 import { sectorEncounters, encounterShips, ENCOUNTER_BUDGET, BUSY_WAVES, ACE_NAMES } from './encounters.js';
-import { applyRole } from './roles.js';
+import { applyRole, addBarrier } from './roles.js';
+import { sectorObjectives } from './objectives.js';
 
 /* Tyran choreography: Galaga-style squadron flights, a breathing hive with
  * diving attackers, and a Tyrian-style script of waves for every sector.
@@ -100,9 +101,19 @@ export function enemyPathPosition(s, enemy) {
 export const sectorPlan = tacticalPlan;
 
 export function createDirector(level, salt = 0) {
-  const plan = sectorPlan(level, salt);
+  const plan = sectorPlan(level, salt), encounters = sectorEncounters(level, plan, salt);
   return { plan, wave: -1, kind: '', state: 'rest', clock: 0, rest: 2.6, timeout: 0, dive: 3, potshot: 4, pending: 0, pendingAt: 0, hold: false, done: false, abandon: false,
-    encounters: sectorEncounters(level, plan, salt) };
+    encounters, objectives: sectorObjectives(level, plan, encounters, salt) };
+}
+
+/** The wave whose start marks the sector's checkpoint: the middle of the script. */
+export const checkpointWave = plan => Math.floor(plan.length / 2);
+
+// A battered pilot gets a longer breather to let shields recover; a healthy
+// one keeps the authored pace.
+function breather(pilot) {
+  const condition = pilot?.alive ? pilot.hull / pilot.maxHull : 1;
+  return 1.5 + Math.max(0, .6 - condition) * 4;
 }
 
 /** Fraction of the sector's scripted waves already flown, for the HUD. */
@@ -348,7 +359,11 @@ function buildSweep(s, spawn, wave, second = false) {
     const ships = launchLine(s, spawn, { type, count, path, mirror: (k % 2 ? -1 : 1) * tactics.mirror, delay: .5 + k * tactics.squadGap, spacing: reaper ? .3 : tactics.spacing,
       speed: reaper ? speed * 1.45 : speed, wave, squad, ox: reaper ? (k % 2 ? -1 : 1) * Math.min(90, s.width * .06) : 0, tactics });
     // The first squadron may be led by an elite: tougher, faster volleys, double prizes.
-    if (k === 0 && tactics.eliteLeader && ships.length) applyRole(ships[0], 'elite');
+    if (k === 0 && tactics.eliteLeader && ships.length) {
+      applyRole(ships[0], 'elite');
+      // Veteran elites add a barrier once the campaign has taught energy fire.
+      if (combatTier(s.level) + campaignCycle(s.level) * 2 >= 5) addBarrier(ships[0], .2);
+    }
   }
   return 20 + squads * 1.5;
 }
@@ -383,6 +398,8 @@ function buildMidboss(s, spawn, wave) {
   const tactics = waveTactics(s.level, wave, s.salt || 0);
   const boss = stationShip(s, spawn, 8, s.width * (.5 + tactics.stationLane), 230, wave, tactics, { hold: 40, sway: Math.min(210, s.width * .18), role: 'midboss' });
   boss.hp *= 4; boss.maxHp = boss.hp;
+  // From sector three the cruiser raises a barrier; energy weapons break it fastest.
+  if (combatTier(s.level) >= 2) addBarrier(boss, .2);
   for (let k = 0; k < 2; k++) {
     const squad = newSquad(s, 4, wave);
     launchLine(s, spawn, { type: tactics.sweepTypes.find(type => type > 0 && type < 4) || 2, count: 4, path: tactics.sweepPaths[k % tactics.sweepPaths.length], mirror: (k ? -1 : 1) * tactics.mirror, delay: 4 + k * 9, spacing: .22, speed: 300 + combatTier(s.level) * 8, wave, squad, tactics });
@@ -480,6 +497,11 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
     if (d.clock < d.rest) return false;
     if (d.wave + 1 >= d.plan.length) { d.done = true; return true; }
     d.wave++; d.kind = d.plan[d.wave]; d.state = 'wave'; d.clock = 0; d.abandon = false; d.dive = 3.2 - Math.min(1.2, combatTier(s.level) * .1); d.potshot = 3;
+    if (d.wave === checkpointWave(d.plan) && s.checkpoint?.wave !== d.wave) {
+      // A lost flight can resume here: the sector clock, terrain and report.
+      s.checkpoint = { wave: d.wave, time: s.time, scroll: s.scroll, stats: { ...s.stats } };
+      s.events.push({ type: 'checkpoint', wave: d.wave + 1 });
+    }
     const count = d.plan.slice(0, d.wave + 1).filter(kind => kind === d.kind).length;
     d.timeout = d.kind === 'hive' ? buildHive(s, spawn, d.wave)
       : d.kind === 'sweep' ? buildSweep(s, spawn, d.wave, count > 1)
@@ -499,7 +521,7 @@ export function updateDirector(s, dt, spawn, spawnFormation, pilot) {
     if (enemy.ai === 'hive') hive++;
     if (enemy.ai === 'dive') diving++;
   }
-  if (!live && !d.pending) { d.state = 'rest'; d.clock = 0; d.rest = 1.5; s.events.push({ type: 'wave-clear', wave: d.wave + 1 }); return false; }
+  if (!live && !d.pending) { d.state = 'rest'; d.clock = 0; d.rest = breather(pilot); s.events.push({ type: 'wave-clear', wave: d.wave + 1 }); return false; }
   if (!d.abandon && d.clock > d.timeout) {
     // The swarm abandons the attack: queued ships stay home, gunships withdraw.
     d.abandon = true; d.pending = 0;

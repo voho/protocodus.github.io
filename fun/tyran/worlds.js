@@ -1,5 +1,5 @@
 /** Tyran: deterministic tile maps and reusable terrain/scenery sprites. */
-import { MAP_TILE_SIZE, hashLevel, tileAt } from './tile-map.js';
+import { MAP_TILE_SIZE, hashLevel, tileAt, terrainLight } from './tile-map.js';
 import { TerrainSprites } from './terrain-sprites.js';
 import { spritesReady, spriteRevision, spriteCell } from './sprite-assets.js';
 import { StructureEffects } from './structure-effects.js';
@@ -508,9 +508,37 @@ export class WorldRenderer {
     }
     for(let col=-1;col<=this.mapWidth/MAP_TILE_SIZE;col++) {
       const tile=this.tileAt(col,row*(TILE/MAP_TILE_SIZE)+y),x=col*MAP_TILE_SIZE+MARGIN,py=y*MAP_TILE_SIZE;
-      c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;
-      for(let material=1;material<4;material++)if(tile.cornerMasks[material])c.drawImage(this.terrain.get(material,tile.variant,tile.cornerMasks[material]),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);
+      // A full material cell is opaque and pixel-aligned (detail is 1x or 2x),
+      // so every layer beneath the highest full one is invisible: skip it.
+      let top=0;
+      for(let material=3;material>0;material--)if(tile.cornerMasks[material]===15){top=material;break;}
+      if(top){c.drawImage(this.terrain.getMaterial(top,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);}
+      else{c.globalAlpha=.86;c.drawImage(this.terrain.getMaterial(0,tile.variant),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);c.globalAlpha=1;}
+      for(let material=top+1;material<4;material++)if(tile.cornerMasks[material])c.drawImage(this.terrain.get(material,tile.variant,tile.cornerMasks[material]),x,py,MAP_TILE_SIZE,MAP_TILE_SIZE);
     }
+    this.shadeTerrainRow(c,row,y);
+  }
+  // Broad baked light over one row of cells: hillshade from the continuous
+  // height field, deeper water and slow variation, so repeated cells stop
+  // reading as a grid. A tiny image holds the light at every cell corner and
+  // is stretched with bilinear filtering so its pixel centres land on those
+  // corners; neighbouring rows and strips sample the same global corners and
+  // meet exactly. Soft light leaves mid-grey (.5) untouched.
+  shadeTerrainRow(c,row,y) {
+    const corners=this.mapWidth/MAP_TILE_SIZE+3,tileRow=row*(TILE/MAP_TILE_SIZE)+y;
+    // Grown only for wider maps; the first row is painted before flight.
+    if(!this.shadeScratch||this.shadeScratch.width<corners)this.shadeScratch=canvas(corners,2);
+    if(this.shadeImage?.width!==corners)this.shadeImage=this.shadeScratch.getContext('2d').createImageData(corners,2);
+    const data=this.shadeImage.data;
+    for(let r=0;r<2;r++)for(let i=0;i<corners;i++){
+      const k=(r*corners+i)*4,value=Math.round(terrainLight(this.levelHash,this.index,i-1,tileRow+r)*255);
+      data[k]=data[k+1]=data[k+2]=value;data[k+3]=255;
+    }
+    this.shadeScratch.getContext('2d').putImageData(this.shadeImage,0,0);
+    c.save();c.beginPath();c.rect(0,y*MAP_TILE_SIZE,(corners-1)*MAP_TILE_SIZE,MAP_TILE_SIZE);c.clip();
+    c.globalCompositeOperation='soft-light';c.imageSmoothingEnabled=true;c.imageSmoothingQuality='low';
+    c.drawImage(this.shadeScratch,0,0,corners,2,-MAP_TILE_SIZE*.5,(y-.5)*MAP_TILE_SIZE,corners*MAP_TILE_SIZE,2*MAP_TILE_SIZE);
+    c.restore();
   }
   getTile(row) {
     if(this.tiles.has(row))return this.tiles.get(row);

@@ -7,6 +7,12 @@ export const HAZARD_ROLES = new Set(['mine', 'meteor']);
 export const MINE_LIFETIME = 14;
 export const PHANTOM_CYCLE = 4.2, PHANTOM_VISIBLE = 2.4;
 
+/** Give a hull a recharging energy barrier sized from its current armor. */
+export function addBarrier(enemy, fraction) {
+  enemy.shieldMax = Math.round(enemy.maxHp * fraction); enemy.shieldHp = enemy.shieldMax; enemy.shieldHit = -10;
+  return enemy;
+}
+
 /** Assign a role once at spawn. Stats saved with the ship carry the result.
  * Firing multipliers stay within the saved tactic bounds. */
 export function applyRole(enemy, role, options = {}) {
@@ -15,9 +21,11 @@ export function applyRole(enemy, role, options = {}) {
     case 'elite':
       enemy.hp *= 1.6; enemy.maxHp = enemy.hp; enemy.tacticFire = Math.min(2, (enemy.tacticFire || 1) * 1.25); break;
     case 'ace':
-      enemy.hp *= 2.4; enemy.maxHp = enemy.hp; enemy.tacticFire = Math.min(2, (enemy.tacticFire || 1) * 1.3); enemy.aceName = options.aceName ?? 0; break;
+      enemy.hp *= 2.4; enemy.maxHp = enemy.hp; enemy.tacticFire = Math.min(2, (enemy.tacticFire || 1) * 1.3); enemy.aceName = options.aceName ?? 0;
+      // Aces fly with a light barrier: open it with energy fire, then finish the hull.
+      addBarrier(enemy, .25); break;
     case 'shielded':
-      enemy.shieldMax = Math.round(enemy.maxHp * .55); enemy.shieldHp = enemy.shieldMax; enemy.shieldHit = -10; break;
+      addBarrier(enemy, .55); break;
     case 'phantom':
       enemy.cloak = options.cloak ?? 0; enemy.cloaked = false; break;
     case 'medic':

@@ -6,6 +6,7 @@ import { createCampaign, beginLevel, update, spawnEnemy, killEnemy, hurtPlayer,
   PRIMARIES, primaryStats, buyPrimary, buySupply, supplyCost, MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, FIRST_EXTRA_LIFE, RESPAWN_DELAY, challengeSector, FORMATIONS } from '../sim.js';
 import { sectorPlan, isDormant, hiveSlot, pathTable, pathPoint, PATHS, CHALLENGE_SIZE } from '../waves.js';
 import { serializeRun, restoreRun } from '../save-game.js';
+import { RANK_BONUS } from '../objectives.js';
 
 // Run with: node fun/tyran/tests/sim-check.mjs
 // Add --balance for a seeded first-circuit autopilot trial, or --endless-balance for two circuits.
@@ -19,8 +20,17 @@ function seeded(seed, fn) {
   Math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   try { return fn(); } finally { Math.random = original; }
 }
-function advance(state, seconds, controls = []) {
-  for (let t = 0; t < seconds - 1e-8; t += .025) { update(state, Math.min(.025, seconds - t), controls); state.events.length = 0; }
+function advance(state, seconds, controls = [], collected = null) {
+  for (let t = 0; t < seconds - 1e-8; t += .025) { update(state, Math.min(.025, seconds - t), controls); collected?.push(...state.events); state.events.length = 0; }
+}
+// A clear pays its sector bonus plus the rank bonus once, along with any
+// flight-long objectives it judged; nothing else changes the balance.
+function assertClearPaid(state, events, credits, score, bonus, sectorScore = null) {
+  const clear = events.filter(event => event.type === 'hangar'), objectives = events.filter(event => event.type === 'objective');
+  assert.equal(clear.length, 1);
+  assert.equal(clear[0].bonus, bonus + Math.round(bonus * RANK_BONUS[clear[0].rank]));
+  assert.equal(state.credits, credits + clear[0].bonus + objectives.reduce((sum, event) => sum + event.credits, 0));
+  if (sectorScore !== null) assert.equal(state.score, score + sectorScore + objectives.reduce((sum, event) => sum + event.score, 0));
 }
 function isolated(level = 0) {
   const state = createCampaign(level);
@@ -728,21 +738,20 @@ check('every first-circuit sector completes and pays its hangar bonus once', () 
   for (let level = 0; level < 10; level++) {
     const state = isolated(level), boss = spawnEnemy(state, 9, 600, 155);
     killEnemy(state, boss);
-    let priorCredits = state.credits, priorScore = state.score;
+    let priorCredits = state.credits, priorScore = state.score, collected = [];
     advance(state, 3);
     assert.equal(state.status, 'playing');
-    advance(state, .3);
+    advance(state, .3, [], collected);
     if (challengeSector(state)) {
       // Odd-numbered sectors fly a challenging stage before the shop.
       assert.equal(state.status, 'playing'); assert.ok(state.challenge && !state.challenge.done);
       for (let t = 0; t < 45 && !state.challenge.done; t += .025) { update(state, .025); state.events.length = 0; }
       assert.ok(state.challenge.done); assert.equal(state.status, 'playing');
-      priorCredits = state.credits; priorScore = state.score;
-      advance(state, 3);
+      priorCredits = state.credits; priorScore = state.score; collected = [];
+      advance(state, 3, [], collected);
     }
     assert.equal(state.status, 'hangar');
-    assert.equal(state.credits, priorCredits + 650 + level * 100);
-    assert.equal(state.score, priorScore + 2500 * (level + 1));
+    assertClearPaid(state, collected, priorCredits, priorScore, 650 + level * 100, 2500 * (level + 1));
     const credits = state.credits;
     advance(state, 5);
     assert.equal(state.credits, credits);
@@ -1318,10 +1327,10 @@ check('challenging stages follow odd sectors, never fire back, and pay a perfect
   assert.equal(state.bullets.filter(b => b.team < 0).length, 0);
   assert.equal(state.players[0].hull, hull);
   assert.ok(state.challenge.credits >= 700, 'a perfect stage pays its bonus');
-  const credits = state.credits;
-  advance(state, 3);
+  const credits = state.credits, score = state.score, collected = [];
+  advance(state, 3, [], collected);
   assert.equal(state.status, 'hangar');
-  assert.equal(state.credits, credits + 650);
+  assertClearPaid(state, collected, credits, score, 650);
 });
 
 check('lancers paint a firing line before a short beam that only hurts inside the line', () => {

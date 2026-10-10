@@ -7,6 +7,7 @@ import { heightAt, drawnHeightAt, corridorHalfAt, centersAt, chapterNameAt,
   guideAt, wanderAt } from '../js/terrain.js';
 import { setWorldSeed } from '../js/noise.js';
 import { createShading } from '../js/shading.js';
+import { TERRAIN } from '../js/config.js';
 
 function fromHalf(h) {
   const sign = h & 0x8000 ? -1 : 1;
@@ -127,6 +128,70 @@ assert.equal(chapters.size, 5, 'Long descents must retain all five terrain chapt
 assert.ok(apronRelief / (apronSamples * 2) < 90, 'Open shoulders must not become a tall canyon');
 assert.ok(apronAsymmetry / apronSamples > 8, 'Opposite flanks must describe different mountains');
 assert.ok(downhillSamples / apronSamples > 0.99, 'The easy guide line must keep descending');
+/* THE LANDFORMS STAND ON THE MOUNTAIN WITHOUT A STEP. Outcrops, pillows and
+   arêtes are one candidate per world cell, and the whole design rests on a
+   feature never reaching past its own cell — a reach test that is short
+   by a centimetre is a cliff a centimetre wide. So the off-piste is scanned
+   at two centimetres across hundreds of cell edges, and every rise checked
+   against the steepest flank a crag is allowed (a step would be a jump with
+   nothing to climb it). Then the same ground with each generator switched
+   off: they must exist, and they must leave the groomed corridor exactly
+   as it was. */
+{
+  setWorldSeed('alpen-check');
+  const saved = { tors: TERRAIN.tors.chance, pillows: TERRAIN.pillows.chance, crest: TERRAIN.crests.amp };
+  const sample = [];
+  for (const z of [-850.3, -2410.7, -4207.1, -6011.9, -7703.3]) {
+    for (let x = -260; x <= 260; x += 0.02) sample.push([x, z]);
+  }
+  for (const x of [-120.4, -66.7, 58.9, 104.2, 166.6]) {
+    for (let z = -900; z >= -1900; z -= 0.02) sample.push([x, z]);
+  }
+  let worstRise = 0;
+  let prev = null;
+  for (const [x, z] of sample) {
+    const h = heightAt(x, z);
+    if (prev && Math.hypot(x - prev[0], z - prev[1]) < 0.03) {
+      worstRise = Math.max(worstRise, Math.abs(h - prev[2]) / Math.hypot(x - prev[0], z - prev[1]));
+    }
+    prev = [x, z, h];
+  }
+  assert.ok(worstRise < 9, `the off-piste rises at most a crag's flank: worst ${worstRise.toFixed(2)}`);
+  const withAll = sample.filter((_, i) => i % 25 === 0).map(([x, z]) => heightAt(x, z));
+  const delta = (key, field, zero) => {
+    TERRAIN[key][field] = zero;
+    const out = sample.filter((_, i) => i % 25 === 0).map(([x, z], i) => withAll[i] - heightAt(x, z));
+    TERRAIN[key][field] = saved[key === 'crests' ? 'crest' : key];
+    return out;
+  };
+  const torGain = delta('tors', 'chance', 0);
+  const pillowGain = delta('pillows', 'chance', 0);
+  assert.ok(torGain.filter((d) => d > 2).length > 50, 'outcrops stand metres proud somewhere off the piste');
+  assert.ok(pillowGain.filter((d) => d > 0.3).length > 50, 'pillows rise through the powder band');
+  // The arêtes belong to the faces, hundreds of metres out — a wider net.
+  const face = [];
+  for (const z of [-850.3, -2410.7, -4207.1, -6011.9]) {
+    for (let x = -650; x <= 650; x += 5) face.push([x, z, heightAt(x, z)]);
+  }
+  TERRAIN.crests.amp = 0;
+  const crestGain = face.map(([x, z, h]) => h - heightAt(x, z));
+  TERRAIN.crests.amp = saved.crest;
+  assert.ok(crestGain.some((d) => d > 3) && crestGain.some((d) => d < -3), 'the high walls carry arêtes and couloirs');
+  for (const z of [-850.3, -2410.7, -4207.1]) {
+    const half = corridorHalfAt(z);
+    for (const c of centersAt(z)) {
+      for (let x = c - half; x <= c + half; x += 0.5) {
+        const h = heightAt(x, z);
+        for (const [key, field] of [['tors', 'chance'], ['pillows', 'chance'], ['crests', 'amp']]) {
+          TERRAIN[key][field] = 0;
+          assert.equal(heightAt(x, z), h, `${key} must never reach the groomed corridor`);
+          TERRAIN[key][field] = saved[key === 'crests' ? 'crest' : key];
+        }
+      }
+    }
+  }
+}
+
 setWorldSeed('alpen-check');
 const original = heightAt(12.7, -719.2);
 setWorldSeed('fresh-powder');
@@ -149,8 +214,17 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
     },
     checkStream(x, z) {
       beginBuild(x, z, heightAt(x, z));
-      while (build) advanceBuild();
+      // Each half of the geomorph is over as soon as this check asks.
+      while (build) { morphT = 1; advanceBuild(); }
     },
+    // Up to the moment the lead starts, and then on through the swap.
+    checkLead(x, z) {
+      beginBuild(x, z, heightAt(x, z));
+      while (build && build.stage < 4) { morphT = 1; advanceBuild(); }
+    },
+    checkFinish() { while (build) { morphT = 1; advanceBuild(); } },
+    checkMorph: () => [morphDY, morphDN, morphDC, morphDS, morphK.value, morphPhase],
+    checkAnchor: () => [anchorX, anchorY, anchorZ],
     checkInterrupt(x, z, stage) {
       beginBuild(x, z, heightAt(x, z));
       fillHeightRows(x, z, 0, stage ? vertsZ : 4);
@@ -160,6 +234,15 @@ terrainSource = terrainSource.replace(/from\s+(['"])(\.\.?\/[^'"]+)\1/g,
       build.row = 4;
     },
     checkBuffers: () => [heights, positions, normals, colors, surface, groomFrame],
+    vertsX,
+    vertsZ,
+    checkTiles(ax, az) {
+      setTileOrigins(ax, az);
+      return {
+        macro: tilePowderMacro.value.toArray(), detail: tilePowderDetail.value.toArray(),
+        ice: tileIce.value.toArray(), groomZ: tileGroomZ.value, tile: snowTile.value.toArray(),
+      };
+    },
     checkReuse: () => [reusedHeights, reusedSurfaces],
     setSun,`);
 const { createTerrain } = await import('data:text/javascript;base64,'
@@ -191,6 +274,44 @@ assert.doesNotMatch(terrainMain.slice(fogExit), /\btexture2D\s*\(/,
 assert.equal(streamed.mesh.material.normalMap, null);
 assert.equal(streamed.mesh.material.bumpMap, null,
   'terrain owns its smooth normal and has no built-in derivative normal maps');
+/* EVERY TILED READ STAYS WELDED THROUGH A RE-ANCHOR. The anchor's share of
+   each tiling arrives wrapped into its own tile, which throws away whole
+   tiles — so a coordinate built from one may only ever be scaled by a whole
+   number. The glacier plate was read at 2.2 times the macro uv and jumped by
+   a fifth of its tile on most re-anchors; its own origin cures it. */
+for (const [, uv, factor] of terrainMain.matchAll(
+  /\b(powderUv|n64DetailUv|groomedUv|n64CordColorUv|n64IceUv)\s*\*\s*([0-9.]+)/g)) {
+  assert.equal(Number(factor) % 1, 0, `${uv} scaled by ${factor} slides on every re-anchor`);
+}
+{
+  // The shader's own arithmetic, column-major mat2 and all, written out here
+  // rather than borrowed from terrain.js: a check sharing the code it tests
+  // shares its mistakes.
+  const plate = (x, z) => [0.9563 * x + 0.2924 * z, -0.2924 * x + 0.9563 * z];
+  const frac = (v) => v - Math.floor(v);
+  const welded = (a, b) => Math.min(frac(a - b), 1 - frac(a - b)) < 1e-6;
+  const uvs = (ax, az, wx, wz) => {
+    const t = streamed.checkTiles(ax, az);
+    const [lx, lz] = [wx - ax, wz - az];
+    const [px, pz] = plate(lx, lz);
+    return [
+      t.macro[0] + px / t.tile[0], t.macro[1] + pz / t.tile[0],
+      t.detail[0] + px / t.tile[1], t.detail[1] + pz / t.tile[1],
+      t.ice[0] + px * 2.2 / t.tile[0], t.ice[1] + pz * 2.2 / t.tile[0],
+      (lz + t.groomZ) / t.tile[0], (lz + t.groomZ) / t.tile[1],
+    ];
+  };
+  const world = [[3.75, -181.5], [-40.5, -2203.25], [17.25, -25998.75]];
+  for (const [wx, wz] of world) {
+    const ref = uvs(Math.round(wx / 6) * 6, Math.round(wz / 6) * 6, wx, wz);
+    for (let k = -12; k <= 12; k++) {
+      const ax = (Math.round(wx / 6) + (k % 3)) * 6;
+      const az = (Math.round(wz / 6) + k) * 6;
+      uvs(ax, az, wx, wz).forEach((v, i) => assert.ok(welded(v, ref[i]),
+        `tiling ${i} slides by ${frac(v - ref[i]).toFixed(4)} between anchors at ${wx}, ${wz}`));
+    }
+  }
+}
 const bufferNames = ['height', 'position', 'normal', 'color', 'surface', 'groom frame'];
 let streamChecks = 0, heightHits = 0, surfaceHits = 0;
 function compareTerrain(x, z, includeHeights = true) {
@@ -214,6 +335,125 @@ for (const seed of ['alpen-check', 'fresh-powder', 73291]) {
   }
 }
 assert.ok(heightHits > streamed.vertexCount, 'Nearby anchors must reuse exact heights');
+
+/* The height a lattice draws at (wx, wz): its lanes `xs` ascending and `zs`
+   descending, recovered from a position buffer, and each quad cut the way the
+   index buffer cuts it. Written out here from the buffers alone, not from
+   terrain.js's own interpolation. */
+const lanesOf = (pos, ax, az) => [
+  Array.from({ length: streamed.vertsX }, (_, c) => ax + pos[c * 3]),
+  Array.from({ length: streamed.vertsZ }, (_, r) => az + pos[(r * streamed.vertsX) * 3 + 2]),
+];
+function drawnOn([xs, zs], Y, wx, wz) {
+  if (wx < xs[0] || wx > xs[xs.length - 1] || wz > zs[0] || wz < zs[zs.length - 1]) return NaN;
+  const vx = xs.length;
+  let c = 0; while (c + 2 < vx && xs[c + 1] <= wx) c++;
+  let r = 0; while (r + 2 < zs.length && zs[r + 1] >= wz) r++;
+  const fu = (wx - xs[c]) / (xs[c + 1] - xs[c]);
+  const fv = (zs[r] - wz) / (zs[r] - zs[r + 1]);
+  const A = Y(r * vx + c), B = Y(r * vx + c + 1);
+  const C = Y((r + 1) * vx + c), D = Y((r + 1) * vx + c + 1);
+  if ((r + c) & 1) return fu >= fv ? A + (B - A) * fu + (D - B) * fv : A + (D - C) * fu + (C - A) * fv;
+  return fu + fv <= 1 ? A + (B - A) * fu + (C - A) * fv : D + (C - D) * (1 - fu) + (B - D) * (1 - fv);
+}
+
+/* THE GEOMORPH NEVER CUTS. Two halves around the swap. The lead: each old
+   vertex walks from where it is drawn to the new surface at its own world
+   point. The follow: each new vertex walks from the old lattice as the lead
+   left it to its own place. So at the swap the two lattices draw the same
+   ground wherever one nests in the other — refining or coarsening. Both
+   ends are checked against the buffers alone, as drawn. */
+{
+  setWorldSeed('alpen-check');
+  const morphCases = [[0, -396, 0, -402], [0, -402, 6, -414], [6, -414, -12, -432], [0, -3600, 0, -3624]];
+  let leadEnd = 0, followStart = 0, swap = 0, checked = 0, zeros = 0, moved = 0;
+  for (const [x0, z0, x1, z1] of morphCases) {
+    streamed.reset(x0, z0);
+    const [ax0, ay0, az0] = streamed.checkAnchor();
+    const oldPos = streamed.checkBuffers()[1].slice();
+    streamed.checkLead(x1, z1);
+    const [lead, , , , kLead, phase] = streamed.checkMorph();
+    assert.equal(phase, 1, 'the lead plays on the old mesh before the swap');
+    assert.equal(kLead, 0, 'and it starts from the surface on screen');
+    const leadY = ((dy) => (j) => ay0 + oldPos[j * 3 + 1] + dy[j])(lead.slice());
+    streamed.checkFinish();
+    const [ax1, ay1, az1] = streamed.checkAnchor();
+    const newPos = streamed.checkBuffers()[1];
+    const [follow, , , , kFollow] = streamed.checkMorph();
+    assert.equal(kFollow, 1, 'the follow starts from the lead');
+    const old = lanesOf(oldPos, ax0, az0);
+    const fresh = lanesOf(newPos, ax1, az1);
+    const ownY = (i) => ay1 + newPos[i * 3 + 1];
+    const startY = (i) => ownY(i) + follow[i];
+    for (let j = 0; j < streamed.vertexCount; j++) {
+      const wx = ax0 + oldPos[j * 3], wz = az0 + oldPos[j * 3 + 2];
+      const target = drawnOn(fresh, ownY, wx, wz);
+      if (Number.isNaN(target)) continue;
+      leadEnd = Math.max(leadEnd, Math.abs(leadY(j) - target));
+      // Under each old vertex, the surface on either side of the swap, as an
+      // angle from the rider. Exact wherever one lattice nests in the other.
+      const d = Math.max(4, Math.hypot(wx - x1, wz - z1));
+      swap = Math.max(swap, Math.abs(drawnOn(fresh, startY, wx, wz) - leadY(j)) / d);
+    }
+    for (let i = 0; i < streamed.vertexCount; i++) {
+      const drawn = drawnOn(old, leadY, ax1 + newPos[i * 3], az1 + newPos[i * 3 + 2]);
+      if (Number.isNaN(drawn)) continue;
+      followStart = Math.max(followStart, Math.abs(startY(i) - drawn));
+      checked++;
+      if (follow[i] === 0) zeros++;
+      else if (Math.abs(follow[i]) > 0.005) moved++;
+    }
+  }
+  assert.ok(leadEnd < 2e-3, `the lead ends ${leadEnd.toFixed(4)} m off the new surface`);
+  assert.ok(followStart < 2e-3, `the follow starts ${followStart.toFixed(4)} m off where the lead ended`);
+  assert.ok(swap < 2.5e-3, `the swap itself moves the surface ${(swap * 1e3).toFixed(2)} mrad`);
+  assert.ok(zeros > checked * 0.6, 'ground that re-indexed exactly carries no morph at all');
+  assert.ok(moved > 0, 'and ground that was re-measured does');
+  console.log(`  geomorph: lead ends within ${leadEnd.toExponential(1)} m, follow starts within ${followStart.toExponential(1)} m, the swap moves ${(swap * 1e3).toFixed(2)} mrad; ${moved} of ${checked} vertices walk`);
+}
+
+/* WHAT A COARSER LATTICE CANNOT CARRY, THE TERRAIN SHOULD NOT MAKE. Where
+   a commit coarsens the lattice — beside and behind the rider — the lead
+   lays the old fine detail down onto what the new cells can hold, and that
+   is only gentle if nothing on the far rings is finer than its cells, which
+   is what every generator's LOD is for: the landforms first went in without
+   one and outcrops shed metres. So drift sideways through commits, sample
+   the old surface at the new vertices, and measure how far that coarser
+   copy lies from each old vertex past the uniform field, as an angle seen
+   from the rider. The mountain without the landforms reaches about twelve
+   milliradians here, the unfiltered outcrops and arêtes thirty. */
+{
+  setWorldSeed('alpen-check');
+  let worst = 0;
+  for (const z0 of [-850, -2410, -4207, -6011]) {
+    streamed.reset(guideAt(z0), z0);
+    for (let hop = 1; hop <= 3; hop++) {
+      const [ax0, ay0, az0] = streamed.checkAnchor();
+      const oldPos = streamed.checkBuffers()[1].slice();
+      const z = z0 - 6 * hop;
+      const x = guideAt(z) + 6 * hop;
+      streamed.checkStream(x, z);
+      const [ax1, , az1] = streamed.checkAnchor();
+      const newPos = streamed.checkBuffers()[1];
+      const old = lanesOf(oldPos, ax0, az0);
+      const oldY = (j) => ay0 + oldPos[j * 3 + 1];
+      const carried = new Float64Array(streamed.vertexCount);
+      for (let i = 0; i < streamed.vertexCount; i++) {
+        carried[i] = drawnOn(old, oldY, ax1 + newPos[i * 3], az1 + newPos[i * 3 + 2]);
+      }
+      const fresh = lanesOf(newPos, ax1, az1);
+      for (let j = 0; j < streamed.vertexCount; j++) {
+        const wx = ax0 + oldPos[j * 3], wz = az0 + oldPos[j * 3 + 2];
+        const d = Math.hypot(wx - x, wz - z);
+        if (d < TERRAIN.uniformNear || d > 560) continue;
+        const copy = drawnOn(fresh, (i) => carried[i], wx, wz);
+        if (!Number.isNaN(copy)) worst = Math.max(worst, Math.abs(copy - oldY(j)) / d);
+      }
+    }
+  }
+  assert.ok(worst < 0.018, `a coarser lattice drops ${(worst * 1e3).toFixed(1)} mrad of the far surface`);
+  console.log(`  far rings: a coarser lattice drops at most ${(worst * 1e3).toFixed(1)} mrad of the surface`);
+}
 assert.ok(surfaceHits > streamed.vertexCount, 'Unchanged stencils must reuse surface attributes');
 for (const stage of [0, 1]) {
   for (const restart of ['same anchor', 'moved anchor', 'new seed']) {

@@ -20,12 +20,12 @@
 
 import * as THREE from 'three';
 
-import { RENDER, RIDER, SCORE, PROPS, GRADE } from './config.js';
+import { RENDER, RIDER, SCORE, PROPS, GRADE, HARD, SOFT } from './config.js';
 import {
   createTerrain, heightAt, nearestCenter, corridorHalfAt, beyondLipAt,
   getTerrainMaterialAt, guideAt, chapterNameAt,
 } from './terrain.js';
-import { createProps, HARD, SOFT } from './props.js';
+import { createProps } from './props.js';
 import { createCanopy } from './canopy.js';
 import { createWildlife } from './wildlife.js';
 import { createSky } from './sky.js';
@@ -40,6 +40,7 @@ import {
   Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
 } from './rider.js';
 import { createRiderModel } from './riderModel.js';
+import { createRiderShadow, RIDER_SHADOW_LAYER } from './riderShadow.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
 import { createShading } from './shading.js';
@@ -196,7 +197,7 @@ scene.fog = new THREE.Fog(0xe3ecf6, RENDER.fogNear, RENDER.fogFar);
    It owns one block of uniforms — the sky's three stops, the sun, the fog —
    and hands the *same objects* to every material it patches, so the single
    `shading.update(w, camera)` below moves the light on the terrain, the
-   trees, the animals, the huts, the helicopter and the rider at once. Six
+   trees, the animals, the huts, the lift and the rider at once. Six
    modules that know nothing about each other end up agreeing about what time
    of day it is, which is the only reason a day/night cycle across this many
    materials costs nothing per frame. */
@@ -210,6 +211,8 @@ const canopy = createCanopy(THREE, shading);
 const canopyHeading = new THREE.Vector3();
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
+// Every fogged surface dissolves into the dome as drawn — see renderProbe.
+shading.uniforms.uSkyProbe.value = sky.probe;
 // The particles share the shading block's sun uniforms by reference, so a
 // low sun backlights the powder without a single per-frame copy.
 const snowfall = createSnowfall(THREE, shading);
@@ -293,6 +296,9 @@ for (const group of [props.group, wildlife.group, huts.group]) shadowCasting(gro
    One reused array; it never escapes the frame that filled it. */
 const blockedSpan = [];
 let blockedSpanActive = false;
+// Both lists are filled in place and never replaced, so one hoisted pair
+// serves every frame.
+const cameraSolids = [props.solids, huts.solids];
 
 const world = {
   height: heightAt,
@@ -314,8 +320,8 @@ const world = {
   // same snow rather than two unrelated systems.
   grip: 1,
   surfaceDrag: 1,
-  // Only the chase camera asks this, and only about trunks: is there
-  // something solid standing here?
+  // Only the chase camera asks this, and only about the hard things (trunks,
+  // rocks, hut walls): is there something solid standing here?
   /* …and a shortlist for the fifteen-odd probes the boom makes along one
      segment every frame.
 
@@ -332,39 +338,49 @@ const world = {
      and every probe's own reach is at most that — `min(r, cameraPad)` can
      only shrink it. Nothing that would have answered true can be missing. */
   beginBlockedSpan: (x0, z0, x1, z1, maxR) => {
-    const solids = props.solids;
     const loX = (x0 < x1 ? x0 : x1) - maxR;
     const hiX = (x0 > x1 ? x0 : x1) + maxR;
     const loZ = (z0 < z1 ? z0 : z1) - maxR;
     const hiZ = (z0 > z1 ? z0 : z1) + maxR;
     blockedSpan.length = 0;
-    for (let i = 0; i < solids.length; i++) {
-      const s = solids[i];
-      if (s.kind !== HARD) continue;
-      if (s.x + s.r < loX || s.x - s.r > hiX) continue;
-      if (s.z + s.r < loZ || s.z - s.r > hiZ) continue;
-      blockedSpan.push(s);
+    for (const solids of cameraSolids) {
+      for (let i = 0; i < solids.length; i++) {
+        const s = solids[i];
+        if (s.kind !== HARD) continue;
+        if (s.x + s.r < loX || s.x - s.r > hiX) continue;
+        if (s.z + s.r < loZ || s.z - s.r > hiZ) continue;
+        blockedSpan.push(s);
+      }
     }
     blockedSpanActive = true;
   },
   endBlockedSpan: () => { blockedSpanActive = false; },
-  blocked: (x, z, r) => {
-    const solids = blockedSpanActive ? blockedSpan : props.solids;
-    for (let i = 0; i < solids.length; i++) {
-      const s = solids[i];
-      if (s.kind !== HARD) continue;
-      const dz = s.z - z;
-      // The caller's large radius describes a tree crown. A boulder's own
-      // camera pad is much smaller, otherwise a two-metre rock yanks the boom
-      // inward as though it carried four metres of foliage.
-      const reach = s.r + (s.cameraPad === undefined ? r : Math.min(r, s.cameraPad));
-      if (dz > reach || dz < -reach) continue;
-      const dx = s.x - x;
-      if (dx * dx + dz * dz < reach * reach) return true;
-    }
-    return false;
-  },
+  blocked: (x, z, r) => (blockedSpanActive
+    ? blockedIn(blockedSpan, x, z, r)
+    : blockedIn(props.solids, x, z, r) || blockedIn(huts.solids, x, z, r)),
 };
+
+function blockedIn(solids, x, z, r) {
+  for (let i = 0; i < solids.length; i++) {
+    const s = solids[i];
+    if (s.kind !== HARD) continue;
+    const dz = s.z - z;
+    // The caller's large radius describes a tree crown. A boulder's own
+    // camera pad is much smaller, otherwise a two-metre rock yanks the boom
+    // inward as though it carried four metres of foliage.
+    const pad = s.cameraPad === undefined ? r : Math.min(r, s.cameraPad);
+    const reach = s.r + pad;
+    if (dz > reach || dz < -reach) continue;
+    const dx = s.x - x;
+    if (dx * dx + dz * dz >= reach * reach) continue;
+    if (s.hw === undefined) return true;
+    // A hut's box, not the circle round it
+    const ox = Math.max(0, Math.abs(dx * s.cos - dz * s.sin) - s.hw);
+    const oz = Math.max(0, Math.abs(dx * s.sin + dz * s.cos) - s.hd);
+    if (ox * ox + oz * oz < pad * pad) return true;
+  }
+  return false;
+}
 
 // Hoisted out of the frame loop: an array literal there is a fresh
 // allocation per frame, and this list never changes.
@@ -374,6 +390,7 @@ const flashWhite = new THREE.Color(1, 1, 1);
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
 scene.add(model.root, model.shadow, model.headlamp.beam, model.headlamp.pool);
+snowfall.shareLamp(model.headlamp.uniforms);
 shadowCasting(model.root);
 /* The blob is a fake shadow and stays out of the real one. Left in the pass
    it would cast a hard disc of its own onto the snow underneath it, and
@@ -382,6 +399,16 @@ shadowCasting(model.root);
    the rider is over a hollow the real shadow has fallen into. */
 model.shadow.castShadow = false;
 model.shadow.receiveShadow = false;
+/* And the rider casts into a shadow of their own, redrawn every frame at a
+   few millimetres a texel, rather than into the sun's 30 Hz map, where they
+   fell half a metre behind themselves on every other frame at speed — see
+   riderShadow.js. The sun's map still shadows the rider. */
+model.root.traverse((o) => {
+  if (!o.isMesh || o.userData.noShadow) return;
+  o.castShadow = false;
+  o.layers.enable(RIDER_SHADOW_LAYER);
+});
+const riderShadow = createRiderShadow(THREE, renderer, shading);
 
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
@@ -1072,7 +1099,7 @@ function checkGates() {
    Collisions
    ========================================================================== */
 
-const sweepHit = { t: 0, nx: 0, nz: 1, distance: 0, approach: 0 };
+const sweepHit = { t: 0, nx: 0, nz: 1, px: 0, pz: 0, distance: 0, approach: 0 };
 
 /* Sweep a moving point against the obstacle circle already expanded by the
    rider radius. Entry normal and travel direction together distinguish a
@@ -1123,34 +1150,153 @@ function sweepCircle(ax, az, bx, bz, cx, cz, radius, out) {
   out.approach = a > 1e-10
     ? Math.max(0, Math.min(1, -(dx * out.nx + dz * out.nz) / Math.sqrt(a)))
     : Math.max(0, Math.min(1, 1 - out.distance / radius));
+  // Where the rider is held, if this is a volume: on the circle, along the normal
+  out.px = cx + out.nx * radius;
+  out.pz = cz + out.nz * radius;
+  return true;
+}
+
+/* The same sweep against a box (a hut's), in the box's own frame and against
+   the box grown by `radius` with its corners rounded, which is exactly the
+   shape a circle of that radius cannot enter: a face is met flat, and a
+   corner is a circle of the rider's own radius. Fills the same record. */
+function sweepBox(ax, az, bx, bz, s, radius, out) {
+  const { cos, sin, hw, hd } = s;
+  const ux = ax - s.x;
+  const uz = az - s.z;
+  const lax = ux * cos - uz * sin;
+  const laz = ux * sin + uz * cos;
+  const ldx = (bx - ax) * cos - (bz - az) * sin;
+  const ldz = (bx - ax) * sin + (bz - az) * cos;
+  const a = ldx * ldx + ldz * ldz;
+  let t = 0;
+  let nx = 0;
+  let nz = 0;
+  let hx;
+  let hz;
+
+  const cx = Math.max(-hw, Math.min(hw, lax));
+  const cz = Math.max(-hd, Math.min(hd, laz));
+  const ex = lax - cx;
+  const ez = laz - cz;
+  const e = Math.hypot(ex, ez);
+  if (e <= radius) {
+    // Already in: out the nearest way, which inside the box itself is
+    // through whichever side is closest
+    if (e > 1e-6) {
+      nx = ex / e;
+      nz = ez / e;
+      hx = cx + nx * radius;
+      hz = cz + nz * radius;
+    } else if (hw - Math.abs(lax) < hd - Math.abs(laz)) {
+      nx = lax < 0 ? -1 : 1;
+      hx = nx * (hw + radius);
+      hz = laz;
+    } else {
+      nz = laz < 0 ? -1 : 1;
+      hx = lax;
+      hz = nz * (hd + radius);
+    }
+  } else {
+    // Where the line enters the grown box's slabs, and if that is off a
+    // corner, whether it meets the rounding there at all
+    const gx = hw + radius;
+    const gz = hd + radius;
+    let t0 = 0;
+    let t1 = 1;
+    let axis = -1;
+    if (Math.abs(ldx) < 1e-12) {
+      if (Math.abs(lax) > gx) return false;
+    } else {
+      const ta = (-Math.sign(ldx) * gx - lax) / ldx;
+      if (ta > t0) { t0 = ta; axis = 0; }
+      t1 = Math.min(t1, (Math.sign(ldx) * gx - lax) / ldx);
+    }
+    if (Math.abs(ldz) < 1e-12) {
+      if (Math.abs(laz) > gz) return false;
+    } else {
+      const ta = (-Math.sign(ldz) * gz - laz) / ldz;
+      if (ta > t0) { t0 = ta; axis = 1; }
+      t1 = Math.min(t1, (Math.sign(ldz) * gz - laz) / ldz);
+    }
+    if (t0 > t1) return false;
+    const qx = lax + ldx * t0;
+    const qz = laz + ldz * t0;
+    if (Math.abs(qx) > hw && Math.abs(qz) > hd) {
+      const kx = qx < 0 ? -hw : hw;
+      const kz = qz < 0 ? -hd : hd;
+      if (!sweepCircle(lax, laz, lax + ldx, laz + ldz, kx, kz, radius, out)) return false;
+      t = out.t;
+      nx = out.nx;
+      nz = out.nz;
+      hx = kx + nx * radius;
+      hz = kz + nz * radius;
+    } else {
+      t = t0;
+      if (axis === 0) nx = -Math.sign(ldx);
+      else nz = -Math.sign(ldz);
+      hx = qx;
+      hz = qz;
+    }
+  }
+  out.t = t;
+  out.nx = nx * cos + nz * sin;
+  out.nz = -nx * sin + nz * cos;
+  out.px = s.x + hx * cos + hz * sin;
+  out.pz = s.z - hx * sin + hz * cos;
+  out.approach = a > 1e-10
+    ? Math.max(0, Math.min(1, -(ldx * nx + ldz * nz) / Math.sqrt(a)))
+    : Math.max(0, Math.min(1, 1 - e / radius));
   return true;
 }
 
 function collide() {
   if (rider.state === 'fall') return;
-  const solids = props.solids;
-  const zLo = Math.min(prev.z, rider.pos.z) - 4;
-  const zHi = Math.max(prev.z, rider.pos.z) + 4;
+  const zLo = Math.min(prev.z, rider.pos.z) - RIDER.radius;
+  const zHi = Math.max(prev.z, rider.pos.z) + RIDER.radius;
+  // The huts keep their own short list; see `HUT_BOXES` in huts.js.
+  if (collideWith(props.solids, zLo, zHi)) return;
+  collideWith(huts.solids, zLo, zHi);
+}
 
+// A volume holds the rider out of itself: back to the swept entry point,
+// and no velocity left aimed into it, so a graze slides on round it.
+function holdOut(restitution) {
+  rider.pos.x = sweepHit.px + sweepHit.nx * 0.03;
+  rider.pos.z = sweepHit.pz + sweepHit.nz * 0.03;
+  const inward = rider.vel.x * sweepHit.nx + rider.vel.z * sweepHit.nz;
+  if (inward < 0) {
+    rider.vel.x -= inward * restitution * sweepHit.nx;
+    rider.vel.z -= inward * restitution * sweepHit.nz;
+  }
+}
+
+// One list's pass; true when the rider went down and the step is over.
+function collideWith(solids, zLo, zHi) {
   for (let i = 0; i < solids.length; i++) {
     const s = solids[i];
-    if (s.z < zLo || s.z > zHi) continue;
+    if (s.z + s.r < zLo || s.z - s.r > zHi) continue;
     if (Math.abs(s.x - rider.pos.x) > s.r + 6) continue;
 
-    const reach = s.r + RIDER.radius;
-
     // Threading a tree no longer pays out, so a miss is simply a miss
-    if (!sweepCircle(
-      prev.x, prev.z, rider.pos.x, rider.pos.z,
-      s.x, s.z, reach, sweepHit,
-    )) continue;
+    if (!(s.hw === undefined
+      ? sweepCircle(prev.x, prev.z, rider.pos.x, rider.pos.z,
+        s.x, s.z, s.r + RIDER.radius, sweepHit)
+      : sweepBox(prev.x, prev.z, rider.pos.x, rider.pos.z,
+        s, RIDER.radius, sweepHit))) continue;
     // Anything with a real top can be cleared in the air. Trees carry top: 99
     // because you do not jump a tree. Height is judged at horizontal impact,
     // not at the end of the step, so a landing cannot clear or strike solely
     // because the two axes were sampled at different times.
     const impactY = prev.y + (rider.pos.y - prev.y) * sweepHit.t;
     if (impactY > s.top + 0.15) continue;
-    if (rider.grace > 0 || game.mode === 'attract') continue;
+    /* Grace, and the demo loop, spare the rider a strike — not the volume.
+       Skipping outright let a rider getting up from a wipeout walk on through
+       the trunk that had just put them down. */
+    if (rider.grace > 0 || game.mode === 'attract') {
+      if (s.volume) holdOut(1);
+      continue;
+    }
     const contact = s.contact || s;
     if (s.kind === SOFT) {
       if (contact.hit) continue;
@@ -1168,7 +1314,13 @@ function collide() {
     // rider still inside the trunk's radius on the next step would take a fresh
     // impulse and a fresh multiplicative speed cut each time — which made
     // the same graze measurably harsher on a 144 Hz display than a 60 Hz one.
-    if (contact.hit) continue;
+    /* …but one response is not a hole. This used to skip a struck volume
+       outright, so a rock, a fence or a log was solid exactly once: a rider
+       who glanced off it and steered back in rode straight through. */
+    if (contact.hit) {
+      if (s.volume) holdOut(1);
+      continue;
+    }
     contact.hit = true;
     s.hit = true;
     s.grazed = true;
@@ -1182,21 +1334,15 @@ function collide() {
     const closeness = sweepHit.approach;
     const outcome = rider.strike(sweepHit.nx, sweepHit.nz, closeness);
     if (s.volume) {
-      /* A rock or fence is a volume, not a trigger. Resolve to the swept entry
-         point and remove only velocity still aimed into it; the tangential
-         component remains, so a graze slides past while a direct fall stops. */
-      rider.pos.x = s.x + sweepHit.nx * (reach + 0.03);
-      rider.pos.z = s.z + sweepHit.nz * (reach + 0.03);
-      const inward = rider.vel.x * sweepHit.nx + rider.vel.z * sweepHit.nz;
-      if (inward < 0) {
-        const restitution = outcome === 'fall' ? 1.12 : 1.02;
-        rider.vel.x -= inward * restitution * sweepHit.nx;
-        rider.vel.z -= inward * restitution * sweepHit.nz;
-      }
+      /* A rock, a fence or a tree is a volume, not a trigger. Resolve to the
+         swept entry point and remove only velocity still aimed into it; the
+         tangential component remains, so a graze slides past while a direct
+         fall stops. */
+      holdOut(outcome === 'fall' ? 1.12 : 1.02);
     }
     // A fall changes the simulation state immediately. Do not let another
     // overlapping hull reposition or strike the tumbling rider in this step.
-    if (outcome === 'fall') return;
+    if (outcome === 'fall') return true;
     if (outcome === 'brush') {
       audio.thud();
       chase.kick(0.4);
@@ -1208,6 +1354,7 @@ function collide() {
       input.rumble(0.6, 0.35, 180);
     }
   }
+  return false;
 }
 
 /* ==========================================================================
@@ -1544,7 +1691,7 @@ function frame(now) {
     // One write, and every material in the world agrees about the sky it is
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
-    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z), rider.pos);
     camera.getWorldDirection(canopyHeading);
     canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
     /* THE BISECT, applied after every system that writes these, so a switch
@@ -1666,6 +1813,9 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
+    // Where the rider is drawn, which between steps is not where they are
+    riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+    sky.renderProbe(renderer);
     retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }
@@ -1951,8 +2101,9 @@ function afterPaint(fn) {
    the honest thing for the read-out to say is that the wait is over, and the
    plate is welcome to arrive afterwards. */
 const SNOW_PATIENCE = 6000;
+// The sky's plates too, so the title opens on the photographed range
 const surfacesPromise = Promise.race([
-  terrain.surfacesReady,
+  Promise.all([terrain.surfacesReady, sky.platesReady]),
   new Promise((settle) => setTimeout(settle, SNOW_PATIENCE)),
 ]);
 
@@ -1974,6 +2125,7 @@ afterPaint(async () => {
   await surfacesPromise;
   boot.step('snow');
   terrain.snapSnowReady();
+  sky.snapPlates();
 
   afterPaint(() => {
     /* Compile every currently resident world material, allocate the shadow
@@ -1981,6 +2133,7 @@ afterPaint(async () => {
        while the canvas is still covered. First use during a landing is the
        wrong time for a driver to discover a shader or a 3.3 MiB texture. */
     renderer.compile(scene, camera);
+    sky.renderProbe(renderer);
     retro.render(scene, camera);
     requestAnimationFrame((now) => {
       frame(now);

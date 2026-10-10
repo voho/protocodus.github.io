@@ -136,6 +136,48 @@ for (const fps of [30, 60, 144]) {
   close(shading.uniforms.uCamWrap.value.x, 51.75, 'camera x wraps into the glint period');
   close(shading.uniforms.uCamWrap.value.y, 16.5, 'camera z wraps into the glint period');
 
+  /* The rider's own shadow box: built relative to the camera, so a point
+     handed over as its offset from the lens lands where the world point
+     would. The chest is the box's centre; ground further down the sun's ray
+     is deeper, and so shadowed; the pass leaves the sun's map alone. */
+  {
+    const { createRiderShadow } = await import('../js/riderShadow.js');
+    const calls = [];
+    const stub = {
+      shadowMap: { autoUpdate: true, needsUpdate: true },
+      autoClear: true,
+      getRenderTarget: () => null,
+      setRenderTarget: (t) => calls.push(['target', t]),
+      clear: () => calls.push(['clear']),
+      render: () => calls.push(['render', stub.shadowMap.autoUpdate, stub.shadowMap.needsUpdate]),
+    };
+    const pass = createRiderShadow(THREE, stub, shading);
+    lens.updateMatrixWorld();
+    const root = new THREE.Object3D();
+    const feet = new THREE.Vector3(-30, -9000, -26000);
+    root.position.copy(feet);
+    pass.update(new THREE.Scene(), root, lens, 0.8);
+    const toBox = (world) => world.clone().sub(lens.position).applyMatrix4(shading.uniforms.uRiderShadowMatrix.value);
+    const chest = toBox(new THREE.Vector3(feet.x, feet.y + 0.9, feet.z));
+    assert.ok(Math.abs(chest.x - 0.5) < 1e-3 && Math.abs(chest.y - 0.5) < 1e-3, 'the chest is the box centre');
+    const sun = shading.uniforms.uSunDir.value;
+    const ground = toBox(new THREE.Vector3(feet.x, feet.y + 0.9, feet.z).addScaledVector(sun, -4));
+    assert.ok(Math.abs(ground.x - 0.5) < 1e-3 && ground.z > chest.z, 'down the ray is behind the rider');
+    assert.equal(shading.uniforms.uRiderShadowLevel.value, 0.8);
+    const drawn = calls.find((c) => c[0] === 'render');
+    assert.ok(drawn && drawn[1] === false && drawn[2] === false, 'the pass never spends the sun map');
+    assert.ok(stub.shadowMap.autoUpdate === true && stub.shadowMap.needsUpdate === true, 'and hands its flags back');
+    // Upside down in a flip, the chest is under the board, and so is the box
+    root.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
+    pass.update(new THREE.Scene(), root, lens, 0.8);
+    const flipped = toBox(new THREE.Vector3(feet.x, feet.y - 0.9, feet.z));
+    assert.ok(Math.abs(flipped.x - 0.5) < 1e-3 && Math.abs(flipped.y - 0.5) < 1e-3,
+      'an inverted chest is still the box centre');
+    calls.length = 0;
+    pass.update(new THREE.Scene(), root, lens, 0);
+    assert.equal(calls.length, 0, 'no pass when the sun casts nothing');
+  }
+
   /* Streamed props dissolve into the backdrop before the window's far edge;
      only materials that ask for it carry the term, it reads the view
      direction after it is declared, and it has its own program key. */
@@ -153,6 +195,62 @@ for (const fps of [30, 60, 144]) {
   assert.ok(!compiled(plain).includes('n64StreamZ'), 'ground and figures do not fade at the edge');
   assert.notEqual(streamed.customProgramCacheKey(), plain.customProgramCacheKey());
 
+  /* The huts' lamps are added after everything that divides the sun's
+     shadow back out of the direct light: the snow response, and a
+     material's own patch at the end of the light loop, which is how the
+     rider's rig light reads whether it stands in shade. */
+  const rigged = new THREE.MeshLambertMaterial();
+  rigged.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_end>',
+      '#include <lights_fragment_end>\n  // the rig light');
+  };
+  const riggedFrag = compiled(shading.apply(rigged, { sheen: 1, hutLight: true }));
+  const lamp = riggedFrag.indexOf('n64HutLight(vN64View');
+  assert.ok(lamp > riggedFrag.indexOf('// the rig light'),
+    "the huts' light lands after a material's own light-loop patch");
+  assert.ok(lamp > riggedFrag.indexOf('float n64Open'),
+    'and after the snow response that recovers the sun shadow');
+  assert.match(riggedFrag, /\n\s*#include <aomap_fragment>/,
+    'and the include it is spliced ahead of still starts its own line');
+
+  /* The headlamp lights only what it can see. Over a lip that drops 3 m at
+     8 m out, the middle column of the pool is dark where the lip hides the
+     snow from a lamp 1.9 m up, and lit again once the snow is far enough
+     out to be seen past it. */
+  {
+    const { createHeadlamp, HEADLAMP } = await import('../js/headlamp.js');
+    const plain = document.createElement;
+    document.createElement = () => ({ getContext: () => ({
+      createRadialGradient: () => ({ addColorStop() {} }), fillRect() {},
+    }) });
+    const head = new THREE.Object3D();
+    head.position.set(0, 1.7, 0);
+    const headlamp = createHeadlamp(THREE, shading, head);
+    document.createElement = plain;
+    head.updateMatrixWorld(true);
+    const rider = {
+      vel: new THREE.Vector3(0, 0, -10), heading: new THREE.Vector3(0, 0, -1),
+      normal: new THREE.Vector3(0, 1, 0), right: new THREE.Vector3(1, 0, 0),
+      world: { height: (x, z) => (z > -8 ? 0 : -3) },
+    };
+    headlamp.update({ night: 1, snow: 0 }, 1, rider, lens);
+    const geo = headlamp.pool.children[0].geometry;
+    for (let k = 4; k < geo.attributes.position.count; k += 9) {
+      const d = -geo.attributes.position.getZ(k);
+      const lit = geo.attributes.aLit.getX(k);
+      if (d < 7 || d > 17) assert.ok(lit > 0.99, `snow the lamp sees at ${d.toFixed(1)} m is lit: ${lit}`);
+      else assert.ok(lit < 0.05, `snow behind the lip at ${d.toFixed(1)} m is dark: ${lit}`);
+    }
+    /* And the beam stops at ground between its last grown stride and its
+       reach: a rise from 50 m out fell between the 47 m sample and the
+       63 m one, which was already past the end, so the beam ran through. */
+    const rise = { ...rider, world: { height: (x, z) => (z > -50 ? -100 : 10) } };
+    headlamp.update({ night: 1, snow: 0 }, 1, rise, lens);
+    const beam = headlamp.debug();
+    assert.ok(beam.hit && Math.abs(beam.distance - 50) < 1 && beam.distance < HEADLAMP.reach,
+      `the beam stops at a rise past 47 m: ${beam.distance}`);
+  }
+
   /* The canopy field: deepest at a trunk, gone past the crown's reach, a
      thicket darker than one tree but never black, direct light taken only as
      the sun's shadows fade, and every texel a fact about the world — a
@@ -165,6 +263,7 @@ for (const fps of [30, 60, 144]) {
     { x: -20, z: -60, canopy: 3 }, { x: -18.5, z: -60, canopy: 3 },
     { x: 30, z: -50, canopy: 3, canopyDensity: 0.35 },
     { x: 0, z: -48, r: 1 },   // a rock: no crown, no occlusion
+    { x: -40, z: -80, r: 1.76, ao: 2 },   // a boulder, 2 m tall, 2 m to its edge
   ];
   const ahead = new THREE.Vector3(0, 0, -1);
   canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 1);
@@ -175,6 +274,8 @@ for (const fps of [30, 60, 144]) {
   assert.ok(pair > trunk && pair < 0.9, `two crowns are darker than one and never black: ${pair}`);
   assert.ok(canopy.sample(30, -50) < trunk * 0.5, 'a bare snag hides much less sky');
   assert.equal(canopy.sample(0, -48), 0, 'solids without a crown do not occlude');
+  assert.ok(canopy.sample(-37.6, -80) > 0.2, 'a boulder takes the sky from the snow at its foot');
+  assert.equal(canopy.sample(-35, -80), 0, 'and from nothing past about its own height out');
   assert.equal(shading.uniforms.uCanopyWin.value.w, 0, 'full sun shadows keep the direct light');
   canopy.update(trees, new THREE.Vector3(0, 0, 0), ahead, 0.25);
   close(shading.uniforms.uCanopyWin.value.w, 0.75, 'faded sun shadows hand the crown the direct light');

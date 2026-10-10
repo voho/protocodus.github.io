@@ -27,10 +27,9 @@
    were pushed before it — deeper at the top, more saturated at the horizon,
    and further apart from its neighbours. The one thing that could not be
    touched is the *shape* of the gradient, because `shading.js` carries a
-   transcription of the dome's own shader so that a fogged ridge dissolves
-   into the same sky it is standing in front of. Both ends read these
-   numbers, so the numbers are where a day's worth of variation has to come
-   from, and they carry it perfectly well.
+   transcription of it for the snow's reflection of the sky. Both ends read
+   these numbers, so the numbers are where a day's worth of variation has to
+   come from, and they carry it perfectly well.
 
    `storm` drifts on slow noise between clear air and a whiteout. It is not
    a separate weather system so much as a second axis over the first: it

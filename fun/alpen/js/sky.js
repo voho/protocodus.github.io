@@ -13,14 +13,14 @@
    graphics: one dot product, and it is most of the difference between a
    painted gradient and a sky with a sun somewhere in it.
 
-   The gradient's *shape* is the one thing in this file that cannot be
-   touched, and it is worth saying why here rather than leaving it to be
-   discovered. `shading.js` carries a transcription of `DOME_FRAG` so that a
-   fogged ridge dissolves into the same sky it is standing in front of, and
-   that file is not this one's to edit. So all the variation a day is asked
-   for has to arrive through the stops themselves, which are uniforms both
-   ends share and cannot disagree about. That turns out to be no constraint
-   at all: nine moments of colour say far more than a fourth stop would have.
+   A fogged ridge dissolves into exactly this dome: `renderProbe` draws
+   DOME_FRAG itself into a small panorama every frame and the fog reads that,
+   so nothing here has to be kept in step with a copy. One copy remains —
+   `shading.js`'s `n64SkyReflect`, the gradient and the lobe the snow
+   reflects — so all the variation a day is asked for still arrives through
+   the stops, which are uniforms both ends share and cannot disagree about.
+   That turns out to be no constraint at all: nine moments of colour say far
+   more than a fourth stop would have.
 
    The counterglow is the second thing on the dome and it exists for about
    two of the fifteen minutes a day takes. When the sun is within a few
@@ -828,6 +828,17 @@ const DOME_VERT = `
   }
 `;
 
+/* The sky probe's quad: one fragment per texel of an equirectangular
+   panorama. DOME_FRAG rebuilds the direction from the texel under
+   SKY_PROBE — see `renderProbe`. */
+const PROBE_VERT = `
+  varying highp vec2 vProbeUv;
+  void main() {
+    vProbeUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
 const DOME_FRAG = `
   precision highp float;
   uniform vec3 uZenith, uMid, uHorizon, uHaze, uGlow, uSunDir;
@@ -846,8 +857,14 @@ const DOME_FRAG = `
   uniform vec3 uSunlit;
   uniform sampler2D uCloudTex;
   uniform float uCirrus;
+#ifdef SKY_PROBE
+  varying highp vec2 vProbeUv;
+  highp vec3 vDir;
+  highp float vSphereU;
+#else
   varying highp vec3 vDir;
   varying highp float vSphereU;
+#endif
 
   ${SKY_GLSL}
 
@@ -911,12 +928,33 @@ const DOME_FRAG = `
   }
 
   void main() {
+#ifdef SKY_PROBE
+    // The direction this texel stands for, laid out exactly as the dome
+    // sphere lays out its own u — see SphereGeometry — so the plates land
+    // where the dome puts them.
+    float probeElev = (vProbeUv.y - 0.5) * 3.14159265;
+    float probeAz = vProbeUv.x * 6.28318531;
+    vDir = vec3(-cos(probeAz) * cos(probeElev), sin(probeElev),
+      sin(probeAz) * cos(probeElev));
+    vSphereU = vProbeUv.x;
+#endif
     // Re-normalised per fragment: the interpolation across a facet of the
     // dome is a chord, and at 288 lines the 1% it was out by was nothing.
     // At native resolution the seventh power below turns it into a visible
     // ripple of facets through the middle of the sun's lobe.
     vec3 dir = normalize(vDir);
     float up = dir.y;
+#ifdef SKY_PROBE
+    /* Below the skyline what a fogged surface dissolves into is the curtain,
+       not the sky — the cone is drawn there in the haze stop, and it is what
+       stands behind the far edge of the ground. So the probe swaps the
+       horizon stop for the haze there, and the plate drawn over that stop
+       goes with it; from a few degrees up it is the dome as drawn. */
+    float probeSky = smoothstep(0.0, 0.10, up);
+    vec3 bottom = mix(uHaze, uHorizon, probeSky);
+#else
+    vec3 bottom = uHorizon;
+#endif
     /* The two stops are pulled a long way down the dome.
 
        Spread over the top two thirds of the sky, as they were, the pale
@@ -926,7 +964,7 @@ const DOME_FRAG = `
        fast: at altitude the sky is properly deep barely twenty degrees off
        the horizon, which is exactly what these ranges now say. */
     vec3 c = mix(
-      mix(uHorizon, uMid, smoothstep(-0.05, 0.14, up)),
+      mix(bottom, uMid, smoothstep(-0.05, 0.14, up)),
       uZenith,
       smoothstep(0.10, 0.52, up)
     );
@@ -951,6 +989,9 @@ const DOME_FRAG = `
     // How much of the sky the plates may own here, before any fetch: none
     // of the upper dome, and for a landscape nothing above its kept sky.
     float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
+#ifdef SKY_PROBE
+    panoBand *= probeSky;
+#endif
     float keep = plateKeep(uLayoutClear, elev);
     if (uPanoFade < 0.999) keep = mix(plateKeep(uLayoutPrev, elev), keep, uPanoFade);
     keep = mix(keep, 1.0, uPanoStormMix);
@@ -1019,15 +1060,13 @@ const DOME_FRAG = `
         + uGlow * (pow(lobe, 6.0) * 0.55 + 0.05);
       c = mix(c, cirrusShade, cirrus * 0.45);
     }
-    /* The deck, from the same string shading.js's fog term includes, so the
-       sky a ridge dissolves into and the sky above it are the same sky.
+    /* The deck, from SKY_GLSL, which shading.js includes as well.
 
-       Up here — and only up here, above the band the fog ever dissolves
-       into — its edge is eroded by the plate's detail field and its body
-       carries that detail as thickness, so a cell of cloud has a torn rim
-       and a lit, lumpy top instead of reading as a smooth smudge. The fog's
-       copy never sees the erosion, and at the elevations where the two skies
-       meet it is faded to nothing, so they still agree there. */
+       Up here — above the band a fogged ridge stands in front of — its edge
+       is eroded by the plate's detail field and its body carries that detail
+       as thickness, so a cell of cloud has a torn rim and a lit, lumpy top
+       instead of reading as a smooth smudge. The fog sees it all through the
+       probe, at a degree and a half to the texel. */
     if (uCloud > 0.002) {
       vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
       vec2 dp = dir.xz * (0.62 / max(up, 0.075)) + uCloudDrift;
@@ -1793,6 +1832,68 @@ export function createSky(THREE) {
   dome.name = 'sky-dome';
   group.add(dome);
 
+  /* THE SKY THE FOG DISSOLVES INTO, AS DRAWN.
+
+     Every fogged surface on the mountain ends in `n64Sky`, and that used to
+     be a transcription of the gradient above — the gradient only. Since the
+     photographed plates arrived, the dome below about thirty degrees is
+     mostly plate: a pale photographed sky and a range of white peaks. So a
+     wall at the far edge of the fog, fully dissolved, came out in the deep
+     blue the gradient has at its elevation, against a pale sky behind it —
+     a dark ghost of a hill standing in the sky, a disc where the walls rose
+     highest.
+
+     So the fog reads the dome itself. This is DOME_FRAG, drawn once a frame
+     into a small equirectangular panorama: one texel per one and a half
+     degrees, which the plates' own mip chain fills with their low
+     frequencies, so a fogged ridge goes into the colour of the sky behind it
+     rather than into a second copy of its peaks. Plate, cirrus, deck, glow:
+     every layer the dome has, it has, because it is the same program on the
+     same uniform objects. Below the skyline it keeps the curtain's haze —
+     see the probe's branch in DOME_FRAG. */
+  const PROBE_W = 256;
+  const PROBE_H = 128;
+  const probe = new THREE.WebGLRenderTarget(PROBE_W, PROBE_H, {
+    type: THREE.HalfFloatType,
+    minFilter: THREE.LinearFilter,
+    magFilter: THREE.LinearFilter,
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
+    generateMipmaps: false,
+    depthBuffer: false,
+    stencilBuffer: false,
+    colorSpace: THREE.LinearSRGBColorSpace,
+  });
+  const probeMat = new THREE.ShaderMaterial({
+    uniforms: domeMat.uniforms,
+    defines: { SKY_PROBE: '' },
+    vertexShader: PROBE_VERT,
+    fragmentShader: DOME_FRAG,
+    depthTest: false,
+    depthWrite: false,
+  });
+  const probeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), probeMat);
+  probeQuad.frustumCulled = false;
+  const probeScene = new THREE.Scene();
+  probeScene.add(probeQuad);
+  const probeCamera = new THREE.Camera();
+  let probeFormatChecked = false;
+  function renderProbe(renderer) {
+    // Bytes where float targets cannot be drawn to, as the frame's own
+    // targets do (retro.js); decided before the first draw allocates it.
+    if (!probeFormatChecked) {
+      probeFormatChecked = true;
+      if (!renderer.extensions.has('EXT_color_buffer_float')
+        && !renderer.extensions.has('EXT_color_buffer_half_float')) {
+        probe.texture.type = THREE.UnsignedByteType;
+      }
+    }
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(probe);
+    renderer.render(probeScene, probeCamera);
+    renderer.setRenderTarget(previous);
+  }
+
   /* `top` is the elevation the plate keeps its own sky up to — see PLATE;
      omitted, it keeps all of it. Whether a plate is a panorama or a
      landscape is read off its shape — a 2:1 image is the full ring,
@@ -1910,6 +2011,8 @@ export function createSky(THREE) {
        logic in `update` swaps it in through the ordinary out-of-sight dip. */
     if (platesBound) return;
     if (!clearSettled || !stormSettled) return;
+    // Loaded or failed, the boot has its answer either way
+    settled();
     const any = clearPlate || stormPlate || sunrisePlate || nightPlate;
     if (!any) return;
     panoClear.value = clearPlate || sunrisePlate || stormPlate || any;
@@ -1917,6 +2020,23 @@ export function createSky(THREE) {
     panoStage = 1;
     platesBound = true;
   };
+  /* The weather pair settled, for the boot to wait on — see `snapPlates`. */
+  let settled = null;
+  const platesReady = new Promise((resolve) => { settled = resolve; });
+  /* THE TITLE OPENS ON THE PHOTOGRAPH. The reveal above eases each plate in
+     over about a second, which in play is a picture arriving through the
+     sky; at boot it was the first thing anybody saw — the curtain lifted on
+     the procedural ranges, and the backdrop of the title screen turned from
+     grey cones into the Alps while it was being read. The boot waits for the
+     pair (a hundred kilobytes) beside the snow, and then this finishes the
+     stages and the reveal at once, behind the curtain: the warm-up render
+     uploads both plates, so the first frame shown has them at full strength. */
+  function snapPlates() {
+    if (!platesBound) return;
+    panoStage = 0;
+    panoTarget = 1;
+    panoReady = panoWish;
+  }
   const plateLoader = new THREE.TextureLoader();
   plateLoader.load(
     new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
@@ -3619,7 +3739,8 @@ export function createSky(THREE) {
      and the two have to fade out on the same dusk and in the same whiteout.
      One number, owned in one place, read by both. */
   return {
-    group, lights, sunDir, sun, update, project,
+    group, lights, sunDir, sun, update, project, renderProbe,
+    probe: probe.texture, platesReady, snapPlates,
     get shadowLevel() { return key.shadow.intensity; },
   };
 }

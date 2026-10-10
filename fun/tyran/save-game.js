@@ -1,9 +1,10 @@
 import { createCampaign, MAX_UPGRADE, shipStats, normalizeWeapon, FORMATIONS, SECONDARY_ENERGY_COST, SHIELD_FIRE_DELAY, PRIMARIES, normalizePrimary,
-  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration, missionScrollSpeed, MAX_SCROLL_SPEED } from './sim.js';
+  MAX_POWER, MAX_DRONES, MAX_BOMBS, MAX_LIVES, START_LIVES, START_BOMBS, FIRST_EXTRA_LIFE, nextLifeAfterScore, RESPAWN_DELAY, RESPAWN_GUARD, PICKUP_KINDS, sectorDuration, missionScrollSpeed, MAX_SCROLL_SPEED, STAT_KEYS } from './sim.js';
 import { createDirector, WAVE_KINDS, AI_MODES, PATHS } from './waves.js';
 import { normalizeDifficulty } from './difficulty.js';
 import { ROLES } from './roles.js';
 import { ENCOUNTER_KINDS, sectorEncounters } from './encounters.js';
+import { OBJECTIVE_KINDS, sectorObjectives } from './objectives.js';
 
 export const SAVE_KEY = 'tyran-campaign';
 export const LEGACY_SAVE_KEY = 'tyran-campaign-v1';
@@ -105,6 +106,14 @@ function encounterList(raw, level, plan, salt, wave) {
     return { kind: entry.kind, wave: integer(entry.wave, 0, 0, 64), time: number(entry.time, 0, 0, 1000), size: integer(entry.size, 0, 0, 4), done: bool(entry.done) };
   });
 }
+function objectiveList(raw, level, plan, encounters, salt) {
+  // Flights saved before objectives existed adopt their sector's goals.
+  if (raw === undefined) return sectorObjectives(level, plan, encounters, salt);
+  return list(raw, 3).map(entry => {
+    if (!object(entry) || !OBJECTIVE_KINDS.includes(entry.kind)) invalid();
+    return { kind: entry.kind, target: integer(entry.target, 1, 0, 1000), done: bool(entry.done) };
+  });
+}
 function restoreDirector(raw, level, salt = 0) {
   if (raw === undefined) return createDirector(level, salt);
   if (!object(raw)) invalid();
@@ -117,6 +126,7 @@ function restoreDirector(raw, level, salt = 0) {
   director.pending = integer(raw.pending, 0, 0, 4);
   director.hold = bool(raw.hold); director.done = bool(raw.done); director.abandon = bool(raw.abandon);
   director.encounters = encounterList(raw.encounters, level, plan, salt, director.wave);
+  director.objectives = objectiveList(raw.objectives, level, plan, director.encounters, salt);
   return director;
 }
 
@@ -169,7 +179,13 @@ function restoreState(raw) {
   if (raw.nextLife === undefined) state.nextLife = nextLifeAfterScore(state.score);
   state.respawn = number(raw.respawn, 0, -1, RESPAWN_DELAY);
   const rawStats = raw.stats === undefined ? {} : object(raw.stats) ? raw.stats : invalid();
-  state.stats = Object.fromEntries(['shots', 'hits', 'squads', 'dives', 'rescues', 'encounters', 'aces', 'convoys', 'hazards'].map(key => [key, integer(rawStats[key], 0)]));
+  state.stats = Object.fromEntries(STAT_KEYS.map(key => [key, integer(rawStats[key], 0)]));
+  if (raw.checkpoint === undefined || raw.checkpoint === null) state.checkpoint = null;
+  else {
+    const checkpoint = object(raw.checkpoint) ? raw.checkpoint : invalid(), stats = checkpoint.stats === undefined ? {} : object(checkpoint.stats) ? checkpoint.stats : invalid();
+    state.checkpoint = { wave: integer(checkpoint.wave, 0, 0, 64), time: number(checkpoint.time, 0, 0), scroll: number(checkpoint.scroll, 0),
+      stats: Object.fromEntries(STAT_KEYS.map(key => [key, integer(stats[key], 0)])) };
+  }
   state.director = restoreDirector(raw.director, state.level, state.salt);
   state.hive = { age: raw.hive === undefined ? 0 : object(raw.hive) ? number(raw.hive.age, 0, 0, 100_000) : invalid() };
   state.nextSquadId = integer(raw.nextSquadId, 1, 1);
@@ -224,7 +240,11 @@ function restoreState(raw) {
     result.bombs = integer(player.bombs, START_BOMBS, 0, MAX_BOMBS);
     result.guard = number(player.guard, 0, 0, RESPAWN_GUARD);
     result.bombHeld = bool(player.bombHeld);
-    result.wing = list(player.wing, MAX_DRONES).map(drone => coordinates(drone)).map(({ x, y, px, py }) => ({ x, y, px, py }));
+    // Drone spring velocity is kept when present; older records stay at rest.
+    result.wing = list(player.wing, MAX_DRONES).map(drone => {
+      const { x, y, px, py, vx, vy } = coordinates(drone);
+      return drone.vx === undefined && drone.vy === undefined ? { x, y, px, py } : { x, y, px, py, vx, vy };
+    });
     if (result.wing.length > result.drones) invalid();
     return result;
   });
@@ -245,7 +265,7 @@ function restoreState(raw) {
     if (!result.offsets.length) invalid();
     result.members = integer(formation.members, result.offsets.length, 0, 16);
     optional(result, formation, {
-      entry: ['enum', 0, 0, ['top', 'left', 'right']], motionSpeed: ['num', .5, 2], drift: ['num', -1, 1], hullRadius: ['num', 1, 256],
+      entry: ['enum', 0, 0, ['top', 'left', 'right']], motionSpeed: ['num', .5, 2], drift: ['num', -1, 1], hullRadius: ['num', 1, 256], salvo: ['num', .1, 20],
     });
     formationsById.set(result.id, result);
     return result;
@@ -304,6 +324,7 @@ function restoreState(raw) {
     }
     if (bullet.hitIds !== undefined) result.hitIds = list(bullet.hitIds, 128).map(id => integer(id, 0, 1));
     if (bullet.drone !== undefined) result.drone = bool(bullet.drone);
+    if (bullet.grazed !== undefined) result.grazed = bool(bullet.grazed);
     if (bullet.ground !== undefined) result.ground = bool(bullet.ground);
     // Collision bounds are derived from the last movement segment.
     result.left = Math.min(result.x, result.px); result.right = Math.max(result.x, result.px);
