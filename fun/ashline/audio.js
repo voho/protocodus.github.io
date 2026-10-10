@@ -187,7 +187,8 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     };
     // Combat beyond the view shares one muffling lowpass instead of a filter per voice.
     const distance = context.createBiquadFilter(); distance.type = 'lowpass'; distance.frequency.value = 2200; distance.Q.value = .5;
-    distance.connect(combatDuck); buses.distant = gain(BUS_LEVELS.impacts, distance);
+    // It runs at unity: each cue brings its own bus level, so a shot leaving the view never gets louder.
+    distance.connect(combatDuck); buses.distant = gain(1, distance);
     musicFade = gain(1, musicDuck); musicLevel = gain(1, musicFade);
     musicFilter = context.createBiquadFilter(); musicFilter.type = 'lowpass'; musicFilter.Q.value = .5; musicFilter.connect(musicLevel);
     musicFilter.frequency.value = musicCutoff(intensity); musicLevel.gain.value = musicGain(intensity);
@@ -238,12 +239,13 @@ export function createAudio({ storage = defaultStorage() } = {}) {
     }
   }
   function start(name, buffer, recipe, category, options) {
-    const now = context.currentTime, source = context.createBufferSource(), level = clamp(options.gain ?? 1, 0, 2);
+    const combat = recipe.bus === 'weapons' || recipe.bus === 'impacts', distant = Boolean(options.distant && combat), bus = distant ? buses.distant : buses[recipe.bus];
+    const now = context.currentTime, source = context.createBufferSource(), level = clamp(options.gain ?? 1, 0, 2) * (distant ? BUS_LEVELS[recipe.bus] : 1);
     const rate = clamp((options.rate || 1) * (recipe.jitter ? 1 + (Math.random() * 2 - 1) * recipe.jitter : 1), .5, 2);
     source.buffer = buffer; source.playbackRate.value = rate;
     const gain = context.createGain(); gain.gain.value = level; source.connect(gain);
     let panner = null;
-    const pan = clamp(options.pan || 0, -1, 1), combat = recipe.bus === 'weapons' || recipe.bus === 'impacts', bus = options.distant && combat ? buses.distant : buses[recipe.bus];
+    const pan = clamp(options.pan || 0, -1, 1);
     if (pan && context.createStereoPanner) { panner = context.createStereoPanner(); panner.pan.value = pan; gain.connect(panner); panner.connect(bus); } else gain.connect(bus);
     const record = { source, gain, panner, name, category, start: now, end: now + buffer.duration / rate, level, boost: 1, terminal: TERMINAL.has(name) };
     source.onended = () => release(record);

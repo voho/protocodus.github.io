@@ -338,11 +338,12 @@ R['alert.underAttack'] = alert(.8, (o, r) => {
   }
   noise(o, r, { type: 'band', f: 2200, decay: 30, gain: .05 });
 }, { cooldown: 5, duck: .65 });
+// Every friendly loss is an event: a sparse, lightly ducking cue keeps a long fight from pumping the mix.
 R['alert.unitLost'] = alert(.7, (o, r) => {
   noise(o, r, { type: 'band', f: 2200, decay: 25, gain: .2 });
   tone(o, { at: .03, f: 660, length: .14, decay: 6, gain: .22, tremolo: .4 }); tone(o, { at: .17, f: 440, length: .14, decay: 6, gain: .22, tremolo: .4 });
   noise(o, r, { at: .3, type: 'band', f: 3000, q: .5, decay: 12, gain: .15, grain: .6, grainRate: 160 });
-}, { cooldown: 2.5, duck: .4 });
+}, { cooldown: 6, duck: .2 });
 R['alert.structureLost'] = alert(.95, (o, r) => {
   [392, 330, 262].forEach((f, i) => tone(o, { at: i * .17, f, length: .16, decay: 4, gain: .25, shape: 'tri' }));
   noise(o, r, { at: .3, type: 'low', f: 200, decay: 3, gain: .3, color: .8 });
