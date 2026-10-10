@@ -4,8 +4,8 @@
 // starting anchors and where generation placed ore). Expansion sites and wall checks judge explored ground by
 // terrain, generated ore and its own and remembered footprints, never by s.blocked, s.regions or live ore
 // amounts under fog, which also reflect unseen enemy structures and mining; structures are placed through
-// placementCheck, which accepts only ground in current vision. Doctrines shape
-// what it builds and where it strikes; difficulty sets how fast it thinks and which skills it uses.
+// placementCheck, which accepts only ground in current vision. Doctrines shape what it builds and where it
+// strikes; difficulty sets how fast it thinks and which skills it uses.
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
 import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
   random,unitStats,unitRange,powerStats,raceBuilding,raceUnit,placementCheck,placeBuilding,trainUnit,issueOrder,stopUnits,setUnitStance,
@@ -819,7 +819,8 @@ function steerWave(s,team,ai,v,k,ctx,wave,directive){
     // Outmatched: fall back away from the contact, or all the way home if already falling back.
     const foe=near.length?centroid(near):remembered.length?centroid(remembered):{x:wave.tx,y:wave.ty},away=direction(c.x-foe.x,c.y-foe.y);
     let point=wave.state==='regroup'?ctx.rally:onMap(s,{x:c.x+away.x*12,y:c.y+away.y*12});
-    // A regroup point is saved with the wave and must stay a real position.
+    // Near home the wave falls back to the rally. The comparison is inverted so that a point that is not a real
+    // position also falls back there: the regroup point is saved with the wave.
     if(!(distance(point,ctx.rally)>=16&&distance(c,ctx.rally)>=16))point=ctx.rally;
     if(wave.state!=='regroup'||wave.rx!==point.x||wave.ry!==point.y){
       Object.assign(wave,{state:'regroup',since:s.time,need:+theirs.toFixed(3),rx:point.x,ry:point.y,tries:(wave.tries||0)+1});
