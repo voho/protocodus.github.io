@@ -793,20 +793,29 @@ const FRAG_STREAM = `
    shortened as far as composition allows. Fade only the geometry inside a
    small sphere around the lens; AlphaHash turns fractional coverage into
    stable, depth-writing screen-door transparency without the sorting errors
-   blended instanced trees would introduce. */
-const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
-  diffuseColor.a *= smoothstep(2.2, 6.5, length(vN64View));`;
+   blended instanced trees would introduce.
 
-/* …and the hash that fade is paid for only runs where the fade exists.
+   The fade is taken in the hash test itself, not into the alpha before it.
+   It used to be multiplied in at the alpha map, ahead of the alpha test, and
+   the foliage materials run that test as alpha-to-coverage, which sharpens
+   alpha to nothing or everything at `alphaTest` before the hash ever sees
+   it. So on every spruce and sapling there was no screen door: the fade was
+   a hard clip where it crossed 0.36, a sphere about four metres round the
+   lens that cut boughs and trunks off in one frame as the camera came
+   through a crown, which is the pop the dither exists to prevent. The alpha
+   test now judges the texture's coverage alone and the hash dithers the
+   fade on top of it.
+
+   And the hash that fade is paid for only runs where the fade exists.
 
    `alphaHash` is switched on for every prop material that asks for the
    camera fade, which is all five of them — the forest, the low flora, the
    stone, the alpine timber and the spruce cards, i.e. the highest-overdraw
    surfaces in the scene. Three's chunk is not cheap: eight sines, screen
    derivatives of a vec3, two lengths and a handful of log2/exp2 per
-   fragment. And past 6.5 m it cannot do anything at all — the fade above is
-   exactly 1.0 there, so an opaque prop's alpha is 1.0 and the threshold,
-   which lives below 1, can never cut it.
+   fragment. And past 6.5 m it cannot do anything at all — the fade is
+   exactly 1.0 there, so an opaque prop's faded alpha is 1.0 and the
+   threshold, which lives below 1, can never cut it.
 
    The guard is on view distance rather than on alpha because it has to be
    quad-coherent: `getAlphaHashThreshold` takes derivatives, and branching
@@ -824,7 +833,8 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
 const FRAG_ALPHA_HASH = `
 #ifdef USE_ALPHAHASH
   if ( length( vN64View ) < 6.5
-    && diffuseColor.a < getAlphaHashThreshold( vPosition ) ) discard;
+    && diffuseColor.a * smoothstep( 2.2, 6.5, length( vN64View ) )
+      < getAlphaHashThreshold( vPosition ) ) discard;
 #endif`;
 
 /* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
@@ -991,7 +1001,6 @@ const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
 const GRADIENT_ANCHOR = '#include <clipping_planes_fragment>';
 const FOG_ANCHOR = '#include <fog_fragment>';
-const ALPHA_ANCHOR = '#include <alphamap_fragment>';
 const HASH_ANCHOR = '#include <alphahash_fragment>';
 
 export function createShading(THREE) {
@@ -1133,9 +1142,6 @@ export function createShading(THREE) {
 
       let frag = shader.fragmentShader
         .replace('#include <common>', `#include <common>${FRAG_PARS}`);
-      if (cameraFade && frag.indexOf(ALPHA_ANCHOR) !== -1) {
-        frag = frag.replace(ALPHA_ANCHOR, FRAG_CAMERA_FADE);
-      }
       if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
         frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
