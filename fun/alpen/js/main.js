@@ -1290,7 +1290,13 @@ function collideWith(solids, zLo, zHi) {
     // because the two axes were sampled at different times.
     const impactY = prev.y + (rider.pos.y - prev.y) * sweepHit.t;
     if (impactY > s.top + 0.15) continue;
-    if (rider.grace > 0 || game.mode === 'attract') continue;
+    /* Grace, and the demo loop, spare the rider a strike — not the volume.
+       Skipping outright let a rider getting up from a wipeout walk on through
+       the trunk that had just put them down. */
+    if (rider.grace > 0 || game.mode === 'attract') {
+      if (s.volume) holdOut(1);
+      continue;
+    }
     const contact = s.contact || s;
     if (s.kind === SOFT) {
       if (contact.hit) continue;
@@ -1328,9 +1334,10 @@ function collideWith(solids, zLo, zHi) {
     const closeness = sweepHit.approach;
     const outcome = rider.strike(sweepHit.nx, sweepHit.nz, closeness);
     if (s.volume) {
-      /* A rock or fence is a volume, not a trigger. Resolve to the swept entry
-         point and remove only velocity still aimed into it; the tangential
-         component remains, so a graze slides past while a direct fall stops. */
+      /* A rock, a fence or a tree is a volume, not a trigger. Resolve to the
+         swept entry point and remove only velocity still aimed into it; the
+         tangential component remains, so a graze slides past while a direct
+         fall stops. */
       holdOut(outcome === 'fall' ? 1.12 : 1.02);
     }
     // A fall changes the simulation state immediately. Do not let another

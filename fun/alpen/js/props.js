@@ -3429,8 +3429,13 @@ export function createProps(THREE, shading) {
          reads (canopy.js): a conifer's lowest whorl reaches about a quarter
          of its height out from the trunk. A bare snag hides much less sky
          than a needled crown of the same size. */
+      /* A volume, like the rocks: held out of rather than passed through.
+         As a trigger a trunk answered once — a fall at 20 m/s carried the
+         body on through it at twelve, `fall` keeping the speed the rider
+         brought, and a rider who got up from it, or steered back into one
+         already grazed, rode straight through the tree. */
       solids.push({
-        x, z, r: radius, kind: HARD, top: 99,
+        x, z, r: radius, kind: HARD, top: 99, volume: true,
         canopy: Math.min(6, Math.max(0.8, treeHeights[v] * sy * 0.24)),
         canopyDensity: treeBare[v] ? 0.35 : 1,
       });
