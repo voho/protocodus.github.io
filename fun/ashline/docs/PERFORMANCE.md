@@ -62,6 +62,8 @@ Every change keeps behaviour bit-identical. The final-state digests of all bench
 
 A\* expansion still dominates the obstructed scene and the remaining worst AI ticks (up to 16 searches per tick). A shared flow field would change paths, so it needs re-baselined digests. March and battle at 2,000 units remain bound by the per-unit neighbour loops in `navigate`.
 
+The duel figures above predate the doctrine commander in `ai.js`. Its own decisions cost more per think: direct `thinkAI` timing in vast Veteran duels put the mean at roughly 0.6–1.3 ms, against about 0.4 ms for the previous commander, with smaller worst-case thinks. Each think builds one index of the commander's forces and the enemies it sees, and the two commanders of an AI-versus-AI match think half an interval apart, so their work never lands in the same tick.
+
 From `fun/ashline/`, with the previous simulation checked out beside it. `ASHLINE_SIM_URL` must name `sim.js` inside a complete checkout, because it imports its sibling simulation modules (`ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js`, `abilities.js`):
 
 ```sh
