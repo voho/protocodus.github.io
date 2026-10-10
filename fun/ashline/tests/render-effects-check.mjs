@@ -123,6 +123,10 @@ try {
     const ashA = render(), ashSame = render(); s.time += 1.3; const ashB = render();
     s.visible[0].fill(0); const fogA = render(); s.time += 1.3; const fogB = render(); s.visible[0].fill(1);
     result.ash = { moving: difference(ashA, ashB), frozen: difference(ashA, ashSame), underFog: difference(fogA, fogB) };
+    // Under prefers-reduced-motion the frame matches one drawn without the ash layer at all.
+    const motion = renderer.reducedMotion; renderer.reducedMotion = { matches: true }; const reducedAsh = render(); renderer.reducedMotion = motion;
+    renderer.drawAsh = () => {}; const noAsh = render(); delete renderer.drawAsh;
+    Object.assign(result.ash, { reduced: difference(reducedAsh, noAsh), normal: difference(render(), noAsh) });
 
     // Mission zones: a zone shows through fog once a revealed objective uses it, its definition marks it lit or deploys there;
     // a zone only a hidden objective uses, or a bare spawn anchor, appears only once its centre is explored.
@@ -357,6 +361,7 @@ try {
   assert(checks.burning > 4, `Vehicles below 25% health burn visibly (${checks.burning})`);
   assert.equal(checks.hiddenBurning, 0, 'A hidden burning enemy draws nothing');
   assert(checks.ash.moving > 0 && checks.ash.frozen === 0 && checks.ash.underFog === 0, `Ash-fall moves only over visible ground and holds on one clock (${JSON.stringify(checks.ash)})`);
+  assert(checks.ash.reduced === 0 && checks.ash.normal > 0, `Ash-fall is left out under prefers-reduced-motion (${JSON.stringify(checks.ash)})`);
   assert(checks.zones.revealed > 200 && checks.zones.done > 200 && checks.zones.lit > 200 && checks.zones.deploy > 200,
     `Zones of revealed objectives, lit zones and the deploy zone show through fog (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,

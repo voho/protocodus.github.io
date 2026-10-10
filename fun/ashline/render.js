@@ -1601,12 +1601,12 @@ export class Renderer {
 
   // Screen-space ash-fall in three sparse layers. Gusts integrate analytically, so every mote is a pure
   // function of the drawn clock and camera and paused frames hold still. Like the lava, ash only moves
-  // over ground in current vision: remembered and unexplored areas show no live motion.
+  // over ground in current vision: remembered and unexplored areas show no live motion. Ash is nothing but
+  // drift and parallax, so prefers-reduced-motion leaves it out.
   drawAsh(ctx, view, clock, state, visible, left, top) {
     const w = this.width + 40, h = this.height + 40, count = Math.round(Math.min(110, this.width * this.height / 13000));
-    if (count <= 0) return;
-    const calm = this.reducedMotion?.matches ? .35 : 1;
-    const gust = (12 * clock - 9 * Math.cos(clock * .21) / .21 - 5 * Math.cos(clock * .53 + 1.7) / .53) * calm;
+    if (count <= 0 || this.reducedMotion?.matches) return;
+    const gust = 12 * clock - 9 * Math.cos(clock * .21) / .21 - 5 * Math.cos(clock * .53 + 1.7) / .53;
     const panX = view.x * view.zoom, panY = view.y * view.zoom;
     let first = 0;
     for (const layer of ASH_LAYERS) {
@@ -1614,8 +1614,8 @@ export class Renderer {
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const seed = first + i, phase = noise(seed, 7, 23) * 6.283;
-        const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6 * calm) % w + w) % w - 20;
-        const y = ((noise(seed, 5, 19) * h + clock * layer.fall * calm - panY * layer.parallax) % h + h) % h - 20;
+        const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6) % w + w) % w - 20;
+        const y = ((noise(seed, 5, 19) * h + clock * layer.fall - panY * layer.parallax) % h + h) % h - 20;
         if (visible) {
           const cx = Math.floor((x - left) / view.zoom), cy = Math.floor((y - top) / view.zoom);
           if (cx < 0 || cy < 0 || cx >= state.width || cy >= state.height || !visible[cy * state.width + cx]) continue;
