@@ -180,21 +180,13 @@ const VERT_VIEW = `
    the haze. So this intersects the view ray with a plane, which is four
    instructions, and reads its noise field at the hit point.
 
-   IT IS DEFINED HERE BECAUSE THERE ARE TWO SKIES. The dome draws one of them;
-   `n64Sky` below draws the other, in every material's fog term, so that a
-   ridge dissolving into the distance dissolves into the backdrop that is
-   actually behind it. The old arrangement kept those two in step by writing
-   the same gradient twice and leaving a comment in both places asking the next
-   person to be careful. Adding a second, much longer thing to keep in step
-   that way was not defensible, so the shared part is now shared: one string,
-   included by both, and the drift is impossible rather than merely discouraged.
+   IT IS DEFINED HERE because both files include it: the dome draws the deck,
+   and the hash and noise under it are this file's too — the glints, the far
+   drift patches, the flora's breakup. The fog itself no longer evaluates the
+   deck: `n64Sky` reads the dome as drawn, through sky.js's probe.
 
-   The noise is procedural rather than the tiling texture `sky.js` already
-   owns, and that is what pays for the sharing — a sampler can be handed to one
-   dome material easily and to every lit material in the game only with a great
-   deal of plumbing. It is written to keep every operand small enough that
-   `mediump` is honest, because half the devices that will run this declare
-   exactly that. */
+   It is written to keep every operand small enough that `mediump` is honest,
+   because half the devices that will run this declare exactly that. */
 export const SKY_GLSL = `
 float n64Hash(vec2 p) {
   // The field wraps at 64 cells, which is both a tiling that nobody will find
@@ -224,9 +216,7 @@ float n64Noise(vec2 p) {
    away to infinity at the horizon, and it is where the deck stops being
    resolvable: past it the cells are smaller than a pixel and any honest
    evaluation is aliasing, so the coverage is faded out over the last few
-   degrees and the haze takes over. That fade is also what lets n64Sky carry
-   this term at all without opening a seam — a fogged ridge sits in exactly the
-   band where the deck has already gone. */
+   degrees and the haze takes over. */
 vec2 n64Deck(vec3 dir, vec2 drift, float amount) {
   if (amount <= 0.002 || dir.y <= 0.04) return vec2(0.0);
   vec2 p = dir.xz * (0.62 / max(dir.y, 0.075)) + drift;
@@ -261,14 +251,17 @@ vec3 n64DeckShade(float thick, float lobe, vec3 haze, vec3 horizon, vec3 glow) {
 }
 `;
 
-/* `n64Sky` is `sky.js`'s DOME_FRAG, and it has to stay that way — if you
-   change the dome's gradient, change this one. The only difference is the
-   bottom stop, which is the haze rather than the horizon, because below the
-   skyline the backdrop a fogged ridge is dissolving into is the curtain and
-   not the sky.
+/* `n64Sky` is the sky a fogged surface dissolves into, and it is no longer a
+   transcription of anything: it reads `sky.js`'s own DOME_FRAG, drawn each
+   frame into a small panorama (`renderProbe` there), so the plate, the
+   cirrus and the deck a ridge stands in front of are the ones it fades into.
+   The transcribed gradient knew nothing of the plates, and a far wall went
+   into deep blue against the pale photographed sky behind it. Below the
+   skyline the probe keeps the haze stop rather than the horizon, because
+   there the backdrop is the curtain and not the sky.
 
-   The cloud deck is no longer transcribed at all: it is `SKY_GLSL` above,
-   included by this file and by `sky.js`, and there is exactly one copy of it. */
+   `n64SkyReflect` is still a transcription — of the gradient and sun lobe
+   only, which is all a rough snow reflection can resolve. */
 /* The haze over distance, as one function, because more than this file
    draws fog: the chimney smoke has its own shader, and when it kept its own
    linear ramp a plume three hundred metres off was a third dissolved while
@@ -319,7 +312,6 @@ uniform float uSheen;
 uniform float uFogPull;
 uniform float uSnowFresh;
 uniform float uCloud;
-uniform vec2 uCloudDrift;
 uniform sampler2D uCloudShadowMap;
 uniform vec2 uCloudShadowOffset;
 uniform sampler2D uShadeMap;
@@ -330,25 +322,20 @@ uniform vec2 uCamWrap;
 uniform sampler2D uCanopyMap;
 uniform vec4 uCanopyWin;
 uniform vec2 uStreamEdge;
+uniform sampler2D uSkyProbe;
 
 ${SKY_GLSL}
 ${FOG_CURVE_GLSL}
 
+/* The probe is equirectangular in the dome sphere's own layout: u is the
+   azimuth from -x towards +z over a full turn, v the elevation from the
+   nadir. It is read at its one level, so neither the atan's jump behind the
+   viewer nor the fog's non-uniform branches can upset a derivative; the
+   repeat wrap closes the ring under the bilinear filter. */
 vec3 n64Sky(vec3 dir) {
-  float up = dir.y;
-  vec3 low = mix(uSkyHaze, uSkyHorizon, smoothstep(0.0, 0.10, up));
-  vec3 c = mix(
-    mix(low, uSkyMid, smoothstep(-0.05, 0.14, up)),
-    uSkyZenith,
-    smoothstep(0.10, 0.52, up)
-  );
-  float lobe = max(0.0, dot(dir, uSunDir));
-  c += uSkyGlow * (pow(lobe, 7.0) * 0.85 + pow(lobe, 2.0) * 0.14)
-     * uGlowStrength * (1.0 - smoothstep(0.1, 0.75, up) * 0.55);
-  // …and the deck over the top of it, because a cloud is in front of the air
-  vec2 deck = n64Deck(dir, uCloudDrift, uCloud);
-  c = mix(c, n64DeckShade(deck.y, lobe, uSkyHaze, uSkyHorizon, uSkyGlow), deck.x);
-  return c;
+  vec2 uv = vec2(atan(dir.z, -dir.x) * 0.15915494,
+    asin(clamp(dir.y, -1.0, 1.0)) * 0.31830989 + 0.5);
+  return texture2DLodEXT(uSkyProbe, uv, 0.0).rgb;
 }
 
 /* A rough snow reflection cannot resolve the cloud deck's cells, so sampling
@@ -428,7 +415,7 @@ const FRAG_RECOVER = `
 
    THE SKY, strongest at grazing angles. Fresnel is the only one of the three that
    ignores the sun entirely, and it should: a grazing surface is showing you a
-   reflection of the dome, so it is `n64Sky` in the mirror direction and it
+   reflection of the dome, so it is `n64SkyReflect` in the mirror direction and it
    stays in palette by construction — navy where the dome is navy, amber only
    where the sun already is. It is also the only term that survives into
    shadow, which is right. Snow in shade does go bright at the edge.
@@ -1256,10 +1243,10 @@ export function createShading(THREE) {
     uMistFloor: { value: -1e5 },
     uMistLevel: { value: 0 },
     uSnowFresh: { value: 0 },
-    // The deck. `sky.js` owns both numbers and writes them into the dome's own
-    // copies at the same moment — see `SKY_GLSL`.
+    // How much of the sky the deck covers, which the cloud shadow follows.
     uCloud: { value: 0 },
-    uCloudDrift: { value: new THREE.Vector2() },
+    // The dome as drawn, which `n64Sky` reads; main.js hands over sky.js's.
+    uSkyProbe: { value: null },
     uCloudShadowMap: { value: createCloudShadowTexture(THREE) },
     uCloudShadowOffset: { value: new THREE.Vector2() },
     /* The mountain's own shadow — see `FRAG_SHADE`. `terrain.js` owns one
@@ -1456,7 +1443,6 @@ export function createShading(THREE) {
     uniforms.uFogFar.value = w.fogFar;
     uniforms.uSnowFresh.value = w.storm;
     uniforms.uCloud.value = w.cloud;
-    uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
     /* The shadow plate's first octave has four cells, while the visible deck
        measures its phase in one-cell units. Deriving the offset from that
        shared phase keeps direction, speed and wrap exact instead of running a

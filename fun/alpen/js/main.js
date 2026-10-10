@@ -211,6 +211,8 @@ const canopy = createCanopy(THREE, shading);
 const canopyHeading = new THREE.Vector3();
 const wildlife = createWildlife(THREE, shading);
 const sky = createSky(THREE);
+// Every fogged surface dissolves into the dome as drawn — see renderProbe.
+shading.uniforms.uSkyProbe.value = sky.probe;
 // The particles share the shading block's sun uniforms by reference, so a
 // low sun backlights the powder without a single per-frame copy.
 const snowfall = createSnowfall(THREE, shading);
@@ -1806,6 +1808,7 @@ function frame(now) {
   if (running || !pausedRendered || retro.animating) {
     // Where the rider is drawn, which between steps is not where they are
     riderShadow.update(scene, model.root, camera, sky.shadowLevel);
+    sky.renderProbe(renderer);
     retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }
@@ -2121,6 +2124,7 @@ afterPaint(async () => {
        while the canvas is still covered. First use during a landing is the
        wrong time for a driver to discover a shader or a 3.3 MiB texture. */
     renderer.compile(scene, camera);
+    sky.renderProbe(renderer);
     retro.render(scene, camera);
     requestAnimationFrame((now) => {
       frame(now);
