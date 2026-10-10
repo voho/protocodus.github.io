@@ -241,11 +241,12 @@ export const MISSIONS={
   'dead-signal':{
     id:'dead-signal',name:'Dead Signal',location:'Glass basin',seed:'DEAD-SIGNAL',par:720,
     summary:'A commando strike with no base: silence three Resonance spires, then the relay mainframe.',
-    story:['The relay complex in the glass basin ties this region\'s cohorts together. Three Resonance spires feed it and its Lance nodes.','No base and no reinforcements: two rovers, ranked rifle squads, a Vael launcher pair and one engineer. Whoever walks out of Dead Signal comes back a veteran for the last operation.'],
-    briefing:'Commando strike: destroy three Resonance spires and the relay mainframe. Survivors become veterans.',
+    story:['The relay complex in the glass basin ties this region\'s cohorts together. Three Resonance spires feed it and its Lance nodes.','No base and no reinforcements: two rovers, ranked rifle squads, a Vael launcher pair and one engineer. Ranked survivors of Dead Signal come back as veterans for the last operation.'],
+    briefing:'Commando strike: destroy three Resonance spires and the relay mainframe. Ranked survivors become veterans.',
     opening:'Strike team inserted. Radio discipline. Expedition 07, begin Dead Signal.',
-    victoryText:'The relay is silent. Every survivor of Dead Signal returns a veteran.',
-    width:144,height:112,profile:'rift',races:['organics','aiUnity'],aiTeams:[],start:['none','none'],credits:[0,0],
+    victoryText:'The relay is silent. Its ranked survivors return as veterans.',
+    width:144,height:112,profile:'rift',races:['organics','aiUnity'],aiTeams:[],start:['none','none'],credits:[400,0],
+    // Nothing is cleared for construction, so the strike team's credits buy only the engineer's repairs.
     allow:{buildings:[],units:[],research:[],upgrades:[]},
     zones:[{id:'drop',label:'Drop zone',at:'start',r:5},{id:'relay',label:'Relay complex',at:'end',r:9},{id:'cache',label:'Survey cache',at:{at:'lane:0.38',dx:0,dy:14},r:4}],
     objectives:[
@@ -258,7 +259,7 @@ export const MISSIONS={
     // The engineer cannot fight, so the strike ends when the last armed unit falls.
     fail:[{type:'allUnitsLost',armed:true}],
     triggers:[
-      {id:'insert',when:{time:1},do:[say(VALE,'Dead Signal is a commando run: no base, no reinforcements. Three spires feed the relay complex. Take them out one at a time.')]},
+      {id:'insert',when:{time:1},do:[say(VALE,'Dead Signal is a commando run: no base, no reinforcements. Three spires feed the relay complex. Take them out one at a time.'),say(VALE,'The engineer carries four hundred credits of parts. Spend them keeping the rovers running.')]},
       {id:'crest',when:{time:8},do:[say(TESK,'My launchers are rested and angry. Spires first; a mainframe without power is a deaf thing.')]},
       {id:'reroute',when:{tagsLeft:{tag:'spire',count:2}},do:[say(UNITY,'Resonance loss detected. Rerouting.')]},
       {id:'cache',when:{time:40},do:[{reveal:'cache'},say(VALE,'Expedition 05 buried a survey cache south of the lane before Unity caught them. If anyone passes it, bring the logs home.')]},

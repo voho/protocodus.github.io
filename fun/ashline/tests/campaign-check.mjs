@@ -248,6 +248,10 @@ const place=(s,type,near,radius=14)=>{
   assert(veterans.length>=5&&veterans.every(v=>v.kills>=5&&UNITS[v.role].damage>0),'Ranked survivors carry over');
   // A spire lost under fog is not announced.
   const fog=start('dead-signal');destroy(tagged(fog,'spire').slice(0,1));advance(fog,1);assert(!fog.mission.fired.reroute);assert.equal(progressText(fog,'spires'),'0 / 3');
+  // The engineer's parts budget keeps the rovers running; nothing else can be bought with it.
+  const parts=start('dead-signal'),rover=own(parts,0,'scout')[0],engineer=own(parts,0,'engineer')[0];
+  assert.equal(parts.teams[0].credits,400);rover.hp=rover.maxHp/2;rover.x=engineer.x+1.5;rover.y=engineer.y;advance(parts,3);
+  assert(rover.hp>rover.maxHp/2&&parts.teams[0].credits<400,'The engineer repairs a rover from the parts budget');
   // The unarmed engineer alone cannot finish the strike, so the operation ends with the last armed unit.
   const alone=start('dead-signal');destroy(alone.entities.filter(e=>e.team===0&&e.kind==='unit'&&entityRole(e)!=='engineer'));advance(alone,1);
   assert.equal(alone.status,'defeat');assert.equal(alone.events.at(-1).text,'All armed units lost. Operation failed.');
