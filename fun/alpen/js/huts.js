@@ -186,6 +186,18 @@ function hutGeometry(THREE) {
   // The rest of the hut can use smooth lighting for its round timber. Keep
   // the two roof pitches architectural by baking a separate normal per face.
   prism.computeVertexNormals();
+  /* The snow banked against the walls, on the ledge the plinth leaves round
+     them: a four-sided frustum with no caps, because its top edge is buried
+     in the timber and its foot sits on the stone, so all that ever shows is
+     the slope between. Turned in its own frame, before the scale, so the
+     faces come out square to the walls, and faceted like the roof. This was
+     a box, wider than the plinth under it, which drew a white shelf jutting
+     out over the stonework on every side. */
+  const bankCone = new THREE.CylinderGeometry(0.9, 1, 1, 4, 1, true);
+  bankCone.rotateY(Math.PI / 4);
+  const bank = bankCone.toNonIndexed();
+  bankCone.dispose();
+  bank.computeVertexNormals();
 
   const stone = '#4a4d55';
   const stoneDark = '#383b43';
@@ -222,7 +234,8 @@ function hutGeometry(THREE) {
        instead — which is what this did first — buried the uphill windows to
        the sill about a third of the time. */
     { geo: box, color: stone, pos: [0, -2.02, 0], scale: [5.5, 5.15, 4.7] },
-    { geo: box, color: drift, pos: [0, 0.63, 0], scale: [5.9, 0.66, 5.05] },
+    // Its foot just past the plinth's edge, its top inside the walls
+    { geo: bank, color: drift, pos: [0, 0.765, 0], scale: [2.76 * Math.SQRT2, 0.47, 2.36 * Math.SQRT2] },
 
     // --- walls --------------------------------------------------------------
     { geo: box, color: timber, pos: [0, 1.8, 0], scale: [5.1, 2.5, 4.3] },
@@ -292,7 +305,8 @@ function hutGeometry(THREE) {
     { geo: log, color: '#7a5636', pos: [-3.3, 0.7, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: split, pos: [-3.0, 0.7, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.15, 0.98, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
-    { geo: box, color: snow, pos: [-3.15, 1.15, 0.5], scale: [1.0, 0.16, 2.0] },
+    // and the snow on it, a pillow along the top log rather than a board
+    { geo: log, color: snow, pos: [-3.15, 1.04, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.8, 1.96, 0.34] },
   ];
   // Open shutters, divided glass and exposed rafters give the facade scale.
   for (const x of [0.35, 1.85]) {
@@ -353,7 +367,7 @@ function hutGeometry(THREE) {
       rot: [-0.13, 0, 0.16], scale: [0.13, 1.82, 0.06] });
   }
   const geometry = compose(THREE, parts);
-  for (const g of [box, post, log, prism, icicle]) g.dispose();
+  for (const g of [box, post, log, prism, icicle, bank]) g.dispose();
   return geometry;
 }
 
