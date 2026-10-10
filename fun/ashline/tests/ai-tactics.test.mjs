@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGame,updateGame,issueOrder,UNITS,BUILDINGS,raceUnit,raceBuilding,buildingRole,entityRole,unitStats,center,addEntity} from '../sim.js';
-import {aiKnobs,thinkAI} from '../ai.js';
+import {aiKnobs} from '../ai.js';
 import {encodeGame,decodeGame} from '../save.js';
 
 function scene({race='organics',difficulty='hard',doctrine,seed='ai-tactics'}={}){
@@ -173,9 +173,9 @@ test('shelling from concealment is answered along the bearing, using only impact
       think(s,hide);
       if(!look)assert(!s.ai.shelled?.answered,'One look is not yet a confirmed bombardment');
     }
-    return {s,staged,scout};
+    return {s,scout};
   };
-  const {s,staged,scout}=build('shelled');
+  const {s,scout}=build('shelled');
   assert(s.ai.shelled?.answered!==undefined,'Fire from concealment is confirmed');
   assert(s.ai.shelled.bx<0&&s.ai.shelled.by>0,'The bearing points toward the struck flank');
   const response=s.ai.waves?.find(w=>w.kind==='response');
@@ -187,7 +187,6 @@ test('shelling from concealment is answered along the bearing, using only impact
   const fog=build('fog').s,quiet=build('quiet').s;
   assert.deepEqual(orders(fog),orders(quiet),'Shells landing in unseen ground change nothing');
   assert.equal(fog.ai.shelled,undefined);
-  void staged;
 });
 
 test('a raider squad hunts only haulers it can see and leaves superior force',()=>{
@@ -257,13 +256,12 @@ test('abilities fire on what is seen: overdrive, dig in, field patch and barrage
   const rifles=[unit('rifle',40,10),unit('rifle',41,10),unit('rifle',40,11),unit('rifle',41,11)];unit('rifle',41,15.5,0);
   s.ai.waves.push({id:2,kind:'raid',ids:rifles.map(u=>u.id),tx:center(target).x,ty:center(target).y,targetId:target.id,state:'regroup',since:0,rx:40.5,ry:10.5,need:1e4,tries:1});s.ai.waveId=2;
   const engineer=unit('engineer',58,16),hurt=unit('tank',59,16);hurt.hp=hurt.maxHp*.4;
-  const gun=unit('artillery',44,40),cluster=[unit('rifle',36,46,0),unit('rifle',36.6,46.4,0),unit('rifle',35.6,46.6,0),unit('rifle',36.2,45.6,0)];
+  const gun=unit('artillery',44,40);for(const [x,y] of [[36,46],[36.6,46.4],[35.6,46.6],[36.2,45.6]])unit('rifle',x,y,0);
   think(s);
   assert(tanks.some(u=>u.abilityUntil>s.time),'Advancing tanks overdrive toward a visible enemy just out of reach');
   assert(rifles.every(u=>u.abilityUntil>s.time),'Rifles holding a regroup point dig in against a threat in reach');
   assert(hurt.hp>hurt.maxHp*.6,'The engineer patches a badly damaged tank');
   assert(gun.barrage&&Math.hypot(gun.barrage.x-36,gun.barrage.y-46)<1.5,'The siege gun barrages the visible cluster');
-  void cluster;
 });
 
 test('barrages never go into concealed clusters and Cadets use no abilities',()=>{
@@ -284,7 +282,7 @@ function directiveScene(directive){
   return {s,units};
 }
 test('mission directives steer the commander: attack point, wave size and defended zone',()=>{
-  const {s,units}=directiveScene({attack:{x:12.5,y:40.5},waveSize:4});
+  const {s}=directiveScene({attack:{x:12.5,y:40.5},waveSize:4});
   updateGame(s,.05);
   const wave=s.ai.waves?.[0];
   assert(wave&&wave.ids.length===4,'The directive wave size sets the wave');
@@ -293,7 +291,6 @@ test('mission directives steer the commander: attack point, wave size and defend
   updateGame(hold.s,.05);
   assert.equal(hold.s.ai.waves,undefined,'A defend-only directive launches no raids');
   assert(hold.units.every(u=>u.order.type==='attackMove'&&Math.hypot(u.order.formation.x-30.5,u.order.formation.y-30.5)<.5),'The force holds the defended zone');
-  void units;
 });
 
 test('noExpand directives stop nexus expansion, and a depleted army postpones it',()=>{
@@ -373,7 +370,6 @@ test('two commanders think half an interval apart',()=>{
   const s=createGame('stagger','hard',{width:72,height:56,aiTeams:[0,1]});
   while(s.time<3.1)updateGame(s,.05);
   assert(Math.abs((s.aiByTeam[0].nextThink-s.ai.nextThink)-aiKnobs(s,s.ai).think/2)<1e-9,'Team 0 runs half an interval after team 1');
-  void thinkAI;
 });
 
 test('commander plans survive saving and continue identically',()=>{

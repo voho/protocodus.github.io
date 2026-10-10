@@ -66,7 +66,7 @@ test('difficulty is behaviour: Cadet slow and plain, Commander adaptive, Veteran
 
 // A passive base with powered towers facing the rival, placed on clear ground near its nexus.
 function fortify(s,core){
-  const c=center(core),dx=s.width/2-c.x,dy=s.height/2-c.y,length=Math.hypot(dx,dy);
+  const c=center(core),dx=s.width/2-c.x,dy=s.height/2-c.y;
   addEntity(s,0,'building','reactor',core.x-3,core.y+1);rebuildNavigation(s);
   for(const [type,turn] of [['rocketTower',0],['turret',.5],['rocketTower',-.5]]){
     const angle=Math.atan2(dy,dx)+turn,size=BUILDINGS[type].size;
@@ -76,7 +76,6 @@ function fortify(s,core){
       if(clear){addEntity(s,0,'building',type,x,y);rebuildNavigation(s);break;}
     }
   }
-  void length;
 }
 // Each doctrine plays a passive opponent whose nexus is kept standing, so the game runs its full course.
 function signature(doctrine,{seconds=480,seed='SIGNATURE-1',profile='rift',fortified=false}={}){
