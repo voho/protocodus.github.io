@@ -52,6 +52,14 @@ test('commander identity follows the doctrine and the race; a doctrine shifts th
   assert(s.ai.nextRaid<s.aiByTeam[0].nextRaid,'Swarm raids before Ironclad');
 });
 
+test('the first wave leaves at the level\'s first-raid time, scaled by the doctrine',()=>{
+  // One table sets the first attack and the harassment threshold, so tuning it moves both.
+  for(const level of ['easy','normal','hard'])for(const doctrine of [undefined,...Object.keys(DOCTRINES)]){
+    const ai=newAI(level,doctrine&&{doctrine});
+    assert.equal(ai.nextRaid,aiKnobs({difficulty:level},ai).firstRaid,`${level} ${doctrine??'default'}`);
+  }
+});
+
 test('difficulty is behaviour: Cadet slow and plain, Commander adaptive, Veteran everything',()=>{
   const k=level=>aiKnobs({difficulty:level},{});
   const [easy,normal,hard]=['easy','normal','hard'].map(k);

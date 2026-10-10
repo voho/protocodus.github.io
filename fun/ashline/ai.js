@@ -79,7 +79,7 @@ export function aiCommander(s,team){
 }
 // A profile names an optional doctrine. Absent fields are not stored, keeping default state unchanged.
 export function newAI(difficulty,profile,context){
-  const ai={nextThink:3,nextRaid:difficulty==='easy'?300:difficulty==='hard'?100:150,known:{},mode:'Establishing base',scoutIndex:0,buildIndex:0,raid:0};
+  const ai={nextThink:3,nextRaid:(LEVELS[difficulty]??LEVELS.normal).firstRaid,known:{},mode:'Establishing base',scoutIndex:0,buildIndex:0,raid:0};
   if(profile===undefined)return ai;
   if(profile===null||typeof profile!=='object'||Array.isArray(profile)||Object.keys(profile).some(key=>key!=='doctrine'))throw new RangeError('Unsupported AI profile');
   if(profile.doctrine!==undefined){
