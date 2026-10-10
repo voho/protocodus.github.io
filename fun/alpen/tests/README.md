@@ -83,6 +83,11 @@ species in all and the bare slots larches; each stands on its trunk at the
 origin, under 1200 triangles, at the pool's height once converted, with its
 trunk running on under the snow line; every corner is needles, snow or bark,
 bark samples only left of the keyed foliage, snow cards only the frost half.
+And the trackside flora (`assets/models/nature/alpine-flora.glb`, from
+`tools/blender/flora.py`): every plant `props.js` places is in the file,
+small, footed at the origin and under 500 triangles, every role it is painted
+with has a look, and the loops that place the flora and the ground cover push
+no solids — they are decoration.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.

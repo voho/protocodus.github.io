@@ -2113,10 +2113,17 @@ export const PROPS = {
   },
   /* Mountain environment: rich alpine vegetation on verges and mountain flanks */
   biomes: {
-    // Both trimmed ~a quarter with the trees above; low vegetation reads as
-    // texture long before it reads as a count.
-    plantCandidates: 28,
-    shrubCandidates: 36,
+    // Raised again for the verge's texture: low vegetation reads as texture
+    // long before it reads as a count, and a bare verge reads as unfinished.
+    plantCandidates: 44,
+    shrubCandidates: 48,
+    // The trackside flora: small, collision-free plants and stones over the
+    // soft corridor snow and the verge (see props.js). Per 40 m band, both
+    // sides together; the ribbon and the clump noise turn away about half.
+    decorCandidates: 90,
+    // The ground cover: grass and bilberry over the whole run, piste and
+    // verge, in clumps of up to four. Per 40 m band.
+    coverCandidates: 200,
     sideRockCandidates: 4,
     stoneSize: [0.4, 2.8],
     cragFrom: 200,

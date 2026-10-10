@@ -102,7 +102,7 @@
    only stopped being in the middle of the run. */
 
 import {
-  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK,
+  heightAt, nearestCenter, corridorHalfAt, centersAt, normalFrom, SNOWPACK, getTerrainMaterialAt,
   chapterTreesAt, gateSlotsIn, guideAt, sideHitsIn, torHeightAt, pillowHeightAt,
 } from './terrain.js';
 import { createModelUpgrader } from './importedModels.js';
@@ -677,6 +677,82 @@ function makeCasts(THREE) {
    the trunk axis at the origin; UVs turned back to the flipY atlas; the
    baked occlusion as colour value (snow cards in the prop snow colour); and
    `surfaceOwn` exactly as the file says. Indexed, as the card trees are. */
+/* THE TRACKSIDE FLORA, the small things still showing above the snow beside
+   a piste: straw-coloured seed grass, a silver thistle's dried rosette, dead
+   umbels holding caps of snow, alpenrose, bilberry's green winter twigs and
+   a low juniper mat, and a few stones of the moraine shouldering out of the
+   snow — modelled by `tools/blender/flora.py`, one node each in
+   `alpine-flora.glb`. Decoration only: nothing here is a solid.
+
+   Each primitive's material is a role; this is what the role is drawn as on
+   the shared flora material — the colour, and how much of the plant it is
+   (`surfaceOwn`: how much bark grain and procedural snow it takes, see
+   `floraMat`). The snow the umbels have caught is the props' snow and owns
+   nothing, so the shader leaves it as it is. */
+export const FLORA_PLANTS = ['seedGrass', 'silverThistle', 'umbels', 'alpenrose', 'bilberry', 'juniper',
+  'stones', 'grassTuft', 'bilberrySprig'];
+// The last two are the ground cover's: lighter cuts of the grass and the
+// bilberry, drawn in their hundreds (see the cover loop in `place`).
+const COVER_FIRST = 7;
+/* How many of each a clump may hold: grass, thistles, bilberry and stones
+   come in little groups; a stand of umbels, an alpenrose or a juniper mat is
+   already a group on its own. */
+const DECOR_CLUMP = [3, 3, 1, 1, 2, 1, 3];
+const DECOR_CLUMP_MAX = 3;
+const COVER_CLUMP_MAX = 4;
+/* Straw and the bilberry's twigs take little of the flora snow: their faces
+   are flat ribbons turned to the sky, and at a third of the snow a tuft went
+   as white as the slope it stood in and vanished from twenty metres. */
+const FLORA_LOOKS = {
+  straw: ['#9c7646', 0.1], strawDark: ['#6c5232', 0.1], seed: ['#56412d', 0.3],
+  stalk: ['#6e5640', 0.7], bract: ['#ddd6c2', 0.12], disc: ['#a8813f', 0.35],
+  leaf: ['#2e4829', 0.4], leafRust: ['#7a4a2a', 0.4], twig: ['#5a4636', 1.0],
+  twigGreen: ['#4c7a2c', 0.15], juniper: ['#2b4434', 0.9], snowcap: ['#d6e3f4', 0],
+  // stone owns most of itself: the flora grain reads as rock, and its tops hold snow
+  stone: ['#7a7570', 0.8],
+};
+export function floraGeometry(THREE, node) {
+  let verts = 0;
+  let indices = 0;
+  for (const p of node.prims) {
+    verts += p.attributes.POSITION.length / 3;
+    indices += p.index.length;
+  }
+  const position = new Float32Array(verts * 3);
+  const normal = new Float32Array(verts * 3);
+  const color = new Float32Array(verts * 3);
+  const own = new Float32Array(verts);
+  const index = new (verts > 65535 ? Uint32Array : Uint16Array)(indices);
+  const c = new THREE.Color();
+  let v = 0;
+  let o = 0;
+  for (const p of node.prims) {
+    const look = FLORA_LOOKS[p.role];
+    if (!look) throw new Error('alpine-flora.glb: no look for ' + p.role);
+    c.set(look[0]);
+    const n = p.attributes.POSITION.length / 3;
+    position.set(p.attributes.POSITION, v * 3);
+    normal.set(p.attributes.NORMAL, v * 3);
+    for (let i = 0; i < n; i++) {
+      color[(v + i) * 3] = c.r;
+      color[(v + i) * 3 + 1] = c.g;
+      color[(v + i) * 3 + 2] = c.b;
+      own[v + i] = look[1];
+    }
+    for (let i = 0; i < p.index.length; i++) index[o + i] = p.index[i] + v;
+    v += n;
+    o += p.index.length;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  g.setAttribute('surfaceOwn', new THREE.BufferAttribute(own, 1));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
 const ALPINE_SNOW = [0.839, 0.890, 0.957];
 export function alpineTreeGeometry(THREE, node, height) {
   let verts = 0;
@@ -2735,6 +2811,25 @@ export function createProps(THREE, shading) {
       cardConifers();
     });
 
+  // The trackside flora: until (or unless) the file arrives, there is none.
+  fetch(new URL('../assets/models/nature/alpine-flora.glb', import.meta.url).href)
+    .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+    .then(parseGlb)
+    .then((nodes) => {
+      const built = FLORA_PLANTS.map((name) => {
+        const node = nodes['flora_' + name];
+        if (!node) throw new Error('alpine-flora.glb: no ' + name);
+        return floraGeometry(THREE, node);
+      });
+      built.forEach((g, i) => {
+        const mesh = decorPools[i].mesh;
+        const old = mesh.geometry;
+        mesh.geometry = g;
+        old.dispose();
+      });
+    })
+    .catch((err) => console.warn('Alpen: no trackside flora —', err));
+
   /* The shadow pass draws only the prefix that can reach its own camera.
 
      This used to be a fixed three-band prefix. Every forty-metre stream step
@@ -2840,6 +2935,17 @@ export function createProps(THREE, shading) {
     Math.ceil((bands * BIOMES.shrubCandidates + 48) / shrubVariants.length),
   ));
 
+  /* The trackside flora draws nothing until its file lands — an empty
+     geometry is an InstancedMesh with nothing to submit — and is written by
+     the band rebuild all the same, so it appears in place. Capacity is the
+     whole candidate budget per plant, three to a clump: a run of the verge
+     can be all one kind. */
+  const decorPools = FLORA_PLANTS.map((name, i) => new Pool(
+    THREE, new THREE.BufferGeometry(), floraMaterial,
+    (i < COVER_FIRST ? BIOMES.decorCandidates * DECOR_CLUMP_MAX
+      : BIOMES.coverCandidates * COVER_CLUMP_MAX) * bands + 16,
+  ));
+
   /* The first two are the hazard families and stay first: the verge
      boulder picks between them by index. The three after them are granite
      from one Poly Haven set, stand-ins until the scans land. */
@@ -2909,6 +3015,10 @@ export function createProps(THREE, shading) {
     p.mesh.name = 'alpine-shrubs';
     p.mesh.userData.noShadow = true;
   }
+  decorPools.forEach((p, i) => {
+    p.mesh.name = 'trackside-flora-' + FLORA_PLANTS[i];
+    p.mesh.userData.noShadow = true;
+  });
   rockPools[0].mesh.name = 'slate-boulders';
   rockPools[1].mesh.name = 'iron-boulders';
   for (let i = 2; i < rockPools.length; i++) rockPools[i].mesh.name = `granite-stones-${i - 2}`;
@@ -3125,7 +3235,7 @@ export function createProps(THREE, shading) {
   const fenceCenterZ = (fenceBox.min.z + fenceBox.max.z) * 0.5;
 
   const pools = [
-    ...plantPools, ...shrubPools, ...rockPools, ...cragPools,
+    ...plantPools, ...shrubPools, ...decorPools, ...rockPools, ...cragPools,
     ...saplingPools, ...logPools, ...branchPools,
     avalancheFences, waymarks, gatePanels,
   ];
@@ -3637,6 +3747,107 @@ export function createProps(THREE, shading) {
         ...placedSphereHull(shrubHulls[v], x, y, z, yaw, s, sy, s, normal),
         type: 'shrub', kind: SOFT,
       });
+    }
+
+    /* THE TRACKSIDE FLORA. Small plants and stones along the run, in clumps
+       and runs with bare stretches between: across the soft snow of the
+       outer corridor — everywhere the groomer's racing ribbon is not, which
+       is where the snow over a buried meadow is thinnest and the first tufts
+       come through — and out onto the verge beyond. A forty-metre corridor
+       seen from its middle puts anything only at its edge at a few pixels,
+       and the point of these is to be seen from the board, so they are also
+       drawn a little over life size. Which plant grows where follows the
+       ground: alpenrose, bilberry and juniper in the heath and under trees,
+       the thistle and the umbels on open alpine meadow, stones where the
+       rock comes near the surface, the grass nearly everywhere.
+
+       None of it is a solid. These are for the eye: a rider runs through a
+       grass tuft or over a thistle as they would on the real hill, so
+       nothing is pushed into `solids` and no hazard, gate or line has to
+       make room for them. */
+    // One channel, a salt per draw: ninety candidates would otherwise run
+    // into each other's channels, and a thistle's place would be its
+    // neighbour's choice of side.
+    for (let i = 0; i < BIOMES.decorCandidates; i++) {
+      const z = z0 + hash2(b, 4700 + i, 271) * band;
+      const side = hash2(b, 4700 + i, 272) < 0.5 ? -1 : 1;
+      const half = corridorHalfAt(z);
+      // from three quarters of the way in from the groomed edge to 12 m past it
+      const distance = lerp(-0.75 * half, 12, Math.pow(hash2(b, 4700 + i, 273), 0.85));
+      const x = vergeXAt(z, side, distance, hash2(b, 4700 + i, 274), hash2(b, 4700 + i, 275));
+      if (occupied(x, z)) continue;
+      // never on the machine-hard ribbon, freely on the soft corridor snow
+      const surf = getTerrainMaterialAt(x, z);
+      const soft = clamp01((1 - surf.groomed) * 1.9);
+      const rocky = surf.rock;
+      ecologyAt(x, z, eco);
+      const runs = Math.pow(0.5 + 0.5 * snoise2(z * 0.045, side * 17.0 + x * 0.02, 557), 1.4);
+      if (hash2(b, 4700 + i, 276) > soft * (0.3 + 0.7 * runs) * density) continue;
+      const open = clamp01(0.25 + Math.max(eco.alpine, eco.exposure * 0.8));
+      const sheltered = clamp01(0.2 + Math.max(eco.heath, eco.understory));
+      // seed grass, silver thistle, umbels, alpenrose, bilberry, juniper, stones
+      const weights = [0.9, 0.45 * open, 0.55 * open, 0.5 * sheltered, 0.45 * sheltered,
+        0.4 * Math.max(sheltered, eco.exposure), 0.35 + 1.4 * rocky];
+      let pick = hash2(b, 4700 + i, 277) * weights.reduce((a, w) => a + w, 0);
+      let v = 0;
+      while (v < weights.length - 1 && pick > weights[v]) pick -= weights[v++];
+      const s = lerp(1.1, 1.9, hash2(b, 4700 + i, 278));
+      const sy = s * lerp(0.85, 1.2, hash2(b, 4700 + i, 279));
+      const yaw = hash2(b, 4700 + i, 280) * TAU;
+      decorPools[v].addOnSlope(x, heightAt(x, z) - 0.03 * s, z, yaw, s, sy, s, setFloraNormal(x, z));
+      // …and the rest of its clump, a stride or so away, each its own size
+      const clump = 1 + Math.floor(hash2(b, 4700 + i, 281) * DECOR_CLUMP[v]);
+      for (let k = 1; k < clump; k++) {
+        const a = hash2(b, 4700 + i * 4 + k, 282) * TAU;
+        const r = s * lerp(0.45, 1.3, hash2(b, 4700 + i * 4 + k, 283));
+        const cx = x + Math.cos(a) * r;
+        const cz = z + Math.sin(a) * r;
+        const cs = s * lerp(0.6, 1.0, hash2(b, 4700 + i * 4 + k, 284));
+        decorPools[v].addOnSlope(cx, heightAt(cx, cz) - 0.03 * cs, cz,
+          hash2(b, 4700 + i * 4 + k, 285) * TAU, cs, cs * sy / s, cs, setFloraNormal(cx, cz));
+      }
+    }
+
+    /* THE GROUND COVER. The same grass and bilberry again, in lighter cuts
+       and far more of them, across the whole run: patches of meadow
+       showing through wherever the snow lies thin, thick in some stretches
+       and gone in others, thinned but not stopped on the groomer's racing
+       ribbon. Every one a different size — from a few blades to a tussock
+       as high as a knee — turned and leaning its own way, so that hundreds
+       of copies of two plants never read as a pattern. Decoration again:
+       nothing here is a solid. */
+    for (let i = 0; i < BIOMES.coverCandidates; i++) {
+      const z = z0 + hash2(b, 5200 + i, 301) * band;
+      const side = hash2(b, 5200 + i, 302) < 0.5 ? -1 : 1;
+      const half = corridorHalfAt(z);
+      const distance = lerp(-half, 10, hash2(b, 5200 + i, 303));
+      const x = vergeXAt(z, side, distance, hash2(b, 5200 + i, 304), hash2(b, 5200 + i, 305));
+      if (occupied(x, z)) continue;
+      const surf = getTerrainMaterialAt(x, z);
+      const soft = 0.45 + 0.55 * clamp01((1 - surf.groomed) * 1.9);
+      const meadow = Math.pow(0.5 + 0.5 * snoise2(x * 0.06, z * 0.06, 991), 1.5);
+      if (hash2(b, 5200 + i, 306) > soft * (0.25 + 0.75 * meadow) * density) continue;
+      ecologyAt(x, z, eco);
+      const v = COVER_FIRST
+        + (hash2(b, 5200 + i, 307) < 0.25 + 0.3 * Math.max(eco.heath, eco.understory) ? 1 : 0);
+      const clump = 1 + Math.floor(hash2(b, 5200 + i, 308) * COVER_CLUMP_MAX);
+      for (let k = 0; k < clump; k++) {
+        const a = hash2(b, 5200 + i * 4 + k, 309) * TAU;
+        const r = k === 0 ? 0 : lerp(0.3, 1.1, hash2(b, 5200 + i * 4 + k, 310));
+        const cx = x + Math.cos(a) * r;
+        const cz = z + Math.sin(a) * r;
+        const cs = lerp(0.7, 2.2, Math.pow(hash2(b, 5200 + i * 4 + k, 311), 1.3));
+        const sy = cs * lerp(0.75, 1.3, hash2(b, 5200 + i * 4 + k, 312));
+        // its own lean, up to fifteen degrees off the snow's normal
+        const tilt = hash2(b, 5200 + i * 4 + k, 313) * TAU;
+        const lean = 0.26 * hash2(b, 5200 + i * 4 + k, 314);
+        const n = setFloraNormal(cx, cz);
+        n.x += Math.cos(tilt) * lean;
+        n.z += Math.sin(tilt) * lean;
+        n.normalize();
+        decorPools[v].addOnSlope(cx, heightAt(cx, cz) - 0.03 * cs, cz,
+          hash2(b, 5200 + i * 4 + k, 315) * TAU, cs, sy, cs, n);
+      }
     }
 
     /* Occasional natural glacial erratics along the mountain verge */

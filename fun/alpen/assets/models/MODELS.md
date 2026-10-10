@@ -127,6 +127,30 @@ normals. `props.js#alpineTreeGeometry` turns a node into pool geometry.
 744–1156 triangles a tree. If either file fails to load, the card conifers
 below take over.
 
+## nature/alpine-flora.glb — trackside flora and ground cover (built in Blender)
+
+Written by `tools/blender/flora.py` (no rendering, so it builds anywhere):
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/flora.py -- --out fun/alpen/assets/models/nature
+
+The small things that still show above the snow beside an Alpine piste in
+winter, one node each (`flora_<name>`): seed grass gone to straw, the dried
+rosette of a silver thistle (*Carlina acaulis*), dead umbellifer stalks
+holding caps of snow, alpenrose (*Rhododendron ferrugineum*), bilberry's
+green winter twigs, a low juniper mat, a cluster of moraine stones, and two
+lighter cuts — a grass tuft and a bilberry sprig — for the ground cover.
+84–480 triangles each. Materials are roles; `props.js#floraGeometry` paints
+them for the shared flora material, which adds the procedural snow and bark
+grain each role asks for.
+
+`props.js` places them in two layers, neither of which is a solid: the
+trackside flora over the soft snow of the outer corridor and the verge
+(never on the groomer's racing ribbon), in clumps, by ecology; and the
+ground cover — the grass tuft and bilberry sprig in their thousands — in
+meadow patches across the whole run, thinned on the ribbon, each its own
+size, turn and lean.
+
 ## Card conifer atlas (fallback)
 
 The needled tree species were card conifers built at runtime by

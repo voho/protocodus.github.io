@@ -883,4 +883,31 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     if (!spec.foliage) assert.equal(nodes['tree_' + spec.name].extras.species, 'larch', spec.name + ' is a larch');
   });
 }
+/* The trackside flora (`tools/blender/flora.py` → alpine-flora.glb): every
+   plant the game places is in the file, each is small, footed at the origin
+   and inside its budget, every role it is painted with has a look, and the
+   decor loop that places them registers no solids — they are decoration,
+   and a rider runs through them. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const b = await readFile(new URL('assets/models/nature/alpine-flora.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  for (const name of props.FLORA_PLANTS) {
+    const node = nodes['flora_' + name];
+    assert.ok(node, 'a modelled ' + name);
+    const g = props.floraGeometry(THREE, node);
+    const tris = valid('flora.' + name, g);
+    assert.ok(tris <= 500, name + ': budget ' + tris);
+    for (const a of ['color', 'surfaceOwn']) assert.ok(g.attributes[a], name + ': ' + a);
+    assert.ok(g.attributes.surfaceOwn.array.every((v) => v >= 0 && v <= 1), name + ': ownership in range');
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    assert.ok(bb.min.y > -0.25 && bb.max.y < 1.0, name + ': a small plant on the snow line');
+    assert.ok(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z) < 0.8, name + ': footed at the origin');
+  }
+  const src = await readFile(new URL('js/props.js', base), 'utf8');
+  const loop = src.slice(src.indexOf('THE TRACKSIDE FLORA. Small plants'),
+    src.indexOf('Occasional natural glacial erratics'));
+  assert.ok(loop.length > 500 && !loop.includes('solids.push'), 'the trackside flora is not a solid');
+}
 console.log('All model geometry checks passed.');
