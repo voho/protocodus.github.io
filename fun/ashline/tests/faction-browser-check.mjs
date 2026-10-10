@@ -9,7 +9,7 @@ try {
   const page = await browser.newPage({viewport: {width: 1440, height: 900}, hasTouch: true}), errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8131/fun/ashline/');
+  await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
   await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
   const sprites = await page.evaluate(async () => {
     const {UNITS, BUILDINGS} = await import('./sim.js'), {drawSprite, drawSpriteShadow} = await import('./assets.js');
@@ -30,7 +30,7 @@ try {
       list.forEach((profile, index) => {
         const d = UNITS[profile.type] || BUILDINGS[profile.type], e = {id: 0, kind: UNITS[profile.type] ? 'unit' : 'building', hp: d.hp, maxHp: d.hp, size: d.size, progress: 1, angle: .35, cargo: 0, queue: [], processingAmount: 0, ...profile};
         const a = sample({...e, team: 0}), b = sample({...e, team: 1}), sa = sample({...e, team: 0}, true), sb = sample({...e, team: 1}, true);
-        let opaque = 0, changed = 0, gap = 0, alpha = 0, mint = 0;
+        let opaque = 0, changed = 0, gap = 0, alpha = 0, mint = 0, mintShifted = 0, mintShift = 0;
         for (let i = 0; i < a.length; i += 4) {
           if (a[i + 3] !== b[i + 3]) alpha++;
           if (a[i + 3] < 220) continue; opaque++;
@@ -38,11 +38,17 @@ try {
           gap += .2126 * (a[i] - b[i]) + .7152 * (a[i + 1] - b[i + 1]) + .0722 * (a[i + 2] - b[i + 2]);
         }
         // Inspect prepared cargo pixels before rotation/downsampling blends armor into edges.
+        // Cargo is painted after faction tinting with one shared palette, so covered crystals match exactly. The enemy
+        // tint ramps in from luminance 75, which leaves a faint crimson on the dark hopper floor; antialiased crystal
+        // edges blend with it and may shift by a few levels. A tinted mineral would shift by tens of levels across the load.
         if (e.type === 'harvester' && e.cargo > 0 || e.type === 'refinery' && e.processingAmount > 0) {
           const sourceA = sourcePixels({...e, team: 0}), sourceB = sourcePixels({...e, team: 1});
-          for (let i = 0; i < sourceA.length; i += 4) if (sourceA[i + 3] > 220 && sourceA[i + 1] - sourceA[i] > 18 && sourceA[i + 1] >= sourceA[i + 2] * .98 && [0, 1, 2].some(channel => Math.abs(sourceA[i + channel] - sourceB[i + channel]) > 1)) mint++;
+          for (let i = 0; i < sourceA.length; i += 4) if (sourceA[i + 3] > 220 && sourceA[i + 1] - sourceA[i] > 18 && sourceA[i + 1] >= sourceA[i + 2] * .98) {
+            const shift = Math.max(...[0, 1, 2].map(channel => Math.abs(sourceA[i + channel] - sourceB[i + channel])));
+            mint++; mintShift = Math.max(mintShift, shift); if (shift > 1) mintShifted++;
+          }
         }
-        rows.push({type: e.type, state: profile.label || 'idle', coverage: changed / opaque, luminanceGap: gap / opaque, alpha, shadow: sa.some((value, i) => value !== sb[i]), mint});
+        rows.push({type: e.type, state: profile.label || 'idle', coverage: changed / opaque, luminanceGap: gap / opaque, alpha, shadow: sa.some((value, i) => value !== sb[i]), cargo: e.type === 'harvester' && e.cargo > 0 || e.type === 'refinery' && e.processingAmount > 0, mint, mintShifted, mintShift});
         const y = 100 + index * 116; c.fillStyle = '#dbe4de'; c.font = '13px sans-serif'; c.fillText(e.type, 12, y - 10); c.fillStyle = '#97acb1'; c.fillText(profile.label || 'idle', 12, y + 9);
         for (const [team, x, scale] of [[0, 235, UNITS[e.type] ? 2 : .95], [1, 445, UNITS[e.type] ? 2 : .95], [0, 617, .5], [1, 695, .5]]) {
           c.save(); c.translate(x, y); c.scale(scale, scale); drawSpriteShadow(c, {...e, team}, .2); drawSprite(c, {...e, team}, .2); c.restore();
@@ -55,11 +61,12 @@ try {
     return {rows, sheets};
   });
   for (const [name, bytes] of Object.entries(sprites.sheets)) await writeFile(`${output}/${name}.png`, Buffer.from(bytes, 'base64'));
-  console.table(sprites.rows.map(({type, state, coverage, luminanceGap, mint}) => ({type, state, changed: `${Math.round(coverage * 100)}%`, valueGap: luminanceGap.toFixed(1), mint})));
+  console.table(sprites.rows.map(({type, state, coverage, luminanceGap, mint, mintShifted, mintShift}) => ({type, state, changed: `${Math.round(coverage * 100)}%`, valueGap: luminanceGap.toFixed(1), mint, mintShifted, mintShift})));
   for (const row of sprites.rows) {
     assert(row.coverage > .15 && row.luminanceGap > 6, `${row.type}/${row.state}: broad faction paint and grayscale value separation`);
     assert.equal(row.alpha, 0); assert.equal(row.shadow, false, 'Faction colors preserve silhouette, anchor and shadow');
-    assert.equal(row.mint, 0, 'Minerals retain their shared mint color');
+    if (row.cargo) assert(row.mint > 100, `${row.type}/${row.state}: loaded cargo shows mint crystals`);
+    assert(row.mintShifted <= row.mint * .02 && row.mintShift <= 12, `${row.type}/${row.state}: minerals retain their shared mint color (${row.mintShifted} of ${row.mint} edge pixels shift up to ${row.mintShift})`);
   }
 
   await page.locator('#seed').fill('FACTIONS-BROWSER'); await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
@@ -105,5 +112,5 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log(`Faction checks passed: all13types and operational variants, broad paint/value difference, unchanged alpha/shadows/mint, hidden-enemy fog, mixed-army mouse/touch and desktop/mobile grayscale previews. Review: ${output}`);
+  console.log(`Faction checks passed: ${sprites.rows.length} unit and building profiles including operational variants, broad paint/value difference, unchanged alpha/shadows/mint, hidden-enemy fog, mixed-army mouse/touch and desktop/mobile grayscale previews. Review: ${output}`);
 } finally { await browser.close(); }

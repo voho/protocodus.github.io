@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium}=await import(process.env.ASHLINE_PLAYWRIGHT||'playwright');
 const browser=await chromium.launch({channel:process.env.ASHLINE_BROWSER||'chrome',headless:true});
-const url=process.env.ASHLINE_URL||'http://127.0.0.1:4173/fun/ashline/';
+const url=process.env.ASHLINE_URL||'http://127.0.0.1:8000/fun/ashline/';
 const output=process.env.ASHLINE_SCREENSHOTS||'/tmp/ashline-races-qa';await mkdir(output,{recursive:true});
 const errors=[];
 const advance=(page,seconds)=>page.evaluate(async seconds=>{const {updateGame}=await import('./sim.js');for(let i=0;i<seconds*4;i++)updateGame(ashline.state,.25);},seconds);
@@ -12,19 +12,21 @@ try {
     await page.goto(url);await page.waitForFunction(()=>window.ashline?.booted);
     await page.locator('#player-race').selectOption(race);await page.locator('#enemy-race').selectOption(race==='aiUnity'?'organics':'aiUnity');
     await page.locator('#deploy').click(); await page.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, {timeout: 120000});
-    const roles=await page.evaluate(async()=>{const m=await import('./sim.js'),s=ashline.state;s.ai.nextThink=1e9;s.teams[0].credits=20000;return {name:m.RACES[m.teamRace(s,0)].name,core:m.raceBuilding(s,0,'core'),barracks:m.raceBuilding(s,0,'barracks'),rifle:m.raceUnit(s,0,'rifle'),factory:m.raceBuilding(s,0,'factory'),lab:m.raceBuilding(s,0,'lab'),labName:m.BUILDINGS[m.raceBuilding(s,0,'lab')].name,engineer:m.raceUnit(s,0,'engineer')};});
+    const roles=await page.evaluate(async()=>{const m=await import('./sim.js'),s=ashline.state;s.ai.nextThink=1e9;s.teams[0].credits=20000;return {name:m.RACES[m.teamRace(s,0)].name,core:m.raceBuilding(s,0,'core'),barracks:m.raceBuilding(s,0,'barracks'),rifle:m.raceUnit(s,0,'rifle'),factory:m.raceBuilding(s,0,'factory'),lab:m.raceBuilding(s,0,'lab'),labName:m.BUILDINGS[m.raceBuilding(s,0,'lab')].name,engineer:m.raceUnit(s,0,'engineer'),
+      // The race's own roster: every unit type, and every structure except the command nexus (shared walls included).
+      units:Object.keys(m.UNITS).filter(type=>m.raceUnit(s,0,type)===type),buildings:Object.keys(m.BUILDINGS).filter(type=>m.raceBuilding(s,0,type)===type&&m.buildingRole(type)!=='core')};});
     assert.equal(await page.evaluate(()=>ashline.state.teams[0].race),race);
     if(await page.locator('#command-console').isHidden())await page.locator('#command-toggle').click();
-    assert.equal(await page.locator('#catalog .build-card').count(),9);
+    assert.deepEqual((await page.locator('#catalog .build-card').evaluateAll(cards=>cards.map(card=>card.dataset.type))).sort(),[...roles.buildings].sort(),'Build catalog lists exactly the race structures');
     assert(await page.locator(`[data-type=${roles.barracks}]`).count());
-    await page.locator('#research-tab').click();assert((await page.locator('#production-target').innerText()).includes(roles.labName.toUpperCase()));await page.locator('#build-tab').click();
+    await page.locator('#research-tab').click();assert((await page.locator('#production-target').textContent()).endsWith(`Build ${roles.labName}`),'Research tab names the race lab to build');await page.locator('#build-tab').click();
     const ids=await page.evaluate(async roles=>{const m=await import('./sim.js'),s=ashline.state,core=s.entities.find(e=>e.team===0&&e.type===roles.core),ids={};
       s.visible[0].fill(1);s.explored[0].fill(1);s.fogClock=1e7;
       for(const type of [roles.barracks,roles.factory,roles.lab,m.raceBuilding(s,0,'reactor')]){
         let result;for(let y=core.y-9;y<core.y+11&&!result;y++)for(let x=core.x-9;x<core.x+12&&!result;x++)if(m.canPlace(s,0,type,x,y).ok)result=m.placeBuilding(s,0,type,x,y);
         if(!result?.ok)throw Error(`Cannot construct${type}`);const e=m.getEntity(s,result.id);e.progress=1;e.hp=e.maxHp;ids[type]=e.id;m.updateGame(s,.05);
       }return ids;},roles);
-    await page.locator('#train-tab').click();assert.equal(await page.locator('#catalog .build-card').count(),8);
+    await page.locator('#train-tab').click();assert.deepEqual((await page.locator('#catalog .build-card').evaluateAll(cards=>cards.map(card=>card.dataset.type))).sort(),[...roles.units].sort(),'Train catalog lists exactly the race units');
     await page.locator(`[data-type=${roles.rifle}]`).click();await advance(page,6);
     assert(await page.evaluate(type=>ashline.state.entities.filter(e=>e.team===0&&e.type===type).length>=4,roles.rifle));
     await page.locator(`[data-type=${roles.engineer}]`).click();await advance(page,12);
@@ -42,7 +44,7 @@ try {
         touch=await page.context().newCDPSession(page);await touch.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[line.a]});
         for(let step=1;step<=8;step++)await touch.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:line.a.x+(line.b.x-line.a.x)*step/8,y:line.a.y+(line.b.y-line.a.y)*step/8}]});
       }else{await page.mouse.move(line.a.x,line.a.y);await page.mouse.down();await page.mouse.move(line.b.x,line.b.y,{steps:8});}
-      await page.waitForTimeout(200);assert.match(await page.locator('#order-hint').innerText(),/4 SEGMENTS/);
+      await page.waitForTimeout(200);assert.match(await page.locator('#order-hint-text').textContent(),/^Wall line · 4 segments\b/i);
       await page.screenshot({path:`${output}/wall-preview-${race}-${viewport.width}.png`});
       if(touch)await touch.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});else await page.mouse.up();
       assert.equal(await page.evaluate(({x,y})=>ashline.state.entities.filter(e=>e.team===0&&e.type==='wall'&&e.y===y&&e.x>=x&&e.x<x+4).length,line),4);
