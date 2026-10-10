@@ -133,7 +133,7 @@ export const MISSIONS={
   'signal-in-the-ash':{
     id:'signal-in-the-ash',name:'Signal in the Ash',location:'Varn escarpment',seed:'SIGNAL-ASH',par:840,
     summary:'Break into a fortified Unity outpost and destroy the Logic archive inside.',
-    story:['Unity finds our shards with survey algorithms it iterates in Logic archives. One of them sits in a walled relay outpost on the escarpment, guarded by Lance nodes.','The yard has cleared a laboratory and a War foundry. Tanks break lines; engineers keep them running. The Lance nodes draw from a single Resonance spire.'],
+    story:['Unity finds our shards with survey algorithms it iterates in Logic archives. One of them sits in a relay outpost on the escarpment, guarded by Lance nodes.','The yard has cleared a laboratory and a War foundry. Tanks break lines; engineers keep them running. The Lance nodes draw from a single Resonance spire.'],
     briefing:'Destroy the Logic archive in a fortified Unity outpost. Its Lance nodes draw from a single spire.',
     opening:'Foundry and laboratory charters approved. Expedition 07, target the archive.',
     victoryText:'The archive is ash. Unity is surveying blind on this escarpment.',
@@ -141,7 +141,7 @@ export const MISSIONS={
     allow:FOUNDRY,
     zones:[{id:'outpost',label:'Unity relay outpost',at:'end',r:10}],
     objectives:[
-      {id:'archive',type:'destroyTagged',tag:'archive',label:'Destroy the Logic archive'},
+      {id:'archive',type:'destroyTagged',tag:'archive',zone:'outpost',label:'Destroy the Logic archive'},
       {id:'spire',type:'destroyTagged',tag:'spire',secondary:true,label:'Brown out the outpost: destroy its Resonance spire'},
       {id:'nodes',type:'destroyTagged',tag:'lance',secondary:true,hidden:true,label:'Silence both Lance nodes'},
       {id:'pulse',type:'research',research:'infantryWeapons',secondary:true,label:'Research Pulse accelerators'},
@@ -150,9 +150,9 @@ export const MISSIONS={
     triggers:[
       {id:'target',when:{time:1},do:[say(VALE,'That outpost is a Unity relay. The Logic archive inside holds the survey algorithms it uses to find our shards. Burn it.')]},
       {id:'audit',when:{time:8},do:[say(KADE,'Auditor Kade, Charter office. For the record: that archive is Charter property held without title. You are cleared to destroy it.')]},
-      {id:'hint',when:{time:16},do:[say(TESK,'Two Lance nodes cover the approach and drink from one spire. Kill the spire, let the reserve drain, and the nodes go dark.')]},
+      {id:'hint',when:{time:16},do:[say(TESK,'Two Lance nodes cover the approach and drink from one spire. Kill the spire, let the reserve drain, and the nodes go dark.'),{reveal:'nodes'}]},
       {id:'foundry',when:{time:24},do:[say(VALE,'Build a War foundry for Vanguard tanks and a laboratory for research. Engineers keep armor in the fight.')]},
-      {id:'intrusion',when:{zoneEntered:'outpost'},do:[say(UNITY,'Archive integrity is priority one. Intruders will be corrected.'),{reveal:'nodes'},say(TESK,'Those two Lance nodes have killed Compact crews before. Silence both and the Crest will sing about it.')]},
+      {id:'intrusion',when:{zoneEntered:'outpost'},do:[say(UNITY,'Archive integrity is priority one. Intruders will be corrected.'),say(TESK,'Those two Lance nodes have killed Compact crews before. Silence both and the Crest will sing about it.')]},
       {id:'dark',when:{tagDestroyed:'spire'},do:[say(TESK,'Spire down. Their nodes run on reserve now; it will not last.')]},
       {id:'sorties',when:{time:150,every:100,limit:6},do:[{spawn:{team:1,units:[['rifle',3,.5],['rocket',0,.5,2],['scout',1]],at:'outpost',order:'attackBase',tag:'sortie',cap:40,text:'Outpost cohorts moving on the base.'}}]},
     ],

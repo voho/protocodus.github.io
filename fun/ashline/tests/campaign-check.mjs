@@ -175,11 +175,14 @@ const place=(s,type,near,radius=14)=>{
 {
   const s=start('signal-in-the-ash'),lance=tagged(s,'lance');
   assert.equal(lance.length,2);assert.equal(tagged(s,'spire').length,1);assert.equal(tagged(s,'archive')[0].type,'unityLab');
+  // The archive's outpost is a briefed static target: the tracker locates it and its sorties name it.
+  assert.equal(objectiveRows(s).rows.find(r=>r.id==='archive').zone.label,'Unity relay outpost');
   destroy(tagged(s,'spire'));advance(s,60);
   assert.equal(objective(s,'spire').state,'done');
   assert.equal(s.teams[1].powerStatus,'brownout','Without its spire the outpost browns out once the reserve drains');
+  assert(objective(s,'nodes').revealed,'The Lance node objective is revealed with the briefing on the nodes, before any fight');
   const outpost=zone(s,'outpost'),scout=own(s,0,'scout')[0];scout.x=outpost.x;scout.y=outpost.y;advance(s,1);
-  assert(objective(s,'nodes').revealed,'Entering the outpost reveals the Lance node objective');
+  assert(s.mission.fired.intrusion,'Entering the outpost draws the archive guard');
   destroy(tagged(s,'archive'));advance(s,1);
   win(s,'Signal in the Ash');
   assert.equal(medalFor(s),'bronze','Unfinished secondaries leave a bronze medal');
