@@ -62,6 +62,22 @@ test('difficulty is behaviour: Cadet slow and plain, Commander adaptive, Veteran
   assert(hard.focus>0&&hard.harass>0&&hard.walls&&hard.adapt>normal.adapt,'Veteran focus-fires, raids haulers and walls its towers');
   assert.equal(aiKnobs({difficulty:'normal'},{doctrine:'swarm'}).harass,DOCTRINES.swarm.knobs.harass,'Raider doctrines hunt haulers from Commander up');
   assert.equal(aiKnobs({difficulty:'normal'},{doctrine:'balanced'}).harass,0);
+  for(const doctrine of Object.keys(DOCTRINES)){
+    const cadet=aiKnobs({difficulty:'easy'},{doctrine}),sum=Object.values(cadet.caps).reduce((n,c)=>n+c,0);
+    assert(cadet.waveMax<=8&&cadet.waveMin<=cadet.waveMax&&cadet.waveMin<Math.min(cadet.armyCap,sum),`${doctrine} Cadet columns stay at most eight and fit its army`);
+    for(const level of ['normal','hard']){const k=aiKnobs({difficulty:level},{doctrine});assert(k.waveMin<=k.waveMax&&k.waveMin<k.armyCap,`${doctrine} ${level} waves fit its army`);}
+  }
+});
+
+test('every Cadet doctrine raids an idle player with a column of at most eight',{timeout:180000},()=>{
+  for(const doctrine of Object.keys(DOCTRINES)){
+    const s=createGame('CADET-RAIDS-1','easy',{...MAP_SIZES.standard,aiProfiles:{1:{doctrine}}});
+    let largest=0;
+    for(let tick=0;tick<4*600&&!s.ai.raid&&s.status==='playing';tick++){updateGame(s,.25);for(const wave of s.ai.waves||[])largest=Math.max(largest,wave.ids.length);}
+    for(const wave of s.ai.waves||[])largest=Math.max(largest,wave.ids.length);
+    assert(s.ai.raid>=1,`${doctrine} Cadet raids within ten minutes`);
+    assert(largest>0&&largest<=8,`${doctrine} Cadet column of ${largest}`);
+  }
 });
 
 // A passive base with powered towers facing the rival, placed on clear ground near its nexus.

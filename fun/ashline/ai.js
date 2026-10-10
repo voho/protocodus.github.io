@@ -1,9 +1,10 @@
 // Ashline opposition: a deterministic commander that plays one team through the public commands.
 // It reads the enemy only through current vision (seen, s.visible, impacts landing in its sight, its own
 // entities being struck), its own fog memory (ai.known, ai.miningSites) and the map's structural layout (both
-// starting anchors). Expansion sites and wall checks judge explored ground by terrain plus its own and
-// remembered footprints, never by s.blocked or s.regions, which also reflect unseen enemy structures;
-// structures are placed through placementCheck, which accepts only ground in current vision. Doctrines shape
+// starting anchors and where generation placed ore). Expansion sites and wall checks judge explored ground by
+// terrain, generated ore and its own and remembered footprints, never by s.blocked, s.regions or live ore
+// amounts under fog, which also reflect unseen enemy structures and mining; structures are placed through
+// placementCheck, which accepts only ground in current vision. Doctrines shape
 // what it builds and where it strikes; difficulty sets how fast it thinks and which skills it uses.
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
 import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
@@ -21,7 +22,7 @@ import {missionDirective} from './mission.js';
 // wave waits for while towers are known; foundries is how many foundries it stands up early; targets ranks
 // raid objectives (towers only for waves with guns).
 export const DOCTRINES={
-  balanced:{name:'Balanced',commander:'Warden Kestrel',callsign:'Watchfire',unity:{commander:'Arbiter K-9',callsign:'Lattice'},
+  balanced:{name:'Balanced',commander:'Warden Kestrel',callsign:'Watchfire',unity:{commander:'Arbiter WK-9',callsign:'Lattice'},
     description:'Grows a steady economy, holds a powered perimeter and raids with staged combined-arms waves.',
     knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,guns:0,foundries:1,engineers:.08,scouts:1,labs:1,
       research:['gridEfficiency','vehicleWeapons','infantryWeapons','advancedBallistics','infantryArmor','mobility'],
@@ -89,10 +90,13 @@ export function newAI(difficulty,profile,context){
 }
 export function aiState(s,team){return team===1?s.ai:s.aiByTeam?.[team];}
 // The merged difficulty and doctrine settings for one commander.
+// Cadet columns never exceed its eight-unit wave whatever the doctrine; doctrines vary a Cadet only through
+// timing, composition and structures.
 export function aiKnobs(s,ai){
   const level=LEVELS[s.difficulty]??LEVELS.normal,d=(DOCTRINES[ai.doctrine]??DOCTRINES.balanced).knobs,easy=s.difficulty==='easy',hard=s.difficulty==='hard';
+  const wave=Math.max(3,Math.round(level.waveMin*d.wave));
   return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,guns:easy?0:d.guns,foundries:easy?1:d.foundries,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
-    waveMin:Math.max(3,Math.round(level.waveMin*d.wave)),waveMax:Math.max(level.waveMax,Math.round(level.waveMin*d.wave)),towers:Math.max(1,level.towers+d.towers),
+    waveMin:easy?Math.min(level.waveMax,wave):wave,waveMax:easy?level.waveMax:Math.max(level.waveMax,wave),towers:Math.max(1,level.towers+d.towers),
     walls:!easy&&d.walls>=(hard?1:2),outpostTowers:easy?0:d.outpostTowers,bases:Math.max(1,level.bases+(easy?0:d.bases)),expandAt:level.expandAt*d.expand,
     expandEvery:level.expandEvery*d.expand,harass:easy||!(hard||d.raider)?0:d.harass,focus:easy?0:Math.max(level.focus,d.focus),engineers:easy?0:d.engineers,
     scouts:easy?1:d.scouts,labs:easy?0:d.labs,siege:!easy};
@@ -100,7 +104,9 @@ export function aiKnobs(s,ai){
 
 const armed=e=>e.kind==='unit'&&UNITS[e.type].damage>0;
 const byId=(a,b)=>a.id-b.id;
-const centroid=list=>{let x=0,y=0;for(const e of list){const c=center(e);x+=c.x;y+=c.y;}return{x:x/list.length,y:y/list.length};};
+// Memory records (ai.known) already hold a structure's centre and carry no size; live entities go through center().
+const pointOf=e=>e.size===undefined?e:center(e);
+const centroid=list=>{let x=0,y=0;for(const e of list){const c=pointOf(e);x+=c.x;y+=c.y;}return{x:x/list.length,y:y/list.length};};
 const direction=(dx,dy)=>{const length=Math.hypot(dx,dy)||1;return{x:dx/length,y:dy/length};};
 const onMap=(s,p)=>({x:clamp(p.x,.5,s.width-.5),y:clamp(p.y,.5,s.height-.5)});
 const footprint=m=>{const size=BUILDINGS[m.type].size;return{x:Math.round(m.x-size/2),y:Math.round(m.y-size/2),size};};
@@ -151,8 +157,7 @@ function survey(s,team,ai){
 }
 
 // Ground as this commander knows it: visible cells are exact; explored cells keep their terrain and the
-// footprints of its own and remembered enemy structures; unexplored cells are assumed open. Cleared ore under
-// fog can read as open, which only ever makes a remembered site look more usable than it is.
+// footprints of its own and remembered enemy structures; unexplored cells are assumed open.
 function fairGround(s,team,v){
   if(v.fair)return v.fair;
   const {width:W,height:H}=s,N=W*H,grid=new Uint8Array(N),visible=s.visible[team],explored=s.explored[team],terrain=s.terrain;
@@ -240,14 +245,16 @@ function rememberMiningSites(s,team,ai){
   }
   ai.miningSites=ai.miningSites.filter(site=>site.amount>100);
 }
+// Ore under fog counts where the sector's generated layout placed it (s.mineralTypes, which mining never
+// clears), so a field mined out unseen still reads as ore; only visible cells use the live amounts.
 function expansionGround(s,team,v,ore,origin){
-  const grid=fairGround(s,team,v),reach=fairReach(s,team,v,origin),explored=s.explored[team],W=s.width,candidates=[];
+  const grid=fairGround(s,team,v),reach=fairReach(s,team,v,origin),explored=s.explored[team],visible=s.visible[team],W=s.width,candidates=[];
   for(let y=Math.max(1,Math.floor(ore.y)-9);y<Math.min(s.height-4,ore.y+8);y++)for(let x=Math.max(1,Math.floor(ore.x)-9);x<Math.min(W-4,ore.x+8);x++){
     const point={x:x+1.5,y:y+1.5},d=distance(point,ore);if(d<4.5||d>10)continue;
     let legal=true;
     for(let yy=y;yy<y+3&&legal;yy++)for(let xx=x;xx<x+3;xx++){
       const at=yy*W+xx;
-      if(!explored[at]||grid[at]||!reach[at]||s.terrain[at]===5||s.minerals[at]>0){legal=false;break;}
+      if(!explored[at]||grid[at]||!reach[at]||s.terrain[at]===5||(visible[at]?s.minerals[at]>0:s.mineralTypes[at]>0)){legal=false;break;}
     }
     if(legal)candidates.push({x,y,score:distance(point,origin)+d*.4});
   }
@@ -276,8 +283,13 @@ function expandAI(s,team,ai,v,k,directive,pressed){
     }
   }
   if(directive?.noExpand){delete ai.expansion;return{held:0};}
+  // With every nexus lost, a plan made from the old base gives way to one from where the vehicle stands.
+  if(!cores.length&&ai.expansion&&!ai.expansion.unitId)delete ai.expansion;
   if(!ai.expansion&&constructors.length){
-    const unit=constructors[0],ore=(ai.miningSites||[]).filter(site=>cores.every(core=>distance(center(core),site)>20)).sort((a,b)=>distance(a,unit)-distance(b,unit))[0]||unit;
+    // A vehicle with no plan heads for the nearest known field clear of recent threats, or the nearest field.
+    const unit=constructors[0],threats=v.intel.filter(m=>m.kind==='building'||s.time-m.seenAt<60);
+    const fields=(ai.miningSites||[]).filter(site=>cores.every(core=>distance(center(core),site)>20)).sort((a,b)=>distance(a,unit)-distance(b,unit)||a.y-b.y||a.x-b.x);
+    const ore=fields.find(site=>threats.every(m=>distance(m,site)>18))||fields[0]||unit;
     const spot=expansionGround(s,team,v,ore,unit)||{x:Math.floor(unit.x)-1,y:Math.floor(unit.y)-1};
     ai.expansion={x:spot.x,y:spot.y,oreX:ore.x,oreY:ore.y,unitId:unit.id,startedAt:s.time,lastProgressAt:s.time,lastX:unit.x,lastY:unit.y};
   }
@@ -621,11 +633,13 @@ function scoutAI(s,team,ai,v,k,ctx){
     const home=v.cores.map(center),enemyCore=v.knownBuildings.filter(m=>entityRole(m.type)==='core').sort((a,b)=>distance(a,enemyAnchor(s,team))-distance(b,enemyAnchor(s,team))||a.id-b.id)[0];
     const fields=(ai.miningSites||[]).filter(p=>home.every(c=>distance(c,p)>22)).sort((a,b)=>a.seenAt-b.seenAt||a.y-b.y||a.x-b.x).slice(0,4);
     const stale=v.knownBuildings.filter(m=>s.time-m.seenAt>60&&entityRole(m.type)!=='wall').sort((a,b)=>a.seenAt-b.seenAt||a.id-b.id).slice(0,2);
+    // A commander that has lost every nexus looks in from its rally instead.
+    const base=v.core?center(v.core):ctx.rally;
     intel.route=[enemyCore||enemyAnchor(s,team),...fields,...stale].map(p=>{
       // Rovers out-see towers: look in from just beyond the nearest remembered tower's reach.
       const tower=v.knownTowers.filter(m=>distance(m,p)<11).sort((a,b)=>distance(a,p)-distance(b,p)||a.id-b.id)[0];
       if(!tower)return onMap(s,{x:p.x,y:p.y});
-      const away=direction(center(v.core).x-tower.x,center(v.core).y-tower.y);return onMap(s,{x:tower.x+away.x*11.5,y:tower.y+away.y*11.5});
+      const away=direction(base.x-tower.x,base.y-tower.y);return onMap(s,{x:tower.x+away.x*11.5,y:tower.y+away.y*11.5});
     });
     intel.index=0;
   }
@@ -805,7 +819,8 @@ function steerWave(s,team,ai,v,k,ctx,wave,directive){
     // Outmatched: fall back away from the contact, or all the way home if already falling back.
     const foe=near.length?centroid(near):remembered.length?centroid(remembered):{x:wave.tx,y:wave.ty},away=direction(c.x-foe.x,c.y-foe.y);
     let point=wave.state==='regroup'?ctx.rally:onMap(s,{x:c.x+away.x*12,y:c.y+away.y*12});
-    if(distance(point,ctx.rally)<16||distance(c,ctx.rally)<16)point=ctx.rally;
+    // A regroup point is saved with the wave and must stay a real position.
+    if(!(distance(point,ctx.rally)>=16&&distance(c,ctx.rally)>=16))point=ctx.rally;
     if(wave.state!=='regroup'||wave.rx!==point.x||wave.ry!==point.y){
       Object.assign(wave,{state:'regroup',since:s.time,need:+theirs.toFixed(3),rx:point.x,ry:point.y,tries:(wave.tries||0)+1});
       issueOrder(s,wave.ids,{type:'move',...point});ai.mode='Regrouping under pressure';
@@ -976,6 +991,11 @@ export function thinkAI(s,team=1){
         if(ore)b.rally={x:ore.x,y:ore.y};
       }else if((role==='barracks'||role==='factory')&&(b.rally?.x!==ctx.rally.x||b.rally?.y!==ctx.rally.y))b.rally={x:ctx.rally.x,y:ctx.rally.y};
     }
+  }else if(v.role('constructor').length){
+    // No nexus left (the Charter keeps the side in play while a vehicle survives): the vehicle redeploys at a
+    // field and any surviving producers keep training from the treasury.
+    const plan=expandAI(s,team,ai,v,k,directive,false);
+    produce(s,team,v,k,power,plan.held);
   }
   const defenders=defendAI(s,v.army,v.buildings,intruders,v.enemies,power,ctx.reserved);
   for(const id of defenders)ctx.claimed.add(id);

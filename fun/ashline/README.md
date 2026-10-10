@@ -22,7 +22,7 @@ Surplus generation gives construction, training, research, upgrades, and mineral
 
 | Doctrine | Commander (Organics / AI Unity) | Plan |
 | --- | --- | --- |
-| Balanced | Warden Kestrel "Watchfire" / Arbiter K-9 "Lattice" | A steady economy, a powered perimeter and staged combined-arms waves |
+| Balanced | Warden Kestrel "Watchfire" / Arbiter WK-9 "Lattice" | A steady economy, a powered perimeter and staged combined-arms waves |
 | Ironclad | Marshal Orsa Vantreck "Anvil" / Bastion mind OR-4 "Keel" | Two early foundries, armor and siege guns behind walled sentry lines, then one late, heavy push |
 | Swarm | Major Idris Kell "Wasp" / Swarm kernel IK-12 "Chorus" | Infantry, rovers and strikers; raids early and often and hunts haulers on the shard runs |
 | Prospector | Quartermaster Juno Tal "Lodestar" / Survey core JT-3 "Assay" | Claims and fortifies remote fields early, then pushes late from a broad economy |

@@ -29,7 +29,7 @@ function scene({race='organics',difficulty='hard',doctrine,seed='ai-tactics'}={}
   };
   const remember=(e,seenAt=s.time)=>{const c=center(e);s.ai.known[e.id]={id:e.id,kind:e.kind,type:e.type,x:c.x,y:c.y,hp:e.hp,seenAt};};
   // A small shard field the commander has already recorded.
-  const field=(x,y,seenAt=0)=>{for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++)s.minerals[yy*s.width+xx]=4000;(s.ai.miningSites??=[]).push({x:x+.5,y:y+.5,amount:4000,seenAt});};
+  const field=(x,y,seenAt=0)=>{for(let yy=y-1;yy<=y+1;yy++)for(let xx=x-1;xx<=x+1;xx++){s.minerals[yy*s.width+xx]=4000;s.mineralTypes[yy*s.width+xx]=1;}(s.ai.miningSites??=[]).push({x:x+.5,y:y+.5,amount:4000,seenAt});};
   return {s,core,enemyCore,unit,building,remember,field};
 }
 // One commander look with full vision, except the cells of the listed hidden entities.
@@ -328,6 +328,68 @@ test('expansion sites ignore concealed enemy structures but respect remembered o
   assert(open,'A site is chosen on explored ground');
   assert.deepEqual(hidden,open,'An unseen enemy refinery on the chosen ground changes nothing');
   assert.notDeepEqual(remembered,open,'A remembered enemy structure is avoided');
+});
+
+test('expansion sites read ore under fog from the generated layout, never from live amounts',()=>{
+  const plan=minedUnseen=>{
+    const {s,unit,building}=scene();
+    for(let i=0;i<6;i++)unit('tank',52+i*1.2,14);
+    building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=5000;s.ai.nextExpand=0;
+    // A broad field, explored earlier, with one clearing on its far side; the commander recorded its richest cell.
+    for(let y=21;y<=39;y++)for(let x=21;x<=39;x++)if(!(x>=22&&x<=25&&y>=34&&y<=37)){s.minerals[y*s.width+x]=4000;s.mineralTypes[y*s.width+x]=1;}
+    s.ai.miningSites=[{x:30.5,y:30.5,amount:4000,seenAt:0}];
+    // The quarter facing the commander's base was mined out while nobody on its side could see it.
+    if(minedUnseen)for(let y=21;y<=30;y++)for(let x=31;x<=39;x++)s.minerals[y*s.width+x]=0;
+    s.ai.nextThink=s.time;s.fogClock=.2;s.visible.forEach(v=>v.fill(1));
+    for(let y=14;y<46;y++)for(let x=12;x<48;x++)s.visible[1][y*s.width+x]=0;
+    updateGame(s,.05);
+    return {s,site:s.ai.expansion&&{x:s.ai.expansion.x,y:s.ai.expansion.y}};
+  };
+  const intact=plan(false),mined=plan(true);
+  assert(intact.site&&intact.site.x>=22&&intact.site.x<=23&&intact.site.y>=34&&intact.site.y<=35,'The site is the clearing the commander saw');
+  assert.deepEqual(mined.site,intact.site,'Ore mined out under fog changes nothing');
+  for(let y=intact.site.y;y<intact.site.y+3;y++)for(let x=intact.site.x;x<intact.site.x+3;x++)assert.equal(intact.s.mineralTypes[y*intact.s.width+x],0,'The planned nexus stays off generated ore');
+});
+
+test('a wave outmatched only by a remembered tower regroups at a real point and stays saveable',()=>{
+  for(const difficulty of ['normal','hard']){
+    const {s,unit,remember}=scene({difficulty});
+    const tower=addEntity(s,0,'building',raceBuilding(s,0,'rocketTower'),20,32);tower.progress=1;remember(tower);
+    const wave=[unit('rifle',28,26),unit('rifle',29,26)];
+    s.ai.waves=[{id:1,kind:'raid',ids:wave.map(u=>u.id),tx:8,ty:44,state:'advance',since:0}];s.ai.waveId=1;
+    think(s,[tower]);
+    const plan=s.ai.waves[0],c=center(tower);
+    assert.equal(plan.state,'regroup',`${difficulty}: the remembered tower outweighs the wave`);
+    assert(Number.isFinite(plan.rx)&&Number.isFinite(plan.ry),`${difficulty}: the regroup point is a real position`);
+    assert(Math.hypot(plan.rx-c.x,plan.ry-c.y)>Math.hypot(28.5-c.x,26-c.y),`${difficulty}: it falls back away from the tower`);
+    assert(wave.every(u=>u.order.type==='move'&&Number.isFinite(u.order.x)&&Math.hypot(u.order.x-plan.rx,u.order.y-plan.ry)<3),`${difficulty}: members head for it`);
+    const restored=decodeGame(encodeGame(s)).game;
+    assert.deepEqual(restored.ai.waves,s.ai.waves,`${difficulty}: the plan saves and loads`);
+    // Gathered there and given time, the wave leaves the regroup instead of absorbing the army forever.
+    wave.forEach((u,i)=>{u.x=plan.rx+i*.9;u.y=plan.ry;u.order={type:'idle'};});s.time+=55;
+    think(s,[tower]);
+    assert.notEqual(s.ai.waves?.[0]?.state,'regroup',`${difficulty}: the wave moves on once gathered`);
+    decodeGame(encodeGame(s));
+  }
+});
+
+test('a commander without a nexus keeps thinking: its rover re-scouts and its vehicle redeploys',()=>{
+  const {s,core,enemyCore,unit,remember,field}=scene();
+  s.entities=s.entities.filter(e=>e!==core);s.navVersion++;
+  const tower=addEntity(s,0,'building','turret',10,40);tower.progress=1;remember(enemyCore);remember(tower);
+  field(40,16,5);
+  const vehicle=unit('constructor',54,10),scout=unit('scout',56,12);s.ai.intel={index:0,next:0};
+  think(s,[enemyCore,tower]);
+  const route=s.ai.intel.route;
+  assert(route?.length&&route.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)),'The rover plans its re-scouting route from the rally');
+  assert(route.every(p=>Math.hypot(p.x-center(tower).x,p.y-center(tower).y)>BUILDINGS.turret.range+1),'and still stands off from remembered towers');
+  assert.equal(scout.order.type,'move');
+  assert(s.ai.expansion?.unitId===vehicle.id&&vehicle.order.type==='move','The vehicle heads for the nearest known field');
+  for(let i=0;i<4*90&&!s.entities.some(e=>e.team===1&&entityRole(e)==='core');i++)updateGame(s,.25);
+  const nexus=s.entities.find(e=>e.team===1&&entityRole(e)==='core');
+  assert(nexus&&Math.hypot(center(nexus).x-40.5,center(nexus).y-16.5)<11,'It redeploys a nexus beside that field');
+  assert.equal(s.status,'playing');
+  decodeGame(encodeGame(s));
 });
 
 test('the commander keeps producing while it saves for an expansion, and drops the saving under attack',()=>{
