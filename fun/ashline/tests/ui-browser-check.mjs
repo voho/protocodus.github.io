@@ -365,6 +365,18 @@ try {
   const slider = await desktop.locator('#game-speed').boundingBox();
   await desktop.mouse.click(slider.x + slider.width - 3, slider.y + slider.height / 2);
   assert.equal(await desktop.evaluate(() => document.activeElement.id), 'world', 'The slider releases focus after a pointer change');
+  // A click that leaves the value unchanged fires no change event, yet hotkeys must work at once.
+  await desktop.mouse.click(slider.x + slider.width - 3, slider.y + slider.height / 2);
+  assert.equal(await desktop.evaluate(() => document.activeElement.id), 'world', 'The slider releases focus after a click that keeps its value');
+  await desktop.keyboard.press('p');
+  assert.deepEqual(await pausedState(), [true, true], 'Hotkeys work right after clicking the slider');
+  await desktop.locator('#resume').click();
+  // Reached by Tab, the slider keeps focus while the arrow keys step it.
+  await desktop.locator('#zoom-in').focus(); await desktop.keyboard.press('Tab');
+  await desktop.keyboard.press('ArrowLeft');
+  assert.deepEqual(await desktop.evaluate(() => [document.activeElement.id, document.querySelector('#game-speed').value]), ['game-speed', '175'], 'Keyboard users keep the slider focused');
+  await desktop.keyboard.press('ArrowRight');
+  assert.deepEqual(await desktop.evaluate(() => [document.activeElement.id, document.querySelector('#game-speed').value]), ['game-speed', '200']);
   await desktop.reload(); await desktop.waitForFunction(() => window.ashline?.booted);
   assert.equal(await desktop.locator('#game-speed').inputValue(), '200', 'Game speed persists');
   assert.equal(await desktop.locator('#edge-scroll-toggle').getAttribute('aria-pressed'), 'false', 'Edge scrolling preference persists');
