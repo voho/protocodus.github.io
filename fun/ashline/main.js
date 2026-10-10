@@ -183,12 +183,12 @@ function jumpToAlert() {
   centerOn(alerts[alertCursor]);
 }
 function centerOn(point) { view.x = point.x; view.y = point.y; clampCamera(); }
-function centerOnSelection() {
-  const selection = selectedEntities();
-  if (!selection.length) return;
-  const points = selection.map(entityCenter);
+function centerOnGroup(entities) {
+  if (!entities.length) return;
+  const points = entities.map(entityCenter);
   centerOn({ x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: points.reduce((sum, p) => sum + p.y, 0) / points.length });
 }
+function centerOnSelection() { centerOnGroup(selectedEntities()); }
 // Alert pings sit on top of the renderer's tactical map, which redraws its overlay every frame.
 function drawAlertPings(now) {
   if (!alerts.length || !renderer.minimapBase) return;
@@ -297,7 +297,9 @@ async function reset(prepared, restored) {
     // Mineral material is immutable; only previously explored deposits have known colors.
     renderer.knownMineralTypes = Uint8Array.from(game.mineralTypes, (type, i) => game.explored[0][i] ? type : 0);
   }
-  setConsole(!compactScreen.matches && !matchMedia('(pointer: coarse)').matches);
+  // Desktop opens the console, unless the operation clears nothing to build, recruit or research.
+  const cleared = buildTypes.some(role => missionAllows(game, 0, 'buildings', role)) || unitTypes.some(role => missionAllows(game, 0, 'units', role)) || Object.keys(RESEARCH).some(id => missionAllows(game, 0, 'research', id));
+  setConsole(cleared && !compactScreen.matches && !coarsePointer.matches);
   centerBase();
   if (restored?.view) Object.assign(view, restored.view);
   view.zoom = restored?.view?.zoom ? nearestZoom(view.zoom, cameraLevels()) : cameraLevels()[preferredZoomIndex]; clampCamera(); updateZoomLabel();
@@ -306,8 +308,9 @@ async function reset(prepared, restored) {
 
 function centerBase() {
   const core = game.entities.find(e => e.team === 0 && buildingRole(e) === 'core' && e.hp > 0) || game.entities.find(e => e.team === 0 && e.kind === 'unit' && unitRole(e) === 'constructor' && e.hp > 0);
-  if (core) { const c = entityCenter(core); view.x = c.x + 3; view.y = c.y - 1; }
-  clampCamera();
+  if (core) { const c = entityCenter(core); view.x = c.x + 3; view.y = c.y - 1; clampCamera(); }
+  // A strike team with no claim on the field (Dead Signal) is the base.
+  else centerOnGroup(game.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0));
 }
 
 function clampCamera() {

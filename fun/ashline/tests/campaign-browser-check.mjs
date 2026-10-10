@@ -2,9 +2,10 @@
 // Plays Landfall and Hold the Line from the briefing with real commands through window.ashline and the
 // game's own modules: campaign tab, loading line, pre-start pause, objective tracker, transmissions,
 // victory debrief with medals, Next operation, persistence across a reload, the Field archive, queued
-// transmissions and the pause-menu Retry in Signal in the Ash, a skirmish mode that starts unpaused, Relay
-// control with a chosen rival commander and its mode restored from a save, and the desktop, phone and
-// landscape-phone layouts of the tracker beside the message log, idle buttons and comms line.
+// transmissions and the pause-menu Retry in Signal in the Ash, an operation loaded without touching the skirmish
+// setup and retried at its own Opposition, a skirmish mode that starts unpaused, Relay control with a chosen rival
+// commander and its mode restored from a save, the desktop, phone and landscape-phone layouts of the tracker
+// beside the message log, idle buttons and comms line, a debrief that opens on its title, and Dead Signal's camera.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -290,6 +291,27 @@ try {
   await landscape.screenshot({ path: `${output}/campaign-landscape-debrief.png` });
   await landscape.close();
 
+  // Dead Signal fields a strike team and no base: the camera opens on the team and Space returns to it, and the
+  // console stays closed because the operation clears nothing to build, recruit or research.
+  const strike = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(strike);
+  await strike.goto(url); await ready(strike);
+  await strike.evaluate(() => localStorage.setItem('ashline.campaign.v1', JSON.stringify({ version: 1, missions: Object.fromEntries(['landfall', 'hold-the-line', 'signal-in-the-ash', 'convoy', 'red-ledger'].map(id => [id, { plays: 1, wins: 1 }])), tab: 'campaign', selected: 'dead-signal' })));
+  await strike.reload(); await ready(strike);
+  await strike.locator('#campaign-start').click(); await prestart(strike);
+  const team = () => strike.evaluate(() => { const r = ashline.renderer, units = ashline.state.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0); return { units: units.length, shown: units.filter(e => { const p = r.worldToScreen(e.x, e.y, ashline.view); return p.x > 0 && p.y > 0 && p.x < r.width && p.y < r.height; }).length }; });
+  assert.equal(await strike.evaluate(() => ashline.state.mission.id), 'dead-signal');
+  const opening = await team();
+  assert(opening.units >= 8 && opening.shown === opening.units, `The strike team starts on screen: ${JSON.stringify(opening)}`);
+  assert(await strike.locator('#command-console').isHidden(), 'With nothing cleared the console starts closed');
+  await strike.locator('#resume').click();
+  await strike.evaluate(() => { ashline.view.x = ashline.state.width - 20; ashline.view.y = 20; });
+  assert.equal((await team()).shown, 0);
+  await strike.locator('#world').focus(); await strike.keyboard.press('Space');
+  const back = await team();
+  assert.equal(back.shown, back.units, 'Space returns to the strike team');
+  await strike.screenshot({ path: `${output}/campaign-dead-signal.png` });
+  await strike.close();
+
   // Without browser storage the campaign still opens and launches; progress simply is not kept.
   const blocked = await browser.newPage({ viewport: { width: 1280, height: 800 } }); watch(blocked);
   await blocked.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage is blocked', 'SecurityError'); } }); });
@@ -300,5 +322,5 @@ try {
   assert.equal(await blocked.evaluate(() => ashline.state.mission.id), 'landfall');
   await blocked.close();
   assert.deepEqual(errors, []);
-  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, queued transmissions and pause-menu Retry, skirmish modes and their rival commander, HUD stacking on desktop, phone and landscape, and blocked storage. Screenshots: ${output}`);
+  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, queued transmissions and pause-menu Retry, announced transmissions and objective news, no order armed after Retry or Load, a loaded operation that keeps the skirmish setup and retries at its own Opposition, focus on the open tab's launch button, skirmish modes and their rival commander, HUD stacking on desktop, phone and landscape, a debrief that opens on its title, Dead Signal's camera and closed console, and blocked storage. Screenshots: ${output}`);
 } finally { await browser.close(); }
