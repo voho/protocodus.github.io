@@ -24,7 +24,7 @@ for(const role of ['harvester','constructor','unityConstructor','core','wall'])a
 assert.equal(new Set(Object.values(ABILITIES).map(a=>a.id)).size,7);
 assert.equal(abilityName('rifle'),'Dig in');assert.equal(abilityName('unityRifle'),'Brace protocol');assert.equal(abilityName('unityArtillery'),'Arc barrage');
 
-// Dig in: 35% less damage while holding still, for its duration only; any new order ends it.
+// Dig in: 35% less damage while holding still, for its duration only; Stop keeps it and a move order ends it.
 {
   const s=quiet('dig-in'),rifle=unit(s,'rifle',0,30.5,30.5),enemy=unit(s,'rifle',1,33.5,30.5);
   rifle.cooldown=999;enemy.cooldown=0;
@@ -38,6 +38,7 @@ assert.equal(abilityName('rifle'),'Dig in');assert.equal(abilityName('unityRifle
   assert.equal(s.events.at(-1).kind,'ability');assert.equal(s.events.at(-1).ability,'digIn');assert.equal(s.events.at(-1).text,'Rifle squad: Dig in');
   close(shot(),base*.65,'Dug-in squads take 65% damage');
   assert.deepEqual(useAbility(s,0,[rifle.id]),{ok:false,reason:'Ability recharging',used:[]});
+  stopUnits(s,[rifle.id]);assert(rifle.abilityUntil>s.time,'Stop keeps the squad dug in');
   rifle.hp=rifle.maxHp;issueOrder(s,[rifle.id],{type:'move',x:24.5,y:30.5});
   assert.equal(rifle.abilityUntil,undefined,'A move order ends Dig in');
   close(shot(),base,'Full damage after leaving the position');

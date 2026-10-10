@@ -242,9 +242,11 @@ export function decodeGame(text) {
 
 export function saveGame(game, view = {}, storage) {
   try {
-    const text = encodeGame(game, view);
-    (storage ?? globalThis.localStorage).setItem(SAVE_KEY, text);
-    return {ok: true, reason: '', savedAt: JSON.parse(text).savedAt};
+    const text = encodeGame(game, view), store = storage ?? globalThis.localStorage;
+    store.setItem(SAVE_KEY, text);
+    const savedAt = JSON.parse(text).savedAt;
+    writeSaveMeta(store, text, {seed: game.seed, difficulty: game.difficulty, time: game.time, savedAt});
+    return {ok: true, reason: '', savedAt};
   } catch (error) {
     return {ok: false, reason: error instanceof TypeError || ['SecurityError', 'QuotaExceededError'].includes(error?.name) ? 'Could not save. Browser storage is unavailable or full.' : error?.message || 'Could not save this operation.'};
   }
@@ -260,9 +262,32 @@ export function loadGame(storage) {
   }
 }
 
+// The menu shows the saved operation every time it opens. A small metadata entry, written after the
+// save itself, answers that without parsing and validating megabytes of state. It counts only while
+// it still describes the stored save (same length and header timestamp); otherwise, as for saves
+// written before it existed, the full decode answers and refreshes the entry.
+export const SAVE_META_KEY = `${SAVE_KEY}.meta`;
+const saveHeader = savedAt => `{"version":${VERSION},"savedAt":${JSON.stringify(savedAt)},`;
+function writeSaveMeta(store, text, {seed, difficulty, time, savedAt}) {
+  try { store.setItem(SAVE_META_KEY, JSON.stringify({seed, difficulty, time, savedAt, length: text.length})); }
+  catch { try { store.removeItem(SAVE_META_KEY); } catch { /* A stale entry is ignored by its length and header check. */ } }
+}
+function readSaveMeta(store, text) {
+  try {
+    const meta = JSON.parse(store.getItem(SAVE_META_KEY) ?? 'null');
+    if (!object(meta) || meta.length !== text.length || typeof meta.savedAt !== 'string' || !text.startsWith(saveHeader(meta.savedAt))) return null;
+    if (!label(meta.seed, 1000) || !['easy', 'normal', 'hard'].includes(meta.difficulty) || !number(meta.time, 0)) return null;
+    return {ok: true, reason: '', seed: meta.seed, difficulty: meta.difficulty, time: meta.time, savedAt: meta.savedAt};
+  } catch { return null; }
+}
+
 export function getSaveInfo(storage) {
+  let store, text;
+  try { store = storage ?? globalThis.localStorage; text = store.getItem(SAVE_KEY); } catch { /* loadGame reports the storage failure. */ }
+  if (typeof text === 'string') { const meta = readSaveMeta(store, text); if (meta) return meta; }
   const saved = loadGame(storage);
   if (!saved.ok) return saved;
   const {seed, difficulty, time} = saved.game;
+  writeSaveMeta(store, text, {seed, difficulty, time, savedAt: saved.savedAt});
   return {ok: true, reason: '', seed, difficulty, time, savedAt: saved.savedAt};
 }
