@@ -163,6 +163,11 @@ export const HUTS = {
    and the smoke both read it, because a plume that starts anywhere else is
    the kind of bug nobody spots for a week. */
 const CHIMNEY = { x: 1.75, y: 6.6, z: 0.9 };
+// The top of the terrace deck, and how far the stone base reaches below the
+// floor, both from the planting height; see the terrace and the plinth in
+// `hutGeometry`.
+const TERRACE_DECK = 0.55;
+const PLINTH_DEPTH = 4.595;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -202,6 +207,9 @@ function hutGeometry(THREE) {
   bank.computeVertexNormals();
 
   const stone = '#4a4d55';
+  // The cellar storey's rubble: paler and warmer than the chimney's slate,
+  // or two to four metres of it under a chalet reads as a dark pedestal
+  const masonry = '#6f6c67';
   const stoneDark = '#383b43';
   const timber = '#6d4a30';
   const beam = '#4a3221';
@@ -235,7 +243,21 @@ function hutGeometry(THREE) {
        one of these is built on. Levelling the building against the mean
        instead — which is what this did first — buried the uphill windows to
        the sill about a third of the time. */
-    { geo: box, color: stone, pos: [0, -2.02, 0], scale: [5.5, 5.15, 4.7] },
+    { geo: box, color: masonry, pos: [0, -2.02, 0], scale: [5.5, 5.15, 4.7] },
+    /* …and on the downhill side it stands two to four metres clear of the
+       snow, which is a storey: the cellar every real one has, with small
+       windows in the masonry on the three sides that are not dug into the
+       hill. Windows, not a door: the ground under them is anywhere from two
+       to four and a half metres down, and a door has to meet it. Whichever
+       of them a site buries is under the snow. */
+    { geo: box, color: beam, pos: [1.1, -0.8, 2.37], scale: [0.64, 0.5, 0.05] },
+    { geo: box, color: dark, pos: [1.1, -0.8, 2.385], scale: [0.48, 0.34, 0.04] },
+    { geo: box, color: beam, pos: [-1.3, -0.8, 2.37], scale: [0.64, 0.5, 0.05] },
+    { geo: box, color: dark, pos: [-1.3, -0.8, 2.385], scale: [0.48, 0.34, 0.04] },
+    { geo: box, color: beam, pos: [2.77, -0.8, 0.6], scale: [0.05, 0.5, 0.64] },
+    { geo: box, color: dark, pos: [2.785, -0.8, 0.6], scale: [0.04, 0.34, 0.48] },
+    { geo: box, color: beam, pos: [-2.77, -0.8, -1.5], scale: [0.05, 0.5, 0.64] },
+    { geo: box, color: dark, pos: [-2.785, -0.8, -1.5], scale: [0.04, 0.34, 0.48] },
     // Its foot just past the plinth's edge, its top inside the walls
     { geo: bank, color: drift, pos: [0, 0.765, 0], scale: [2.76 * Math.SQRT2, 0.47, 2.36 * Math.SQRT2] },
 
@@ -300,7 +322,7 @@ function hutGeometry(THREE) {
 
     // --- firewood -----------------------------------------------------------
     // The one part of the hut that says somebody is coming back to it
-    { geo: box, color: stoneDark, pos: [-3.15, -1.95, 0.5], scale: [1.15, 4.5, 2.2] },
+    { geo: box, color: masonry, pos: [-3.15, -1.95, 0.5], scale: [1.15, 4.5, 2.2] },
     { geo: log, color: split, pos: [-3.45, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: '#7a5636', pos: [-3.15, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
     { geo: log, color: split, pos: [-2.85, 0.42, 0.5], rot: [Math.PI / 2, 0, 0], scale: [0.28, 1.9, 0.28] },
@@ -641,9 +663,21 @@ function searchSite(b) {
 
       // Planted at its highest corner, with a hand's breadth over for the
       // true corners the four axis-aligned samples cannot see
-      const y = probe.base + probe.rise + 0.15;
+      let y = probe.base + probe.rise + 0.15;
       const cos = Math.cos(yaw);
       const sin = Math.sin(yaw);
+      /* The terrace runs four metres on up the hill from the front wall,
+         onto ground the shelf never sampled, and about a site in four had
+         snow standing over the front of its deck, the rail and boards cut
+         off by the slope. So the hut rises until the deck clears it by a
+         hand, and a site where that would lift the stone base to within
+         forty centimetres of the bottom of its lowest corner is refused:
+         a building on a plinth that stops short of the snow is floating. */
+      const at = (lx, lz) => heightAt(x + lx * cos + lz * sin, z - lx * sin + lz * cos);
+      const front = Math.max(at(-2.65, -4.4), at(0, -4.4), at(2.65, -4.4));
+      y = Math.max(y, front + 0.1 - TERRACE_DECK);
+      const low = Math.min(at(-2.75, -2.35), at(2.75, -2.35), at(-2.75, 2.35), at(2.75, 2.35));
+      if (y - PLINTH_DEPTH > low - 0.4) continue;
       return {
         key: b,
         x, y, z, yaw,
