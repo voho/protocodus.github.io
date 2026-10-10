@@ -1,11 +1,11 @@
 // Ashline opposition: a deterministic commander that plays one team through the public commands.
 // It reads the enemy only through current vision (seen, s.visible, impacts landing in its sight, its own
 // entities being struck), its own fog memory (ai.known, ai.miningSites) and the map's structural layout (both
-// starting anchors and where generation placed ore). Expansion sites and wall checks judge explored ground by
-// terrain, generated ore and its own and remembered footprints, never by s.blocked, s.regions or live ore
-// amounts under fog, which also reflect unseen enemy structures and mining; structures are placed through
-// placementCheck, which accepts only ground in current vision. Doctrines shape what it builds and where it
-// strikes; difficulty sets how fast it thinks and which skills it uses.
+// starting anchors, where generation placed ore and the lane chokepoints named in s.sites). Expansion sites
+// and wall checks judge explored ground by terrain, generated ore and its own and remembered footprints,
+// never by s.blocked, s.regions or live ore amounts under fog, which also reflect unseen enemy structures and
+// mining; structures are placed through placementCheck, which accepts only ground in current vision.
+// Doctrines shape what it builds and where it strikes; difficulty sets how fast it thinks and which skills it uses.
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
 import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
   random,unitStats,unitRange,powerStats,raceBuilding,raceUnit,placementCheck,placeBuilding,trainUnit,issueOrder,stopUnits,setUnitStance,
@@ -246,12 +246,16 @@ function rememberMiningSites(s,team,ai){
   }
   ai.miningSites=ai.miningSites.filter(site=>site.amount>100);
 }
+// A 3 × 3 nexus inside a lane gate, ford or pass would plug that lane for both sides.
+const CHOKEPOINTS=new Set(['gate','ford','pass']);
+const chokepoints=s=>(s.sites||[]).filter(site=>CHOKEPOINTS.has(site.kind));
+const inChoke=(chokes,p)=>chokes.some(site=>distance(p,site)<site.r+1.5);
 // Ore under fog counts where the sector's generated layout placed it (s.mineralTypes, which mining never
 // clears), so a field mined out unseen still reads as ore; only visible cells use the live amounts.
 function expansionGround(s,team,v,ore,origin){
-  const grid=fairGround(s,team,v),reach=fairReach(s,team,v,origin),explored=s.explored[team],visible=s.visible[team],W=s.width,candidates=[];
+  const grid=fairGround(s,team,v),reach=fairReach(s,team,v,origin),explored=s.explored[team],visible=s.visible[team],W=s.width,chokes=chokepoints(s),candidates=[];
   for(let y=Math.max(1,Math.floor(ore.y)-9);y<Math.min(s.height-4,ore.y+8);y++)for(let x=Math.max(1,Math.floor(ore.x)-9);x<Math.min(W-4,ore.x+8);x++){
-    const point={x:x+1.5,y:y+1.5},d=distance(point,ore);if(d<4.5||d>10)continue;
+    const point={x:x+1.5,y:y+1.5},d=distance(point,ore);if(d<4.5||d>10||inChoke(chokes,point))continue;
     let legal=true;
     for(let yy=y;yy<y+3&&legal;yy++)for(let xx=x;xx<x+3;xx++){
       const at=yy*W+xx;
@@ -317,8 +321,11 @@ function expandAI(s,team,ai,v,k,directive,pressed){
   if(Math.hypot(unit.x-plan.lastX,unit.y-plan.lastY)>1){plan.lastX=unit.x;plan.lastY=unit.y;plan.lastProgressAt=s.time;}
   const point={x:plan.x+1.5,y:plan.y+1.5};
   if(distance(unit,point)<4){
-    const candidates=[];
-    for(let y=Math.max(1,Math.floor(unit.y)-4);y<Math.min(s.height-3,unit.y+3);y++)for(let x=Math.max(1,Math.floor(unit.x)-4);x<Math.min(s.width-3,unit.x+3);x++)if(deploymentStatus(s,team,unit.id,x,y).ok)candidates.push({x,y,score:distance({x:x+1.5,y:y+1.5},point)});
+    // Ground clear of chokepoints comes first; a vehicle redeploying from wherever it stands may have no other.
+    const candidates=[],chokes=chokepoints(s);
+    for(let y=Math.max(1,Math.floor(unit.y)-4);y<Math.min(s.height-3,unit.y+3);y++)for(let x=Math.max(1,Math.floor(unit.x)-4);x<Math.min(s.width-3,unit.x+3);x++)if(deploymentStatus(s,team,unit.id,x,y).ok){
+      const at={x:x+1.5,y:y+1.5};candidates.push({x,y,score:distance(at,point)+(inChoke(chokes,at)?100:0)});
+    }
     candidates.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);
     const spot=candidates[0];
     if(spot){

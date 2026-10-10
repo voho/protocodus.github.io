@@ -351,6 +351,31 @@ test('expansion sites read ore under fog from the generated layout, never from l
   for(let y=intact.site.y;y<intact.site.y+3;y++)for(let x=intact.site.x;x<intact.site.x+3;x++)assert.equal(intact.s.mineralTypes[y*intact.s.width+x],0,'The planned nexus stays off generated ore');
 });
 
+test('nexus sites and deployments keep lane gates, fords and passes open',()=>{
+  const plan=sites=>{
+    const {s,unit,building,field}=scene();
+    for(let i=0;i<6;i++)unit('tank',52+i*1.2,14);
+    building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=5000;
+    s.ai.nextExpand=0;field(30,30);s.sites=sites;
+    think(s);return s.ai.expansion&&{x:s.ai.expansion.x+1.5,y:s.ai.expansion.y+1.5};
+  };
+  const open=plan([]);
+  assert(open,'A site is chosen beside the field');
+  const gate={id:'gate-0',kind:'gate',x:open.x,y:open.y,r:4.4,name:'Cinder Gate'};
+  const kept=plan([gate]);
+  assert(kept&&Math.hypot(kept.x-gate.x,kept.y-gate.y)>=gate.r+1.5,'The planned nexus stays out of the gate');
+  assert(Math.hypot(kept.x-30.5,kept.y-30.5)<=10,'and still sits beside the field');
+  assert.deepEqual(plan([{...gate,kind:'cover'}]),open,'Sites that are not chokepoints change nothing');
+  // A vehicle already at its site deploys beside a ford rather than in it.
+  const {s,core,unit,building,field}=scene();
+  building('barracks',50,4);building('factory',54,12);building('reactor',57,11);field(30,24);
+  const vehicle=unit('constructor',30.5,31.5),ford={id:'ford-0',kind:'ford',x:30.5,y:31.5,r:2,name:'Slag Ford'};
+  s.ai.expansion={x:29,y:30,oreX:30.5,oreY:24.5,unitId:vehicle.id,startedAt:0,lastProgressAt:0,lastX:vehicle.x,lastY:vehicle.y};s.sites=[ford];
+  think(s);
+  const nexus=s.entities.find(e=>e.team===1&&entityRole(e)==='core'&&e!==core);
+  assert(nexus&&Math.hypot(center(nexus).x-ford.x,center(nexus).y-ford.y)>=ford.r+1.5,'The vehicle deploys clear of the ford');
+});
+
 test('a wave outmatched only by a remembered tower regroups at a real point and stays saveable',()=>{
   for(const difficulty of ['normal','hard']){
     const {s,unit,remember}=scene({difficulty});
