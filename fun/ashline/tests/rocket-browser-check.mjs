@@ -131,15 +131,18 @@ try {
   await page.screenshot({path: `${output}/rocket-training.png`});
   await advance(page, setup.trainTime);
   assert(await page.evaluate(() => ashline.state.entities.some(e => e.team === 0 && e.type === 'rocket')));
-  await page.locator('#build-tab').click();
+  await page.locator('#build-tab').click(); await page.locator('.build-card[data-type="rocketTower"]').click();
+  // Frames report the new events first, so the chosen point is not under a fresh log line.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   const spot = await page.evaluate(async () => {
-    const {canPlace} = await import('./sim.js'), core = ashline.state.entities.find(e => e.team === 0 && e.type === 'core');
+    const {canPlace} = await import('./sim.js'), core = ashline.state.entities.find(e => e.team === 0 && e.type === 'core'), world = document.querySelector('#world'), r = world.getBoundingClientRect();
+    // The click must reach the battlefield, not the objective tracker or a log line's jump mark above it.
     for (let y = core.y - 10; y < core.y + 8; y++) for (let x = core.x - 2; x < core.x + 16; x++) {
-      const p = ashline.renderer.worldToScreen(x, y, ashline.view);
-      if (p.x > 40 && p.x < innerWidth - 280 && p.y > 130 && p.y < innerHeight - 150 && canPlace(ashline.state, 0, 'rocketTower', x, y).ok) return {x, y};
+      const p = ashline.renderer.worldToScreen(x, y, ashline.view), click = ashline.renderer.worldToScreen(x + .2, y + .2, ashline.view);
+      if (p.x > 40 && p.x < innerWidth - 280 && p.y > 130 && p.y < innerHeight - 150 && document.elementFromPoint(click.x + r.x, click.y + r.y) === world && canPlace(ashline.state, 0, 'rocketTower', x, y).ok) return {x, y};
     }
   });
-  assert(spot); await page.locator('.build-card[data-type="rocketTower"]').click(); await clickWorld(page, spot.x + .2, spot.y + .2);
+  assert(spot); await clickWorld(page, spot.x + .2, spot.y + .2);
   assert(await page.evaluate(() => ashline.state.entities.some(e => e.team === 0 && e.type === 'rocketTower' && e.progress < 1)));
   await advance(page, setup.buildTime + .2);
   assert(await page.evaluate(() => ashline.state.entities.some(e => e.team === 0 && e.type === 'rocketTower' && e.progress === 1)));
