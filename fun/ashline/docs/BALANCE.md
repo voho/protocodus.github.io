@@ -1,126 +1,203 @@
-# Race balance trials
+# Race and doctrine balance trials
 
-Final engine SHA-256: `faa214c6c62886503363f5e384fbae5d2a0d26b5891fd58ed8bf504b1f149963`. Trials recorded on 2026-09-08.
+Engine SHA-256: `64baa92bb28683a907332ea4a24aeabdb8d7ca818ef466b36f2b8c0559eb9af9`, over `sim.js`, `ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js` and `abilities.js` in that order. Trials recorded on 2026-10-10 with the doctrine commanders (Veteran difficulty).
 
-The final candidate completed **34 of 34 matches by destroying an opposing nexus**, with no time-limit draws: **Organics 16 wins, AI Unity 18 wins** (47.1%/52.9%). On Standard maps, Organics won **13/30** and AI Unity won **17/30** (56.7% Unity). The independent held-out set was 6–6 in Organics–Unity order. Larger-map checks were 3–1. These results describe this fixed AI policy and seed sample; they do not establish universal race balance for human play.
+The final commander decided **all 82 matches** under the Charter rule. In the 34 race trials **Organics won 27 and AI Unity 7** (20.6% Unity). On Standard maps Organics won 25 of 30, including 11 of 12 held-out games. Against Balanced, Swarm went 6–6, Prospector 7–5, Ironclad 8–4 and Siegebreaker 10–2. The race result is a real asymmetry under this commander, not noise; *Why AI Unity loses* below explains it and tests three candidate stat changes.
+
+These results describe this fixed commander policy and seed sample. They do not establish race balance for human play. They replace the previous trials, which measured an earlier commander (engine `faa214c6…`, 2026-09-08: Organics 16, AI Unity 18 of 34), and an interim run of this commander (engine `dd6ec7be…`) recorded before fixes to regroup points near remembered towers, commanders that lose every nexus, fog-fair expansion ground and Cadet columns. That run differed in 6 of the 82 matches, all by length except one: its only draw, Prospector against Balanced on BALANCE-VAULT-02, which reached the 2,400-second limit, is now a Prospector win at 527 seconds.
 
 ## Method
 
-`tests/race-balance.mjs` creates complete, untouched games with `difficulty: 'hard'`, `aiTeams: [0,1]`, and independent AI state and fog knowledge for each side. Both use full production pace, the same decision policy, normal initial credits, actual research and power systems, ordinary mining, and live combat. There are no forced attacks, free reinforcements, healed nexuses or victory scores in these trials.
+`tests/race-balance.mjs` creates complete, untouched games with `aiTeams: [0,1]`, independent commander state and fog knowledge for each side, normal starting credits, real research, power, mining and combat. There are no forced attacks, free reinforcements, healed nexuses or victory scores. Both sides run the same commander code; only the race (and, in doctrine trials, the doctrine) differs.
 
-Each seed/profile is played twice, swapping Organics and AI Unity between side 0 (lower-left) and side 1 (upper-right). Terrain and mineral reserves are point-symmetric. Side swaps remain necessary because placement choices, shared random-number ordering and movement tie breaks can still produce different battles. A win requires one live nexus and one actually destroyed nexus; a still-playing match at the limit is a draw.
+Each seed and profile is played with Organics and AI Unity swapped between side 0 (lower left) and side 1 (upper right). Doctrine trials (`--doctrines a,b`) also swap which race carries which doctrine, so every seed yields four games. A side wins under the Charter rule: the loser has neither a nexus nor a construction vehicle. A still-playing match at the time limit is a draw.
 
-All final runs used a **200-unit cap per team**, calls to `updateGame` every 0.25 simulated seconds (internally stepped at no more than 0.05 seconds), and a 2,400-second simulated limit. Army counts, nonnegative credits, peak composition, final composition, kills, research, grid status and economy samples were recorded. Simulation timings are host timings, not rendering benchmarks.
+All runs used Veteran (`--difficulty hard`) commanders, `updateGame` every 0.25 simulated seconds (stepped internally at no more than 0.05 seconds), a 2,400-second limit and the game's population rule (200 units per completed nexus, at most 2,000). Each match records the winner, length, peak and final army composition, research, raids, first-raid time, peak nexus count, haulers lost, seconds spent above 1,500 credits and minute-by-minute economy samples. Simulation timings are host timings, not rendering benchmarks.
 
-Calibration used three seeds × three profiles × both race orientations on Standard 144×112 maps (18 games). Combat statistics and prices were then frozen before the held-out batch: two fresh seeds × three profiles × both orientations (12 games). One additional fresh seed was run in both orientations on default Frontier 192×144 and Vast 224×168, using Rift (four games). All 34 final runs share the engine hash above.
+The harness now counts roles in null-prototype tallies, so the Organics `constructor` role no longer reads `Object.prototype.constructor` (which produced `NaN` peaks and garbage counts), and it takes the winner from the game status rather than from surviving nexuses, so a side that lost its last nexus but still drives a construction vehicle is no longer reported as beaten.
 
-## Results
+## Race results
+
+Calibration plays three seeds × three profiles × both race orientations on Standard 144×112 maps (18 games); the held-out batch plays two other seeds on the same three profiles (12 games). One further seed was played in both orientations on Frontier 192×144 and Vast 224×168 Rift (four games).
 
 | Batch | Matches | Organics wins | Unity wins | Draws | Unity win share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Standard calibration | 18 | 7 | 11 | 0 | 61.1% |
-| Standard held-out | 12 | 6 | 6 | 0 | 50.0% |
-| All Standard | 30 | 13 | 17 | 0 | 56.7% |
-| Frontier extension | 2 | 2 | 0 | 0 | 0.0% |
+| Standard calibration | 18 | 14 | 4 | 0 | 22.2% |
+| Standard held-out | 12 | 11 | 1 | 0 | 8.3% |
+| All Standard | **30** | **25** | **5** | **0** | **16.7%** |
+| Frontier extension | 2 | 1 | 1 | 0 | 50.0% |
 | Vast extension | 2 | 1 | 1 | 0 | 50.0% |
-| All final runs | 34 | 16 | 18 | 0 | 52.9% |
+| All race trials | **34** | **27** | **7** | **0** | **20.6%** |
 
 | Standard profile | Matches | Organics wins | Unity wins | Draws | Unity win share |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Rift | 10 | 6 | 4 | 0 | 40.0% |
-| Basin | 10 | 4 | 6 | 0 | 60.0% |
-| Highlands | 10 | 3 | 7 | 0 | 70.0% |
+| Rift | 10 | 8 | 2 | 0 | 20.0% |
+| Basin | 10 | 9 | 1 | 0 | 10.0% |
+| Highlands | 10 | 8 | 2 | 0 | 20.0% |
 
-Across all final runs, side 0 won 15 and side 1 won 19. The calibration Rift games all favored side 1, regardless of race; its three mirrored race pairs therefore split 3–3. The aggregate result must not be read as proof that every seed, profile, or starting side is equally favorable.
+Side 0 won 18 race trials and side 1 won 16. Standard games finished in 407.55–1,460.25 simulated seconds (median 613.65); Frontier and Vast games in 634.60–914.55. The largest army was 117 units on one side, so normal-economy matches still do not approach the population limit; `tests/capacity-check.mjs` and the browser population check cover that separately.
 
-Standard games finished in 309.35–911.40 simulated seconds (median 553.45). Frontier/Vast checks finished in 476.80–1036.05 seconds. The largest observed army was 54 units on one side. These normal-economy matches do **not** exercise the 200-unit limit; `tests/capacity-check.mjs` and the browser population check separately exercise 200+200 entities, queues, collisions, destinations and saves.
+### Why AI Unity loses
+
+The previous trials played a commander that filled fixed unit quotas (15 rifles, 8 rockets, 10 tanks and about 3.5 crawlers), so equal head counts met, and Unity's sturdier infantry carried 18 of 34 games while its price premiums mostly cost it tempo. The doctrine commander spends whatever it earns, so armies are bounded by income and cost efficiency decides. Per credit, every Unity combat unit delivers less Lanchester strength, measured as √(health × damage ÷ firing interval) ÷ cost:
+
+| Role | Organics credits | Unity credits | Unity strength per credit |
+| --- | ---: | ---: | ---: |
+| rifle | 80 | 90 | −11.5% |
+| rocket | 160 | 175 | −8.4% |
+| scout | 140 | 150 | −15.2% |
+| tank | 300 | 325 | −13.9% |
+| artillery | 380 | 410 | −14.1% |
+| striker | 260 | 280 | −12.4% |
+
+Unity pays for mobility: faster walkers, skimmers and drones. The commander moves each wave at its slowest member's pace, and Unity's infantry is the slower kind, so little of that premium becomes fighting value. The composition table below shows the result: apart from the single scout, Unity fields fewer units in every combat role.
+
+### Unity statistics experiments
+
+Scratch copies of the engine changed only `UNITY_UNITS` in `sim.js` and replayed the trial seeds. They are evidence for a statistics change, not results of the shipped engine, and they are not pooled with the tables above.
+
+| Variant | Change to AI Unity | Games | Unity wins |
+| --- | --- | ---: | ---: |
+| Shipped | none | 18 calibration + 12 held-out | 4 + 1 (16.7%) |
+| A | Needle cohort 80, Breach automaton 160 credits | 18 calibration + 12 held-out | 9 + 4 (43.3%) |
+| B | every combat unit at the Organic price | 18 calibration + 12 held-out | 7 + 4 (36.7%) |
+| C | B, plus vehicle health at per-unit parity: Veil skimmer 200, Bastion walker 541, Arc siege walker 274, Talon runner 320 | 18 calibration + 12 held-out | 9 + 6 (50.0%) |
+
+Every variant ran on this report's commander. That B, which cuts every price, scores below A, which cuts two, is within what 30 games can resolve: one game moves a share by 3.3 points. Variant C is the recommended starting point. It keeps Unity's speed profile and its sturdier, weaker-hitting infantry, but drops the price premium and gives its walkers the durability their lighter shells now cost, so the race description's "costlier" and "lighter machines" would need rewording. Any adopted change should rerun this whole set on fresh seeds.
+
+## Doctrine results
+
+Each doctrine played Balanced on the three calibration seeds (Standard Rift), with both race orientations and both doctrine assignments (12 games per doctrine). "First raid" is the mean time the doctrine's first wave left; "Bases" its mean peak nexus count; "Enemy haulers lost" the mean number of haulers Balanced lost.
+
+| Doctrine vs Balanced | Matches | Doctrine wins | Balanced wins | Draws | Doctrine win share | First raid (s) | Raids | Bases | Enemy haulers lost | Median length (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Swarm | 12 | 6 | 6 | 0 | 50.0% | 61 | 7.5 | 2.3 | 0.5 | 694 |
+| Ironclad | 12 | 8 | 4 | 0 | 66.7% | 220 | 1.2 | 1.3 | 0.4 | 505 |
+| Prospector | 12 | 7 | 5 | 0 | 58.3% | 163 | 1.5 | 2.2 | 0.6 | 456 |
+| Siegebreaker | 12 | 10 | 2 | 0 | 83.3% | 151 | 3.2 | 2.3 | 1.3 | 659 |
+
+Doctrine trials ran on Standard Rift only, 12 games per doctrine, so one game moves a share by about eight points. The race asymmetry shows here too: Organics won 39 of the 48 doctrine games, whichever doctrine it carried.
+
+Swarm raids first (a mean of 61 seconds) and most often (7.5 waves a game), and it trades evenly with Balanced. Ironclad and Prospector hold their first wave longest (220 and 163 seconds) and build more before they fight. Siegebreaker's 10–2 has a clear shape in a traced game (DUSK-03, Unity Balanced against Organics Siegebreaker): Balanced's first wave leaves at 100 seconds and meets Siegebreaker's whole home army beside its first sentry. Siegebreaker waits for two crawlers before it raids (151 seconds on average), wins that defensive exchange, then counterattacks a thinned base. Ironclad, which also raids late, shows a similar margin. These trials measure each doctrine only against Balanced, so they show that waiting beats Balanced's early raids. They do not rank the doctrines against each other. At the same difficulty, a Siegebreaker rival is harder to beat than a Balanced one.
 
 ## Army composition
 
-The table shows the mean of each role’s highest living count per match across the final 34 games. Peak counts for different roles need not occur at the same time; they must not be summed into a simultaneous army. Raw JSON retains each match’s exact race-specific type counts, final role composition and minute-by-minute economy/research samples.
+Mean of each role's highest living count per race trial (34 games). Peaks for different roles need not occur at the same time.
 
 | Role | Organics mean peak | Unity mean peak |
 | --- | ---: | ---: |
-| rifle | 15.00 | 15.00 |
-| rocket | 8.00 | 8.00 |
+| rifle | 10.06 | 9.00 |
+| rocket | 4.32 | 3.09 |
 | scout | 1.00 | 1.00 |
-| tank | 10.00 | 9.00 |
-| artillery | 3.53 | 3.12 |
-| harvester | 3.00 | 3.00 |
-| engineer | 0.85 | 0.50 |
-| striker | 0.00 | 0.00 |
+| tank | 8.85 | 6.44 |
+| artillery | 3.29 | 1.44 |
+| harvester | 5.85 | 4.94 |
+| engineer | 0.94 | 0.50 |
+| striker | 1.15 | 0.76 |
 
-## Candidate adjustments
+## Exact matches
 
-Early calibration exposed a Unity advantage: the first 18 complete trials split 3–15; infantry firepower/durability adjustment alone split 4–14. Faster Organic infantry also reached fights ahead of its heavy vehicles. A shared AI rally-and-wave travel policy improved cohesion for both races and changed that calibration to 5–13. Unity’s remaining combat-unit benefits were priced explicitly; its carriers and support economy retained their previous costs. The final 18-game calibration split 7–11. These development batches are **not** pooled with the final held-out results.
+Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are side 0/side 1, and peaks use the same order.
 
-Unity retains durable, slower robotic infantry and lighter, faster combat machines. Its final combat-unit prices are shown against Organics; the complete raw report also records health, damage, firing interval, speed, build costs and production times.
-
-| Combat role | Organics credits | Unity credits |
-| --- | ---: | ---: |
-| rifle | 80 | 90 |
-| rocket | 160 | 175 |
-| scout | 140 | 150 |
-| tank | 300 | 325 |
-| artillery | 380 | 410 |
-| striker | 260 | 280 |
-
-The final empty-field carrier retry optimization was checked against the preceding premium calibration: all 18 recorded simulation outcomes, finish times, army counts, composition, credits, research and samples reproduced exactly. Only host execution time changed. No combat or economy tuning was made after observing the held-out seeds.
-
-## Exact final matches
-
-Times are simulated seconds. O=Organics, U=AI Unity. A pairing is side 0/side 1; peaks use that same side order. Every listed result is a destroyed opposing nexus.
-
-| Batch | Size/profile | Seed | Pair | Winner | Side | Seconds | Peak units |
-| --- | --- | --- | --- | --- | ---: | ---: | --- |
-| calibration | standard/rift | BALANCE-CINDER-01 | O/U | AI Unity | 1 | 563.45 | 37/43 |
-| calibration | standard/rift | BALANCE-CINDER-01 | U/O | Organics | 1 | 506.25 | 39/54 |
-| calibration | standard/rift | BALANCE-VAULT-02 | O/U | AI Unity | 1 | 544.35 | 37/36 |
-| calibration | standard/rift | BALANCE-VAULT-02 | U/O | Organics | 1 | 562.55 | 34/39 |
-| calibration | standard/rift | BALANCE-DUSK-03 | O/U | AI Unity | 1 | 405.00 | 36/39 |
-| calibration | standard/rift | BALANCE-DUSK-03 | U/O | Organics | 1 | 432.95 | 37/47 |
-| calibration | standard/basin | BALANCE-CINDER-01 | O/U | Organics | 0 | 698.60 | 39/38 |
-| calibration | standard/basin | BALANCE-CINDER-01 | U/O | AI Unity | 0 | 448.10 | 39/34 |
-| calibration | standard/basin | BALANCE-VAULT-02 | O/U | AI Unity | 1 | 403.15 | 36/41 |
-| calibration | standard/basin | BALANCE-VAULT-02 | U/O | AI Unity | 0 | 751.80 | 37/39 |
-| calibration | standard/basin | BALANCE-DUSK-03 | O/U | Organics | 0 | 518.00 | 36/34 |
-| calibration | standard/basin | BALANCE-DUSK-03 | U/O | AI Unity | 0 | 494.90 | 39/34 |
-| calibration | standard/highlands | BALANCE-CINDER-01 | O/U | AI Unity | 1 | 543.65 | 41/40 |
-| calibration | standard/highlands | BALANCE-CINDER-01 | U/O | Organics | 1 | 598.05 | 37/39 |
-| calibration | standard/highlands | BALANCE-VAULT-02 | O/U | AI Unity | 1 | 451.75 | 37/40 |
-| calibration | standard/highlands | BALANCE-VAULT-02 | U/O | AI Unity | 0 | 911.40 | 38/40 |
-| calibration | standard/highlands | BALANCE-DUSK-03 | O/U | Organics | 0 | 689.75 | 39/38 |
-| calibration | standard/highlands | BALANCE-DUSK-03 | U/O | AI Unity | 0 | 450.90 | 40/37 |
-| holdout | standard/rift | HOLDOUT-EMBER-04 | O/U | Organics | 0 | 408.25 | 40/31 |
-| holdout | standard/rift | HOLDOUT-EMBER-04 | U/O | Organics | 1 | 432.95 | 34/43 |
-| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | O/U | Organics | 0 | 464.75 | 40/35 |
-| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | U/O | AI Unity | 0 | 859.60 | 42/42 |
-| holdout | standard/basin | HOLDOUT-EMBER-04 | O/U | Organics | 0 | 664.80 | 37/33 |
-| holdout | standard/basin | HOLDOUT-EMBER-04 | U/O | Organics | 1 | 309.35 | 30/40 |
-| holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | O/U | AI Unity | 1 | 600.45 | 38/38 |
-| holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | U/O | AI Unity | 0 | 727.35 | 39/38 |
-| holdout | standard/highlands | HOLDOUT-EMBER-04 | O/U | AI Unity | 1 | 567.30 | 36/37 |
-| holdout | standard/highlands | HOLDOUT-EMBER-04 | U/O | Organics | 1 | 705.10 | 39/40 |
-| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | O/U | AI Unity | 1 | 582.95 | 39/38 |
-| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | U/O | AI Unity | 0 | 811.00 | 41/38 |
-| extended | frontier/rift | EXTENDED-HORIZON-06 | O/U | Organics | 0 | 476.80 | 44/37 |
-| extended | frontier/rift | EXTENDED-HORIZON-06 | U/O | Organics | 1 | 1036.05 | 37/40 |
-| extended | vast/rift | EXTENDED-HORIZON-06 | O/U | AI Unity | 1 | 558.70 | 40/44 |
-| extended | vast/rift | EXTENDED-HORIZON-06 | U/O | Organics | 1 | 558.30 | 38/46 |
+| Batch | Size/profile | Seed | Races | Doctrines | Winner | Winning doctrine | Side | Seconds | Peak units |
+| --- | --- | --- | --- | --- | --- | --- | ---: | ---: | --- |
+| calibration | standard/rift | BALANCE-CINDER-01 | O/U | — | Organics | — | 0 | 599.50 | 40/15 |
+| calibration | standard/rift | BALANCE-CINDER-01 | U/O | — | Organics | — | 1 | 420.90 | 14/24 |
+| calibration | standard/rift | BALANCE-VAULT-02 | O/U | — | Organics | — | 0 | 415.70 | 24/14 |
+| calibration | standard/rift | BALANCE-VAULT-02 | U/O | — | Organics | — | 1 | 573.35 | 16/37 |
+| calibration | standard/rift | BALANCE-DUSK-03 | O/U | — | AI Unity | — | 1 | 470.80 | 17/34 |
+| calibration | standard/rift | BALANCE-DUSK-03 | U/O | — | AI Unity | — | 0 | 857.70 | 64/15 |
+| calibration | standard/basin | BALANCE-CINDER-01 | O/U | — | AI Unity | — | 1 | 981.65 | 21/69 |
+| calibration | standard/basin | BALANCE-CINDER-01 | U/O | — | Organics | — | 1 | 666.10 | 16/29 |
+| calibration | standard/basin | BALANCE-VAULT-02 | O/U | — | Organics | — | 0 | 881.20 | 33/14 |
+| calibration | standard/basin | BALANCE-VAULT-02 | U/O | — | Organics | — | 1 | 1126.65 | 17/24 |
+| calibration | standard/basin | BALANCE-DUSK-03 | O/U | — | Organics | — | 0 | 558.95 | 33/16 |
+| calibration | standard/basin | BALANCE-DUSK-03 | U/O | — | Organics | — | 1 | 700.00 | 16/25 |
+| calibration | standard/highlands | BALANCE-CINDER-01 | O/U | — | Organics | — | 0 | 780.95 | 47/37 |
+| calibration | standard/highlands | BALANCE-CINDER-01 | U/O | — | Organics | — | 1 | 484.95 | 15/39 |
+| calibration | standard/highlands | BALANCE-VAULT-02 | O/U | — | Organics | — | 0 | 575.35 | 36/16 |
+| calibration | standard/highlands | BALANCE-VAULT-02 | U/O | — | Organics | — | 1 | 534.25 | 15/26 |
+| calibration | standard/highlands | BALANCE-DUSK-03 | O/U | — | Organics | — | 0 | 498.50 | 36/18 |
+| calibration | standard/highlands | BALANCE-DUSK-03 | U/O | — | AI Unity | — | 0 | 613.65 | 70/15 |
+| holdout | standard/rift | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 1366.65 | 27/24 |
+| holdout | standard/rift | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 562.30 | 16/34 |
+| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 477.15 | 37/16 |
+| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | U/O | — | Organics | — | 1 | 1151.95 | 21/28 |
+| holdout | standard/basin | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 547.10 | 40/15 |
+| holdout | standard/basin | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 668.70 | 15/42 |
+| holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 407.55 | 22/15 |
+| holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | U/O | — | Organics | — | 1 | 712.60 | 17/27 |
+| holdout | standard/highlands | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 620.10 | 21/15 |
+| holdout | standard/highlands | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 1460.25 | 25/71 |
+| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 1268.05 | 52/17 |
+| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | U/O | — | AI Unity | — | 0 | 600.10 | 39/16 |
+| extended | frontier/rift | EXTENDED-HORIZON-06 | O/U | — | AI Unity | — | 1 | 634.60 | 15/31 |
+| extended | frontier/rift | EXTENDED-HORIZON-06 | U/O | — | Organics | — | 1 | 737.35 | 21/51 |
+| extended | vast/rift | EXTENDED-HORIZON-06 | O/U | — | Organics | — | 0 | 914.55 | 117/21 |
+| extended | vast/rift | EXTENDED-HORIZON-06 | U/O | — | AI Unity | — | 0 | 765.05 | 56/19 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Swarm/Balanced | Organics | Swarm | 0 | 544.50 | 38/17 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Balanced/Swarm | Organics | Balanced | 0 | 752.75 | 33/17 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Swarm/Balanced | Organics | Balanced | 1 | 222.70 | 18/18 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Swarm | AI Unity | Balanced | 0 | 596.00 | 32/20 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Swarm/Balanced | Organics | Swarm | 0 | 693.50 | 69/18 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Swarm | Organics | Balanced | 0 | 415.75 | 20/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Swarm/Balanced | AI Unity | Swarm | 0 | 722.30 | 109/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Swarm | Organics | Swarm | 1 | 856.25 | 16/95 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Swarm/Balanced | Organics | Swarm | 0 | 734.75 | 72/15 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Swarm | Organics | Balanced | 0 | 784.80 | 50/28 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Swarm/Balanced | Organics | Balanced | 1 | 246.55 | 22/18 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Balanced/Swarm | Organics | Swarm | 1 | 673.10 | 16/77 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Ironclad/Balanced | Organics | Ironclad | 0 | 472.20 | 24/15 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Balanced/Ironclad | Organics | Balanced | 0 | 414.70 | 23/16 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Ironclad/Balanced | Organics | Balanced | 1 | 736.25 | 15/46 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Ironclad | Organics | Ironclad | 1 | 429.90 | 15/25 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Ironclad/Balanced | Organics | Ironclad | 0 | 435.85 | 19/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Ironclad | AI Unity | Ironclad | 1 | 435.70 | 21/19 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Ironclad/Balanced | AI Unity | Ironclad | 0 | 929.85 | 17/23 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Ironclad | Organics | Ironclad | 1 | 398.50 | 17/18 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Ironclad/Balanced | Organics | Ironclad | 0 | 505.05 | 18/18 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Ironclad | Organics | Balanced | 0 | 592.20 | 24/16 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Ironclad/Balanced | Organics | Balanced | 1 | 781.55 | 18/51 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Balanced/Ironclad | Organics | Ironclad | 1 | 718.10 | 19/18 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 479.50 | 26/15 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 387.35 | 28/15 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Prospector/Balanced | AI Unity | Prospector | 0 | 349.20 | 15/21 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 419.90 | 15/45 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 527.30 | 29/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 456.40 | 36/15 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Prospector/Balanced | Organics | Balanced | 1 | 441.15 | 14/22 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 728.65 | 17/26 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 736.75 | 18/19 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 261.40 | 21/15 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Prospector/Balanced | Organics | Balanced | 1 | 293.20 | 15/26 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 713.40 | 19/21 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Siegebreaker/Balanced | Organics | Siegebreaker | 0 | 413.70 | 32/16 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Balanced/Siegebreaker | AI Unity | Siegebreaker | 1 | 556.20 | 18/24 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Siegebreaker/Balanced | Organics | Balanced | 1 | 735.40 | 22/62 |
+| doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Siegebreaker | Organics | Siegebreaker | 1 | 470.25 | 15/28 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Siegebreaker/Balanced | Organics | Siegebreaker | 0 | 665.90 | 49/15 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Siegebreaker | Organics | Balanced | 0 | 773.85 | 40/16 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Siegebreaker/Balanced | AI Unity | Siegebreaker | 0 | 957.30 | 78/26 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Siegebreaker | Organics | Siegebreaker | 1 | 659.00 | 17/43 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Siegebreaker/Balanced | Organics | Siegebreaker | 0 | 479.10 | 33/18 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Siegebreaker | AI Unity | Siegebreaker | 1 | 352.05 | 20/16 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Siegebreaker/Balanced | AI Unity | Siegebreaker | 0 | 754.75 | 43/17 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Balanced/Siegebreaker | Organics | Siegebreaker | 1 | 324.95 | 18/20 |
 
 ## Reproduce
 
-Run from `fun/ashline`. Each command writes standalone JSON with engine hash, parameter values, definition snapshots, individual matches and summary. The default profile selection includes all three profiles; `--profile rift|basin|highlands` can split the Standard batches into independent processes.
+Run from `fun/ashline`. Each command writes standalone JSON with the engine hash, parameters, definition snapshots, every match and a summary. `--profile rift|basin|highlands` splits a batch into independent processes; `--difficulty easy|normal|hard` (default `hard`) and `--doctrines a,b` select the commanders.
 
 ```sh
 node tests/race-balance.mjs --suite calibration --size standard --output /tmp/ashline-calibration.json
 node tests/race-balance.mjs --suite holdout --size standard --output /tmp/ashline-holdout.json
 node tests/race-balance.mjs --suite extended --size frontier --profile rift --output /tmp/ashline-frontier.json
 node tests/race-balance.mjs --suite extended --size vast --profile rift --output /tmp/ashline-vast.json
+node tests/race-balance.mjs --suite calibration --size standard --profile rift --doctrines swarm,balanced --output /tmp/ashline-swarm.json
 ```
 
-The [complete recorded results](balance-results.json) are included alongside this report, with configuration snapshots and economy/composition samples for every match. The commands above regenerate standalone JSON for each batch.
+The [complete recorded results](balance-results.json) hold every match with configuration snapshots, composition, research and economy samples.
 
 ## Limits
 
-This is a small deterministic sample of one shared AI policy, not an estimate across all possible human strategies. The AI does not deliberately design wall networks or seek crater cover, and it may favor some technology paths or unit mixes. Neither side produced advanced strikers in this final sample, so these matches do not establish that late-tech unit’s matchup balance. Walls, crater damage, research prerequisites, production upgrades, brownouts and race-specific save continuation have separate functional tests. The four larger-map games provide a travel-distance check, not a separate statistically broad balance result. Further changes to combat stats, AI movement, mineral flow, maps or power should rerun both orientations on new seeds as well as this regression set.
+This is a small deterministic sample of one commander policy at one difficulty. Both sides use the same code, so the trials expose unit and economy asymmetries between the races under that policy; they do not cover human strategies, Cadet or Commander tiers, scripted operations, or doctrine pairings other than each doctrine against Balanced. Walls, crater cover, research prerequisites, brownouts, abilities and race-specific save continuation have separate functional tests. Any change to combat statistics, prices, the commander, maps or power should rerun both orientations on fresh seeds as well as this set.

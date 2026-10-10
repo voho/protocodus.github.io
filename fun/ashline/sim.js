@@ -304,9 +304,9 @@ export function createGame(seed='ASH-001',difficulty='normal',options={}){
   // Profiles are keyed by AI team; newAI validates each profile's contents.
   if(aiProfiles===null||typeof aiProfiles!=='object'||Array.isArray(aiProfiles)||Object.keys(aiProfiles).some(key=>!aiTeams.map(String).includes(key)))throw new RangeError('Unsupported AI profiles');
   const N=W*H,level=['easy','normal','hard'].includes(difficulty)?difficulty:'normal';
-  const s={width:W,height:H,mapProfile:profile,seed:String(seed),difficulty:level,rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:newAI(level,aiProfiles[1])};
+  const s={width:W,height:H,mapProfile:profile,seed:String(seed),difficulty:level,rng:hash(seed),nextId:1,time:0,status:'playing',terrain:new Uint8Array(N),minerals:new Float32Array(N),mineralTypes:new Uint8Array(N),visible:[new Uint8Array(N),new Uint8Array(N)],explored:[new Uint8Array(N),new Uint8Array(N)],entities:[],teams:[{credits:1800,kills:0},{credits:1800,kills:0}],effects:[],events:[],navVersion:0,navBuilt:-1,blocked:new Uint8Array(N),fogClock:0,ai:newAI(level,aiProfiles[1],{seed:String(seed),team:1})};
   s.teams.forEach((team,index)=>{team.race=races[index];});s.aiTeams=[...aiTeams];
-  if(aiTeams.includes(0))s.aiByTeam={0:newAI(level,aiProfiles[0])};
+  if(aiTeams.includes(0))s.aiByTeam={0:newAI(level,aiProfiles[0],{seed:String(seed),team:0})};
   generateMap(s);
   const {start,end}=mapLayout(s);
   for(let team=0;team<2;team++){
