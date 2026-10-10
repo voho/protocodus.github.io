@@ -43,3 +43,26 @@ test('worker generation errors are surfaced without retrying on the main thread'
   await assert.rejects(generateOperation('ERROR', 'normal', options), /Invalid generated sector/);
   assert.equal(stopped, true);
 });
+
+test('the generation worker transfers typed grids instead of copying them', async t => {
+  const posted = [];
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'self');
+  Object.defineProperty(globalThis, 'self', { configurable: true, writable: true, value: { postMessage: (message, transfer) => posted.push({ message, transfer }) } });
+  t.after(() => { if (previous) Object.defineProperty(globalThis, 'self', previous); else delete globalThis.self; });
+  const { transferables } = await import(`../world-worker.js?test=${moduleId++}`);
+  for (const profile of ['highlands', 'ember']) {
+    const settings = { ...options, width: 144, height: 112, profile };
+    globalThis.self.onmessage({ data: { seed: 'TRANSFER', difficulty: 'hard', options: settings } });
+    const { message, transfer } = posted.at(-1), expected = createGame('TRANSFER', 'hard', settings);
+    assert.deepEqual(transfer, transferables(message.game));
+    for (const grid of [message.game.terrain, message.game.minerals, message.game.blocked, message.game.regions, ...message.game.visible, ...message.game.explored]) assert.ok(transfer.includes(grid.buffer), 'every typed grid is transferred');
+    assert.equal(new Set(transfer).size, transfer.length, 'each buffer is listed once');
+    // A real postMessage structured-clones with this transfer list: the page receives the same game and the
+    // worker's copies are detached.
+    const received = structuredClone(message, { transfer });
+    assert.deepEqual(received.game, expected);
+    assert.equal(message.game.terrain.byteLength, 0, 'worker grids are moved, not copied');
+  }
+  globalThis.self.onmessage({ data: { seed: 'BAD', difficulty: 'hard', options: { ...options, width: 1 } } });
+  assert.match(posted.at(-1).message.error, /Unsupported map dimensions/);
+});

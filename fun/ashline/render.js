@@ -1,6 +1,7 @@
 import { nextPaint } from './loading.js';
 import { drawSprite, drawSpriteShadow, drawProp, drawPropShadow, terrainImages, assetsReady, unitSpriteAngle } from './assets.js';
 import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, mapLayout, unitRank, unitRange, buildingRole, unitRole } from './sim.js';
+import { mapRoutes, PROFILE_RELIEF } from './terrain.js';
 
 const TILE = 32;
 const TEAM = [
@@ -666,7 +667,7 @@ export class Renderer {
       const detail = smoothNoise(x / 13, y / 13, seed + 9);
       const rusty = Math.max(0, smoothNoise(x / 31 + 4, y / 31, seed + 4) - .47) * 1.7;
       const c = broad * 30 + detail * 14, i = (y * base.width + x) * 4;
-      const profile = state.mapProfile, warm = profile === 'highlands' ? 4 : profile === 'basin' ? -3 : 0;
+      const warm = PROFILE_RELIEF[state.mapProfile]?.tint ?? 0;
       colors.data[i] = 41 + c + rusty * 38 + warm;
       colors.data[i + 1] = 44 + c + rusty * 8 + warm * .4;
       colors.data[i + 2] = 45 + c - rusty * 13 - warm * .6;
@@ -681,25 +682,25 @@ export class Renderer {
     const tint = this.fogTint.getContext('2d').createImageData(base.width, base.height);
     for (let i = 0; i < this.fogNoise.length; i++) { const n = this.fogNoise[i]; tint.data.set([10 + n * .65, 17 + n * .8, 24 + n, 255], i * 4); }
     this.fogTint.getContext('2d').putImageData(tint, 0, 0);
-    // Haul roads share the generator’s layout for both current maps and older saves; ruts only wear into open ground.
-    const { start, end, bend: routeBend } = mapLayout(state);
+    // Haul roads follow the generator's guaranteed routes for current maps and older saves; ruts only wear into open ground.
     const openTile = (x, y) => [0, 2, 5].includes(state.terrain[Math.floor(y) * state.width + Math.floor(x)]);
-    const road = (bend, offset = 0) => {
+    // Ruts sit beside the centreline along each route's local normal, so curved lanes keep parallel tracks.
+    const road = (points, offset = 0) => {
       ctx.beginPath();
-      for (let j = 0; j <= 120; j++) {
-        const t = j / 120, tx = start.x + (end.x - start.x) * t, ty = start.y + (end.y - start.y) * t + Math.sin(t * Math.PI) * bend;
-        const x = tx * TILE, y = ty * TILE + offset;
-        if (j === 0 || !openTile(tx, ty)) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
+      points.forEach((p, j) => {
+        const a = points[Math.max(0, j - 1)], b = points[Math.min(points.length - 1, j + 1)], l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const x = p.x * TILE - (b.y - a.y) / l * offset, y = p.y * TILE + (b.x - a.x) / l * offset;
+        if (j === 0 || !openTile(p.x, p.y)) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
     };
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    for (const bend of [-routeBend, 0, routeBend]) {
+    for (const { points } of mapRoutes(state)) {
       for (const [w, color] of [[42, '#1b20250a'], [33, '#141b210d'], [24, '#1b202511']]) {
-        road(bend); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+        road(points); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
       }
       for (const offset of [-8, 8]) {
-        road(bend, offset); ctx.strokeStyle = '#151b2126'; ctx.lineWidth = 3; ctx.stroke();
-        road(bend, offset - 2); ctx.strokeStyle = '#c4b3960d'; ctx.lineWidth = 1; ctx.stroke();
+        road(points, offset); ctx.strokeStyle = '#151b2126'; ctx.lineWidth = 3; ctx.stroke();
+        road(points, offset - 2); ctx.strokeStyle = '#c4b3960d'; ctx.lineWidth = 1; ctx.stroke();
       }
     }
     ctx.restore();
@@ -1631,7 +1632,8 @@ export class Renderer {
     const visible = state.visible?.[0], explored = state.explored?.[0];
     if (!this.miniTiles || this.miniTiles.width !== state.width) { this.miniTiles = document.createElement('canvas'); this.miniTiles.width = state.width; this.miniTiles.height = state.height; }
     const tiles = this.miniTiles.getContext('2d'), img = tiles.createImageData(state.width, state.height), data = img.data;
-    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [121, 119, 106], [69, 67, 58]];
+    // Ash, raised rock, basalt, lava, deadwood roots (warm grey-brown, so groves never read as rock walls), crater floors.
+    const palette = [[87, 94, 96], [139, 139, 130], [52, 59, 62], [237, 123, 34], [104, 92, 74], [69, 67, 58]];
     const ore = [[131, 213, 201], [131, 213, 201], [118, 183, 249], [247, 121, 153]];
     for (let i = 0; i < state.terrain.length; i++) {
       if (explored && !explored[i]) continue;
