@@ -132,6 +132,7 @@ const huts = await load('huts.js', ['hutGeometry', 'paneGeometry']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
 const rider = await load('riderModel.js',
   ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH']);
+const lampModule = await load('headlamp.js');
 const riderGeo = rider.buildGeometries(THREE);
 let riderTriangles = 0;
 for (const [key, geo] of Object.entries(riderGeo)) {
@@ -231,7 +232,11 @@ for (const [key, geo] of Object.entries(riderGeo)) {
     getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
   }) };
   const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
-  const model = rider.createRiderModel(headless, { apply: (m) => m });
+  const model = rider.createRiderModel(headless, {
+    apply: (m) => m,
+    // The headlamp draws into the same fog as everything else.
+    uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
+  });
   globalThis.document = prevDocument;
   const V = THREE.Vector3;
   const r = {
@@ -327,9 +332,57 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   for (const kind of [1, 2]) { r.grabKind = kind; run(30); }
   r.grab = 0; r.state = 'ride'; r.grounded = true; r.vel.set(0, 0, -6);
   run(60);
+
+  /* The headlamp, on a plane falling away down -z. Dark by day; at night the
+     beam lands where a ray dropped `drop` below the line of travel lands,
+     the lit fan lies its lift above the snow with the snow's own normal, and
+     the snowfall's shared uniforms carry the same level. */
+  {
+    const lamp = model.headlamp;
+    const grade = 0.3;
+    const height = (x, z) => grade * z;
+    r.world = { height };
+    r.normal = new V(0, 1, -grade).normalize();
+    r.heading = new V(0, 0, -1);
+    r.right = new V(1, 0, 0);
+    r.pos.set(0, 0, 0);
+    r.vel.set(0, -grade * 15, -15);
+    const camera = { position: new V(0, 3, 6) };
+    const night = (value, frames) => {
+      for (let i = 0; i < frames; i++) {
+        r.pos.addScaledVector(r.vel, dt);
+        r.pos.y = height(r.pos.x, r.pos.z);
+        camera.position.set(r.pos.x, r.pos.y + 3, r.pos.z + 6);
+        model.update(r, dt, { night: value, snow: 0.5 }, camera);
+      }
+    };
+    night(0, 30);
+    assert.ok(lamp.level < 0.002 && !lamp.beam.visible && !lamp.pool.visible
+      && lamp.uniforms.uLamp.value.w === 0, 'no lamp by day');
+    night(1, 120);
+    assert.ok(lamp.level > 0.99, 'the lamp is up at night: ' + lamp.level);
+    const d = lamp.debug();
+    assert.ok(d.hit, 'the beam reaches the snow');
+    const o = lamp.origin;
+    const hit = o.clone().addScaledVector(lamp.direction, d.distance);
+    assert.ok(Math.abs(hit.y - height(hit.x, hit.z)) < 0.05, 'the march ends on the snow');
+    const above = (o.y - height(o.x, o.z)) * r.normal.y;
+    const expect = above / Math.sin(lampModule.HEADLAMP.drop);
+    assert.ok(Math.abs(d.distance - expect) < expect * 0.1,
+      `the beam lands at ${d.distance}, a dropped ray at ${expect}`);
+    const fan = lamp.pool.children[0].geometry.attributes;
+    for (let i = 0; i < fan.position.count; i++) {
+      const lift = fan.position.getY(i) - height(fan.position.getX(i), fan.position.getZ(i));
+      assert.ok(Math.abs(lift - 0.1) < 1e-4, 'the lit fan lies on the snow');
+      const n = new V().fromBufferAttribute(fan.normal, i);
+      assert.ok(n.dot(r.normal) > 0.999, 'with the snow\'s normal');
+    }
+    assert.ok(lamp.uniforms.uLamp.value.clone().sub(new THREE.Vector4(o.x, o.y, o.z, lamp.level))
+      .length() < 1e-9, 'the snowfall sees the same lamp');
+  }
 }
 
-const { growCardSpruce, SPRUCE_LAYOUT } = await load('spruce.js');
+const { growCardSpruce, SPRUCE_LAYOUT, rootRing } = await load('spruce.js');
 const spec = { whorls: [7, 10], perWhorl: [4, 6], bareTo: 0.12,
   reach: 0.21, liftLow: -0.1, liftHigh: 0.5, droop: 0.3, snow: 0.65, spire: 1.5, flag: 0.25 };
 let treeTriangles = 0;
@@ -344,6 +397,25 @@ for (let i = 0; i < 20; i++) {
   assert.deepEqual(tree.attributes.position.array, again.attributes.position.array, 'seeded model stability');
 }
 assert.ok(treeTriangles <= 7354, 'crossing needle curtains stay within the original tree budget');
+
+// The forest beds every tree against the snow its buried root ring reaches
+// (props.js), from what `rootRing` says; the ring has to be exactly there.
+for (const h of [4, 12, 26]) {
+  const tree = growCardSpruce(THREE, 4242 + h, spec, h);
+  const own = tree.attributes.surfaceOwn.array;
+  const at = tree.attributes.position.array;
+  let reach = 0;
+  let depth = 0;
+  for (let i = 0; i < own.length; i++) {
+    assert.ok(own[i] >= 0, 'no solid-snow mound at the foot');
+    if (Math.abs(own[i] - 0.35) > 1e-6) continue;
+    reach = Math.max(reach, Math.hypot(at[i * 3], at[i * 3 + 2]));
+    depth = Math.max(depth, -at[i * 3 + 1]);
+  }
+  const ring = rootRing(h);
+  assert.ok(reach <= ring.reach * 1.01 && reach > ring.reach * 0.6, `root reach ${reach} within rootRing ${ring.reach}`);
+  assert.ok(Math.abs(depth - ring.depth) < 1e-6, `root depth ${depth} is rootRing's ${ring.depth}`);
+}
 
 // Snow replaces the photographed bough surface instead of adding a floating
 // copy. A heavier snow load must not double stems, polygons, or card seams.
@@ -408,6 +480,36 @@ assert.equal(baked.boundingBox.max.x, 5);
 const one = bakeTexturedGeometry(THREE, scene, 'part_1');
 assert.equal(valid('one node of a set', one), 12);
 assert.equal(one.boundingBox.min.x, 3, 'only the named node is baked');
+/* A scan proxy shipped faceted — one normal per face, made for a normal
+   map nobody loads — is baked smooth, while a box's edges, sharper than
+   the crease, stay as hard as they were. A geodesic sphere of 320 unwelded
+   faces given flat normals is such a proxy, a little coarser than the real
+   ones. */
+{
+  const ico = new THREE.Group();
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  geo.computeVertexNormals();   // unwelded, so these are its faces' own
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
+  ico.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial()));
+  const offRadial = (g) => {
+    const p = g.attributes.position, n = g.attributes.normal;
+    let worst = 0;
+    for (let i = 0; i < p.count; i++) {
+      const radial = new THREE.Vector3().fromBufferAttribute(p, i).normalize();
+      worst = Math.max(worst, radial.angleTo(new THREE.Vector3().fromBufferAttribute(n, i)));
+    }
+    return THREE.MathUtils.radToDeg(worst);
+  };
+  const flat = offRadial(geo);
+  const smooth = offRadial(bakeTexturedGeometry(THREE, ico));
+  assert.ok(flat > 5 && smooth < flat / 4, `faceted proxy smoothed: ${flat.toFixed(1)}° off the sphere → ${smooth.toFixed(1)}°`);
+  const box = baked.attributes.normal;
+  const authored = new THREE.BoxGeometry(1, 2, 3).attributes.normal;
+  for (let i = 0; i < authored.count; i++) {
+    assert.ok(Math.abs(box.getX(i) - authored.getX(i)) + Math.abs(box.getY(i) - authored.getY(i))
+      + Math.abs(box.getZ(i) - authored.getZ(i)) < 1e-6, 'a box keeps its hard edges');
+  }
+}
 
 /* The race gate and the sapling impostors. The gate's fabric must be the only
    thing that flutters, and pinned at both poles; each sapling is three cards

@@ -40,6 +40,7 @@ import {
   Rider, trickName, butterName, butterHalfTurns, CLEAN, SKETCHY, BAIL,
 } from './rider.js';
 import { createRiderModel } from './riderModel.js';
+import { createRiderShadow, RIDER_SHADOW_LAYER } from './riderShadow.js';
 import { createChaseCamera } from './camera.js';
 import { createRetro } from './retro.js';
 import { createShading } from './shading.js';
@@ -374,6 +375,7 @@ const flashWhite = new THREE.Color(1, 1, 1);
 const rider = new Rider(THREE, world);
 const model = createRiderModel(THREE, shading);
 scene.add(model.root, model.shadow, model.headlamp.beam, model.headlamp.pool);
+snowfall.shareLamp(model.headlamp.uniforms);
 shadowCasting(model.root);
 /* The blob is a fake shadow and stays out of the real one. Left in the pass
    it would cast a hard disc of its own onto the snow underneath it, and
@@ -382,6 +384,16 @@ shadowCasting(model.root);
    the rider is over a hollow the real shadow has fallen into. */
 model.shadow.castShadow = false;
 model.shadow.receiveShadow = false;
+/* And the rider casts into a shadow of their own, redrawn every frame at a
+   few millimetres a texel, rather than into the sun's 30 Hz map, where they
+   fell half a metre behind themselves on every other frame at speed — see
+   riderShadow.js. The sun's map still shadows the rider. */
+model.root.traverse((o) => {
+  if (!o.isMesh || o.userData.noShadow) return;
+  o.castShadow = false;
+  o.layers.enable(RIDER_SHADOW_LAYER);
+});
+const riderShadow = createRiderShadow(THREE, renderer, shading);
 
 const chase = createChaseCamera(THREE, camera);
 const audio = createAudio();
@@ -1544,7 +1556,7 @@ function frame(now) {
     // One write, and every material in the world agrees about the sky it is
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
-    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z), rider.pos);
     camera.getWorldDirection(canopyHeading);
     canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
     /* THE BISECT, applied after every system that writes these, so a switch
@@ -1666,6 +1678,8 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
+    // Where the rider is drawn, which between steps is not where they are
+    riderShadow.update(scene, model.root.position, camera, sky.shadowLevel);
     retro.render(scene, camera, !!keyLight()?.shadow.needsUpdate);
     pausedRendered = !running && !retro.animating;
   }

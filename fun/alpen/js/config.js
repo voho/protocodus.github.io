@@ -178,6 +178,48 @@ export const MIST = {
   floorRate: 2.2,    // per second — how fast the bank follows the descent
 };
 
+/* A hut's own light, in the hut's own frame: +y up from the corner it is
+   planted at, the front (door, windows, terrace) facing -z. See
+   `hutGeometry` in huts.js, which builds its glass from `glass` here, and
+   `FRAG_HUT_LIGHT` in shading.js, which lights the snow, the hut and the
+   rider with all of it.
+
+   Two lamps. The room's hangs under the ceiling and reaches the outside only
+   through the glass, so what it throws on the snow is the windows' own
+   shape, glazing bars and all, sharp near the wall and softening with range
+   by the lamp's size. The lantern on the terrace rail is small and in the
+   open. The terrace floor shadows both from the ground under it, and the
+   building shadows the lantern from everything behind it. Intensities are
+   three's own (radiance = albedo / π · I · cos / d²). Moonlit snow comes out
+   at about 0.06, so the lantern's light falls to the moon's three to four
+   metres out, and the windows' about seven metres past the glass; by
+   `range` either is under a tenth of it. */
+export const HUT_LIGHT = {
+  room: { at: [0.9, 2.6, 0.4], radius: 0.25, intensity: 60 },
+  lantern: { at: [2.3, 1.55, -4.35], radius: 0.1, intensity: 14 },
+  front: -2.25,          // the plane of the front glass
+  side: 2.65,            // and of the side window's
+  /* Each pane's centre and size in its own plane, u across and v up (u is x
+     on the front and z on the side), and whether it has a cross of glazing
+     bars through its centre. */
+  glass: {
+    front: [
+      { at: [0.35, 1.75], size: [0.98, 0.86], bars: true },
+      { at: [1.85, 1.75], size: [0.98, 0.86], bars: true },
+      // over the door, and standing proud of it
+      { at: [-1.3, 2.35], size: [0.72, 0.3], bars: false, proud: 0.04 },
+    ],
+    side: [{ at: [0.3, 1.75], size: [0.98, 0.86], bars: true }],
+  },
+  bar: 0.045,
+  terrace: { top: 0.55, x: [-2.65, 2.65], z: [-4.4, -2.2] },
+  // The building as the lantern sees it: its width, and a front face just
+  // inside the wall's, so the wall itself still catches the light
+  body: { x: [-2.65, 2.65], front: -2.1 },
+  range: 30,
+  colour: '#ffbe6e',
+};
+
 export const TERRAIN = {
   /* The hill's pitch, which is now a function of how far down it you are.
 
@@ -846,6 +888,59 @@ export const TERRAIN = {
     shoulder: 9,      // metres the edge of it blends over
   },
 
+  /* THE MOUNTAIN'S OWN FURNITURE, which it did not have.
+
+     Everything off the piste was built from domes and swells — knolls are a
+     squared dome, the boulder band two soft octaves of a metre, the walls a
+     Gaussian with smooth ribs — so the open mountain read as one material
+     poured over a mould: white, rounded and nowhere sharp. Three generators,
+     each living only where the ground it describes lives, and each weighed by
+     the chapter (see CHAPTERS in terrain.js) so a couloir is crag country and
+     a powder bowl is pillows.
+
+     `tors` are rock outcrops: steep-sided, flat-topped and broken in plan,
+     standing out of the bouldery band and studding the lower walls. One
+     candidate per `cell`, centred in the middle two fifths of it with a
+     radius of at most three tenths of a cell, so a tor never reaches past its
+     own cell and a sample need only ask the one cell it is in. `aspect` is
+     height over radius, so the biggest stand nearly eight metres. The
+     snowpack paints them by their own steepness, so the faces come out stone
+     and the tops keep their snow without anything being told to. The mesh
+     draws them rounder and lower as its cells widen (see `torAt`), so no
+     prop is planted on one: it would hang over the lowered rock.
+
+     `pillows` are the freerider's staircase: rounded mounds of snow over
+     buried boulders, half a metre to a metre high, scattered through the
+     powder band between the corduroy and the rocks — rideable, and fine
+     enough that the mesh only builds them where its cells can hold them.
+
+     `crests` sharpen the high walls into arêtes and couloirs: a ridged noise
+     (one minus the absolute value, squared) that is zero for the first dozen
+     metres past the lip and grows up the face, so the quarterpipe a rider can
+     reach is untouched and the skyline is serrated. Centred near zero, so the
+     walls stand roughly where they stood. */
+  tors: {
+    cell: 32,
+    chance: 0.42,
+    radius: [3, 7],
+    aspect: [0.55, 1.1],
+    stretch: [0.55, 1.0],
+    crag: 0.24,
+    seed: 9311,
+  },
+  pillows: {
+    cell: 9,
+    chance: 0.45,
+    radius: [1.6, 2.7],
+    rise: [0.22, 0.38],
+    seed: 9377,
+  },
+  crests: {
+    amp: 18,
+    fine: 6,
+    seed: 9431,
+  },
+
   /* Side hits: a wind lip beside the corduroy, one gate slot in `1/chance`
      at most. See the long note above `sideHitFor` in terrain.js.
 
@@ -935,49 +1030,6 @@ export const TERRAIN = {
      fifty-metre panels while it is still visible. */
   behind: 560,
   behindGrowth: 1.11,
-  /* Rebuilding a graded grid in one frame makes every distant facet choose a
-     new normal and colour at once. Preserve the old world-space surface, then
-     converge it on the new sampling lattice over a few frames. The terrain
-     around the board is exact immediately; only the distant LOD morphs.
-
-     `morphRate` has to be read against how often the anchor moves, and for a
-     long time it was not. At 8 per second the glide has a time constant of a
-     hundred and twenty-five milliseconds; the anchor used to move every three
-     metres, which at riding speed is every seventy-five. The far field
-     therefore never converged — it spent the entire run in motion, chasing a
-     target that was replaced before it arrived, and on a flat-shaded mesh that
-     is a skyline whose serrations visibly crawl.
-
-     The anchor now moves every six metres (see `stride` in terrain.js) and
-     this is fast enough to settle inside that window: a forty-millisecond
-     constant is four frames, so the far field arrives, sits still, and is then
-     disturbed once rather than continuously. It is not so fast that it becomes
-     the pop it exists to prevent — four frames of glide is still a glide, and
-     everything doing it is past a hundred and eighty metres and half dissolved
-     in haze by the time it moves at all. */
-  morphNear: 72,
-  morphFar: 240,
-  morphRate: 26,
-  /* HOW LONG THE GLIDE IS ALLOWED TO RUN, and it was costing more than
-     everything else in the frame put together.
-
-     `morphRate: 26` is a time constant of 38 ms, so the glide is converged
-     to within a third of a per cent after about six of them. This was one
-     full second — so for eight hundred milliseconds of every anchor the
-     loop went on lerping eighty-one thousand vertices by sixteen floats
-     each, a million and a third of lerps a frame, towards values they had
-     already reached; and because the update range it publishes always spans
-     the whole lattice, it also re-uploaded six and a third megabytes of
-     attribute buffer every one of those frames.
-
-     Worse, it never got to finish. The anchor re-arms every eight fine
-     cells — six metres — which at riding speed is about four times a
-     second, so a one-second settle meant `morphing` was true in 99% of all
-     frames and the mountain was permanently paying its worst case. At 0.22 s
-     the glide still runs nearly six time constants, which is visually
-     complete, and then stops. Profiled at 3.98 ms/frame of pure self time
-     before this, the largest single cost in the game. */
-  morphSettle: 0.22,
 
   /* THE MOUNTAIN'S SHADOW ON ITSELF, worked out rather than drawn.
 

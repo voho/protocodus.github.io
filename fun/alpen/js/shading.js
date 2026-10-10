@@ -7,7 +7,8 @@
    continuous; the former fixed-grid vertex snap and stepped light bands have
    intentionally been retired. */
 
-import { RENDER, MIST, TERRAIN } from './config.js';
+import { RENDER, MIST, TERRAIN, HUT_LIGHT } from './config.js';
+import { RIDER_SHADOW_SIZE } from './riderShadow.js';
 
 // The height the shade field's second layer sits at — see `FRAG_SHADE`.
 // The torus is 5 tiles across the run and 6 along it (the extra one
@@ -272,6 +273,10 @@ const FRAG_PARS = `
 varying vec3 vN64View;
 varying float vN64Ice;
 varying float vN64Sheen;
+uniform vec3 uFocusView;
+uniform sampler2D uRiderShadowMap;
+uniform mat4 uRiderShadowMatrix;
+uniform float uRiderShadowLevel;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyMid;
 uniform vec3 uSkyHorizon;
@@ -655,6 +660,145 @@ const FRAG_CANOPY = `
     }
   }`;
 
+/* THE HUTS' OWN LIGHT: the room's lamp through the glass and the lantern
+   on the terrace rail, for each hut standing. The model and its numbers are
+   `HUT_LIGHT` in config.js; the uniforms belong to huts.js, which writes
+   where each hut stands and which way it faces, and the lamps' colour
+   already scaled by the night, so by day the colour is zero and nothing
+   below runs.
+
+   It is evaluated per pixel in the material, in the hut's own frame,
+   rather than drawn on top. What it replaces was a painted gradient on an
+   eighteen-metre quad laid flat at one point of a curved bank: on the convex
+   lip a hut stands on, its rim hovered up to a few metres off the snow and
+   the glow read as an orange slab across the terrace stilts. In here the
+   light lies on whatever surface is drawn, at any range and on any lattice,
+   and falls off the way light does, with distance and with the angle it
+   arrives at, so it rakes across the snow's relief as well as its slope.
+
+   The windows are apertures. The line from a receiver to the room's lamp
+   crosses the glass plane at one point; the lamp's disc, seen from the
+   receiver, covers a patch of that plane that grows with the receiver's
+   distance, and how much of that patch falls inside the pane is how much of
+   the lamp the receiver sees. That one ratio is the penumbra: crisp on the
+   terrace boards, soft out on the slope, with nothing blurred. The terrace
+   floor and the building's front are the same test against an occluder
+   instead of an opening. */
+const hutVec3 = (a) => `vec3(${a.map(asFloat).join(', ')})`;
+const hutPanes = (list) => list.map((p) => {
+  const rect = [p.at[0] - p.size[0] / 2, p.at[1] - p.size[1] / 2,
+    p.at[0] + p.size[0] / 2, p.at[1] + p.size[1] / 2];
+  // A pane without bars puts its crossing far outside itself
+  const bars = p.bars ? p.at : [-99, -99];
+  return `n64HutGlass(n64C, n64H, vec4(${rect.map(asFloat).join(', ')}), `
+    + `vec2(${bars.map(asFloat).join(', ')}))`;
+}).join('\n          + ');
+const HUT_RANGE2 = asFloat(HUT_LIGHT.range ** 2);
+
+/* Exported because the snow in the air takes the same light: a flake has no
+   face to turn, so a shader that defines N64_HUT_ISO is lit by whatever
+   reaches it from either lamp, whichever way it came. */
+export const HUT_LIGHT_GLSL = `
+uniform vec4 uHutAt[3];
+uniform vec2 uHutAxis[3];
+uniform vec3 uHutWarm;
+// The share of [a - h, a + h] that lies inside [lo, hi]
+float n64HutSpan(float a, float h, float lo, float hi) {
+  return clamp((min(a + h, hi) - max(a - h, lo)) / (2.0 * h), 0.0, 1.0);
+}
+float n64HutGlass(vec2 c, float h, vec4 pane, vec2 bars) {
+  return n64HutSpan(c.x, h, pane.x, pane.z) * n64HutSpan(c.y, h, pane.y, pane.w)
+    * (1.0 - n64HutSpan(c.x, h, bars.x - ${asFloat(HUT_LIGHT.bar / 2)}, bars.x + ${asFloat(HUT_LIGHT.bar / 2)}))
+    * (1.0 - n64HutSpan(c.y, h, bars.y - ${asFloat(HUT_LIGHT.bar / 2)}, bars.y + ${asFloat(HUT_LIGHT.bar / 2)}));
+}
+// How much of a lamp the terrace floor leaves a receiver underneath it
+float n64HutTerrace(vec3 p, vec3 lamp, float r) {
+  if (p.y > ${asFloat(HUT_LIGHT.terrace.top - 0.03)}) return 1.0;
+  float t = (${asFloat(HUT_LIGHT.terrace.top)} - p.y) / (lamp.y - p.y);
+  vec2 c = mix(p.xz, lamp.xz, t);
+  float h = max(r * t, 0.002);
+  return 1.0
+    - n64HutSpan(c.x, h, ${asFloat(HUT_LIGHT.terrace.x[0])}, ${asFloat(HUT_LIGHT.terrace.x[1])})
+    * n64HutSpan(c.y, h, ${asFloat(HUT_LIGHT.terrace.z[0])}, ${asFloat(HUT_LIGHT.terrace.z[1])});
+}
+// The irradiance on a receiver at cameraPosition + view, facing nW
+vec3 n64HutLight(vec3 view, vec3 nW) {
+  const vec3 room = ${hutVec3(HUT_LIGHT.room.at)};
+  const vec3 lantern = ${hutVec3(HUT_LIGHT.lantern.at)};
+  float e = 0.0;
+  for (int i = 0; i < 3; i++) {
+    if (uHutAt[i].w <= 0.0) continue;
+    vec3 d = (cameraPosition - uHutAt[i].xyz) + view;
+    float r2 = dot(d.xz, d.xz);
+    if (r2 > ${HUT_RANGE2}) continue;
+    vec2 ax = uHutAxis[i];
+    vec3 p = vec3(ax.x * d.x - ax.y * d.z, d.y, ax.y * d.x + ax.x * d.z);
+    vec3 n = vec3(ax.x * nW.x - ax.y * nW.z, nW.y, ax.y * nW.x + ax.x * nW.z);
+    float fade = r2 / ${HUT_RANGE2};
+    fade = 1.0 - fade * fade;
+    fade *= fade;
+
+    vec3 toRoom = room - p;
+#ifdef N64_HUT_ISO
+    float roomNL = length(toRoom);
+#else
+    float roomNL = dot(n, toRoom);
+#endif
+    if (roomNL > 0.0) {
+      float glass = 0.0;
+      float dp = ${asFloat(HUT_LIGHT.front)} - p.z;
+      if (dp > 0.0) {
+        float t = dp / (dp + ${asFloat(HUT_LIGHT.room.at[2] - HUT_LIGHT.front)});
+        vec2 n64C = mix(p.xy, room.xy, t);
+        float n64H = max(${asFloat(HUT_LIGHT.room.radius)} * t, 0.002);
+        glass += ${hutPanes(HUT_LIGHT.glass.front)};
+      }
+      float ds = p.x - ${asFloat(HUT_LIGHT.side)};
+      if (ds > 0.0) {
+        float t = ds / (ds + ${asFloat(HUT_LIGHT.side - HUT_LIGHT.room.at[0])});
+        vec2 n64C = mix(p.zy, room.zy, t);
+        float n64H = max(${asFloat(HUT_LIGHT.room.radius)} * t, 0.002);
+        glass += ${hutPanes(HUT_LIGHT.glass.side)};
+      }
+      if (glass > 0.0) {
+        float d2 = dot(toRoom, toRoom);
+        e += ${asFloat(HUT_LIGHT.room.intensity)} * glass
+          * n64HutTerrace(p, room, ${asFloat(HUT_LIGHT.room.radius)})
+          * roomNL * inversesqrt(d2) / d2 * fade;
+      }
+    }
+
+    vec3 toLamp = lantern - p;
+#ifdef N64_HUT_ISO
+    float lampNL = length(toLamp);
+#else
+    float lampNL = dot(n, toLamp);
+#endif
+    if (lampNL > 0.0) {
+      float vis = n64HutTerrace(p, lantern, ${asFloat(HUT_LIGHT.lantern.radius)});
+      float dz = p.z - ${asFloat(HUT_LIGHT.body.front)};
+      if (dz > 0.0) {
+        float t = dz / (dz + ${asFloat(HUT_LIGHT.body.front - HUT_LIGHT.lantern.at[2])});
+        vis *= 1.0 - n64HutSpan(mix(p.x, lantern.x, t),
+          max(${asFloat(HUT_LIGHT.lantern.radius)} * t, 0.002),
+          ${asFloat(HUT_LIGHT.body.x[0])}, ${asFloat(HUT_LIGHT.body.x[1])});
+      }
+      float d2 = max(dot(toLamp, toLamp), 0.04);
+      e += ${asFloat(HUT_LIGHT.lantern.intensity)} * vis
+        * lampNL * inversesqrt(d2) / d2 * fade;
+    }
+  }
+  return e * uHutWarm;
+}
+`;
+
+const FRAG_HUT_LIGHT = `
+  if (uHutWarm.r > 0.0) {
+    reflectedLight.directDiffuse += diffuseColor.rgb * RECIPROCAL_PI
+      * n64HutLight(vN64View * mat3(viewMatrix),
+        inverseTransformDirection(normal, viewMatrix));
+  }`;
+
 /* Recover the light-loop shadow before adding the snow response. */
 function lightPatch(sheen) {
   return FRAG_SUN
@@ -696,6 +840,20 @@ const FRAG_FOG = `
   {
     float n64Dist = length(vN64View);
     float n64Fog = smoothstep(uFogNear, uFogFar, n64Dist * uFogPull);
+    /* CLEAR AIR IS CLEAR. The curtain has to close by the far edge of the
+       ground, but between the two edges a plain smoothstep put a third of
+       the haze on a face three hundred metres off and two thirds at four
+       hundred — the walls along the run dissolved into the same blue-white
+       as their own snow while the painted massifs kilometres behind them
+       stood out crisp, which is aerial perspective backwards. Raised to a
+       power on a clear day the curve still starts at 0 and still ends at
+       exactly 1 at the same two ranges — the fully fogged early exit and
+       the seam against the massifs are untouched — but the middle distance
+       keeps its form: 16% at three hundred metres, about half at four
+       hundred. Falling snow fills the air evenly, so the storm dial takes
+       the clearing away again. */
+    float n64Clear = 1.0 - smoothstep(0.15, 0.65, uSnowFresh);
+    n64Fog = pow(n64Fog, 1.0 + 0.8 * n64Clear);
     /* Valley mist: the fog's height term. The radial curtain treats a hollow
        and a crest at the same range identically, which discards the one
        depth cue this terrain is actually made of. The mist is a bank with a
@@ -744,7 +902,7 @@ const FRAG_FOG = `
 
        The branch tests the blue factor, the largest of the three, or the
        nearest band of it would switch on with a step. */
-    float n64Air = 0.28 * (1.0 - smoothstep(0.15, 0.65, uSnowFresh));
+    float n64Air = 0.28 * n64Clear;
     vec3 n64FogRgb = pow(vec3(n64Fog),
       vec3(1.0 + n64Air, 1.0 + n64Air * 0.25, 1.0 - n64Air));
     if (n64FogRgb.b > 0.003) {
@@ -777,24 +935,46 @@ const FRAG_STREAM = `
 
 /* Camera collision can put the lens inside a conifer even after the boom has
    shortened as far as composition allows. Fade only the geometry inside a
-   small sphere around the lens; AlphaHash turns fractional coverage into
-   stable, depth-writing screen-door transparency without the sorting errors
-   blended instanced trees would introduce. */
-const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
-  diffuseColor.a *= smoothstep(2.2, 6.5, length(vN64View));`;
+   small sphere around the lens, and whatever stands on the line of sight to
+   the rider; AlphaHash turns fractional coverage into stable, depth-writing
+   screen-door transparency without the sorting errors blended instanced
+   trees would introduce.
 
-/* …and the hash that fade is paid for only runs where the fade exists.
+   The sphere used to be the whole rule, and 6.5 m across, which is further
+   than the rider stands from the lens (about 5.5 m on the chase boom). So
+   everything beside the rider was being dissolved: a knee-high juniper four
+   metres off, which the camera looks over, drew as a patch of static, and so
+   did the trunks along the run's edge. Without a temporal filter to average
+   it, a screen door half open is noise. Now the sphere is three metres, the
+   lens's own space, and the rider is kept clear by a capsule round the
+   sightline (`uFocusView`, the rider's chest in view space): anything on it
+   short of the rider dissolves, and anything more than 1.7 m off it is
+   left alone. The capsule lets go over the last stretch before the rider, so
+   nothing at the rider's own depth is cut.
+
+   The fade is taken in the hash test itself, not into the alpha before it.
+   It used to be multiplied in at the alpha map, ahead of the alpha test, and
+   the foliage materials run that test as alpha-to-coverage, which sharpens
+   alpha to nothing or everything at `alphaTest` before the hash ever sees
+   it. So on every spruce and sapling there was no screen door: the fade was
+   a hard clip where it crossed 0.36, a sphere about four metres round the
+   lens that cut boughs and trunks off in one frame as the camera came
+   through a crown, which is the pop the dither exists to prevent. The alpha
+   test now judges the texture's coverage alone and the hash dithers the
+   fade on top of it.
+
+   And the hash that fade is paid for only runs where the fade exists.
 
    `alphaHash` is switched on for every prop material that asks for the
    camera fade, which is all five of them — the forest, the low flora, the
    stone, the alpine timber and the spruce cards, i.e. the highest-overdraw
    surfaces in the scene. Three's chunk is not cheap: eight sines, screen
    derivatives of a vec3, two lengths and a handful of log2/exp2 per
-   fragment. And past 6.5 m it cannot do anything at all — the fade above is
-   exactly 1.0 there, so an opaque prop's alpha is 1.0 and the threshold,
-   which lives below 1, can never cut it.
+   fragment. And outside the sphere and the capsule it cannot do anything at
+   all — the fade is exactly 1.0 there, so an opaque prop's faded alpha is
+   1.0 and the threshold, which lives below 1, can never cut it.
 
-   The guard is on view distance rather than on alpha because it has to be
+   The guard is on the fade rather than on alpha because it has to be
    quad-coherent: `getAlphaHashThreshold` takes derivatives, and branching
    on a per-pixel alpha would leave them undefined on exactly the spruce
    cards this most needs to be correct on. At the boundary itself the fade
@@ -802,15 +982,22 @@ const FRAG_CAMERA_FADE = `#include <alphamap_fragment>
    either way.
 
    One honest consequence beyond the saving: the alpha-tested cards stop
-   being stochastically dithered at range. Inside 6.5 m the screen-door
-   fade is unchanged, which is what stops the documented hard pop; beyond
-   it their partial-coverage edges now resolve against `alphaTest` alone —
+   being stochastically dithered at range. Where the fade acts the screen
+   door is unchanged, which is what stops the documented hard pop; elsewhere
+   their partial-coverage edges now resolve against `alphaTest` alone —
    the same rule their depth material already uses — so distant foliage
    holds still instead of shimmering. */
 const FRAG_ALPHA_HASH = `
 #ifdef USE_ALPHAHASH
-  if ( length( vN64View ) < 6.5
-    && diffuseColor.a < getAlphaHashThreshold( vPosition ) ) discard;
+  {
+    float n64Along = dot( vN64View, uFocusView )
+      / max( dot( uFocusView, uFocusView ), 1e-4 );
+    float n64Off = length( vN64View - uFocusView * clamp( n64Along, 0.0, 1.0 ) );
+    float n64Keep = min( smoothstep( 1.0, 3.0, length( vN64View ) ),
+      mix( smoothstep( 0.7, 1.7, n64Off ), 1.0, smoothstep( 0.75, 0.92, n64Along ) ) );
+    if ( n64Keep < 1.0
+      && diffuseColor.a * n64Keep < getAlphaHashThreshold( vPosition ) ) discard;
+  }
 #endif`;
 
 /* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
@@ -971,13 +1158,37 @@ const FRAG_SHADE = `#include <lights_fragment_maps>
       reflectedLight.directDiffuse *= 1.0 - n64CloudShade;
       n64SunVis *= 1.0 - n64CloudShade;
     }
+  }
+  /* THE RIDER'S OWN SHADOW, redrawn every frame in a small map of its own —
+     see riderShadow.js. Looked up from the fragment's offset from the camera
+     (the matrix carries the camera's position), pushed a centimetre and a
+     half off the surface along its normal against acne, and filtered over
+     nine taps a texel and a half apart, which is a penumbra of about two
+     centimetres: what the sun's half degree gives a body a metre over the
+     snow. Taken off the direct light like the sun's own map, and off the
+     sun's visibility so the snow's reflected sun goes with it. */
+  if (uRiderShadowLevel > 0.001) {
+    vec3 n64RiderS = (uRiderShadowMatrix * vec4(vN64View * mat3(viewMatrix)
+      + inverseTransformDirection(normal, viewMatrix) * 0.015, 1.0)).xyz;
+    if (n64RiderS.x > 0.0 && n64RiderS.x < 1.0
+      && n64RiderS.y > 0.0 && n64RiderS.y < 1.0 && n64RiderS.z < 1.0) {
+      float n64RiderLit = 0.0;
+      for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+          n64RiderLit += step(n64RiderS.z - 0.00015, texture2DLodEXT(uRiderShadowMap,
+            n64RiderS.xy + vec2(float(i), float(j)) * ${asFloat(1.5 / RIDER_SHADOW_SIZE)}, 0.0).r);
+        }
+      }
+      float n64RiderK = 1.0 - (1.0 - n64RiderLit / 9.0) * uRiderShadowLevel;
+      reflectedLight.directDiffuse *= n64RiderK;
+      n64SunVis *= n64RiderK;
+    }
   }`;
 
 const SHADE_ANCHOR = '#include <lights_fragment_maps>';
 const LIGHT_ANCHOR = '#include <lights_fragment_end>';
 const GRADIENT_ANCHOR = '#include <clipping_planes_fragment>';
 const FOG_ANCHOR = '#include <fog_fragment>';
-const ALPHA_ANCHOR = '#include <alphamap_fragment>';
 const HASH_ANCHOR = '#include <alphahash_fragment>';
 
 export function createShading(THREE) {
@@ -1055,6 +1266,22 @@ export function createShading(THREE) {
        metres — see FRAG_STREAM. Parked far downhill until `props.js` writes
        it, so nothing is faded before the forest exists. */
     uStreamEdge: { value: new THREE.Vector2(-1e7, 100) },
+    // The rider's chest in view space, for the camera fade's sightline. Far
+    // down the lens until the first frame says otherwise.
+    uFocusView: { value: new THREE.Vector3(0, 0, -1e4) },
+    /* The rider's own shadow — see riderShadow.js, which owns all three.
+       Off until it has drawn one. */
+    uRiderShadowMap: { value: neutralCanopy },
+    uRiderShadowMatrix: { value: new THREE.Matrix4() },
+    uRiderShadowLevel: { value: 0 },
+    /* The huts' light — see FRAG_HUT_LIGHT. `huts.js` owns all three: each
+       standing hut's place (w is 1 while the slot holds a hut; one slot
+       for each of the HUTS.live it keeps standing) and the cosine and sine
+       of its yaw, and the lamps' colour scaled by the night. Black until
+       then, so nothing is lit by a hut by day. */
+    uHutAt: { value: [0, 1, 2].map(() => new THREE.Vector4(0, 0, 0, 0)) },
+    uHutAxis: { value: [0, 1, 2].map(() => new THREE.Vector2(1, 0)) },
+    uHutWarm: { value: new THREE.Color(0, 0, 0) },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -1063,8 +1290,9 @@ export function createShading(THREE) {
   /* Patch one material.
 
      `opts.sheen` controls how much crystalline snow response this surface
-     gets, `opts.fog` is false for additive surfaces, and `opts.cameraFade`
-     reserves a clear bubble around the lens for instanced vegetation.
+     gets, `opts.fog` is false for additive surfaces, `opts.cameraFade`
+     reserves a clear bubble around the lens for instanced vegetation, and
+     `opts.hutLight` lets the huts' lamps light it.
 
      `sheen` defaults to nothing, and that is the whole of the policy. Only
      the terrain asks for it. A spruce is not shiny, a hut wall is not shiny,
@@ -1095,6 +1323,7 @@ export function createShading(THREE) {
     const cameraFade = opts.cameraFade === true;
     const canopy = opts.canopy === true;
     const streamFade = opts.streamFade === true;
+    const hutLight = opts.hutLight === true;
     // Only the ground opts out, because the ground already has this per
     // vertex. Everything else that has a light loop to patch gets it.
     const wantShade = opts.shade !== false;
@@ -1118,10 +1347,8 @@ export function createShading(THREE) {
         .replace('#include <project_vertex>', `#include <project_vertex>${VERT_VIEW}`);
 
       let frag = shader.fragmentShader
-        .replace('#include <common>', `#include <common>${FRAG_PARS}`);
-      if (cameraFade && frag.indexOf(ALPHA_ANCHOR) !== -1) {
-        frag = frag.replace(ALPHA_ANCHOR, FRAG_CAMERA_FADE);
-      }
+        .replace('#include <common>',
+          `#include <common>${FRAG_PARS}${hutLight ? HUT_LIGHT_GLSL : ''}`);
       if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
         frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
@@ -1130,6 +1357,12 @@ export function createShading(THREE) {
       if (wantShade && frag.indexOf(SHADE_ANCHOR) !== -1) {
         frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE)
           .replace(GRADIENT_ANCHOR, `${FRAG_SHADE_GRADIENTS}${GRADIENT_ANCHOR}`);
+      }
+      // Inserted before the snow response so that it lands after it: that
+      // response divides the sun's own shadow back out of the direct light,
+      // and a lamp added ahead of it would read as the sun coming out.
+      if (hutLight && frag.indexOf(LIGHT_ANCHOR) !== -1) {
+        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_HUT_LIGHT}`);
       }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.
@@ -1151,7 +1384,7 @@ export function createShading(THREE) {
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}|${hutLight ? 'h' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 
@@ -1180,7 +1413,7 @@ export function createShading(THREE) {
      agreement with each material's diffuse lighting and shadowing. */
   let mistFloor = Number.NaN;
 
-  function update(w, camera, dt = 0, groundY = Number.NaN) {
+  function update(w, camera, dt = 0, groundY = Number.NaN, focus = null) {
     uniforms.uSkyZenith.value.copy(w.zenith);
     uniforms.uSkyMid.value.copy(w.mid);
     uniforms.uSkyHorizon.value.copy(w.horizon);
@@ -1252,6 +1485,9 @@ export function createShading(THREE) {
     camera.updateMatrixWorld();
     viewInv.copy(camera.matrixWorld).invert();
     uniforms.uSunView.value.copy(sunDir).transformDirection(viewInv);
+    if (focus) {
+      uniforms.uFocusView.value.set(focus.x, focus.y + 0.9, focus.z).applyMatrix4(viewInv);
+    }
     // Wrapped here, in doubles, so the shader never forms the big number.
     const cam = camera.matrixWorld.elements;
     const wrap64 = (v) => v - Math.floor(v / 64) * 64;
