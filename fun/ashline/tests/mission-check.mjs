@@ -216,6 +216,12 @@ delete MISSIONS['check-broken'];
     m=>{m.directives={2:{attack:null,defend:null,noExpand:false}};},m=>{m.directives={1:{attack:{x:-4,y:1},defend:null,noExpand:false}};},m=>{m.directives={1:{attack:null,defend:null,noExpand:'yes'}};},
   ]){const broken=JSON.parse(raw);corrupt(broken.game.mission);assert.throws(()=>decodeGame(JSON.stringify(broken)),'Mission progress is validated');}
   const tagged=JSON.parse(raw);tagged.game.entities[0].tag=7;assert.throws(()=>decodeGame(JSON.stringify(tagged)));
+  // Every zone the definition names is present (lookups by id would fail on the next step), and the next check
+  // never trails the clock, where checks would run on every step until they caught up.
+  const later=createGame('validate','normal',DRILL);advance(later,10);const midway=encodeGame(later);decodeGame(midway);
+  for(const corrupt of [m=>{m.zones=[];},m=>{m.zones.pop();},m=>{m.zones[0].id='elsewhere';},m=>{m.zones.reverse();},m=>{m.nextCheck=0;},m=>{m.nextCheck-=1;}]){
+    const broken=JSON.parse(midway);corrupt(broken.game.mission);assert.throws(()=>decodeGame(JSON.stringify(broken)),/damaged or incompatible/,'Mission zones and check times are validated');
+  }
 }
 
 // Identical commands give identical operations.

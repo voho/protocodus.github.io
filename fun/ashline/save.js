@@ -205,15 +205,17 @@ function validateGame(s) {
   if(s.mission!==undefined)validateMission(s,s.mission,point);
 }
 
-// Mission progress is plain data tied to its definition: objectives and triggers must match by id.
+// Mission progress is plain data tied to its definition: objectives, triggers and zones must match by id.
 function validateMission(s,m,point){
   valid(object(m)&&typeof m.id==='string'&&Object.hasOwn(MISSIONS,m.id));
-  const def=MISSIONS[m.id],span=Math.max(s.width,s.height);
+  const def=MISSIONS[m.id],span=Math.max(s.width,s.height),zones=def.zones||[];
   valid(Array.isArray(m.objectives)&&m.objectives.length===def.objectives.length&&m.objectives.every((o,i)=>object(o)&&o.id===def.objectives[i].id&&['active','done','failed'].includes(o.state)&&number(o.progress,0)&&typeof o.revealed==='boolean'));
   valid(object(m.fired)&&Object.entries(m.fired).every(([id,fired])=>fired===true&&(def.triggers||[]).some(t=>t.id===id)));
-  valid(Array.isArray(m.zones)&&m.zones.length<=64&&new Set(m.zones.map(z=>z?.id)).size===m.zones.length&&m.zones.every(z=>object(z)&&label(z.id,40)&&point(z)&&number(z.r,.1,span)&&label(z.label,80)));
+  // Objectives, triggers and fail rules look zones up by id, so every zone of the definition is present, in order.
+  valid(Array.isArray(m.zones)&&m.zones.length===zones.length&&m.zones.every((z,i)=>object(z)&&z.id===zones[i].id&&point(z)&&number(z.r,.1,span)&&label(z.label,80)));
   valid(object(m.counters)&&Object.keys(m.counters).length<=256&&Object.entries(m.counters).every(([key,value])=>key.length<=80&&number(value,0)));
-  valid(number(m.startedAt,0,s.time)&&number(m.nextCheck,0,s.time+.25+1e-6));
+  // Checks run every step until they reach the clock, so a check far behind it would run timers fast.
+  valid(number(m.startedAt,0,s.time)&&number(m.nextCheck,Math.max(m.startedAt,s.time-.25)-1e-6,s.time+.25+1e-6));
   if(m.score!==undefined)valid(number(m.score,0));
   if(m.directives!==undefined)valid(object(m.directives)&&Object.entries(m.directives).every(([team,d])=>['0','1'].includes(team)&&object(d)&&
     (d.attack===null||point(d.attack))&&(d.defend===null||point(d.defend)&&number(d.defend.r,0,span))&&typeof d.noExpand==='boolean'&&(d.waveSize===undefined||integer(d.waveSize,1,UNIT_CAP))));
