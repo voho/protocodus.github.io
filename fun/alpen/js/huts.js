@@ -141,7 +141,8 @@ export const HUTS = {
     jitter: 0.16,
     size: 0.5,        // metres across, at the chimney
     growth: 3.2,      // and how many times that by the end of its life
-    alpha: 0.34,
+    alpha: 0.6,
+    spin: 0.8,        // rad/s either way at most, as a puff rolls over
     range: 300,
     stoke: 16,        // extra puffs when somebody comes in for a cocoa
   },
@@ -403,21 +404,69 @@ function paneGeometry(THREE) {
 
    The same shape of point cloud as everything in `particles.js`: a size and
    an alpha per particle, one small ShaderMaterial, and the fog folded in by
-   hand because a custom shader does not inherit three's. The only difference
-   is the falloff, which is much softer — a snowflake has an edge and a puff
-   of woodsmoke does not.
+   hand because a custom shader does not inherit three's. The difference is
+   the puff itself. A snowflake is a round point; a puff of woodsmoke is not
+   round at all, and a column of soft discs read as a string of beads at any
+   distance the hut is legible from. So each puff is one of four cloudy
+   shapes, turned to its own angle and turning slowly as it rises.
    ========================================================================== */
+
+/* The four shapes, in a 2 × 2 atlas: each a dozen small soft lobes
+   scattered off the centre, the way a puff billows, with their sum taken
+   through a saturating curve so the overlaps fill out instead of burning
+   to a hot spot. Gone by the cell's inscribed circle, so a puff turned to
+   any angle never reads its neighbour. A shape covers about 0.18 of its
+   square where the old disc covered 0.39, which `smoke.alpha` makes up.
+   Built once, as data, from a fixed stream. */
+function puffAtlas(THREE) {
+  const N = 64;
+  const data = new Uint8Array(4 * N * N);
+  const rnd = stream(9127);
+  for (let k = 0; k < 4; k++) {
+    const lobes = [];
+    for (let j = 0; j < 12; j++) {
+      const a = rnd() * Math.PI * 2;
+      const r = Math.sqrt(rnd()) * 0.28;
+      lobes.push([Math.cos(a) * r, Math.sin(a) * r, 0.06 + rnd() * 0.07, 0.4 + rnd() * 0.6]);
+    }
+    const ox = (k % 2) * N;
+    const oy = (k >> 1) * N;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const u = (x + 0.5) / N - 0.5;
+        const v = (y + 0.5) / N - 0.5;
+        let d = 0;
+        for (const [cx, cy, w, h] of lobes) {
+          d += h * Math.exp(-((u - cx) ** 2 + (v - cy) ** 2) / (w * w));
+        }
+        const edge = Math.max(0, 1 - (u * u + v * v) / 0.25);
+        data[(oy + y) * 2 * N + ox + x] = Math.round((1 - Math.exp(-2.5 * d)) * edge * edge * 255);
+      }
+    }
+  }
+  const tex = new THREE.DataTexture(data, 2 * N, 2 * N, THREE.RedFormat);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 const SMOKE_VERT = `
   attribute float aSize;
   attribute float aAlpha;
+  attribute float aTurn;
+  attribute float aShape;
   varying float vAlpha;
   varying float vDepth;
   varying vec3 vView;
+  varying vec2 vTurn;
+  varying vec2 vCell;
   uniform float uScale;
   uniform float uMaxSize;
   void main() {
     vAlpha = aAlpha;
+    vTurn = vec2(cos(aTurn), sin(aTurn));
+    vCell = vec2(mod(aShape, 2.0), floor(aShape * 0.5)) * 0.5;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
     // Normalised here, in the vertex shader's highp, because the raw view
@@ -437,26 +486,37 @@ const SMOKE_VERT = `
    plume between the rider and a sunset goes amber while the same plume seen
    down-sun stays ash. `uSunV` and `uGlow` are the shared shading's own uniform
    records, handed over by reference, and `uWarm` is the one number computed
-   here: how low and how present the sun is this frame. */
+   here: how low and how present the sun is this frame. A puff is roughly a
+   ball, so its sprite also takes a ball's normal and a wrapped light from
+   the same key the ground uses, faintly: a lit side and a shaded side, the
+   thing that makes a plume look like it has a volume. */
 const SMOKE_FRAG = `
   precision mediump float;
   uniform vec3 uColor;
   uniform vec3 uFog;
   uniform vec3 uGlow;
   uniform vec3 uSunV;
+  uniform float uSunLevel;
   uniform float uWarm;
   uniform float uNear;
   uniform float uFar;
+  uniform sampler2D uPuff;
   varying float vAlpha;
   varying float vDepth;
   varying vec3 vView;
+  varying vec2 vTurn;
+  varying vec2 vCell;
   void main() {
     vec2 d = gl_PointCoord - 0.5;
     float r = dot(d, d);
     if (r > 0.25 || vAlpha <= 0.001) discard;
-    float a = vAlpha * (1.0 - smoothstep(0.0, 0.25, r));
+    vec2 t = vec2(vTurn.x * d.x - vTurn.y * d.y, vTurn.y * d.x + vTurn.x * d.y);
+    float a = vAlpha * texture2D(uPuff, vCell + (t + 0.5) * 0.5).r;
     float fwd = max(0.0, dot(vView, uSunV));
     vec3 c = mix(uColor, uGlow, fwd * fwd * uWarm);
+    vec2 dn = d * 2.0;
+    vec3 ball = vec3(dn.x, -dn.y, sqrt(max(0.0, 1.0 - dot(dn, dn))));
+    c *= 1.0 + dot(ball, uSunV) * 0.22 * min(uSunLevel, 1.3);
     float f = clamp((vDepth - uNear) / (uFar - uNear), 0.0, 1.0);
     gl_FragColor = vec4(mix(c, uFog, f * 0.85), a * (1.0 - f));
   }
@@ -600,9 +660,14 @@ export function createHuts(THREE, shading) {
   const sBase = new Float32Array(S.count);
   const sLife = new Float32Array(S.count);
   const sMax = new Float32Array(S.count);
+  const sTurn = new Float32Array(S.count);
+  const sSpin = new Float32Array(S.count);
+  const sShape = new Float32Array(S.count);
   smokeGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
   smokeGeo.setAttribute('aSize', new THREE.BufferAttribute(sSize, 1));
   smokeGeo.setAttribute('aAlpha', new THREE.BufferAttribute(sAlpha, 1));
+  smokeGeo.setAttribute('aTurn', new THREE.BufferAttribute(sTurn, 1));
+  smokeGeo.setAttribute('aShape', new THREE.BufferAttribute(sShape, 1));
   smokeGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
 
   const smokeMat = new THREE.ShaderMaterial({
@@ -612,8 +677,10 @@ export function createHuts(THREE, shading) {
       // The shared shading's own records, not copies: the view-space sun and
       // the sky glow arrive here already moved by its one write per frame.
       uSunV: shading.uniforms.uSunView,
+      uSunLevel: shading.uniforms.uSunLevel,
       uGlow: shading.uniforms.uSkyGlow,
       uWarm: { value: 0 },
+      uPuff: { value: puffAtlas(THREE) },
       uNear: { value: RENDER.fogNear },
       uFar: { value: RENDER.fogFar },
       uScale: { value: 300 },
@@ -850,6 +917,9 @@ export function createHuts(THREE, shading) {
     sMax[i] = S.life * (0.7 + Math.random() * 0.6);
     sLife[i] = sMax[i];
     sBase[i] = S.size * (0.7 + Math.random() * 0.7);
+    sTurn[i] = Math.random() * Math.PI * 2;
+    sSpin[i] = (Math.random() - 0.5) * S.spin;
+    sShape[i] = Math.floor(Math.random() * 4);
   }
 
   function stepSmoke(dt, windX, windZ) {
@@ -883,12 +953,15 @@ export function createHuts(THREE, shading) {
       // Puffs grow as they cool, which is the whole of why a column of them
       // reads as smoke rather than as a queue of dots
       sSize[i] = sBase[i] * (1 + u * S.growth);
+      sTurn[i] += sSpin[i] * dt;
       const fade = (1 - u) * (1 - u);
       sAlpha[i] = S.alpha * Math.min(1, u * 6) * fade;
     }
     smokeGeo.attributes.position.needsUpdate = true;
     smokeGeo.attributes.aSize.needsUpdate = true;
     smokeGeo.attributes.aAlpha.needsUpdate = true;
+    smokeGeo.attributes.aTurn.needsUpdate = true;
+    smokeGeo.attributes.aShape.needsUpdate = true;
   }
 
   /* ==========================================================================
