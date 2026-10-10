@@ -280,11 +280,11 @@ async function reset(prepared, restored) {
   cancelFormationGesture();
   game = prepared;
   view.selected.clear(); keys.clear();
-  view.placement = null; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
+  view.placement = null; view.placementReason = ''; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
   view.wallStart = null; view.wallPlan = null;
-  orderMode = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
+  orderMode = null; abilityRole = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; view.showGrid = false; lowPower = false; touches.clear();
-  clearLog(); idle = idleSummary(null); idleCheckedAt = -Infinity; idleCursor.units = idleCursor.production = 0; interceptAt = -Infinity; lastGroupPress = { group: null, at: 0 };
+  setOrderHint(); clearLog(); idle = idleSummary(null); idleCheckedAt = -Infinity; idleCursor.units = idleCursor.production = 0; interceptAt = -Infinity; lastGroupPress = { group: null, at: 0 };
   delete $('building-upgrades').dataset.entity;
   soundscape.reset(game);
   renderer.terrainSource = null;
@@ -1254,8 +1254,10 @@ async function prepareOperation(restore = false) {
       return;
     }
     const seed = restored?.game.seed || operation?.seed || $('seed').value.trim() || randomSeed();
-    if (!operation) $('seed').value = seed;
-    if (restored) {
+    // A restored skirmish shows its settings in the setup form; a restored campaign operation keeps its own.
+    const operationSave = Boolean(restored) && campaign.restore(restored.game);
+    if (!operation && !operationSave) $('seed').value = seed;
+    if (restored && !operationSave) {
       $('difficulty').value = restored.game.difficulty;
       const size = Object.keys(MAP_SIZES).find(id => MAP_SIZES[id].width === restored.game.width && MAP_SIZES[id].height === restored.game.height);
       if (size) $('map-size').value = size;
@@ -1265,7 +1267,6 @@ async function prepareOperation(restore = false) {
       // commander the player has not met.
       const doctrine = restored.game.ai?.doctrine;
       $('rival-doctrine').value = Object.hasOwn(DOCTRINES, doctrine ?? '') && doctrine !== randomDoctrine(restored.game.seed, 1) ? doctrine : 'random';
-      campaign.selectMode(restored.game.mission?.id);
       updateMapDescription();
     }
     updateLoading(2, 'Loading units and structures');

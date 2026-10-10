@@ -67,6 +67,12 @@ export function recordResult(progress, s, report) {
 }
 
 export function steppedDifficulty(level, step = 0) { return LEVELS[Math.min(LEVELS.length - 1, Math.max(0, LEVELS.indexOf(level) + step))] ?? 'normal'; }
+// The Opposition a saved operation was launched at, from the level it was played at. Stepping clamps at Veteran,
+// so the briefing's setting is kept whenever it gives that level.
+export function launchedLevel(s, setting) {
+  const step = MISSIONS[s.mission.id].aiStep || 0;
+  return steppedDifficulty(setting, step) === s.difficulty ? setting : steppedDifficulty(s.difficulty, -step);
+}
 // Launch settings for a campaign operation. A remix keeps the operation and plays it on a fresh sector.
 export function launchSettings(id, { difficulty = 'normal', seed } = {}, progress = emptyProgress()) {
   const def = MISSIONS[id];
@@ -261,10 +267,14 @@ export function createCampaign({ launch, focus, transmit }) {
   }
   // The scripted skirmish mode chosen in setup, if any.
   const skirmishMission = () => SKIRMISH_MODES.find(entry => entry.id === $('skirmish-mode').value)?.mission;
-  // A restored skirmish shows the mode it was deployed with; operations and plain skirmishes show the first.
-  function selectMode(mission) {
-    $('skirmish-mode').value = SKIRMISH_MODES.find(entry => entry.mission && entry.mission === mission)?.id ?? SKIRMISH_MODES[0].id;
+  // A restored skirmish shows the mode it was deployed with (a plain one shows the first). A restored operation
+  // leaves the skirmish setup alone, and its Retry and Next keep the Opposition it was launched at. Returns
+  // whether the save is a campaign operation.
+  function restore(s) {
+    if (CAMPAIGN.includes(s.mission?.id)) { current = { chosen: launchedLevel(s, $('campaign-difficulty').value) }; return true; }
+    $('skirmish-mode').value = SKIRMISH_MODES.find(entry => entry.mission && entry.mission === s.mission?.id)?.id ?? SKIRMISH_MODES[0].id;
     renderModes();
+    return false;
   }
 
   function finish(s) {
@@ -381,7 +391,7 @@ export function createCampaign({ launch, focus, transmit }) {
   renderModes(); renderList(); renderDetail(); renderCareer();
   setTab(progress.tab);
   return {
-    takeLaunch, skirmishMission, selectMode, menu,
+    takeLaunch, skirmishMission, restore, menu,
     hud: s => hud.update(s),
     event: e => hud.event(e),
     get progress() { return readProgress(progress); },

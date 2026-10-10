@@ -181,11 +181,26 @@ try {
   });
   const unity = lines.findIndex(line => /^Archive integrity is priority one/.test(line)), tesk = lines.findIndex(line => /^Those two Lance nodes/.test(line));
   assert(unity >= 0 && tesk > unity, `Both intrusion lines play in order: ${JSON.stringify(lines)}`);
-  // A running operation can be restarted from the pause menu.
+  // A running operation can be restarted from the pause menu, and an order armed before it does not carry over.
+  await page.locator('#world').focus(); await page.keyboard.press('e'); await page.keyboard.press('q');
+  assert(await page.locator('#order-hint').isVisible(), 'Q arms attack-move');
   await page.locator('#pause').click();
   assert(await page.locator('#retry-operation').isVisible(), 'Retry is offered while paused');
+  await page.locator('#save-game').click();
   await page.locator('#retry-operation').click(); await prestart(page);
   assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, ashline.state.time, ashline.state.seed]), ['signal-in-the-ash', 0, 'SIGNAL-ASH']);
+  const armed = () => page.evaluate(() => [!document.querySelector('#order-hint').hidden, document.querySelector('#world').classList.contains('ordering'), document.querySelector('#attack-order').classList.contains('active')]);
+  assert.deepEqual(await armed(), [false, false, false], 'Retry starts with no order armed');
+  // A loaded operation leaves the skirmish setup alone and retries at the Opposition it was played at, whatever
+  // the briefing shows now.
+  await page.locator('#new-game').click();
+  const setup = () => page.evaluate(() => ['difficulty', 'skirmish-mode', 'map-size', 'map-profile', 'seed', 'player-race', 'enemy-race', 'rival-doctrine'].map(id => document.getElementById(id).value));
+  const skirmishSetup = await setup();
+  await page.locator('#campaign-difficulty').selectOption('easy'); await page.locator('#load-saved').click(); await prestart(page);
+  assert.deepEqual(await setup(), skirmishSetup, 'Loading an operation keeps the skirmish setup');
+  assert.deepEqual(await armed(), [false, false, false], 'A loaded game starts with no order armed');
+  await page.locator('#retry-operation').click(); await prestart(page);
+  assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, ashline.state.difficulty]), ['signal-in-the-ash', 'normal'], 'Retry keeps the saved Opposition');
   await page.locator('#new-game').click();
 
   // A skirmish mode starts unpaused, with its own tracker; annihilation keeps the commander's goals.

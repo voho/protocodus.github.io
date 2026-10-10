@@ -11,7 +11,7 @@ import {missionAllows,missionDirective,noteDelivery,noteTagLost,objectiveVoid,mi
 import {objectiveRows,objectiveProgress} from '../objectives-hud.js';
 import {encodeGame,decodeGame} from '../save.js';
 import {matchReport,medalFor,missionTime,commanderGoals,survivingVeterans,addToCareer,readCareer,emptyCareer,rivalName,COMMANDER_GOALS} from '../debrief.js';
-import {readProgress,emptyProgress,isUnlocked,recordResult,launchSettings,newlyCleared,archiveEntries,steppedDifficulty} from '../campaign-ui.js';
+import {readProgress,emptyProgress,isUnlocked,recordResult,launchSettings,newlyCleared,archiveEntries,steppedDifficulty,launchedLevel} from '../campaign-ui.js';
 
 const advance=(s,seconds)=>{for(let t=0;t<seconds&&s.status==='playing';t++)updateGame(s,1);};
 const json=s=>JSON.parse(encodeGame(s)).game;
@@ -466,6 +466,12 @@ delete MISSIONS['check-broken'];
   assert.deepEqual(launchSettings('severance',{difficulty:'easy'},progress).options.veterans,progress.veterans);
   assert.equal(launchSettings('landfall',{seed:'REMIX-1'}).seed,'REMIX-1');assert.equal(launchSettings('landfall').seed,'LANDFALL-07');
   assert.equal(steppedDifficulty('hard',1),'hard');assert.equal(steppedDifficulty('easy',1),'normal');
+  // A loaded operation retries at the Opposition it was launched at, whatever the briefing shows now. Hold the
+  // Relay plays one level up and Veteran clamps, so a briefing setting that gives the saved level is kept.
+  const relay={mission:{id:'hold-the-relay'},difficulty:'hard'};
+  assert.deepEqual(['easy','normal','hard'].map(setting=>launchedLevel(relay,setting)),['normal','normal','hard']);
+  assert.equal(launchedLevel({mission:{id:'hold-the-relay'},difficulty:'normal'},'hard'),'easy');
+  assert.equal(launchedLevel({mission:{id:'landfall'},difficulty:'hard'},'easy'),'hard');
   const stored=readProgress(JSON.parse(JSON.stringify({...progress,missions:{...progress.missions,bogus:{wins:3},landfall:{...progress.missions.landfall,medal:'platinum',best:-5}},veterans:[...progress.veterans,{role:'harvester',kills:9},{role:'rifle',kills:1e9}],tab:'elsewhere'})));
   assert.equal(stored.missions.bogus,undefined);assert.equal(stored.missions.landfall.medal,null);assert.equal(stored.missions.landfall.best,null);
   assert.deepEqual(stored.veterans,progress.veterans);assert.equal(stored.tab,'skirmish');
