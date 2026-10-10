@@ -64,7 +64,7 @@ export const TRENCH = {
 };
 
 /* Albedos, not baked lighting. MeshLambertMaterial and the shared alpine
-   shading pass carry the sun, shadow, headlamp and helicopter light. */
+   shading pass carry the sun, shadow and headlamp. */
 const SNOW = {
   packed: '#c1d2df',
   groove: '#a8bed0',
@@ -353,7 +353,7 @@ export function createTrail(THREE, shading) {
   /* Start from a normal lit surface, then add only the state-driven section
      masks. The shared shading patch remains authoritative for daylight,
      weather fog and snow reflections; Three's light loop supplies the
-     headlamp, helicopter lamps and shadows automatically. */
+     headlamp and shadows automatically. */
   const material = new THREE.MeshLambertMaterial({
     color: 0xffffff,
     transparent: true,

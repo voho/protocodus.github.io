@@ -197,7 +197,7 @@ scene.fog = new THREE.Fog(0xe3ecf6, RENDER.fogNear, RENDER.fogFar);
    It owns one block of uniforms — the sky's three stops, the sun, the fog —
    and hands the *same objects* to every material it patches, so the single
    `shading.update(w, camera)` below moves the light on the terrain, the
-   trees, the animals, the huts, the helicopter and the rider at once. Six
+   trees, the animals, the huts, the lift and the rider at once. Six
    modules that know nothing about each other end up agreeing about what time
    of day it is, which is the only reason a day/night cycle across this many
    materials costs nothing per frame. */

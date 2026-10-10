@@ -1197,7 +1197,7 @@ export function createShading(THREE) {
   /* The shared block. Every patched material is handed *these* objects rather
      than copies of them, so one write per frame in `update` moves the fog, the
      sky and the sun on the whole mountain at once — terrain, trees, animals,
-     huts, the helicopter and the rider, in six modules that know nothing about
+     huts, the lift and the rider, in six modules that know nothing about
      each other. It is the only reason a day/night cycle over this many
      materials costs nothing. */
   const sunDir = new THREE.Vector3(0, 0.4, -1).normalize();
