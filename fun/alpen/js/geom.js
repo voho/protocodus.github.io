@@ -18,10 +18,13 @@
    the whole animal in texel (0,0). `opts.sheen` writes `part.sheen` per
    vertex, which is what lets one merged mesh hold a matte glove and a
    mirrored goggle lens: the snow response reads `vN64Sheen`, so a per-part
-   value in an attribute buys back exactly the thing merging took away. */
+   value in an attribute buys back exactly the thing merging took away.
+   `opts.limb` writes `aLimb`, which leg a vertex swings with (see `sculpt`):
+   a part's own `limb`, or the blended one a sculpted skin brings. */
 export function compose(THREE, parts, opts = {}) {
   const wantUv = opts.uv === true;
   const wantSheen = opts.sheen === true;
+  const wantLimb = opts.limb === true;
   const prepared = [];
   let total = 0;
 
@@ -45,6 +48,7 @@ export function compose(THREE, parts, opts = {}) {
       // (a `sculpt` skin, blended across its joins)
       color: part.color === undefined ? null : new THREE.Color(part.color),
       sheen: part.sheen === undefined ? 1 : part.sheen,
+      limb: part.limb,
     });
     total += n;
   }
@@ -54,13 +58,19 @@ export function compose(THREE, parts, opts = {}) {
   const color = new Float32Array(total * 3);
   const uv = wantUv ? new Float32Array(total * 2) : null;
   const sheen = wantSheen ? new Float32Array(total) : null;
+  const limb = wantLimb ? new Float32Array(total * 4) : null;
 
   let o = 0;
-  for (const { g, n, color: c, sheen: s } of prepared) {
+  for (const { g, n, color: c, sheen: s, limb: l } of prepared) {
     position.set(g.attributes.position.array, o * 3);
     normal.set(g.attributes.normal.array, o * 3);
     if (uv && g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
     if (!c) color.set(g.attributes.color.array, o * 3);
+    // A skin brings its blended limb weights; a rigid part is all its limb
+    if (limb && g.attributes.aLimb) limb.set(g.attributes.aLimb.array, o * 4);
+    else if (limb && l) {
+      for (let i = 0; i < n; i++) limb.set([l[0], l[1], 1, l[2]], (o + i) * 4);
+    }
     for (let i = 0; i < n; i++) {
       if (c) {
         color[(o + i) * 3] = c.r;
@@ -79,6 +89,7 @@ export function compose(THREE, parts, opts = {}) {
   out.setAttribute('color', new THREE.BufferAttribute(color, 3));
   if (uv) out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   if (sheen) out.setAttribute('aSheen', new THREE.BufferAttribute(sheen, 1));
+  if (limb) out.setAttribute('aLimb', new THREE.BufferAttribute(limb, 4));
   out.computeBoundingSphere();
   return out;
 }
@@ -101,7 +112,13 @@ export function compose(THREE, parts, opts = {}) {
    pale throat is a marking rather than a lump. Anything thinner than about
    two cells (an ear, an eye) does not survive the grid and belongs in
    `compose` beside this. Built once per page. Indexed, with the same
-   attributes as `compose`, whose part it can be. */
+   attributes as `compose`, whose part it can be.
+
+   A part may name the leg it belongs to, `limb: [pivotY, pivotZ, phase]`,
+   and the skin then carries `aLimb`: that pivot and phase, and how much of
+   the vertex is that leg's, blended across the join exactly as the colour
+   is, so a swinging thigh bends out of the flank rather than hinging off
+   it. Parts of one leg share one array. */
 export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
   const all = parts.map((p) => {
     const blend = p.k ?? k;
@@ -295,6 +312,10 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
   const color = new Float32Array(count * 3);
   const tint = shapes.map((s) => new THREE.Color(s.p.color));
   const pigment = paints.map((s) => new THREE.Color(s.p.color));
+  const limbs = [...new Set(shapes.map((s) => s.p.limb).filter(Boolean))];
+  const limbOf = shapes.map((s) => limbs.indexOf(s.p.limb));
+  const limbWeight = new Float32Array(limbs.length);
+  const limb = limbs.length ? new Float32Array(count * 4) : null;
   const d = new Float32Array(shapes.length);
   for (let v = 0; v < count; v++) {
     const x = pos[v * 3];
@@ -312,6 +333,7 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
     let gg = 0;
     let b = 0;
     let sum = 0;
+    limbWeight.fill(0);
     for (let s = 0; s < shapes.length; s++) {
       const t = 1 - (d[s] - near) / shapes[s].blend;
       if (t <= 0) continue;
@@ -320,6 +342,17 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
       gg += tint[s].g * w;
       b += tint[s].b * w;
       sum += w;
+      if (limbOf[s] >= 0) limbWeight[limbOf[s]] += w;
+    }
+    if (limb) {
+      let best = -1;
+      for (let l = 0; l < limbs.length; l++) {
+        if (limbWeight[l] > 0 && (best < 0 || limbWeight[l] > limbWeight[best])) best = l;
+      }
+      if (best >= 0) {
+        const [py, pz, phase] = limbs[best];
+        limb.set([py, pz, limbWeight[best] / sum, phase], v * 4);
+      }
     }
     r /= sum;
     gg /= sum;
@@ -362,6 +395,7 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
   out.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
   out.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
   out.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  if (limb) out.setAttribute('aLimb', new THREE.BufferAttribute(limb, 4));
   out.setIndex(index);
   out.computeBoundingSphere();
   return out;

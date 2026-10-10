@@ -228,6 +228,14 @@ function deerBodyGeometry(THREE) {
   const cannon = new THREE.CylinderGeometry(0.5, 0.4, 1, 8, 1, true);
   const hoof = new THREE.SphereGeometry(0.5, 8, 5);
 
+  /* Each leg swings about the top of its forearm or gaskin, where it leaves
+     the body (see `aGait` in createWildlife). A gallop's phases: the fronts
+     a beat apart, the hinds a beat apart, the pairs half a stride apart. */
+  const legs = {
+    '-1': [[0.86, -0.36, 0], [0.76, 0.46, Math.PI]],
+    1: [[0.86, -0.36, 0.5], [0.76, 0.46, Math.PI + 0.5]],
+  };
+
   // One skin from the withers to the tail, the upper legs swelling out of it
   const skin = sculpt(THREE, [
     // chest deepest, the withers over it, the barrel, a loin tucked up
@@ -242,9 +250,9 @@ function deerBodyGeometry(THREE) {
     // points backwards — the joint a quadruped reads as furniture without
     ...[-1, 1].flatMap((x) => [
       { pos: [x * 0.11, 0.98, -0.38], radii: [0.065, 0.19, 0.11], rot: [0.25, 0, 0], color: DEER_COAT },
-      { pos: [x * 0.125, 0.86, -0.36], to: [x * 0.13, 0.47, -0.37], r: [0.07, 0.042], color: DEER_COAT },
+      { pos: [x * 0.125, 0.86, -0.36], to: [x * 0.13, 0.47, -0.37], r: [0.07, 0.042], color: DEER_COAT, limb: legs[x][0] },
       { pos: [x * 0.11, 0.9, 0.42], radii: [0.08, 0.21, 0.14], rot: [-0.15, 0, 0], color: DEER_COAT },
-      { pos: [x * 0.13, 0.76, 0.46], to: [x * 0.14, 0.46, 0.53], r: [0.07, 0.04], color: DEER_DARK },
+      { pos: [x * 0.13, 0.76, 0.46], to: [x * 0.14, 0.46, 0.53], r: [0.07, 0.04], color: DEER_DARK, limb: legs[x][1] },
     ]),
     // the short tail, on the pale patch that is most of a deer at range
     { pos: [0, 1.07, 0.6], to: [0, 0.93, 0.66], r: [0.04, 0.028], color: DEER_LIGHT, k: 0.03 },
@@ -256,12 +264,12 @@ function deerBodyGeometry(THREE) {
   return compose(THREE, [
     { geo: skin },
     ...[-1, 1].flatMap((x) => [
-      limb(THREE, cannon, [x * 0.13, 0.5, -0.37], [x * 0.13, 0.05, -0.34], 0.03, DEER_DARK),
-      limb(THREE, cannon, [x * 0.14, 0.49, 0.53], [x * 0.13, 0.05, 0.46], 0.028, DEER_DARK),
-      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, -0.35], scale: [0.065, 0.07, 0.09] },
-      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, 0.45], scale: [0.06, 0.07, 0.085] },
+      { ...limb(THREE, cannon, [x * 0.13, 0.5, -0.37], [x * 0.13, 0.05, -0.34], 0.03, DEER_DARK), limb: legs[x][0] },
+      { ...limb(THREE, cannon, [x * 0.14, 0.49, 0.53], [x * 0.13, 0.05, 0.46], 0.028, DEER_DARK), limb: legs[x][1] },
+      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, -0.35], scale: [0.065, 0.07, 0.09], limb: legs[x][0] },
+      { geo: hoof, color: DEER_HOOF, pos: [x * 0.13, 0.035, 0.45], scale: [0.06, 0.07, 0.085], limb: legs[x][1] },
     ]),
-  ]);
+  ], { limb: true });
 }
 
 /* The head, built from the base of the neck so a rotation about its own X is
@@ -341,6 +349,12 @@ function wolfGeometry(THREE) {
   const cannon = new THREE.CylinderGeometry(0.5, 0.42, 1, 8, 1, true);
   const bead = new THREE.SphereGeometry(0.5, 10, 8);
 
+  // A trot: the legs swing in diagonal pairs (see the deer for the pivots)
+  const legs = {
+    '-1': [[0.48, -0.3, 0], [0.45, 0.4, Math.PI]],
+    1: [[0.48, -0.3, Math.PI], [0.45, 0.4, 0]],
+  };
+
   const skin = sculpt(THREE, [
     // deep chest forward — it drops below the elbow, which is the one
     // proportion that separates a wolf from a large dog — then a tucked loin
@@ -349,9 +363,9 @@ function wolfGeometry(THREE) {
     { pos: [0, 0.65, 0.33], radii: [0.135, 0.165, 0.17], color: WOLF_COAT },
     ...[-1, 1].flatMap((x) => [
       { pos: [x * 0.1, 0.56, -0.3], radii: [0.06, 0.16, 0.09], rot: [0.2, 0, 0], color: WOLF_COAT },
-      { pos: [x * 0.11, 0.48, -0.3], to: [x * 0.115, 0.27, -0.31], r: [0.055, 0.035], color: WOLF_PALE },
+      { pos: [x * 0.11, 0.48, -0.3], to: [x * 0.115, 0.27, -0.31], r: [0.055, 0.035], color: WOLF_PALE, limb: legs[x][0] },
       { pos: [x * 0.1, 0.57, 0.36], radii: [0.065, 0.16, 0.11], rot: [-0.2, 0, 0], color: WOLF_COAT },
-      { pos: [x * 0.11, 0.45, 0.4], to: [x * 0.12, 0.25, 0.46], r: [0.055, 0.032], color: WOLF_COAT },
+      { pos: [x * 0.11, 0.45, 0.4], to: [x * 0.12, 0.25, 0.46], r: [0.055, 0.032], color: WOLF_COAT, limb: legs[x][1] },
     ]),
     // neck low and level — a wolf carries its head at the height of its back
     { pos: [0, 0.66, -0.4], to: [0, 0.7, -0.62], r: [0.12, 0.09], color: WOLF_COAT },
@@ -370,10 +384,10 @@ function wolfGeometry(THREE) {
   return compose(THREE, [
     { geo: skin },
     ...[-1, 1].flatMap((x) => [
-      limb(THREE, cannon, [x * 0.115, 0.29, -0.31], [x * 0.115, 0.04, -0.3], 0.03, WOLF_PALE),
-      limb(THREE, cannon, [x * 0.12, 0.27, 0.46], [x * 0.12, 0.04, 0.42], 0.028, WOLF_PALE),
-      { geo: bead, color: WOLF_DARK, pos: [x * 0.115, 0.028, -0.32], scale: [0.075, 0.055, 0.1] },
-      { geo: bead, color: WOLF_DARK, pos: [x * 0.12, 0.028, 0.4], scale: [0.07, 0.055, 0.095] },
+      { ...limb(THREE, cannon, [x * 0.115, 0.29, -0.31], [x * 0.115, 0.04, -0.3], 0.03, WOLF_PALE), limb: legs[x][0] },
+      { ...limb(THREE, cannon, [x * 0.12, 0.27, 0.46], [x * 0.12, 0.04, 0.42], 0.028, WOLF_PALE), limb: legs[x][1] },
+      { geo: bead, color: WOLF_DARK, pos: [x * 0.115, 0.028, -0.32], scale: [0.075, 0.055, 0.1], limb: legs[x][0] },
+      { geo: bead, color: WOLF_DARK, pos: [x * 0.12, 0.028, 0.4], scale: [0.07, 0.055, 0.095], limb: legs[x][1] },
     ]),
     { geo: bead, color: WOLF_DARK, pos: [0, 0.655, -0.935], scale: [0.06, 0.05, 0.045] },
     { geo: bead, color: WOLF_DARK, pos: [-0.06, 0.74, -0.74], scale: [0.032, 0.032, 0.028] },
@@ -382,7 +396,7 @@ function wolfGeometry(THREE) {
     // tall pointed pair the first attempt had belong on a shepherd dog
     { geo: bead, color: WOLF_SADDLE, pos: [-0.07, 0.8, -0.64], rot: [-0.10, -0.25, -0.16], scale: [0.06, 0.12, 0.035] },
     { geo: bead, color: WOLF_SADDLE, pos: [0.07, 0.8, -0.64], rot: [-0.10, 0.25, 0.16], scale: [0.06, 0.12, 0.035] },
-  ]);
+  ], { limb: true });
 }
 
 /* FOR THE UNBUILT BEAR — see the header. Kept so its eventual builder does
@@ -435,13 +449,42 @@ export function createWildlife(THREE, shading) {
       .replace('#include <common>', REVEAL_FRAG[0])
       .replace('#include <clipping_planes_fragment>', REVEAL_FRAG[1]);
   };
+  /* THE LEGS. A running deer and a trotting wolf used to glide over the
+     snow on four rigid posts, the body bobbing over them. Each vertex now
+     turns, in the body's own YZ plane, about its leg's pivot (`aLimb`,
+     baked by `sculpt` and `compose`) by the instance's stride (`aGait`:
+     phase and swing) times how much of the vertex is leg. The depth pass
+     gets the same, so the shadow runs with the animal. Anything without
+     legs, or not moving, reads zeros and stays exactly where it was. */
+  const STRIDE = `
+        attribute vec4 aLimb;
+        attribute vec2 aGait;
+        vec2 n64Stride(vec2 p, float pivot) {
+          float a = aGait.y * aLimb.z * sin(aGait.x + aLimb.w);
+          float c = cos(a);
+          float s = sin(a);
+          vec2 d = p - aLimb.xy * pivot;
+          return aLimb.xy * pivot + vec2(c * d.x - s * d.y, s * d.x + c * d.y);
+        }`;
+  const withStride = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>${STRIDE}`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal.yz = n64Stride(objectNormal.yz, 0.0);`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed.yz = n64Stride(transformed.yz, 1.0);`);
+  };
   const revealDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-  revealDepth.onBeforeCompile = withReveal;
+  revealDepth.onBeforeCompile = (shader) => {
+    withReveal(shader);
+    withStride(shader);
+  };
 
   const animalMaterial = () => {
     const m = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: false });
     m.onBeforeCompile = (shader) => {
       withReveal(shader);
+      withStride(shader);
       shader.uniforms.uFurTex = { value: furTex };
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', `#include <common>
@@ -517,6 +560,16 @@ export function createWildlife(THREE, shading) {
   const markReveal = (mesh) => {
     mesh.geometry.attributes.aReveal.needsUpdate = true;
   };
+  // And the stride of every animal that has legs to move, beside its matrix
+  const strideOf = (mesh) => {
+    const gait = new THREE.InstancedBufferAttribute(
+      new Float32Array(mesh.instanceMatrix.count * 2), 2);
+    gait.setUsage(THREE.DynamicDrawUsage);
+    mesh.geometry.setAttribute('aGait', gait);
+    return gait.array;
+  };
+  const deerStride = strideOf(deerBodies);
+  const wolfStride = strideOf(wolves);
   // Seconds of simulated time, for the arrival stamps.
   let clock = 0;
   const arrival = (born) => Math.min(1, Math.max(0, (clock - born) / REVEAL_SECONDS));
@@ -913,7 +966,7 @@ export function createWildlife(THREE, shading) {
            bob rides on top so a running deer is not a sliding statue. */
         const feeding = clamp((Math.sin(d.clock * 0.62 + d.ox) - 0.15) * 3, 0, 1)
           * (1 - herd.alert);
-        const gait = d.clock * 9;
+        const gait = d.clock * 12;
         const bob = Math.sin(gait) * 0.055 * herd.alert;
         // A running herd all faces the way it is going; a grazing one does not
         const yaw = lerp(d.yaw, Math.atan2(herd.dir, -0.45), herd.alert);
@@ -925,6 +978,8 @@ export function createWildlife(THREE, shading) {
         m.compose(v, q, s);
         const herdIn = arrival(herd.born);
         deerReveal[dn] = herdIn;
+        deerStride[dn * 2] = gait;
+        deerStride[dn * 2 + 1] = herd.run > 0 ? 0.5 * herd.alert : 0;
         deerBodies.setMatrixAt(dn++, m);
 
         /* The head, hung off the same transform. `m` is still the body's, so
@@ -952,6 +1007,7 @@ export function createWildlife(THREE, shading) {
     if (dn > 0) {
       deerBodies.instanceMatrix.needsUpdate = true;
       markReveal(deerBodies);
+      deerBodies.geometry.attributes.aGait.needsUpdate = true;
       if (dn - sn > 0) {
         deerHeads.instanceMatrix.needsUpdate = true;
         markReveal(deerHeads);
@@ -984,11 +1040,13 @@ export function createWildlife(THREE, shading) {
       pack.x += hx * WILDLIFE.wolfSpeed * dt;
       pack.z += hz * WILDLIFE.wolfSpeed * dt;
       for (const w of pack.members) {
-        w.gait += dt * 5.4;
+        // Two strides a second, which a trot at this speed is; the legs
+        // swing on it (`aGait`), so it has to be the real rate or they skate
+        w.gait += dt * 12;
         // Behind the leader along the line of travel, plus a little sideways
         const x = pack.x - hx * w.file - hz * w.drift;
         const z = pack.z - hz * w.file + hx * w.drift;
-        const bob = Math.abs(Math.sin(w.gait)) * 0.045;
+        const bob = Math.abs(Math.sin(w.gait)) * 0.03;
         slopeUnder(x, z, pack.yaw, 0.32 * w.scale, 0.17 * w.scale, slope);
         v.set(x, heightAt(x, z) + bob, z);
         e.set(slope.pitch, pack.yaw + Math.PI, Math.sin(w.gait) * 0.045 + slope.roll, 'YXZ');
@@ -996,6 +1054,8 @@ export function createWildlife(THREE, shading) {
         s.set(w.scale, w.scale * (1 + Math.cos(w.gait * 2) * 0.03), w.scale);
         m.compose(v, q, s);
         wolfReveal[wn] = arrival(pack.born);
+        wolfStride[wn * 2] = w.gait;
+        wolfStride[wn * 2 + 1] = 0.42;
         wolves.setMatrixAt(wn++, m);
       }
     }
@@ -1003,6 +1063,7 @@ export function createWildlife(THREE, shading) {
     if (wn > 0) {
       wolves.instanceMatrix.needsUpdate = true;
       markReveal(wolves);
+      wolves.geometry.attributes.aGait.needsUpdate = true;
     }
 
     eyes.count = eyeCount;
