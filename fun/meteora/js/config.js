@@ -15,7 +15,7 @@ export const MAX_STEPS = 8;
 export const PLAYER = {
   radius: 6,
   accel: { forward: 45, reverse: 25, lateral: 22, boost: 120 },
-  fa: { forwardSpeed: 180, boostSpeed: 320, strafeSpeed: 60, tau: 0.25, tauAngular: 0.12 },
+  fa: { forwardSpeed: 180, boostSpeed: 320, strafeSpeed: 60, tau: 0.25, tauAngular: 0.06 },
   rate: [1.6, 1.1, 2.6],          // pitch, yaw, roll max rad/s
   angAccel: [6, 4, 9],            // rad/s²
   spinCap: 3,                     // FA-off safety cap, × rate
@@ -28,7 +28,7 @@ export const ENEMY = {
   ...PLAYER,
   radius: 5,
   accel: { forward: 40, reverse: 25, lateral: 26, boost: 110 },
-  fa: { forwardSpeed: 200, boostSpeed: 300, strafeSpeed: 70, tau: 0.25, tauAngular: 0.1 },
+  fa: { forwardSpeed: 200, boostSpeed: 300, strafeSpeed: 70, tau: 0.25, tauAngular: 0.06 },
   rate: [1.9, 1.5, 3.0],
   angAccel: [7, 5, 10],
   shield: 30, hull: 60, shieldRegen: 6, shieldDelay: 4,
