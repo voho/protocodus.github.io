@@ -2,6 +2,7 @@
 // persisted interface settings. They read the game without changing it and only describe the
 // player's own forces, so nothing here can expose a position or unit hidden by fog.
 import { UNITS, BUILDINGS, RESEARCH, armorMultiplier, unitRole, buildingRole, researchStatus } from './sim.js';
+import { ABILITIES } from './abilities.js';
 
 // Saves from before typed events carry only text; these patterns recover the kind from that copy.
 const KIND_PATTERNS = [
@@ -12,6 +13,7 @@ const KIND_PATTERNS = [
   [/: research started$/, 'researchStarted'], [/: research complete$/, 'researchComplete'], [/: upgrade started$/, 'upgradeStarted'], [/: upgrade complete$/, 'upgradeComplete'],
   [/: construction started$/, 'placed'], [/: deployment started$/, 'deployed'], [/wall segments? started/, 'walls'], [/ sold: \+/, 'sold'],
   [/: reachable territory explored$/, 'explored'], [/ training cancelled: \+/, 'trainingCancelled'], [/^Command online/, 'opening'],
+  [new RegExp(`: (${Object.values(ABILITIES).flatMap(a => Object.values(a.names)).join('|')})$`), 'ability'],
 ];
 export function eventKind(event) {
   if (typeof event?.kind === 'string') return event.kind;
