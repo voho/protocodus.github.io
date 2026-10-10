@@ -157,7 +157,7 @@ export const SNOWPACK = {
      comes to rest. The lattice's own curvature, per metre, over which a
      hollow keeps its cover against the steepness or the scour that would
      strip it. */
-  gully: [0.002, 0.012],
+  gully: [0.002, 0.024],
 
   /* Cover over which the snow goes from névé to deep cover. */
   pack: [0.22, 0.90],
@@ -246,6 +246,12 @@ const smoothstep = (a, b, t) => {
   return u * u * (3 - 2 * u);
 };
 const smooth01 = (u) => u * u * (3 - 2 * u);
+/* The same ease with its curvature continuous too, for blends along the run
+   that move the walls. The snowpack reads the lattice's curvature, and
+   `smooth01`'s second derivative jumps at both ends: every fork's four
+   joins and every chapter's two creased the walls straight across, and the
+   gully and rib thresholds drew each crease as a ruled line down the rock. */
+const smoother01 = (u) => u * u * u * (u * (u * 6 - 15) + 10);
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 
 /* Value noise along a line. The band field is its only caller and it wants a
@@ -285,8 +291,8 @@ export function wanderAt(z) {
 }
 
 /* Half the separation between the two branches, and zero wherever the run is
-   whole. A fork gets one window per `period` metres of hill, takes it about
-   two thirds of the time, and opens and closes over the first and last third
+   whole. A fork gets one window per `period` metres of hill, takes it four
+   times in five, and opens and closes over the first and last two fifths
    of the window it occupies — so from inside, a fork is a piste that widens,
    grows an island, and closes again. */
 function forkSplit(z) {
@@ -296,9 +302,11 @@ function forkSplit(z) {
   const top = -(b * route.period) - (route.period - route.span) * hash2(b, 991, 42);
   const t = (top - z) / route.span;
   if (t <= 0 || t >= 1) return 0;
-  const edge = 0.32;
+  // Wider than the 0.32 the cubic used, because the quintic is steeper in
+  // the middle: at 0.4 the branches part no faster than they did.
+  const edge = 0.4;
   const k = t < edge ? t / edge : t > 1 - edge ? (1 - t) / edge : 1;
-  return route.split * smooth01(k);
+  return route.split * smoother01(k);
 }
 
 /* ==========================================================================
@@ -399,7 +407,7 @@ function chapterTraitsAt(z) {
   const cur = CHAPTERS[chapterIndexAt(b)];
   const nxt = CHAPTERS[chapterIndexAt(b + 1)];
   const span = chapters.edge / chapters.period;
-  const t = smooth01(clamp01((f - (1 - span)) / span));
+  const t = smoother01(clamp01((f - (1 - span)) / span));
   out.name = t < 0.5 ? cur.name : nxt.name;
   out.corridor = cur.corridor + (nxt.corridor - cur.corridor) * t;
   out.lip = cur.lip + (nxt.lip - cur.lip) * t;
@@ -3099,8 +3107,14 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
              and permanently without its groomer seams, in a fallback the
              loader explicitly supports.
              (No back-ticks in here: this comment is inside a template literal.) */
+          /* And only on ground the wind can lay them on. The carriers are
+             straight stripes in world x, which on open snow are drifts and
+             on a wall face stack into contour rings, a fingerprint up the
+             face: nothing drifts in regular stripes up forty degrees.
+             Whole to twenty-six, as steep as the run itself gets. */
           float n64FarWindLevel = n64FarLive * n64FarPatch
-            * (1.0 - n64GroomBlend);
+            * (1.0 - n64GroomBlend)
+            * smoothstep(0.77, 0.90, dot(normalize(vSmoothNormal), viewMatrix[1].xyz));
           float n64FarA = 0.215 * n64FarWindLevel * n64FarFadeA;
           float n64FarB = 0.082 * n64FarWindLevel * n64FarFadeB;
           float n64FarG = 0.062 * n64FarLive * n64GroomBlend * n64FarFadeG;
@@ -3988,11 +4002,24 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            snow in its gullies draws the couloirs down it. The runnels are
            left out of the hollows: they are a regular fluting, and snow in
            every channel drew a comb down the lower face wherever the cells
-           were fine enough to carry them. */
-        const gullyHold = smoothstep(P.gully[0], P.gully[1], gullyCurve);
-        const rock = (1 - corridorMask)
-          * Math.max(Math.max(steepRock, thinRock, zoneRock, flankRock)
-            * (1 - gullyHold), ridgeRock);
+           were fine enough to carry them.
+
+           The hold is graded and broken up. It came on over so little
+           curvature that a broad channel's floor went to full snow inside
+           one far cell, a straight, ruled stripe down the face. Now it
+           builds across the hollow's whole concave width, so a couloir fades
+           into the rock either side, and a noise twice as long down the
+           fall line as across it scales the curvature it is judged on, so
+           the snow lies in tongues and fans with stone showing between
+           them. Only asked where it can change anything. */
+        const bare = Math.max(steepRock, thinRock, zoneRock, flankRock);
+        let gullyHold = 0;
+        if (bare > 0 && gullyCurve * 1.5 > P.gully[0]) {
+          // Half to one and a half times the curvature, by the patchwork
+          const patch = 0.5 + noise2(wx * 0.05, wz * 0.025, 517);
+          gullyHold = smoothstep(P.gully[0], P.gully[1], gullyCurve * patch);
+        }
+        const rock = (1 - corridorMask) * Math.max(bare * (1 - gullyHold), ridgeRock);
 
         /* Snow, along the axis of what it has been through rather than of how
            bright it is. Deep cover is soft and pale; thin cover is what the
