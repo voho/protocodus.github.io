@@ -1,5 +1,5 @@
 {
- "simulationSha256": "dd6ec7bed70116aefce5f906f17944990db812843f16528167f4a9431e71992e",
+ "simulationSha256": "64baa92bb28683a907332ea4a24aeabdb8d7ca818ef466b36f2b8c0559eb9af9",
  "simulationSources": [
   "sim.js",
   "ai.js",
@@ -371,18 +371,18 @@
    },
    "summary": {
     "matches": 12,
-    "completed": 11,
-    "draws": 1,
+    "completed": 12,
+    "draws": 0,
     "wins": {
-     "organics": 10,
+     "organics": 11,
      "aiUnity": 1
     },
     "sideWins": {
-     "0": 6,
+     "0": 7,
      "1": 5
     },
     "doctrineWins": {
-     "prospector": 6,
+     "prospector": 7,
      "balanced": 5
     }
    }
@@ -715,7 +715,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 599.5,
-   "wallTimeMs": 18036,
+   "wallTimeMs": 8873,
    "kills": [
     55,
     41
@@ -1120,7 +1120,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 420.9,
-   "wallTimeMs": 7785,
+   "wallTimeMs": 3554,
    "kills": [
     23,
     48
@@ -1443,7 +1443,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 415.7,
-   "wallTimeMs": 7141,
+   "wallTimeMs": 3335,
    "kills": [
     51,
     18
@@ -1728,7 +1728,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 573.35,
-   "wallTimeMs": 7743,
+   "wallTimeMs": 5587,
    "kills": [
     32,
     68
@@ -2123,7 +2123,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 470.8,
-   "wallTimeMs": 6227,
+   "wallTimeMs": 4562,
    "kills": [
     26,
     56
@@ -2441,7 +2441,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 857.7,
-   "wallTimeMs": 15455,
+   "wallTimeMs": 8555,
    "kills": [
     96,
     60
@@ -3010,54 +3010,58 @@
    "winnerRace": "aiUnity",
    "winnerDoctrine": null,
    "result": "defeat",
-   "timeSeconds": 948.95,
-   "wallTimeMs": 42901,
+   "timeSeconds": 981.65,
+   "wallTimeMs": 13755,
    "kills": [
-    121,
-    152
+    97,
+    132
    ],
    "credits": [
-    120,
-    629
+    48,
+    200
    ],
    "peakUnits": [
-    25,
-    60
+    21,
+    69
    ],
    "peakComposition": [
     {
      "rifle": 8,
      "scout": 1,
-     "harvester": 5,
-     "rocket": 3,
-     "tank": 8,
+     "harvester": 8,
+     "rocket": 2,
+     "tank": 5,
      "constructor": 1,
-     "artillery": 2,
-     "striker": 2,
+     "artillery": 1,
      "engineer": 1
     },
     {
-     "unityRifle": 17,
+     "unityRifle": 22,
      "unityScout": 1,
-     "unityHarvester": 10,
-     "unityRocket": 7,
-     "unityTank": 19,
-     "unityArtillery": 6,
-     "unityEngineer": 2,
+     "unityHarvester": 9,
+     "unityRocket": 9,
+     "unityTank": 18,
+     "unityArtillery": 5,
+     "unityEngineer": 1,
      "unityConstructor": 1,
-     "unityStriker": 3
+     "unityStriker": 4
     }
    ],
    "finalComposition": [
-    {},
     {
-     "harvester": 10,
-     "artillery": 6,
-     "tank": 19,
-     "rocket": 6,
-     "engineer": 2,
-     "rifle": 13,
-     "striker": 3,
+     "harvester": 8,
+     "rifle": 2,
+     "scout": 1,
+     "rocket": 1
+    },
+    {
+     "harvester": 9,
+     "artillery": 5,
+     "rocket": 9,
+     "tank": 18,
+     "rifle": 22,
+     "engineer": 1,
+     "striker": 4,
      "scout": 1
     }
    ],
@@ -3080,7 +3084,7 @@
     ]
    ],
    "raids": [
-    7,
+    3,
     9
    ],
    "firstRaid": [
@@ -3092,12 +3096,12 @@
     3
    ],
    "haulersLost": [
-    5,
-    0
+    0,
+    1
    ],
    "floatSeconds": [
-    20,
-    17.5
+    17.75,
+    26.75
    ],
    "coreHp": [
     0,
@@ -3288,10 +3292,10 @@
      ],
      "credits": [
       1836,
-      107
+      115
      ],
      "kills": [
-      35,
+      36,
       44
      ],
      "power": [
@@ -3315,16 +3319,50 @@
     {
      "time": 480.25,
      "units": [
-      8,
-      17
+      7,
+      16
      ],
      "credits": [
-      492,
-      5
+      798,
+      1186
      ],
      "kills": [
-      36,
+      43,
       49
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics"
+      ]
+     ]
+    },
+    {
+     "time": 540.25,
+     "units": [
+      8,
+      13
+     ],
+     "credits": [
+      15,
+      561
+     ],
+     "kills": [
+      50,
+      56
      ],
      "power": [
       "stable",
@@ -3348,18 +3386,18 @@
      ]
     },
     {
-     "time": 540.25,
+     "time": 600.25,
      "units": [
-      7,
+      11,
       18
      ],
      "credits": [
-      150,
-      630
+      160,
+      88
      ],
      "kills": [
-      44,
-      58
+      52,
+      57
      ],
      "power": [
       "stable",
@@ -3384,55 +3422,18 @@
      ]
     },
     {
-     "time": 600.25,
-     "units": [
-      14,
-      21
-     ],
-     "credits": [
-      258,
-      420
-     ],
-     "kills": [
-      50,
-      62
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
      "time": 660.25,
      "units": [
-      19,
-      27
+      12,
+      26
      ],
      "credits": [
-      476,
-      158
+      273,
+      36
      ],
      "kills": [
-      62,
-      71
+      61,
+      60
      ],
      "power": [
       "stable",
@@ -3460,16 +3461,16 @@
     {
      "time": 720.25,
      "units": [
-      16,
-      33
+      15,
+      27
      ],
      "credits": [
-      37,
-      73
+      53,
+      457
      ],
      "kills": [
-      77,
-      83
+      70,
+      66
      ],
      "power": [
       "stable",
@@ -3497,16 +3498,16 @@
     {
      "time": 780.25,
      "units": [
-      23,
-      47
+      19,
+      34
      ],
      "credits": [
-      215,
-      615
+      240,
+      302
      ],
      "kills": [
-      84,
-      89
+      81,
+      74
      ],
      "power": [
       "stable",
@@ -3534,16 +3535,16 @@
     {
      "time": 840.25,
      "units": [
-      23,
-      49
+      13,
+      31
      ],
      "credits": [
-      243,
-      5
+      419,
+      143
      ],
      "kills": [
-      104,
-      99
+      94,
+      97
      ],
      "power": [
       "stable",
@@ -3571,16 +3572,53 @@
     {
      "time": 900.25,
      "units": [
-      11,
-      54
+      13,
+      45
      ],
      "credits": [
-      240,
-      161
+      232,
+      376
      ],
      "kills": [
-      120,
-      127
+      95,
+      119
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 960.25,
+     "units": [
+      10,
+      63
+     ],
+     "credits": [
+      114,
+      86
+     ],
+     "kills": [
+      97,
+      129
      ],
      "power": [
       "stable",
@@ -3624,7 +3662,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 666.1,
-   "wallTimeMs": 20768,
+   "wallTimeMs": 7199,
    "kills": [
     52,
     96
@@ -4100,7 +4138,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 881.2,
-   "wallTimeMs": 16833,
+   "wallTimeMs": 7302,
    "kills": [
     100,
     70
@@ -4673,7 +4711,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 1126.65,
-   "wallTimeMs": 20138,
+   "wallTimeMs": 9617,
    "kills": [
     98,
     123
@@ -5403,7 +5441,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 558.95,
-   "wallTimeMs": 12211,
+   "wallTimeMs": 4922,
    "kills": [
     83,
     39
@@ -5776,7 +5814,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 700,
-   "wallTimeMs": 11328,
+   "wallTimeMs": 5186,
    "kills": [
     43,
     97
@@ -6243,7 +6281,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 780.95,
-   "wallTimeMs": 30631,
+   "wallTimeMs": 12852,
    "kills": [
     132,
     86
@@ -6765,7 +6803,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 484.95,
-   "wallTimeMs": 7454,
+   "wallTimeMs": 4602,
    "kills": [
     34,
     61
@@ -7121,7 +7159,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 575.35,
-   "wallTimeMs": 11471,
+   "wallTimeMs": 5479,
    "kills": [
     69,
     36
@@ -7519,7 +7557,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 534.25,
-   "wallTimeMs": 9296,
+   "wallTimeMs": 4158,
    "kills": [
     27,
     51
@@ -7864,7 +7902,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 498.5,
-   "wallTimeMs": 11990,
+   "wallTimeMs": 4488,
    "kills": [
     60,
     29
@@ -8225,7 +8263,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 613.65,
-   "wallTimeMs": 18501,
+   "wallTimeMs": 7675,
    "kills": [
     90,
     40
@@ -8654,7 +8692,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 1366.65,
-   "wallTimeMs": 34375,
+   "wallTimeMs": 15066,
    "kills": [
     156,
     129
@@ -9519,7 +9557,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 562.3,
-   "wallTimeMs": 7614,
+   "wallTimeMs": 4384,
    "kills": [
     35,
     76
@@ -9914,7 +9952,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 477.15,
-   "wallTimeMs": 8514,
+   "wallTimeMs": 4069,
    "kills": [
     62,
     30
@@ -10227,37 +10265,39 @@
    "winnerRace": "organics",
    "winnerDoctrine": null,
    "result": "defeat",
-   "timeSeconds": 851.05,
-   "wallTimeMs": 11409,
+   "timeSeconds": 1151.95,
+   "wallTimeMs": 10546,
    "kills": [
-    64,
-    92
+    96,
+    132
    ],
    "credits": [
-    61,
-    188
+    41,
+    316
    ],
    "peakUnits": [
-    16,
-    31
+    21,
+    28
    ],
    "peakComposition": [
     {
      "unityRifle": 7,
      "unityScout": 1,
-     "unityHarvester": 4,
+     "unityHarvester": 5,
      "unityRocket": 2,
      "unityTank": 5,
      "unityConstructor": 1,
-     "unityArtillery": 1
+     "unityArtillery": 1,
+     "unityEngineer": 1,
+     "unityStriker": 1
     },
     {
-     "rifle": 6,
+     "rifle": 7,
      "scout": 1,
-     "harvester": 6,
+     "harvester": 5,
      "rocket": 3,
-     "tank": 10,
-     "artillery": 3,
+     "tank": 7,
+     "artillery": 2,
      "constructor": 1,
      "engineer": 1,
      "striker": 1
@@ -10265,26 +10305,30 @@
    ],
    "finalComposition": [
     {
-     "harvester": 2,
-     "tank": 1
+     "harvester": 3,
+     "tank": 2,
+     "rifle": 2,
+     "rocket": 1,
+     "scout": 1
     },
     {
-     "harvester": 6,
-     "tank": 10,
+     "harvester": 5,
+     "tank": 7,
+     "artillery": 2,
      "rocket": 3,
-     "rifle": 6,
-     "artillery": 3,
-     "striker": 1,
+     "rifle": 7,
      "engineer": 1,
-     "scout": 1
+     "striker": 1,
+     "scout": 1,
+     "constructor": 1
     }
    ],
    "research": [
     [
      "gridEfficiency",
      "advancedBallistics",
-     "infantryWeapons",
      "vehicleWeapons",
+     "infantryWeapons",
      "infantryArmor",
      "mobility"
     ],
@@ -10298,8 +10342,8 @@
     ]
    ],
    "raids": [
-    3,
-    7
+    9,
+    10
    ],
    "firstRaid": [
     100.25,
@@ -10311,11 +10355,11 @@
    ],
    "haulersLost": [
     2,
-    0
+    1
    ],
    "floatSeconds": [
-    28,
-    33.5
+    39,
+    68
    ],
    "coreHp": [
     0,
@@ -10444,12 +10488,12 @@
       9
      ],
      "credits": [
-      329,
-      52
+      116,
+      70
      ],
      "kills": [
-      27,
-      22
+      26,
+      21
      ],
      "power": [
       "stable",
@@ -10465,16 +10509,16 @@
     {
      "time": 360.25,
      "units": [
-      11,
-      13
+      10,
+      11
      ],
      "credits": [
-      309,
-      15
+      30,
+      208
      ],
      "kills": [
-      27,
-      25
+      31,
+      28
      ],
      "power": [
       "stable",
@@ -10494,15 +10538,15 @@
     {
      "time": 420.25,
      "units": [
-      10,
-      16
+      11,
+      11
      ],
      "credits": [
-      59,
-      12
+      486,
+      287
      ],
      "kills": [
-      31,
+      37,
       33
      ],
      "power": [
@@ -10513,8 +10557,8 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
-       "vehicleWeapons"
+       "vehicleWeapons",
+       "infantryWeapons"
       ],
       [
        "gridEfficiency",
@@ -10526,16 +10570,16 @@
     {
      "time": 480.25,
      "units": [
-      8,
-      14
+      12,
+      12
      ],
      "credits": [
-      1356,
-      1212
+      512,
+      521
      ],
      "kills": [
-      42,
-      40
+      45,
+      38
      ],
      "power": [
       "stable",
@@ -10545,8 +10589,9 @@
       [
        "gridEfficiency",
        "advancedBallistics",
+       "vehicleWeapons",
        "infantryWeapons",
-       "vehicleWeapons"
+       "infantryArmor"
       ],
       [
        "gridEfficiency",
@@ -10561,15 +10606,15 @@
      "time": 540.25,
      "units": [
       9,
-      12
+      13
      ],
      "credits": [
-      970,
-      167
+      1709,
+      1130
      ],
      "kills": [
-      46,
-      45
+      51,
+      42
      ],
      "power": [
       "stable",
@@ -10579,33 +10624,33 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
        "vehicleWeapons",
-       "infantryArmor"
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
       ],
       [
        "gridEfficiency",
        "infantryWeapons",
        "vehicleWeapons",
        "advancedBallistics",
-       "infantryArmor",
-       "mobility"
+       "infantryArmor"
       ]
      ]
     },
     {
      "time": 600.25,
      "units": [
-      9,
-      10
+      10,
+      12
      ],
      "credits": [
-      36,
-      45
+      166,
+      222
      ],
      "kills": [
       54,
-      49
+      47
      ],
      "power": [
       "stable",
@@ -10615,9 +10660,10 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
        "vehicleWeapons",
-       "infantryArmor"
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
       ],
       [
        "gridEfficiency",
@@ -10632,16 +10678,16 @@
     {
      "time": 660.25,
      "units": [
-      3,
-      16
+      9,
+      9
      ],
      "credits": [
-      561,
-      269
+      121,
+      574
      ],
      "kills": [
-      57,
-      55
+      62,
+      53
      ],
      "power": [
       "stable",
@@ -10651,8 +10697,8 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
        "vehicleWeapons",
+       "infantryWeapons",
        "infantryArmor",
        "mobility"
       ],
@@ -10669,16 +10715,16 @@
     {
      "time": 720.25,
      "units": [
-      7,
-      20
+      12,
+      13
      ],
      "credits": [
-      138,
-      1396
+      90,
+      2
      ],
      "kills": [
-      60,
-      60
+      66,
+      56
      ],
      "power": [
       "stable",
@@ -10688,8 +10734,8 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
        "vehicleWeapons",
+       "infantryWeapons",
        "infantryArmor",
        "mobility"
       ],
@@ -10706,16 +10752,16 @@
     {
      "time": 780.25,
      "units": [
-      7,
-      20
+      21,
+      19
      ],
      "credits": [
-      602,
-      528
+      138,
+      207
      ],
      "kills": [
-      64,
-      76
+      67,
+      59
      ],
      "power": [
       "stable",
@@ -10725,8 +10771,8 @@
       [
        "gridEfficiency",
        "advancedBallistics",
-       "infantryWeapons",
        "vehicleWeapons",
+       "infantryWeapons",
        "infantryArmor",
        "mobility"
       ],
@@ -10743,16 +10789,16 @@
     {
      "time": 840.25,
      "units": [
-      6,
-      28
+      14,
+      14
      ],
      "credits": [
-      65,
-      234
+      0,
+      1232
      ],
      "kills": [
-      64,
-      87
+      75,
+      73
      ],
      "power": [
       "stable",
@@ -10762,8 +10808,193 @@
       [
        "gridEfficiency",
        "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
        "infantryWeapons",
        "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 900.25,
+     "units": [
+      13,
+      14
+     ],
+     "credits": [
+      184,
+      57
+     ],
+     "kills": [
+      78,
+      81
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 960.25,
+     "units": [
+      13,
+      16
+     ],
+     "credits": [
+      65,
+      557
+     ],
+     "kills": [
+      82,
+      86
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 1020.25,
+     "units": [
+      10,
+      18
+     ],
+     "credits": [
+      245,
+      45
+     ],
+     "kills": [
+      91,
+      92
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 1080.25,
+     "units": [
+      10,
+      26
+     ],
+     "credits": [
+      0,
+      449
+     ],
+     "kills": [
+      92,
+      106
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "vehicleWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 1140.25,
+     "units": [
+      11,
+      26
+     ],
+     "credits": [
+      43,
+      276
+     ],
+     "kills": [
+      96,
+      128
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
        "infantryArmor",
        "mobility"
       ],
@@ -10796,7 +11027,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 547.1,
-   "wallTimeMs": 8464,
+   "wallTimeMs": 4656,
    "kills": [
     78,
     40
@@ -11179,7 +11410,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 668.7,
-   "wallTimeMs": 7058,
+   "wallTimeMs": 5212,
    "kills": [
     53,
     72
@@ -11635,7 +11866,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 407.55,
-   "wallTimeMs": 4098,
+   "wallTimeMs": 2749,
    "kills": [
     38,
     17
@@ -11912,7 +12143,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 712.6,
-   "wallTimeMs": 10036,
+   "wallTimeMs": 6235,
    "kills": [
     42,
     94
@@ -12361,7 +12592,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 620.1,
-   "wallTimeMs": 8421,
+   "wallTimeMs": 4587,
    "kills": [
     82,
     49
@@ -12773,7 +13004,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 1460.25,
-   "wallTimeMs": 32802,
+   "wallTimeMs": 20489,
    "kills": [
     155,
     210
@@ -13725,39 +13956,39 @@
    "winnerRace": "organics",
    "winnerDoctrine": null,
    "result": "victory",
-   "timeSeconds": 1449.05,
-   "wallTimeMs": 21595,
+   "timeSeconds": 1268.05,
+   "wallTimeMs": 13065,
    "kills": [
-    175,
-    118
+    157,
+    92
    ],
    "credits": [
-    752,
-    1
+    37,
+    107
    ],
    "peakUnits": [
-    36,
-    32
+    52,
+    17
    ],
    "peakComposition": [
     {
-     "rifle": 9,
+     "rifle": 14,
      "scout": 1,
-     "harvester": 6,
-     "rocket": 4,
-     "tank": 13,
-     "artillery": 3,
+     "harvester": 7,
+     "rocket": 7,
+     "tank": 14,
+     "artillery": 4,
      "constructor": 1,
      "engineer": 1,
-     "striker": 2
+     "striker": 4
     },
     {
-     "unityRifle": 8,
+     "unityRifle": 7,
      "unityScout": 1,
-     "unityHarvester": 6,
+     "unityHarvester": 5,
      "unityRocket": 4,
-     "unityTank": 11,
-     "unityArtillery": 2,
+     "unityTank": 4,
+     "unityArtillery": 1,
      "unityConstructor": 1,
      "unityStriker": 1,
      "unityEngineer": 1
@@ -13765,18 +13996,19 @@
    ],
    "finalComposition": [
     {
-     "harvester": 6,
-     "artillery": 3,
+     "harvester": 7,
+     "tank": 14,
+     "artillery": 4,
      "engineer": 1,
-     "tank": 9,
-     "rifle": 8,
-     "striker": 2,
-     "rocket": 4,
-     "scout": 1,
-     "constructor": 1
+     "striker": 4,
+     "rocket": 7,
+     "rifle": 14,
+     "scout": 1
     },
     {
-     "tank": 1
+     "harvester": 1,
+     "scout": 1,
+     "rifle": 1
     }
    ],
    "research": [
@@ -13798,8 +14030,8 @@
     ]
    ],
    "raids": [
-    7,
-    7
+    9,
+    6
    ],
    "firstRaid": [
     100.25,
@@ -13811,11 +14043,11 @@
    ],
    "haulersLost": [
     0,
-    6
+    4
    ],
    "floatSeconds": [
-    30.25,
-    45.5
+    26,
+    48.25
    ],
    "coreHp": [
     3000,
@@ -14245,16 +14477,16 @@
     {
      "time": 840.25,
      "units": [
-      11,
-      14
+      13,
+      13
      ],
      "credits": [
-      559,
-      958
+      500,
+      960
      ],
      "kills": [
-      80,
-      62
+      81,
+      61
      ],
      "power": [
       "stable",
@@ -14282,16 +14514,16 @@
     {
      "time": 900.25,
      "units": [
-      15,
+      16,
       13
      ],
      "credits": [
-      351,
-      80
+      322,
+      371
      ],
      "kills": [
       88,
-      65
+      64
      ],
      "power": [
       "stable",
@@ -14319,16 +14551,16 @@
     {
      "time": 960.25,
      "units": [
-      26,
-      9
+      16,
+      14
      ],
      "credits": [
-      269,
-      70
+      210,
+      235
      ],
      "kills": [
-      95,
-      68
+      93,
+      69
      ],
      "power": [
       "stable",
@@ -14356,16 +14588,16 @@
     {
      "time": 1020.25,
      "units": [
-      29,
-      12
+      16,
+      13
      ],
      "credits": [
-      235,
-      404
+      518,
+      1435
      ],
      "kills": [
-      97,
-      71
+      98,
+      74
      ],
      "power": [
       "stable",
@@ -14393,16 +14625,16 @@
     {
      "time": 1080.25,
      "units": [
-      31,
-      21
+      15,
+      15
      ],
      "credits": [
-      791,
-      87
+      1073,
+      16
      ],
      "kills": [
       101,
-      76
+      80
      ],
      "power": [
       "stable",
@@ -14430,15 +14662,15 @@
     {
      "time": 1140.25,
      "units": [
-      34,
-      31
+      23,
+      8
      ],
      "credits": [
-      583,
-      159
+      692,
+      24
      ],
      "kills": [
-      103,
+      115,
       83
      ],
      "power": [
@@ -14467,16 +14699,16 @@
     {
      "time": 1200.25,
      "units": [
-      22,
-      26
+      31,
+      8
      ],
      "credits": [
-      62,
-      11
+      102,
+      58
      ],
      "kills": [
-      118,
-      98
+      123,
+      89
      ],
      "power": [
       "stable",
@@ -14504,127 +14736,16 @@
     {
      "time": 1260.25,
      "units": [
-      20,
-      20
+      49,
+      3
      ],
      "credits": [
-      308,
-      60
+      237,
+      110
      ],
      "kills": [
-      131,
-      108
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
-     "time": 1320.25,
-     "units": [
-      31,
-      10
-     ],
-     "credits": [
-      12,
-      1
-     ],
-     "kills": [
-      141,
-      113
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
-     "time": 1380.25,
-     "units": [
-      33,
-      4
-     ],
-     "credits": [
-      1202,
-      1
-     ],
-     "kills": [
-      147,
-      116
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
-     "time": 1440.25,
-     "units": [
-      34,
-      1
-     ],
-     "credits": [
-      558,
-      1
-     ],
-     "kills": [
-      171,
-      118
+      156,
+      92
      ],
      "power": [
       "stable",
@@ -14668,7 +14789,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 600.1,
-   "wallTimeMs": 5912,
+   "wallTimeMs": 6021,
    "kills": [
     83,
     43
@@ -15110,7 +15231,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 634.6,
-   "wallTimeMs": 11201,
+   "wallTimeMs": 9590,
    "kills": [
     46,
     82
@@ -15544,7 +15665,7 @@
    "winnerDoctrine": null,
    "result": "defeat",
    "timeSeconds": 737.35,
-   "wallTimeMs": 9921,
+   "wallTimeMs": 8961,
    "kills": [
     45,
     123
@@ -16040,7 +16161,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 914.55,
-   "wallTimeMs": 21054,
+   "wallTimeMs": 18011,
    "kills": [
     133,
     73
@@ -16650,7 +16771,7 @@
    "winnerDoctrine": null,
    "result": "victory",
    "timeSeconds": 765.05,
-   "wallTimeMs": 10238,
+   "wallTimeMs": 9531,
    "kills": [
     91,
     60
@@ -17145,7 +17266,7 @@
    "winnerDoctrine": "swarm",
    "result": "victory",
    "timeSeconds": 544.5,
-   "wallTimeMs": 21419,
+   "wallTimeMs": 9342,
    "kills": [
     53,
     76
@@ -17532,7 +17653,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 752.75,
-   "wallTimeMs": 14030,
+   "wallTimeMs": 6937,
    "kills": [
     102,
     42
@@ -18028,7 +18149,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 222.7,
-   "wallTimeMs": 2097,
+   "wallTimeMs": 1548,
    "kills": [
     3,
     27
@@ -18215,7 +18336,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 596,
-   "wallTimeMs": 7513,
+   "wallTimeMs": 5622,
    "kills": [
     86,
     32
@@ -18614,7 +18735,7 @@
    "winnerDoctrine": "swarm",
    "result": "victory",
    "timeSeconds": 693.5,
-   "wallTimeMs": 14648,
+   "wallTimeMs": 8605,
    "kills": [
     86,
     77
@@ -19091,7 +19212,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 415.75,
-   "wallTimeMs": 7703,
+   "wallTimeMs": 3143,
    "kills": [
     57,
     18
@@ -19382,29 +19503,29 @@
    "winnerRace": "aiUnity",
    "winnerDoctrine": "swarm",
    "result": "victory",
-   "timeSeconds": 708,
-   "wallTimeMs": 20972,
+   "timeSeconds": 722.3,
+   "wallTimeMs": 11561,
    "kills": [
-    80,
-    90
+    85,
+    88
    ],
    "credits": [
-    88,
-    18
+    738,
+    89
    ],
    "peakUnits": [
-    81,
+    109,
     17
    ],
    "peakComposition": [
     {
-     "unityRifle": 40,
-     "unityScout": 7,
-     "unityHarvester": 7,
-     "unityRocket": 9,
-     "unityTank": 8,
+     "unityRifle": 45,
+     "unityScout": 10,
+     "unityHarvester": 11,
+     "unityRocket": 17,
+     "unityTank": 13,
      "unityConstructor": 1,
-     "unityStriker": 11
+     "unityStriker": 13
     },
     {
      "rifle": 8,
@@ -19414,24 +19535,23 @@
      "tank": 5,
      "engineer": 1,
      "constructor": 1,
-     "striker": 1,
-     "artillery": 1
+     "striker": 1
     }
    ],
    "finalComposition": [
     {
-     "harvester": 7,
-     "scout": 6,
-     "rifle": 40,
-     "tank": 8,
-     "striker": 11,
-     "rocket": 9
+     "harvester": 11,
+     "tank": 13,
+     "rifle": 45,
+     "rocket": 17,
+     "striker": 13,
+     "scout": 10
     },
     {
-     "harvester": 2,
-     "rifle": 1,
+     "harvester": 3,
      "scout": 1,
-     "tank": 1
+     "tank": 1,
+     "rifle": 1
     }
    ],
    "research": [
@@ -19453,23 +19573,23 @@
     ]
    ],
    "raids": [
-    10,
-    4
+    9,
+    2
    ],
    "firstRaid": [
     60.25,
     101
    ],
    "peakCores": [
-    2,
+    3,
     2
    ],
    "haulersLost": [
     0,
-    2
+    1
    ],
    "floatSeconds": [
-    18,
+    20.5,
     10.5
    ],
    "coreHp": [
@@ -19632,14 +19752,14 @@
      "time": 360.25,
      "units": [
       13,
-      4
+      3
      ],
      "credits": [
       513,
-      182
+      146
      ],
      "kills": [
-      28,
+      29,
       32
      ],
      "power": [
@@ -19660,16 +19780,16 @@
     {
      "time": 420.25,
      "units": [
-      23,
-      7
+      30,
+      8
      ],
      "credits": [
-      287,
-      86
+      314,
+      232
      ],
      "kills": [
       31,
-      37
+      34
      ],
      "power": [
       "stable",
@@ -19692,15 +19812,15 @@
     {
      "time": 480.25,
      "units": [
-      31,
-      10
+      37,
+      8
      ],
      "credits": [
-      434,
-      844
+      216,
+      235
      ],
      "kills": [
-      37,
+      38,
       46
      ],
      "power": [
@@ -19726,16 +19846,16 @@
     {
      "time": 540.25,
      "units": [
-      40,
-      8
+      45,
+      9
      ],
      "credits": [
-      319,
-      108
+      35,
+      33
      ],
      "kills": [
-      46,
-      62
+      51,
+      59
      ],
      "power": [
       "stable",
@@ -19747,8 +19867,7 @@
        "infantryWeapons",
        "advancedBallistics",
        "infantryArmor",
-       "vehicleWeapons",
-       "mobility"
+       "vehicleWeapons"
       ],
       [
        "gridEfficiency",
@@ -19763,16 +19882,16 @@
     {
      "time": 600.25,
      "units": [
-      47,
-      5
+      57,
+      10
      ],
      "credits": [
-      278,
-      2
+      644,
+      249
      ],
      "kills": [
-      60,
-      79
+      59,
+      71
      ],
      "power": [
       "stable",
@@ -19800,16 +19919,53 @@
     {
      "time": 660.25,
      "units": [
-      66,
+      75,
       5
      ],
      "credits": [
-      101,
-      18
+      1128,
+      146
      ],
      "kills": [
-      69,
-      86
+      71,
+      81
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "infantryWeapons",
+       "advancedBallistics",
+       "infantryArmor",
+       "vehicleWeapons",
+       "mobility"
+      ],
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "infantryWeapons",
+       "infantryArmor",
+       "mobility"
+      ]
+     ]
+    },
+    {
+     "time": 720.25,
+     "units": [
+      109,
+      6
+     ],
+     "credits": [
+      840,
+      89
+     ],
+     "kills": [
+      84,
+      88
      ],
      "power": [
       "stable",
@@ -19856,7 +20012,7 @@
    "winnerDoctrine": "swarm",
    "result": "defeat",
    "timeSeconds": 856.25,
-   "wallTimeMs": 27565,
+   "wallTimeMs": 13145,
    "kills": [
     128,
     96
@@ -20429,7 +20585,7 @@
    "winnerDoctrine": "swarm",
    "result": "victory",
    "timeSeconds": 734.75,
-   "wallTimeMs": 25267,
+   "wallTimeMs": 11058,
    "kills": [
     104,
     98
@@ -20936,7 +21092,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 784.8,
-   "wallTimeMs": 20013,
+   "wallTimeMs": 9112,
    "kills": [
     137,
     62
@@ -21479,7 +21635,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 246.55,
-   "wallTimeMs": 3688,
+   "wallTimeMs": 1953,
    "kills": [
     11,
     33
@@ -21697,7 +21853,7 @@
    "winnerDoctrine": "swarm",
    "result": "defeat",
    "timeSeconds": 673.1,
-   "wallTimeMs": 18795,
+   "wallTimeMs": 9439,
    "kills": [
     74,
     86
@@ -22175,7 +22331,7 @@
    "winnerDoctrine": "ironclad",
    "result": "victory",
    "timeSeconds": 472.2,
-   "wallTimeMs": 16072,
+   "wallTimeMs": 6022,
    "kills": [
     56,
     28
@@ -22511,7 +22667,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 414.7,
-   "wallTimeMs": 9170,
+   "wallTimeMs": 4260,
    "kills": [
     44,
     27
@@ -22800,7 +22956,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 736.25,
-   "wallTimeMs": 15682,
+   "wallTimeMs": 8802,
    "kills": [
     72,
     88
@@ -23318,7 +23474,7 @@
    "winnerDoctrine": "ironclad",
    "result": "defeat",
    "timeSeconds": 429.9,
-   "wallTimeMs": 5909,
+   "wallTimeMs": 3731,
    "kills": [
     19,
     55
@@ -23642,7 +23798,7 @@
    "winnerDoctrine": "ironclad",
    "result": "victory",
    "timeSeconds": 435.85,
-   "wallTimeMs": 8463,
+   "wallTimeMs": 3561,
    "kills": [
     57,
     19
@@ -23962,7 +24118,7 @@
    "winnerDoctrine": "ironclad",
    "result": "defeat",
    "timeSeconds": 435.7,
-   "wallTimeMs": 7312,
+   "wallTimeMs": 2954,
    "kills": [
     19,
     53
@@ -24277,7 +24433,7 @@
    "winnerDoctrine": "ironclad",
    "result": "victory",
    "timeSeconds": 929.85,
-   "wallTimeMs": 18060,
+   "wallTimeMs": 7623,
    "kills": [
     109,
     58
@@ -24892,7 +25048,7 @@
    "winnerDoctrine": "ironclad",
    "result": "defeat",
    "timeSeconds": 398.5,
-   "wallTimeMs": 7789,
+   "wallTimeMs": 3121,
    "kills": [
     19,
     53
@@ -25187,7 +25343,7 @@
    "winnerDoctrine": "ironclad",
    "result": "victory",
    "timeSeconds": 505.05,
-   "wallTimeMs": 6586,
+   "wallTimeMs": 3667,
    "kills": [
     71,
     27
@@ -25532,7 +25688,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 592.2,
-   "wallTimeMs": 8188,
+   "wallTimeMs": 4438,
    "kills": [
     48,
     27
@@ -25923,7 +26079,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 781.55,
-   "wallTimeMs": 16974,
+   "wallTimeMs": 9004,
    "kills": [
     102,
     73
@@ -26471,7 +26627,7 @@
    "winnerDoctrine": "ironclad",
    "result": "defeat",
    "timeSeconds": 718.1,
-   "wallTimeMs": 8129,
+   "wallTimeMs": 5271,
    "kills": [
     38,
     85
@@ -26942,7 +27098,7 @@
    "winnerDoctrine": "prospector",
    "result": "victory",
    "timeSeconds": 479.5,
-   "wallTimeMs": 11030,
+   "wallTimeMs": 4329,
    "kills": [
     51,
     26
@@ -27270,7 +27426,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 387.35,
-   "wallTimeMs": 9726,
+   "wallTimeMs": 3480,
    "kills": [
     48,
     23
@@ -27557,7 +27713,7 @@
    "winnerDoctrine": "prospector",
    "result": "victory",
    "timeSeconds": 349.2,
-   "wallTimeMs": 3984,
+   "wallTimeMs": 1948,
    "kills": [
     33,
     35
@@ -27787,7 +27943,7 @@
    "winnerDoctrine": "prospector",
    "result": "defeat",
    "timeSeconds": 419.9,
-   "wallTimeMs": 6247,
+   "wallTimeMs": 3330,
    "kills": [
     18,
     40
@@ -28074,40 +28230,39 @@
     "prospector",
     "balanced"
    ],
-   "winnerTeam": null,
-   "winnerRace": null,
-   "winnerDoctrine": null,
-   "result": "time-limit draw",
-   "timeSeconds": 2400,
-   "wallTimeMs": 728840,
+   "winnerTeam": 0,
+   "winnerRace": "organics",
+   "winnerDoctrine": "prospector",
+   "result": "victory",
+   "timeSeconds": 527.3,
+   "wallTimeMs": 4084,
    "kills": [
-    46,
+    48,
     24
    ],
    "credits": [
-    38763,
-    126
+    404,
+    107
    ],
    "peakUnits": [
-    180,
+    29,
     17
    ],
    "peakComposition": [
     {
-     "rifle": 40,
+     "rifle": 8,
      "scout": 1,
-     "harvester": 12,
-     "rocket": 17,
-     "tank": 60,
+     "harvester": 5,
+     "rocket": 3,
+     "tank": 7,
      "constructor": 1,
-     "engineer": 8,
-     "artillery": 35,
-     "striker": 7
+     "engineer": 1,
+     "artillery": 4
     },
     {
      "unityRifle": 7,
      "unityScout": 1,
-     "unityHarvester": 3,
+     "unityHarvester": 4,
      "unityRocket": 2,
      "unityTank": 5,
      "unityConstructor": 1
@@ -28115,17 +28270,16 @@
    ],
    "finalComposition": [
     {
-     "harvester": 12,
-     "tank": 60,
-     "rocket": 17,
+     "harvester": 5,
+     "tank": 7,
+     "rocket": 3,
      "scout": 1,
-     "rifle": 40,
-     "artillery": 35,
-     "engineer": 8,
-     "striker": 7
+     "rifle": 8,
+     "artillery": 4,
+     "engineer": 1
     },
     {
-     "scout": 1
+     "harvester": 4
     }
    ],
    "research": [
@@ -28152,20 +28306,20 @@
     101
    ],
    "peakCores": [
-    4,
+    3,
     2
    ],
    "haulersLost": [
     0,
-    3
+    0
    ],
    "floatSeconds": [
-    1673,
+    33.5,
     8.75
    ],
    "coreHp": [
     3000,
-    3100
+    0
    ],
    "samples": [
     {
@@ -28380,15 +28534,15 @@
     {
      "time": 480.25,
      "units": [
-      23,
-      3
+      22,
+      4
      ],
      "credits": [
-      918,
-      37
+      758,
+      406
      ],
      "kills": [
-      43,
+      41,
       24
      ],
      "power": [
@@ -28402,1060 +28556,6 @@
        "infantryWeapons",
        "mobility",
        "advancedBallistics"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 540.25,
-     "units": [
-      29,
-      2
-     ],
-     "credits": [
-      1080,
-      134
-     ],
-     "kills": [
-      44,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 600.25,
-     "units": [
-      38,
-      1
-     ],
-     "credits": [
-      1473,
-      126
-     ],
-     "kills": [
-      45,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 660.25,
-     "units": [
-      55,
-      1
-     ],
-     "credits": [
-      1353,
-      126
-     ],
-     "kills": [
-      45,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 720.25,
-     "units": [
-      72,
-      1
-     ],
-     "credits": [
-      1463,
-      126
-     ],
-     "kills": [
-      45,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 780.25,
-     "units": [
-      95,
-      1
-     ],
-     "credits": [
-      1603,
-      126
-     ],
-     "kills": [
-      45,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 840.25,
-     "units": [
-      118,
-      1
-     ],
-     "credits": [
-      3763,
-      126
-     ],
-     "kills": [
-      45,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 900.25,
-     "units": [
-      140,
-      1
-     ],
-     "credits": [
-      6063,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 960.25,
-     "units": [
-      163,
-      1
-     ],
-     "credits": [
-      6263,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1020.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      10363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1080.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      14963,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1140.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      20563,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1200.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      25363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1260.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      28763,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1320.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      30963,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1380.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      32163,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1440.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      32563,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1500.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      32963,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1560.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      33363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1620.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      33763,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1680.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      34163,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1740.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      34363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1800.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      34763,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1860.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      35163,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1920.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      35563,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 1980.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      35963,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2040.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      36363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2100.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      36763,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2160.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      37163,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2220.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      37563,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2280.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      37963,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 2340.25,
-     "units": [
-      180,
-      1
-     ],
-     "credits": [
-      38363,
-      126
-     ],
-     "kills": [
-      46,
-      24
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "vehicleWeapons",
-       "infantryWeapons",
-       "mobility",
-       "advancedBallistics",
-       "infantryArmor"
       ],
       [
        "gridEfficiency",
@@ -29486,7 +28586,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 456.4,
-   "wallTimeMs": 3197,
+   "wallTimeMs": 3568,
    "kills": [
     42,
     22
@@ -29807,7 +28907,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 441.15,
-   "wallTimeMs": 3057,
+   "wallTimeMs": 3213,
    "kills": [
     24,
     36
@@ -30124,7 +29224,7 @@
    "winnerDoctrine": "prospector",
    "result": "defeat",
    "timeSeconds": 728.65,
-   "wallTimeMs": 5725,
+   "wallTimeMs": 5879,
    "kills": [
     50,
     67
@@ -30630,38 +29730,37 @@
    "winnerRace": "organics",
    "winnerDoctrine": "prospector",
    "result": "victory",
-   "timeSeconds": 915.8,
-   "wallTimeMs": 8149,
+   "timeSeconds": 736.75,
+   "wallTimeMs": 5679,
    "kills": [
-    99,
-    66
+    87,
+    48
    ],
    "credits": [
-    468,
-    120
+    181,
+    79
    ],
    "peakUnits": [
-    35,
+    18,
     19
    ],
    "peakComposition": [
     {
-     "rifle": 15,
+     "rifle": 7,
      "scout": 1,
-     "harvester": 6,
-     "rocket": 4,
-     "tank": 8,
+     "harvester": 3,
+     "rocket": 3,
+     "tank": 5,
      "constructor": 1,
      "engineer": 1,
-     "artillery": 2,
-     "striker": 1
+     "artillery": 1
     },
     {
      "unityRifle": 8,
      "unityScout": 1,
      "unityHarvester": 3,
      "unityRocket": 3,
-     "unityTank": 5,
+     "unityTank": 4,
      "unityArtillery": 1,
      "unityEngineer": 1,
      "unityConstructor": 1
@@ -30669,19 +29768,16 @@
    ],
    "finalComposition": [
     {
-     "harvester": 6,
-     "tank": 6,
+     "harvester": 3,
+     "artillery": 1,
+     "rifle": 4,
      "rocket": 3,
-     "striker": 1,
-     "scout": 1,
-     "rifle": 15,
+     "tank": 3,
      "engineer": 1,
-     "artillery": 2
+     "scout": 1
     },
     {
-     "harvester": 3,
-     "rocket": 1,
-     "scout": 1
+     "harvester": 1
     }
    ],
    "research": [
@@ -30697,30 +29793,28 @@
      "gridEfficiency",
      "infantryWeapons",
      "vehicleWeapons",
-     "advancedBallistics",
-     "infantryArmor",
-     "mobility"
+     "advancedBallistics"
     ]
    ],
    "raids": [
-    4,
-    2
+    2,
+    3
    ],
    "firstRaid": [
     177,
     101
    ],
    "peakCores": [
-    3,
+    2,
     2
    ],
    "haulersLost": [
     0,
-    0
+    2
    ],
    "floatSeconds": [
-    30.75,
-    38.75
+    42.75,
+    27.25
    ],
    "coreHp": [
     3000,
@@ -30900,15 +29994,15 @@
      "time": 420.25,
      "units": [
       11,
-      10
+      9
      ],
      "credits": [
-      734,
-      14
+      494,
+      12
      ],
      "kills": [
       40,
-      24
+      26
      ],
      "power": [
       "stable",
@@ -30926,47 +30020,16 @@
     {
      "time": 480.25,
      "units": [
-      13,
+      11,
       10
      ],
      "credits": [
-      1257,
-      817
+      488,
+      1071
      ],
      "kills": [
-      45,
-      28
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "advancedBallistics",
-       "vehicleWeapons",
-       "mobility"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons"
-      ]
-     ]
-    },
-    {
-     "time": 540.25,
-     "units": [
-      14,
-      14
-     ],
-     "credits": [
-      4,
-      732
-     ],
-     "kills": [
-      47,
-      31
+      44,
+      33
      ],
      "power": [
       "stable",
@@ -30982,6 +30045,39 @@
       ],
       [
        "gridEfficiency",
+       "infantryWeapons"
+      ]
+     ]
+    },
+    {
+     "time": 540.25,
+     "units": [
+      13,
+      8
+     ],
+     "credits": [
+      861,
+      6
+     ],
+     "kills": [
+      55,
+      38
+     ],
+     "power": [
+      "stable",
+      "stable"
+     ],
+     "research": [
+      [
+       "gridEfficiency",
+       "advancedBallistics",
+       "vehicleWeapons",
+       "mobility",
+       "infantryWeapons",
+       "infantryArmor"
+      ],
+      [
+       "gridEfficiency",
        "infantryWeapons",
        "vehicleWeapons"
       ]
@@ -30991,15 +30087,15 @@
      "time": 600.25,
      "units": [
       16,
-      12
+      10
      ],
      "credits": [
-      210,
-      23
+      138,
+      72
      ],
      "kills": [
-      54,
-      35
+      63,
+      45
      ],
      "power": [
       "stable",
@@ -31024,16 +30120,16 @@
     {
      "time": 660.25,
      "units": [
-      21,
+      17,
       9
      ],
      "credits": [
-      149,
-      125
+      589,
+      0
      ],
      "kills": [
-      60,
-      40
+      67,
+      47
      ],
      "power": [
       "stable",
@@ -31059,16 +30155,16 @@
     {
      "time": 720.25,
      "units": [
-      24,
-      11
+      16,
+      2
      ],
      "credits": [
-      181,
-      996
+      1581,
+      79
      ],
      "kills": [
-      63,
-      49
+      84,
+      48
      ],
      "power": [
       "stable",
@@ -31087,119 +30183,7 @@
        "gridEfficiency",
        "infantryWeapons",
        "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor"
-      ]
-     ]
-    },
-    {
-     "time": 780.25,
-     "units": [
-      24,
-      10
-     ],
-     "credits": [
-      1439,
-      10
-     ],
-     "kills": [
-      73,
-      56
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "advancedBallistics",
-       "vehicleWeapons",
-       "mobility",
-       "infantryWeapons",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
-     "time": 840.25,
-     "units": [
-      22,
-      5
-     ],
-     "credits": [
-      486,
-      135
-     ],
-     "kills": [
-      83,
-      64
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "advancedBallistics",
-       "vehicleWeapons",
-       "mobility",
-       "infantryWeapons",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
-      ]
-     ]
-    },
-    {
-     "time": 900.25,
-     "units": [
-      32,
-      5
-     ],
-     "credits": [
-      0,
-      0
-     ],
-     "kills": [
-      96,
-      66
-     ],
-     "power": [
-      "stable",
-      "stable"
-     ],
-     "research": [
-      [
-       "gridEfficiency",
-       "advancedBallistics",
-       "vehicleWeapons",
-       "mobility",
-       "infantryWeapons",
-       "infantryArmor"
-      ],
-      [
-       "gridEfficiency",
-       "infantryWeapons",
-       "vehicleWeapons",
-       "advancedBallistics",
-       "infantryArmor",
-       "mobility"
+       "advancedBallistics"
       ]
      ]
     }
@@ -31225,7 +30209,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 261.4,
-   "wallTimeMs": 1652,
+   "wallTimeMs": 1966,
    "kills": [
     22,
     17
@@ -31443,7 +30427,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 293.2,
-   "wallTimeMs": 2005,
+   "wallTimeMs": 2246,
    "kills": [
     13,
     28
@@ -31670,7 +30654,7 @@
    "winnerDoctrine": "prospector",
    "result": "defeat",
    "timeSeconds": 713.4,
-   "wallTimeMs": 4935,
+   "wallTimeMs": 5143,
    "kills": [
     45,
     60
@@ -32100,7 +31084,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "victory",
    "timeSeconds": 413.7,
-   "wallTimeMs": 4044,
+   "wallTimeMs": 5631,
    "kills": [
     54,
     16
@@ -32382,7 +31366,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "defeat",
    "timeSeconds": 556.2,
-   "wallTimeMs": 4149,
+   "wallTimeMs": 4475,
    "kills": [
     31,
     67
@@ -32778,7 +31762,7 @@
    "winnerDoctrine": "balanced",
    "result": "defeat",
    "timeSeconds": 735.4,
-   "wallTimeMs": 8701,
+   "wallTimeMs": 9917,
    "kills": [
     73,
     113
@@ -33289,7 +32273,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "defeat",
    "timeSeconds": 470.25,
-   "wallTimeMs": 3449,
+   "wallTimeMs": 4215,
    "kills": [
     23,
     57
@@ -33614,7 +32598,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "victory",
    "timeSeconds": 665.9,
-   "wallTimeMs": 5861,
+   "wallTimeMs": 6777,
    "kills": [
     71,
     48
@@ -34090,7 +33074,7 @@
    "winnerDoctrine": "balanced",
    "result": "victory",
    "timeSeconds": 773.85,
-   "wallTimeMs": 6422,
+   "wallTimeMs": 6797,
    "kills": [
     91,
     66
@@ -34595,7 +33579,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "victory",
    "timeSeconds": 957.3,
-   "wallTimeMs": 10912,
+   "wallTimeMs": 11100,
    "kills": [
     170,
     99
@@ -35215,7 +34199,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "defeat",
    "timeSeconds": 659,
-   "wallTimeMs": 6337,
+   "wallTimeMs": 5992,
    "kills": [
     50,
     84
@@ -35632,7 +34616,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "victory",
    "timeSeconds": 479.1,
-   "wallTimeMs": 3764,
+   "wallTimeMs": 3939,
    "kills": [
     66,
     23
@@ -35947,7 +34931,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "defeat",
    "timeSeconds": 352.05,
-   "wallTimeMs": 2287,
+   "wallTimeMs": 2232,
    "kills": [
     20,
     59
@@ -36196,7 +35180,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "victory",
    "timeSeconds": 754.75,
-   "wallTimeMs": 6914,
+   "wallTimeMs": 7609,
    "kills": [
     114,
     58
@@ -36687,7 +35671,7 @@
    "winnerDoctrine": "siegebreaker",
    "result": "defeat",
    "timeSeconds": 324.95,
-   "wallTimeMs": 2059,
+   "wallTimeMs": 2249,
    "kills": [
     10,
     51
@@ -36944,10 +35928,10 @@
     "swarm": 6,
     "balanced": 17,
     "ironclad": 8,
-    "prospector": 6,
+    "prospector": 7,
     "siegebreaker": 10
    },
-   "draws": 1
+   "draws": 0
   }
  }
 }

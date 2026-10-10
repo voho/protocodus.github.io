@@ -1,10 +1,10 @@
 # Race and doctrine balance trials
 
-Engine SHA-256: `dd6ec7bed70116aefce5f906f17944990db812843f16528167f4a9431e71992e`, over `sim.js`, `ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js` and `abilities.js` in that order. Trials recorded on 2026-10-10 with the doctrine commanders (Veteran difficulty).
+Engine SHA-256: `64baa92bb28683a907332ea4a24aeabdb8d7ca818ef466b36f2b8c0559eb9af9`, over `sim.js`, `ai.js`, `terrain.js`, `flocking.js`, `traffic.js`, `mission.js`, `campaign.js` and `abilities.js` in that order. Trials recorded on 2026-10-10 with the doctrine commanders (Veteran difficulty).
 
-The final commander decided **81 of 82 matches** under the Charter rule; one doctrine match reached the 2,400-second limit. In the 34 race trials **Organics won 27 and AI Unity 7** (20.6% Unity). On Standard maps Organics won 25 of 30, including 11 of 12 held-out games. Against Balanced, Swarm went 6–6, Prospector 6–5 with one draw, Ironclad 8–4 and Siegebreaker 10–2. The race result is a real asymmetry under this commander, not noise; *Why AI Unity loses* below explains it and tests three candidate stat changes.
+The final commander decided **all 82 matches** under the Charter rule. In the 34 race trials **Organics won 27 and AI Unity 7** (20.6% Unity). On Standard maps Organics won 25 of 30, including 11 of 12 held-out games. Against Balanced, Swarm went 6–6, Prospector 7–5, Ironclad 8–4 and Siegebreaker 10–2. The race result is a real asymmetry under this commander, not noise; *Why AI Unity loses* below explains it and tests three candidate stat changes.
 
-These results describe this fixed commander policy and seed sample. They do not establish race balance for human play, and they replace the previous trials, which measured an earlier commander (engine `faa214c6…`, 2026-09-08: Organics 16, AI Unity 18 of 34).
+These results describe this fixed commander policy and seed sample. They do not establish race balance for human play. They replace the previous trials, which measured an earlier commander (engine `faa214c6…`, 2026-09-08: Organics 16, AI Unity 18 of 34), and an interim run of this commander (engine `dd6ec7be…`) recorded before fixes to regroup points near remembered towers, commanders that lose every nexus, fog-fair expansion ground and Cadet columns. That run differed in 6 of the 82 matches, all by length except one: its only draw, Prospector against Balanced on BALANCE-VAULT-02, which reached the 2,400-second limit, is now a Prospector win at 527 seconds.
 
 ## Method
 
@@ -59,11 +59,11 @@ Scratch copies of the engine changed only `UNITY_UNITS` in `sim.js` and replayed
 | Variant | Change to AI Unity | Games | Unity wins |
 | --- | --- | ---: | ---: |
 | Shipped | none | 18 calibration + 12 held-out | 4 + 1 (16.7%) |
-| A | Needle cohort 80, Breach automaton 160 credits | 18 calibration | 6 (33.3%) |
-| B | every combat unit at the Organic price | 18 calibration | 7 (38.9%) |
-| C | B, plus vehicle health at per-unit parity: Veil skimmer 200, Bastion walker 541, Arc siege walker 274, Talon runner 320 | 18 calibration + 12 held-out | 8 + 6 (46.7%) |
+| A | Needle cohort 80, Breach automaton 160 credits | 18 calibration + 12 held-out | 9 + 4 (43.3%) |
+| B | every combat unit at the Organic price | 18 calibration + 12 held-out | 7 + 4 (36.7%) |
+| C | B, plus vehicle health at per-unit parity: Veil skimmer 200, Bastion walker 541, Arc siege walker 274, Talon runner 320 | 18 calibration + 12 held-out | 9 + 6 (50.0%) |
 
-A and B ran on the build just before the final tower-mix rule, whose own calibration split 15–3; C ran on the final commander. Variant C is the recommended starting point. It keeps Unity's speed profile and its sturdier, weaker-hitting infantry, but drops the price premium and gives its walkers the durability their lighter shells now cost, so the race description's "costlier" and "lighter machines" would need rewording. Any adopted change should rerun this whole set on fresh seeds.
+Every variant ran on this report's commander. That B, which cuts every price, scores below A, which cuts two, is within what 30 games can resolve: one game moves a share by 3.3 points. Variant C is the recommended starting point. It keeps Unity's speed profile and its sturdier, weaker-hitting infantry, but drops the price premium and gives its walkers the durability their lighter shells now cost, so the race description's "costlier" and "lighter machines" would need rewording. Any adopted change should rerun this whole set on fresh seeds.
 
 ## Doctrine results
 
@@ -71,14 +71,14 @@ Each doctrine played Balanced on the three calibration seeds (Standard Rift), wi
 
 | Doctrine vs Balanced | Matches | Doctrine wins | Balanced wins | Draws | Doctrine win share | First raid (s) | Raids | Bases | Enemy haulers lost | Median length (s) |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Swarm | 12 | 6 | 6 | 0 | 50.0% | 61 | 7.6 | 2.3 | 0.6 | 694 |
+| Swarm | 12 | 6 | 6 | 0 | 50.0% | 61 | 7.5 | 2.3 | 0.5 | 694 |
 | Ironclad | 12 | 8 | 4 | 0 | 66.7% | 220 | 1.2 | 1.3 | 0.4 | 505 |
-| Prospector | 12 | 6 | 5 | 1 | 54.5% | 163 | 1.7 | 2.3 | 0.7 | 456 |
+| Prospector | 12 | 7 | 5 | 0 | 58.3% | 163 | 1.5 | 2.2 | 0.6 | 456 |
 | Siegebreaker | 12 | 10 | 2 | 0 | 83.3% | 151 | 3.2 | 2.3 | 1.3 | 659 |
 
-Doctrine trials ran on Standard Rift only, 12 games per doctrine, so one game moves a share by about eight points. The race asymmetry shows here too: Organics won 38 of the 47 decided doctrine games, whichever doctrine it carried.
+Doctrine trials ran on Standard Rift only, 12 games per doctrine, so one game moves a share by about eight points. The race asymmetry shows here too: Organics won 39 of the 48 doctrine games, whichever doctrine it carried.
 
-Swarm raids first (a mean of 61 seconds) and most often (7.6 waves a game), and it trades evenly with Balanced. Ironclad and Prospector hold their first wave longest (220 and 163 seconds) and build more before they fight. Siegebreaker's 10–2 has a clear shape in a traced game (DUSK-03, Unity Balanced against Organics Siegebreaker): Balanced's first wave leaves at 100 seconds and meets Siegebreaker's whole home army beside its first sentry. Siegebreaker waits for two crawlers before it raids (151 seconds on average), wins that defensive exchange, then counterattacks a thinned base. Ironclad, which also raids late, shows a similar margin. These trials measure each doctrine only against Balanced, so they show that waiting beats Balanced's early raids. They do not rank the doctrines against each other. At the same difficulty, a Siegebreaker rival is harder to beat than a Balanced one.
+Swarm raids first (a mean of 61 seconds) and most often (7.5 waves a game), and it trades evenly with Balanced. Ironclad and Prospector hold their first wave longest (220 and 163 seconds) and build more before they fight. Siegebreaker's 10–2 has a clear shape in a traced game (DUSK-03, Unity Balanced against Organics Siegebreaker): Balanced's first wave leaves at 100 seconds and meets Siegebreaker's whole home army beside its first sentry. Siegebreaker waits for two crawlers before it raids (151 seconds on average), wins that defensive exchange, then counterattacks a thinned base. Ironclad, which also raids late, shows a similar margin. These trials measure each doctrine only against Balanced, so they show that waiting beats Balanced's early raids. They do not rank the doctrines against each other. At the same difficulty, a Siegebreaker rival is harder to beat than a Balanced one.
 
 ## Army composition
 
@@ -86,14 +86,14 @@ Mean of each role's highest living count per race trial (34 games). Peaks for di
 
 | Role | Organics mean peak | Unity mean peak |
 | --- | ---: | ---: |
-| rifle | 9.88 | 8.88 |
-| rocket | 4.26 | 3.03 |
+| rifle | 10.06 | 9.00 |
+| rocket | 4.32 | 3.09 |
 | scout | 1.00 | 1.00 |
-| tank | 9.00 | 6.68 |
-| artillery | 3.32 | 1.50 |
-| harvester | 5.76 | 4.97 |
+| tank | 8.85 | 6.44 |
+| artillery | 3.29 | 1.44 |
+| harvester | 5.85 | 4.94 |
 | engineer | 0.94 | 0.50 |
-| striker | 1.15 | 0.71 |
+| striker | 1.15 | 0.76 |
 
 ## Exact matches
 
@@ -107,7 +107,7 @@ Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are
 | calibration | standard/rift | BALANCE-VAULT-02 | U/O | — | Organics | — | 1 | 573.35 | 16/37 |
 | calibration | standard/rift | BALANCE-DUSK-03 | O/U | — | AI Unity | — | 1 | 470.80 | 17/34 |
 | calibration | standard/rift | BALANCE-DUSK-03 | U/O | — | AI Unity | — | 0 | 857.70 | 64/15 |
-| calibration | standard/basin | BALANCE-CINDER-01 | O/U | — | AI Unity | — | 1 | 948.95 | 25/60 |
+| calibration | standard/basin | BALANCE-CINDER-01 | O/U | — | AI Unity | — | 1 | 981.65 | 21/69 |
 | calibration | standard/basin | BALANCE-CINDER-01 | U/O | — | Organics | — | 1 | 666.10 | 16/29 |
 | calibration | standard/basin | BALANCE-VAULT-02 | O/U | — | Organics | — | 0 | 881.20 | 33/14 |
 | calibration | standard/basin | BALANCE-VAULT-02 | U/O | — | Organics | — | 1 | 1126.65 | 17/24 |
@@ -122,14 +122,14 @@ Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are
 | holdout | standard/rift | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 1366.65 | 27/24 |
 | holdout | standard/rift | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 562.30 | 16/34 |
 | holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 477.15 | 37/16 |
-| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | U/O | — | Organics | — | 1 | 851.05 | 16/31 |
+| holdout | standard/rift | HOLDOUT-OBSIDIAN-05 | U/O | — | Organics | — | 1 | 1151.95 | 21/28 |
 | holdout | standard/basin | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 547.10 | 40/15 |
 | holdout | standard/basin | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 668.70 | 15/42 |
 | holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 407.55 | 22/15 |
 | holdout | standard/basin | HOLDOUT-OBSIDIAN-05 | U/O | — | Organics | — | 1 | 712.60 | 17/27 |
 | holdout | standard/highlands | HOLDOUT-EMBER-04 | O/U | — | Organics | — | 0 | 620.10 | 21/15 |
 | holdout | standard/highlands | HOLDOUT-EMBER-04 | U/O | — | Organics | — | 1 | 1460.25 | 25/71 |
-| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 1449.05 | 36/32 |
+| holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | O/U | — | Organics | — | 0 | 1268.05 | 52/17 |
 | holdout | standard/highlands | HOLDOUT-OBSIDIAN-05 | U/O | — | AI Unity | — | 0 | 600.10 | 39/16 |
 | extended | frontier/rift | EXTENDED-HORIZON-06 | O/U | — | AI Unity | — | 1 | 634.60 | 15/31 |
 | extended | frontier/rift | EXTENDED-HORIZON-06 | U/O | — | Organics | — | 1 | 737.35 | 21/51 |
@@ -141,7 +141,7 @@ Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are
 | doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Swarm | AI Unity | Balanced | 0 | 596.00 | 32/20 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Swarm/Balanced | Organics | Swarm | 0 | 693.50 | 69/18 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Swarm | Organics | Balanced | 0 | 415.75 | 20/17 |
-| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Swarm/Balanced | AI Unity | Swarm | 0 | 708.00 | 81/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Swarm/Balanced | AI Unity | Swarm | 0 | 722.30 | 109/17 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Swarm | Organics | Swarm | 1 | 856.25 | 16/95 |
 | doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Swarm/Balanced | Organics | Swarm | 0 | 734.75 | 72/15 |
 | doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Swarm | Organics | Balanced | 0 | 784.80 | 50/28 |
@@ -163,11 +163,11 @@ Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are
 | doctrine | standard/rift | BALANCE-CINDER-01 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 387.35 | 28/15 |
 | doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Prospector/Balanced | AI Unity | Prospector | 0 | 349.20 | 15/21 |
 | doctrine | standard/rift | BALANCE-CINDER-01 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 419.90 | 15/45 |
-| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Prospector/Balanced | draw | — | — | 2400.00 | 180/17 |
+| doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 527.30 | 29/17 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 456.40 | 36/15 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Prospector/Balanced | Organics | Balanced | 1 | 441.15 | 14/22 |
 | doctrine | standard/rift | BALANCE-VAULT-02 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 728.65 | 17/26 |
-| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 915.80 | 35/19 |
+| doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Prospector/Balanced | Organics | Prospector | 0 | 736.75 | 18/19 |
 | doctrine | standard/rift | BALANCE-DUSK-03 | O/U | Balanced/Prospector | Organics | Balanced | 0 | 261.40 | 21/15 |
 | doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Prospector/Balanced | Organics | Balanced | 1 | 293.20 | 15/26 |
 | doctrine | standard/rift | BALANCE-DUSK-03 | U/O | Balanced/Prospector | Organics | Prospector | 1 | 713.40 | 19/21 |
