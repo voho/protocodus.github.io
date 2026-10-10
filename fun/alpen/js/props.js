@@ -2664,13 +2664,28 @@ export function createProps(THREE, shading) {
   /* The first two are the hazard families and stay first: the verge
      boulder picks between them by index. The three after them are granite
      from one Poly Haven set, stand-ins until the scans land. */
+  /* THE STONE YOU HIT IS THE STONE YOU SEE. Each pool's scan (see below)
+     replaces its grown stone at the grown stone's height, and every one of
+     them is flatter than the stone it replaces, while the collision is still
+     the grown stone's radius. Drawn, they reached 1.6 to 4 times that radius,
+     so a rider went through the outer half of a visible rock, and the flat
+     iron slab came out up to 31 m across. So each grown stone is first
+     brought to its scan's proportions: height over half-width, as each file
+     lies (rock_07, rock_09, then the granite set's stone_10, 11 and 13). A
+     scan fitted to that height then fills exactly the radius the rider
+     collides with, and the stone is as tall as its own shape says. */
+  const SCAN_ASPECT = [0.90, 0.45, 0.70, 1.34, 1.20];
   const boulderVariants = [
     growBoulder(THREE, 0x9d2b1f, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 6151, geos, SNOWPACK.iron),
     growBoulder(THREE, 0x9d2b1f + 11213, geos, SNOWPACK.slate),
     growBoulder(THREE, 0x9d2b1f + 16301, geos, SNOWPACK.iron),
     growBoulder(THREE, 0x9d2b1f + 21347, geos, SNOWPACK.slate),
-  ];
+  ].map((grown, i) => {
+    const k = (grown.radius * SCAN_ASPECT[i]) / (grown.top - grown.bottom);
+    grown.geometry.scale(1, k, 1);
+    return { ...grown, bottom: grown.bottom * k, top: grown.top * k };
+  });
   const rockPools = boulderVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial,
     bands * (BIOMES.sideRockCandidates + 1) + 16,
