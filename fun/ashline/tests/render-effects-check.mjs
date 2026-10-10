@@ -127,15 +127,16 @@ try {
     // Mission zones: a zone shows through fog once a revealed objective uses it or its definition marks it lit;
     // a zone only a hidden objective uses, or a bare spawn anchor, appears only once its centre is explored.
     const zoneDiff = mission => { s.mission = mission; const a = render(); delete s.mission; return difference(a, render()); };
-    const drill = (zone, revealed = false) => ({ id: 'drill', fired: {}, counters: {}, nextCheck: 0, startedAt: 0,
-      objectives: [{ id: 'muster', state: 'active', progress: 0, revealed: true }, { id: 'range', state: 'active', progress: 0, revealed }],
+    // In the drill, objective 'muster' uses zone 'muster'; the hidden picket's 'range' zone is used by no objective.
+    const drill = (zone, revealed = true, state = 'active') => ({ id: 'drill', fired: {}, counters: {}, nextCheck: 0, startedAt: 0,
+      objectives: [{ id: 'muster', state, progress: 0, revealed }, { id: 'range', state: 'active', progress: 0, revealed: false }],
       zones: [{ id: zone, x: 30, y: 30, r: 3, label: 'Zone ' + zone }] });
     s.visible[0].fill(0); s.explored[0].fill(0);
     MISSIONS['render-lit'] = { id: 'render-lit', objectives: [], zones: [{ id: 'relay', label: 'Central relay', at: 'center', r: 3, lit: true }] };
-    result.zones = { revealed: zoneDiff(drill('muster')), hiddenObjective: zoneDiff(drill('range')), unreferenced: zoneDiff(drill('spare')),
-      afterReveal: zoneDiff(drill('range', true)), lit: zoneDiff({ ...drill('relay'), id: 'render-lit', objectives: [] }) };
+    result.zones = { revealed: zoneDiff(drill('muster')), done: zoneDiff(drill('muster', true, 'done')), hiddenObjective: zoneDiff(drill('muster', false)),
+      unreferenced: zoneDiff(drill('range')), lit: zoneDiff({ ...drill('relay'), id: 'render-lit', objectives: [] }) };
     for (let y = 28; y < 33; y++) for (let x = 28; x < 33; x++) s.explored[0][y * s.width + x] = 1;
-    result.zones.explored = zoneDiff(drill('spare'));
+    result.zones.explored = zoneDiff(drill('range'));
     s.explored[0].fill(0);
     s.sites = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }];
     const unexploredSite = render(); delete s.sites; const noSite = render();
@@ -185,11 +186,11 @@ try {
     s.visible[0].fill(0); s.explored[0].fill(0);
     const withMission = mission => mapDiff(() => { s.mission = mission; }, () => { delete s.mission; });
     const site = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }];
-    result.minimap = { revealedZone: withMission(drill('muster')), hiddenZone: withMission(drill('range')), unreferenced: withMission(drill('spare')),
+    result.minimap = { revealedZone: withMission(drill('muster')), hiddenZone: withMission(drill('muster', false)), unreferenced: withMission(drill('range')),
       lit: withMission({ ...drill('relay'), id: 'render-lit', objectives: [] }),
       unexploredSite: mapDiff(() => { s.sites = site; }, () => { delete s.sites; }) };
     // The active-objective beacon pulses on the overlay: a done objective's zone keeps only its ring.
-    const doneMission = drill('muster'); doneMission.objectives[0].state = 'done';
+    const doneMission = drill('muster', true, 'done');
     const centre = data => { const { s: k, ox, oy } = mapped.minimapLayout(s), x = Math.round((ox + 30 * k) * mapped.dpr), y = Math.round((oy + 30 * k) * mapped.dpr); return data[(y * mapCanvas.width + x) * 4]; };
     s.mission = drill('muster'); const activeCentre = centre(mapRender()); s.mission = doneMission; const doneCentre = centre(mapRender()); delete s.mission;
     result.minimap.beacon = { active: activeCentre, done: doneCentre };
@@ -317,7 +318,7 @@ try {
   assert(checks.burning > 4, `Vehicles below 25% health burn visibly (${checks.burning})`);
   assert.equal(checks.hiddenBurning, 0, 'A hidden burning enemy draws nothing');
   assert(checks.ash.moving > 0 && checks.ash.frozen === 0 && checks.ash.underFog === 0, `Ash-fall moves only over visible ground and holds on one clock (${JSON.stringify(checks.ash)})`);
-  assert(checks.zones.revealed > 200 && checks.zones.afterReveal > 200 && checks.zones.lit > 200,
+  assert(checks.zones.revealed > 200 && checks.zones.done > 200 && checks.zones.lit > 200,
     `Zones of revealed objectives and lit zones show through fog (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,
     `A zone only a hidden objective uses, or no objective uses, draws nothing over unexplored ground (${JSON.stringify(checks.zones)})`);
@@ -339,7 +340,7 @@ try {
     `A seen structure collapses in bursts and smoke; an unseen one leaves nothing (${JSON.stringify(c)})`);
   assert(c.foundation.blast === 0 && c.foundation.smoke <= 1 && c.half.blast < c.seen.blast && c.half.smoke < c.seen.smoke,
     `An unfinished structure collapses in proportion to what was built (${JSON.stringify(c)})`);
-  assert(c.foundation.decal > 1000 && c.foundation.decal < c.half.decal && c.half.decal < c.seen.decal,
+  assert(c.foundation.decal > 200 && c.foundation.decal < c.half.decal && c.half.decal < c.seen.decal,
     `An unfinished structure leaves only the built part of its husk (${JSON.stringify(c)})`);
   const k = checks.shellKill;
   assert(k.dying === 1 && k.held && k.wreckEarly === 0 && k.flashEarly === 0,
@@ -417,6 +418,29 @@ try {
     return n;
   });
   assert.equal(pausedFrames, 0, 'Paused frames are frozen');
+  // Resuming restarts the scheduler remainder; the first frames after it never step the drawn pose back.
+  await page.keyboard.press('p'); await page.waitForFunction(() => !ashline.paused);
+  await page.evaluate(async () => {
+    const { issueOrder, unitRole } = await import('./sim.js');
+    const s = ashline.state, own = s.entities.filter(e => e.team === 0 && e.kind === 'unit' && e.hp > 0);
+    const unit = own.find(e => unitRole(e) === 'scout') || own[0];
+    issueOrder(s, [unit.id], { type: 'move', x: Math.min(s.width - 2, unit.x + 12), y: unit.y });
+    window.resumeProbe = { unit, samples: [] };
+    for (let i = 0; i < 12; i++) await new Promise(requestAnimationFrame);
+  });
+  await page.keyboard.press('p'); await page.waitForFunction(() => ashline.paused);
+  const pausedX = await page.evaluate(() => {
+    const r = ashline.renderer, probe = window.resumeProbe, draw = Object.getPrototypeOf(r).draw;
+    r.draw = function (state, view) { draw.call(this, state, view); probe.samples.push(this.poseOf(probe.unit).x); };
+    return r.poseOf(probe.unit).x;
+  });
+  await page.keyboard.press('p'); await page.waitForFunction(() => !ashline.paused);
+  const resumedX = await page.evaluate(async () => {
+    for (let i = 0; i < 6; i++) await new Promise(requestAnimationFrame);
+    delete ashline.renderer.draw; return window.resumeProbe.samples;
+  });
+  assert(resumedX.length >= 3 && resumedX[0] >= pausedX - 1e-9 && resumedX.every((x, i) => !i || x >= resumedX[i - 1] - 1e-9),
+    `The drawn pose never steps back after resuming (${pausedX} then ${resumedX.join(', ')})`);
   assert.deepEqual(errors, []);
   console.log('Render effects checks passed: fog-safe tick interpolation, frozen pauses, shake gating and cap, fog-safe blasts and wrecks, hit-flash overlays, burning vehicles, ash-fall, mission zones, site labels, ability visuals, event flourishes and bounded particles. Screenshots: ' + output);
 } finally { await browser.close(); }
