@@ -37,6 +37,10 @@ test('event routes give victory a success tone, warnings an alert, and keep chat
   assert.equal(eventRoute({kind: 'dialogue', text: 'Hold.', speaker: 'Range control'}).tone, 'comms');
   // The objective tracker shows transmissions and objective states; waves and supply drops have no other place.
   for (const kind of ['dialogue', 'objective', 'objectiveFailed']) assert.equal(eventRoute({kind, text: ''}).toast, false, `${kind} belongs to the tracker`);
+  // Objective news has no live region in the tracker, so screen readers hear it apart from the log; dialogue is
+  // read as the tracker shows its transmission, and a delivery is only a sound.
+  for (const kind of ['objective', 'objectiveFailed']) assert.equal(eventRoute({kind, text: ''}).announce, true, `${kind} is announced`);
+  for (const kind of ['dialogue', 'delivery', 'placed']) assert.equal(eventRoute({kind, text: ''}).announce, false, `${kind} is not announced from the log`);
   for (const kind of ['wave', 'mission']) assert.equal(eventRoute({kind, text: ''}).toast, true, `${kind} is logged`);
   const brownout = eventRoute({kind: 'power', status: 'brownout', text: 'Power shortage: defenses offline; production, research, and repairs slowed. Build reactors.'});
   assert.equal(brownout.toast, false, 'The HUD raises its own low-power warning');

@@ -36,8 +36,9 @@ const audio = createAudio();
 audio.setPaused(true);
 const soundscape = createSoundscape(audio);
 // Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation
-// and centres the camera on an objective's zone. A transmission is voiced as it comes on screen.
-const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => centerOn({ x, y }), transmit: line => soundscape.transmission(line) });
+// and centres the camera on an objective's zone. A transmission is voiced, and read to screen readers, as it
+// comes on screen.
+const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => centerOn({ x, y }), transmit: line => { soundscape.transmission(line); announce(`${line.speaker}: ${line.text}`); } });
 const keys = new Set();
 // Message log, alert history and unit comms are interface state only; none of it enters the save.
 const toasts = [], alerts = [], announcements = new Map();
@@ -218,7 +219,7 @@ function bark(unit, context) {
 // New simulation events for the player: kind picks the tone, alert and comms reaction; saves from before
 // typed events fall back to their text. Every toast here is quiet: the soundscape gives each event its
 // own sound. Only the player's own events are read, except to check that a promotion's kill was seen.
-// Scripted dialogue belongs to the objective tracker, which queues it as transmissions.
+// Scripted dialogue belongs to the objective tracker, which queues it as transmissions (announced as each shows).
 function reportEvents(from) {
   const events = game.events;
   for (let i = from; i < events.length; i++) {
@@ -242,6 +243,7 @@ function reportEvents(from) {
     }
     if (route.alert && Number.isFinite(point.x)) pushAlert(point.x, point.y, text, route.tone);
     if (route.toast) notify(text, route.tone, { ...point, speaker: route.kind === 'dialogue' ? event.speaker : undefined, quiet: true });
+    else if (route.announce) announce(text);
   }
 }
 

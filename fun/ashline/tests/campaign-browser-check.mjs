@@ -63,6 +63,8 @@ try {
   assert.match(await page.locator('#objective').textContent(), /Move two units to the survey marker/);
   await page.waitForTimeout(300); assert.equal(await page.evaluate(() => ashline.state.time), 0, 'The operation waits for the commander');
   await page.screenshot({ path: `${output}/campaign-prestart.png` });
+  // Screen readers hear each transmission as it comes on screen, and objective news the log leaves to the tracker.
+  await page.evaluate(() => { const announcer = document.querySelector('#announcer'); window.heard = []; new MutationObserver(() => heard.push(announcer.textContent)).observe(announcer, { childList: true, characterData: true, subtree: true }); });
   await page.locator('#resume').click(); await setSpeed(page);
   await until(page, () => ashline.state.time > 1.5 && !document.querySelector('#objectives').hidden);
   assert.equal(await page.locator('#objectives-title').textContent(), 'Landfall');
@@ -86,6 +88,8 @@ try {
   await command(page, `const marker=s.mission.zones.find(z=>z.id==='marker');const squad=own(0,'rifle').slice(0,2);sim.issueOrder(s,squad.map(e=>e.id),{type:'move',x:marker.x,y:marker.y});`);
   await until(page, () => ashline.state.mission.objectives.find(o => o.id === 'marker').state === 'done');
   await until(page, () => document.querySelector('#objectives-list li[data-state=done]'));
+  await until(page, () => heard.some(text => /Objective complete: Move two units to the survey marker/.test(text)));
+  assert(await page.evaluate(() => heard.some(text => /Cmdr\. Vale: Expedition 07, this is Vale/.test(text))), 'Transmissions are announced');
   const barracks = await command(page, `const p=site('barracks');return sim.placeBuilding(s,0,'barracks',p.x,p.y).id;`);
   assert(barracks, 'The barracks is placed with a real construction order');
   await until(page, () => ashline.state.mission.objectives.find(o => o.id === 'barracks').state === 'done');

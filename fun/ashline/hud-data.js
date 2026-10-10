@@ -28,7 +28,8 @@ function powerStatus(event) {
 // toast: false keeps the line out of the log: deliveries are a sound, brownouts already raise the HUD's
 // own low-power warning, placements, sales and project starts answer a click that has its own reply, and
 // the objective tracker shows scripted dialogue (as transmissions) and every objective's new, complete or
-// failed state. Waves and supply drops are not tracked, so they stay in the log.
+// failed state. Waves and supply drops are not tracked, so they stay in the log. announce: screen readers still
+// hear a line kept out of the log, as the tracker's objective news has no live region of its own.
 // Routes carry no sound: soundscape.js gives every event its one cue, so the log never doubles it.
 const ROUTES = {
   opening: { tone: 'info' }, delivery: { toast: false }, explored: { tone: 'info' },
@@ -38,9 +39,9 @@ const ROUTES = {
   walls: { toast: false }, sold: { toast: false }, trainingCancelled: { tone: 'info' }, mission: { tone: 'info' }, ability: { tone: 'info' },
   underAttack: { tone: 'warning', alert: true }, structureLost: { tone: 'warning', alert: true },
   haulersLost: { tone: 'warning', alert: true }, bayBlocked: { tone: 'warning', alert: true },
-  wave: { tone: 'warning', alert: true }, objectiveFailed: { tone: 'warning', toast: false },
+  wave: { tone: 'warning', alert: true }, objectiveFailed: { tone: 'warning', toast: false, announce: true },
   unitLost: { tone: 'loss', alert: true }, promotion: { tone: 'success' }, ready: { tone: 'info' },
-  victory: { tone: 'success' }, defeat: { tone: 'warning' }, objective: { tone: 'success', toast: false }, dialogue: { tone: 'comms', toast: false }, message: { tone: 'info' },
+  victory: { tone: 'success' }, defeat: { tone: 'warning' }, objective: { tone: 'success', toast: false, announce: true }, dialogue: { tone: 'comms', toast: false }, message: { tone: 'info' },
 };
 export function eventRoute(event) {
   const kind = eventKind(event);
@@ -49,7 +50,7 @@ export function eventRoute(event) {
     return { kind, status, tone: status === 'reserve' ? 'caution' : status === 'brownout' ? 'warning' : 'success', toast: status !== 'brownout', alert: false };
   }
   const route = Object.hasOwn(ROUTES, kind) ? ROUTES[kind] : ROUTES.message;
-  return { kind, tone: route.tone ?? 'info', toast: route.toast !== false, alert: Boolean(route.alert) };
+  return { kind, tone: route.tone ?? 'info', toast: route.toast !== false, alert: Boolean(route.alert), announce: Boolean(route.announce) };
 }
 
 // Whether the player saw the kill behind a promotion. The simulation logs the victim's loss right after
