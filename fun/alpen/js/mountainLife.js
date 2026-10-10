@@ -38,6 +38,7 @@ import {
 import { compose } from './geom.js';
 import { RENDER } from './config.js';
 import { sharedTexture } from './textures.js';
+import { riderGeometry } from './riderAssets.js';
 
 // Seconds a tumbled figure takes to come back round to its riding pose.
 const RECOVER = 0.5;
@@ -303,7 +304,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
      with Euler order 'YXZ' to match the terrain pitch, travel yaw, and carve
      bank; the body then works against that yaw and bank rather than with it,
      because a rider who banks their chest as hard as their edge is a rider
-     about to fall over. */
+     about to fall over.
+
+     These primitives are now the fallback. What the game normally draws is
+     the modelled figure (`modelledFigure` below, from `npcs.glb`), split at
+     the hip the same way and dressed from these same palettes. */
 
   const npcJacketColors = [
     0xe64a19, // Flame Orange
@@ -695,7 +700,60 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       m.receiveShadow = true;
       group.add(m);
     }
-    return { group, body: bodyMesh, hip: spec.hip };
+    return { group, deck: deckMesh, body: bodyMesh, hip: spec.hip };
+  }
+
+  /* THE FIGURES AS MODELLED. Once `npcs.glb` has arrived (see `main.js`)
+     each figure's two halves are rebaked from it: the same split at the hip,
+     the same one material, now the player's own kit posed into a skier's or
+     a boarder's stance in Blender (`tools/blender/riders.py`). The file's
+     materials are roles; this is where a role becomes this figure's colour
+     and the snow response every part used to carry. The hip the body hinges
+     on travels with the file, since the modelled boarder stands taller than
+     the one above. */
+  const BASE = { color: 0x2b3444, sheen: 0.40 }; // ski and board bases
+  const npcLook = (v) => {
+    const role = {
+      npcJacket: { color: v.jacket, sheen: 0.30 },
+      npcAccent: { color: v.accent, sheen: 0.30 },
+      npcTrouser: { color: v.trouser, sheen: 0.20 },
+      npcHelmet: { color: v.helmet, sheen: 0.50 },
+      npcBoot: { color: v.helmet, sheen: 0.45 },
+      npcLens: { color: v.goggle, sheen: 0.90 },
+      npcSkin: { color: v.skin, sheen: 0.15 },
+      npcHard: HARD,
+      npcDetail: DETAIL,
+      npcPale: PALE,
+      npcBase: BASE,
+    };
+    return (r) => role[r] && { color: role[r].color, aSheen: [role[r].sheen] };
+  };
+  /* The weave is laid on by a planar projection rather than unwrapped UVs:
+     at the size these figures are drawn, a ripstop grid is a texture of the
+     cloth, not a pattern anyone follows round a seam. */
+  const weaveUv = (g) => {
+    const p = g.attributes.position;
+    const uv = new Float32Array(p.count * 2);
+    for (let i = 0; i < p.count; i++) {
+      uv[i * 2] = (p.getX(i) + p.getZ(i)) * 3;
+      uv[i * 2 + 1] = p.getY(i) * 3;
+    }
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return g;
+  };
+  function modelledFigure(nodes, kind, v) {
+    const pick = (piece) => {
+      const node = nodes[`npc_${kind}_${piece}`];
+      if (!node) throw new Error(`rider model: no npc_${kind}_${piece}`);
+      return node;
+    };
+    const look = npcLook(v);
+    const hip = pick('body').extras.hip;
+    const deck = weaveUv(riderGeometry(THREE, [pick('deck')], look));
+    const parts = [pick('body'), pick(v.beanie ? 'beanie' : 'helmet')];
+    if (v.pack) parts.push(pick('pack'));
+    const body = weaveUv(riderGeometry(THREE, parts, look).translate(0, -hip, 0));
+    return { deck, body, hip };
   }
 
   /* Eight riders where there used to be five. The count went up because the
@@ -721,8 +779,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     root.add(fig.group);
     npcs.push({
       mesh: fig.group,
+      deck: fig.deck,
       body: fig.body,
       hip: fig.hip,
+      kind: isSkier ? 'skier' : 'boarder',
+      dress: v,
       // A skier's shoulders can hold the fall line far harder than a
       // boarder's, whose stance is already turned across the board.
       counter: isSkier ? 0.55 : 0.28,
@@ -1041,6 +1102,21 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           }
         }
       }
+    },
+    /* Swap every figure for its modelled self. The meshes, their material
+       and their shadows stay; the hip the body hangs from moves to the one
+       the file says. */
+    adopt(nodes) {
+      const built = npcs.map((npc) => modelledFigure(nodes, npc.kind, npc.dress));
+      npcs.forEach((npc, i) => {
+        const { deck, body, hip } = built[i];
+        npc.deck.geometry.dispose();
+        npc.deck.geometry = deck;
+        npc.body.geometry.dispose();
+        npc.body.geometry = body;
+        npc.body.position.y += hip - npc.hip;
+        npc.hip = hip;
+      });
     },
     reset(riderZ = 0) {
       // A checkpoint restart teleports the datum; take the fresh one rather

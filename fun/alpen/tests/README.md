@@ -69,6 +69,14 @@ same mountain with hits switched off — carrying no height at all within
 `guide.tol` of the line while the crest stands its full height proud. A bot
 that swings out to them must fly at least 70% of them for 0.6–1.6 s without
 a fall, and the line bot must still leave the ground at most twice a minute.
+The model check reads the modelled riders (`assets/models/riders`, built by
+`tools/blender/riders.py`) with the game's own reader: every role has a
+look, the budgets hold, each segment sits in its procedural frame (knee and
+elbow balls cover the bend, the gaiter falls over the boot, the lamp is
+where the beam starts), lead and rear limbs mirror, only the hem and upper
+sleeves flutter, the eight figures bake in their own colours on the hip the
+file carries — and under the rig the kneecaps face the toe edge and the
+elbows point behind, which is the bend-plane roll the IK now applies.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.

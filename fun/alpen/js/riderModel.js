@@ -112,6 +112,7 @@ import { RIDER } from './config.js';
 import { GRAB_NOSE, GRAB_METHOD } from './rider.js';
 import { createHeadlamp } from './headlamp.js';
 import { sharedTexture } from './textures.js';
+import { riderGeometry } from './riderAssets.js';
 
 /* The rider is the only saturated thing in the frame, and that is the job.
 
@@ -211,6 +212,9 @@ const FORE = 0.29;       // shoulder to hand centre is therefore 0.58
 
 const DECK_TOP = 0.076 + DECK_DROP;  // where the bindings bolt on, over the waist
 const HALF_WIDTH = 0.155;   // the widest the board gets, at the contact points
+// How far each binding is turned towards the nose off the perpendicular.
+const FRONT_YAW = 0.28;
+const REAR_YAW = 0.10;
 
 /* The leg spring is never at zero. Standing still on a slope it is already
    carrying a g, which is a third of a metre of squat, so `compression` is
@@ -859,7 +863,9 @@ function buildGeometries(THREE) {
      exactly that reason: the graphic is the deck's colour. (Top, base and
      sidewall all share that planar mapping, so the material also chooses
      *which face* of the white deck gets the print — see `boardMat`.) */
-  const board = compose(THREE, [
+  /* The deck alone is kept as well as the board it is part of: the modelled
+     bindings and boots (`adoptRiderModels`) bolt onto this same deck. */
+  const deck = compose(THREE, [
     { geo: use(loft(THREE, deckRings(-Infinity, Infinity))), color: '#ffffff' },
     // a mint nose cap and a clipped dark tail: direction has to be legible
     // through spray, at night, and in the middle of a spin
@@ -870,14 +876,17 @@ function buildGeometries(THREE) {
     // steel edges, following the sidecut from tip contact to tail contact
     { geo: use(loft(THREE, edge(-0.715, 0.705, -1))), color: STEEL },
     { geo: use(loft(THREE, edge(-0.715, 0.705, 1))), color: STEEL },
+  ], { uv: true });
+  const board = compose(THREE, [
+    { geo: deck },
     // The feet are angled forward off the perpendicular, more at the front
     // than the back, because a duck-square stance is the one thing no
     // snowboarder rides.
-    ...binding(-FOOT_Z, 0.28),
-    ...boot(-FOOT_Z, 0.28),
-    ...binding(FOOT_Z, 0.10),
+    ...binding(-FOOT_Z, FRONT_YAW),
+    ...boot(-FOOT_Z, FRONT_YAW),
+    ...binding(FOOT_Z, REAR_YAW),
   ], { uv: true });
-  const rearBoot = compose(THREE, boot(0, 0.10));
+  const rearBoot = compose(THREE, boot(0, REAR_YAW));
 
   /* THE SEAT OF THE TROUSERS, which belongs to the hips and was welded to
      the chest.
@@ -1199,10 +1208,10 @@ function buildGeometries(THREE) {
   /* …and a little down the outside of each upper sleeve: nothing at the
      shoulder seam, a third of the hem's freedom through the middle of the
      sleeve, and nothing again by the elbow so the sleeve cannot peel away
-     from the ball it meets there. The two arms share this geometry and the
-     IK rolls each one freely about its own bone, so there is no "outer"
-     side to single out; the inner one is against the ribs, where nobody can
-     see it move. */
+     from the ball it meets there. The two arms share this geometry, rolled
+     into their bend planes by the IK (see `orient`), which puts the same
+     side of the sleeve against the ribs on both — where nobody can see it
+     move — so the stir is written all the way round. */
   const flapSleeve = (x, y) => 0.32 * smooth01(-y / 0.08) * (1 - smooth01((-y - 0.20) / 0.06));
 
   return {
@@ -1215,6 +1224,104 @@ function buildGeometries(THREE) {
     foreArm: clad(foreArm, 1, 1, foreArmParts),
     thigh: clad(thigh, 1, 0),
     shin: clad(shin, 1, 0),
+    // Not a segment: the bare deck the modelled bindings are bolted onto.
+    kit: { deck },
+  };
+}
+
+/* ==========================================================================
+   The rider as modelled
+
+   Everything above is the rider the game can always draw. What it draws
+   once `assets/models/riders/rider.glb` has arrived is this: the same
+   segments, modelled in Blender by `tools/blender/riders.py` to the same
+   skeleton, each in the same frame the procedural one was built in, so not
+   one pose, pivot or IK target changes when they are swapped in.
+
+   What the file does not carry is colour. Each primitive is named for its
+   role, and `RIDER_ROLES` says what the role is drawn as — the palette at the
+   top of this file, and the two cloth masks the material reads (`aCloth`:
+   how woven, how quilted; see `clad`). Gloves are the one role that changes
+   meaning by segment: ink on the forearm is a woven glove, ink anywhere else
+   is a hard part.
+   ========================================================================== */
+
+const RIDER_ROLES = {
+  shell: { color: SHELL, aCloth: [1, 1] },
+  shellDark: { color: SHELL_DARK, aCloth: [1, 1] },
+  trim: { color: MINT, aCloth: [0, 0] },
+  lens: { color: MINT, aCloth: [0, 0] },
+  gold: { color: YELLOW, aCloth: [0.6, 0] },
+  ink: { color: INK, aCloth: [0, 0] },
+  helmet: { color: INK, aCloth: [0, 0] },
+  charcoal: { color: '#343c47', aCloth: [0, 0] },
+  boot: { color: '#2a303a', aCloth: [0.3, 0] },
+  trouser: { color: DENIM, aCloth: [1, 0] },
+  pocket: { color: '#24324c', aCloth: [1, 0] },
+  gaiter: { color: '#25344d', aCloth: [1, 0] },
+  steel: { color: STEEL, aCloth: [0, 0] },
+  pack: { color: '#304b50', aCloth: [0.8, 0] },
+  packDark: { color: '#223538', aCloth: [0.8, 0] },
+  packLight: { color: '#b8ccc5', aCloth: [0, 0] },
+};
+const GLOVE_ROLES = {
+  ...RIDER_ROLES,
+  ink: { color: INK, aCloth: [1, 0] },
+  charcoal: { color: '#343c47', aCloth: [1, 0] },
+};
+
+/* The modelled jacket is longer than the procedural one — its hem drops to
+   seventeen centimetres under the waist pivot at the back — so the loose
+   band runs from there to the chest. The back is still pinned under the
+   pack, and the trim sewn on the front still moves with it. */
+const flapModelTorso = (x, y, z) => {
+  const r = Math.hypot(x, z);
+  const facing = r > 1e-5 ? x / r : 0;
+  return (1 - smooth01((y + 0.17) / 0.27)) * smooth01((facing + 0.55) / 0.45);
+};
+const flapModelSleeve = (x, y) => 0.32 * smooth01(-y / 0.08) * (1 - smooth01((-y - 0.20) / 0.06));
+
+export function adoptRiderModels(THREE, nodes, deck) {
+  const need = (name) => {
+    if (!nodes[name]) throw new Error(`rider model: no ${name}`);
+    return nodes[name];
+  };
+  const clothed = (names, roles = RIDER_ROLES, flap = null) => {
+    const g = riderGeometry(THREE, names.map(need), (role) => roles[role]);
+    const p = g.attributes.position;
+    const f = new Float32Array(p.count);
+    if (flap) for (let i = 0; i < p.count; i++) f[i] = flap(p.getX(i), p.getY(i), p.getZ(i));
+    g.setAttribute('aFlap', new THREE.BufferAttribute(f, 1));
+    return g;
+  };
+  const binding = clothed(['rider_binding']);
+  const boot = clothed(['rider_boot']);
+  const board = compose(THREE, [
+    { geo: deck },
+    { geo: binding, pos: [FOOT_X, DECK_TOP, -FOOT_Z], rot: [0, FRONT_YAW, 0] },
+    { geo: boot, pos: [FOOT_X, DECK_TOP, -FOOT_Z], rot: [0, FRONT_YAW, 0] },
+    { geo: binding, pos: [FOOT_X, DECK_TOP, FOOT_Z], rot: [0, REAR_YAW, 0] },
+  ], { uv: true });
+  const rearBoot = boot.clone().applyMatrix4(new THREE.Matrix4().compose(
+    new THREE.Vector3(FOOT_X, DECK_TOP, 0),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(0, REAR_YAW, 0)),
+    new THREE.Vector3(1, 1, 1),
+  ));
+  rearBoot.computeBoundingSphere();
+  binding.dispose();
+  boot.dispose();
+  return {
+    board,
+    rearBoot,
+    pelvis: clothed(['rider_pelvis']),
+    torso: clothed(['rider_torso'], RIDER_ROLES, flapModelTorso),
+    head: clothed(['rider_head']),
+    upperArm: clothed(['rider_upperArm'], RIDER_ROLES, flapModelSleeve),
+    foreArmLead: clothed(['rider_foreArm_lead'], GLOVE_ROLES),
+    foreArmRear: clothed(['rider_foreArm_rear'], GLOVE_ROLES),
+    thighLead: clothed(['rider_thigh_lead']),
+    thighRear: clothed(['rider_thigh_rear']),
+    shin: clothed(['rider_shin']),
   };
 }
 
@@ -1697,20 +1804,23 @@ export function createRiderModel(THREE, shading) {
   const head = new THREE.Group();
   head.position.set(0, NECK_Y, 0);
   head.rotation.order = 'YXZ';
-  head.add(new THREE.Mesh(geo.head, cloth));
+  const headMesh = new THREE.Mesh(geo.head, cloth);
+  head.add(headMesh);
   torso.add(head);
   const headlamp = createHeadlamp(THREE, shading, head);
 
   const limb = (parent, y, z, upperGeo, foreGeo, upperLen) => {
     const upper = new THREE.Group();
     upper.position.set(0, y, z);
-    upper.add(new THREE.Mesh(upperGeo, cloth));
+    const upperMesh = new THREE.Mesh(upperGeo, cloth);
+    upper.add(upperMesh);
     const fore = new THREE.Group();
     fore.position.set(0, -upperLen, 0);
-    fore.add(new THREE.Mesh(foreGeo, cloth));
+    const foreMesh = new THREE.Mesh(foreGeo, cloth);
+    fore.add(foreMesh);
     upper.add(fore);
     parent.add(upper);
-    return { upper, fore, home: z };
+    return { upper, fore, home: z, upperMesh, foreMesh };
   };
 
   const armLead = limb(torso, SHOULDER_Y, -SHOULDER_Z, geo.upperArm, geo.foreArm, UPPER);
@@ -1772,12 +1882,39 @@ export function createRiderModel(THREE, shading) {
      The reach is clamped rather than allowed to fail, so a target the arm
      cannot get to produces a straight arm pointing at it instead of a NaN.
      ------------------------------------------------------------------------ */
-  const BONE = new THREE.Vector3(0, -1, 0);
   const _f = new THREE.Vector3();
   const _u = new THREE.Vector3();
   const _e = new THREE.Vector3();
   const _d = new THREE.Vector3();
   const _q = new THREE.Quaternion();
+  const _bx = new THREE.Vector3();
+  const _by = new THREE.Vector3();
+  const _bz = new THREE.Vector3();
+  const _basis = new THREE.Matrix4();
+
+  /* WHICH WAY ROUND A LIMB IS, which used to be left to chance.
+
+     A bone was turned onto its direction by `setFromUnitVectors`, the
+     shortest rotation from straight down, and that fixes where the bone
+     points but not how it is rolled about itself: the roll was whatever the
+     shortest arc happened to leave, different on every frame. A limb that is
+     a round tube does not care. One with a kneecap, the point of an elbow or
+     a thumb does, and the modelled rider has all three — so each bone is now
+     rolled into the bend plane: +X towards the pole, which is the side the
+     joint bends towards. The kneecap faces where the knee goes, and the
+     point of the elbow is the elbow. */
+  function orient(quaternion, dir, towards) {
+    _by.copy(dir).negate();
+    _bx.copy(towards).addScaledVector(_by, -towards.dot(_by));
+    if (_bx.lengthSq() < 1e-8) {
+      // straight along the pole, which the solver never produces: any roll
+      _bx.set(1, 0, 0).addScaledVector(_by, -_by.x);
+      if (_bx.lengthSq() < 1e-8) _bx.set(0, 0, 1).addScaledVector(_by, -_by.z);
+    }
+    _bx.normalize();
+    _bz.crossVectors(_bx, _by);
+    return quaternion.setFromRotationMatrix(_basis.makeBasis(_bx, _by, _bz));
+  }
 
   function solve(joint, a, b, target, pole) {
     let d = target.length();
@@ -1801,10 +1938,9 @@ export function createRiderModel(THREE, shading) {
     const cos = clamp((a * a + reach * reach - b * b) / (2 * a * reach), -1, 1);
     _e.copy(_f).multiplyScalar(a * cos).addScaledVector(_u, a * Math.sqrt(1 - cos * cos));
 
-    joint.upper.quaternion.setFromUnitVectors(BONE, _d.copy(_e).normalize());
-    _d.copy(_f).multiplyScalar(reach).sub(_e).normalize()
-      .applyQuaternion(_q.copy(joint.upper.quaternion).invert());
-    joint.fore.quaternion.setFromUnitVectors(BONE, _d);
+    orient(joint.upper.quaternion, _d.copy(_e).normalize(), _u);
+    orient(joint.fore.quaternion, _d.copy(_f).multiplyScalar(reach).sub(_e).normalize(), _u)
+      .premultiply(_q.copy(joint.upper.quaternion).invert());
   }
 
   /* --- posing ------------------------------------------------------------- */
@@ -2923,6 +3059,36 @@ export function createRiderModel(THREE, shading) {
     lampUniform.value = headlamp.level;
   }
 
+  /* The modelled rider, swapped in once `rider.glb` has arrived (see
+     `main.js`). Only what each mesh draws changes: the meshes themselves,
+     their material, their shadow layers and every transform the pose writes
+     stay exactly as they were, which is why this can happen on any frame. */
+  function adopt(nodes) {
+    const g = adoptRiderModels(THREE, nodes, geo.kit.deck);
+    const retired = new Set();
+    const swap = (mesh, next) => {
+      retired.add(mesh.geometry);
+      mesh.geometry = next;
+    };
+    swap(board, g.board);
+    swap(rearBoot, g.rearBoot);
+    swap(pelvisMesh, g.pelvis);
+    swap(torsoMesh, g.torso);
+    swap(headMesh, g.head);
+    swap(armLead.upperMesh, g.upperArm);
+    swap(armRear.upperMesh, g.upperArm);
+    swap(armLead.foreMesh, g.foreArmLead);
+    swap(armRear.foreMesh, g.foreArmRear);
+    swap(legLead.upperMesh, g.thighLead);
+    swap(legRear.upperMesh, g.thighRear);
+    swap(legLead.foreMesh, g.shin);
+    swap(legRear.foreMesh, g.shin);
+    for (const old of retired) old.dispose();
+    geo.kit.deck.dispose();
+    modelled = true;
+  }
+  let modelled = false;
+
   function reset() {
     seen = false;
     s.down = 0;
@@ -2943,6 +3109,8 @@ export function createRiderModel(THREE, shading) {
     shadow,
     update,
     reset,
+    adopt,
+    get modelled() { return modelled; },
     rearBoot,
     headlamp,
     debug: () => ({

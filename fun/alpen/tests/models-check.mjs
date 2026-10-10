@@ -639,4 +639,187 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   assert.equal(weld(THREE, waiting), waiting, 'an empty geometry is left alone');
   assert.equal(waiting.index, null);
 }
+
+/* The modelled riders (`tools/blender/riders.py` → assets/models/riders).
+   Both files parse with the game's own reader, every role in them has a
+   look, every segment sits in the frame of the procedural one it replaces,
+   the jacket flutters where the procedural one did, the budgets hold, the
+   eight figures bake and ride — and under the rig, the knees and elbows
+   face the way they bend, which is what the bend-plane roll is for. */
+{
+  const { parseRiderGlb } = await import(new URL('js/riderAssets.js', base).href);
+  const glb = async (name) => {
+    const b = await readFile(new URL('assets/models/riders/' + name, base));
+    return parseRiderGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  };
+  const riderNodes = await glb('rider.glb');
+  const npcNodes = await glb('npcs.glb');
+  assert.throws(() => parseRiderGlb(new ArrayBuffer(32)), /not a GLB/, 'a stray file is refused');
+
+  const kit = rider.buildGeometries(THREE).kit;
+  const g = rider.adoptRiderModels(THREE, riderNodes, kit.deck);
+  const drawnTwice = new Set(['upperArm', 'shin']);
+  let drawn = 0;
+  for (const [key, geo] of Object.entries(g)) {
+    const t = valid('modelled.' + key, geo);
+    drawn += drawnTwice.has(key) ? 2 * t : t;
+    if (key !== 'board') {
+      assert.ok(geo.attributes.aCloth && geo.attributes.aFlap, 'modelled.' + key + ': cloth attributes');
+    }
+  }
+  assert.ok(drawn <= 17000, 'modelled rider triangle budget: ' + drawn);
+
+  const box = (geo) => { geo.computeBoundingBox(); return geo.boundingBox; };
+  assert.ok(box(g.shin).max.y > 0.09 && box(g.shin).max.y < 0.11, 'the knee ball covers the bend');
+  assert.ok(box(g.foreArmRear).max.y > 0.065, 'the elbow ball covers the bend');
+  assert.ok(box(g.shin).min.y < -rider.ANKLE_Y + rider.DECK_TOP - 0.12, 'the gaiter falls over the boot');
+  assert.ok(box(g.thighLead).max.y > 0.12, 'the thigh is domed into the seat');
+  assert.ok(box(g.foreArmRear).min.y < -0.33 && box(g.foreArmRear).min.y > -0.37, 'the glove ends past the hand centre');
+  assert.ok(box(g.rearBoot).max.y > rider.ANKLE_Y, 'the boot cuff rises past the ankle');
+  // left and right hands, and the cargo pocket on the outside of each leg
+  for (const [a, b] of [[g.foreArmLead, g.foreArmRear], [g.thighLead, g.thighRear]]) {
+    assert.ok(Math.abs(box(a).min.z + box(b).max.z) < 1e-4 && Math.abs(box(a).max.z + box(b).min.z) < 1e-4,
+      'lead and rear are mirror images');
+  }
+  assert.ok(box(g.thighRear).max.z > box(g.thighRear).max.x, 'the rear pocket is on the outside (+Z)');
+  // The lamp housing sits where headlamp.js aims its beam from.
+  {
+    const p = g.head.attributes.position;
+    let front = -Infinity;
+    for (let i = 0; i < p.count; i++) {
+      if (Math.abs(p.getY(i) - 0.205) < 0.015 && Math.abs(p.getZ(i)) < 0.015) front = Math.max(front, p.getX(i));
+    }
+    assert.ok(front > 0.14 && front < 0.17, 'the lamp is on the helmet front: ' + front);
+  }
+  // The flutter: the hem is free, the chest and the back under the pack are not.
+  {
+    const p = g.torso.attributes.position;
+    const f = g.torso.attributes.aFlap;
+    let hem = 0;
+    for (let i = 0; i < p.count; i++) {
+      if (p.getY(i) > 0.10) assert.equal(f.getX(i), 0, 'the chest does not flap');
+      if (p.getX(i) < -0.12 && Math.abs(p.getZ(i)) < 0.05) assert.equal(f.getX(i), 0, 'the pack pins the back');
+      if (p.getY(i) < -0.15 && p.getX(i) > 0.1) hem = Math.max(hem, f.getX(i));
+    }
+    assert.ok(hem > 0.9, 'the front hem is free');
+    const s = g.upperArm.attributes.aFlap.array;
+    assert.ok(Math.max(...s) > 0.25 && Math.max(...s) < 0.4, 'the sleeves stir a little');
+    for (const key of ['pelvis', 'head', 'foreArmLead', 'thighLead', 'shin', 'rearBoot']) {
+      assert.ok(g[key].attributes.aFlap.array.every((v) => v === 0), key + ': rigid');
+    }
+  }
+  // The glove is woven, the gold cuff a little, the helmet and goggles not at all.
+  {
+    const ink = new THREE.Color('#181c24');
+    const fore = g.foreArmRear;
+    let glove = 0;
+    for (let i = 0; i < fore.attributes.position.count; i++) {
+      const c = fore.attributes.color;
+      if (Math.abs(c.getX(i) - ink.r) + Math.abs(c.getY(i) - ink.g) < 1e-5) {
+        glove++;
+        assert.equal(fore.attributes.aCloth.getX(i), 1, 'the glove is cloth');
+      }
+    }
+    assert.ok(glove > 50, 'the forearm ends in a glove');
+    assert.ok(g.head.attributes.aCloth.array.some((v, i) => i % 2 === 0 && v === 0), 'the helmet is hard');
+  }
+
+  // Under the rig: ankles still in the bindings, and every limb rolled into
+  // its bend — the knee's +X runs towards the toe edge, the elbow's behind.
+  {
+    const prevDocument = globalThis.document;
+    globalThis.document = { createElement: () => ({
+      getContext: () => new Proxy({}, { get: () => () => ({ addColorStop() {} }) }),
+    }) };
+    const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+    const model = rider.createRiderModel(headless, {
+      apply: (m) => m,
+      uniforms: { uSkyHaze: { value: new THREE.Color() }, uFogNear: { value: 0 }, uFogFar: { value: 1 } },
+    });
+    globalThis.document = prevDocument;
+    model.adopt(riderNodes);
+    assert.ok(model.modelled, 'the rig reports the modelled rider');
+    const V = THREE.Vector3;
+    const r = {
+      pos: new V(), vel: new V(0, 0, -15), yaw: 0, state: 'ride', grounded: true, fallTimer: 0,
+      touchdownIn: Infinity, grab: 0, grabKind: 0, tucking: false, pushing: false, charging: false,
+      charge: 0, lateral: 0, switchStance: false, press: 0, pressEnd: -1, compression: 0.33,
+      carveLoad: 0, edge: 0, bend: 0, slide: 0, spinVel: 0, tumble: 0, flip: 0, flipGlide: 0,
+      normal: new V(0, 1, 0), airUp: null, airTime: 0, roll: 0, gLoad: 1, pushPhase: 0,
+      world: { height: () => 0 },
+      get speed() { return this.vel.length(); },
+    };
+    for (let i = 0; i < 90; i++) {
+      r.pos.addScaledVector(r.vel, 1 / 60);
+      model.update(r, 1 / 60);
+    }
+    model.root.updateMatrixWorld(true);
+    // The rig built its own copies when it adopted the file; a segment is
+    // found by the shape of its buffers.
+    const same = (a, b) => a.attributes.position.count === b.attributes.position.count
+      && a.index?.count === b.index?.count
+      && a.attributes.position.array[0] === b.attributes.position.array[0];
+    const meshes = (geo) => {
+      const out = [];
+      model.root.traverse((o) => { if (o.isMesh && same(o.geometry, geo)) out.push(o); });
+      return out;
+    };
+    const board = model.root.children.find((c) => c.name === 'rider-board');
+    const toe = new V(1, 0, 0).transformDirection(board.matrixWorld);
+    const shins = meshes(g.shin);
+    assert.equal(shins.length, 2, 'both shins wear the modelled leg');
+    for (const shin of shins) {
+      const ankle = shin.localToWorld(new V(0, -0.40, 0));
+      const want = [-1, 1].map((s) => board.localToWorld(new V(rider.FOOT_X, rider.ANKLE_Y, s * rider.FOOT_Z)));
+      assert.ok(Math.min(...want.map((w) => w.distanceTo(ankle))) < 0.005, 'modelled ankle in its binding');
+      const knee = new V(1, 0, 0).transformDirection(shin.matrixWorld);
+      assert.ok(knee.dot(toe) > 0.3, 'the kneecap faces the toe edge: ' + knee.dot(toe));
+    }
+    for (const fore of [...meshes(g.foreArmLead), ...meshes(g.foreArmRear)]) {
+      const elbow = new V(1, 0, 0).transformDirection(fore.matrixWorld);
+      assert.ok(elbow.dot(toe) < 0, 'the point of the elbow is behind him: ' + elbow.dot(toe));
+    }
+    model.root.traverse((o) => assert.ok(o.matrixWorld.elements.every(Number.isFinite), 'finite modelled rig'));
+  }
+
+  // The eight figures: baked from the file in their own colours, two
+  // meshes each, hung from the hip the file carries, and riding.
+  {
+    const { createMountainLife } = await load('mountainLife.js');
+    const headless = { ...THREE, TextureLoader: class { load() { return new THREE.Texture(); } } };
+    const scene = new THREE.Scene();
+    const life = createMountainLife(headless, scene, { apply: (m) => m, uniforms: {} }, null, null);
+    const before = [];
+    scene.traverse((o) => { if (o.isMesh && o.geometry.attributes.aSheen) before.push(o); });
+    life.adopt(npcNodes);
+    const figures = [];
+    scene.traverse((o) => { if (o.isMesh && o.geometry.attributes.aSheen) figures.push(o); });
+    assert.equal(figures.length, 16, 'eight figures, two meshes each');
+    assert.deepEqual(figures, before, 'the same meshes, redrawn');
+    const jackets = new Set();
+    for (const m of figures) {
+      valid('npc', m.geometry);
+      for (const a of ['color', 'aSheen', 'uv']) assert.ok(m.geometry.attributes[a], 'npc ' + a);
+      jackets.add(Array.from(m.geometry.attributes.color.array.slice(0, 3)).join());
+    }
+    assert.ok(jackets.size > 4, 'the figures are dressed differently');
+    for (let i = 0; i < figures.length; i += 2) {
+      const tris = (m) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+      assert.ok(tris(figures[i]) + tris(figures[i + 1]) <= 4200, 'figure triangle budget');
+    }
+    for (const kind of ['skier', 'boarder']) {
+      const hip = npcNodes[`npc_${kind}_body`].extras.hip;
+      assert.ok(hip > 0.7 && hip < 0.95, kind + ' hip from the file');
+      const body = figures.find((m) => m.parent && m.position.y === hip);
+      assert.ok(body, kind + ': a body hangs at its hip');
+    }
+    const r = { pos: new THREE.Vector3(0, 0, -400), state: 'ride', grace: 1, fall() {} };
+    life.reset(-400);
+    for (let i = 0; i < 120; i++) life.update(1 / 60, r);
+    for (const m of figures) {
+      m.updateMatrixWorld(true);
+      assert.ok(m.matrixWorld.elements.every(Number.isFinite), 'figures ride');
+    }
+  }
+}
 console.log('All model geometry checks passed.');

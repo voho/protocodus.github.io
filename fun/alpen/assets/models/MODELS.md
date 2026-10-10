@@ -105,3 +105,39 @@ card material can turn it back into the prop snow colour per texel.
 `assets/utils/SkeletonUtils.js` are from three.js r185
 (https://github.com/mrdoob/three.js, MIT), matching the vendored three
 build at the repository root.
+
+## riders/ — the player and the other people (built in Blender)
+
+`rider.glb` and `npcs.glb` are not downloaded assets: they are written by
+`tools/blender/riders.py`, which builds every surface from tables (lofted
+rings, swept profiles, one level of Catmull-Clark) and exports them. The
+script is the source; rebuild after changing it, from the repository root:
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/riders.py -- --out fun/alpen/assets/models/riders
+
+(Blender 4.2 or later; built with 5.3.) The tables are written in the
+game's own three.js coordinates and the skeleton constants are copied from
+`js/riderModel.js`, so the two must move together.
+
+- `rider.glb` holds one node per rigid segment of the rig — pelvis, torso
+  (jacket, hood, pack), head (gaiter, goggles, helmet, headlamp), upper arm,
+  forearm and thigh as lead/rear mirror pairs, shin, boot and binding —
+  each at the origin of its segment's frame. The board's deck stays
+  procedural (its flex shader and top-sheet mapping are built on it); the
+  bindings and boots are bolted onto it at load.
+- `npcs.glb` holds each figure's two halves for a skier and a boarder (the
+  `deck` that stays on the snow and the `body` hinged at the hip, whose
+  height is the node's `extras.hip`), plus helmet, beanie and pack nodes the
+  game mixes per figure.
+
+Materials carry only a role name (`shell`, `trim`, `npcJacket`…); colour,
+the cloth masks and the per-figure dress are assigned in `riderModel.js`
+and `mountainLife.js`. `js/riderAssets.js` reads the files without the glTF
+loader (positions, normals and indices only). If they fail to load, the
+procedural riders stay.
+
+| file | nodes | triangles |
+|---|---|---|
+| `rider.glb` | 11 segments | ~13.8k as drawn (arms, legs, boots, bindings twice), plus the deck |
+| `npcs.glb` | 2 × (deck, body, helmet, beanie, pack) | ≤ ~4k per dressed figure |
