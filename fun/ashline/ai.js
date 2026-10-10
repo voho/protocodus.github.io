@@ -16,31 +16,33 @@ import {missionDirective} from './mission.js';
 // towers, walls (0 never, 1 Veteran, 2 Commander and up) and outpostTowers shape static defense; expand
 // scales expansion timing and bases adds nexus slots; harass is the hauler-hunting squad size (raider
 // doctrines also hunt on Commander); focus caps attackers per target; storm is how many times a remembered
-// tower's strength a wave needs before it assaults instead of standing off; targets ranks raid objectives.
+// tower's strength a wave needs before it assaults instead of standing off; guns is how many siege crawlers a
+// wave waits for while towers are known; foundries is how many foundries it stands up early; targets ranks
+// raid objectives (towers only for waves with guns).
 export const DOCTRINES={
   balanced:{name:'Balanced',commander:'Warden Kestrel',callsign:'Watchfire',unity:{commander:'Arbiter K-9',callsign:'Lattice'},
     description:'Grows a steady economy, holds a powered perimeter and raids with staged combined-arms waves.',
-    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,engineers:.08,scouts:1,labs:1,
+    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,guns:0,foundries:1,engineers:.08,scouts:1,labs:1,
       research:['gridEfficiency','vehicleWeapons','infantryWeapons','advancedBallistics','infantryArmor','mobility'],
       targets:{refinery:1,reactor:1,lab:1,capacitor:2,core:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   ironclad:{name:'Ironclad',commander:'Marshal Orsa Vantreck',callsign:'Anvil',unity:{commander:'Bastion mind OR-4',callsign:'Keel'},
     description:'Masses armor and siege guns behind walled sentry lines, then breaks the enemy with one heavy timing push.',
-    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:2,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,storm:3,engineers:.12,scouts:1,labs:1,
+    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:2,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,storm:3,guns:0,foundries:2,engineers:.12,scouts:1,labs:1,
       research:['vehicleWeapons','gridEfficiency','mobility','advancedBallistics','infantryWeapons','infantryArmor'],
       targets:{core:1,factory:1,barracks:2,reactor:2,refinery:2,lab:3,capacitor:3,turret:3,rocketTower:3,wall:6}}},
   swarm:{name:'Swarm',commander:'Major Idris Kell',callsign:'Wasp',unity:{commander:'Swarm kernel IK-12',callsign:'Chorus'},
     description:'Floods the field with infantry, rovers and strikers, raids early and often, and hunts haulers on the shard runs.',
-    knobs:{mix:{rifle:.42,rocket:.14,scout:.14,tank:.08,artillery:0,striker:.22},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,storm:2,engineers:0,scouts:2,labs:1,
+    knobs:{mix:{rifle:.42,rocket:.14,scout:.14,tank:.08,artillery:0,striker:.22},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,storm:2,guns:0,foundries:1,engineers:0,scouts:2,labs:1,
       research:['gridEfficiency','advancedBallistics','infantryWeapons','infantryArmor','vehicleWeapons','mobility'],
       targets:{refinery:0,reactor:1,core:2,barracks:2,lab:2,capacitor:2,factory:3,turret:4,rocketTower:4,wall:6}}},
   prospector:{name:'Prospector',commander:'Quartermaster Juno Tal',callsign:'Lodestar',unity:{commander:'Survey core JT-3',callsign:'Assay'},
     description:'Claims remote shard fields early, fortifies each outpost, then turns a broad economy into a late heavy push.',
-    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,storm:3,engineers:.08,scouts:1,labs:2,
+    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,storm:3,guns:0,foundries:1,engineers:.08,scouts:1,labs:2,
       research:['gridEfficiency','vehicleWeapons','mobility','infantryWeapons','advancedBallistics','infantryArmor'],
       targets:{refinery:0,core:1,reactor:2,lab:2,capacitor:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   siegebreaker:{name:'Siegebreaker',commander:'Major Rhee Ostrander',callsign:'Hammerfall',unity:{commander:'Ballistic node RO-7',callsign:'Parallax'},
     description:'Spots for long guns with rovers and flares, levels defenses from beyond their reach, then shells the reactors dark.',
-    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,engineers:.15,scouts:2,labs:1,
+    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,guns:2,foundries:2,engineers:.15,scouts:2,labs:1,
       research:['vehicleWeapons','gridEfficiency','advancedBallistics','mobility','infantryWeapons','infantryArmor'],
       targets:{turret:0,rocketTower:0,reactor:1,capacitor:1,core:2,factory:2,barracks:3,refinery:3,lab:3,wall:6}}},
 };
@@ -52,6 +54,8 @@ const LEVELS={
   normal:{think:2,firstRaid:150,cadence:90,waveMin:7,waveMax:12,armyCap:48,bases:4,expandAt:180,expandEvery:150,towers:2,adapt:1,focus:0,abilities:true,lanchester:true,retreat:.6,commit:1.15,rescout:80,lab:true,queue:2,producers:3,haulers:7},
   hard:{think:1.2,firstRaid:100,cadence:50,waveMin:5,waveMax:60,armyCap:160,bases:6,expandAt:120,expandEvery:150,towers:3,adapt:1.5,focus:3,abilities:true,lanchester:true,retreat:.8,commit:1.3,rescout:50,lab:true,queue:2,producers:4,haulers:10},
 };
+// Difficulty names as the briefing shows them.
+export const LEVEL_NAMES={easy:'Cadet',normal:'Commander',hard:'Veteran'};
 const COMBAT=['rifle','rocket','scout','tank','artillery','striker'];
 // Below Veteran the opposition builds and trains slower; productionRate applies this pace on top of power.
 export const AI_PACE={easy:.55,normal:.75,hard:1};
@@ -86,7 +90,7 @@ export function aiState(s,team){return team===1?s.ai:s.aiByTeam?.[team];}
 // The merged difficulty and doctrine settings for one commander.
 export function aiKnobs(s,ai){
   const level=LEVELS[s.difficulty]??LEVELS.normal,d=(DOCTRINES[ai.doctrine]??DOCTRINES.balanced).knobs,easy=s.difficulty==='easy',hard=s.difficulty==='hard';
-  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
+  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,guns:easy?0:d.guns,foundries:easy?1:d.foundries,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
     waveMin:Math.max(3,Math.round(level.waveMin*d.wave)),waveMax:Math.max(level.waveMax,Math.round(level.waveMin*d.wave)),towers:Math.max(1,level.towers+d.towers),
     walls:!easy&&d.walls>=(hard?1:2),outpostTowers:easy?0:d.outpostTowers,bases:Math.max(1,level.bases+(easy?0:d.bases)),expandAt:level.expandAt*d.expand,
     expandEvery:level.expandEvery*d.expand,harass:easy||!(hard||d.raider)?0:d.harass,focus:easy?0:Math.max(level.focus,d.focus),engineers:easy?0:d.engineers,
@@ -382,6 +386,7 @@ function buildBase(s,team,ai,v,k,power,rally,held){
   else if(!done('barracks'))want={role:'barracks',essential:true};
   else if(!done('factory')&&s.time>(easy?70:35))want={role:'factory',essential:true};
   else if(k.lab&&!count('lab')&&s.time>(hard?105:160))want={role:'lab'};
+  else if(count('factory')<k.foundries&&s.time>(hard?90:150))want={role:'factory'};
   else if(baseTowers<k.towers&&s.time>75)want={role:towerType(v),preferred:frontSpot(s,team,core,baseTowers)};
   else if(!easy&&count('refinery')<(hard?4:3)+v.cores.length-1&&(ore=site()))want={role:'refinery',near:ore};
   // A single busy foundry cannot keep up with the doctrine's vehicle share: add another.
@@ -438,6 +443,7 @@ function researchAI(s,team,v,k,power,held,pressed){
 
 // Doctrine mix reweighted against the remembered enemy force: a role's value per credit is the damage it
 // deals to what was seen, times its staying power against what that force deals (both via armorMultiplier).
+// Outranging a foe cuts what it can deal back, decisively against towers that cannot close the distance.
 function composition(s,team,v,k,available){
   const shares=Object.create(null);for(const role of COMBAT)shares[role]=available(role)?k.mix[role]||0:0;
   const enemy=[];let total=0;
@@ -446,7 +452,10 @@ function composition(s,team,v,k,available){
     const scores=[];
     for(const role of COMBAT)if(shares[role]){
       const type=raceUnit(s,team,role),d=UNITS[type],body={kind:'unit',type};let offense=0,incoming=0;
-      for(const {m,d:e} of enemy){const f=e.cost/total;offense+=f*armorMultiplier({type},{kind:m.kind,type:m.type})*d.damage/d.interval/d.cost;incoming+=f*armorMultiplier({type:m.type},body)*e.damage/e.interval/e.cost;}
+      for(const {m,d:e} of enemy){
+        const f=e.cost/total,outranged=d.range>e.range+1?(m.kind==='building'?.15:.6):1;
+        offense+=f*armorMultiplier({type},{kind:m.kind,type:m.type})*d.damage/d.interval/d.cost;incoming+=f*armorMultiplier({type:m.type},body)*e.damage/e.interval/e.cost*outranged;
+      }
       scores.push([role,Math.sqrt(offense*d.hp/d.cost/Math.max(1e-9,incoming))]);
     }
     const mean=scores.reduce((sum,[,score])=>sum+score,0)/scores.length;
@@ -456,8 +465,8 @@ function composition(s,team,v,k,available){
   return shares;
 }
 // Every producer keeps working from the credits above the hold. The role furthest below its share goes
-// next wherever a producer has room; when that unit is unaffordable the commander saves for it rather than
-// filling the queues with whatever is cheapest.
+// next wherever a producer has room; when that unit is unaffordable, or only roles at their share have room,
+// the commander saves rather than filling the queues with whatever is cheapest.
 function produce(s,team,v,k,power,held){
   const credits=()=>s.teams[team].credits,easy=k.level==='easy',research=s.teams[team].research||{};
   const train=(role,producer,hold=held)=>{
@@ -483,7 +492,8 @@ function produce(s,team,v,k,power,held){
       const need=role==='scout'&&scoutShort?1e3:shares[role]?shares[role]*(army+1)-v.count(role):-Infinity;
       if(need>gap){gap=need;best=role;}
     }
-    if(!best||gap===-Infinity||!train(best,free(best),best==='scout'&&scoutShort?0:held))break;
+    // A role already at its share waits: the credits go to the next unit that is actually short.
+    if(!best||gap<=0||!train(best,free(best),best==='scout'&&scoutShort?0:held))break;
   }
 }
 
@@ -710,11 +720,13 @@ function shellingResponse(s,team,ai,v,k,ctx){
   if(exposed.length){const from=centroid(exposed);orderGroup(s,exposed,'move',onMap(s,{x:from.x-bearing.x*7,y:from.y-bearing.y*7}));for(const u of exposed)ctx.claimed.add(u.id);}
 }
 
-function pickTarget(s,team,ai,v,k,from,directive,exclude){
+function pickTarget(s,team,ai,v,k,from,directive,exclude,guns=true){
   if(directive?.attack)return onMap(s,directive.attack);
   const candidates=v.knownBuildings.filter(m=>m.id!==exclude&&entityRole(m.type)!=='wall');
   if(candidates.length){
-    const score=m=>(k.targets[entityRole(m.type)]??3)*20+distance(from,m)+v.knownTowers.filter(t=>t.id!==m.id&&distance(t,m)<9.5).length*k.towerAversion;
+    // Without siege guns a wave goes for what towers do not cover, whatever the doctrine's appetite for towers.
+    const priority=m=>!guns&&BUILDINGS[m.type].damage?Math.max(4,k.targets[entityRole(m.type)]??3):k.targets[entityRole(m.type)]??3;
+    const score=m=>priority(m)*20+distance(from,m)+v.knownTowers.filter(t=>t.id!==m.id&&distance(t,m)<9.5).length*Math.max(k.towerAversion,guns?0:8);
     const m=candidates.map(m=>({m,score:score(m)})).sort((a,b)=>a.score-b.score||a.m.id-b.m.id)[0].m;
     return{x:m.x,y:m.y,id:m.id};
   }
@@ -749,8 +761,9 @@ function manageWaves(s,team,ai,v,k,ctx,directive){
   if(regrouping&&staged.length>=2&&!holdOnly){
     regrouping.ids.push(...staged.map(u=>u.id));for(const u of staged)ctx.claimed.add(u.id);
     orderGroup(s,staged,'attackMove',{x:regrouping.rx,y:regrouping.ry});ai.mode='Reinforcing a forward regroup';
-  }else if(!holdOnly&&s.time>=ai.nextRaid&&staged.length>=waveMin){
-    const members=staged.slice(0,waveMax),target=pickTarget(s,team,ai,v,k,ctx.rally,directive);
+  }else if(!holdOnly&&s.time>=ai.nextRaid&&staged.length>=waveMin&&!(k.guns&&v.knownTowers.length&&staged.filter(u=>entityRole(u)==='artillery').length<k.guns&&s.time<ai.nextRaid+90)){
+    // A siege doctrine holds the wave (for at most 90 s) until its guns can answer the known towers.
+    const members=staged.slice(0,waveMax),target=pickTarget(s,team,ai,v,k,ctx.rally,directive,undefined,members.some(u=>entityRole(u)==='artillery'));
     const wave={id:ai.waveId=(ai.waveId||0)+1,kind:'raid',ids:members.map(u=>u.id),tx:target.x,ty:target.y,...(target.id?{targetId:target.id}:{}),state:'advance',since:s.time};
     ai.waves.push(wave);for(const u of members)ctx.claimed.add(u.id);
     orderGroup(s,members,'attackMove',target,pace(members));
@@ -779,7 +792,7 @@ function steerWave(s,team,ai,v,k,ctx,wave,directive){
     const point={x:wave.rx,y:wave.ry},gathered=members.filter(u=>distance(u,point)<8).length>=members.length*.7;
     const strength=members.reduce((sum,u)=>sum+aiCombatPower(u),0);
     if(gathered&&(strength>=wave.need*k.commit||s.time-wave.since>50)){
-      if(wave.tries>=2){aim(wave,pickTarget(s,team,ai,v,k,c,directive,wave.targetId));wave.tries=0;}
+      if(wave.tries>=2){aim(wave,pickTarget(s,team,ai,v,k,c,directive,wave.targetId,members.some(u=>entityRole(u)==='artillery')));wave.tries=0;}
       wave.state='advance';wave.since=s.time;delete wave.rx;delete wave.ry;delete wave.need;
       orderGroup(s,members,'attackMove',{x:wave.tx,y:wave.ty},pace(members));
     }else orderGroup(s,members.filter(u=>u.order.type==='idle'&&distance(u,point)>8),'attackMove',point);
@@ -791,7 +804,7 @@ function steerWave(s,team,ai,v,k,ctx,wave,directive){
   if(reached){
     if(wave.kind==='response'||directive?.defend&&!directive.attack){orderGroup(s,members,'attackMove',ctx.rally);wave.ids=[];return;}
     if(!(directive?.attack&&!wave.targetId)){
-      const next=pickTarget(s,team,ai,v,k,c,directive);aim(wave,next);
+      const next=pickTarget(s,team,ai,v,k,c,directive,undefined,members.some(u=>entityRole(u)==='artillery'));aim(wave,next);
       orderGroup(s,members,'attackMove',next,pace(members));ai.mode=next.id?'Pressing the attack':'Probing unexplored territory';
     }else orderGroup(s,members.filter(u=>u.order.type==='idle'&&distance(u,goal)>6),'attackMove',goal);
     for(const u of members)ctx.advancing.add(u.id);
