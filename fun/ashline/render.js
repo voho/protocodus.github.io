@@ -79,14 +79,15 @@ function cachedSprite(key, size, paint, build) {
   }
   return sprite;
 }
-function radialSprite(stops) {
-  return cachedSprite(stops.join(), SPRITE_RADIUS * 2, (c, size) => {
+// Stop lists are module constants, so each remembers its own cache key.
+function radialSprite(stops, key = stops.key ??= stops.join()) {
+  return cachedSprite(key, SPRITE_RADIUS * 2, (c, size) => {
     const gradient = c.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
     for (let i = 0; i < stops.length; i += 2) gradient.addColorStop(stops[i], stops[i + 1]);
     c.fillStyle = gradient; c.fillRect(0, 0, size, size);
   });
 }
-function glowSprite(color) { return radialSprite([0, color, 1, color.slice(0, 7) + '00']); }
+function glowSprite(color) { return spriteCache.get(color) || radialSprite([0, color, 1, color.slice(0, 7) + '00'], color); }
 function glow(ctx, x, y, radius, color) {
   if (radius > 0) ctx.drawImage(glowSprite(color), x - radius, y - radius, radius * 2, radius * 2);
 }
@@ -99,6 +100,11 @@ const FIRE = [0, '#fff3c9', .22, '#ffd193', .55, '#f39840ca', 1, '#bd4c2400'];
 const DARK_SMOKE = [0, '#28292bd0', 1, '#28292b00'];
 const STEAM = [0, '#c6c4bcd0', 1, '#c6c4bc00'];
 const FLAME = [0, '#fff1c2', .3, '#ffc061e6', .65, '#e8642acc', 1, '#a8301800'];
+const COOLANT = [0, '#eefaff', .35, '#9fd6ece0', 1, '#5c9fc000'];
+const SCORCH = [0, '#0e161de0', .45, '#19202790', 1, '#19202700'];
+const BEACON = [0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00'];
+const TRAIL = [0, '#b8b3a5', .6, '#b8b3a5a0', 1, '#b8b3a500'];
+const COLUMN = [0, '#6d6a62b0', .55, '#5f5c5578', 1, '#5f5c5500'];
 // Text labels are rasterised once at twice their CSS size so they stay crisp on dense displays.
 function labelSprite(text, color, font = '600 10px monospace') {
   return cachedSprite(`label:${font}:${color}:${text}`, 0, null, () => {
@@ -1325,7 +1331,7 @@ export class Renderer {
 
   scorch(ctx, fx) {
     const x = fx.x * TILE, y = fx.y * TILE, radius = 19 * Math.sqrt(fx.size || 1);
-    stamp(ctx, radialSprite([0, '#0e161de0', .45, '#19202790', 1, '#19202700']), x, y, radius, radius * .75);
+    stamp(ctx, radialSprite(SCORCH), x, y, radius, radius * .75);
     for (let j = 0; j < 12; j++) {
       const a = noise(x, j, this.seed) * Math.PI * 2, r = radius * (.4 + noise(j, y) * .9);
       const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r * .7;
@@ -1463,8 +1469,8 @@ export class Renderer {
         explosion(ctx, p.x, p.y, p.size, k, 1 - k, p.sx, p.sy);
       } else if (p.kind === 'smoke') {
         const drift = Math.sin(clock * .4 + p.seed * 6) * 4 + age * 7, r = p.size * (.6 + k * .9);
-        ctx.globalAlpha = Math.sin(k * Math.PI) * .34;
-        stamp(ctx, radialSprite(SOOT), p.x + drift, p.y - age * 26, r, r);
+        ctx.globalAlpha = Math.sin(k * Math.PI) * .8;
+        stamp(ctx, radialSprite(COLUMN), p.x + drift, p.y - age * 26, r, r);
       } else if (p.kind === 'impact') {
         const r = 4 + k * 14;
         ctx.globalAlpha = (1 - k) * .55;
@@ -1562,7 +1568,7 @@ export class Renderer {
         ctx.globalAlpha = (1 - k) * .55; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.arc(p.x, p.y, r * k, 0, Math.PI * 2); ctx.stroke();
         ctx.globalAlpha = .9;
-        stamp(ctx, radialSprite([0, '#ffe2b0', .35, '#e2b67e88', 1, '#e2b67e00']), p.x, p.y - 19, 4.5, 22);
+        stamp(ctx, radialSprite(BEACON), p.x, p.y - 19, 4.5, 22);
         ellipse(ctx, p.x, p.y, 5, 3, '#14202799', '#e2b67e');
         polygon(ctx, [[p.x, p.y - 44], [p.x + 5.5, p.y - 37.5], [p.x, p.y - 31], [p.x - 5.5, p.y - 37.5]], '#e2b67e', '#142027');
       }
@@ -1998,7 +2004,7 @@ export class Renderer {
         const lift = 14, launchHeight = fx.weapon === 'rocketTower' ? 25.9 : 3;
         const sx = px * TILE, sy = py * TILE - launchHeight * (1 - age) - 3 * age - Math.sin(age * Math.PI) * lift;
         // Each trail puff must be currently visible, including shots entering sensor coverage.
-        const puff = radialSprite([0, '#b8b3a5', .6, '#b8b3a5a0', 1, '#b8b3a500']);
+        const puff = radialSprite(TRAIL);
         for (let j = 1; j <= 7; j++) {
           const p = age - j * .026;
           if (p < 0) continue;
@@ -2223,7 +2229,7 @@ export class Renderer {
         ctx.save(); ctx.rotate(angle);
         const flicker = .8 + Math.sin(time * 41 + e.id) * .2;
         ctx.globalAlpha = .85 * flicker;
-        stamp(ctx, radialSprite(unity ? [0, '#eefaff', .35, '#9fd6ece0', 1, '#5c9fc000'] : FLAME), back, 0, 6 + flicker * 2, 2.6);
+        stamp(ctx, radialSprite(unity ? COOLANT : FLAME), back, 0, 6 + flicker * 2, 2.6);
         for (let j = 0; j < 5; j++) {
           const age = (time * (moving ? 3.2 : 1.4) + j / 5 + e.id * .13) % 1;
           ctx.globalAlpha = (1 - age) * (moving ? .32 : .16);
