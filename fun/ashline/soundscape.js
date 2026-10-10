@@ -26,25 +26,6 @@ const HEAVY = new Set(['tank', 'artillery', 'rocketTower', 'turret']);
 const INFANTRY = new Set(['rifle', 'rocket']);
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
-// Older saves recorded events as text only; route them by their fixed wording.
-export function eventKind(event) {
-  if (event.kind) return event.kind;
-  const text = String(event.text || '');
-  if (text.startsWith('Shard delivery:')) return 'delivery';
-  if (/ under attack$/.test(text)) return 'underAttack';
-  if (/ promoted to rank \d$/.test(text)) return 'promotion';
-  if (/: research complete$/.test(text)) return 'researchComplete';
-  if (/: upgrade complete$/.test(text)) return 'upgradeComplete';
-  if (/^Power shortage/.test(text)) return 'power';
-  if (/ online$/.test(text)) return 'online';
-  if (/ ready$/.test(text)) return 'ready';
-  if (/^All haulers lost/.test(text)) return 'haulersLost';
-  if (/deployment bay blocked$/.test(text)) return 'bayBlocked';
-  if (/^(?!Hostile|All ).* destroyed$/.test(text)) return 'structureLost';
-  if (/ lost$/.test(text)) return 'unitLost';
-  return '';
-}
-
 // Camera placement: pan follows the screen position; level holds across the view and falls to silence
 // about one and a half screens beyond its edge, where combat also sounds muffled.
 export function placeCue(x, y, view, screen) {
@@ -118,7 +99,7 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
     return events.slice(from);
   }
   function hearEvent(event, next) {
-    const kind = eventKind(event), own = event.team === 0 || event.team === undefined;
+    const kind = event.kind, own = event.team === 0 || event.team === undefined;
     if (kind === 'unitLost' || kind === 'structureLost') deaths.set(`${event.x},${event.y}`, { kind, role: event.role });
     if (!own) {
       // A rival's ability is heard only where the player can see it happen.
@@ -137,7 +118,7 @@ export function createSoundscape(audio, { clock = () => performance.now() / 1000
     // The HUD's rule for promotions: news only for a living unit's kill the player saw; any other waits
     // silently until the unit is next selected.
     if (kind === 'promotion') { const unit = getEntity(game, event.entityId); if (unit?.kind !== 'unit' || unit.hp <= 0 || !witnessedKill(game, event, next)) return; }
-    const name = kind === 'power' ? POWER[event.status] : kind === 'objective' ? (event.status === 'new' || /^New objective/.test(event.text) ? 'alert.objectiveNew' : 'alert.objective') : STINGERS[kind];
+    const name = kind === 'power' ? POWER[event.status] : kind === 'objective' ? (event.status === 'new' ? 'alert.objectiveNew' : 'alert.objective') : STINGERS[kind];
     if (name) centred(name);
   }
   function hearEffect(effect) {

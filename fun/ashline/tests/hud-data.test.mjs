@@ -1,30 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BUILDINGS, UNITS, EVENT_KINDS, createGame, updateGame, canPlace, placeBuilding, getEntity, addEntity, armorMultiplier, raceUnit, raceBuilding, unitRole, issueOrder} from '../sim.js';
-import {eventKind, eventRoute, witnessedKill, cardStats, idleSummary, IDLE_GROUPS, readSettings, writeSettings, DEFAULT_SETTINGS, SETTINGS_KEY} from '../hud-data.js';
+import {eventRoute, witnessedKill, cardStats, idleSummary, IDLE_GROUPS, readSettings, writeSettings, DEFAULT_SETTINGS, SETTINGS_KEY} from '../hud-data.js';
 
 const memoryStorage = (entries = {}) => { const memory = new Map(Object.entries(entries)); return {memory, getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, String(value))}; };
 
-test('saves without typed events route by their text exactly as typed events do', () => {
+test('every simulation event carries the kind that routes it', () => {
   const s = createGame('hud-routing', 'hard', {width: 72, height: 56, races: ['organics', 'aiUnity'], aiTeams: [0, 1]});
   for (let tick = 0; tick < 4800 && s.status === 'playing'; tick++) updateGame(s, .05);
   const kinds = new Set();
   for (const event of s.events) {
-    assert(EVENT_KINDS.includes(event.kind));
-    assert.equal(eventKind(event), event.kind);
-    // Old saves stored only {text, team, time}: the copy alone must recover the same kind.
-    assert.equal(eventKind({text: event.text, team: event.team, time: event.time}), event.kind, `"${event.text}" keeps its kind without a stored kind`);
+    assert(EVENT_KINDS.includes(event.kind), `"${event.text}" carries a known kind`);
+    assert.equal(eventRoute(event).kind, event.kind);
+    if (event.kind === 'power') assert(['brownout', 'reserve', 'stable'].includes(event.status), `"${event.text}" carries its power status`);
     kinds.add(event.kind);
   }
   for (const kind of ['opening', 'ready', 'placed', 'online', 'delivery', 'unitLost', 'underAttack']) assert(kinds.has(kind), `The duel exercises ${kind}`);
-  assert.equal(eventKind({text: 'Something new'}), 'message');
+  assert.equal(eventRoute({text: 'Something new'}).kind, 'message', 'An event without a kind is an ordinary message');
 });
 
 test('event routes give victory a success tone, warnings an alert, and keep chatter out of the log', () => {
   const victory = 'All hostile nexuses and construction vehicles destroyed. Sector secured.';
   assert.equal(eventRoute({text: victory, kind: 'victory'}).tone, 'success', 'The victory line is not styled as a warning');
-  assert.equal(eventRoute({text: victory}).tone, 'success', 'Old saves route the victory line by text');
-  assert.equal(eventRoute({text: 'All nexuses and construction vehicles lost. Operation failed.'}).tone, 'warning');
+  assert.equal(eventRoute({text: 'All nexuses and construction vehicles lost. Operation failed.', kind: 'defeat'}).tone, 'warning');
   for (const kind of ['underAttack', 'structureLost', 'haulersLost', 'bayBlocked', 'wave']) {
     const route = eventRoute({text: '', kind});
     assert.equal(route.tone, 'warning'); assert(route.alert, `${kind} is a jump-to alert`);
@@ -44,8 +42,8 @@ test('event routes give victory a success tone, warnings an alert, and keep chat
   for (const kind of ['wave', 'mission']) assert.equal(eventRoute({kind, text: ''}).toast, true, `${kind} is logged`);
   const brownout = eventRoute({kind: 'power', status: 'brownout', text: 'Power shortage: defenses offline; production, research, and repairs slowed. Build reactors.'});
   assert.equal(brownout.toast, false, 'The HUD raises its own low-power warning');
-  assert.equal(eventRoute({text: 'Capacitor reserve engaged. Restore power before it empties.'}).tone, 'caution');
-  assert.equal(eventRoute({text: 'Power grid restored.'}).tone, 'success');
+  assert.equal(eventRoute({kind: 'power', status: 'reserve', text: 'Capacitor reserve engaged. Restore power before it empties.'}).tone, 'caution');
+  assert.equal(eventRoute({kind: 'power', status: 'stable', text: 'Power grid restored.'}).tone, 'success');
   for (const kind of EVENT_KINDS) assert(['info', 'success', 'caution', 'warning', 'loss', 'comms'].includes(eventRoute({kind, text: ''}).tone), `${kind} has a tone`);
 });
 

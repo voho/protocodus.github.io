@@ -216,9 +216,9 @@ function bark(unit, context) {
   barkUntil = performance.now() + 3200;
 }
 
-// New simulation events for the player: kind picks the tone, alert and comms reaction; saves from before
-// typed events fall back to their text. Every toast here is quiet: the soundscape gives each event its
-// own sound. Only the player's own events are read, except to check that a promotion's kill was seen.
+// New simulation events for the player: kind picks the tone, alert and comms reaction. Every toast here is
+// quiet: the soundscape gives each event its own sound. Only the player's own events are read, except to
+// check that a promotion's kill was seen.
 // Scripted dialogue belongs to the objective tracker, which queues it as transmissions (announced as each shows).
 function reportEvents(from) {
   const events = game.events;
@@ -230,7 +230,7 @@ function reportEvents(from) {
     let text = event.text;
     if (route.kind === 'promotion') {
       const subject = getEntity(game, event.entityId);
-      // A promotion with no living unit to name (or a text-only one) cannot be checked against vision.
+      // A promotion with no living unit to name cannot be checked against vision.
       if (subject?.kind !== 'unit' || subject.hp <= 0) continue;
       text = `${callsign(game, subject)} (${UNITS[subject.type].name}) promoted to rank ${event.rank ?? unitRank(subject)}`;
       // A kill the player did not see is never confirmed as it happens: the news waits, without a place

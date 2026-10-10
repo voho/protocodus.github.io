@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createGame, updateGame, addEntity} from '../sim.js';
-import {createSoundscape, placeCue, eventKind, speakerVoice} from '../soundscape.js';
+import {createSoundscape, placeCue, speakerVoice} from '../soundscape.js';
 import {RECIPES} from '../soundbank.js';
 
 // A stand-in for audio.js that records every request.
@@ -136,14 +136,14 @@ test('per-tick scanning hears one-tick shots in multi-tick frames and merges the
   assert(weapons.some(call => call.name === 'organics.rifle') && weapons.some(call => call.name === 'aiUnity.rifle'));
 });
 
-test('typed events drive stingers and voices; text-only events from older saves still route', () => {
+test('typed events drive stingers and voices', () => {
   const s = field(), {audio, scape, frame, advance} = rig(s);
   const say = (kind, extra = {}, team = 0) => s.events.push({text: extra.text || kind, team, time: s.time, kind, ...extra});
   // A promotion sounds only with its victim's loss logged right after it, on a tile in sight.
   const veteran = addEntity(s, 0, 'unit', 'rifle', 20, 20), kill = (x, y) => say('unitLost', {x, y, role: 'rifle', entityId: 999}, 1);
   reveal(s, 20, 20, 24, 24);
   say('underAttack'); say('researchComplete'); say('upgradeComplete'); say('promotion', {rank: 1, entityId: veteran.id}); kill(22.5, 21.5); say('power', {status: 'brownout'});
-  say('objective', {text: 'New objective: Hold the ridge'}); say('objectiveFailed'); say('wave'); say('bayBlocked');
+  say('objective', {status: 'new', text: 'New objective: Hold the ridge'}); say('objectiveFailed'); say('wave'); say('bayBlocked');
   say('placed'); say('researchStarted'); say('opening'); say('victory');
   say('dialogue', {speaker: 'Unity relay', text: 'Claim rejected.'});
   say('underAttack', {}, 1);
@@ -155,15 +155,13 @@ test('typed events drive stingers and voices; text-only events from older saves 
   assert(!calls.some(call => /\.transmission$/.test(call.name)), 'Dialogue waits for the tracker to show it');
   assert(calls.every(call => call.pan === undefined || call.type === 'voice'), 'Alerts are centred');
   advance(3);
-  say('objective', {text: 'Objective complete: Hold the ridge'}); say('power', {status: 'stable'});
+  say('objective', {status: 'complete', text: 'Objective complete: Hold the ridge'}); say('power', {status: 'stable'});
   say('promotion', {rank: 2, entityId: veteran.id}); kill(50.5, 40.5);
-  s.events.push({text: 'Rifle squad promoted to rank 2', team: 0, time: s.time}, {text: 'Signal laboratory destroyed', team: 0, time: s.time});
+  say('promotion', {rank: 2, text: 'Rifle squad promoted to rank 2'}); say('structureLost', {text: 'Signal laboratory destroyed'});
+  say('structureLost', {text: 'Hostile nexus destroyed'}, 1);
   scape.tick(s); frame();
   assert.deepEqual(audio.take().map(call => call.name).sort(), ['alert.objective', 'alert.powerUp', 'alert.structureLost'],
-    'A promotion for a kill under fog, or a text-only one that names no victim, stays silent like its message');
-  assert.equal(eventKind({text: 'Shard delivery: +120 credits'}), 'delivery');
-  assert.equal(eventKind({text: 'Hostile nexus destroyed'}), '', 'Rival losses never sound like your own');
-  assert.equal(eventKind({text: 'Tank lost', kind: 'unitLost'}), 'unitLost');
+    'A promotion for a kill under fog, or one that names no unit, stays silent like its message; rival losses never sound like your own');
 });
 
 test('transmissions are voiced as the tracker shows them, each speaker in one voice', () => {

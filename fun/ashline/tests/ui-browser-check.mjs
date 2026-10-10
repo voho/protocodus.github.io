@@ -79,7 +79,7 @@ try {
     event(s, 'All hostile nexuses and construction vehicles destroyed. Sector secured.', 0, { kind: 'victory' });
     event(s, 'Field barracks under attack', 0, { kind: 'underAttack', x: core.x + 20, y: core.y - 20 });
     event(s, 'Field barracks under attack', 0, { kind: 'underAttack', x: core.x + 20, y: core.y - 20 });
-    s.events.push({ text: 'Rifle squad lost', team: 0, time: s.time });
+    event(s, 'Rifle squad lost', 0, { kind: 'unitLost' });
     event(s, 'Rival transmission.', 1, { kind: 'dialogue', speaker: 'Rival' });
   }, ids);
   await desktop.waitForFunction(() => document.querySelectorAll('#notifications .toast').length >= 3);
@@ -87,7 +87,7 @@ try {
   assert.equal(log.find(t => /Sector secured/.test(t.text)).tone, 'success', 'Victory is not styled as a warning');
   const attack = log.find(t => /under attack/.test(t.text));
   assert.equal(attack.tone, 'warning'); assert(attack.jump); assert.match(attack.text, /×2/, 'Repeated warnings collapse with a count');
-  assert.equal(log.find(t => /Rifle squad lost/.test(t.text)).tone, 'loss', 'Text-only events from older saves keep their routing');
+  assert.equal(log.find(t => /Rifle squad lost/.test(t.text)).tone, 'loss', 'Losses take the loss tone');
   assert(!log.some(t => /Rival transmission/.test(t.text)), 'Rival events never reach the log');
   assert.match(await desktop.locator('#announcer').textContent(), /under attack/, 'Screen readers hear the batch');
   await desktop.evaluate(async () => { const { event } = await import('./sim.js'); for (let i = 0; i < 6; i++) event(ashline.state, `Report ${i}`, 0, { kind: 'mission' }); });

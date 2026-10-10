@@ -2,27 +2,6 @@
 // persisted interface settings. They read the game without changing it and only describe the
 // player's own forces, so nothing here can expose a position or unit hidden by fog.
 import { UNITS, BUILDINGS, RESEARCH, armorMultiplier, unitRole, buildingRole, researchStatus } from './sim.js';
-import { ABILITIES } from './abilities.js';
-
-// Saves from before typed events carry only text; these patterns recover the kind from that copy.
-const KIND_PATTERNS = [
-  [/^Shard delivery:/, 'delivery'], [/ under attack$/, 'underAttack'], [/ promoted to rank \d$/, 'promotion'],
-  [/^All hostile nexuses and construction vehicles destroyed/, 'victory'], [/^All nexuses and construction vehicles lost/, 'defeat'],
-  [/^All haulers lost/, 'haulersLost'], [/ lost$/, 'unitLost'], [/ destroyed$/, 'structureLost'], [/ ready$/, 'ready'], [/ online$/, 'online'],
-  [/: deployment bay blocked$/, 'bayBlocked'], [/^Power shortage/, 'power'], [/^Capacitor reserve engaged/, 'power'], [/^Power grid restored/, 'power'],
-  [/: research started$/, 'researchStarted'], [/: research complete$/, 'researchComplete'], [/: upgrade started$/, 'upgradeStarted'], [/: upgrade complete$/, 'upgradeComplete'],
-  [/: construction started$/, 'placed'], [/: deployment started$/, 'deployed'], [/wall segments? started/, 'walls'], [/ sold: \+/, 'sold'],
-  [/: reachable territory explored$/, 'explored'], [/ training cancelled: \+/, 'trainingCancelled'], [/^Command online/, 'opening'],
-  [new RegExp(`: (${Object.values(ABILITIES).flatMap(a => Object.values(a.names)).join('|')})$`), 'ability'],
-];
-export function eventKind(event) {
-  if (typeof event?.kind === 'string') return event.kind;
-  const text = String(event?.text ?? '');
-  return KIND_PATTERNS.find(([pattern]) => pattern.test(text))?.[1] ?? 'message';
-}
-function powerStatus(event) {
-  return event.status ?? (/^Power shortage/.test(event.text) ? 'brownout' : /^Capacitor/.test(event.text) ? 'reserve' : 'stable');
-}
 
 // tone: info, success, caution, warning, loss or comms. alert: worth a jump-to entry and a minimap ping.
 // toast: false keeps the line out of the log: deliveries are a sound, brownouts already raise the HUD's
@@ -43,10 +22,12 @@ const ROUTES = {
   unitLost: { tone: 'loss', alert: true }, promotion: { tone: 'success' }, ready: { tone: 'info' },
   victory: { tone: 'success' }, defeat: { tone: 'warning' }, objective: { tone: 'success', toast: false, announce: true }, dialogue: { tone: 'comms', toast: false }, message: { tone: 'info' },
 };
+// Every event the simulation logs carries its kind, and a power event its status. Events in a save from before
+// typed events are never routed: a loaded operation reports only the events logged after it.
 export function eventRoute(event) {
-  const kind = eventKind(event);
+  const kind = typeof event.kind === 'string' ? event.kind : 'message';
   if (kind === 'power') {
-    const status = powerStatus(event);
+    const status = event.status;
     return { kind, status, tone: status === 'reserve' ? 'caution' : status === 'brownout' ? 'warning' : 'success', toast: status !== 'brownout', alert: false };
   }
   const route = Object.hasOwn(ROUTES, kind) ? ROUTES[kind] : ROUTES.message;
