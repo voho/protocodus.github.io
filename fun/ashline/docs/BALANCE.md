@@ -57,7 +57,7 @@ The doctrine commander spends whatever it earns, so armies are bounded by income
 
 No health, damage, interval, speed or build time changed, so the identities stand as before: Unity's Needle cohorts and Breach automata are tougher, slower and weaker-hitting than organic infantry at the same price; its walkers, skimmers and runners are lighter, faster and now cheaper than the sturdier, harder-hitting organic vehicles; its structures keep their power efficiencies. The race description drops "Costlier" and the Bastion walker's card names its lower price.
 
-Saves are unaffected: `save.js` validates `maxHp` against the health tables, which did not change, and a queued unit is refunded at the current price when cancelled.
+Existing saves still load: `save.js` validates `maxHp` against the health tables, which did not change. A queue refunds the current price when a unit is cancelled or its building sold, so a Unity unit queued in an older save returns 10 to 60 credits less than it cost.
 
 Price experiments (scratch copies of the engine, calibration and held-out seeds, Veteran):
 
