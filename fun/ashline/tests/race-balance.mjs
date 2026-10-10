@@ -1,5 +1,6 @@
 // Real AI-versus-AI race trials. This is an empirical harness, not a scripted unit-strength comparison.
 // --doctrines a,b plays doctrine a against doctrine b: both race orientations and both doctrine assignments.
+// --profile a,b plays only those map profiles; without it, every profile.
 import assert from 'node:assert/strict';
 import {writeFileSync,readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
@@ -14,9 +15,9 @@ assert.ok(['calibration','holdout','extended'].includes(suite));
 assert.ok(['easy','normal','hard'].includes(difficulty),'--difficulty must be easy, normal or hard');
 assert.ok(!doctrines||doctrines.length===2&&doctrines.every(id=>Object.hasOwn(DOCTRINES,id)),'--doctrines takes two doctrine ids, such as balanced,swarm');
 const seeds=suite==='extended'?['EXTENDED-HORIZON-06']:suite==='holdout'?['HOLDOUT-EMBER-04','HOLDOUT-OBSIDIAN-05']:['BALANCE-CINDER-01','BALANCE-VAULT-02','BALANCE-DUSK-03'];
-const profiles=selected?[selected]:Object.keys(MAP_PROFILES);
-assert.ok(profiles.every(profile=>Object.hasOwn(MAP_PROFILES,profile)));
-const limit=Number(option('--limit')||2400),output=option('--output')||`/tmp/ashline-race-balance-${doctrines?doctrines.join('-'):selected||'all'}.json`;
+const profiles=selected?selected.split(','):Object.keys(MAP_PROFILES);
+assert.ok(profiles.every(profile=>Object.hasOwn(MAP_PROFILES,profile)),`--profile takes one or more of ${Object.keys(MAP_PROFILES).join(', ')}, separated by commas`);
+const limit=Number(option('--limit')||2400),output=option('--output')||`/tmp/ashline-race-balance-${doctrines?doctrines.join('-'):selected?profiles.join('-'):'all'}.json`;
 // Provenance covers every simulation module, in a fixed order, so a change to any of them is visible.
 const simulationSources=['sim.js','ai.js','terrain.js','flocking.js','traffic.js','mission.js','campaign.js','abilities.js'];
 const simulationSha256=simulationSources.reduce((digest,file)=>digest.update(`${file}\n`).update(readFileSync(new URL(`../${file}`,import.meta.url))),createHash('sha256')).digest('hex');

@@ -18,7 +18,7 @@ The harness now counts roles in null-prototype tallies, so the Organics `constru
 
 ## Race results
 
-Calibration plays three seeds × three profiles × both race orientations on Standard 144×112 maps (18 games); the held-out batch plays two other seeds on the same three profiles (12 games). One further seed was played in both orientations on Frontier 192×144 and Vast 224×168 Rift (four games).
+Calibration plays three seeds × three profiles (Rift, Basin and Highlands) × both race orientations on Standard 144×112 maps (18 games); the held-out batch plays two other seeds on the same three profiles (12 games). One further seed was played in both orientations on Frontier 192×144 and Vast 224×168 Rift (four games).
 
 | Batch | Matches | Organics wins | Unity wins | Draws | Unity win share |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -186,17 +186,17 @@ Times are simulated seconds. O = Organics, U = AI Unity; pairs and doctrines are
 
 ## Reproduce
 
-Run from `fun/ashline`. Each command writes standalone JSON with the engine hash, parameters, definition snapshots, every match and a summary. `--profile rift|basin|highlands` splits a batch into independent processes; `--difficulty easy|normal|hard` (default `hard`) and `--doctrines a,b` select the commanders.
+Run from `fun/ashline`. Each command writes standalone JSON with the engine hash, parameters, definition snapshots, every match and a summary. `--profile` takes one or more comma-separated ids (`rift`, `basin`, `highlands`, `ember`, `steppe`, `deadwood`, `crown`); without it a batch plays all seven, so the commands below name the three these trials used. One profile per process splits a batch. `--difficulty easy|normal|hard` (default `hard`) and `--doctrines a,b` select the commanders.
 
 ```sh
-node tests/race-balance.mjs --suite calibration --size standard --output /tmp/ashline-calibration.json
-node tests/race-balance.mjs --suite holdout --size standard --output /tmp/ashline-holdout.json
+node tests/race-balance.mjs --suite calibration --size standard --profile rift,basin,highlands --output /tmp/ashline-calibration.json
+node tests/race-balance.mjs --suite holdout --size standard --profile rift,basin,highlands --output /tmp/ashline-holdout.json
 node tests/race-balance.mjs --suite extended --size frontier --profile rift --output /tmp/ashline-frontier.json
 node tests/race-balance.mjs --suite extended --size vast --profile rift --output /tmp/ashline-vast.json
 node tests/race-balance.mjs --suite calibration --size standard --profile rift --doctrines swarm,balanced --output /tmp/ashline-swarm.json
 ```
 
-The [complete recorded results](balance-results.json) hold every match with configuration snapshots, composition, research and economy samples.
+The [complete recorded results](balance-results.json) hold every match with configuration snapshots, composition, research and economy samples. `tests/balance-docs.test.mjs` checks that the commands above play the profiles recorded there.
 
 ## Limits
 
