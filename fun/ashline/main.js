@@ -702,7 +702,8 @@ async function prepareOperation(restore = false) {
       paused = false; audio.setPaused(false);
       $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Pause game');
       canvas.focus({ preventScroll: true }); updateHUD(); playSound('confirm');
-      notify(`${RACES[teamRace(game, 0)].name} deployed. Build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
+      // The simulation's opening line is pinned by save and digest checks; the Charter framing lives here.
+      if (!game.mission) notify(`${RACES[teamRace(game, 0)].name} claim filed. Keep the nexus running: build ${BUILDINGS[raceBuilding(game, 0, 'barracks')].name} and recruit your first squad.`);
     }
     requestFrame();
   } catch (error) {

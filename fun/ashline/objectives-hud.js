@@ -59,7 +59,9 @@ export function createObjectivesHud() {
     collapsed = value; panel.dataset.collapsed = String(value); toggle.setAttribute('aria-expanded', String(!value));
     document.body.style.setProperty('--objectives-height', `${panel.hidden ? 0 : panel.getBoundingClientRect().height}px`);
   };
-  toggle.addEventListener('click', () => setCollapsed(!collapsed));
+  // A pointer click hands the keyboard back to the battlefield so Space and WASD keep working.
+  toggle.addEventListener('click', event => { setCollapsed(!collapsed); if (event.detail) document.getElementById('world')?.focus({ preventScroll: true }); });
+  const hide = () => { panel.hidden = true; document.body.style.setProperty('--objectives-height', '0px'); };
 
   function renderRows(items) {
     const key = JSON.stringify(items);
@@ -79,7 +81,7 @@ export function createObjectivesHud() {
   }
 
   function update(s) {
-    if (!s) { panel.hidden = true; return; }
+    if (!s) { hide(); return; }
     if (shownFor !== s) { shownFor = s; signature = ''; done.clear(); transmissionUntil = 0; $('transmission').hidden = true; setCollapsed(matchMedia('(max-width: 680px)').matches); }
     const now = performance.now(), table = objectiveRows(s);
     let items, title, count;
@@ -94,11 +96,14 @@ export function createObjectivesHud() {
       const contest = contestLine(s, table.def);
       if (contest) items.push({ label: contest, state: 'active', kind: 'note', progress: '' });
       if (table.def.score === 'survival') items.push({ label: `Score ${fmt(s.mission.score || 0)}`, state: 'active', kind: 'note', progress: `${fmt(s.teams[0].kills || 0)} kills` });
-      const primaries = table.rows.filter(row => !row.secondary);
-      count = `${primaries.filter(row => row.state === 'done').length} / ${primaries.length + (table.def.objectives.filter((o, i) => !o.secondary && !s.mission.objectives[i].revealed).length)}`;
+      // Alternative routes to victory ("Or destroy every rival claim") are not counted as extra steps.
+      const required = table.def.objectives.map((o, i) => ({ o, state: s.mission.objectives[i] })).filter(({ o }) => !o.secondary);
+      const steps = required.filter(({ o }) => !o.sufficient), shortcut = required.some(({ o, state }) => o.sufficient && state.state === 'done');
+      const finished = shortcut ? steps.length : steps.filter(({ state }) => state.state === 'done').length;
+      count = `${finished} / ${steps.length}`;
     } else {
       const goals = commanderGoals(s);
-      if (!goals) { panel.hidden = true; return; }
+      if (!goals) { hide(); return; }
       title = "Commander's goals";
       const open = goals.filter(goal => !goal.done).slice(0, 3), finished = goals.filter(goal => goal.done);
       for (const goal of finished) if (!done.has(goal.id)) done.set(goal.id, now);

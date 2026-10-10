@@ -247,7 +247,8 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 #transmission-speaker{font:10px var(--mono);font-weight:400;color:var(--amber);letter-spacing:.4px}
 #transmission-text{font:12px/1.45 var(--font);color:var(--text)}
 #terrain-readout{top:calc(92px + var(--objectives-height,0px))}
-@media(max-width:900px){.objectives{max-width:calc(100% - 290px)}}
+@media(max-width:1190px){.objectives{width:240px}}
+@media(min-width:681px) and (max-width:900px){.objectives{max-width:calc(100% - 290px)}#notifications{top:max(116px,calc(var(--top) + 20px + var(--objectives-height,0px)))}}
 @media(max-width:680px){
   .objectives{left:10px;top:60px;width:auto;max-width:calc(100% - 140px)}
   #objectives-toggle{min-height:36px;padding:5px 9px}

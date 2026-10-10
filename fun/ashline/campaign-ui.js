@@ -18,7 +18,7 @@ const $ = id => document.getElementById(id);
 
 // ---- Stored progress -------------------------------------------------------------------------------------
 
-export function emptyProgress() { return { version: 1, missions: {}, veterans: [], lastLight: { best: 0 }, tab: 'skirmish', selected: CAMPAIGN[0] }; }
+export function emptyProgress() { return { version: 1, missions: {}, veterans: [], lastLight: { best: 0 }, tab: 'skirmish', selected: CAMPAIGN[0], difficulty: 'normal' }; }
 // Accepts whatever storage returned and keeps only well-formed, bounded records.
 export function readProgress(value) {
   const progress = emptyProgress();
@@ -37,6 +37,9 @@ export function readProgress(value) {
   if (Number.isFinite(value.lastLight?.best) && value.lastLight.best >= 0) progress.lastLight.best = value.lastLight.best;
   if (['campaign', 'skirmish'].includes(value.tab)) progress.tab = value.tab;
   if (CAMPAIGN.includes(value.selected)) progress.selected = value.selected;
+  if (LEVELS.includes(value.difficulty)) progress.difficulty = value.difficulty;
+  // A selection that is not open (edited storage) falls back to the latest open operation.
+  if (!isUnlocked(progress, progress.selected)) progress.selected = [...CAMPAIGN].reverse().find(id => isUnlocked(progress, id));
   return progress;
 }
 function load(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
@@ -132,6 +135,8 @@ function installArchive() {
   $('archive-open').addEventListener('click', open);
   $('menu-archive').addEventListener('click', open);
   $('archive-close').addEventListener('click', () => dialog.close());
+  // Resuming from the pause menu (P) must not leave the archive over a running battlefield.
+  $('menu').addEventListener('close', () => dialog.close());
 }
 
 // ---- Briefing ----------------------------------------------------------------------------------------------
@@ -143,7 +148,7 @@ function medalBadge(medal, empty = '') {
 }
 
 export function createCampaign({ launch }) {
-  let progress = readProgress(load(PROGRESS_KEY)), career = readCareer(load(CAREER_KEY)), pending = null, current = null;
+  let progress = readProgress(load(PROGRESS_KEY)), career = readCareer(load(CAREER_KEY)), pending = null, current = null, previousBest = 0;
   const recorded = new WeakSet(), hud = createObjectivesHud();
   const save = () => store(PROGRESS_KEY, progress);
 
@@ -176,7 +181,11 @@ export function createCampaign({ launch }) {
       const time = document.createElement('span'); time.className = 'entry-time'; time.textContent = record?.best ? clock(record.best) : '';
       button.append(number, name, time, medalBadge(record?.medal));
       button.setAttribute('aria-label', `Operation ${index + 1}: ${def.name}${open ? '' : ', locked'}${record?.medal ? `, ${MEDAL_NAMES[record.medal]} medal` : ''}${record?.best ? `, best ${clock(record.best)}` : ''}`);
-      button.addEventListener('click', () => { progress.selected = id; save(); renderList(); renderDetail(); $('campaign-detail').scrollIntoView({ block: 'nearest' }); });
+      button.addEventListener('click', () => {
+        progress.selected = id; save(); renderList(); renderDetail();
+        $('campaign-list').querySelector(`[data-mission="${id}"]`).focus({ preventScroll: true });
+        $('campaign-detail').scrollIntoView({ block: 'nearest' });
+      });
       item.append(button); return item;
     }));
   }
@@ -222,6 +231,8 @@ export function createCampaign({ launch }) {
     if (!isUnlocked(progress, id)) return;
     play(id, { difficulty: $('campaign-difficulty').value, seed: remix ? remixSeed() : undefined });
   }
+  $('campaign-difficulty').value = progress.difficulty;
+  $('campaign-difficulty').addEventListener('change', () => { progress.difficulty = $('campaign-difficulty').value; save(); });
   $('campaign-start').addEventListener('click', () => startOperation(false));
   $('campaign-remix').addEventListener('click', () => startOperation(true));
 
@@ -229,6 +240,8 @@ export function createCampaign({ launch }) {
     pending = launchSettings(id, settings, progress);
     progress.selected = id; progress.tab = 'campaign'; save();
     launch();
+    // The loader takes the launch synchronously; one that was refused (already loading) must not linger.
+    pending = null;
   }
 
   // ---- Match hooks -------------------------------------------------------------------------------------
@@ -254,6 +267,7 @@ export function createCampaign({ launch }) {
     career = addToCareer(career, report, `${s.seed}|${s.mission?.id ?? 'skirmish'}|${s.status}|${s.time.toFixed(2)}|${s.nextId}`);
     store(CAREER_KEY, career);
     if (s.mission) {
+      previousBest = progress.lastLight.best;
       progress = recordResult(progress, s, report);
       // A victory points the briefing at the operation it unlocked.
       const next = CAMPAIGN[CAMPAIGN.indexOf(s.mission.id) + 1];
@@ -270,7 +284,7 @@ export function createCampaign({ launch }) {
     const score = document.createElement('div');
     const points = document.createElement('b'); points.textContent = report.survival !== undefined ? `Survival score ${fmt(report.survival)}` : `Score ${fmt(report.score)}`;
     const detail = document.createElement('small');
-    detail.textContent = report.survival !== undefined ? `${clock(report.time)} survived · ${fmt(report.kills)} kills · best ${fmt(Math.max(progress.lastLight.best, report.survival))}` : `Rating ${report.rating} / 100 · ${clock(report.time)} in field`;
+    detail.textContent = report.survival !== undefined ? `${clock(report.time)} survived · ${fmt(report.kills)} kills · ${report.survival > previousBest ? 'new best' : `best ${fmt(progress.lastLight.best)}`}` : `Rating ${report.rating} / 100 · ${clock(report.time)} in field`;
     score.append(points, detail);
     head.append(grade, score);
     if (def && CAMPAIGN.includes(def.id)) head.append(medalBadge(report.medal));
