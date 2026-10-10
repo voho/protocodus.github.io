@@ -178,10 +178,54 @@ try {
   // In the game: the soundscape hears visible combat, ambience follows the view, and the pause menu mix persists.
   for (const [name, viewport, mobile] of [['desktop', { width: 1440, height: 900 }, false], ['phone', { width: 390, height: 844 }, true]]) {
     const game = await browser.newPage({ viewport, isMobile: mobile, hasTouch: mobile, deviceScaleFactor: mobile ? 2 : 1 }); watch(game);
+    // Buffer lengths of the one-shot sounds the game starts, so a check can tell which cues played.
+    await game.addInitScript(() => {
+      window.heardLengths = [];
+      const start = AudioBufferSourceNode.prototype.start;
+      AudioBufferSourceNode.prototype.start = function (...args) { if (!this.loop) heardLengths.push(Math.round((this.buffer?.duration ?? 0) * 100) / 100); return start.apply(this, args); };
+    });
     await game.goto(base); await game.waitForFunction(() => window.ashline?.booted);
     await game.locator('#deploy').click();
     await game.waitForFunction(() => ashline.state && !ashline.loading && !ashline.paused, null, { timeout: 120000 });
     await game.waitForFunction(() => ashline.audio.bank.ready && ashline.audio.ambient.wind > 0, null, { timeout: 30000 });
+    if (!mobile) {
+      // Each event sounds once: the message log stays quiet, so a warning toast never adds the error buzz
+      // (0.24 s) to its stinger. A click on a squad brings one interface cue and one voice line, and the
+      // comms line names that squad; the second click of a double click does not answer again.
+      const { RECIPES } = await import('../soundbank.js');
+      const length = kind => Math.round(RECIPES[kind].duration * 100) / 100;
+      const quiet = await game.evaluate(async () => {
+        const m = await import('./sim.js'), s = ashline.state;
+        // No rival, no haulers: nothing else sounds while the check listens.
+        s.aiTeams = []; s.entities = s.entities.filter(e => !(e.team === 0 && e.kind === 'unit' && m.unitRole(e) === 'harvester'));
+        const core = s.entities.find(e => e.team === 0 && m.buildingRole(e) === 'core'), rifle = s.entities.find(e => e.team === 0 && e.kind === 'unit' && m.unitRole(e) === 'rifle');
+        ashline.view.x = rifle.x; ashline.view.y = rifle.y;
+        const listen = async kind => {
+          await new Promise(resolve => setTimeout(resolve, 400));
+          const from = heardLengths.length;
+          m.event(s, `Command nexus ${kind}`, 0, { kind, entityId: core.id, x: core.x, y: core.y });
+          await new Promise(resolve => setTimeout(resolve, 700));
+          return heardLengths.slice(from);
+        };
+        return { online: await listen('online'), underAttack: await listen('underAttack'), rifle: rifle.id };
+      });
+      assert.deepEqual(quiet.online, [length('buildComplete')], 'A structure coming online chimes once');
+      assert.deepEqual(quiet.underAttack, [length('alert.underAttack')], 'An attack sounds its klaxon alone, without the error buzz');
+      const at = await game.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id), p = ashline.renderer.worldToScreen(e.x, e.y, ashline.view), r = document.querySelector('#world').getBoundingClientRect(); return { x: p.x + r.x, y: p.y + r.y }; }, quiet.rifle);
+      const answer = async gesture => {
+        await game.waitForTimeout(1500);
+        const from = await game.evaluate(() => heardLengths.length);
+        await gesture(); await game.waitForTimeout(800);
+        return game.evaluate(from => heardLengths.slice(from), from);
+      };
+      const click = await answer(() => game.mouse.click(at.x, at.y));
+      assert.equal(click.length, 2, `One click: the select cue and one voice line (${click})`);
+      assert.equal(click[0], length('select'));
+      assert.deepEqual(await game.evaluate(async id => [document.querySelector('#comms-callsign').textContent, (await import('./character.js')).callsign(ashline.state, ashline.state.entities.find(e => e.id === id))], quiet.rifle).then(([shown, sign]) => shown === sign), true, 'The comms line names the squad that answered');
+      // A human double click: the second click lands well after the first reply has started.
+      const double = await answer(async () => { await game.mouse.click(at.x, at.y); await game.waitForTimeout(150); await game.mouse.click(at.x, at.y, { clickCount: 2 }); });
+      assert.equal(double.filter(seconds => seconds !== length('select')).length, 1, `A double click answers with one voice line (${double})`);
+    }
     const before = await game.evaluate(() => ashline.audio.played);
     await game.evaluate(async () => {
       const { addEntity } = await import('./sim.js');
@@ -207,5 +251,5 @@ try {
     await game.close();
   }
   assert.deepEqual(errors, []);
-  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread), voice caps and stealing, aggregation, ducking, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, local CC0 track decoding, and in-game combat, ambience and mix sliders. Screenshots: ${output}`);
+  console.log(`Audio checks passed: ${bank.size} lazily synthesized buffers (worker, ${bank.mainMs.toFixed(1)} ms main thread), voice caps and stealing, aggregation, ducking, panning, fog-safe placement, on-demand unit voices, ambient beds, mute, pause/resume queue, persisted mix, paused result cues with a music fade, disposal, main-thread fallback, local CC0 track decoding, and in-game events heard once, one reply per click, combat, ambience and mix sliders. Screenshots: ${output}`);
 } finally { await browser.close(); }

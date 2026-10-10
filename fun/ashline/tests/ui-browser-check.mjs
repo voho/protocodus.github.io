@@ -331,8 +331,13 @@ try {
 
   // Settings persist; the speed slider gives the arrow keys back to the camera after a drag.
   await desktop.locator('#pause').click();
+  assert.deepEqual(await desktop.evaluate(() => [...document.querySelectorAll('.menu-settings button, .menu-settings input')].map(e => e.id)),
+    ['sfx-toggle', 'music-toggle', 'volume-master', 'volume-music', 'volume-effects', 'volume-voices', 'volume-ambient', 'edge-scroll-toggle', 'shake-toggle', 'tooltips-toggle'], 'One settings area holds the sound and interface controls');
   await desktop.locator('#edge-scroll-toggle').click(); await desktop.locator('#tooltips-toggle').click();
   assert.equal(await desktop.locator('#edge-scroll-toggle').getAttribute('aria-pressed'), 'false');
+  await desktop.locator('#shake-toggle').click();
+  assert.equal(await desktop.evaluate(() => ashline.view.screenShake), false, 'The shake toggle reaches the renderer');
+  await desktop.locator('#shake-toggle').click();
   await desktop.locator('#resume').click();
   const slider = await desktop.locator('#game-speed').boundingBox();
   await desktop.mouse.click(slider.x + slider.width - 3, slider.y + slider.height / 2);
