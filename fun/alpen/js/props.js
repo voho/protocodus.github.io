@@ -1168,16 +1168,24 @@ function growTree(THREE, seed, spec, geos) {
    millimetre, which is safe here because the duplicates were written by the
    same arithmetic and are bit-identical. Miss one and the solid comes apart
    along a seam, which is a very memorable bug to look at.
+
+   The same separateness gives every face its own normal, which is right for
+   stone and wrong for anything soft. `smooth` averages the normals of the
+   faces that meet at each corner, matched the same way: a snow cap is a
+   pillow and a clump of needles is a cushion, and with a normal per face
+   they drew as folded paper and cut stone.
    ========================================================================== */
 
-function weather(THREE, geo, rnd, amount) {
+function weather(THREE, geo, rnd, amount, smooth = false) {
   const g = geo.clone();
   const p = g.attributes.position;
   const moved = new Map();
+  const keys = new Array(p.count);
   const v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     const key = `${Math.round(v.x * 1e4)},${Math.round(v.y * 1e4)},${Math.round(v.z * 1e4)}`;
+    keys[i] = key;
     let o = moved.get(key);
     if (!o) {
       // A radial squeeze plus a small shove: the first makes faces of unequal
@@ -1192,6 +1200,21 @@ function weather(THREE, geo, rnd, amount) {
     p.setXYZ(i, v.x * o[0] + o[1], v.y * o[0] + o[2], v.z * o[0] + o[3]);
   }
   g.computeVertexNormals();
+  if (smooth) {
+    const n = g.attributes.normal;
+    const sum = new Map();
+    for (let i = 0; i < n.count; i++) {
+      const acc = sum.get(keys[i]) || sum.set(keys[i], new THREE.Vector3()).get(keys[i]);
+      acc.x += n.getX(i);
+      acc.y += n.getY(i);
+      acc.z += n.getZ(i);
+    }
+    for (const acc of sum.values()) acc.normalize();
+    for (let i = 0; i < n.count; i++) {
+      const acc = sum.get(keys[i]);
+      n.setXYZ(i, acc.x, acc.y, acc.z);
+    }
+  }
   return g;
 }
 
@@ -1383,7 +1406,7 @@ function growShrub(THREE, seed, geos) {
     const r = 0.27 + rnd() * 0.13;
     const off = 0.12 + rnd() * 0.25;
     const y = 0.25 + rnd() * 0.28;
-    const g = weather(THREE, geos.stone, rnd, 0.48);
+    const g = weather(THREE, geos.stone, rnd, 0.48, true);
     spent.push(g);
     parts.push({
       geo: g, color: new THREE.Color(foliage).multiplyScalar(0.82 + rnd() * 0.22),
@@ -1422,7 +1445,7 @@ function growPlantPatch(THREE, seed, geos) {
     const a = rnd() * TAU;
     const off = 0.18 + rnd() * 0.52;
     const r = 0.15 + rnd() * 0.12;
-    const g = weather(THREE, geos.stone, rnd, 0.42);
+    const g = weather(THREE, geos.stone, rnd, 0.42, true);
     spent.push(g);
     const x = Math.cos(a) * off;
     const z = Math.sin(a) * off;
@@ -1488,7 +1511,7 @@ function growDwarfPine(THREE, seed, geos) {
       const bz = Math.sin(a) * (0.15 + len * frac * 0.75);
       const by = 0.12 + len * frac * 0.35;
       const br = 0.22 + rnd() * 0.14;
-      const g = weather(THREE, geos.stone, rnd, 0.52);
+      const g = weather(THREE, geos.stone, rnd, 0.52, true);
       spent.push(g);
       parts.push({
         geo: g, color: new THREE.Color(pineNeedles[(i + j) % pineNeedles.length]).multiplyScalar(0.85 + rnd() * 0.25),
@@ -1545,7 +1568,7 @@ function growWinterBramble(THREE, seed, geos) {
   }
   for (let i = 0; i < 3; i++) {
     const r = 0.12 + rnd() * 0.08;
-    const g = weather(THREE, geos.stone, rnd, 0.35);
+    const g = weather(THREE, geos.stone, rnd, 0.35, true);
     spent.push(g);
     parts.push({
       geo: g, color: SNOW, own: OWN_SNOW,
@@ -1570,7 +1593,7 @@ function growTussockPatch(THREE, seed, geos) {
     const a = rnd() * TAU;
     const off = 0.12 + rnd() * 0.45;
     const r = 0.18 + rnd() * 0.14;
-    const g = weather(THREE, geos.stone, rnd, 0.45);
+    const g = weather(THREE, geos.stone, rnd, 0.45, true);
     spent.push(g);
     const x = Math.cos(a) * off;
     const z = Math.sin(a) * off;
@@ -2096,7 +2119,15 @@ export function createProps(THREE, shading) {
         .replace('#include <color_fragment>', `#include <color_fragment>
         float floraOwn = 1.0 - vN64Sheen;
         if (floraOwn > 0.05) {
-          vec3 twigSample = texture2D(uBarkTex, vFloraWorldPos.xy * 0.75).rgb;
+          /* Projected three ways and blended by the normal. Taken down the
+             world's z alone, the bark smeared into long stripes across
+             every top face, and a juniper cushion wore camouflage. At this
+             scale its crevices read as needles and twig bark alike. */
+          vec3 floraW = abs(normalize(vFloraNormal));
+          floraW /= floraW.x + floraW.y + floraW.z;
+          vec3 twigSample = texture2D(uBarkTex, vFloraWorldPos.zy * 1.6).rgb * floraW.x
+            + texture2D(uBarkTex, vFloraWorldPos.xz * 1.6).rgb * floraW.y
+            + texture2D(uBarkTex, vFloraWorldPos.xy * 1.6).rgb * floraW.z;
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * twigSample * 5.0, 0.72 * floraOwn);
         }`);
     };
