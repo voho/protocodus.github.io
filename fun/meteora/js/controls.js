@@ -47,6 +47,14 @@ export function mouseMove(state, dx, dy) {
   if (r > 1) { state.cursor[0] /= r; state.cursor[1] /= r; }
 }
 
+// Cursor mode (no pointer lock): the stick is where the pointer is, in the
+// same unit ring, measured from the middle of the screen.
+export function setCursor(state, x, y) {
+  const r = Math.hypot(x, y);
+  state.cursor[0] = r > 1 ? x / r : x;
+  state.cursor[1] = r > 1 ? y / r : y;
+}
+
 export function recentre(state) { state.cursor[0] = 0; state.cursor[1] = 0; }
 
 export function dropAll(state) {

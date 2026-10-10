@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Meteora — Asteroid Belt Combat</title>
+  <meta name="description"
+    content="A realistic space shooter. Fly a heavy fighter with real momentum through a vast asteroid belt and fight off waves of interceptors.">
+  <meta name="theme-color" content="#04060b">
+  <meta property="og:title" content="Meteora — Asteroid Belt Combat">
+  <meta property="og:description"
+    content="Fly a heavy fighter with real momentum through a vast asteroid belt and fight off waves of interceptors.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://protocodus.cz/fun/meteora/">
+  <link rel="canonical" href="https://protocodus.cz/fun/meteora/">
+  <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg?v=20260911">
+  <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./meteora.css">
+  <script type="importmap">
+    { "imports": { "three": "/assets/vendor/three/three.module.min.js" } }
+  </script>
+</head>
+
+<body>
+  <canvas id="stage" aria-label="Meteora flight view"></canvas>
+  <canvas class="hud" aria-hidden="true"></canvas>
+  <p class="sr-only" data-callout aria-live="polite" aria-atomic="true"></p>
+  <pre class="debug" data-debug hidden></pre>
+
+  <section class="screen on" data-screen="start" role="dialog" aria-modal="true" aria-labelledby="meteora-title">
+    <div class="panel">
+      <p class="eyebrow">Belt sector 7 · combat patrol</p>
+      <h1 class="wordmark" id="meteora-title">METEORA</h1>
+      <p class="tagline">Real momentum, twenty thousand rocks and waves of interceptors.
+        Every turn you make, the ship remembers.</p>
+
+      <div class="loading" data-loading>
+        <div class="loading-track" role="progressbar" aria-labelledby="meteora-loading-label"
+          aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-loading-bar>
+          <i class="loading-fill" data-loading-fill></i>
+        </div>
+        <p class="loading-label" id="meteora-loading-label" data-loading-label>Charting the belt</p>
+      </div>
+      <div class="error" data-error hidden>
+        <p data-error-text></p>
+        <button type="button" class="ghost" data-action="retry">Retry</button>
+      </div>
+
+      <button class="launch" type="button" data-action="launch" disabled>Launch <span aria-hidden="true">↗</span></button>
+
+      <details class="controls">
+        <summary>Flight controls</summary>
+        <table>
+          <tbody>
+            <tr><th>Mouse</th><td>Steer: the cursor's distance from centre is your turn rate</td></tr>
+            <tr><th>W / S</th><td>Throttle up / down</td></tr>
+            <tr><th>X</th><td>Throttle to zero (with flight assist: full stop)</td></tr>
+            <tr><th>A / D</th><td>Strafe left / right</td></tr>
+            <tr><th>R or Space / F or C</th><td>Thrust up / down</td></tr>
+            <tr><th>Q / E</th><td>Roll left / right</td></tr>
+            <tr><th>Shift</th><td>Afterburner</td></tr>
+            <tr><th>Z</th><td>Flight assist on / off</td></tr>
+            <tr><th>Left mouse</th><td>Plasma cannons</td></tr>
+            <tr><th>Right mouse</th><td>Missile (locks onto your target)</td></tr>
+            <tr><th>T</th><td>Target the enemy nearest your crosshair</td></tr>
+            <tr><th>V</th><td>Chase / nose camera</td></tr>
+            <tr><th>M</th><td>Mute</td></tr>
+            <tr><th>Esc</th><td>Pause</td></tr>
+          </tbody>
+        </table>
+      </details>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="pause" role="dialog" aria-modal="true" aria-labelledby="meteora-pause">
+    <div class="panel">
+      <p class="eyebrow">Holding position</p>
+      <h2 class="title" id="meteora-pause">Paused</h2>
+      <div class="run-stats">
+        <p><span>Score</span><strong data-stat="score">0</strong></p>
+        <p><span>Wave</span><strong data-stat="wave">0</strong></p>
+      </div>
+      <div class="settings">
+        <label>Mouse sensitivity <input type="range" min="0.3" max="2.5" step="0.05" data-setting="sensitivity"></label>
+        <label>Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
+        <label class="check"><input type="checkbox" data-setting="invertPitch"> Invert pitch</label>
+        <label class="check"><input type="checkbox" data-setting="vibration"> Ship vibration</label>
+      </div>
+      <div class="go">
+        <button class="launch" type="button" data-action="resume">Click to fly <span aria-hidden="true">↗</span></button>
+        <button class="ghost" type="button" data-action="restart">Restart the run</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="dead" role="dialog" aria-modal="true" aria-labelledby="meteora-dead">
+    <div class="panel">
+      <p class="eyebrow">Signal lost</p>
+      <h2 class="title" id="meteora-dead">Fighter destroyed</h2>
+      <div class="run-stats">
+        <p><span>Score</span><strong data-stat="score">0</strong></p>
+        <p><span>Wave</span><strong data-stat="wave">0</strong></p>
+        <p><span>Best</span><strong data-stat="best">0</strong></p>
+      </div>
+      <div class="go">
+        <button class="launch" type="button" data-action="again">Launch again <span aria-hidden="true">↗</span></button>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="./js/main.js"></script>
+</body>
+
+</html>
