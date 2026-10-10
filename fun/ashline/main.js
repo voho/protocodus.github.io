@@ -24,7 +24,7 @@ let game = null, launched = false, paused = true, loading = false, activeTab = '
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, lastEvent = 0;
 const settings = readSettings();
 let gameSpeed = settings.speed / 100;
-view.shake = settings.shake;
+view.screenShake = settings.shake;
 let pointer = null, pointerPosition = null, lastPortrait = '', lastQueue = '', lowPower = false, pinchDistance = 0;
 const touches = new Map();
 let edgePointer = null, wheelTravel = 0, lastZoomAt = 0;
@@ -1647,15 +1647,15 @@ $('game-speed').addEventListener('change', event => {
 });
 $('game-speed').addEventListener('pointerdown', () => { sliderPointer = true; });
 $('game-speed').addEventListener('focus', () => keys.clear());
-// Interface preferences persist in this browser (hud-data settings); screen shake is read by the renderer
-// from view.shake. Sound mutes and levels are the audio engine's own settings, stored apart from these.
+// Interface preferences persist in this browser (hud-data settings); the renderer reads screen shake from
+// view.screenShake. Sound mutes and levels are the audio engine's own settings, stored apart from these.
 const SETTING_LABELS = { edgeScroll: ['edge-scroll-toggle', 'Edge scroll'], shake: ['shake-toggle', 'Screen shake'], tooltips: ['tooltips-toggle', 'Tooltips'] };
 function updateSettingButtons() {
   for (const [key, [id, label]] of Object.entries(SETTING_LABELS)) { $(id).setAttribute('aria-pressed', String(settings[key])); $(id).textContent = `${label} ${settings[key] ? 'on' : 'off'}`; }
 }
 for (const [key, [id]] of Object.entries(SETTING_LABELS)) $(id).addEventListener('click', () => {
   settings[key] = !settings[key]; writeSettings(settings);
-  view.shake = settings.shake; if (!settings.tooltips) hideCardTooltip();
+  view.screenShake = settings.shake; if (!settings.tooltips) hideCardTooltip();
   updateSettingButtons(); if (game) updateHUD();
 });
 $('help').addEventListener('click', () => { if (launched) showMenu(game.status !== 'playing', true); });
