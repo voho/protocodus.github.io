@@ -199,28 +199,31 @@ try {
     s.visible[0].fill(1);
     delete MISSIONS['render-lit'];
 
-    // Incoming shells mark their landing only where the target cell is visible.
+    // Incoming shells mark their landing only where the target cell is visible, even when the shell itself is seen.
     const shellAt = () => ({ type: 'shell', weapon: 'artillery', x: 25, y: 30, tx: 33.5, ty: 30.5, life: .2, maxLife: .35, team: 1 });
-    const effectDiff = fx => { s.effects = []; const a = render(); s.effects = [fx]; const b = render(); s.effects = []; return difference(a, b); };
-    hide(24, 28, 36, 33); result.shells = { hidden: effectDiff(shellAt()) };
-    s.visible[0][30 * s.width + 33] = 1; result.shells.visible = effectDiff(shellAt());
+    const landingDiff = fx => { s.effects = []; const a = region(render(), 33.5, 30.5, 14); s.effects = [fx]; const b = region(render(), 33.5, 30.5, 14); s.effects = [];
+      let n = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++; return n; };
+    hide(32, 28, 36, 33); result.shells = { hidden: landingDiff(shellAt()) };
+    s.visible[0][30 * s.width + 33] = 1; result.shells.visible = landingDiff(shellAt());
     s.visible[0].fill(1); renderer.particles.length = 0; renderer.shakes.length = 0; renderer.impacts.length = 0;
 
     // Structure deaths: a seen collapse adds staggered bursts and a smoke column, an unseen one nothing, and an
     // unfinished structure collapses (and leaves a husk) only in proportion to what was built.
     const factory = (x, y, progress) => ({ id: nextId++, type: 'factory', team: 1, kind: 'building', x, y, size: 3, hp: 1700, maxHp: 1700, progress, queue: [], cooldown: 0 });
-    const collapse = (progress, hidden) => {
-      const body = factory(28, 28, progress); s.effects = []; s.entities = [body]; s.visible[0].fill(1); if (hidden) hide(27, 27, 32, 32);
+    // Each collapse uses fresh ground, so earlier husks never saturate the decal measurement.
+    const collapse = (progress, hidden, x, y) => {
+      const body = factory(x, y, progress), cx = x + 1.5, cy = y + 1.5;
+      s.effects = []; s.entities = [body]; s.visible[0].fill(1); if (hidden) hide(x - 1, y - 1, x + 4, y + 4);
       renderer.particles.length = 0; renderer.shakes.length = 0; s.time += .05; render();
       renderer.lastDecalFade = s.time; const before = decals();
       body.hp = 0; s.entities = []; s.time += .05;
-      s.effects = [{ type: 'explosion', x: 29.5, y: 29.5, life: .55, maxLife: .6, team: 1, size: 3 }]; render();
+      s.effects = [{ type: 'explosion', x: cx, y: cy, life: .55, maxLife: .6, team: 1, size: 3 }]; render();
       const kinds = {}; for (const p of renderer.particles) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
-      const out = { blast: kinds.blast || 0, smoke: kinds.smoke || 0, particles: renderer.particles.length, decal: decalSum(decals(), 29.5, 29.5, 1.6) - decalSum(before, 29.5, 29.5, 1.6) };
+      const out = { blast: kinds.blast || 0, smoke: kinds.smoke || 0, particles: renderer.particles.length, decal: decalSum(decals(), cx, cy, 1.6) - decalSum(before, cx, cy, 1.6) };
       s.effects = []; s.visible[0].fill(1); s.time += 4; render(); renderer.particles.length = 0; renderer.shakes.length = 0;
       return out;
     };
-    result.collapse = { seen: collapse(1), hidden: collapse(1, true), half: collapse(.5), foundation: collapse(.08) };
+    result.collapse = { seen: collapse(1, false, 60, 40), hidden: collapse(1, true, 66, 40), half: collapse(.5, false, 60, 46), foundation: collapse(.08, false, 66, 46) };
 
     // Shell kills show on landing: the body stays until the shell arrives, then its blast and wreck; a
     // survivor's hit flash waits for the same moment.
@@ -340,7 +343,7 @@ try {
     `A seen structure collapses in bursts and smoke; an unseen one leaves nothing (${JSON.stringify(c)})`);
   assert(c.foundation.blast === 0 && c.foundation.smoke <= 1 && c.half.blast < c.seen.blast && c.half.smoke < c.seen.smoke,
     `An unfinished structure collapses in proportion to what was built (${JSON.stringify(c)})`);
-  assert(c.foundation.decal > 200 && c.foundation.decal < c.half.decal && c.half.decal < c.seen.decal,
+  assert(c.foundation.decal > 200 && c.foundation.decal < c.seen.decal * .3 && c.half.decal > c.foundation.decal && c.half.decal < c.seen.decal * .92,
     `An unfinished structure leaves only the built part of its husk (${JSON.stringify(c)})`);
   const k = checks.shellKill;
   assert(k.dying === 1 && k.held && k.wreckEarly === 0 && k.flashEarly === 0,
