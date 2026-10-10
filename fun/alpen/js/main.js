@@ -1545,7 +1545,7 @@ function frame(now) {
     // One write, and every material in the world agrees about the sky it is
     // dissolving into. It follows both the sky and the chase camera so the
     // view-space sun cannot lag a carve by one rendered frame.
-    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z));
+    shading.update(w, camera, dt, world.height(rider.pos.x, rider.pos.z), rider.pos);
     camera.getWorldDirection(canopyHeading);
     canopy.update(props.solids, rider.pos, canopyHeading, sky.shadowLevel);
     /* THE BISECT, applied after every system that writes these, so a switch

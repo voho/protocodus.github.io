@@ -272,6 +272,7 @@ const FRAG_PARS = `
 varying vec3 vN64View;
 varying float vN64Ice;
 varying float vN64Sheen;
+uniform vec3 uFocusView;
 uniform vec3 uSkyZenith;
 uniform vec3 uSkyMid;
 uniform vec3 uSkyHorizon;
@@ -930,9 +931,22 @@ const FRAG_STREAM = `
 
 /* Camera collision can put the lens inside a conifer even after the boom has
    shortened as far as composition allows. Fade only the geometry inside a
-   small sphere around the lens; AlphaHash turns fractional coverage into
-   stable, depth-writing screen-door transparency without the sorting errors
-   blended instanced trees would introduce.
+   small sphere around the lens, and whatever stands on the line of sight to
+   the rider; AlphaHash turns fractional coverage into stable, depth-writing
+   screen-door transparency without the sorting errors blended instanced
+   trees would introduce.
+
+   The sphere used to be the whole rule, and 6.5 m across, which is further
+   than the rider stands from the lens (about 5.5 m on the chase boom). So
+   everything beside the rider was being dissolved: a knee-high juniper four
+   metres off, which the camera looks over, drew as a patch of static, and so
+   did the trunks along the run's edge. Without a temporal filter to average
+   it, a screen door half open is noise. Now the sphere is three metres, the
+   lens's own space, and the rider is kept clear by a capsule round the
+   sightline (`uFocusView`, the rider's chest in view space): anything on it
+   short of the rider dissolves, and anything more than 1.7 m off it is
+   left alone. The capsule lets go over the last stretch before the rider, so
+   nothing at the rider's own depth is cut.
 
    The fade is taken in the hash test itself, not into the alpha before it.
    It used to be multiplied in at the alpha map, ahead of the alpha test, and
@@ -952,11 +966,11 @@ const FRAG_STREAM = `
    stone, the alpine timber and the spruce cards, i.e. the highest-overdraw
    surfaces in the scene. Three's chunk is not cheap: eight sines, screen
    derivatives of a vec3, two lengths and a handful of log2/exp2 per
-   fragment. And past 6.5 m it cannot do anything at all — the fade is
-   exactly 1.0 there, so an opaque prop's faded alpha is 1.0 and the
-   threshold, which lives below 1, can never cut it.
+   fragment. And outside the sphere and the capsule it cannot do anything at
+   all — the fade is exactly 1.0 there, so an opaque prop's faded alpha is
+   1.0 and the threshold, which lives below 1, can never cut it.
 
-   The guard is on view distance rather than on alpha because it has to be
+   The guard is on the fade rather than on alpha because it has to be
    quad-coherent: `getAlphaHashThreshold` takes derivatives, and branching
    on a per-pixel alpha would leave them undefined on exactly the spruce
    cards this most needs to be correct on. At the boundary itself the fade
@@ -964,16 +978,22 @@ const FRAG_STREAM = `
    either way.
 
    One honest consequence beyond the saving: the alpha-tested cards stop
-   being stochastically dithered at range. Inside 6.5 m the screen-door
-   fade is unchanged, which is what stops the documented hard pop; beyond
-   it their partial-coverage edges now resolve against `alphaTest` alone —
+   being stochastically dithered at range. Where the fade acts the screen
+   door is unchanged, which is what stops the documented hard pop; elsewhere
+   their partial-coverage edges now resolve against `alphaTest` alone —
    the same rule their depth material already uses — so distant foliage
    holds still instead of shimmering. */
 const FRAG_ALPHA_HASH = `
 #ifdef USE_ALPHAHASH
-  if ( length( vN64View ) < 6.5
-    && diffuseColor.a * smoothstep( 2.2, 6.5, length( vN64View ) )
-      < getAlphaHashThreshold( vPosition ) ) discard;
+  {
+    float n64Along = dot( vN64View, uFocusView )
+      / max( dot( uFocusView, uFocusView ), 1e-4 );
+    float n64Off = length( vN64View - uFocusView * clamp( n64Along, 0.0, 1.0 ) );
+    float n64Keep = min( smoothstep( 1.0, 3.0, length( vN64View ) ),
+      mix( smoothstep( 0.7, 1.7, n64Off ), 1.0, smoothstep( 0.75, 0.92, n64Along ) ) );
+    if ( n64Keep < 1.0
+      && diffuseColor.a * n64Keep < getAlphaHashThreshold( vPosition ) ) discard;
+  }
 #endif`;
 
 /* THE MOUNTAIN'S SHADOW, on everything that is standing in it.
@@ -1217,6 +1237,9 @@ export function createShading(THREE) {
        metres — see FRAG_STREAM. Parked far downhill until `props.js` writes
        it, so nothing is faded before the forest exists. */
     uStreamEdge: { value: new THREE.Vector2(-1e7, 100) },
+    // The rider's chest in view space, for the camera fade's sightline. Far
+    // down the lens until the first frame says otherwise.
+    uFocusView: { value: new THREE.Vector3(0, 0, -1e4) },
     /* The huts' light — see FRAG_HUT_LIGHT. `huts.js` owns all three: each
        standing hut's place (w is 1 while the slot holds a hut; one slot
        for each of the HUTS.live it keeps standing) and the cosine and sine
@@ -1356,7 +1379,7 @@ export function createShading(THREE) {
      agreement with each material's diffuse lighting and shadowing. */
   let mistFloor = Number.NaN;
 
-  function update(w, camera, dt = 0, groundY = Number.NaN) {
+  function update(w, camera, dt = 0, groundY = Number.NaN, focus = null) {
     uniforms.uSkyZenith.value.copy(w.zenith);
     uniforms.uSkyMid.value.copy(w.mid);
     uniforms.uSkyHorizon.value.copy(w.horizon);
@@ -1428,6 +1451,9 @@ export function createShading(THREE) {
     camera.updateMatrixWorld();
     viewInv.copy(camera.matrixWorld).invert();
     uniforms.uSunView.value.copy(sunDir).transformDirection(viewInv);
+    if (focus) {
+      uniforms.uFocusView.value.set(focus.x, focus.y + 0.9, focus.z).applyMatrix4(viewInv);
+    }
     // Wrapped here, in doubles, so the shader never forms the big number.
     const cam = camera.matrixWorld.elements;
     const wrap64 = (v) => v - Math.floor(v / 64) * 64;
