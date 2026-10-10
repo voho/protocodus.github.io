@@ -2477,6 +2477,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
      the built-in `normal` attribute would also move every terrain shadow
      lookup by the sun light's receiver normalBias. */
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  // The snow a far rock face holds along its beds: the deep cover's own
+  // colour, linear, as the vertex colours are. See FAR ROCK.
+  const heldSnow = new THREE.Color(SNOWPACK.deep);
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uSnowPowder: powderSurface,
@@ -2896,6 +2899,37 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           if (n64LedgeSnow > 0.005) {
             diffuseColor.rgb = mix(diffuseColor.rgb, n64SnowBody * 1.04,
               min(n64LedgeSnow * 0.72, 0.8));
+          }
+          /* FAR ROCK. Past a couple of hundred metres the plates have mipped
+             down to their mean and the beds above have dissolved against
+             their own footprints, which is right, and what is left of a rock
+             face is one flat colour. In shade that is the same blue as the
+             snow beside it, and a wall of bare rock drew as a smooth snow
+             dome. What a snowy face shows at that range is where the snow has
+             stayed on it, and that is along its beds: patches long along the
+             face and short across it, broken, and fuller where the face is
+             less steep. So it is noise stretched along the beds (the bed
+             coordinate across, the run along), two octaves, thresholded.
+             Regular carriers were tried first, ledges crossed with gullies,
+             and drew a geodesic lattice over the dome; at this range anything
+             periodic reads as built. The cells are six metres across the beds;
+             the finer octave's are under three, a pixel or two at the far
+             edge, so it gives way to its own mean as its footprint closes.
+             (No back-ticks in here: this comment is inside a template literal.) */
+          float n64FarRock = smoothstep(110.0, 200.0, vDist) * n64RockW;
+          if (n64FarRock > 0.003) {
+            float n64Kind = clamp(vRockKind, 0.0, 1.0);
+            float n64BedC = mix(n64SlateC, n64IronC, n64Kind);
+            float n64FineLive = 1.0 - smoothstep(0.25, 0.5,
+              mix(n64SlateFoot, n64IronFoot, n64Kind) * 0.368);
+            vec2 n64LedgeP = vec2(vWorld.z * 0.022 + vWorld.x * 0.011, n64BedC * 0.16);
+            float n64Held = n64Noise(n64LedgeP) * 0.65
+              + mix(0.5, n64Noise(n64LedgeP * 2.3 + 7.1), n64FineLive) * 0.35;
+            n64Held = smoothstep(0.52, 0.80, n64Held)
+              * (0.35 + 0.65 * smoothstep(0.30, 0.75, n64StrataUp));
+            diffuseColor.rgb = mix(diffuseColor.rgb,
+              vec3(${heldSnow.r.toFixed(4)}, ${heldSnow.g.toFixed(4)}, ${heldSnow.b.toFixed(4)}),
+              n64Held * n64FarRock * 0.85);
           }
         }`)
       // Terrain always uses its height-field normal. Skip Three's unused
