@@ -1,7 +1,6 @@
 import { BUILDINGS, UNITS, UNIT_CAP, UNIT_CAP_PER_NEXUS, unitCapacity, deploymentStatus, deployNexus, RESEARCH, BUILDING_UPGRADES, MAP_SIZES, MAP_PROFILES, RACES, buildingRole, unitRole, teamRace, raceBuilding, raceUnit, planWallLine, buildWallLine, terrainCover, researchStatus, startResearch, cancelResearch, buildingUpgradeStatus, startBuildingUpgrade, updateGame, placeBuilding, canPlace, trainUnit, cancelTraining, setRallyPoint, issueOrder, stopUnits, setUnitStance, effectiveUnitStance, powerStats, productionRate, getEntity, unitRank, unitStats, toggleRepair, sellBuilding, salvageValue } from './sim.js';
 import { ABILITIES, abilityFor, abilityStatus, useAbility } from './abilities.js';
 import { DOCTRINES, doctrineOptions, randomDoctrine } from './ai.js';
-import { MISSIONS, SKIRMISH_MODES } from './campaign.js';
 import { callsign, barkLine, rivalCommander, approachingColumn } from './character.js';
 import { eventRoute, witnessedKill, cardStats, ARMOR_CLASSES, idleSummary, readSettings, writeSettings } from './hud-data.js';
 import { Renderer, drawIcon } from './render.js';
@@ -1260,7 +1259,7 @@ async function prepareOperation(restore = false) {
       // commander the player has not met.
       const doctrine = restored.game.ai?.doctrine;
       $('rival-doctrine').value = Object.hasOwn(DOCTRINES, doctrine ?? '') && doctrine !== randomDoctrine(restored.game.seed, 1) ? doctrine : 'random';
-      $('skirmish-mode').value = SKIRMISH_MODES.find(mode => skirmishMission(mode.id) === restored.game.mission?.id)?.id ?? 'annihilation';
+      campaign.selectMode(restored.game.mission?.id);
       updateMapDescription();
     }
     updateLoading(2, 'Loading units and structures');
@@ -1272,7 +1271,7 @@ async function prepareOperation(restore = false) {
     updateLoading(35, restore ? 'Restoring the sector' : 'Generating the sector');
     await nextPaint();
     // A campaign operation brings its own settings, rival commander included; a skirmish reads the setup form.
-    const doctrine = $('rival-doctrine').value, mission = skirmishMission($('skirmish-mode').value);
+    const doctrine = $('rival-doctrine').value, mission = campaign.skirmishMission();
     const prepared = restored?.game || await generateOperation(seed, operation?.difficulty ?? $('difficulty').value, operation?.options ?? {
       ...MAP_SIZES[$('map-size').value], profile: $('map-profile').value, races: [$('player-race').value, $('enemy-race').value],
       ...(doctrine === 'random' || Object.hasOwn(DOCTRINES, doctrine) ? { aiProfiles: { 1: { doctrine } } } : {}), ...(mission ? { mission } : {}),
@@ -1696,11 +1695,9 @@ $('loading-back').addEventListener('click', () => { if ($('loading-back').datase
 $('random-seed').addEventListener('click', () => { $('seed').value = randomSeed(); });
 // Terrain choices follow the simulation's profile table; its first profile stays the default.
 $('map-profile').replaceChildren(...Object.entries(MAP_PROFILES).map(([id, profile]) => new Option(profile.name, id)));
-// Rival commanders and skirmish modes come from the AI and campaign tables. The simulation resolves Random
-// from the operation seed; a mode other than Annihilation runs as the operation it names.
+// Rival commanders come from the AI table; the simulation resolves Random from the operation seed. The
+// campaign interface owns the skirmish mode select: a mode other than Annihilation runs as its operation.
 $('rival-doctrine').replaceChildren(...doctrineOptions().map(option => new Option(option.name, option.id)));
-$('skirmish-mode').replaceChildren(...SKIRMISH_MODES.map(mode => new Option(mode.name, mode.id)));
-const skirmishMission = id => { const mode = SKIRMISH_MODES.find(m => m.id === id), mission = mode?.mission ?? mode?.id; return mode && mode.id !== 'annihilation' && Object.hasOwn(MISSIONS, mission) ? mission : undefined; };
 function updateMapDescription() {
   const size = MAP_SIZES[$('map-size').value];
   $('race-description').textContent = RACES[$('player-race').value].description;
@@ -1709,9 +1706,8 @@ function updateMapDescription() {
   const doctrines = doctrineOptions($('enemy-race').value), doctrine = doctrines.find(option => option.id === $('rival-doctrine').value);
   doctrines.forEach((option, index) => { if (option.id !== 'random') $('rival-doctrine').options[index].text = `${option.name} · ${option.commander}`; });
   $('doctrine-description').textContent = doctrine && doctrine.id !== 'random' ? `${doctrine.commander}: ${doctrine.description}` : 'The sector seed decides which commander leads the rival claim.';
-  $('mode-description').textContent = SKIRMISH_MODES.find(mode => mode.id === $('skirmish-mode').value)?.description ?? '';
 }
-for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race', 'rival-doctrine', 'skirmish-mode']) $(id).addEventListener('change', updateMapDescription);
+for (const id of ['map-profile', 'map-size', 'player-race', 'enemy-race', 'rival-doctrine']) $(id).addEventListener('change', updateMapDescription);
 $('launch-form').addEventListener('submit', event => { event.preventDefault(); prepareOperation(); });
 
 function requestFrame() {

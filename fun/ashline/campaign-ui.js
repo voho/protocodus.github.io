@@ -261,6 +261,11 @@ export function createCampaign({ launch, focus, transmit }) {
   }
   // The scripted skirmish mode chosen in setup, if any.
   const skirmishMission = () => SKIRMISH_MODES.find(entry => entry.id === $('skirmish-mode').value)?.mission;
+  // A restored skirmish shows the mode it was deployed with; operations and plain skirmishes show the first.
+  function selectMode(mission) {
+    $('skirmish-mode').value = SKIRMISH_MODES.find(entry => entry.mission && entry.mission === mission)?.id ?? SKIRMISH_MODES[0].id;
+    renderModes();
+  }
 
   function finish(s) {
     if (recorded.has(s)) return;
@@ -376,7 +381,7 @@ export function createCampaign({ launch, focus, transmit }) {
   renderModes(); renderList(); renderDetail(); renderCareer();
   setTab(progress.tab);
   return {
-    takeLaunch, skirmishMission, menu,
+    takeLaunch, skirmishMission, selectMode, menu,
     hud: s => hud.update(s),
     event: e => hud.event(e),
     get progress() { return readProgress(progress); },
