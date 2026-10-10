@@ -108,7 +108,7 @@ import {
 import { createModelUpgrader } from './importedModels.js';
 import { growCardSpruce, createTwigAtlas, SPRUCE_LAYOUT, rootRing } from './spruce.js';
 import { stream, hash2, noise2, snoise2 } from './noise.js';
-import { compose } from './geom.js';
+import { compose, weld } from './geom.js';
 import { PROPS, HARD, SOFT, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { onHutGround } from './huts.js';
@@ -1834,7 +1834,7 @@ function saplingCardGeometry(THREE, spec) {
 
 class Pool {
   constructor(THREE, geometry, material, capacity, tinted = false) {
-    this.mesh = new THREE.InstancedMesh(geometry, material, capacity);
+    this.mesh = new THREE.InstancedMesh(weld(THREE, geometry), material, capacity);
     /* THREE STARTS AN InstancedMesh AT count = capacity WITH EVERY MATRIX
        ZERO, and a zero matrix is not an invisible object: it collapses every
        vertex onto w = 0, which the rasteriser is free to turn into a triangle
@@ -2519,7 +2519,8 @@ export function createProps(THREE, shading) {
     for (let i = 0; i < treePools.length; i++) {
       if (!treeBare[i]) continue;
       const spec = SPECIES[i % SPECIES.length];
-      const g = growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i], twig.layout);
+      const g = weld(THREE, growCardSpruce(THREE, 0x5be77a + i * 4211, spec, treeHeights[i],
+        twig.layout));
       const old = treePools[i].mesh.geometry;
       treePools[i].mesh.geometry = g;
       old.dispose();
@@ -2542,7 +2543,7 @@ export function createProps(THREE, shading) {
       for (let i = 0; i < treePools.length; i++) {
         if (treeBare[i]) continue;
         const spec = SPECIES[i % SPECIES.length];
-        const g = growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]);
+        const g = weld(THREE, growCardSpruce(THREE, 0x3ac1f7 + i * 6367, spec, treeHeights[i]));
         const old = treePools[i].mesh.geometry;
         treePools[i].mesh.geometry = g;
         old.dispose();

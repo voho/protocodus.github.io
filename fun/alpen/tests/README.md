@@ -75,6 +75,10 @@ keep each tree's drawn aspect), and that a set file bakes only the named node.
 It checks the ground the props keep off around each hut (`onHutGround`) too:
 every corner of the roof, the woodpile and the terrace is on it, turned the
 way the hut is turned, and the open snow twelve metres to one side is not.
+And it checks `weld`, which the prop pools, the forest cards and the animals
+draw through: every corner keeps every attribute bit for bit through the
+index, shared corners really are merged, and a pool still waiting on its
+scan is left alone.
 For the rider it pins a 10,500-triangle budget across every segment; the knee
 and elbow joint fills and the domed thigh tops; the seat of the trousers as a
 separate, unquilted pelvis buffer on the hips; the jacket's flutter weights

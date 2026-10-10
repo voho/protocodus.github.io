@@ -37,7 +37,7 @@
    the budget that justified four identical cylinders for legs no longer
    exists. */
 
-import { compose, sculpt } from './geom.js';
+import { compose, sculpt, weld } from './geom.js';
 import { WILDLIFE } from './config.js';
 import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js';
 
@@ -511,7 +511,7 @@ export function createWildlife(THREE, shading) {
   };
   const furMaterial = animalMaterial();
   const rabbits = new THREE.InstancedMesh(
-    rabbitGeometry(THREE), furMaterial, WILDLIFE.rabbits,
+    weld(THREE, rabbitGeometry(THREE)), furMaterial, WILDLIFE.rabbits,
   );
   rabbits.frustumCulled = false;
   rabbits.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -522,16 +522,16 @@ export function createWildlife(THREE, shading) {
      body pool is shared between the two, which is why a stag costs one extra
      draw call for the whole herd rather than a duplicate of everything. */
   const deerBodies = new THREE.InstancedMesh(
-    deerBodyGeometry(THREE), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerBodyGeometry(THREE)), furMaterial, WILDLIFE.deer,
   );
   const deerHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, false), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerHeadGeometry(THREE, false)), furMaterial, WILDLIFE.deer,
   );
   const stagHeads = new THREE.InstancedMesh(
-    deerHeadGeometry(THREE, true), furMaterial, WILDLIFE.deer,
+    weld(THREE, deerHeadGeometry(THREE, true)), furMaterial, WILDLIFE.deer,
   );
   const wolves = new THREE.InstancedMesh(
-    wolfGeometry(THREE), furMaterial, WILDLIFE.wolves,
+    weld(THREE, wolfGeometry(THREE)), furMaterial, WILDLIFE.wolves,
   );
   const coatTint = new THREE.Color();
   for (let i = 0; i < WILDLIFE.rabbits; i++) {

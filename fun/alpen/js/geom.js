@@ -400,3 +400,81 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
   out.computeBoundingSphere();
   return out;
 }
+
+/* Draw what is shared once.
+
+   `compose` and the card builders write three vertices a triangle, and most
+   of them are copies: a weathered stone is eighty faces on forty-two
+   corners, a sprig card two triangles on four. A draw without an index runs
+   the vertex shader for every copy — the post-transform cache only works
+   through an index — so a dwarf pine was shading 4608 vertices to draw 852,
+   a forest card twice what it needed, every instance, every frame, and
+   again in the shadow pass.
+
+   This merges the vertices whose every attribute is bit-identical and draws
+   the same triangles through an index: the same values in the same order,
+   so the picture cannot change. In place, so whatever else holds the
+   geometry sees the same object; per-instance attributes are not vertices
+   and are left alone, and anything this does not expect — an index already,
+   groups, morphs, packed or interleaved data, or nothing yet at all (a pool
+   waiting on its scan) — is returned untouched. Call it last, once every
+   per-vertex attribute is on. */
+export function weld(THREE, geometry) {
+  if (!geometry.attributes.position || geometry.index || geometry.groups.length
+    || Object.keys(geometry.morphAttributes).length) return geometry;
+  const names = Object.keys(geometry.attributes)
+    .filter((name) => !geometry.attributes[name].isInstancedBufferAttribute);
+  const attrs = names.map((name) => geometry.attributes[name]);
+  if (attrs.some((a) => a.isInterleavedBufferAttribute || !(a.array instanceof Float32Array))) {
+    return geometry;
+  }
+  const count = geometry.attributes.position.count;
+  const sizes = attrs.map((a) => a.itemSize);
+  const bits = attrs.map((a) => new Uint32Array(a.array.buffer, a.array.byteOffset, count * a.itemSize));
+  const same = (i, j) => {
+    for (let k = 0; k < bits.length; k++) {
+      const w = bits[k];
+      const s = sizes[k];
+      for (let c = 0; c < s; c++) if (w[i * s + c] !== w[j * s + c]) return false;
+    }
+    return true;
+  };
+  const remap = new Uint32Array(count);
+  const keep = [];
+  const buckets = new Map();
+  for (let i = 0; i < count; i++) {
+    let h = 2166136261;
+    for (let k = 0; k < bits.length; k++) {
+      const w = bits[k];
+      const s = sizes[k];
+      for (let c = 0; c < s; c++) h = Math.imul(h ^ w[i * s + c], 16777619);
+    }
+    let bucket = buckets.get(h);
+    let v = -1;
+    if (bucket) {
+      for (const j of bucket) if (same(keep[j], i)) { v = j; break; }
+    } else {
+      bucket = [];
+      buckets.set(h, bucket);
+    }
+    if (v < 0) {
+      v = keep.length;
+      keep.push(i);
+      bucket.push(v);
+    }
+    remap[i] = v;
+  }
+  if (keep.length === count) return geometry;
+  for (let k = 0; k < attrs.length; k++) {
+    const a = attrs[k];
+    const s = sizes[k];
+    const out = new Float32Array(keep.length * s);
+    for (let v = 0; v < keep.length; v++) {
+      for (let c = 0; c < s; c++) out[v * s + c] = a.array[keep[v] * s + c];
+    }
+    geometry.setAttribute(names[k], new THREE.BufferAttribute(out, s, a.normalized));
+  }
+  geometry.setIndex(new THREE.BufferAttribute(
+    keep.length > 65535 ? remap : Uint16Array.from(remap), 1));
+  return geometry;
+}

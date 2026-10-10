@@ -609,4 +609,34 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   assert.ok(worst > 0.05, 'the tumble happened');
   assert.ok(worst < 0.35, 'getting up is a movement, not a cut: ' + worst);
 }
+/* Welding draws the same triangles from shared vertices: every corner keeps
+   every attribute bit for bit, and a pool still waiting on its scan (no
+   position yet) is left alone. */
+{
+  const { compose, weld } = await import(new URL('js/geom.js', base).href);
+  const raw = compose(THREE, [
+    { geo: new THREE.IcosahedronGeometry(1, 1), color: '#4a5a50' },
+    { geo: new THREE.CylinderGeometry(0.05, 0.08, 1, 8), pos: [0, 0.6, 0], color: '#3a2d25' },
+  ]);
+  raw.setAttribute('surfaceOwn',
+    new THREE.BufferAttribute(new Float32Array(raw.attributes.position.count).fill(1), 1));
+  const corners = Object.fromEntries(Object.entries(raw.attributes)
+    .map(([name, a]) => [name, { size: a.itemSize, values: Array.from(a.array) }]));
+  const drawn = raw.attributes.position.count;
+  const welded = weld(THREE, raw);
+  assert.ok(welded.index, 'welded geometry draws through an index');
+  assert.equal(welded.index.count, drawn, 'every triangle kept');
+  assert.ok(welded.attributes.position.count * 3 < drawn, 'shared corners merged');
+  for (const [name, { size, values }] of Object.entries(corners)) {
+    const a = welded.attributes[name];
+    for (let k = 0; k < drawn; k++) {
+      for (let c = 0; c < size; c++) {
+        assert.equal(a.array[welded.index.getX(k) * size + c], values[k * size + c], 'weld ' + name);
+      }
+    }
+  }
+  const waiting = new THREE.BufferGeometry();
+  assert.equal(weld(THREE, waiting), waiting, 'an empty geometry is left alone');
+  assert.equal(waiting.index, null);
+}
 console.log('All model geometry checks passed.');
