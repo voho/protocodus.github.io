@@ -43,7 +43,7 @@ export const DOCTRINES={
       targets:{refinery:0,core:1,reactor:2,lab:2,capacitor:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   siegebreaker:{name:'Siegebreaker',commander:'Major Rhee Ostrander',callsign:'Hammerfall',unity:{commander:'Ballistic node RO-7',callsign:'Parallax'},
     description:'Spots for long guns with rovers and flares, levels defenses from beyond their reach, then shells the reactors dark.',
-    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,guns:2,foundries:2,engineers:.15,scouts:2,labs:1,
+    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,guns:2,foundries:1,engineers:.15,scouts:2,labs:1,
       research:['vehicleWeapons','gridEfficiency','advancedBallistics','mobility','infantryWeapons','infantryArmor'],
       targets:{turret:0,rocketTower:0,reactor:1,capacitor:1,core:2,factory:2,barracks:3,refinery:3,lab:3,wall:6}}},
 };
