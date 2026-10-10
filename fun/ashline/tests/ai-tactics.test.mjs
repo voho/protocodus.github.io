@@ -111,6 +111,27 @@ test('Veteran focus fire caps attackers per target and prefers dangerous wounded
   assert.deepEqual(orders(s).filter(o=>o.order.type==='attack'),before.filter(o=>o.order.type==='attack'),'Valid assignments are kept between looks');
 });
 
+test('focus fire and production ignore concealed enemies',()=>{
+  const focus=hiddenForce=>{
+    const {s,unit,building,remember}=scene();
+    const wave=Array.from({length:8},(_,i)=>unit('tank',30+i%4*1.2,24+Math.floor(i/4)*1.2));
+    const target=building('refinery',8,40,0);remember(target);
+    s.ai.waves=[{id:1,kind:'raid',ids:wave.map(u=>u.id),tx:center(target).x,ty:center(target).y,targetId:target.id,state:'advance',since:0}];s.ai.waveId=1;
+    unit('artillery',27,29,0);const hurt=unit('rifle',31,30,0);hurt.hp=20;
+    const hidden=hiddenForce?[unit('artillery',28,31,0),unit('rocket',29,27,0),unit('tank',26,26,0)]:[];
+    think(s,hidden);return orders(s);
+  };
+  assert.deepEqual(focus(true),focus(false),'Concealed artillery and rockets beside the fight draw no attackers');
+  const recruit=hiddenForce=>{
+    const {s,unit,building,remember}=scene({seed:'counter-fog'});
+    building('barracks',50,4);building('factory',54,12);building('reactor',57,11);s.teams[1].credits=4000;
+    for(let i=0;i<6;i++)remember(unit('rifle',10+i,40,0));
+    const hidden=hiddenForce?Array.from({length:10},(_,i)=>unit('tank',12+i,44,0)):[];
+    think(s,hidden);return s.entities.filter(e=>e.team===1&&e.queue).map(e=>e.queue.map(q=>q.type));
+  };
+  assert.deepEqual(recruit(true),recruit(false),'An unseen armored column does not change what is recruited');
+});
+
 test('Commander balanced commanders do not micro focus fire',()=>{
   const {s,unit,building,remember}=scene({difficulty:'normal'});
   const wave=Array.from({length:8},(_,i)=>unit('tank',30+i%4*1.2,24+Math.floor(i/4)*1.2));

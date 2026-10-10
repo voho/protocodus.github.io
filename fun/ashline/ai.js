@@ -1,9 +1,10 @@
 // Ashline opposition: a deterministic commander that plays one team through the public commands.
-// It reads the enemy only through current vision (seen, s.visible, impacts landing in its sight), its own
-// fog memory (ai.known, ai.miningSites) and the map's structural layout (both starting anchors). Site
-// selection judges explored ground by terrain plus its own and remembered footprints, never by s.blocked or
-// s.regions, which also reflect unseen enemy structures. Doctrines shape what it builds and where it strikes;
-// difficulty sets how fast it thinks and which skills it uses on top of the production pace.
+// It reads the enemy only through current vision (seen, s.visible, impacts landing in its sight, its own
+// entities being struck), its own fog memory (ai.known, ai.miningSites) and the map's structural layout (both
+// starting anchors). Expansion sites and wall checks judge explored ground by terrain plus its own and
+// remembered footprints, never by s.blocked or s.regions, which also reflect unseen enemy structures;
+// structures are placed through placementCheck, which accepts only ground in current vision. Doctrines shape
+// what it builds and where it strikes; difficulty sets how fast it thinks and which skills it uses.
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
 import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
   random,unitStats,unitRange,powerStats,raceBuilding,raceUnit,placementCheck,placeBuilding,trainUnit,issueOrder,stopUnits,setUnitStance,
