@@ -2691,11 +2691,33 @@ export function createProps(THREE, shading) {
     bands * (BIOMES.sideRockCandidates + 1) + 16,
   ));
   /* Natural rock buttresses along the mountain flanks */
+  /* The crags the same way, from the other side. Their scans are broad
+     faces and the grown stones pillars: fitted to the pillar's height,
+     rock_face_01 and boulder_01 drew 2.3 and 2.8 times the collision radius,
+     and every scan stood 2–4.6 m lower than its collision top, because a
+     scan is sunk a fifth of its height and the pillar less than a tenth. A
+     face that wide was also bedded against the ground under the pillar's
+     footprint, not its own. The faces are the composition, so here it is
+     the collision that moves: each grown crag takes its scan's half-width
+     (height over `CRAG_ASPECT`, as each file lies) and its sink, so it is
+     bedded, and collided with, as the face that is drawn. */
+  const CRAG_ASPECT = [1.44, 2.06, 1.10];
+  const CRAG_SINK = 0.20;
   const cragVariants = [
     growCrag(THREE, 0x51c433, geos, SNOWPACK.slate),
     growCrag(THREE, 0x51c433 + 4877, geos, SNOWPACK.iron),
     growCrag(THREE, 0x51c433 + 9743, geos, SNOWPACK.slate),
-  ];
+  ].map((grown, i) => {
+    const height = grown.top - grown.bottom;
+    const radius = height / CRAG_ASPECT[i];
+    const k = radius / grown.radius;
+    // The stand-in, drawn until the scan lands, matches as well.
+    grown.geometry.scale(k, 1, k);
+    grown.geometry.translate(0, -height * CRAG_SINK - grown.bottom, 0);
+    return {
+      ...grown, radius, bottom: -height * CRAG_SINK, top: height * (1 - CRAG_SINK),
+    };
+  });
   const cragPools = cragVariants.map((grown) => new Pool(
     THREE, grown.geometry, stoneMaterial, bands * 2 + 16,
   ));
@@ -2756,7 +2778,7 @@ export function createProps(THREE, shading) {
           const m = photoMat(map, 0.42);
           if (open[i]) m.side = THREE.DoubleSide;
           return m;
-        }, 0.20);
+        }, CRAG_SINK);
     }
   }
 
