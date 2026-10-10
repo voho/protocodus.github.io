@@ -129,6 +129,7 @@
 
 import { SNOW, STREAKS, SKY, RENDER } from './config.js';
 import { heightAt, gradeAt } from './terrain.js';
+import { HUT_LIGHT_GLSL } from './shading.js';
 
 /* ==========================================================================
    The numbers this file owns
@@ -377,10 +378,14 @@ const VERT = `
   uniform vec4 uLamp;      // the rider's headlamp: world position, level
   uniform vec4 uLampDir;   // its axis, and the cone's half-angle
   varying float vLamp;
+  varying vec3 vHut;
+  #define N64_HUT_ISO
+  ${HUT_LIGHT_GLSL}
   void main() {
     vScatter = 0.0;
     vGlint = 0.0;
     vLamp = 0.0;
+    vHut = vec3(0.0);
     vTint = aTint;
     /* Gusting. Two sine bands at incommensurate spacings, travelling with
        the wind, so the field surges and lulls instead of falling evenly. It
@@ -443,6 +448,15 @@ const VERT = `
       float profile = exp(-8.5 * x * x) * 1.75
         + exp(-2.2 * x * x) * (1.0 - smoothstep(0.65, 1.0, x));
       vLamp = uLamp.w * profile * min(9.0 / d2, 4.0);
+    }
+    /* …and the huts' lamps. In a night snowfall a hut's light is seen in the
+       snow it falls through as much as on the ground: the flakes round the
+       lantern, and the ones crossing the light out of a window, which draws
+       the window's beam in the air. The same light the snow and the timber
+       get — see FRAG_HUT_LIGHT in shading.js. */
+    if (uHutWarm.r > 0.0) {
+      vHut = n64HutLight((modelMatrix * vec4(position, 1.0)).xyz - cameraPosition,
+        vec3(0.0, 1.0, 0.0));
     }
 
     vec3 flowView = (viewMatrix * vec4(uFlow, 0.0)).xyz;
@@ -529,6 +543,7 @@ const FRAG = `
   varying float vGlint;
   varying float vTint;
   varying float vLamp;
+  varying vec3 vHut;
   varying vec2 vAxis;
   void main() {
     if (vAlpha <= 0.002) discard;
@@ -578,6 +593,10 @@ const FRAG = `
     float lamp = min(vLamp, 1.0);
     col = mix(col, uLampColor, lamp * 0.85);
     a = min(a * (1.0 + lamp * 1.5), 1.0);
+    // …and the huts' lamps, added as light on a white flake (albedo over pi),
+    // the brighter it is lit the more it stands out
+    col += vHut * 0.3183;
+    a = min(a * (1.0 + min(dot(vHut, vec3(0.068, 0.228, 0.023)), 1.0) * 1.5), 1.0);
     // Anything the width cap is clipping is on its way to being a sheet
     // across the lens, and dissolves at the rate it would have grown
     a *= vClip * vClip;
@@ -605,6 +624,9 @@ function pointMaterial(THREE, shading) {
     uSunLevel: { value: 0 },
     uSkyGlow: { value: new THREE.Color(SKY.haze) },
     uSnowFresh: { value: 0 },
+    uHutAt: { value: [0, 1, 2].map(() => new THREE.Vector4(0, 0, 0, 0)) },
+    uHutAxis: { value: [0, 1, 2].map(() => new THREE.Vector2(1, 0)) },
+    uHutWarm: { value: new THREE.Color(0, 0, 0) },
   };
   return new THREE.ShaderMaterial({
     uniforms: {
@@ -633,6 +655,9 @@ function pointMaterial(THREE, shading) {
       uLamp: { value: new THREE.Vector4() },
       uLampDir: { value: new THREE.Vector4(0, 0, -1, 1) },
       uLampColor: { value: new THREE.Color(1, 1, 1) },
+      uHutAt: sun.uHutAt,
+      uHutAxis: sun.uHutAxis,
+      uHutWarm: sun.uHutWarm,
     },
     vertexShader: VERT,
     fragmentShader: FRAG,

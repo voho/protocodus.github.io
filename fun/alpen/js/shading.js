@@ -690,7 +690,10 @@ const hutPanes = (list) => list.map((p) => {
 }).join('\n          + ');
 const HUT_RANGE2 = asFloat(HUT_LIGHT.range ** 2);
 
-const FRAG_HUT_PARS = `
+/* Exported because the snow in the air takes the same light: a flake has no
+   face to turn, so a shader that defines N64_HUT_ISO is lit by whatever
+   reaches it from either lamp, whichever way it came. */
+export const HUT_LIGHT_GLSL = `
 uniform vec4 uHutAt[3];
 uniform vec2 uHutAxis[3];
 uniform vec3 uHutWarm;
@@ -731,7 +734,11 @@ vec3 n64HutLight(vec3 view, vec3 nW) {
     fade *= fade;
 
     vec3 toRoom = room - p;
+#ifdef N64_HUT_ISO
+    float roomNL = length(toRoom);
+#else
     float roomNL = dot(n, toRoom);
+#endif
     if (roomNL > 0.0) {
       float glass = 0.0;
       float dp = ${asFloat(HUT_LIGHT.front)} - p.z;
@@ -757,7 +764,11 @@ vec3 n64HutLight(vec3 view, vec3 nW) {
     }
 
     vec3 toLamp = lantern - p;
+#ifdef N64_HUT_ISO
+    float lampNL = length(toLamp);
+#else
     float lampNL = dot(n, toLamp);
+#endif
     if (lampNL > 0.0) {
       float vis = n64HutTerrace(p, lantern, ${asFloat(HUT_LIGHT.lantern.radius)});
       float dz = p.z - ${asFloat(HUT_LIGHT.body.front)};
@@ -1280,7 +1291,7 @@ export function createShading(THREE) {
 
       let frag = shader.fragmentShader
         .replace('#include <common>',
-          `#include <common>${FRAG_PARS}${hutLight ? FRAG_HUT_PARS : ''}`);
+          `#include <common>${FRAG_PARS}${hutLight ? HUT_LIGHT_GLSL : ''}`);
       if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
         frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
