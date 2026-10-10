@@ -94,10 +94,23 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
      an unfogged pylon at four hundred metres was the one object in the
      scene that stayed at full contrast while the mountain behind it went
      white, and it read as a bug because it was one. */
-  const hardwareMat = shading.apply(
-    new THREE.MeshLambertMaterial({ vertexColors: true, map: metalTex }),
-    { sheen: 0.10 },
-  );
+  /* The plate is a slate photograph standing in for weathered metal, and a
+     photograph of slate is dark: its mean is about 0.06 in linear light, so
+     multiplied straight into the paint it took every cabin, tower and snow
+     gun to a sixteenth of its colour — near-black steel, oxblood cabins and
+     a fan-gun housing the brown of an old barrel where the paint says
+     yellow. So the plate is grain, not pigment: divided by its own mean and
+     a third of its contrast kept, the paint is the colour it is written as
+     and the plate still breaks it up. */
+  const hardware = new THREE.MeshLambertMaterial({ vertexColors: true, map: metalTex });
+  hardware.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #ifdef USE_MAP
+        vec3 hardwareGrain = texture2D( map, vMapUv ).rgb / vec3( 0.057, 0.064, 0.073 );
+        diffuseColor.rgb *= mix( vec3( 1.0 ), hardwareGrain, 0.35 );
+      #endif`);
+  };
+  const hardwareMat = shading.apply(hardware, { sheen: 0.10 });
 
   const instanced = (geo, mat, count, cast = true) => {
     const mesh = new THREE.InstancedMesh(geo, mat, count);
