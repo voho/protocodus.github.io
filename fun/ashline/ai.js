@@ -5,7 +5,7 @@
 // s.regions, which also reflect unseen enemy structures. Doctrines shape what it builds and where it strikes;
 // difficulty sets how fast it thinks and which skills it uses on top of the production pace.
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
-import {BUILDINGS,UNITS,RESEARCH,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
+import {BUILDINGS,UNITS,RESEARCH,BUILDING_UPGRADES,alive,seen,center,distance,cell,clamp,bucketKey,definition,entityRole,unitRole,buildingRole,targetDistance,armorMultiplier,
   random,unitStats,unitRange,powerStats,raceBuilding,raceUnit,placementCheck,placeBuilding,trainUnit,issueOrder,stopUnits,setUnitStance,
   researchStatus,startResearch,buildingUpgradeStatus,startBuildingUpgrade,deploymentStatus,deployNexus,planWallLine,buildWallLine} from './sim.js';
 import {mapLayout,hash} from './terrain.js';
@@ -15,31 +15,32 @@ import {missionDirective} from './mission.js';
 // Doctrine knobs: mix is the desired share of each combat role; raid and wave scale attack timing and size;
 // towers, walls (0 never, 1 Veteran, 2 Commander and up) and outpostTowers shape static defense; expand
 // scales expansion timing and bases adds nexus slots; harass is the hauler-hunting squad size (raider
-// doctrines also hunt on Commander); focus caps attackers per target; targets ranks raid objectives.
+// doctrines also hunt on Commander); focus caps attackers per target; storm is how many times a remembered
+// tower's strength a wave needs before it assaults instead of standing off; targets ranks raid objectives.
 export const DOCTRINES={
   balanced:{name:'Balanced',commander:'Warden Kestrel',callsign:'Watchfire',unity:{commander:'Arbiter K-9',callsign:'Lattice'},
     description:'Grows a steady economy, holds a powered perimeter and raids with staged combined-arms waves.',
-    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,engineers:.08,scouts:1,labs:1,
+    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,engineers:.08,scouts:1,labs:1,
       research:['gridEfficiency','vehicleWeapons','infantryWeapons','advancedBallistics','infantryArmor','mobility'],
       targets:{refinery:1,reactor:1,lab:1,capacitor:2,core:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   ironclad:{name:'Ironclad',commander:'Marshal Orsa Vantreck',callsign:'Anvil',unity:{commander:'Bastion mind OR-4',callsign:'Keel'},
     description:'Masses armor and siege guns behind walled sentry lines, then breaks the enemy with one heavy timing push.',
-    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:2,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,engineers:.12,scouts:1,labs:1,
+    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:2,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,storm:3,engineers:.12,scouts:1,labs:1,
       research:['vehicleWeapons','gridEfficiency','mobility','advancedBallistics','infantryWeapons','infantryArmor'],
       targets:{core:1,factory:1,barracks:2,reactor:2,refinery:2,lab:3,capacitor:3,turret:3,rocketTower:3,wall:6}}},
   swarm:{name:'Swarm',commander:'Major Idris Kell',callsign:'Wasp',unity:{commander:'Swarm kernel IK-12',callsign:'Chorus'},
     description:'Floods the field with infantry, rovers and strikers, raids early and often, and hunts haulers on the shard runs.',
-    knobs:{mix:{rifle:.42,rocket:.14,scout:.14,tank:.08,artillery:0,striker:.22},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,engineers:0,scouts:2,labs:1,
-      research:['infantryWeapons','gridEfficiency','advancedBallistics','infantryArmor','vehicleWeapons','mobility'],
+    knobs:{mix:{rifle:.42,rocket:.14,scout:.14,tank:.08,artillery:0,striker:.22},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,storm:2,engineers:0,scouts:2,labs:1,
+      research:['gridEfficiency','advancedBallistics','infantryWeapons','infantryArmor','vehicleWeapons','mobility'],
       targets:{refinery:0,reactor:1,core:2,barracks:2,lab:2,capacitor:2,factory:3,turret:4,rocketTower:4,wall:6}}},
   prospector:{name:'Prospector',commander:'Quartermaster Juno Tal',callsign:'Lodestar',unity:{commander:'Survey core JT-3',callsign:'Assay'},
     description:'Claims remote shard fields early, fortifies each outpost, then turns a broad economy into a late heavy push.',
-    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,engineers:.08,scouts:1,labs:2,
+    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,storm:3,engineers:.08,scouts:1,labs:2,
       research:['gridEfficiency','vehicleWeapons','mobility','infantryWeapons','advancedBallistics','infantryArmor'],
       targets:{refinery:0,core:1,reactor:2,lab:2,capacitor:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   siegebreaker:{name:'Siegebreaker',commander:'Major Rhee Ostrander',callsign:'Hammerfall',unity:{commander:'Ballistic node RO-7',callsign:'Parallax'},
     description:'Spots for long guns with rovers and flares, levels defenses from beyond their reach, then shells the reactors dark.',
-    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,engineers:.15,scouts:2,labs:1,
+    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,engineers:.15,scouts:2,labs:1,
       research:['vehicleWeapons','gridEfficiency','advancedBallistics','mobility','infantryWeapons','infantryArmor'],
       targets:{turret:0,rocketTower:0,reactor:1,capacitor:1,core:2,factory:2,barracks:3,refinery:3,lab:3,wall:6}}},
 };
@@ -85,7 +86,7 @@ export function aiState(s,team){return team===1?s.ai:s.aiByTeam?.[team];}
 // The merged difficulty and doctrine settings for one commander.
 export function aiKnobs(s,ai){
   const level=LEVELS[s.difficulty]??LEVELS.normal,d=(DOCTRINES[ai.doctrine]??DOCTRINES.balanced).knobs,easy=s.difficulty==='easy',hard=s.difficulty==='hard';
-  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
+  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
     waveMin:Math.max(3,Math.round(level.waveMin*d.wave)),waveMax:Math.max(level.waveMax,Math.round(level.waveMin*d.wave)),towers:Math.max(1,level.towers+d.towers),
     walls:!easy&&d.walls>=(hard?1:2),outpostTowers:easy?0:d.outpostTowers,bases:Math.max(1,level.bases+(easy?0:d.bases)),expandAt:level.expandAt*d.expand,
     expandEvery:level.expandEvery*d.expand,harass:easy||!(hard||d.raider)?0:d.harass,focus:easy?0:Math.max(level.focus,d.focus),engineers:easy?0:d.engineers,
@@ -354,7 +355,8 @@ function keepsGroundOpen(s,team,ai,v,cells,rally){
 }
 
 // One structure at a time (two while credits float), in priority order. Returns credits to hold back for a
-// priority structure that is waiting only on funds.
+// priority structure that is waiting only on funds; essentials (refinery, power, barracks, foundry) may
+// spend an expansion's hold, other priorities wait for it.
 function buildBase(s,team,ai,v,k,power,rally,held){
   const credits=s.teams[team].credits,easy=k.level==='easy',hard=k.level==='hard',core=center(v.core);
   const underway=v.buildings.filter(e=>e.progress<1&&entityRole(e)!=='wall').length;
@@ -364,64 +366,80 @@ function buildBase(s,team,ai,v,k,power,rally,held){
   const count=role=>v.role(role).length,done=role=>v.done(role).length;
   const baseTowers=[...v.role('turret'),...v.role('rocketTower')].filter(e=>distance(center(e),core)<20).length;
   const producers=[...v.done('barracks'),...v.done('factory')],busy=producers.length&&producers.every(e=>e.queue.length>=k.queue);
+  const backlog=role=>v.done(role).length>0&&v.done(role).every(e=>e.queue.length>=k.queue);
+  const armySize=v.army.length,vehicles=v.army.filter(u=>['tank','artillery','striker'].includes(entityRole(u))).length;
+  const vehicleGap=armySize>=8&&v.done('factory').length>0&&v.done('factory').every(e=>e.queue.length>=1)&&vehicles<(k.mix.tank+k.mix.artillery+k.mix.striker)*armySize*.75;
   let want=null;
-  if(!done('refinery'))want={role:'refinery'};
-  else if(power.supply-power.demand<25)want={role:'reactor'};
-  else if(!done('barracks'))want={role:'barracks'};
-  else if(!done('factory')&&s.time>(easy?70:35))want={role:'factory'};
-  else if(k.lab&&!count('lab')&&s.time>(hard?105:160)&&credits>650)want={role:'lab',optional:true};
-  else if(!easy&&!count('capacitor')&&s.time>160&&credits>700)want={role:'capacitor',optional:true};
-  else if(baseTowers<k.towers&&s.time>75)want={role:towerType(v),preferred:frontSpot(s,team,core,baseTowers),optional:true};
-  else if(k.walls&&s.time>150&&credits>300&&(ai.nextWalls??0)<=s.time){
+  const site=()=>{
+    if(s.time<(ai.nextRefinery??(hard?150:220)))return null;
+    const refineries=v.role('refinery');ai.nextRefinery=s.time+20;
+    return(ai.miningSites||[]).filter(p=>refineries.every(e=>distance(center(e),p)>11)&&v.buildings.some(e=>e.progress>=1&&distance(center(e),p)<20)).sort((a,b)=>distance(a,core)-distance(b,core)||a.y-b.y||a.x-b.x)[0];
+  };
+  let ore;
+  // Priority structures hold their price back from production until they can be placed.
+  if(!done('refinery'))want={role:'refinery',essential:true};
+  else if(power.supply-power.demand<25)want={role:'reactor',essential:true};
+  else if(!done('barracks'))want={role:'barracks',essential:true};
+  else if(!done('factory')&&s.time>(easy?70:35))want={role:'factory',essential:true};
+  else if(k.lab&&!count('lab')&&s.time>(hard?105:160))want={role:'lab'};
+  else if(baseTowers<k.towers&&s.time>75)want={role:towerType(v),preferred:frontSpot(s,team,core,baseTowers)};
+  else if(!easy&&count('refinery')<(hard?4:3)+v.cores.length-1&&(ore=site()))want={role:'refinery',near:ore};
+  // A single busy foundry cannot keep up with the doctrine's vehicle share: add another.
+  else if(!easy&&vehicleGap&&count('factory')<Math.min(k.producers-1,1+v.cores.length))want={role:'factory'};
+  else if(!easy&&!count('capacitor')&&s.time>160&&credits-held>600)want={role:'capacitor',optional:true};
+  else if(k.walls&&s.time>150&&credits-held>200&&(ai.nextWalls??0)<=s.time){
     const plan=wallPlan(s,team,ai,v,k,rally);ai.nextWalls=s.time+20;
     if(plan){const result=buildWallLine(s,team,plan.from.x,plan.from.y,plan.to.x,plan.to.y);for(const id of result.ids||[])v.add(s.entities.find(e=>e.id===id));if(result.ok)ai.mode='Walling the sentry line';return 0;}
   }
   if(!want){
-    if(!easy&&count('barracks')<2&&credits>(k.mix.rifle>.4?700:1200)&&s.time>(hard?0:240))want={role:'barracks',optional:true};
-    // Floating credits buy more production once every producer is busy.
-    else if(!easy&&credits-held>1000&&busy&&done('factory')&&count('factory')<Math.min(k.producers-1,1+v.cores.length))want={role:'factory',optional:true};
-    else if(!easy&&credits-held>1000&&busy&&count('barracks')<Math.min(k.producers,1+v.cores.length))want={role:'barracks',optional:true};
-    else if(!easy&&s.time>(ai.nextRefinery??220)&&credits>900&&count('refinery')<(hard?4:3)+v.cores.length-1){
-      const refineries=v.role('refinery'),site=(ai.miningSites||[]).filter(p=>refineries.every(e=>distance(center(e),p)>11)&&v.buildings.some(e=>e.progress>=1&&distance(center(e),p)<20)).sort((a,b)=>distance(a,core)-distance(b,core)||a.y-b.y||a.x-b.x)[0];
-      ai.nextRefinery=s.time+(site?45:30);
-      if(site&&aiBuild(s,team,v,'refinery',site))ai.mode='Expanding shard operations';
-      return 0;
-    }
+    if(!easy&&count('barracks')<2&&credits-held>(k.mix.rifle>.4?500:900)&&s.time>(hard?0:240))want={role:'barracks',optional:true};
+    // Spare credits behind a full production line buy another producer of that kind.
+    else if(!easy&&credits-held>400&&backlog('factory')&&count('factory')<Math.min(k.producers-1,1+v.cores.length))want={role:'factory',optional:true};
+    else if(!easy&&credits-held>(busy?300:1000)&&(backlog('barracks')||busy)&&count('barracks')<Math.min(k.producers,1+v.cores.length))want={role:'barracks',optional:true};
     else if(count('lab')<k.labs&&credits-held>1300&&Object.keys(RESEARCH).filter(id=>!s.teams[team].research?.[id]).length>=3)want={role:'lab',optional:true};
   }
   if(!want)return 0;
   const cost=BUILDINGS[raceBuilding(s,team,want.role)].cost;
-  if(credits-(want.optional?held:0)<cost)return want.optional?0:Math.min(cost,650);
-  aiBuild(s,team,v,want.role,undefined,want.preferred);
+  // Essentials outrank an expansion's hold; other priorities wait behind it instead of stacking a second hold.
+  if(credits-(want.essential?0:held)<cost)return want.optional||!want.essential&&held?0:Math.min(cost,650);
+  const built=aiBuild(s,team,v,want.role,want.near,want.preferred);
+  if(built&&want.near)ai.mode='Expanding shard operations';
   return 0;
 }
 
-function researchAI(s,team,v,k,power,held){
-  if(!k.lab||!v.done('lab').length||power.gridRatio<1)return;
-  const spare=()=>s.teams[team].credits-held;if(spare()<450)return;
+// Research goes first: while a laboratory is idle its next project's price is held back from production,
+// unless the army is broken or the base is under attack. Upgrades only use credits that float.
+function researchAI(s,team,v,k,power,held,pressed){
+  if(!k.lab||!v.done('lab').length||power.gridRatio<1)return 0;
+  const spare=()=>s.teams[team].credits-held;
   const order=[...k.research],ahead=id=>{const i=order.indexOf(id);if(i>0){order.splice(i,1);order.splice(order[0]==='gridEfficiency'?1:0,0,id);}};
   // Rocket teams and strikers are the answers to what was actually seen.
   if(v.seen.heavy>v.seen.infantry)ahead('infantryWeapons');
   if(v.seen.infantry>v.seen.heavy*1.3&&k.mix.striker>0)ahead('advancedBallistics');
+  let waiting=0;
   for(const lab of v.done('lab').sort(byId))if(!lab.research){
-    const next=order.find(id=>researchStatus(s,team,id).ok&&RESEARCH[id].cost<=spare());
-    if(next)startResearch(s,team,next,lab.id);
+    const next=order.find(id=>researchStatus(s,team,id).ok||researchStatus(s,team,id).reason==='Insufficient credits');if(!next)break;
+    if(RESEARCH[next].cost<=spare())startResearch(s,team,next,lab.id);else{if(!pressed)waiting=RESEARCH[next].cost;break;}
   }
-  if(spare()<650)return;
-  const research=s.teams[team].research||{},floating=spare()>1400;
+  // Strikers need an assembly bay as soon as the ballistics research lands; it is held for like research.
+  const research=s.teams[team].research||{},bay=research.advancedBallistics&&k.mix.striker>0&&!v.done('factory').some(e=>e.upgrades?.advancedProduction||e.upgrade?.id==='advancedProduction')&&v.done('factory').sort(byId).find(e=>!e.upgrade);
+  if(bay){if(buildingUpgradeStatus(s,team,bay.id,'advancedProduction').ok)startBuildingUpgrade(s,team,bay.id,'advancedProduction');else if(!pressed&&!waiting)waiting=BUILDING_UPGRADES.advancedProduction.cost;}
+  if(spare()<650)return waiting;
+  const floating=spare()>1400;
   const candidates=[];
   for(const factory of v.done('factory').sort(byId))candidates.push([factory,research.advancedBallistics&&k.mix.striker>0&&!factory.upgrades?.advancedProduction?'advancedProduction':'speed']);
   if(floating){
     for(const b of [...v.done('barracks'),...v.done('refinery')].sort(byId))candidates.push([b,'speed']);
     if(power.supply-power.demand<40)for(const b of [...v.done('factory'),...v.done('rocketTower')].sort(byId))candidates.push([b,'efficiency']);
   }
-  for(const [b,id] of candidates)if(!b.upgrade&&buildingUpgradeStatus(s,team,b.id,id).ok){startBuildingUpgrade(s,team,b.id,id);return;}
+  for(const [b,id] of candidates)if(!b.upgrade&&buildingUpgradeStatus(s,team,b.id,id).ok){startBuildingUpgrade(s,team,b.id,id);break;}
+  return waiting;
 }
 
 // Doctrine mix reweighted against the remembered enemy force: a role's value per credit is the damage it
 // deals to what was seen, times its staying power against what that force deals (both via armorMultiplier).
-function composition(s,team,v,k){
-  const shares=Object.create(null);for(const role of COMBAT)shares[role]=k.mix[role]||0;
+function composition(s,team,v,k,available){
+  const shares=Object.create(null);for(const role of COMBAT)shares[role]=available(role)?k.mix[role]||0:0;
   const enemy=[];let total=0;
   for(const m of v.intel){const d=m.kind==='unit'?UNITS[m.type]:BUILDINGS[m.type];if(d.damage){enemy.push({m,d});total+=d.cost;}}
   if(k.adapt&&total){
@@ -454,7 +472,8 @@ function produce(s,team,v,k,power,held){
     .sort((a,b)=>a.queue.length-b.queue.length||a.id-b.id)[0];
   const vehicles=v.units.filter(u=>armed(u)&&UNITS[u.type].armor!=='infantry').length;
   if(k.engineers&&vehicles>=6&&v.count('engineer')<Math.max(1,Math.floor(vehicles*k.engineers))&&free('tank'))train('engineer',free('tank'));
-  const shares=composition(s,team,v,k);
+  // Shares cover only what can be built right now, so a missing foundry does not turn its share into rockets.
+  const shares=composition(s,team,v,k,role=>producers[['rifle','rocket','scout'].includes(role)?'barracks':'factory'].some(e=>role!=='striker'||research.advancedBallistics&&e.upgrades?.advancedProduction));
   for(let n=0;n<8;n++){
     const army=COMBAT.reduce((sum,role)=>sum+v.count(role),0),scoutShort=v.count('scout')<k.scouts;
     if(army>=k.armyCap&&!scoutShort)break;
@@ -683,7 +702,7 @@ function shellingResponse(s,team,ai,v,k,ctx){
   const responders=nearby.filter(u=>!ctx.claimed.has(u.id)&&!ctx.waveIds.has(u.id)&&u.hp/u.maxHp>.5&&['tank','striker','scout'].includes(entityRole(u))).sort(byId).slice(0,8);
   if(responders.length){
     (ai.waves??=[]).push({id:ai.waveId=(ai.waveId||0)+1,kind:'response',ids:responders.map(u=>u.id),tx:spot.x,ty:spot.y,state:'advance',since:s.time});
-    for(const u of responders){ctx.waveIds.add(u.id);ctx.claimed.add(u.id);}
+    for(const u of responders)ctx.waveIds.add(u.id);
     orderGroup(s,responders,'attackMove',spot);
   }
   // Whatever cannot answer steps back out of reach.
@@ -815,14 +834,18 @@ function siegeWave(s,team,ai,v,k,ctx,wave,members,c){
   const visible=v.enemyById.get(tower.id),defenders=v.threats.filter(e=>e.id!==tower.id&&distance(center(e),tower)<10);
   const theirs=(visible?aiCombatPower(visible,members):memoryPower(tower))+defenders.reduce((sum,e)=>sum+aiCombatPower(e,members),0);
   // An overwhelming wave simply storms the position.
-  if(members.reduce((sum,u)=>sum+aiCombatPower(u),0)>theirs*3){delete wave.siege;return false;}
+  if(members.reduce((sum,u)=>sum+aiCombatPower(u),0)>theirs*k.storm){delete wave.siege;return false;}
   wave.siege=tower.id;ai.mode='Shelling known defenses';
   const range=BUILDINGS[tower.type].range,away=direction(c.x-tower.x,c.y-tower.y);
-  const hold=onMap(s,{x:tower.x+away.x*(range+3.5),y:tower.y+away.y*(range+3.5)}),stand=onMap(s,{x:tower.x+away.x*10.6,y:tower.y+away.y*10.6});
+  const hold=onMap(s,{x:tower.x+away.x*(range+3.5),y:tower.y+away.y*(range+3.5)});
   orderGroup(s,members.filter(u=>entityRole(u)!=='artillery'&&!(u.order.type==='attack'&&v.enemyById.has(u.order.targetId)&&targetDistance(u,v.enemyById.get(u.order.targetId))<=unitRange(s,u))),'attackMove',hold);
   if(visible){const idle=guns.filter(u=>!(u.order.type==='attack'&&u.order.targetId===visible.id));if(idle.length)issueOrder(s,idle.map(u=>u.id),{type:'attack',targetId:visible.id});for(const u of guns)ctx.reserved.add(u.id);}
   else{
-    orderGroup(s,guns,'move',stand);
+    // Each gun takes its own point on an arc beyond the tower's reach, so no parking slot drifts inside it.
+    guns.sort(byId).forEach((u,i)=>{
+      const turn=(i-(guns.length-1)/2)*.16,p=onMap(s,{x:tower.x+(away.x*Math.cos(turn)-away.y*Math.sin(turn))*10.8,y:tower.y+(away.x*Math.sin(turn)+away.y*Math.cos(turn))*10.8});
+      if(!bound(u,p,'move'))issueOrder(s,[u.id],{type:'move',...p});
+    });
     const scouts=v.role('scout').filter(u=>u.hp/u.maxHp>.45&&(u.id===ai.intel?.scoutId||!ctx.claimed.has(u.id))).sort((a,b)=>distance(a,tower)-distance(b,tower)||a.id-b.id);
     const flare=k.abilities&&scouts.find(u=>!(u.abilityReadyAt>s.time)&&distance(u,tower)<=ABILITIES.scout.reach);
     if(flare)useAbility(s,team,[flare.id],{x:tower.x,y:tower.y});
@@ -899,8 +922,9 @@ export function thinkAI(s,team=1){
     const plan=expandAI(s,team,ai,v,k,directive),held=plan.saving&&(intruders.length||v.army.length<k.waveMin)?0:plan.held;
     const waiting=buildBase(s,team,ai,v,k,power,ctx.rally,held);
     for(const b of v.buildings)if(b.progress>=1&&b.hp<b.maxHp*.7&&s.teams[team].credits>150)b.repairing=true;
-    researchAI(s,team,v,k,power,held+waiting);
-    produce(s,team,v,k,power,held+waiting);
+    const pressed=intruders.length>0||v.army.length<k.waveMin;
+    const tech=researchAI(s,team,v,k,power,held+waiting,pressed);
+    produce(s,team,v,k,power,held+waiting+tech);
     for(const b of v.buildings){
       const role=entityRole(b);
       if(role==='refinery'){

@@ -148,7 +148,21 @@ function validateGame(s) {
     valid(object(ai)&&object(ai.known)&&number(ai.nextThink,0)&&number(ai.nextRaid,0)&&typeof ai.mode==='string');
     if(ai.doctrine!==undefined)valid(Object.keys(DOCTRINES).includes(ai.doctrine));
     for(const key of ['scoutIndex','buildIndex','raid'])valid(integer(ai[key]));
-    for(const key of ['nextExpand','regroupUntil','nextMineralScan'])if(ai[key]!==undefined)valid(number(ai[key],0));
+    for(const key of ['nextExpand','regroupUntil','nextMineralScan','nextHarass','nextWalls','nextRefinery'])if(ai[key]!==undefined)valid(number(ai[key],0));
+    // Commander plans: waves, the hauler raid, scouting and the last confirmed fire from concealment.
+    const unitIds=(ids,max=UNIT_CAP)=>Array.isArray(ids)&&ids.length<=max&&ids.every(id=>integer(id,1,s.nextId-1))&&new Set(ids).size===ids.length;
+    const entityId=id=>id===undefined||integer(id,1,s.nextId-1),moment=value=>number(value,0,s.time);
+    if(ai.waveId!==undefined)valid(integer(ai.waveId,1));
+    if(ai.waves!==undefined)valid(Array.isArray(ai.waves)&&ai.waves.length<=64&&ai.waves.every(w=>object(w)&&integer(w.id,1,ai.waveId??0)&&['raid','response'].includes(w.kind)&&unitIds(w.ids)&&point({x:w.tx,y:w.ty})&&
+      ['advance','regroup'].includes(w.state)&&moment(w.since)&&entityId(w.targetId)&&entityId(w.siege)&&(w.tries===undefined||integer(w.tries,0,1e6))&&
+      (w.state==='regroup'?point({x:w.rx,y:w.ry})&&number(w.need,0):w.rx===undefined&&w.ry===undefined&&w.need===undefined)));
+    if(ai.harass!==undefined){const h=ai.harass;valid(object(h)&&unitIds(h.ids,8)&&point({x:h.tx,y:h.ty})&&['hunt','return'].includes(h.state)&&moment(h.since)&&integer(h.legs,0,1e6)&&[h.preyAt,h.arrived].every(t=>t===undefined||moment(t)));}
+    if(ai.intel!==undefined){
+      const i=ai.intel;valid(object(i)&&integer(i.index,0,64)&&number(i.next,0)&&entityId(i.scoutId)&&(i.repair===undefined||i.repair===true)&&(i.explore===undefined||number(i.explore,0)));
+      if(i.spot!==undefined)valid(point(i.spot)&&number(i.spot.until,0));
+      if(i.route!==undefined)valid(Array.isArray(i.route)&&i.route.length<=8&&i.route.every(point)&&i.index<i.route.length);
+    }
+    if(ai.shelled!==undefined){const f=ai.shelled;valid(point(f)&&moment(f.at)&&integer(f.hits,1,1e6));if(f.answered!==undefined)valid(moment(f.answered)&&number(f.bx,-1.000001,1.000001)&&number(f.by,-1.000001,1.000001));}
     if(ai.miningSites!==undefined)valid(Array.isArray(ai.miningSites)&&ai.miningSites.length<=64&&ai.miningSites.every(site=>point(site)&&number(site.amount,0,1e6)&&number(site.seenAt,0,s.time)));
     if(ai.outpostId!==undefined)valid(integer(ai.outpostId,1,s.nextId-1));
     if(ai.outpostOre!==undefined)valid(point(ai.outpostOre));
