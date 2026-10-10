@@ -177,21 +177,25 @@ function fairReach(s,team,v,origin){
   v.reach={key,map};return map;
 }
 
+// Placement searches square rings outward from the goal and stops once no farther ring can beat the third
+// best legal spot; the commander then picks among those three with the shared stream.
 function aiBuild(s,team,v,role,near,preferred){
   const type=raceBuilding(s,team,role),d=BUILDINGS[type],{width:W,height:H}=s,base=v.core;if(!base)return null;
   if(s.teams[team].credits<d.cost||d.requires.some(key=>!v.done(buildingRole(key)).length))return null;
   const c=center(base),toward=direction(W/2-c.x,H/2-c.y);
   const goal=preferred||near||(d.damage?{x:c.x+toward.x*9,y:c.y+toward.y*9}:c);
-  const candidates=[],checked=new Set(),check=placementCheck(s,team,type);
-  const anchors=near?v.buildings.filter(e=>e.progress>=1&&distance(center(e),near)<26):[base];
-  for(const anchor of anchors)for(let y=Math.max(1,anchor.y-11);y<Math.min(H-4,anchor.y+14);y++)for(let x=Math.max(1,anchor.x-12);x<Math.min(W-4,anchor.x+14);x++){
-    const at=y*W+x;if(checked.has(at))continue;checked.add(at);
-    if(check(x,y).ok)candidates.push({x,y,score:Math.hypot(x+d.size/2-goal.x,y+d.size/2-goal.y)});
+  const candidates=[],check=placementCheck(s,team,type),cx=Math.round(goal.x-d.size/2),cy=Math.round(goal.y-d.size/2);
+  const visit=(x,y)=>{if(x<1||y<1||x+d.size>=W||y+d.size>=H||!check(x,y).ok)return;candidates.push({x,y,score:Math.hypot(x+d.size/2-goal.x,y+d.size/2-goal.y)});};
+  for(let r=0;r<=24;r++){
+    for(let x=cx-r;x<=cx+r;x++){visit(x,cy-r);if(r)visit(x,cy+r);}
+    for(let y=cy-r+1;y<cy+r;y++){visit(cx-r,y);if(r)visit(cx+r,y);}
+    if(candidates.length>=3){candidates.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);if(r-.5>candidates[2].score)break;}
   }
-  candidates.sort((a,b)=>a.score-b.score);if(!candidates.length)return null;
+  if(!candidates.length)return null;
+  candidates.sort((a,b)=>a.score-b.score||a.y-b.y||a.x-b.x);
   const spot=candidates[Math.min(candidates.length-1,Math.floor(random(s)*3))];
   if(!placeBuilding(s,team,type,spot.x,spot.y).ok)return null;
-  const e=s.entities.at(-1);v.add(e);return e;
+  const e=s.entities.at(-1);v.add(e);v.placed=true;return e;
 }
 // Rocket towers answer armor; rail sentries answer infantry and light vehicles. Alternate when unsure.
 function towerType(v){
@@ -317,22 +321,26 @@ function expandAI(s,team,ai,v,k,directive){
 }
 
 // Walls go two tiles in front of a tower, across the approach, only where they keep every spawn bay, hauler
-// lane, the rally and the way out open. The check floods the commander's own picture of the ground.
+// lane, the rally and the way out open. The check floods the commander's own picture of the ground. Each tower
+// is considered once (ai.wallTried); a tower whose wall would block anything stays unwalled.
 function wallPlan(s,team,ai,v,k,rally){
-  const towers=[...v.done('turret'),...v.done('rocketTower')].sort(byId);
-  for(const tower of towers){
+  const tried=ai.wallTried=(ai.wallTried||[]).filter(id=>v.byId.has(id)),enemy=enemyAnchor(s,team);
+  const flooded={};
+  for(const tower of [...v.done('turret'),...v.done('rocketTower')].sort(byId)){
+    if(tried.includes(tower.id)||tried.length>=64)continue;
+    tried.push(tower.id);
     const at=center(tower);
     if(v.role('wall').some(w=>distance(center(w),at)<tower.size/2+3.5))continue;
-    const front=direction(enemyAnchor(s,team).x-at.x,enemyAnchor(s,team).y-at.y),side={x:-front.y,y:front.x},reach=tower.size/2+2,half=tower.size===1?1:2;
+    const front=direction(enemy.x-at.x,enemy.y-at.y),side={x:-front.y,y:front.x},reach=tower.size/2+2,half=tower.size===1?1:2;
     const mid={x:at.x+front.x*reach,y:at.y+front.y*reach};
     const plan=planWallLine(s,team,Math.floor(mid.x-side.x*half),Math.floor(mid.y-side.y*half),Math.floor(mid.x+side.x*half),Math.floor(mid.y+side.y*half));
     const cells=[];for(const c of plan.cells){if(!c.ok)break;cells.push(c);}
-    if(cells.length<2||!keepsGroundOpen(s,team,ai,v,cells,rally))continue;
+    if(cells.length<2||!keepsGroundOpen(s,team,ai,v,cells,rally,flooded))continue;
     return{tower,cells,from:cells[0],to:cells.at(-1)};
   }
   return null;
 }
-function keepsGroundOpen(s,team,ai,v,cells,rally){
+function keepsGroundOpen(s,team,ai,v,cells,rally,flooded){
   const {width:W,height:H}=s,N=W*H,grid=fairGround(s,team,v),blocked=new Set(cells.map(c=>c.y*W+c.x));
   // Producers keep their whole spawn ring; hauler runs between depots and their ore keep a lane.
   const keepOut=v.buildings.filter(b=>['core','refinery','barracks','factory'].includes(entityRole(b)));
@@ -351,7 +359,7 @@ function keepsGroundOpen(s,team,ai,v,cells,rally){
     for(let head=0;head<tail;head++){const at=queue[head],x=at%W;if(x>0)visit(at-1);if(x<W-1)visit(at+1);if(at>=W)visit(at-W);if(at<N-W)visit(at+W);}
     return{map:seenMap,count:tail};
   };
-  const before=flood(new Set()),after=flood(blocked);
+  const before=flooded.before??=flood(new Set()),after=flood(blocked);
   // No pocket of open ground larger than a few tiles may be cut off from the base.
   if(after.count<before.count-cells.length-6)return false;
   const reachable=p=>{for(let y=Math.max(0,Math.floor(p.y)-2);y<=Math.min(H-1,Math.floor(p.y)+2);y++)for(let x=Math.max(0,Math.floor(p.x)-2);x<=Math.min(W-1,Math.floor(p.x)+2);x++)if(after.map[y*W+x])return true;return false;};
@@ -366,7 +374,8 @@ function buildBase(s,team,ai,v,k,power,rally,held){
   const underway=v.buildings.filter(e=>e.progress<1&&entityRole(e)!=='wall').length;
   // Emergency generation can be rebuilt alongside a stalled construction project.
   if(underway&&power.gridRatio<1&&!v.buildings.some(e=>entityRole(e)==='reactor'&&e.progress<1)){aiBuild(s,team,v,'reactor');return 0;}
-  if(underway>=(easy?1:credits-held>1600?2:1))return 0;
+  // One placement per look: a second placement check would rebuild the whole navigation grid.
+  if(v.placed||underway>=(easy?1:credits-held>1600?2:1))return 0;
   const count=role=>v.role(role).length,done=role=>v.done(role).length;
   const baseTowers=[...v.role('turret'),...v.role('rocketTower')].filter(e=>distance(center(e),core)<20).length;
   const producers=[...v.done('barracks'),...v.done('factory')],busy=producers.length&&producers.every(e=>e.queue.length>=k.queue);
@@ -394,7 +403,7 @@ function buildBase(s,team,ai,v,k,power,rally,held){
   else if(!easy&&!count('capacitor')&&s.time>160&&credits-held>600)want={role:'capacitor',optional:true};
   else if(k.walls&&s.time>150&&credits-held>200&&(ai.nextWalls??0)<=s.time){
     const plan=wallPlan(s,team,ai,v,k,rally);ai.nextWalls=s.time+20;
-    if(plan){const result=buildWallLine(s,team,plan.from.x,plan.from.y,plan.to.x,plan.to.y);for(const id of result.ids||[])v.add(s.entities.find(e=>e.id===id));if(result.ok)ai.mode='Walling the sentry line';return 0;}
+    if(plan){const result=buildWallLine(s,team,plan.from.x,plan.from.y,plan.to.x,plan.to.y);for(const id of result.ids||[])v.add(s.entities.find(e=>e.id===id));if(result.ok){v.placed=true;ai.mode='Walling the sentry line';}return 0;}
   }
   if(!want){
     if(!easy&&count('barracks')<2&&credits-held>(k.mix.rifle>.4?500:900)&&s.time>(hard?0:240))want={role:'barracks',optional:true};
@@ -423,7 +432,7 @@ function researchAI(s,team,v,k,power,held,pressed){
   if(v.seen.infantry>v.seen.heavy*1.3&&k.mix.striker>0)ahead('advancedBallistics');
   let waiting=0;
   for(const lab of v.done('lab').sort(byId))if(!lab.research){
-    const next=order.find(id=>researchStatus(s,team,id).ok||researchStatus(s,team,id).reason==='Insufficient credits');if(!next)break;
+    const next=order.find(id=>{const status=researchStatus(s,team,id);return status.ok||status.reason==='Insufficient credits';});if(!next)break;
     if(RESEARCH[next].cost<=spare())startResearch(s,team,next,lab.id);else{if(!pressed)waiting=RESEARCH[next].cost;break;}
   }
   // Strikers need an assembly bay as soon as the ballistics research lands; it is held for like research.
@@ -446,14 +455,15 @@ function researchAI(s,team,v,k,power,held,pressed){
 // Outranging a foe cuts what it can deal back, decisively against towers that cannot close the distance.
 function composition(s,team,v,k,available){
   const shares=Object.create(null);for(const role of COMBAT)shares[role]=available(role)?k.mix[role]||0:0;
-  const enemy=[];let total=0;
-  for(const m of v.intel){const d=m.kind==='unit'?UNITS[m.type]:BUILDINGS[m.type];if(d.damage){enemy.push({m,d});total+=d.cost;}}
+  const byType=new Map();let total=0;
+  for(const m of v.intel){const d=m.kind==='unit'?UNITS[m.type]:BUILDINGS[m.type];if(d.damage){const entry=byType.get(m.type)??{m,d,weight:0};entry.weight+=d.cost;byType.set(m.type,entry);total+=d.cost;}}
+  const enemy=[...byType.values()];
   if(k.adapt&&total){
     const scores=[];
     for(const role of COMBAT)if(shares[role]){
       const type=raceUnit(s,team,role),d=UNITS[type],body={kind:'unit',type};let offense=0,incoming=0;
-      for(const {m,d:e} of enemy){
-        const f=e.cost/total,outranged=d.range>e.range+1?(m.kind==='building'?.15:.6):1;
+      for(const {m,d:e,weight} of enemy){
+        const f=weight/total,outranged=d.range>e.range+1?(m.kind==='building'?.15:.6):1;
         offense+=f*armorMultiplier({type},{kind:m.kind,type:m.type})*d.damage/d.interval/d.cost;incoming+=f*armorMultiplier({type:m.type},body)*e.damage/e.interval/e.cost*outranged;
       }
       scores.push([role,Math.sqrt(offense*d.hp/d.cost/Math.max(1e-9,incoming))]);
@@ -481,6 +491,7 @@ function produce(s,team,v,k,power,held){
     .sort((a,b)=>a.queue.length-b.queue.length||a.id-b.id)[0];
   const vehicles=v.units.filter(u=>armed(u)&&UNITS[u.type].armor!=='infantry').length;
   if(k.engineers&&vehicles>=6&&v.count('engineer')<Math.max(1,Math.floor(vehicles*k.engineers))&&free('tank'))train('engineer',free('tank'));
+  if(!['rifle','tank'].some(role=>free(role)))return;
   // Shares cover only what can be built right now, so a missing foundry does not turn its share into rockets.
   const shares=composition(s,team,v,k,role=>producers[['rifle','rocket','scout'].includes(role)?'barracks':'factory'].some(e=>role!=='striker'||research.advancedBallistics&&e.upgrades?.advancedProduction));
   for(let n=0;n<8;n++){
@@ -676,6 +687,7 @@ function harassTarget(s,ai,v,from,leg){
 // shots of a won fight do not send anyone chasing. The struck side of a formation faces the shooter; a rover
 // or a flare lights that bearing, nearby fast units go for it and the rally steps back out of reach.
 function shellingResponse(s,team,ai,v,k,ctx){
+  if(ai.shelled&&s.time-ai.shelled.at>30)delete ai.shelled;
   if(k.level==='easy')return;
   const visible=s.visible[team],sees=p=>p.x>=0&&p.y>=0&&p.x<s.width&&p.y<s.height&&visible[cell(s,p.x,p.y)];
   const points=[];
@@ -926,10 +938,15 @@ export function thinkAI(s,team=1){
   const haulers=v.role('harvester'),zone=directive?.defend;
   // A passing scout is left to guards; scout fire against structures or haulers gets the bounded response.
   // Raiders hitting haulers anywhere, threats at the rally and inside a defended zone are intruders too.
-  const shotUs=e=>[...v.buildings,...haulers].some(t=>t.attackerId===e.id&&s.time-(t.lastHit??-99)<4);
+  const shooters=new Set(),raiders=new Set();
+  for(const t of v.buildings)if(s.time-(t.lastHit??-99)<4)shooters.add(t.attackerId);
+  for(const h of haulers)if(s.time-(h.lastHit??-99)<4){shooters.add(h.attackerId);raiders.add(h.attackerId);}
+  // Coarse 13-tile cells around every structure reject distant enemies before the exact distance test.
+  const near=new Set();for(const b of v.buildings){const c=center(b),bx=Math.floor(c.x/13),by=Math.floor(c.y/13);for(let y=by-1;y<=by+1;y++)for(let x=bx-1;x<=bx+1;x++)near.add(bucketKey(x,y));}
+  const byBase=e=>near.has(bucketKey(Math.floor(e.x/13),Math.floor(e.y/13)))&&v.buildings.some(b=>distance(center(b),e)<13);
   const intruders=v.threats.filter(e=>e.kind==='unit'&&(
-    (v.buildings.some(b=>distance(center(b),e)<13)||distance(e,ctx.rally)<12)&&(entityRole(e)!=='scout'||shotUs(e))||
-    zone&&distance(e,zone)<zone.r+4||haulers.some(h=>h.attackerId===e.id&&s.time-(h.lastHit??-99)<4)));
+    (byBase(e)||distance(e,ctx.rally)<12)&&(entityRole(e)!=='scout'||shooters.has(e.id))||
+    zone&&distance(e,zone)<zone.r+4||raiders.has(e.id)));
   if(v.core){
     // Saving for an expansion never outranks rebuilding a broken army or answering an attack.
     const plan=expandAI(s,team,ai,v,k,directive),held=plan.saving&&(intruders.length||v.army.length<k.waveMin)?0:plan.held;

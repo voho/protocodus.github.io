@@ -38,7 +38,7 @@ const corrupt=[
   g=>{g.ai.intel={index:-1,next:0};},g=>{g.ai.intel={index:0,next:0,route:Array(9).fill({x:1,y:1})};},g=>{g.ai.intel={index:2,next:0,route:[{x:1,y:1}]};},
   g=>{g.ai.intel={index:0,next:0,spot:{x:1,y:1}};},g=>{g.ai.intel={index:0,next:0,repair:1};},
   g=>{g.ai.shelled={x:1,y:1,at:0,hits:0};},g=>{g.ai.shelled={x:1,y:1,at:0,hits:2,answered:0,bx:3,by:0};},g=>{g.ai.shelled={x:-1,y:1,at:0,hits:1};},
-  g=>{g.ai.nextHarass=-5;},g=>{g.ai.nextWalls='soon';},g=>{g.ai.nextRefinery=Infinity;},
+  g=>{g.ai.wallTried=[0];},g=>{g.ai.wallTried=Array(65).fill(1);},g=>{g.ai.nextHarass=-5;},g=>{g.ai.nextWalls='soon';},g=>{g.ai.nextRefinery=Infinity;},
 ];
 for(const mutate of corrupt){
   const raw=JSON.parse(mid);mutate(raw.game);

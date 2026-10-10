@@ -153,6 +153,7 @@ function validateGame(s) {
     const unitIds=(ids,max=UNIT_CAP)=>Array.isArray(ids)&&ids.length<=max&&ids.every(id=>integer(id,1,s.nextId-1))&&new Set(ids).size===ids.length;
     const entityId=id=>id===undefined||integer(id,1,s.nextId-1),moment=value=>number(value,0,s.time);
     if(ai.waveId!==undefined)valid(integer(ai.waveId,1));
+    if(ai.wallTried!==undefined)valid(unitIds(ai.wallTried,64));
     if(ai.waves!==undefined)valid(Array.isArray(ai.waves)&&ai.waves.length<=64&&ai.waves.every(w=>object(w)&&integer(w.id,1,ai.waveId??0)&&['raid','response'].includes(w.kind)&&unitIds(w.ids)&&point({x:w.tx,y:w.ty})&&
       ['advance','regroup'].includes(w.state)&&moment(w.since)&&entityId(w.targetId)&&entityId(w.siege)&&(w.tries===undefined||integer(w.tries,0,1e6))&&
       (w.state==='regroup'?point({x:w.rx,y:w.ry})&&number(w.need,0):w.rx===undefined&&w.ry===undefined&&w.need===undefined)));
