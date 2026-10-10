@@ -1056,7 +1056,7 @@ function requestFrame() {
 function stopFrames() { if (frameRequest) cancelAnimationFrame(frameRequest); frameRequest = 0; }
 
 function simulateFrameStep(dt) {
-  renderer.snapshot(game); // S5 render hook: frames between ticks blend from these poses
+  renderer.snapshot(game); // Frames until the next tick blend from these poses.
   updateGame(game, dt);
   if (game.status === 'playing') return true;
   showMenu(true); playSound(game.status); return false;
@@ -1109,7 +1109,7 @@ function frame(now) {
   view.placementValid = Boolean(check?.ok);
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
-  renderer.pendingTime = accumulator; // S5 render hook: interpolation fraction of the next tick
+  renderer.pendingTime = accumulator; // How far the drawn frame has progressed toward the next tick.
   renderer.draw(game, view);
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;
