@@ -138,6 +138,11 @@ const RISE_TIME = RIDER.riseTime;
 const TAU = Math.PI * 2;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+// How far a slow board goes into deep powder: the deck just under the
+// surface. No deeper, because the snow here cannot part round it, and a board
+// any further down reads as passing through the drift rather than riding in
+// it. Planing takes most of it back.
+const POWDER_SINK = 0.07;
 const approach = (v, target, rate, dt) => v + (target - v) * (1 - Math.exp(-rate * dt));
 const smooth01 = (v) => {
   const t = clamp(v, 0, 1);
@@ -1888,7 +1893,7 @@ export function createRiderModel(THREE, shading) {
   const s = {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
     twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0, airTuck: 0,
-    edge: 0, load: 0, steer: 0, switched: 0,
+    edge: 0, load: 0, steer: 0, switched: 0, sink: 0,
     // the head's lead into a turn, and the follow-through spring's state:
     // the slow copies of the two accelerations, then position and velocity
     // along the travel and across the board
@@ -2221,6 +2226,21 @@ export function createRiderModel(THREE, shading) {
     // says it does and the *hips* ride the spring, which is where the
     // suspension actually is.
     root.position.copy(rider.pos);
+    /* …except in deep snow, where the board is in it rather than on it. The
+       physics already has a board plough below `RIDER.powderFloat` and plane
+       above it, and the picture stood it on top of the drift either way, a
+       rider on powder exactly as on corduroy. The corridor's skied-in snow
+       is soft but not deep, so depth counts only the powder past it (it
+       reads 0.55 at most inside); and it eases, so crossing from one snow
+       to the other is a wade rather than a step. */
+    const surf = rider.grounded && rider.state === 'ride'
+      ? rider.world?.surfaceAt?.(rider.pos.x, rider.pos.z) : null;
+    const deep = surf ? clamp((surf.powder - 0.55) / 0.45, 0, 1) : 0;
+    const plane = clamp((rider.speed - RIDER.powderFloat[0])
+      / (RIDER.powderFloat[1] - RIDER.powderFloat[0]), 0, 1);
+    const sinkTo = deep * POWDER_SINK * (1 - 0.6 * plane);
+    s.sink = snap ? sinkTo : s.sink + (sinkTo - s.sink) * (1 - Math.exp(-5 * step));
+    root.position.y -= s.sink;
 
     /* --- board ------------------------------------------------------------ */
 
