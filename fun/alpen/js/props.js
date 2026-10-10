@@ -1421,14 +1421,25 @@ function growShrub(THREE, seed, geos) {
 
 /* One instance is a whole alpine ground patch: cushions, dry blades and seed
    heads. Opaque wedges stay stable under motion where alpha grass cards would
-   shimmer against the snow. */
+   shimmer against the snow.
+
+   Winter grass, which is what pokes through on a scoured bank in January, is
+   dead: straw and tan, fine, and in tufts. It was eleven wedges five to
+   eight centimetres across and up to three quarters of a metre long,
+   scattered singly, with an eight-sided yellow diamond on every fourth — at
+   the side of the run, a few metres from the lens, a bed of stakes flying
+   flags. So the blades are two or three centimetres across now, bunched in
+   tufts at the cushions' rims and splayed out of their crowns, and the seed
+   heads are what a grass carries: a slender spikelet on a stalk that stands
+   above the tuft. */
 function growPlantPatch(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
   const green = ['#566555', '#68705a'];
-  const dry = ['#7a715b', '#918467'];
+  const straw = ['#a8976e', '#8f7f5c', '#bcab80', '#7d6f52'];
 
+  const cushions = [];
   for (let i = 0; i < 4; i++) {
     const a = rnd() * TAU;
     const off = 0.18 + rnd() * 0.52;
@@ -1437,6 +1448,7 @@ function growPlantPatch(THREE, seed, geos) {
     spent.push(g);
     const x = Math.cos(a) * off;
     const z = Math.sin(a) * off;
+    cushions.push({ x, z, r });
     parts.push({
       geo: g, color: green[i % green.length], own: OWN_ALL,
       pos: [x, 0.10 + rnd() * 0.08, z], rot: [0, rnd() * TAU, 0],
@@ -1444,22 +1456,35 @@ function growPlantPatch(THREE, seed, geos) {
     });
   }
 
-  for (let i = 0; i < 11; i++) {
-    const a = rnd() * TAU;
-    const off = 0.16 + rnd() * 0.58;
-    const d = dirOf(a, 1.04 + rnd() * 0.36);
-    const len = 0.25 + rnd() * 0.50;
-    const x = Math.cos(a) * off;
-    const z = Math.sin(a) * off;
+  // A tuft grows from the rim of a cushion, not out of the middle of one
+  for (let t = 0; t < 3; t++) {
+    const c = cushions[t];
+    const ta = rnd() * TAU;
+    const tx = c.x + Math.cos(ta) * c.r * 1.05;
+    const tz = c.z + Math.sin(ta) * c.r * 0.9;
+    for (let i = 0; i < 11; i++) {
+      const a = rnd() * TAU;
+      const d = dirOf(a, 0.75 + rnd() * 0.55);
+      parts.push({
+        geo: geos.blade, color: straw[(t + i) % straw.length], own: OWN_ALL,
+        pos: [tx + Math.cos(a) * 0.03, 0.02, tz + Math.sin(a) * 0.03],
+        rot: aim(d[0], d[1], d[2]),
+        scale: [0.009 + rnd() * 0.005, 0.14 + rnd() * 0.2, 0.007 + rnd() * 0.004],
+      });
+    }
+    // The tuft's seed stalk, standing above it, and its spikelet
+    const d = dirOf(rnd() * TAU, 1.2 + rnd() * 0.25);
+    const len = 0.3 + rnd() * 0.15;
     parts.push({
-      geo: geos.blade, color: dry[i % dry.length], own: OWN_ALL,
-      pos: [x, 0.02, z], rot: aim(d[0], d[1], d[2]),
-      scale: [0.025 + rnd() * 0.016, len, 0.020 + rnd() * 0.012],
+      geo: geos.blade, color: '#8a7a58', own: OWN_ALL,
+      pos: [tx, 0.02, tz], rot: aim(d[0], d[1], d[2]),
+      scale: [0.005, len, 0.005],
     });
-    if (i % 4 === 0) parts.push({
-      geo: geos.berry, color: '#b7a46f', own: OWN_ALL,
-      pos: [x + d[0] * len, 0.02 + d[1] * len, z + d[2] * len],
-      scale: [0.045, 0.065, 0.045],
+    parts.push({
+      geo: geos.blade, color: '#9c8a62', own: OWN_ALL,
+      pos: [tx + d[0] * len * 0.82, 0.02 + d[1] * len * 0.82, tz + d[2] * len * 0.82],
+      rot: aim(d[0], d[1], d[2]),
+      scale: [0.013, 0.07, 0.013],
     });
   }
 
@@ -1557,37 +1582,41 @@ function growWinterBramble(THREE, seed, geos) {
   return geometry;
 }
 
-/* Alpine tussock grass and cushion moss patch */
+/* An alpine tussock: one bunch of grass, a fountain of dead blades out of a
+   crown of its own thatch. Sixteen wedges up to seventy centimetres long and
+   six to nine thick, in greens, stood off the crown on five lobes, which at
+   the side of the run was a hedgehog the size of a chair.
+   Thirty fine blades out of one tight crown, splayed from upright to nearly
+   flat, are what a tussock is — and in winter they are straw. */
 function growTussockPatch(THREE, seed, geos) {
   const rnd = stream(seed);
   const parts = [];
   const spent = [];
-  const tussockColors = ['#697159', '#7e765d', '#535b48'];
+  const thatch = ['#6f6650', '#5f5a48', '#77705a'];
+  const straw = ['#b3a27a', '#9c8b65', '#c2b28a', '#857654', '#a49372'];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     const a = rnd() * TAU;
-    const off = 0.12 + rnd() * 0.45;
-    const r = 0.18 + rnd() * 0.14;
+    const off = rnd() * 0.12;
+    const r = 0.16 + rnd() * 0.08;
     const g = weather(THREE, geos.stone, rnd, 0.45, true);
     spent.push(g);
-    const x = Math.cos(a) * off;
-    const z = Math.sin(a) * off;
     parts.push({
-      geo: g, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
-      pos: [x, 0.08 + rnd() * 0.06, z], rot: [0, rnd() * TAU, 0],
-      scale: [r * 1.1, r * 0.38, r * 0.9],
+      geo: g, color: thatch[i], own: OWN_ALL,
+      pos: [Math.cos(a) * off, 0.05 + rnd() * 0.03, Math.sin(a) * off],
+      rot: [0, rnd() * TAU, 0],
+      scale: [r * 1.1, r * 0.32, r * 0.95],
     });
   }
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 30; i++) {
     const a = rnd() * TAU;
-    const off = 0.10 + rnd() * 0.55;
-    const d = dirOf(a, 0.95 + rnd() * 0.45);
-    const len = 0.30 + rnd() * 0.40;
+    const off = 0.02 + rnd() * 0.14;
+    const d = dirOf(a, 0.5 + rnd() * 0.75);
     parts.push({
-      geo: geos.blade, color: tussockColors[i % tussockColors.length], own: OWN_ALL,
-      pos: [Math.cos(a) * off, 0.02, Math.sin(a) * off],
+      geo: geos.blade, color: straw[i % straw.length], own: OWN_ALL,
+      pos: [Math.cos(a) * off, 0.04, Math.sin(a) * off],
       rot: aim(d[0], d[1], d[2]),
-      scale: [0.028 + rnd() * 0.015, len, 0.022 + rnd() * 0.012],
+      scale: [0.010 + rnd() * 0.006, 0.18 + rnd() * 0.27, 0.008 + rnd() * 0.005],
     });
   }
   const geometry = compose(THREE, parts);
@@ -2325,7 +2354,6 @@ export function createProps(THREE, shading) {
     drift: spike(radial + 2),           // snow that has settled to a point
     loaf: hull(0.42, radial),           // and snow lying along a bough
     stone: new THREE.IcosahedronGeometry(1, 1),
-    berry: new THREE.OctahedronGeometry(1, 0),
     blade: spike(3),
   };
 
