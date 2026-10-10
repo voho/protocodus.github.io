@@ -49,26 +49,7 @@
 
       <button class="launch" type="button" data-action="launch" disabled>Launch <span aria-hidden="true">↗</span></button>
 
-      <details class="controls">
-        <summary>Flight controls</summary>
-        <table>
-          <tbody>
-            <tr><th>W / S</th><td>Nose up / down</td></tr>
-            <tr><th>A / D</th><td>Nose left / right</td></tr>
-            <tr><th>Q / E</th><td>Roll left / right</td></tr>
-            <tr><th>P / L</th><td>Speed up / slow down (throttle)</td></tr>
-            <tr><th>Space</th><td>Fire the selected weapon</td></tr>
-            <tr><th>Alt</th><td>Switch cannons / missiles</td></tr>
-            <tr><th>T</th><td>Cycle targets</td></tr>
-            <tr><th>Shift</th><td>Afterburner</td></tr>
-            <tr><th>X</th><td>Throttle to zero (with flight assist: full stop)</td></tr>
-            <tr><th>Arrows</th><td>Strafe and lift</td></tr>
-            <tr><th>Z</th><td>Flight assist on / off</td></tr>
-            <tr><th>V</th><td>Chase / nose camera</td></tr>
-            <tr><th>Esc</th><td>Pause</td></tr>
-          </tbody>
-        </table>
-      </details>
+      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
     </div>
   </section>
 
@@ -80,14 +61,14 @@
         <p><span>Score</span><strong data-stat="score">0</strong></p>
         <p><span>Wave</span><strong data-stat="wave">0</strong></p>
       </div>
-      <div class="settings">
-        <label>Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume"></label>
-        <label class="check"><input type="checkbox" data-setting="invertPitch"> Invert pitch</label>
-        <label class="check"><input type="checkbox" data-setting="vibration"> Ship vibration</label>
-      </div>
       <div class="go">
         <button class="launch" type="button" data-action="resume">Resume <span aria-hidden="true">↗</span></button>
         <button class="ghost" type="button" data-action="restart">Restart the run</button>
+        <span class="hint"><kbd>Esc</kbd> resumes</span>
+      </div>
+      <div class="keys" data-keys role="group" aria-label="Keyboard controls"></div>
+      <div class="settings">
+        <label class="check"><input type="checkbox" data-setting="invertPitch"> Invert pitch (W noses down)</label>
       </div>
     </div>
   </section>

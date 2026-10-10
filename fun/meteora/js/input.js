@@ -9,18 +9,23 @@
 
 import { dropAll, keyDown, keyUp } from './controls.js';
 
-const GAME_KEYS = new Set([
+export const GAME_KEYS = new Set([
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyP', 'KeyL', 'KeyX', 'KeyZ',
-  'KeyT', 'KeyV', 'KeyM', 'Space', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight',
+  'KeyT', 'KeyV', 'Space', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
 ]);
 
-export function createInput(state, { isFlying, onPause }, env = globalThis) {
+export function createInput(state, { isFlying, onPause, onResume }, env = globalThis) {
   const { window: win, document: doc } = env;
   const lose = reason => { dropAll(state); onPause(reason); };
 
   win.addEventListener('keydown', e => {
-    if (!isFlying()) return;
+    // Esc toggles: it pauses while flying and resumes from the pause screen.
+    // The check happens before the pause, so one press never does both.
+    if (!isFlying()) {
+      if (e.code === 'Escape' && !e.repeat) onResume?.('escape');
+      return;
+    }
     if (e.code === 'Escape') { lose('escape'); return; }
     if (GAME_KEYS.has(e.code)) { e.preventDefault(); keyDown(state, e.code, e.repeat); }
   });

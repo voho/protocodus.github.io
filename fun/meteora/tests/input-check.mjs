@@ -15,11 +15,15 @@ function setup({ flying = true } = {}) {
   const win = new EventTarget();
   const doc = Object.assign(new EventTarget(), { hidden: false });
   const state = createControlState({ invertPitch: false, vibration: true });
-  const pauses = [];
+  const pauses = [], resumes = [];
   const flags = { flying };
-  createInput(state, { isFlying: () => flags.flying, onPause: reason => pauses.push(reason) }, { window: win, document: doc });
+  createInput(state, {
+    isFlying: () => flags.flying,
+    onPause: reason => pauses.push(reason),
+    onResume: reason => resumes.push(reason),
+  }, { window: win, document: doc });
   const press = (code, extra = {}) => { const e = event('keydown', { code, repeat: false, ...extra }); win.dispatchEvent(e); return e; };
-  return { win, doc, state, pauses, flags, press };
+  return { win, doc, state, pauses, resumes, flags, press };
 }
 
 test('game keys reach the controls only while flying', () => {
@@ -33,6 +37,15 @@ test('game keys reach the controls only while flying', () => {
 test('Escape pauses', () => {
   const s = setup();
   s.press('Escape');
+  assert.deepEqual(s.pauses, ['escape']);
+});
+test('Escape while paused resumes, and one press never does both', () => {
+  const s = setup();
+  s.press('Escape');
+  s.flags.flying = false;           // the game is now paused
+  assert.deepEqual(s.resumes, [], 'the pausing press did not also resume');
+  s.press('Escape');
+  assert.deepEqual(s.resumes, ['escape']);
   assert.deepEqual(s.pauses, ['escape']);
 });
 test('leaving the window pauses and drops held keys', () => {

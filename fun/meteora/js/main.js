@@ -107,6 +107,7 @@ async function boot() {
   createInput(controlState, {
     isFlying: () => world.state === 'flying' && !paused,
     onPause: () => pause(),
+    onResume: () => { if (paused) launch(); },
   });
 
   resize();

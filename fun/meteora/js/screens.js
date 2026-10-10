@@ -3,6 +3,8 @@
    Settings persist in localStorage under `meteora.settings`. Every access
    is wrapped: private browsing or a full quota just means the defaults. */
 
+import { KEY_GUIDE } from './keys.js';
+
 const KEY = 'meteora.settings';
 const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const DEFAULT_SETTINGS = Object.freeze({
@@ -19,7 +21,36 @@ export function saveSettings(settings) {
   try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch { /* defaults next time */ }
 }
 
+// The same key guide on the loading screen and the pause screen.
+function renderKeys(container) {
+  const doc = container.ownerDocument;
+  for (const group of KEY_GUIDE) {
+    const section = doc.createElement('section');
+    const title = doc.createElement('h3');
+    title.textContent = group.title;
+    const list = doc.createElement('ul');
+    for (const item of group.items) {
+      const row = doc.createElement('li');
+      const caps = doc.createElement('span');
+      caps.className = 'caps';
+      for (const cap of item.caps) {
+        const kbd = doc.createElement('kbd');
+        kbd.textContent = cap;
+        if (cap.length > 1) kbd.className = 'wide';
+        caps.append(kbd);
+      }
+      const label = doc.createElement('span');
+      label.textContent = item.label;
+      row.append(caps, label);
+      list.append(row);
+    }
+    section.append(title, list);
+    container.append(section);
+  }
+}
+
 export function createScreens(root, settings, handlers) {
+  for (const container of root.querySelectorAll('[data-keys]')) renderKeys(container);
   const screens = Object.fromEntries([...root.querySelectorAll('[data-screen]')].map(el => [el.dataset.screen, el]));
   const fill = root.querySelector('[data-loading-fill]');
   const bar = root.querySelector('[data-loading-bar]');
