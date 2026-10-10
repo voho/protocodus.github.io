@@ -98,7 +98,7 @@ The briefing has two tabs. **Skirmish** is the classic setup, with the rival com
 | 1 | Landfall | Tutorial without an enemy commander: walk to a marker, build a barracks, train rifles, deliver shards, clear a Unity picket | Reactor, refinery, barracks, rifles, rovers, haulers |
 | 2 | Hold the Line | Survive eight minutes of escalating raids from hidden map edges and raise two Rail sentries | Walls, Rail sentries, Grid capacitors, Vael rocket infantry |
 | 3 | Signal in the Ash | Destroy a Logic archive inside a fortified outpost; killing its Resonance spire browns out the Lance nodes | Laboratory, foundry, tanks, engineers, four research projects |
-| 4 | Convoy to Cinder Gap | Escort the construction vehicle and bring a nexus online inside the claim site; the vehicle deploys only there | — |
+| 4 | Convoy to Cinder Gap | Escort the construction vehicle and bring a nexus online inside the claim site; the vehicle deploys only there, and a Unity counterattack strikes while the nexus builds | — |
 | 5 | Red Ledger | Against crimson Organics claim-jumpers and a full commander: hold three operating nexuses and deliver red seam crystal | Construction vehicles, grid research, building upgrades |
 | 6 | Dead Signal | Commando strike with no base: three spires, then the relay mainframe. It fails when the last armed unit falls. Ranked survivors become veterans | Nothing: the strike team is all you have |
 | 7 | Hold the Relay | Hold the lit central relay for four minutes in total before Unity does, or void its claim; the commander plays one opposition level above your setting | Everything else |

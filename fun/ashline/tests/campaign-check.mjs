@@ -212,6 +212,11 @@ const place=(s,type,near,radius=14)=>{
   for(let i=0;i<90&&s.status==='playing';i++){updateGame(s,1);destroy(rivals(s));}
   win(s,'Convoy to Cinder Gap');
   assert(s.mission.fired.arrival&&s.mission.fired.counter,'Arriving at the gap draws the counterattack');
+  // The counterattack sets out from the lane beyond the gap, near enough to reach the site while a nexus builds.
+  const c=start('convoy'),claim=zone(c,'gap'),truck=own(c,0,'constructor')[0];destroy(c.entities.filter(e=>e.team===1));
+  truck.x=claim.x;truck.y=claim.y;advance(c,30);assert.equal(tagged(c,'counter').length,0);advance(c,2);
+  const counter=tagged(c,'counter');
+  assert.equal(counter.length,7);assert(counter.every(e=>Math.hypot(e.x-claim.x,e.y-claim.y)<34&&!c.visible[0][Math.floor(e.y)*c.width+Math.floor(e.x)]),'The counterattack sets out near the gap, out of sight');
 }
 // Red Ledger: a full rival commander; three operating claims and a red seam quota win the audit.
 {

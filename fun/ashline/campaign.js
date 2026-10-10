@@ -189,8 +189,9 @@ export const MISSIONS={
       {id:'charter',when:{time:8},do:[say(KADE,'The Charter recognises a claim when its nexus is operating, not before. Deploy inside the marked site and keep it standing until it comes online.')]},
       {id:'formation',when:{time:16},do:[say(VALE,'Tanks lead, infantry on the flanks, engineer behind the armor. Hold right-click and drag to set a formation.')]},
       {id:'interception',when:{zoneEntered:'ridge'},do:[say(UNITY,'Mobile claim detected. Interception authorised.'),{spawn:{team:1,units:[['scout',3],['rifle',3]],at:'fogEdge',order:{zone:'ridge'},tag:'hunters',text:'Unity hunters closing on the convoy.'}}]},
-      {id:'arrival',when:{zoneEntered:'gap'},do:[say(VALE,'Site is clear enough. Select the construction vehicle, choose Deploy nexus and pick clear ground inside the claim site.')]},
-      {id:'counter',when:{after:{trigger:'arrival',seconds:30}},do:[say(UNITY,'Claim beacon detected at Cinder Gap. Dispatching correction.'),{spawn:{team:1,units:[['rifle',5],['rocket',2],['tank',2]],at:'fogEdge',order:{zone:'gap'},tag:'counter',text:'Unity counterattack moving on the gap.'}}]},
+      {id:'arrival',when:{zoneEntered:'gap'},do:[say(VALE,'Claim site reached. Silence any Lance sentry covering it, then select the construction vehicle, choose Deploy nexus and pick clear ground inside the site.')]},
+      // Dispatched from the lane beyond the gap, the counterattack reaches the site while a nexus is still building.
+      {id:'counter',when:{after:{trigger:'arrival',seconds:30}},do:[say(UNITY,'Claim party detected at Cinder Gap. Dispatching correction.'),{spawn:{team:1,units:[['rifle',4],['rocket',2],['tank',1]],at:'lane:0.8',order:{zone:'gap'},tag:'counter',text:'Unity counterattack moving on the gap.'}}]},
       {id:'online',when:{objectiveDone:'claim'},do:[say(KADE,'Nexus operating. Claim logged at Cinder Gap.')]},
     ],
     setup(s,api){
