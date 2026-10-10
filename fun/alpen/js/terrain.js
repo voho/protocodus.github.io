@@ -152,6 +152,12 @@ export const SNOWPACK = {
   slip: [0.30, 0.86],
   hold: 0.46,
   thin: [0.30, 0.04],
+  /* And where a face too steep to hold snow holds it anyway: in its
+     hollows, which is where everything that sloughs off the ribs either side
+     comes to rest. The lattice's own curvature, per metre, over which a
+     hollow keeps its cover against the steepness or the scour that would
+     strip it. */
+  gully: [0.002, 0.012],
 
   /* Cover over which the snow goes from névé to deep cover. */
   pack: [0.22, 0.90],
@@ -1186,10 +1192,16 @@ function roundedAbs(v, e) {
    added back so the walls still stand where they stood at every distance. */
 const CREST_ROUND = [0.0206, 0.058];
 
+/* How deep the runnels cut at the point `heightIn` last answered for, so
+   the mesh builder can take their regular fluting back out of a curvature
+   that is meant to see only the face's irregular gullies — see `gullyHold`. */
+let runnelCut = 0;
+
 function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
   mogulDetail = 1, flankDetail = 1, bulkDetail = 1, cell = TERRAIN.spacing) {
   const z = ctx.z;
   let h = ctx.base;
+  runnelCut = 0;
 
   let d;
   let branchCentre;
@@ -1436,7 +1448,8 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
         const drift = detail * R.meander;
         const t = 0.5 - 0.5 * Math.cos((z + w * 0.28 + drift) * TAU / R.wave);
         const steep = (2 * u * eu) / WALL_STEEP_PEAK;
-        h -= R.depth * flankDetail * steep * steep * t * t;
+        runnelCut = R.depth * flankDetail * steep * steep * t * t;
+        h -= runnelCut;
       }
       /* Arêtes and couloirs on the face — see TERRAIN.crests. Nothing for the
          first dozen metres past the lip, which is as far up as a carve off
@@ -1784,6 +1797,9 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
   const cellSizes = new Float32Array(count);
   let heights = new Float64Array(count);
   let previousHeights = new Float64Array(count);
+  // Each height's share of `runnelCut`, kept and reused alongside it.
+  let runnelCuts = new Float32Array(count);
+  let previousRunnelCuts = new Float32Array(count);
   /* THE GEOMORPH. Each re-anchor regenerates part of the mesh, and some of
      that ground genuinely changes: a lane that crosses a ring seam is
      sampled under a different detail mask and a different stencil, so out
@@ -3252,6 +3268,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
       for (let c = 0; c < vertsX; c++) previousXs[c] = heightsAnchorX + sxs[c];
       for (let r = 0; r < vertsZ; r++) previousZs[r] = heightsAnchorZ + szs[r];
       [heights, previousHeights] = [previousHeights, heights];
+      [runnelCuts, previousRunnelCuts] = [previousRunnelCuts, runnelCuts];
     }
     heightsReady = false;
     reusedHeights = 0;
@@ -3519,6 +3536,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           && bulkDetailMask[i] === bulkDetailMask[old]
           && cellSizes[i] === cellSizes[old]) {
           heights[i] = previousHeights[old];
+          runnelCuts[i] = previousRunnelCuts[old];
           heightReused[i] = 1;
           reusedHeights++;
           continue;
@@ -3531,6 +3549,7 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           ctx, ax + sxs[c], coarseDetailMask[i], fineDetailMask[i],
           mogulDetailMask[i], flankDetailMask[i], bulkDetailMask[i], cellSizes[i],
         );
+        runnelCuts[i] = runnelCut;
       }
     }
     if (rowTo === vertsZ) {
@@ -3765,19 +3784,30 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
            nearly frontal. Because it follows metres of world geometry and is
            filtered by the same LOD mask, it cannot form display-row moire. */
         let curvature = 0;
+        // And the same with the runnels taken back out, for `gullyHold`.
+        let gullyCurve = 0;
+        const hg = h + runnelCuts[i];
         if (c > 0 && c + 1 < vertsX) {
           const stepL = Math.abs(sxs[c] - sxs[cPrev]);
           const stepR = Math.abs(sxs[cNext] - sxs[c]);
-          const slopeL = (h - heights[r * vertsX + cPrev]) / stepL;
-          const slopeR = (heights[r * vertsX + cNext] - h) / stepR;
+          const iL = r * vertsX + cPrev;
+          const iR = r * vertsX + cNext;
+          const slopeL = (h - heights[iL]) / stepL;
+          const slopeR = (heights[iR] - h) / stepR;
           curvature += 2 * (slopeR - slopeL) / (stepL + stepR);
+          gullyCurve += 2 * ((heights[iR] + runnelCuts[iR] - hg) / stepR
+            - (hg - heights[iL] - runnelCuts[iL]) / stepL) / (stepL + stepR);
         }
         if (r > 0 && r + 1 < vertsZ) {
           const stepB = Math.abs(szs[r] - szs[rPrev]);
           const stepF = Math.abs(szs[rNext] - szs[r]);
-          const slopeB = (h - heights[rPrev * vertsX + c]) / stepB;
-          const slopeF = (heights[rNext * vertsX + c] - h) / stepF;
+          const iB = rPrev * vertsX + c;
+          const iF = rNext * vertsX + c;
+          const slopeB = (h - heights[iB]) / stepB;
+          const slopeF = (heights[iF] - h) / stepF;
           curvature += 2 * (slopeF - slopeB) / (stepB + stepF);
+          gullyCurve += 2 * ((heights[iF] + runnelCuts[iF] - hg) / stepF
+            - (hg - heights[iB] - runnelCuts[iB]) / stepB) / (stepB + stepF);
         }
         /* The new rider-scale pillows are deliberately low: geometry that
            stays believable under a board only moves a few pixels in profile.
@@ -3932,9 +3962,18 @@ export function createTerrain(THREE, shading, maxAnisotropy = 1) {
           * smoothstep(0.10, 0.40, steep) * (0.45 + 0.55 * outcropBand);
         /* No stone inside the corridor at all — the physics has no plate of
            rock under three centimetres of snow in its model, so the picture
-           must not either. Outside it, all four reasons apply. */
+           must not either. Outside it, all four reasons apply, except in the
+           hollows, where whatever slid off the ribs either side is lying. A
+           scoured face used to be stone from edge to edge, and in shade, with
+           its plates mipped to their mean, that read as one smooth blue dome;
+           snow in its gullies draws the couloirs down it. The runnels are
+           left out of the hollows: they are a regular fluting, and snow in
+           every channel drew a comb down the lower face wherever the cells
+           were fine enough to carry them. */
+        const gullyHold = smoothstep(P.gully[0], P.gully[1], gullyCurve);
         const rock = (1 - corridorMask)
-          * Math.max(steepRock, thinRock, zoneRock, flankRock, ridgeRock);
+          * Math.max(Math.max(steepRock, thinRock, zoneRock, flankRock)
+            * (1 - gullyHold), ridgeRock);
 
         /* Snow, along the axis of what it has been through rather than of how
            bright it is. Deep cover is soft and pale; thin cover is what the
