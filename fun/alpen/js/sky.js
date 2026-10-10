@@ -272,6 +272,7 @@ import { snoise2, noise2, hash2 } from './noise.js';
 import { heightAt, nearestCenter } from './terrain.js';
 import { TERRAIN, RENDER } from './config.js';
 import { SKY_GLSL } from './shading.js';
+import { createBackdrop } from './backdrop.js';
 
 const RADIUS = 2900;
 const CONE_R = RADIUS * 0.95;
@@ -305,14 +306,6 @@ const CONE_R = RADIUS * 0.95;
 const SHADOW_REACH = 180;
 const SHADOW_MAP_NEAR = 4096;
 const SHADOW_MAP_FAR = 2048;
-
-/* How long the distant range takes to hand over from one photograph to the
-   next — dawn, day, dusk and night each have their own plate. Fourteen
-   seconds is under half of the shortest window a plate is chosen for (dawn,
-   about 36 s of a 180 s day), long enough that two different mountain
-   ranges dissolve into each other the way light changes rather than the
-   way a slide changes. */
-const PLATE_CROSSFADE = 14;
 
 /* And the bias in texels rather than in metres, which is the unit it is
    actually in. */
@@ -636,14 +629,12 @@ export const HORIZON = {
 
    It is a closed annular heightfield, generated once at startup, pitched onto
    the same haze curtain as the procedural ranges and kept well inside the far
-   plane. The panorama remains visible through its cols and through the lower
-   down-run sector; everywhere else this shell supplies the facets, overlap and
-   real depth a 1774-pixel equirectangular plate cannot invent.
+   plane.
 
-   It is the photographs' fallback now rather than their foreground: once a
-   plate is revealed the shell sinks out of sight — see `uSink` in `update`
-   for why. Until then, and on a page where no plate ever arrives, it stands
-   exactly as described here. */
+   It is the modelled range's fallback now (backdrop.js): once the model is
+   in, the shell sinks out of sight — see `uSink` in `update`. Until then,
+   and on a page where the model never arrives, it stands exactly as
+   described here. */
 const RELIEF = {
   inner: 750,
   crest: 1350,
@@ -661,11 +652,6 @@ const RELIEF = {
   snowLine: 0.32,
   snowFade: 0.12,
 };
-
-/* One source of truth for the plate's maximum contribution. The range
-   crossfade consumes the same value, so changing the image/model balance can
-   never leave the fallback ribbons stuck half-visible. */
-const PANO_MAX = 0.90;
 
 /* The scale height of the air, in metres — the distance over which it eats
    1/e of whatever is behind it. Twelve kilometres is thick for real alpine
@@ -703,41 +689,6 @@ const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
 // Into the first tile of a field that repeats at one, which for a tiling
 // texture is not an approximation of anything — it is the same sample
 const frac = (v) => v - Math.floor(v);
-
-/* How the photographs sit on the ring.
-
-   Two kinds of plate arrive and they are different kinds of picture. The
-   clear and storm plates are true 2:1 equirectangular panoramas, and they
-   keep the full-ring mapping they were made for. The three hour plates are
-   not panoramas at all — they are ordinary 16:9 landscapes — and they were
-   being wrapped round the whole 360° as though they were. That spread 1376
-   pixels over a full turn, so every summit was drawn at twice the size the
-   photograph can resolve (nearly four screen pixels to each of its own on a
-   1440-pixel view), a tenth wider than tall, with a band of procedural sky
-   uphill to hide the place where the photograph's two edges met.
-
-   So a landscape plate is laid across `band` radians centred down the run,
-   at its own aspect ratio, and the rest of the ring is its mirror image —
-   the sampler's MirroredRepeatWrapping does the folding, so the ring closes
-   with no seam and nothing to hide. Half a turn rather than less, because
-   the fold is the one place a mirror shows, and ninety degrees off the fall
-   line is the very edge of anything the chase camera frames.
-
-   A landscape's horizon is wherever the photographer put it, so each one is
-   raised or lowered until its median ridge stands at `ridge` — the height
-   the clear panorama's own summits stand at — and the three hours share one
-   skyline height with the day instead of each bringing its own. `top` is
-   the elevation above which a plate's photographed sky gives way to the
-   procedural dome. The dawn and dusk skies are worth keeping; the night
-   plate has a moon and an aurora painted into it, and the dome already
-   draws both, somewhere else. It is one level, not a traced skyline: a
-   per-column cut followed whichever edge the detector found, and wherever
-   that was a cloud it kept a rectangle of photographed sky. */
-const PLATE = {
-  band: Math.PI,
-  ridge: 0.15,
-  top: { sunrise: 0.6, sunset: 0.6, night: 0.24 },
-};
 
 /* The texture the dome's clouds are made from: four tiling fields baked once
    into one small plate, so a whole cloud layer costs three filtered fetches
@@ -812,18 +763,8 @@ function createCloudTexture(THREE) {
 
 const DOME_VERT = `
   varying highp vec3 vDir;
-  varying highp float vSphereU;
   void main() {
     vDir = normalize(position);
-    /* The panorama's horizontal coordinate comes from the sphere's own uv
-       rather than from atan per fragment. The two are the same number — the
-       sphere's u *is* the azimuth over two pi — but the atan has a jump at
-       the back of the ring, and at the jump the screen-space derivative the
-       mip selector reads is enormous: one column of fragments samples the
-       smallest mip and draws a blurred seam down the sky. The sphere
-       duplicates its seam column, so this varying is continuous across every
-       triangle, and both plate layouts are affine in it — see plateUv. */
-    vSphereU = uv.x;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
@@ -845,98 +786,26 @@ const DOME_FRAG = `
   uniform float uGlowStrength;
   uniform float uCloud;
   uniform vec2 uCloudDrift;
-  uniform sampler2D uPanoClear, uPanoPrev, uPanoStorm;
-  // Per plate: x mirrored landscape (1) or full-ring panorama (0), y the
-  // image's vertical span in radians, z the elevation of its middle row,
-  // w the elevation its photographed sky is kept up to (large means all).
-  uniform vec4 uLayoutClear, uLayoutPrev;
-  // Texel counts and their reciprocals, for the bicubic reconstruction.
-  uniform vec4 uSizeClear, uSizePrev, uSizeStorm;
-  uniform float uPanoStrength, uPanoStormMix, uPanoFade, uPanoYaw;
-  uniform vec2 uSunAz;
-  uniform vec3 uSunlit;
   uniform sampler2D uCloudTex;
   uniform float uCirrus;
 #ifdef SKY_PROBE
   varying highp vec2 vProbeUv;
   highp vec3 vDir;
-  highp float vSphereU;
 #else
   varying highp vec3 vDir;
-  varying highp float vSphereU;
 #endif
 
   ${SKY_GLSL}
 
-  /* Where a plate is sampled for this direction, with the gradients the
-     sampler needs taken from quantities that are continuous everywhere —
-     the sphere's u and the elevation — so no fetch below ever relies on an
-     implicit derivative inside a branch. A full-ring panorama runs once
-     round the sphere; a landscape runs half as far per radian, and the
-     sampler's mirrored wrap folds it back at the edges of its band. */
-  void plateUv(vec4 lay, float elev, vec2 eGrad, vec2 sGrad,
-      out vec2 uv, out vec2 gx, out vec2 gy) {
-    float du = lay.x > 0.5 ? -2.0 : -1.0;
-    float u0 = lay.x > 0.5 ? 2.0 : 1.0 + uPanoYaw;
-    uv = vec2(u0 + du * vSphereU,
-      clamp(0.5 + (elev - lay.z) / lay.y, 0.0, 1.0));
-    gx = vec2(du * sGrad.x, eGrad.x / lay.y);
-    gy = vec2(du * sGrad.y, eGrad.y / lay.y);
-  }
-
-  /* A photograph magnified past its own pixels, rebuilt with a Catmull-Rom
-     kernel instead of the sampler's bilinear tent: five bilinear fetches
-     placed so their weights sum to the sixteen-tap cubic minus its corners.
-     The plates are magnified two to four times on a desktop panel, and the
-     tent is what made every summit read as out of focus. Wherever the plate
-     is being minified — the ridge band at the horizon — the ordinary mipmapped
-     fetch is already right and is all that is used, and so it is wherever the
-     plate is too faint for its focus to matter (sharpen, from its
-     strength: the night keeps a sixth of a plate). Every fetch here carries
-     explicit gradients, so the per-pixel branches cannot upset the mip
-     selection. */
-  vec3 plateFetch(sampler2D tex, vec2 uv, vec4 size, vec2 gx, vec2 gy, float sharpen) {
-    float foot = max(length(gx * size.xy), length(gy * size.xy));
-    float cubic = (1.0 - smoothstep(0.55, 1.0, foot)) * sharpen;
-    if (cubic <= 0.0) return texture2DGradEXT(tex, uv, gx, gy).rgb;
-    vec2 p = uv * size.xy;
-    vec2 t1 = floor(p - 0.5) + 0.5;
-    vec2 f = p - t1;
-    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
-    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
-    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
-    vec2 w3 = f * f * (-0.5 + 0.5 * f);
-    vec2 w12 = w1 + w2;
-    vec2 t0 = (t1 - 1.0) * size.zw;
-    vec2 t3 = (t1 + 2.0) * size.zw;
-    vec2 t12 = (t1 + w2 / w12) * size.zw;
-    vec3 sum = texture2DGradEXT(tex, vec2(t12.x, t0.y), gx, gy).rgb * (w12.x * w0.y)
-      + texture2DGradEXT(tex, vec2(t0.x, t12.y), gx, gy).rgb * (w0.x * w12.y)
-      + texture2DGradEXT(tex, t12, gx, gy).rgb * (w12.x * w12.y)
-      + texture2DGradEXT(tex, vec2(t3.x, t12.y), gx, gy).rgb * (w3.x * w12.y)
-      + texture2DGradEXT(tex, vec2(t12.x, t3.y), gx, gy).rgb * (w12.x * w3.y);
-    float total = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y
-      + w3.x * w12.y + w12.x * w3.y;
-    vec3 sharp = max(sum / total, vec3(0.0));
-    if (cubic >= 1.0) return sharp;
-    return mix(texture2DGradEXT(tex, uv, gx, gy).rgb, sharp, cubic);
-  }
-
-  // How much of a plate survives at this elevation — see PLATE.top.
-  float plateKeep(vec4 lay, float elev) {
-    return 1.0 - smoothstep(lay.w - 0.06, lay.w, elev);
-  }
-
   void main() {
 #ifdef SKY_PROBE
     // The direction this texel stands for, laid out exactly as the dome
-    // sphere lays out its own u — see SphereGeometry — so the plates land
-    // where the dome puts them.
+    // sphere lays out its own u — see SphereGeometry — and as n64Sky in
+    // shading.js reads it back.
     float probeElev = (vProbeUv.y - 0.5) * 3.14159265;
     float probeAz = vProbeUv.x * 6.28318531;
     vDir = vec3(-cos(probeAz) * cos(probeElev), sin(probeElev),
       sin(probeAz) * cos(probeElev));
-    vSphereU = vProbeUv.x;
 #endif
     // Re-normalised per fragment: the interpolation across a facet of the
     // dome is a chord, and at 288 lines the 1% it was out by was nothing.
@@ -948,8 +817,9 @@ const DOME_FRAG = `
     /* Below the skyline what a fogged surface dissolves into is the curtain,
        not the sky — the cone is drawn there in the haze stop, and it is what
        stands behind the far edge of the ground. So the probe swaps the
-       horizon stop for the haze there, and the plate drawn over that stop
-       goes with it; from a few degrees up it is the dome as drawn. */
+       horizon stop for the haze there; from a few degrees up it is the dome
+       as drawn. (The modelled range is drawn into the probe over this, by
+       its own program — see backdrop.js.) */
     float probeSky = smoothstep(0.0, 0.10, up);
     vec3 bottom = mix(uHaze, uHorizon, probeSky);
 #else
@@ -968,61 +838,6 @@ const DOME_FRAG = `
       uZenith,
       smoothstep(0.10, 0.52, up)
     );
-    // Gradients of the two continuous coordinates every fetch below is
-    // placed by, taken once here in uniform control flow.
-    float elev = asin(clamp(dir.y, -1.0, 1.0));
-    vec2 eGrad = vec2(dFdx(elev), dFdy(elev));
-    vec2 sGrad = vec2(dFdx(vSphereU), dFdy(vSphereU));
-    /* Generated Swiss ranges, relit rather than pasted in.
-
-       The panorama contributes structure and a restrained amount of material
-       colour; the procedural gradient above still owns the hour of day. That
-       is why a clear-morning source can survive dawn, dusk and moonlight
-       without becoming a rectangular photograph behind the weather.
-
-       The whole block is behind a branch, because at night and in a
-       whiteout the plate's strength falls to nothing, and over the upper
-       dome and above a landscape's kept sky it contributes nothing either:
-       the fetches over the most expensive shader should be skipped in all
-       of those. The per-pixel half of the test is safe because every fetch
-       inside carries its own gradients — see plateFetch. */
-    // How much of the sky the plates may own here, before any fetch: none
-    // of the upper dome, and for a landscape nothing above its kept sky.
-    float panoBand = 1.0 - smoothstep(0.28, 0.55, up);
-#ifdef SKY_PROBE
-    panoBand *= probeSky;
-#endif
-    float keep = plateKeep(uLayoutClear, elev);
-    if (uPanoFade < 0.999) keep = mix(plateKeep(uLayoutPrev, elev), keep, uPanoFade);
-    keep = mix(keep, 1.0, uPanoStormMix);
-    if (uPanoStrength > 0.005 && panoBand * keep > 0.001) {
-      float sharpen = smoothstep(0.25, 0.55, uPanoStrength);
-      vec2 uv; vec2 gx; vec2 gy;
-      plateUv(uLayoutClear, elev, eGrad, sGrad, uv, gx, gy);
-      vec3 pano = plateFetch(uPanoClear, uv, uSizeClear, gx, gy, sharpen);
-      /* The hour plates crossfade through this second sampler instead of
-         the old dip-to-zero-and-back, which dissolved the whole distant
-         range and brought it back as a different photograph. Each side is
-         placed by its own layout, so a landscape and a panorama can hand
-         over to each other in place. */
-      if (uPanoFade < 0.999) {
-        vec2 uvP; vec2 gxP; vec2 gyP;
-        plateUv(uLayoutPrev, elev, eGrad, sGrad, uvP, gxP, gyP);
-        pano = mix(plateFetch(uPanoPrev, uvP, uSizePrev, gxP, gyP, sharpen), pano, uPanoFade);
-      }
-      // The storm plate is a full-ring panorama, always.
-      if (uPanoStormMix > 0.001) {
-        vec2 uvS; vec2 gxS; vec2 gyS;
-        plateUv(vec4(0.0, 3.14159265, 0.0, 10.0), elev, eGrad, sGrad, uvS, gxS, gyS);
-        pano = mix(pano, plateFetch(uPanoStorm, uvS, uSizeStorm, gxS, gyS, sharpen), uPanoStormMix);
-      }
-      float panoLum = dot(pano, vec3(0.2126, 0.7152, 0.0722));
-      float panoForm = clamp(1.0 + (panoLum - 0.45) * 1.40, 0.45, 1.50);
-      vec3 relitPano = mix(c * panoForm, pano * 1.15, 0.65);
-      float az = max(0.0, dot(dir.xz, uSunAz) / max(length(dir.xz), 0.001));
-      relitPano += uSunlit * (pow(az, 4.0) * smoothstep(0.40, 1.10, panoForm) * 0.55);
-      c = mix(c, relitPano, uPanoStrength * panoBand * keep);
-    }
     // One dot product of atmosphere: the sky is brighter and warmer near
     // whatever is lighting it, and the effect is strongest at the horizon
     float lobe = max(0.0, dot(dir, uSunDir));
@@ -1093,7 +908,7 @@ const STAR_VERT = `
   void main() {
     /* Horizon extinction: the air a star's light crosses grows without bound
        as it approaches the skyline, so real stars dim and go out over the
-       last dozen degrees — and the panorama's ridges live in exactly those
+       last dozen degrees — and the range's ridges live in exactly those
        degrees, so without this a star could twinkle in front of a mountain.
        The fade is on the direction's own y, which for a point pinned to the
        dome is its elevation's sine; gone by the horizon, full a little over
@@ -1423,7 +1238,7 @@ const RELIEF_VERT = `
       / ${(RELIEF.corridorTo - RELIEF.corridorFrom).toFixed(4)}, 0.0, 1.0);
     float corridor = 1.0 - ${RELIEF.corridorCut.toFixed(4)}
       * corS * corS * (3.0 - 2.0 * corS);
-    // uSink lowers the whole shell as a photographed plate takes over.
+    // uSink lowers the whole shell as the modelled range takes over.
     p.y *= corridor * (1.0 - uSink);
     p.y -= aRadius * pitch;
     /* The normal takes the same deformation the height just did. The baked
@@ -1537,8 +1352,8 @@ const RELIEF_FRAG = `
     float extinction = clamp(uAir * (0.85 - vAltitude * 0.25), 0.0, 0.75);
     vec3 c = mix(lit, uHaze, mix(1.0, extinction, foot));
     /* The storm's own curtain, over the top of the clear-air extinction.
-       The far ribbons and the panorama both dissolve on this exact ramp
-       (rangeAlpha and panoStrength in update) — the relief shell did not,
+       The far ribbons dissolve on this exact ramp (rangeAlpha in update),
+       and so does the modelled range — the relief shell did not,
        and because its extinction is capped at 0.75 a quarter of the rock
        body survived any weather: a dark massif floating in the middle of
        a whiteout, well past a fog distance of ninety metres.
@@ -1722,57 +1537,12 @@ export function createSky(THREE) {
   // its own copy of this into its own spun frame; nothing reads it directly.
   const sunXZ = new THREE.Vector2(0, -1);
 
-  /* Generated 360-degree Alpine plates. A one-pixel neutral surface means
-     the procedural dome is still a complete fallback; the reveal begins only
-     after at least one real panorama has decoded. Clear and storm share the
-     same equirectangular composition, so the weather can crossfade them
-     without peaks ghosting sideways. */
-  const panoFallback = new THREE.DataTexture(
-    new Uint8Array([128, 128, 128, 255]), 1, 1, THREE.RGBAFormat,
-  );
-  panoFallback.colorSpace = THREE.SRGBColorSpace;
-  panoFallback.needsUpdate = true;
-  const panoClear = { value: panoFallback };
-  const panoPrev = { value: panoFallback };
-  const panoStorm = { value: panoFallback };
-  const panoStrength = { value: 0 };
-  const panoFade = { value: 1 };
-  /* Seconds into the current plate crossfade — see PLATE_CROSSFADE. */
-  let panoFadeClock = PLATE_CROSSFADE;
-  let clearPlate = null;
-  let stormPlate = null;
-  let clearSettled = false;
-  let stormSettled = false;
-  let panoReady = 0;
-  let panoTarget = 0;
-  // 1 while the bound plate is the one the hour wants; 0 while the reveal is
-  // being walked down so the sampler can be exchanged out of sight.
-  let panoWish = 1;
-  // 0 waits for both requests, 1 gives their replacements one invisible
-  // binding/upload frame, and 2 starts the continuous reveal on the next.
-  let panoStage = 0;
-  // Which hour plate the dome is currently showing — the anchor the
-  // hysteresis in `update` measures its margins from.
-  let plateChoice = 'clear';
-
-  /* Every plate's placement on the ring, kept beside the texture it
-     describes — see `PLATE` and `preparePlate`. Anything without an entry,
-     the neutral fallback included, is a full-ring panorama with no mask. */
-  const plateInfo = new WeakMap();
-  const panoramaLayout = {
-    mirror: false, span: Math.PI, center: 0, top: 10, width: 1, height: 1, rows: null,
-  };
-  const layoutOf = (texture) => plateInfo.get(texture) || panoramaLayout;
-  const bindLayout = (texture, layout, size) => {
-    const info = layoutOf(texture);
-    if (layout) layout.set(info.mirror ? 1 : 0, info.span, info.center, info.top);
-    size.set(info.width, info.height, 1 / info.width, 1 / info.height);
-  };
-  const layoutClear = new THREE.Vector4(0, Math.PI, 0, 10);
-  const layoutPrev = new THREE.Vector4(0, Math.PI, 0, 10);
-  const sizeClear = new THREE.Vector4(1, 1, 1, 1);
-  const sizePrev = new THREE.Vector4(1, 1, 1, 1);
-  const sizeStorm = new THREE.Vector4(1, 1, 1, 1);
+  /* The modelled range (backdrop.js) arrives after the sky is built; until
+     it has — and for good if it never does — the relief shell and the far
+     ribbons below are the horizon. `backdropShown` is how far the model has
+     taken over from them: 0 before it lands, 1 once it has. */
+  let backdropShown = 0;
+  let backdropWant = 0;
   const cloudTex = createCloudTexture(THREE);
 
   // --- dome ----------------------------------------------------------------
@@ -1789,23 +1559,6 @@ export function createSky(THREE) {
       uCloudDrift: { value: new THREE.Vector2() },
       uCloudTex: { value: cloudTex },
       uCirrus: { value: 0.6 },
-      uPanoClear: panoClear,
-      uPanoPrev: panoPrev,
-      uPanoStorm: panoStorm,
-      uLayoutClear: { value: layoutClear },
-      uLayoutPrev: { value: layoutPrev },
-      uSizeClear: { value: sizeClear },
-      uSizePrev: { value: sizePrev },
-      uSizeStorm: { value: sizeStorm },
-      uPanoStrength: panoStrength,
-      uPanoStormMix: { value: 0 },
-      uPanoFade: panoFade,
-      // A panorama's centre looks down-run; its joined edge sits uphill.
-      uPanoYaw: { value: 0.25 },
-      // The plate's alpenglow: the ranges' own borrowed amber, and the sun's
-      // heading flattened onto the ground. Both are written every frame.
-      uSunAz: { value: sunXZ },
-      uSunlit: { value: new THREE.Color(0, 0, 0) },
     },
     vertexShader: DOME_VERT,
     fragmentShader: DOME_FRAG,
@@ -1813,9 +1566,9 @@ export function createSky(THREE) {
     depthWrite: false,
     fog: false,
   });
-  // The panorama is evaluated per fragment, but its direction starts as a
-  // vertex interpolation. A 96×64 carrier keeps that interpolation spherical
-  // enough for the generated Alpine plate and the sun lobe at native output.
+  // The sky is evaluated per fragment, but its direction starts as a vertex
+  // interpolation. A 96×64 carrier keeps that interpolation spherical enough
+  // for the sun lobe and the cloud planes at native output.
   const dome = new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 96, 64), domeMat);
   /* After the opaque world rather than before it. Drawn first, the most
      expensive shader on screen ran for every pixel of the frame and the
@@ -1835,22 +1588,19 @@ export function createSky(THREE) {
   /* THE SKY THE FOG DISSOLVES INTO, AS DRAWN.
 
      Every fogged surface on the mountain ends in `n64Sky`, and that used to
-     be a transcription of the gradient above — the gradient only. Since the
-     photographed plates arrived, the dome below about thirty degrees is
-     mostly plate: a pale photographed sky and a range of white peaks. So a
-     wall at the far edge of the fog, fully dissolved, came out in the deep
-     blue the gradient has at its elevation, against a pale sky behind it —
-     a dark ghost of a hill standing in the sky, a disc where the walls rose
-     highest.
+     be a transcription of the gradient above — the gradient only. A wall at
+     the far edge of the fog, fully dissolved, then came out in whatever the
+     gradient had at its elevation, while behind it stood a range of white
+     peaks: a ghost of a hill standing in front of the mountains, a disc of
+     sky colour where the walls rose highest.
 
-     So the fog reads the dome itself. This is DOME_FRAG, drawn once a frame
-     into a small equirectangular panorama: one texel per one and a half
-     degrees, which the plates' own mip chain fills with their low
-     frequencies, so a fogged ridge goes into the colour of the sky behind it
-     rather than into a second copy of its peaks. Plate, cirrus, deck, glow:
-     every layer the dome has, it has, because it is the same program on the
-     same uniform objects. Below the skyline it keeps the curtain's haze —
-     see the probe's branch in DOME_FRAG. */
+     So the fog reads the horizon itself. This is DOME_FRAG, drawn once a
+     frame into a small equirectangular panorama — one texel per one and a
+     half degrees — and then the modelled range drawn over it by its own
+     program (backdrop.js, under SKY_PROBE), depth-tested against itself.
+     Cirrus, deck, glow, peaks: a fogged ridge goes into the colour of what
+     is behind it. Below the skyline the dome keeps the curtain's haze — see
+     the probe's branch in DOME_FRAG. */
   const PROBE_W = 256;
   const PROBE_H = 128;
   const probe = new THREE.WebGLRenderTarget(PROBE_W, PROBE_H, {
@@ -1860,7 +1610,8 @@ export function createSky(THREE) {
     wrapS: THREE.RepeatWrapping,
     wrapT: THREE.ClampToEdgeWrapping,
     generateMipmaps: false,
-    depthBuffer: false,
+    // the range's own ridges in front of each other
+    depthBuffer: true,
     stencilBuffer: false,
     colorSpace: THREE.LinearSRGBColorSpace,
   });
@@ -1874,6 +1625,7 @@ export function createSky(THREE) {
   });
   const probeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), probeMat);
   probeQuad.frustumCulled = false;
+  probeQuad.renderOrder = 0;
   const probeScene = new THREE.Scene();
   probeScene.add(probeQuad);
   const probeCamera = new THREE.Camera();
@@ -1894,193 +1646,9 @@ export function createSky(THREE) {
     renderer.setRenderTarget(previous);
   }
 
-  /* `top` is the elevation the plate keeps its own sky up to — see PLATE;
-     omitted, it keeps all of it. Whether a plate is a panorama or a
-     landscape is read off its shape — a 2:1 image is the full ring,
-     anything else is a view of part of it. */
-  const preparePlate = (texture, top = 10) => {
-    const image = texture.image;
-    const width = image?.width || 0;
-    const height = image?.height || 0;
-    const mirror = width > 0 && height > 0 && Math.abs(width / height - 2) > 0.15;
-    texture.wrapS = mirror ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    /* Mipmapped and anisotropic now. The plate is heavily minified exactly
-       where it matters most — the ridge band at the horizon — and a
-       linear-only sampler made that band shimmer whenever the camera
-       yawed. WebGL2 mips NPOT textures without complaint. */
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = true;
-    // Three clamps this to whatever the device offers, so asking for more
-    // than a mobile part has costs nothing there and sharpens the ridge
-    // band on a desktop that can.
-    texture.anisotropy = 8;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    // The photographs carry no depth. Read their sharp skyline once, while
-    // decoding, so the sun cannot be composited over a photographed summit.
-    // It is kept as an image row per column, which is a fact about the
-    // picture, and turned into an elevation through the plate's layout.
-    let rows = null;
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 256; canvas.height = 128;
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      context.drawImage(texture.image, 0, 0, 256, 128);
-      const pixels = context.getImageData(0, 0, 256, 128).data;
-      rows = new Float32Array(256);
-      const edges = new Float32Array(128);
-      for (let x = 0; x < 256; x++) {
-        let strongest = 0;
-        for (let y = 40; y < 76; y++) {
-          const above = ((y - 1) * 256 + x) * 4;
-          const below = ((y + 1) * 256 + x) * 4;
-          edges[y] = Math.max(Math.abs(pixels[below] - pixels[above]),
-            Math.abs(pixels[below + 1] - pixels[above + 1]),
-            Math.abs(pixels[below + 2] - pixels[above + 2]));
-          strongest = Math.max(strongest, edges[y]);
-        }
-        let y = 40;
-        while (y < 75 && edges[y] < Math.max(12, strongest * 0.5)) y++;
-        rows[x] = (y + 0.5) / 128;
-      }
-    } catch {
-      // Failed image reads retain the procedural sky's normal horizon fade.
-      rows = null;
-    }
-    const span = mirror ? PLATE.band * (height / width) : Math.PI;
-    let center = 0;
-    if (mirror && rows) {
-      /* Stand the landscape's ridge where the panorama's stands. The median
-         is robust to the odd column the edge test reads off a cloud. */
-      const sorted = Array.from(rows).sort((a, b) => a - b);
-      const median = sorted[sorted.length >> 1];
-      center = PLATE.ridge - (0.5 - median) * span;
-    }
-    plateInfo.set(texture, {
-      mirror,
-      span,
-      center,
-      top: mirror ? top : 10,
-      width: width || 1,
-      height: height || 1,
-      rows,
-    });
-    return texture;
-  };
-  /* The photographed ridge's elevation on a given bearing, through the same
-     layout the dome samples the plate with. The sun is hidden behind it. */
-  const plateRidge = (texture, azimuth) => {
-    const info = plateInfo.get(texture);
-    if (!info || !info.rows) return -Math.PI / 2;
-    const s = frac(0.75 - azimuth / TAU);    // the dome sphere's own u
-    let u;
-    if (info.mirror) {
-      u = 2 - 2 * s;
-      u -= 2 * Math.floor(u / 2);
-      if (u > 1) u = 2 - u;
-    } else {
-      u = frac(1 + domeMat.uniforms.uPanoYaw.value - s);
-    }
-    const rows = info.rows;
-    const x = u * rows.length;
-    const i = Math.min(rows.length - 1, Math.floor(x));
-    const t = x - i;
-    const j = info.mirror ? Math.min(rows.length - 1, i + 1) : (i + 1) % rows.length;
-    const row = rows[i] * (1 - t) + rows[j] * t;
-    return info.center + (0.5 - row) * info.span;
-  };
-  let sunrisePlate = null;
-  let sunsetPlate = null;
-  let nightPlate = null;
-  let platesBound = false;
-  const settlePlates = () => {
-    /* Never reveal one weather plate while the other request is outstanding.
-       If, say, clear arrived first, both samplers used to point at it and the
-       later storm callback replaced one of them under whatever storm mix was
-       live that frame — an asynchronous, full-strength picture cut. Waiting
-       for both load/error callbacks makes the sampler replacement atomic. A
-       single survivor remains a complete fallback for the missing plate.
-
-       And it binds exactly once. The two hour plates are far heavier files
-       than the weather pair and land seconds later on a cold cache — their
-       callbacks also arrive here, and re-running the assignment below would
-       yank a live sampler back to the clear plate at full strength: the same
-       asynchronous picture cut this function exists to prevent, arriving by
-       the other door. A late hour plate only fills its variable; the wish
-       logic in `update` swaps it in through the ordinary out-of-sight dip. */
-    if (platesBound) return;
-    if (!clearSettled || !stormSettled) return;
-    // Loaded or failed, the boot has its answer either way
-    settled();
-    const any = clearPlate || stormPlate || sunrisePlate || nightPlate;
-    if (!any) return;
-    panoClear.value = clearPlate || sunrisePlate || stormPlate || any;
-    panoStorm.value = stormPlate || clearPlate || any;
-    panoStage = 1;
-    platesBound = true;
-  };
-  /* The weather pair settled, for the boot to wait on — see `snapPlates`. */
-  let settled = null;
-  const platesReady = new Promise((resolve) => { settled = resolve; });
-  /* THE TITLE OPENS ON THE PHOTOGRAPH. The reveal above eases each plate in
-     over about a second, which in play is a picture arriving through the
-     sky; at boot it was the first thing anybody saw — the curtain lifted on
-     the procedural ranges, and the backdrop of the title screen turned from
-     grey cones into the Alps while it was being read. The boot waits for the
-     pair (a hundred kilobytes) beside the snow, and then this finishes the
-     stages and the reveal at once, behind the curtain: the warm-up render
-     uploads both plates, so the first frame shown has them at full strength. */
-  function snapPlates() {
-    if (!platesBound) return;
-    panoStage = 0;
-    panoTarget = 1;
-    panoReady = panoWish;
-  }
-  const plateLoader = new THREE.TextureLoader();
-  plateLoader.load(
-    new URL('../assets/textures/sky/alps-clear.webp', import.meta.url).href,
-    (texture) => {
-      clearPlate = preparePlate(texture);
-      clearSettled = true;
-      settlePlates();
-    },
-    undefined,
-    () => { clearSettled = true; settlePlates(); },
-  );
-  plateLoader.load(
-    new URL('../assets/textures/sky/alps-storm.webp', import.meta.url).href,
-    (texture) => {
-      stormPlate = preparePlate(texture);
-      stormSettled = true;
-      settlePlates();
-    },
-    undefined,
-    () => { stormSettled = true; settlePlates(); },
-  );
-  plateLoader.load(
-    new URL('../assets/textures/sky/alps-sunrise.jpg', import.meta.url).href,
-    (texture) => {
-      sunrisePlate = preparePlate(texture, PLATE.top.sunrise);
-      settlePlates();
-    },
-  );
-  plateLoader.load(
-    new URL('../assets/textures/sky/alps-aurora-night.jpg', import.meta.url).href,
-    (texture) => {
-      nightPlate = preparePlate(texture, PLATE.top.night);
-      settlePlates();
-    },
-  );
-  // Dusk gets its own plate now instead of borrowing the sunrise: golden
-  // hour across the crests rather than a morning alpenglow played twice.
-  plateLoader.load(
-    new URL('../assets/textures/sky/alps-peaks-sunset.jpg', import.meta.url).href,
-    (texture) => {
-      sunsetPlate = preparePlate(texture, PLATE.top.sunset);
-      settlePlates();
-    },
-  );
+  /* The rock the massifs are cut from — the terrain's own granite, for the
+     strata on the modelled range and the relief shell alike. */
+  const rockDetail = { value: null };
 
   // --- the counterglow -----------------------------------------------------
   // A full ring, because which part of it is drawn is decided per fragment
@@ -2431,17 +1999,17 @@ export function createSky(THREE) {
 
   /* The massif's geometry and geology are generated once. Day, storm and
      horizon pitch change only uniforms; material detail stays mipmapped. */
+  rockDetail.value = fieldTex;
+  new THREE.TextureLoader().load(
+    new URL('../assets/textures/rock/rock-granite.jpg', import.meta.url).href,
+    texture => {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 4;
+      rockDetail.value = texture;
+    },
+  );
   const relief = (() => {
-    const rockDetail = { value: fieldTex };
-    new THREE.TextureLoader().load(
-      new URL('../assets/textures/rock/rock-granite.jpg', import.meta.url).href,
-      texture => {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = 4;
-        rockDetail.value = texture;
-      },
-    );
     const cols = RELIEF.segments + 1;
     const rows = RELIEF.radialSegments + 1;
     const count = cols * rows;
@@ -2835,8 +2403,8 @@ export function createSky(THREE) {
       fog: false,
     });
     const mesh = new THREE.Mesh(geo, mat);
-    // Explicit far-to-near ordering keeps the panorama crossfade stable even
-    // though the rings all share the camera's origin.
+    // Explicit far-to-near ordering keeps their blending stable even though
+    // the rings all share the camera's origin.
     mesh.renderOrder = -15.4 + ranges.length * 0.1;
     mesh.frustumCulled = false;
     ranges.push({
@@ -2866,6 +2434,24 @@ export function createSky(THREE) {
     const m = range(spec);
     m.name = 'far-range';
     group.add(m);
+  }
+
+  /* And the range itself, as modelled — see backdrop.js. It joins the frame
+     and the probe the moment its file is read; the shell and the ribbons
+     above stand down as it does (see `backdropShown` in `update`). */
+  const backdrop = createBackdrop(THREE, { sunDir, noise: fieldTex, rockDetail });
+  group.add(backdrop.group);
+  probeScene.add(backdrop.probeGroup);
+  const backdropReady = backdrop.load().then((ok) => {
+    if (ok) backdropWant = 1;
+    return ok;
+  });
+  /* THE TITLE OPENS ON THE MOUNTAINS. The boot waits for the file beside the
+     snow, and this then finishes the hand-over at once, behind the curtain,
+     so the first frame anybody sees already has the range in it rather than
+     the procedural ribbons turning into it while the title is being read. */
+  function snapBackdrop() {
+    backdropShown = backdropWant;
   }
 
   /* --- light ---------------------------------------------------------------
@@ -3114,85 +2700,12 @@ export function createSky(THREE) {
        copy rather than the weather's own palette, so downstream simulation
        never sees a flash it did not ask for. The fill light gets its energy
        share further down, which is what actually lights the near snow. */
-    /* The first frame after both requests settle binds the new samplers while
-       their contribution is still exactly zero. That lets the renderer upload
-       both decoded plates invisibly; the following frame begins the existing
-       exponential reveal. */
-    if (panoStage === 1) {
-      panoStage = 2;
-    } else if (panoStage === 2) {
-      panoStage = 0;
-      panoTarget = 1;
-    }
-    /* Which plate the hour wants: the aurora night under real darkness, the
-       alpenglow plate through dawn and dusk, the clear morning otherwise.
-       The swap itself is never shown — when the wish changes, the reveal
-       ramp is sent back to zero, the sampler is exchanged only once the
-       plate's contribution has actually reached nothing, and the same ramp
-       then brings the new picture up through the procedural sky. */
-    /* A swap is only ever begun from a settled picture. Starting a second
-       one halfway through the first made the half-shown outgoing plate the
-       new "previous" at full strength — the distant range jumped back to a
-       photograph it had half left — so a change of wish waits for the fade
-       in flight to finish, and is taken up on the frame it does. */
-    if (panoStage === 0 && panoTarget > 0 && panoFadeClock >= PLATE_CROSSFADE) {
-      /* With hysteresis on both gates so an hour hovering exactly at a
-         boundary — a pinned dusk, a night whose depth is still building —
-         cannot strobe the swap back and forth. Dawn and dusk each have
-         their own plate now: a sunrise alpenglow in the morning window, a
-         golden-hour crest plate in the evening one. */
-      const sunPad = plateChoice === 'sunrise' || plateChoice === 'sunset' ? 0.02 : 0;
-      const nightAt = plateChoice === 'night' ? 0.34 : 0.46;
-      const dawn = w.tod >= 0.05 - sunPad && w.tod <= 0.25 + sunPad;
-      /* The dusk window reaches to where the night gate actually opens.
-         `night` (the max of the star and moon curves) only crosses 0.46
-         around tod 0.835, so a window ending at 0.78 handed the sky to
-         'clear' for the half-minute in between — every dusk crossfaded
-         sunset → clear morning → night, with a daybreak plate in the
-         middle of nightfall. */
-      const dusk = w.tod >= 0.65 - sunPad && w.tod <= 0.865 + sunPad;
-      const choice = (w.night > nightAt && nightPlate) ? 'night'
-        : (dawn && sunrisePlate) ? 'sunrise'
-          : (dusk && (sunsetPlate || sunrisePlate)) ? 'sunset' : 'clear';
-      const want = choice === 'night' ? nightPlate
-        : choice === 'sunrise' ? sunrisePlate
-          : choice === 'sunset' ? (sunsetPlate || sunrisePlate)
-            : clearPlate || panoClear.value;
-      if (want && panoClear.value !== want) {
-        /* The swap is a crossfade through the second sampler, not the old
-           three-second dip: the outgoing photograph hands over to the
-           incoming one in place, and the distant range never dissolves. */
-        panoPrev.value = panoClear.value;
-        panoClear.value = want;
-        panoFade.value = 0;
-        panoFadeClock = 0;
-        plateChoice = choice;
-      } else {
-        plateChoice = choice;
-      }
-      panoWish = 1;
-    }
-    /* Eased over a fixed span rather than chased exponentially. The old
-       rate did most of its work in its first second — a third of the way
-       from one photographed range to a different one before the eye had
-       registered anything was changing — which is exactly what reads as the
-       background being replaced. A smoothstep in time starts and ends at
-       rest and spreads the change evenly across the span. */
-    panoFadeClock = Math.min(PLATE_CROSSFADE, panoFadeClock + Math.max(0, dt));
-    {
-      const t = panoFadeClock / PLATE_CROSSFADE;
-      panoFade.value = t * t * (3 - 2 * t);
-    }
-    // Each sampler is placed by its own plate's layout, whichever is bound.
-    bindLayout(panoClear.value, layoutClear, sizeClear);
-    bindLayout(panoPrev.value, layoutPrev, sizePrev);
-    bindLayout(panoStorm.value, null, sizeStorm);
-    panoReady += (panoTarget * panoWish - panoReady) * (1 - Math.exp(-2.8 * dt));
-    domeMat.uniforms.uPanoStormMix.value = ramp(w.storm, 0.12, 0.78);
-    // Night keeps a faint mountain plate under the stars; a whiteout gives it
-    // up entirely because the fog curtain has already won by then.
-    panoStrength.value = panoReady * PANO_MAX * (1 - 0.82 * w.night)
-      * (1 - ramp(w.storm, 0.58, 0.88));
+    /* The modelled range takes over from the procedural horizon over a
+       second or so once its file has been read (at once at boot — see
+       `snapBackdrop`). Nothing about it changes with the hour: the light
+       does that. */
+    backdropShown += (backdropWant - backdropShown) * (1 - Math.exp(-2.8 * dt));
+    if (backdropWant - backdropShown < 0.002) backdropShown = backdropWant;
 
     // Four hundred and twenty zero-alpha points are cheap enough to remain in
     // the render list. That buys a compiled night-sky program before dusk;
@@ -3250,26 +2763,20 @@ export function createSky(THREE) {
     const moon = w.moon;
     const risen = ramp(w.elevation, -0.028, 0.018);
     const discRadius = (0.085 - moon * 0.032) * 0.46 / 0.85;
-    const currentRidge = Math.max(
-      plateRidge(panoClear.value, w.azimuth - discRadius),
-      plateRidge(panoClear.value, w.azimuth),
-      plateRidge(panoClear.value, w.azimuth + discRadius));
-    const previousRidge = Math.max(
-      plateRidge(panoPrev.value, w.azimuth - discRadius),
-      plateRidge(panoPrev.value, w.azimuth),
-      plateRidge(panoPrev.value, w.azimuth + discRadius));
-    // Both ranges are visible during a crossfade. Respect the higher skyline,
-    // easing its arrival/departure only at the faint ends of that transition.
+    /* And it sets behind the modelled peaks, not the flat horizon: the
+       skyline's elevation either side of the disc and under it, from the
+       table the range keeps (see backdrop.js), and the disc gone once it is
+       below that by its own radius. */
     const ridge = Math.max(
-      previousRidge + (currentRidge - previousRidge) * ramp(panoFade.value, 0, 0.2),
-      currentRidge + (previousRidge - currentRidge) * (1 - ramp(panoFade.value, 0.8, 1)));
-    const photoVisibility = ramp(w.elevation - ridge, discRadius, discRadius + 0.025);
-    const ridgeVisibility = 1 - (1 - photoVisibility)
-      * ramp(panoStrength.value / PANO_MAX, 0.05, 0.22);
+      backdrop.skyline(w.azimuth - discRadius),
+      backdrop.skyline(w.azimuth),
+      backdrop.skyline(w.azimuth + discRadius));
+    const behindPeaks = ramp(w.elevation - ridge, discRadius, discRadius + 0.025);
+    const ridgeVisibility = 1 - (1 - behindPeaks) * ramp(backdropShown, 0.05, 0.22);
     disc.position.copy(sunDir).multiplyScalar(RADIUS * 0.85);
     disc.scale.setScalar(RADIUS * (0.085 - moon * 0.032));
     // The sun emits light; using the snow's key tint alone made it a dark
-    // coin against the sunset plate. Moonlight keeps its existing exposure.
+    // coin against a sunset sky. Moonlight keeps its existing exposure.
     discMat.uniforms.uColor.value.copy(w.key).multiplyScalar(2.4 - 1.4 * moon);
     discMat.uniforms.uMoon.value = moon;
     const discFade = (1 - w.storm) * (0.55 + 0.45 * (1 - moon))
@@ -3314,9 +2821,6 @@ export function createSky(THREE) {
        nothing whatsoever in the middle of the day. */
     const low = 1 - ramp(w.elevation, 0.10, 0.44);
     sunlit.copy(w.key).multiplyScalar(1.6 * low * sunLight);
-    // The panorama takes the same amber the ranges do — see DOME_FRAG. The
-    // azimuth half of the pair is `sunXZ`, already shared by reference.
-    domeMat.uniforms.uSunlit.value.copy(sunlit);
 
     // The curtain, and the ranges standing on it. Eased rather than taken
     // straight: the probes are asking a hill with twenty metres of noise on
@@ -3413,19 +2917,12 @@ export function createSky(THREE) {
     // exact haze stop already used by the dome, mist and distant ranges.
     hazeMat.color.copy(atmosphere.haze);
 
-    /* The relief shell is the photographs' fallback now, like the ribbons.
-
-       It was built when the hour plates were being stretched round the whole
-       ring and the day plate was a blur, and against those it earned its
-       keep. With every plate laid out at its own scale, the shell's only
-       visible contribution in front of one was a handful of flat grey cones
-       at the vanishing point — procedural silhouettes standing in front of
-       photographed ones, at every hour including night. So as a plate is
-       revealed the shell sinks under the terrain's horizon over the same
-       second the plate fades in, and stops drawing once it is gone. With no
-       plate — a slow first load, or none at all — it stands exactly as it
-       did, and a storm still takes it away through its own whiteout. */
-    const sink = ramp(panoReady, 0.05, 0.95);
+    /* The relief shell is the modelled range's fallback, like the ribbons.
+       As the model takes over the shell sinks under the terrain's horizon
+       and stops drawing once it is gone; with no model — a slow first load,
+       or none at all — it stands exactly as it did, and a storm still takes
+       it away through its own whiteout. */
+    const sink = ramp(backdropShown, 0.05, 0.95);
     relief.mat.uniforms.uSink.value = sink;
     relief.mesh.visible = warmingLayers || sink < 0.999;
     // Stable landmark bearings, with bounded parallax for an endless descent.
@@ -3443,11 +2940,10 @@ export function createSky(THREE) {
     relief.mat.uniforms.uWhiteout.value = ramp(w.storm, 0.28, 0.82);
 
     for (const r of ranges) {
-      // Fallback means a missing panorama, not a dim one. Night deliberately
-      // lowers photo exposure; reviving these ribbons then covered the actual
-      // range with a second flat skyline. The relief shell still supplies
-      // the same foreground parallax and material depth at every hour.
-      const rangeAlpha = (1 - panoReady) * (1 - ramp(w.storm, 0.28, 0.82));
+      // Fallback means a missing model, not a dim one: at night the range is
+      // dim because the light is, and reviving these ribbons then would
+      // cover it with a second, flat skyline.
+      const rangeAlpha = (1 - backdropShown) * (1 - ramp(w.storm, 0.28, 0.82));
       r.mat.uniforms.uAlpha.value = rangeAlpha;
       r.mesh.visible = rangeAlpha > 0.002;
       r.mesh.position.set(-lateral * r.parallax, -r.radius * (pitch + FOOT), 0);
@@ -3675,6 +3171,32 @@ export function createSky(THREE) {
     relief.mat.uniforms.uKeyLight.value.copy(key.color).multiplyScalar(key.intensity);
     relief.mat.uniforms.uSkyFill.value.copy(hemi.color).multiplyScalar(hemi.intensity);
     relief.mat.uniforms.uGroundFill.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity);
+
+    /* The modelled range: lit by this same rig and hazed by the same air.
+       The air it recedes into is the haze stop drawn a little towards the
+       horizon's, so far ranges go to the sky they stand against; the
+       clarity is the real distance over which that air takes 1/e of a
+       mountain, and cloud and falling snow both shorten it. While it is
+       taking over from the fallback it rises out of the curtain rather
+       than appearing. */
+    const bu = backdrop.uniforms;
+    bu.uKeyLight.value.copy(key.color).multiplyScalar(key.intensity);
+    bu.uSkyFill.value.copy(hemi.color).multiplyScalar(hemi.intensity);
+    bu.uGroundFill.value.copy(hemi.groundColor).multiplyScalar(hemi.intensity);
+    bu.uAlpenglow.value.copy(sunlit).multiplyScalar(0.3);
+    bu.uHaze.value.copy(atmosphere.haze);
+    bu.uAir.value.copy(atmosphere.haze).lerp(atmosphere.horizon, 0.4).lerp(atmosphere.mid, 0.1);
+    bu.uGlow.value.copy(atmosphere.glow);
+    bu.uGlowStrength.value = 1 - w.storm * 0.8;
+    bu.uCurtain.value = -(pitch + 0.015);
+    bu.uClarity.value = 80000 * (1 - 0.85 * ramp(w.storm, 0.05, 0.6))
+      * (1 - 0.35 * ramp(w.cloud, 0.3, 1));
+    bu.uWhiteout.value = Math.max(ramp(w.storm, 0.28, 0.82), 1 - backdropShown);
+    // the valleys fill as the fog closes in
+    bu.uValley.value = 0.94 + 0.06 * (1 - ramp(w.fogFar, 300, 1000));
+    bu.uLateral.value = lateral;
+    backdrop.setSun(w.azimuth);
+    backdrop.group.visible = backdropShown > 0.001;
     if (dt > 0) warmSkyLayers = false;
   }
 
@@ -3740,7 +3262,7 @@ export function createSky(THREE) {
      One number, owned in one place, read by both. */
   return {
     group, lights, sunDir, sun, update, project, renderProbe,
-    probe: probe.texture, platesReady, snapPlates,
+    probe: probe.texture, backdropReady, snapBackdrop,
     get shadowLevel() { return key.shadow.intensity; },
   };
 }

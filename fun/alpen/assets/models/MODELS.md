@@ -165,6 +165,42 @@ over the ground either side, each its own size, turn and lean. Both are
 placed in every streamed band but drawn only for the nearest four rings
 (at least 160 m ahead), dissolving out between 115 m and 150 m.
 
+## backdrop/alps.glb — the mountains round the run (built in Blender)
+
+Written by `tools/blender/backdrop.py`, with its two maps
+(`textures/backdrop/alps-shape.webp`, `alps-cover.webp`); nothing is
+rendered, so it builds anywhere:
+
+    blender --background --factory-startup \
+        --python fun/alpen/tools/blender/backdrop.py -- --out fun/alpen/assets
+
+It replaced the photographed sky panoramas. A real-sized Alpine landscape,
+modelled in numpy — a ridged-multifractal range with glacial valleys cut
+into it, the shoulder the run is on falling into the main valley eight
+kilometres ahead, and four landmarks no noise draws: a leaning horn
+(4350 m, 15 km, 17° left of the fall line), a row of granite needles, a
+glaciated dome (4470 m, 23 km) and a north face off to the right. It is
+sampled on a log-polar grid round the eye (3072 bearings × 480 distances,
+2.4–48 km), every point slid along its line of sight from the eye to a drawn
+radius between 1650 and 2800 m (which the eye cannot see), and decimated by
+Blender's quadric collapse in that drawn space, where a metre of error is
+about a pixel, to about 90 000 vertices — more down the run than behind it.
+The ring is cut into 24 sectors of 15° (nodes `range_00`…`range_23`, with
+`extras.bearing`, and the frame in `distance`, `radius`, `horizons`,
+`horizonMax`), so the frustum keeps about a third of it and no sector spans
+the sky probe's join.
+
+Per vertex there is only the position and `_HORIZON_A`/`_HORIZON_B`: eight
+normalised bytes, the elevation of the land round the vertex on eight
+bearings (down the run, then every 45° towards +x), 0–50°. The game shades
+the range with them (the sun is behind the land when it is under the horizon
+on its bearing) and takes its sky occlusion from them. Everything else is
+in the maps, on the same frame (u the bearing, v the log of the distance):
+the normal's x and z and the cavity (4096 × 1024), and the snow, forest and
+ice cover (2048 × 512). `js/backdrop.js` reads all three and draws the range
+— into the frame and into the sky probe the fog reads; if any of them fails
+to load the procedural ranges in `sky.js` stand instead.
+
 ## Card conifer atlas (fallback)
 
 The needled tree species were card conifers built at runtime by

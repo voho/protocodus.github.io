@@ -41,9 +41,7 @@ height channel ever changes.
 - **`tree/alpine-impostors.webp`**: Not generated — each modelled Alpine tree rendered in Blender by `tools/blender/trees.py` from three bearings, the far forest's crossed cards. See `assets/models/MODELS.md`.
 - **`tree/sapling-impostors.webp`**: Not generated — a render of the Poly Haven CC0 fir and pine sapling models, three views each, used as impostor cards for the young forest. See `assets/models/MODELS.md`.
 
-### 5. Mountains & Sky Panoramas (`assets/textures/sky/`)
-- **`sky/alps-clear.webp`**: Production 360-degree equirectangular game skybox of distant Swiss Alps peaks on a crisp clear morning.
-- **`sky/alps-storm.webp`**: Swiss Alpine snow squall panorama with diffuse steel-blue overcast light.
-- **`sky/alps-sunrise.jpg`**: Alpine sunrise alpenglow mountain panorama.
-- **`sky/alps-aurora-night.jpg`**: Polar aurora borealis curtains over nighttime alpine peaks.
-- **`sky/alps-peaks-sunset.jpg`**: 360-degree panoramic golden-hour sunset Alpenglow across jagged Swiss alpine crests.
+### 5. The mountains round the run (`assets/textures/backdrop/`)
+The photographed sky panoramas that used to be here are gone: the horizon is a model now (`assets/models/backdrop/alps.glb`, see `assets/models/MODELS.md`), and the sky over it is drawn by `js/sky.js`.
+- **`backdrop/alps-shape.webp`**: Not generated — baked by `tools/blender/backdrop.py` from the same landscape the model is cut from. Data, not colour: the ground's normal (x and z) and its cavity, on the model's own frame (u the bearing, v the log of the distance).
+- **`backdrop/alps-cover.webp`**: Not generated — the same, for the snow, forest and glacier cover.

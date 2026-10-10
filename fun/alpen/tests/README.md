@@ -87,7 +87,15 @@ And the trackside flora (`assets/models/nature/alpine-flora.glb`, from
 `tools/blender/flora.py`): every plant `props.js` places is in the file,
 small, footed at the origin and under 500 triangles, every role it is painted
 with has a look, and the loops that place the flora and the ground cover push
-no solids — they are decoration.
+no solids — they are decoration. Each tree's far-forest impostor is three
+cards in its own column of `alpine-impostors.webp`, framed round the whole
+tree at the cell's aspect.
+And the modelled range (`assets/models/backdrop/alps.glb`, from
+`tools/blender/backdrop.py`): the frame in the file is the one `backdrop.js`
+reads it in, every sector lies in the drawn ring and keeps to its own 15°
+(so none spans the sky probe's join), the whole is under 120 000 vertices,
+the skyline is believable all round with the horn standing 6–12° over the
+run, and the two maps are WebPs of the sizes the shader assumes.
 The model check also covers the race-gate panel (only its fabric may
 flutter) and the sapling impostor cards (24 triangles, atlas rectangles that
 keep each tree's drawn aspect), and that a set file bakes only the named node.
@@ -116,9 +124,12 @@ shared texture cache hands every caller one texture per file, the forest's
 gust field is sampled at the wavelengths its drift wraps at, and the other
 riders respawn beyond the clear-day fog and get up from a tumble without a
 cut (both of those fail against the previous `mountainLife.js`).
-The graphics check also places each sky plate: 2:1 panoramas wrap the ring,
-16:9 hour plates are laid out as mirrored landscapes at their own aspect, and
-a revealed photograph retires the relief shell.
+The graphics check also loads the modelled range (`assets/models/backdrop`)
+through the sky: it arrives as its 24 sectors, drawn after the ground and
+before the haze cone, retires the relief shell and the far ribbons at every
+hour (and without it they stand), hides a low sun behind the horn and shows
+one above it, goes into a whiteout with everything else, and is never moved
+however far the run goes.
 Input regressions include releasing a spin before touchdown, controller menu
 edges, and discarding stale jump gestures across pause and focus loss. The
 triggers pass their analogue travel through (`brakeAmount`/`tuckAmount`) and
@@ -128,16 +139,13 @@ bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
 It exercises all six snowfall bands across nine times of day, cloud extinction,
-night-storm visibility, panorama skyline occlusion and photograph fallbacks.
+night-storm visibility, the modelled skyline's occlusion and its fallback.
 It also pins the sun's depth-map box half a box ahead of the rider along the
 camera heading (and dropped onto the slope it covers), and the glint grid's
 camera origin wrapped into its 64 m period on the CPU, so no shader forms a
-26 km coordinate. Nothing in the distance may change abruptly. A backdrop
-photograph hands over to the next over an eased 14 s crossfade. That fade is
-still gentle after its first second and still running at seven, and a new wish
-cannot restart it from a half-shown plate. Streamed props (trees, saplings,
+26 km coordinate. Nothing in the distance may change abruptly. Streamed props (trees, saplings,
 rocks, deadwood, gates) dissolve into the haze before the forest window's far
-edge. That edge is now 13 bands (520 m) out and moves with the rider
+edge. That edge is now 24 bands (960 m) out and moves with the rider
 continuously. Only props carry the fade term, and it reads the view direction
 after it is declared. The model check also covers wildlife arrival: a hare
 placed this frame has not arrived yet, and is fully drawn 1.2 s later. Both
@@ -237,10 +245,8 @@ The weather pass was visually checked across clear, flurries, light snow,
 snowing, heavy snow and blizzard conditions, all nine daylight phases, mist,
 cloud cover and aurora. Light snowfall retains longer views, storm lighting
 becomes more diffuse, and night storms retain enough ambient light to read
-the near piste. Sun, glow and rays respect the photographed skyline, including
-plate crossfades; dim night photographs no longer revive the fallback ribbons.
-These changes add no GPU passes, geometry or textures. The skyline lookup is
-cached once per decoded photograph, using about 5 KB of CPU memory in total.
+the near piste. Sun, glow and rays respect the modelled skyline, and a dim
+night no longer revives the fallback ribbons.
 
 The intermittent rectangle was captured during live riding: a single NaN
 terrain pixel spread through the bloom filters into a roughly 144-pixel square.

@@ -2,16 +2,21 @@
 
    `tools/blender/riders.py` and `tools/blender/trees.py` export plain glTF:
    float and integer accessors, no interleaving, no compression, no textures,
-   every node at its own origin. Reading exactly that takes fifty lines, so
-   it is done here rather than through the vendored GLTFLoader, which needs a
-   bare `three` import node cannot resolve — and so the checks in `tests/`
-   read the same files through the same code the game does. */
+   every node at its own origin (`backdrop.py` writes its file itself, to
+   the same rules, with its attributes as normalised bytes). Reading exactly
+   that takes fifty lines, so it is done here rather than through the
+   vendored GLTFLoader, which needs a bare `three` import node cannot resolve
+   — and so the checks in `tests/` read the same files through the same code
+   the game does. */
 
 const GLB_MAGIC = 0x46546c67;
 const CHUNK_JSON = 0x4e4f534a;
 const CHUNK_BIN = 0x004e4942;
 const COMPONENTS = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
-const TYPED = { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
+const TYPED = {
+  5120: Int8Array, 5121: Uint8Array, 5122: Int16Array, 5123: Uint16Array,
+  5125: Uint32Array, 5126: Float32Array,
+};
 
 /* name → { prims: [{ role, attributes, index }], extras } for every node
    that carries a mesh. `role` is the primitive's material name; `attributes`

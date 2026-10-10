@@ -934,4 +934,69 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     src.indexOf('Occasional natural glacial erratics'));
   assert.ok(loop.length > 500 && !loop.includes('solids.push'), 'the trackside flora is not a solid');
 }
+/* The modelled range (`tools/blender/backdrop.py` → alps.glb and its two
+   maps): the frame the file was built in is the frame backdrop.js reads it
+   in; every sector sits in the ring it is drawn in and keeps to its own
+   fifteen degrees, so none spans the sky probe's join at -x; it fits its
+   budget; and the skyline it gives the sun has the horn where it was put. */
+{
+  const { parseGlb } = await import(new URL('js/glb.js', base).href);
+  const bd = await import(new URL('js/backdrop.js', base).href);
+  const b = await readFile(new URL('assets/models/backdrop/alps.glb', base));
+  const nodes = parseGlb(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength));
+  const names = Object.keys(nodes).filter((n) => n.startsWith('range_'));
+  assert.equal(names.length, 24, 'twenty-four sectors');
+  let verts = 0;
+  let tris = 0;
+  for (const name of names) {
+    const node = nodes[name];
+    const ex = node.extras;
+    assert.deepEqual(ex.distance, bd.BACKDROP.distance, name + ': the distances agree');
+    assert.deepEqual(ex.radius, bd.BACKDROP.radius, name + ': the radii agree');
+    assert.equal(ex.horizons, bd.BACKDROP.horizons, name + ': the horizon count agrees');
+    assert.equal(ex.horizonMax, bd.BACKDROP.horizonMax, name + ': the horizon scale agrees');
+    const g = bd.backdropGeometry(THREE, node.prims[0]);
+    tris += valid('backdrop.' + name, g);
+    const p = g.attributes.position;
+    verts += p.count;
+    const [from, to] = ex.bearing;
+    for (let i = 0; i < p.count; i++) {
+      const r = Math.hypot(p.getX(i), p.getZ(i));
+      assert.ok(r > bd.BACKDROP.radius[0] - 10 && r < bd.BACKDROP.radius[1] + 10, name + ': inside the ring');
+      let deg = Math.atan2(p.getX(i), -p.getZ(i)) * 180 / Math.PI;
+      if (deg < from - 180) deg += 360;
+      if (deg > to + 180) deg -= 360;
+      assert.ok(deg > from - 4 && deg < to + 4, name + ': keeps to its own bearings');
+    }
+    for (const a of ['aHorizonA', 'aHorizonB']) {
+      assert.ok(g.attributes[a].normalized && g.attributes[a].itemSize === 4, name + ': ' + a);
+    }
+    assert.ok(g.index.array instanceof Uint16Array, name + ': sixteen-bit indices');
+  }
+  assert.ok(verts < 120000 && tris < 220000, `backdrop budget: ${verts} vertices, ${tris} triangles`);
+  const skyline = bd.backdropSkyline(nodes);
+  const deg = (d) => bd.skylineAt(skyline, d * Math.PI / 180) * 180 / Math.PI;
+  assert.ok(deg(-17) > 6 && deg(-17) < 12, `the horn stands over the run: ${deg(-17).toFixed(1)}°`);
+  for (let d = 0; d < 360; d += 5) {
+    assert.ok(deg(d) > -2 && deg(d) < 20, `a believable skyline at ${d}°: ${deg(d).toFixed(1)}°`);
+  }
+  // The maps: WebP, at the sizes the shader's frame assumes (u round the
+  // ring, v out along it).
+  const webpSize = (buf) => {
+    assert.equal(buf.toString('ascii', 0, 4), 'RIFF');
+    assert.equal(buf.toString('ascii', 8, 12), 'WEBP');
+    const kind = buf.toString('ascii', 12, 16);
+    if (kind === 'VP8 ') return [buf.readUInt16LE(26) & 0x3fff, buf.readUInt16LE(28) & 0x3fff];
+    if (kind === 'VP8X') return [1 + buf.readUIntLE(24, 3), 1 + buf.readUIntLE(27, 3)];
+    if (kind === 'VP8L') {
+      const bits = buf.readUInt32LE(21);
+      return [1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff)];
+    }
+    throw new Error('unknown WebP ' + kind);
+  };
+  assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-shape.webp', base))),
+    [4096, 1024], 'the shape map');
+  assert.deepEqual(webpSize(await readFile(new URL('assets/textures/backdrop/alps-cover.webp', base))),
+    [2048, 512], 'the cover map');
+}
 console.log('All model geometry checks passed.');
