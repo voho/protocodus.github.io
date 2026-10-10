@@ -41,7 +41,9 @@ export function compose(THREE, parts, opts = {}) {
     prepared.push({
       g,
       n,
-      color: new THREE.Color(part.color),
+      // A part with no colour of its own keeps the one its geometry carries
+      // (a `sculpt` skin, blended across its joins)
+      color: part.color === undefined ? null : new THREE.Color(part.color),
       sheen: part.sheen === undefined ? 1 : part.sheen,
     });
     total += n;
@@ -58,10 +60,13 @@ export function compose(THREE, parts, opts = {}) {
     position.set(g.attributes.position.array, o * 3);
     normal.set(g.attributes.normal.array, o * 3);
     if (uv && g.attributes.uv) uv.set(g.attributes.uv.array, o * 2);
+    if (!c) color.set(g.attributes.color.array, o * 3);
     for (let i = 0; i < n; i++) {
-      color[(o + i) * 3] = c.r;
-      color[(o + i) * 3 + 1] = c.g;
-      color[(o + i) * 3 + 2] = c.b;
+      if (c) {
+        color[(o + i) * 3] = c.r;
+        color[(o + i) * 3 + 1] = c.g;
+        color[(o + i) * 3 + 2] = c.b;
+      }
       if (sheen) sheen[o + i] = s;
     }
     o += n;
@@ -74,6 +79,275 @@ export function compose(THREE, parts, opts = {}) {
   out.setAttribute('color', new THREE.BufferAttribute(color, 3));
   if (uv) out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   if (sheen) out.setAttribute('aSheen', new THREE.BufferAttribute(sheen, 1));
+  out.computeBoundingSphere();
+  return out;
+}
+
+/* A creature as one skin rather than as parts stuck together.
+
+   `compose` gives one draw call but leaves every primitive its own closed
+   shell, and close up that is exactly what shows: a crease wherever two
+   meet, a haunch that is a disc laid on a flank, a neck of stacked beads.
+   This reads a part list of ellipsoids (`radii`, optional `rot`) and
+   tapered capsules (`pos` to `to`, radii `r`) as one distance field instead,
+   joined by a smooth minimum over `k` metres, so a haunch swells out of the
+   body the way a muscle does, and draws the surface that comes out with
+   surface nets. Normals are the field's own gradient, so the shading is as
+   round as the shape on however coarse a grid, and each vertex takes the
+   colours of the parts it is near, blended across the same joins.
+
+   Anything thinner than about two cells (an ear, an eye) does not survive
+   the grid and belongs in `compose` beside this. Built once per page.
+   Indexed, with the same attributes as `compose`, whose part it can be. */
+export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
+  const shapes = parts.map((p) => {
+    const blend = p.k ?? k;
+    if (p.to) {
+      const [ax, ay, az] = p.pos;
+      const dx = p.to[0] - ax;
+      const dy = p.to[1] - ay;
+      const dz = p.to[2] - az;
+      const len2 = dx * dx + dy * dy + dz * dz || 1e-9;
+      const [r0, r1] = p.r;
+      return {
+        p, blend, reach: Math.max(r0, r1),
+        cx: ax + dx * 0.5, cy: ay + dy * 0.5, cz: az + dz * 0.5,
+        bound: Math.sqrt(len2) * 0.5 + Math.max(r0, r1),
+        lo: [Math.min(ax, p.to[0]), Math.min(ay, p.to[1]), Math.min(az, p.to[2])],
+        hi: [Math.max(ax, p.to[0]), Math.max(ay, p.to[1]), Math.max(az, p.to[2])],
+        dist(x, y, z) {
+          const ux = x - ax;
+          const uy = y - ay;
+          const uz = z - az;
+          const t = Math.min(1, Math.max(0, (ux * dx + uy * dy + uz * dz) / len2));
+          const qx = ux - dx * t;
+          const qy = uy - dy * t;
+          const qz = uz - dz * t;
+          return Math.sqrt(qx * qx + qy * qy + qz * qz) - (r0 + (r1 - r0) * t);
+        },
+      };
+    }
+    const [cx, cy, cz] = p.pos;
+    const [a, b, c] = p.radii;
+    const e = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...(p.rot || [0, 0, 0])))
+      .invert().elements;
+    const reach = Math.max(a, b, c);
+    return {
+      p, blend, reach, cx, cy, cz, bound: reach,
+      lo: [cx, cy, cz], hi: [cx, cy, cz],
+      // The usual bound for an ellipsoid: exact on the surface, which is
+      // the only place a smooth minimum and a mesher look closely
+      dist(x, y, z) {
+        const ux = x - cx;
+        const uy = y - cy;
+        const uz = z - cz;
+        const lx = (e[0] * ux + e[4] * uy + e[8] * uz) / a;
+        const ly = (e[1] * ux + e[5] * uy + e[9] * uz) / b;
+        const lz = (e[2] * ux + e[6] * uy + e[10] * uz) / c;
+        const k0 = Math.sqrt(lx * lx + ly * ly + lz * lz);
+        const mx = lx / a;
+        const my = ly / b;
+        const mz = lz / c;
+        const k1 = Math.sqrt(mx * mx + my * my + mz * mz);
+        return k1 > 1e-12 ? (k0 * (k0 - 1)) / k1 : -Math.min(a, b, c);
+      },
+    };
+  });
+
+  const field = (x, y, z) => {
+    let d = shapes[0].dist(x, y, z);
+    for (let i = 1; i < shapes.length; i++) {
+      const s = shapes[i];
+      const w = s.blend;
+      // A part whose bounding sphere is a blend clear of the running
+      // minimum cannot move it: skipping it is exact, and it is most of them
+      const ox = x - s.cx;
+      const oy = y - s.cy;
+      const oz = z - s.cz;
+      if (Math.sqrt(ox * ox + oy * oy + oz * oz) - s.bound >= d + w) continue;
+      const e = s.dist(x, y, z);
+      const h = Math.max(w - Math.abs(d - e), 0) / w;
+      d = Math.min(d, e) - h * h * w * 0.25;
+    }
+    return d;
+  };
+
+  // The grid: every part's reach, and room for the blends and a border
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const s of shapes) {
+    for (let a = 0; a < 3; a++) {
+      lo[a] = Math.min(lo[a], s.lo[a] - s.reach - s.blend);
+      hi[a] = Math.max(hi[a], s.hi[a] + s.reach + s.blend);
+    }
+  }
+  const n = lo.map((l, a) => Math.ceil((hi[a] - l) / cell) + 3);
+  for (let a = 0; a < 3; a++) lo[a] -= cell;
+  const [nx, ny, nz] = n;
+  const values = new Float32Array(nx * ny * nz);
+  for (let kk = 0, i = 0; kk < nz; kk++) {
+    for (let j = 0; j < ny; j++) {
+      for (let ii = 0; ii < nx; ii++, i++) {
+        values[i] = field(lo[0] + ii * cell, lo[1] + j * cell, lo[2] + kk * cell);
+      }
+    }
+  }
+  const at = (i, j, kk) => values[i + nx * (j + ny * kk)];
+
+  // One vertex per cell the surface crosses, at the mean of its crossings
+  const cellIndex = new Int32Array((nx - 1) * (ny - 1) * (nz - 1)).fill(-1);
+  const pos = [];
+  const corner = new Float32Array(8);
+  for (let kk = 0; kk < nz - 1; kk++) {
+    for (let j = 0; j < ny - 1; j++) {
+      for (let i = 0; i < nx - 1; i++) {
+        let inside = 0;
+        for (let c = 0; c < 8; c++) {
+          corner[c] = at(i + (c & 1), j + ((c >> 1) & 1), kk + (c >> 2));
+          if (corner[c] < 0) inside++;
+        }
+        if (inside === 0 || inside === 8) continue;
+        let sx = 0;
+        let sy = 0;
+        let sz = 0;
+        let m = 0;
+        for (let c = 0; c < 8; c++) {
+          for (let bit = 1; bit < 8; bit <<= 1) {
+            if (c & bit) continue;
+            const v0 = corner[c];
+            const v1 = corner[c | bit];
+            if ((v0 < 0) === (v1 < 0)) continue;
+            const t = v0 / (v0 - v1);
+            sx += (c & 1) + (bit === 1 ? t : 0);
+            sy += ((c >> 1) & 1) + (bit === 2 ? t : 0);
+            sz += (c >> 2) + (bit === 4 ? t : 0);
+            m++;
+          }
+        }
+        cellIndex[i + (nx - 1) * (j + (ny - 1) * kk)] = pos.length / 3;
+        pos.push(lo[0] + (i + sx / m) * cell, lo[1] + (j + sy / m) * cell, lo[2] + (kk + sz / m) * cell);
+      }
+    }
+  }
+
+  // …then onto the surface itself, along the field's gradient
+  const g = [0, 0, 0];
+  const grad = (x, y, z) => {
+    const h = cell * 0.25;
+    g[0] = field(x + h, y, z) - field(x - h, y, z);
+    g[1] = field(x, y + h, z) - field(x, y - h, z);
+    g[2] = field(x, y, z + h) - field(x, y, z - h);
+    const len = Math.hypot(g[0], g[1], g[2]) || 1;
+    g[0] /= len; g[1] /= len; g[2] /= len;
+    return g;
+  };
+  for (let v = 0; v < pos.length; v += 3) {
+    for (let it = 0; it < 2; it++) {
+      const d = field(pos[v], pos[v + 1], pos[v + 2]);
+      const step = Math.max(-cell * 0.5, Math.min(cell * 0.5, d));
+      grad(pos[v], pos[v + 1], pos[v + 2]);
+      pos[v] -= g[0] * step;
+      pos[v + 1] -= g[1] * step;
+      pos[v + 2] -= g[2] * step;
+    }
+  }
+
+  // A quad for every grid edge the surface crosses, wound to face outwards
+  const index = [];
+  const quad = (a, b, c, d, outX, outY, outZ) => {
+    if (a < 0 || b < 0 || c < 0 || d < 0) return;
+    const ux = pos[b * 3] - pos[a * 3];
+    const uy = pos[b * 3 + 1] - pos[a * 3 + 1];
+    const uz = pos[b * 3 + 2] - pos[a * 3 + 2];
+    const wx = pos[c * 3] - pos[a * 3];
+    const wy = pos[c * 3 + 1] - pos[a * 3 + 1];
+    const wz = pos[c * 3 + 2] - pos[a * 3 + 2];
+    const facing = (uy * wz - uz * wy) * outX + (uz * wx - ux * wz) * outY + (ux * wy - uy * wx) * outZ;
+    if (facing >= 0) index.push(a, b, c, a, c, d);
+    else index.push(a, c, b, a, d, c);
+  };
+  const ci = (i, j, kk) => cellIndex[i + (nx - 1) * (j + (ny - 1) * kk)];
+  for (let kk = 1; kk < nz - 1; kk++) {
+    for (let j = 1; j < ny - 1; j++) {
+      for (let i = 1; i < nx - 1; i++) {
+        const v = at(i, j, kk);
+        // Outward is towards the end of the edge that is outside
+        if ((v < 0) !== (at(i + 1, j, kk) < 0)) {
+          quad(ci(i, j - 1, kk - 1), ci(i, j, kk - 1), ci(i, j, kk), ci(i, j - 1, kk), v < 0 ? 1 : -1, 0, 0);
+        }
+        if ((v < 0) !== (at(i, j + 1, kk) < 0)) {
+          quad(ci(i - 1, j, kk - 1), ci(i, j, kk - 1), ci(i, j, kk), ci(i - 1, j, kk), 0, v < 0 ? 1 : -1, 0);
+        }
+        if ((v < 0) !== (at(i, j, kk + 1) < 0)) {
+          quad(ci(i - 1, j - 1, kk), ci(i, j - 1, kk), ci(i, j, kk), ci(i - 1, j, kk), 0, 0, v < 0 ? 1 : -1);
+        }
+      }
+    }
+  }
+
+  const count = pos.length / 3;
+  const normal = new Float32Array(count * 3);
+  const color = new Float32Array(count * 3);
+  const tint = shapes.map((s) => new THREE.Color(s.p.color));
+  const d = new Float32Array(shapes.length);
+  for (let v = 0; v < count; v++) {
+    const x = pos[v * 3];
+    const y = pos[v * 3 + 1];
+    const z = pos[v * 3 + 2];
+    grad(x, y, z);
+    normal.set(g, v * 3);
+    // Every part within its own blend of the nearest one has a say
+    let near = Infinity;
+    for (let s = 0; s < shapes.length; s++) {
+      d[s] = shapes[s].dist(x, y, z);
+      if (d[s] < near) near = d[s];
+    }
+    let r = 0;
+    let gg = 0;
+    let b = 0;
+    let sum = 0;
+    for (let s = 0; s < shapes.length; s++) {
+      const t = 1 - (d[s] - near) / shapes[s].blend;
+      if (t <= 0) continue;
+      const w = t * t;
+      r += tint[s].r * w;
+      gg += tint[s].g * w;
+      b += tint[s].b * w;
+      sum += w;
+    }
+    color[v * 3] = r / sum;
+    color[v * 3 + 1] = gg / sum;
+    color[v * 3 + 2] = b / sum;
+  }
+
+  /* The quad test above judges each quad by one of its two triangles, and
+     where a crease twists a quad the other one can fold under: culled, it
+     is a pinhole into the animal. Every triangle faces the way the field's
+     own normals at its corners say. */
+  for (let t = 0; t < index.length; t += 3) {
+    const a = index[t];
+    const b = index[t + 1];
+    const c = index[t + 2];
+    const ux = pos[b * 3] - pos[a * 3];
+    const uy = pos[b * 3 + 1] - pos[a * 3 + 1];
+    const uz = pos[b * 3 + 2] - pos[a * 3 + 2];
+    const wx = pos[c * 3] - pos[a * 3];
+    const wy = pos[c * 3 + 1] - pos[a * 3 + 1];
+    const wz = pos[c * 3 + 2] - pos[a * 3 + 2];
+    const facing = (uy * wz - uz * wy) * (normal[a * 3] + normal[b * 3] + normal[c * 3])
+      + (uz * wx - ux * wz) * (normal[a * 3 + 1] + normal[b * 3 + 1] + normal[c * 3 + 1])
+      + (ux * wy - uy * wx) * (normal[a * 3 + 2] + normal[b * 3 + 2] + normal[c * 3 + 2]);
+    if (facing < 0) {
+      index[t + 1] = c;
+      index[t + 2] = b;
+    }
+  }
+
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  out.setAttribute('color', new THREE.BufferAttribute(color, 3));
+  out.setIndex(index);
   out.computeBoundingSphere();
   return out;
 }

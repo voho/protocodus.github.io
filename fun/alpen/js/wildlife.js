@@ -37,7 +37,7 @@
    the budget that justified four identical cylinders for legs no longer
    exists. */
 
-import { compose } from './geom.js';
+import { compose, sculpt } from './geom.js';
 import { WILDLIFE } from './config.js';
 import { heightAt, centersAt, nearestCenter, corridorHalfAt } from './terrain.js';
 
@@ -118,58 +118,70 @@ function branchAt(z, riderX, away) {
 
 /* A mountain hare, facing -Z, feet at y = 0.
 
-   The old one was seven parts and read as a lump with ears: one body ball,
-   one head ball, and nothing to say which end was which until it moved. A
-   hare's silhouette is almost entirely about weight distribution — the rump
-   is the tallest thing on it, the back falls away forwards to a much
+   A hare's silhouette is almost entirely about weight distribution — the
+   rump is the tallest thing on it, the back falls away forwards to a much
    narrower chest, and the head is carried up and forward on a visible neck.
-   Building it as a chain of five tapering masses down that line costs a few
-   hundred triangles and is the whole difference between a rabbit and a
-   potato. The long flat hind feet and the shaded haunches do the rest: they
-   are what makes a crouched hare look coiled rather than seated. */
+   That line used to be a chain of separate balls, and close up it read as a
+   balloon animal: a crease at every join, a neck of stacked beads, a flat
+   shaded disc stuck on each flank for a haunch. It is one skin now (see
+   `sculpt`): the folded hind legs swell out of the rump the way muscle
+   does, the long flat hind feet run forward under them, which is what makes
+   a crouched hare look coiled rather than seated, and the fur goes a shade
+   bluer where it turns under. Ears and eyes are thinner than the grid and
+   are laid on top. Proportioned from the animal rather than for distance:
+   the winter mountain hare's ears are short, about the length of its head. */
 function rabbitGeometry(THREE) {
-  // Smooth normals keep the silhouette round at this animal's screen size;
-  // spending thousands of triangles on eyes and paws cannot improve it.
-  const ball = new THREE.SphereGeometry(0.5, 16, 10);
-  const bead = new THREE.SphereGeometry(0.5, 10, 8);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-
   const fur = '#eef3fb';
-  const shade = '#c9d6e6';
+  const under = '#d3dcea';
   const dark = '#1b1f27';
-  const snow = '#ffffff';
+  const bead = new THREE.SphereGeometry(0.5, 10, 6);
 
-  // Both ears share an axis; the tip rides further along the same one so the
-  // black tips stay glued to the ear whatever the sweep is set to
-  const ear = (side) => ([
-    { geo: bead, color: fur, pos: [side * 0.082, 0.514, -0.268], rot: [0.26, 0, -side * 0.16], scale: [0.074, 0.29, 0.046] },
-    { geo: bead, color: shade, pos: [side * 0.082, 0.528, -0.291], rot: [0.26, 0, -side * 0.16], scale: [0.036, 0.19, 0.012] },
-    { geo: bead, color: dark, pos: [side * 0.101, 0.633, -0.237], rot: [0.26, 0, -side * 0.16], scale: [0.050, 0.065, 0.039] },
-  ]);
+  const skin = sculpt(THREE, [
+    // rump, the highest point, then the back falling away to the chest
+    { pos: [0, 0.18, 0.11], radii: [0.13, 0.15, 0.155], color: fur },
+    { pos: [0, 0.15, -0.04], radii: [0.11, 0.115, 0.14], color: fur },
+    { pos: [0, 0.13, -0.14], radii: [0.085, 0.1, 0.085], color: fur },
+    { pos: [0, 0.075, 0], radii: [0.085, 0.055, 0.15], color: under },
+    // the folded hind legs, swelling out of either flank low and behind
+    { pos: [-0.095, 0.11, 0.1], radii: [0.065, 0.115, 0.145], rot: [0.4, 0, 0], color: fur, k: 0.05 },
+    { pos: [0.095, 0.11, 0.1], radii: [0.065, 0.115, 0.145], rot: [0.4, 0, 0], color: fur, k: 0.05 },
+    { pos: [-0.078, 0.022, 0.03], radii: [0.032, 0.022, 0.115], color: under, k: 0.03 },
+    { pos: [0.078, 0.022, 0.03], radii: [0.032, 0.022, 0.115], color: under, k: 0.03 },
+    // neck, head and muzzle
+    { pos: [0, 0.16, -0.16], to: [0, 0.25, -0.225], r: [0.062, 0.053], color: fur },
+    { pos: [0, 0.28, -0.26], radii: [0.06, 0.065, 0.085], rot: [0.25, 0, 0], color: fur },
+    { pos: [0, 0.257, -0.325], radii: [0.035, 0.037, 0.045], rot: [0.3, 0, 0], color: fur, k: 0.03 },
+    // short forelegs and the paws flat in front
+    { pos: [-0.045, 0.11, -0.16], to: [-0.042, 0.025, -0.195], r: [0.026, 0.02], color: fur, k: 0.03 },
+    { pos: [0.045, 0.11, -0.16], to: [0.042, 0.025, -0.195], r: [0.026, 0.02], color: fur, k: 0.03 },
+    { pos: [-0.042, 0.016, -0.215], radii: [0.024, 0.016, 0.038], color: under, k: 0.02 },
+    { pos: [0.042, 0.016, -0.215], radii: [0.024, 0.016, 0.038], color: under, k: 0.02 },
+    // the scut, white all year
+    { pos: [0, 0.2, 0.27], radii: [0.035, 0.035, 0.028], color: '#ffffff', k: 0.025 },
+  ], { cell: 0.025, k: 0.045 });
 
-  const side = (s) => ([
-    // haunch, shaded so the rear leg reads as a separate mass against the flank
-    { geo: ball, color: shade, pos: [s * 0.135, 0.165, 0.115], scale: [0.145, 0.25, 0.30] },
-    // the long hind foot, laid flat under the body — the giveaway that this is a hare
-    { geo: bead, color: fur, pos: [s * 0.115, 0.042, 0.055], rot: [0.05, s * 0.10, 0], scale: [0.095, 0.085, 0.33] },
-    { geo: box, color: fur, pos: [s * 0.085, 0.085, -0.245], rot: [0.16, 0, 0], scale: [0.055, 0.175, 0.07] },
-    { geo: box, color: shade, pos: [s * 0.085, 0.022, -0.268], scale: [0.06, 0.045, 0.105] },
-    { geo: bead, color: dark, pos: [s * 0.076, 0.352, -0.388], scale: [0.046, 0.05, 0.038] },
-    ...ear(s),
-  ]);
+  /* The ear is coloured along its own length, so the black is the end of
+     the ear rather than a bead stuck on it, which read as an antenna. */
+  const earGeo = new THREE.SphereGeometry(0.5, 10, 8);
+  const tip = new THREE.Color(dark);
+  const base = new THREE.Color(fur);
+  const earPos = earGeo.attributes.position;
+  const earColor = new Float32Array(earPos.count * 3);
+  for (let i = 0; i < earPos.count; i++) {
+    const t = Math.min(1, Math.max(0, (earPos.getY(i) - 0.22) / 0.08));
+    earColor[i * 3] = base.r + (tip.r - base.r) * t;
+    earColor[i * 3 + 1] = base.g + (tip.g - base.g) * t;
+    earColor[i * 3 + 2] = base.b + (tip.b - base.b) * t;
+  }
+  earGeo.setAttribute('color', new THREE.BufferAttribute(earColor, 3));
 
+  // Laid back along the neck and splayed a little
   return compose(THREE, [
-    // the line of the back: rump highest, falling away forwards to the chest
-    { geo: ball, color: fur, pos: [0, 0.200, 0.150], scale: [0.33, 0.31, 0.36] },
-    { geo: ball, color: fur, pos: [0, 0.175, -0.055], scale: [0.285, 0.265, 0.33] },
-    { geo: ball, color: fur, pos: [0, 0.175, -0.215], scale: [0.245, 0.235, 0.245] },
-    { geo: ball, color: fur, pos: [0, 0.245, -0.285], scale: [0.175, 0.185, 0.185] },
-    { geo: ball, color: fur, pos: [0, 0.325, -0.350], scale: [0.185, 0.19, 0.235] },
-    { geo: ball, color: fur, pos: [0, 0.290, -0.440], scale: [0.115, 0.105, 0.135] },
-    { geo: bead, color: dark, pos: [0, 0.283, -0.500], scale: [0.038, 0.03, 0.032] },
-    { geo: ball, color: snow, pos: [0, 0.235, 0.300], scale: [0.125, 0.12, 0.095] },
-    ...side(-1),
-    ...side(1),
+    { geo: skin },
+    { geo: earGeo, pos: [-0.03, 0.37, -0.23], rot: [0.55, 0, 0.22], scale: [0.042, 0.15, 0.022] },
+    { geo: earGeo, pos: [0.03, 0.37, -0.23], rot: [0.55, 0, -0.22], scale: [0.042, 0.15, 0.022] },
+    { geo: bead, color: dark, pos: [-0.048, 0.293, -0.29], scale: [0.022, 0.024, 0.02] },
+    { geo: bead, color: dark, pos: [0.048, 0.293, -0.29], scale: [0.022, 0.024, 0.02] },
   ]);
 }
 
@@ -416,7 +428,10 @@ export function createWildlife(THREE, shading) {
         varying vec3 vAnimalWorldPos;
         uniform sampler2D uFurTex;`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-        vec3 furDetail = texture2D(uFurTex, vAnimalWorldPos.xy * 4.5 + vAnimalWorldPos.yz * 4.5).rgb;
+        // Only the grain of the weave: its colour tinted a white hare with
+        // pink and blue speckles
+        float furDetail = dot(texture2D(uFurTex,
+          vAnimalWorldPos.xy * 4.5 + vAnimalWorldPos.yz * 4.5).rgb, vec3(0.299, 0.587, 0.114));
         diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * furDetail * 1.5, 0.45);`);
     };
     return shading.apply(m);
