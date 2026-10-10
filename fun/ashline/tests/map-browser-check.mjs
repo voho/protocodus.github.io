@@ -70,8 +70,9 @@ try {
     await page.evaluate(zoom => { ashline.view.zoom = zoom; }, zoom);
 
     const far = await page.evaluate(async () => {
-      const {updateGame} = await import('./sim.js'), {state: s, renderer: r, view: v} = ashline;
-      const mover = s.entities.find(e => e.team === 0 && e.type === 'scout');
+      const {updateGame, entityRole} = await import('./sim.js'), {state: s, renderer: r, view: v} = ashline;
+      // Races default to Organics against AI Unity, so units are found by gameplay role rather than race type.
+      const mover = s.entities.find(e => e.team === 0 && entityRole(e) === 'scout');
       let point;
       for (let y = 62; y < s.height - 12 && !point; y++) for (let x = 80; x < s.width - 28; x++) {
         if (Array.from({length: 25}, (_, dx) => x + dx).every(xx => !s.blocked[y * s.width + xx] && !s.explored[0][y * s.width + xx])) { point = {x: x + .5, y: y + .5}; break; }
@@ -81,7 +82,7 @@ try {
       const target = {x: point.x + 12, y: point.y}, farTile = Math.floor(point.y) * s.width + Math.floor(point.x + 23);
       s.fogClock = 0; updateGame(s, .05);
       Object.assign(v, {x: point.x + 6, y: point.y}); v.selected.clear(); r.draw(s, v);
-      const enemy = s.entities.find(e => e.team === 1 && e.type === 'rifle'); Object.assign(enemy, {x: point.x + 23, y: point.y, order: {type: 'idle'}, path: []});
+      const enemy = s.entities.find(e => e.team === 1 && entityRole(e) === 'rifle'); Object.assign(enemy, {x: point.x + 23, y: point.y, order: {type: 'idle'}, path: []});
       const map = () => { r.drawMinimap(s, v, e => Boolean(s.visible[0][Math.floor(e.y) * s.width + Math.floor(e.x)])); return r.minimap.getContext('2d').getImageData(0, 0, r.minimap.width, r.minimap.height).data; };
       const compareEnemy = () => { const all = s.entities, before = map(); s.entities = all.filter(e => e !== enemy); const without = map(); s.entities = all; return before.reduce((n, byte, i) => n + (byte !== without[i] ? 1 : 0), 0); };
       window.mapFixture.compareEnemy = compareEnemy;

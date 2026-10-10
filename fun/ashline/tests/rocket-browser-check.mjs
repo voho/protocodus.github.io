@@ -16,7 +16,9 @@ try {
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(process.env.ASHLINE_URL || 'http://127.0.0.1:8000/fun/ashline/');
   await page.waitForFunction(() => window.ashline?.booted); await page.evaluate(async () => (await import('./assets.js')).startAssets());
-  assert.equal(await page.evaluate(() => ashline.assets.loaded), 7);
+  // The loader declares its own atlas count (shared atlases plus one prepared sheet per unit type); every one must load.
+  const assets = await page.evaluate(() => ({loaded: ashline.assets.loaded, total: ashline.assets.total, ready: ashline.assets.ready, errors: [...ashline.assets.errors]}));
+  assert.deepEqual(assets.errors, []); assert(assets.total > 0 && assets.ready); assert.equal(assets.loaded, assets.total, 'Every declared atlas loads');
   const graphics = await page.evaluate(async () => {
     const {drawSprite, drawSpriteShadow, spriteStats} = await import('./assets.js');
     const {BUILDINGS, UNITS, createGame} = await import('./sim.js');
@@ -44,15 +46,22 @@ try {
         const body = sample(unit), shadow = sample(unit, true); frames.push(body);
         shadowOffsets.push({x: shadow.x - body.x, y: shadow.y - body.y});
       }
-      rows.push({team, moving, minArea: Math.min(...frames.map(frame => frame.mass)), areaRatio: Math.max(...frames.map(frame => frame.mass)) / Math.min(...frames.map(frame => frame.mass)), edge: frames.reduce((n, frame) => n + frame.edge, 0), matte: frames.reduce((n, frame) => n + frame.matte, 0), shadowsDownRight: shadowOffsets.every(offset => offset.x > 1 && offset.y > 1)});
+      rows.push({team, moving, views: new Set(frames.map(frame => frame.mass)).size, minArea: Math.min(...frames.map(frame => frame.mass)), areaRatio: Math.max(...frames.map(frame => frame.mass)) / Math.min(...frames.map(frame => frame.mass)), edge: frames.reduce((n, frame) => n + frame.edge, 0), matte: frames.reduce((n, frame) => n + frame.matte, 0), shadowsDownRight: shadowOffsets.every(offset => offset.x > 1 && offset.y > 1)});
+    }
+    // Launcher teams carry visibly heavier equipment than rifle squads at every heading.
+    let heavier = Infinity;
+    for (const team of [0, 1]) for (let heading = 0; heading < 32; heading++) {
+      const angle = heading * Math.PI / 16;
+      heavier = Math.min(heavier, sample({...e('rocket', team), angle}).mass / sample({...e('rifle', team), angle}).mass);
     }
     const rifle = sample(e('rifle')), rocket = sample(e('rocket')), rail = sample(e('turret')), tower = sample(e('rocketTower'));
     const walking = sample({...e('rocket'), moving: true}, false, .2), idle = sample({...e('rocket'), moving: true}, false, 0);
 
     // Observe the actual sprite poses used by the barracks' in-world production preview.
+    // Each heading has its own illustrated view, so capture the walking poses at the bay's south-facing heading.
     const poses = new Set(), nativeDraw = ctx.drawImage;
     ctx.drawImage = function (source, ...args) { poses.add(source); return nativeDraw.call(this, source, ...args); };
-    for (const time of [0, .2]) sample({...e('rocket'), moving: true}, false, time);
+    for (const time of [0, .2]) sample({...e('rocket'), moving: true, angle: Math.PI / 2}, false, time);
     ctx.drawImage = nativeDraw;
     const world = document.createElement('canvas'); world.style.cssText = 'position:absolute;width:448px;height:360px;opacity:0'; document.body.append(world);
     const renderer = new Renderer(world, null), s = createGame('rocket-render');
@@ -77,12 +86,20 @@ try {
     };
     const visibleHead = frame(); renderer.ctx.ellipse = nativeEllipse;
     s.effects = []; const noVisibleHead = frame(); world.remove();
-    return {loaded: spriteStats().loaded, rocketPoses: spriteStats().frames.rocket, rows, rifleDifference: difference(rifle.data, rocket.data), towerDifference: difference(rail.data, tower.data), walkDifference: difference(idle.data, walking.data), productionPoses: productionSources.size, hiddenHeadDifference: difference(noMissile, hiddenHead), visibleHeadDifference: difference(visibleHead, noVisibleHead), puffs};
+    return {heavier, loaded: spriteStats().loaded, rocketPoses: spriteStats().frames.rocket, rows, rifleDifference: difference(rifle.data, rocket.data), towerDifference: difference(rail.data, tower.data), walkDifference: difference(idle.data, walking.data), bayPoses: poses.size, productionPoses: productionSources.size, hiddenHeadDifference: difference(noMissile, hiddenHead), visibleHeadDifference: difference(visibleHead, noVisibleHead), puffs};
   });
   assert.equal(graphics.rocketPoses, 2);
   assert(graphics.rifleDifference > 200 && graphics.towerDifference > 200, 'New infantry and tower have distinct sprites');
-  for (const row of graphics.rows) { assert(row.minArea > 60 && row.areaRatio < 1.3 && row.shadowsDownRight); assert.equal(row.edge, 0); assert.equal(row.matte, 0); }
-  assert(graphics.walkDifference > 10 && graphics.productionPoses >= 3, 'Rocket infantry walks and switches pose while training');
+  // Rockets use eight separately illustrated views (see camera-check): headings share those views unrotated, so a full
+  // turn shows at most eight silhouettes. Broadside and end-on launchers foreshorten differently; the camera check's
+  // scale-discontinuity bound applies rather than the near-constant area of a single rotated sprite.
+  for (const row of graphics.rows) {
+    assert(row.minArea > 60 && row.shadowsDownRight); assert(row.views <= 8, 'Headings reuse the eight direction views without rotating them');
+    assert(row.areaRatio < 2, `Facing keeps the rocket's physical scale (${row.areaRatio.toFixed(3)})`); assert.equal(row.edge, 0); assert.equal(row.matte, 0);
+  }
+  assert(graphics.heavier > 1.4, `Rocket infantry reads heavier than rifle squads at every heading (${graphics.heavier.toFixed(2)}×)`);
+  assert(graphics.walkDifference > 10, 'Rocket infantry walks');
+  assert(graphics.bayPoses === graphics.rocketPoses && graphics.productionPoses === graphics.rocketPoses, `Rocket infantry switches between both walking poses while training (${graphics.productionPoses}/${graphics.rocketPoses})`);
   assert.equal(graphics.hiddenHeadDifference, 0); assert(graphics.visibleHeadDifference > 20);
   assert.equal(graphics.puffs.length, 3); assert(graphics.puffs.every(x => Math.floor(x) === 32), 'Smoke cannot cross concealed trail cells');
 
@@ -144,5 +161,5 @@ try {
     await page.screenshot({path: `${output}/rockets-${width}-${zoom}.png`});
   }
   assert.deepEqual(errors, [], 'No console or runtime errors');
-  console.log(`Rocket browser checks passed: seven assets, distinct sprites, both factions/headings/shadows, infantry production poses, projectile/trail fog, actual training/tower construction/save-load, and desktop/mobile zoom screenshots. Review: ${output}`);
+  console.log(`Rocket browser checks passed: all ${assets.total} assets, distinct sprites, both factions/headings/shadows, infantry production poses, projectile/trail fog, actual training/tower construction/save-load, and desktop/mobile zoom screenshots. Review: ${output}`);
 } finally { await browser.close(); }

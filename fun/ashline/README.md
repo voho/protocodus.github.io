@@ -102,9 +102,22 @@ Selections containing any military unit automatically exclude haulers, including
 
 On touchscreens, tap to select, then tap a destination or target. Drag empty ground to pan; pinch to zoom. The production console starts collapsed and closes after choosing a structure so its placement stays visible.
 
-## Simulation checks
+## Testing
 
-From this directory:
+Run every check from this directory with one command:
+
+```sh
+node tests/run-checks.mjs            # simulation checks and node:test suites
+node tests/run-checks.mjs --browser  # also every Playwright browser check
+```
+
+The runner discovers the scripts in `tests/`: plain checks run as `node tests/<name>.mjs`, `*.test.mjs` suites run with `node --test`, and scripts that drive Playwright are browser checks. Node checks run in parallel lanes, one per CPU by default (`--jobs N`); browser checks run afterwards, up to three at a time depending on the CPU count (`--browser-jobs N`), and `--browser-only` skips the node checks. With `--browser` it serves the repository root on a free local port and sets `ASHLINE_URL`, so no separate server is needed; an `ASHLINE_URL` you set yourself is used instead. It uses `ASHLINE_PLAYWRIGHT` when set, otherwise the `playwright` package, `NODE_PATH` or the global npm root, and runs Google Chrome when it is installed, otherwise Playwright's Chromium (`ASHLINE_BROWSER` overrides the channel).
+
+Each check writes a log, and browser checks write screenshots to their own subfolder of `screenshots/` beside the logs (a new folder in the system temporary directory unless `--logs DIR` is given). Failures print their output, or the failing node:test blocks, as they finish. A closing table lists every check with its status, duration, subtest count and log (`summary.json` in the log folder holds the same results for scripts), and the command exits non-zero if any check fails or times out. Other words select checks by name: `node tests/run-checks.mjs --browser faction map` runs only the checks whose names contain them. `--list` prints what was discovered, `--timeout S` stops a check after S seconds (default 900), and `--retries N` re-runs failures one at a time and reports checks that passed only on a retry. The measurement tools `performance-benchmark` and `race-balance` run only with `--tools`, last, one at a time and without a time limit; see [performance](docs/PERFORMANCE.md) and [balance](docs/BALANCE.md) for their options.
+
+### Simulation checks
+
+Each check also runs on its own from this directory:
 
 ```sh
 node tests/sim-check.mjs
@@ -129,6 +142,7 @@ node tests/ai-nexus-check.mjs
 node --test tests/control-groups.test.mjs
 node --test tests/loading.test.mjs
 node --test tests/performance.test.mjs tests/frame-scheduler.test.mjs tests/ai-defense.test.mjs tests/events-stats.test.mjs
+node --test tests/module-boundaries.test.mjs
 node --test tests/camera.test.mjs tests/movement.test.mjs tests/flocking.test.mjs tests/traffic-stability.test.mjs tests/compact-flock.test.mjs tests/formation-drag.test.mjs tests/unit-stances.test.mjs
 node tests/lava-check.mjs
 node tests/distribution-check.mjs
@@ -136,9 +150,11 @@ node tests/relief-check.mjs
 node tests/save-check.mjs
 ```
 
-The checks exercise seeded maps, route connectivity, fog, finite harvesting and recovery, construction, production, power, complete skirmishes, included refinery haulers, automatic harvesting orders, default guarding, auto-exploration with cancellation and route recovery, lava generation, safe detours, relief connectivity and pocket-safe deployment, typed events and match statistics, commander profiles, unit abilities, scripted missions, production cancellation, and save compatibility.
+The checks exercise seeded maps, route connectivity, fog, finite harvesting and recovery, construction, production, power, complete skirmishes, included refinery haulers, automatic harvesting orders, default guarding, auto-exploration with cancellation and route recovery, lava generation, safe detours, relief connectivity and pocket-safe deployment, typed events and match statistics, commander profiles, unit abilities, scripted missions, production cancellation, and save compatibility. The module boundary suite keeps the module split sound: a game plays identically whichever simulation module is imported first, map generation never imports the simulation or draws on its shared random stream, and explored, power, research, upgrade, deployment, hauler-loss, victory and defeat events keep their kinds and subjects.
 
-For browser interaction checks, use an existing Playwright installation and Chrome while the local server is running:
+### Browser checks
+
+To run a browser check on its own, start the local server (see [Run locally](#run-locally)) and point the check at a Playwright installation. Set `ASHLINE_BROWSER=chromium` when Google Chrome is not installed:
 
 ```sh
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/startup-browser-check.mjs
@@ -171,7 +187,7 @@ ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/fog-save-browser-che
 ASHLINE_PLAYWRIGHT=/path/to/playwright/index.mjs node tests/audio-check.mjs
 ```
 
-`ASHLINE_URL` overrides the default local URL. Screenshots are written to `/tmp/ashline-qa` (override with `ASHLINE_SCREENSHOTS`). Browser checks cover deployment, selection, orders, production, camera controls, pause/restart, and mobile touch input.
+Set `ASHLINE_URL` to the served game, such as `http://127.0.0.1:8000/fun/ashline/`, when a check's default port differs from your server. Each check writes screenshots to its own `/tmp/ashline-*-qa` folder unless `ASHLINE_SCREENSHOTS` names another. Browser checks cover deployment, selection, orders, production, camera controls, pause/restart, and mobile touch input.
 
 The startup check separately verifies that setup creates no game state, requests no battlefield art, and starts no game animation frames. It checks desktop/tablet/phone overflow, visible progress through terrain preparation, saved-game loading, automatic fallback for blocked or unavailable workers, and generation error/retry. The loading unit checks verify that file previews skip workers, yield before generation, and preserve deterministic maps. Gameplay fixtures wait for `ashline.booted` to interact with setup and for `!ashline.loading && ashline.state && !ashline.paused` after deployment. Art-only fixtures explicitly call `startAssets()` before inspecting sprites.
 

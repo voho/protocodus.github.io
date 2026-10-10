@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {mkdir} from 'node:fs/promises';
 const {chromium}=await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
 const browser=await chromium.launch({channel:process.env.ASHLINE_BROWSER||'chrome',headless:true});
-const url=process.env.ASHLINE_URL||'http://127.0.0.1:4173/fun/ashline/';
+const url=process.env.ASHLINE_URL||'http://127.0.0.1:8000/fun/ashline/';
 const output=process.env.ASHLINE_SCREENSHOTS||'/tmp/ashline-expansion-qa';
 await mkdir(output,{recursive:true});
 const errors=[];
@@ -46,7 +46,7 @@ try{
   const zooms=[];for(let i=0;i<5;i++){zooms.push(await page.evaluate(()=>ashline.view.zoom));await page.keyboard.press('+');}
   assert.equal(new Set(zooms).size,5);assert.equal(await page.evaluate(()=>ashline.view.zoom),zooms.at(-1));
   assert.equal(await page.evaluate(async()=>ashline.view.zoom===(await import('./assets.js')).spriteNativeZoom(ashline.renderer.dpr)),true);
-  await page.keyboard.press('Space');await page.keyboard.press('e');await page.keyboard.press('q');assert.match(await page.locator('#order-hint').textContent(),/ATTACK MOVE/);await page.keyboard.press('Escape');
+  await page.keyboard.press('Space');await page.keyboard.press('e');await page.keyboard.press('q');assert.equal(await page.locator('#order-hint').isVisible(),true,'Q shows the order hint');assert.match(await page.locator('#order-hint-text').textContent(),/^attack move\b/i);await page.keyboard.press('Escape');assert.equal(await page.locator('#order-hint').isHidden(),true,'Escape clears the attack-move hint');
   const ids=await fixtures(page);
   await page.evaluate(id=>{ashline.view.selected=new Set([id]);},ids.factory);await ui(page);await page.locator('#upgrade-building').click();
   assert.equal(await page.locator('#research-tab').getAttribute('aria-selected'),'true');assert.equal(await page.locator('.research-card').count(),6);
