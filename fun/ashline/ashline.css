@@ -270,7 +270,7 @@ body[data-screen=briefing] #game-shell,body[data-screen=loading] #game-shell{vis
 }
 @media(max-height:500px) and (min-width:681px){
   .objectives{width:320px}
-  #notifications{top:calc(var(--top) + var(--edge));left:calc(max(var(--edge),env(safe-area-inset-left)) + 330px);max-width:calc(100% - 590px)}
+  #notifications{top:calc(var(--top) + var(--edge));left:calc(max(var(--edge),env(safe-area-inset-left)) + 330px);transform:none;max-width:calc(100% - 590px)}
 }
 @media(prefers-reduced-motion:reduce){#objectives-list li.fresh{animation:none}}
 

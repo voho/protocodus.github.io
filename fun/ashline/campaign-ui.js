@@ -147,9 +147,9 @@ function medalBadge(medal, empty = '') {
   badge.textContent = medal ? MEDAL_NAMES[medal] : empty; return badge;
 }
 
-export function createCampaign({ launch, focus }) {
+export function createCampaign({ launch, focus, transmit }) {
   let progress = readProgress(load(PROGRESS_KEY)), career = readCareer(load(CAREER_KEY)), pending = null, current = null, previousBest = 0;
-  const recorded = new WeakSet(), hud = createObjectivesHud({ focus });
+  const recorded = new WeakSet(), hud = createObjectivesHud({ focus, transmit });
   const save = () => store(PROGRESS_KEY, progress);
 
   function setTab(tab, focus = false) {

@@ -75,20 +75,21 @@ function contestLine(s, def) {
   return { label: `${who} hold`, progress: `${clock(s.mission.counters[`rivalHold:${rule.zone}`] || 0)} / ${clock(rule.seconds)}` };
 }
 
-export function createObjectivesHud({ focus } = {}) {
+// focus(x, y) centres the camera on a zone; transmit(line) runs as each queued transmission comes on screen
+// (the place for a transmission sound).
+export function createObjectivesHud({ focus, transmit } = {}) {
   let shownFor = null, structure = '', measured = '', nodes = [], collapsed = matchMedia(COMPACT).matches;
   // Transmissions run on a clock that advances only while the HUD keeps updating, so a line is not used up
   // while the game is paused or the tab is hidden.
   let queue = [], showing = null, clockMs = 0, lastNow = performance.now();
   const done = new Map();
   const panel = $('objectives'), list = $('objectives-list'), toggle = $('objectives-toggle'), transmission = $('transmission');
-  // The tracker stops above the tactical map when both share the left edge (short landscape screens); its
-  // list then scrolls while the transmission stays in view.
+  // The tracker never reaches the tactical map below it on the left edge (it can on short landscape screens);
+  // its list scrolls instead.
   const fit = () => {
-    panel.style.maxHeight = '';
     const map = document.querySelector('.tactical-map')?.getBoundingClientRect(), box = panel.getBoundingClientRect();
-    const overlaps = map && map.height && map.left < box.right && map.right > box.left && map.top > box.top;
-    if (overlaps && box.bottom > map.top - 8) panel.style.maxHeight = `${Math.max(36, Math.floor(map.top - 8 - box.top))}px`;
+    const below = map && map.height && map.left < box.right && map.right > box.left && map.top > box.top;
+    panel.style.maxHeight = below ? `${Math.max(36, Math.floor(map.top - 8 - box.top))}px` : '';
   };
   // Other HUD parts stack below the tracker through --objectives-height; measure only when the layout changes.
   const measure = () => {
@@ -109,6 +110,7 @@ export function createObjectivesHud({ focus } = {}) {
       $('transmission-speaker').textContent = showing.speaker;
       $('transmission-text').textContent = showing.text;
       showing.at = clockMs;
+      transmit?.({ speaker: showing.speaker, text: showing.text });
     }
     transmission.hidden = !showing;
   }
