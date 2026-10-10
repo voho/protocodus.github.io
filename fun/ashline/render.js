@@ -1692,7 +1692,7 @@ export class Renderer {
       if (p.x < -80 || p.y < -20 || p.x > this.width + 80 || p.y > this.height + 20) continue;
       const label = labelSprite(String(site.name || site.id), '#c4d2cf', '500 9px monospace');
       ctx.globalAlpha = .78;
-      polygon(ctx, [[p.x, p.y - 3.5], [p.x + 3.5, p.y], [p.x, p.y + 3.5], [p.x - 3.5, p.y]], '#142027d0', '#97acb1');
+      ellipse(ctx, p.x, p.y, 3, 3, '#142027d0', '#97acb1');
       ctx.drawImage(label, Math.round(p.x - label.width / 4), Math.round(p.y + 6), label.width / 2, label.height / 2);
     }
     ctx.globalAlpha = 1;
@@ -2465,25 +2465,34 @@ export class Renderer {
     }
     tiles.putImageData(img, 0, 0);
     ctx.imageSmoothingEnabled = false; ctx.drawImage(this.miniTiles, ox, oy, state.width * s, state.height * s);
+    // Structure and site markers and drawn site names, as [x, y, width, height]; a name never covers them.
+    const taken = [];
     const drawDot = (e) => {
       const building = e.kind === 'building', size = building ? Math.max(4, e.size * s) : Math.max(3, s * .65);
-      const center = building ? e.size / 2 : 0;
-      teamInsignia(ctx, e.team, ox + (e.x + center) * s, oy + (e.y + center) * s, size);
+      const center = building ? e.size / 2 : 0, x = ox + (e.x + center) * s, y = oy + (e.y + center) * s;
+      teamInsignia(ctx, e.team, x, y, size);
+      if (building) taken.push([x - size / 2, y - size / 2, size, size]);
     };
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) drawDot(e);
     for (const e of this.rememberedBuildings.values()) if (!entityVisible(e)) { ctx.globalAlpha = .4; drawDot(e); ctx.globalAlpha = 1; }
-    // Named sites once explored, and the mission zones the player may see.
+    // Named sites once explored, and the mission zones the player may see. Sites are rings because squares
+    // and diamonds mean friendly and hostile.
     const sites = (state.sites || []).filter(site => Number.isFinite(site.x) && Number.isFinite(site.y)
       && (!explored || explored[Math.floor(site.y) * state.width + Math.floor(site.x)]));
+    const right = ox + state.width * s, bottom = oy + state.height * s;
     ctx.font = '600 7px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     for (const site of sites) {
       const x = ox + site.x * s, y = oy + site.y * s;
-      polygon(ctx, [[x, y - 2.5], [x + 2.5, y], [x, y + 2.5], [x - 2.5, y]], '#142027', '#c4d2cf');
-      if (w >= 150 && sites.length <= 16) {
-        const name = String(site.name || site.id), width = ctx.measureText(name).width;
-        ctx.globalAlpha = .8; rect(ctx, x - width / 2 - 2, y + 3, width + 4, 8, '#0a151dc0'); ctx.globalAlpha = 1;
-        ctx.fillStyle = '#c4d2cf'; ctx.fillText(name, x, y + 4);
-      }
+      ellipse(ctx, x, y, 2, 2, '#142027', '#c4d2cf'); taken.push([x - 3, y - 3, 6, 6]);
+    }
+    if (w >= 150 && sites.length <= 16) for (const site of sites) {
+      const x = ox + site.x * s, y = oy + site.y * s, name = String(site.name || site.id), width = ctx.measureText(name).width;
+      const lx = Math.min(Math.max(x, ox + width / 2 + 2), right - width / 2 - 2), ly = y + 11 > bottom ? y - 11 : y + 3;
+      const box = [lx - width / 2 - 2, ly, width + 4, 8];
+      if (taken.some(([bx, by, bw, bh]) => box[0] < bx + bw && bx < box[0] + box[2] && box[1] < by + bh && by < box[1] + box[3])) continue;
+      taken.push(box);
+      ctx.globalAlpha = .8; rect(ctx, ...box, '#0a151dc0'); ctx.globalAlpha = 1;
+      ctx.fillStyle = '#c4d2cf'; ctx.fillText(name, lx, ly + 1);
     }
     for (const [zone, goal] of this.missionZones(state) || []) {
       ctx.strokeStyle = goal === 'active' ? '#e2b67e' : goal === 'done' ? '#8dccca99' : '#97acb177'; ctx.lineWidth = 1;

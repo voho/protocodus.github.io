@@ -198,6 +198,21 @@ try {
     result.minimap.beacon = { active: activeCentre, done: doneCentre };
     s.explored[0].fill(1);
     result.minimap.exploredSite = mapDiff(() => { s.sites = site; }, () => { delete s.sites; });
+    // Site names: crowded names, one over a structure marker, and names at the left and bottom edges.
+    const names = [], fillText = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y) {
+      if (this.canvas === mapped.minimapBase) names.push({ text, x, y, width: this.measureText(text).width });
+      return fillText.apply(this, arguments);
+    };
+    s.sites = [{ id: 'kiln', kind: 'outpost', x: 40, y: 40, r: 2, name: 'Kiln Knoll' }, { id: 'glass', kind: 'outpost', x: 41, y: 40.5, r: 2, name: 'Glass Commons' },
+      { id: 'bench', kind: 'pass', x: 1, y: 70, r: 2, name: 'Clinker Bench' }, { id: 'floor', kind: 'ford', x: 100, y: 143, r: 2, name: 'Scoria Floor' },
+      { id: 'yard', kind: 'outpost', x: 151.5, y: 99, r: 2, name: 'Tinder Ledge' }];
+    s.entities = [{ id: nextId++, type: 'factory', team: 0, kind: 'building', x: 150, y: 100, size: 3, hp: 1700, maxHp: 1700, progress: 1, queue: [], cooldown: 0 }];
+    try { mapRender(); } finally { CanvasRenderingContext2D.prototype.fillText = fillText; }
+    const layout = mapped.minimapLayout(s);
+    result.minimap.names = names.map(({ text, x, y, width }) => ({ text, left: x - width / 2 - layout.ox,
+      right: layout.ox + s.width * layout.s - x - width / 2, bottom: layout.oy + s.height * layout.s - y }));
+    delete s.sites; s.entities = [];
     s.visible[0].fill(1);
     delete MISSIONS['render-lit']; delete MISSIONS['render-deploy'];
 
@@ -340,6 +355,11 @@ try {
     `Tactical-map zone rings follow the battlefield rule (${JSON.stringify(m)})`);
   assert(m.beacon.active > 180 && m.beacon.done < 120, `Active objectives mark a beacon on the tactical map (${JSON.stringify(m.beacon)})`);
   assert(m.unexploredSite === 0 && m.exploredSite > 4, `Tactical-map sites appear only once explored (${JSON.stringify(m)})`);
+  const named = m.names.map(name => name.text);
+  assert(named.filter(name => /Kiln Knoll|Glass Commons/.test(name)).length === 1 && !named.includes('Tinder Ledge'),
+    `Tactical-map site names never overprint each other or cover a structure (${JSON.stringify(m.names)})`);
+  assert(named.includes('Clinker Bench') && named.includes('Scoria Floor') && m.names.every(name => name.left >= 1.9 && name.right >= 1.9 && name.bottom >= 6.9),
+    `Tactical-map site names stay inside the map (${JSON.stringify(m.names)})`);
   assert(checks.shells.hidden === 0 && checks.shells.visible > 20, `Incoming-shell rings show only over a visible target cell (${JSON.stringify(checks.shells)})`);
   const c = checks.collapse;
   assert(c.seen.blast >= 4 && c.seen.smoke >= 8 && c.hidden.particles === 0 && c.hidden.decal === 0,
