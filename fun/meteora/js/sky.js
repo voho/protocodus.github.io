@@ -23,10 +23,10 @@
    that it reads as depth rather than motion. */
 
 import * as THREE from 'three';
-import { RENDER } from './config.js';
+import { RENDER, SKY } from './config.js';
 import { makeRng } from './rng.js';
 
-const LAYER_RADIUS = 40000;
+const LAYER_RADIUS = SKY.layerRadius;
 
 const COMMON = /* glsl */`
 float hash13(vec3 p) {
@@ -332,7 +332,7 @@ function starLayer(rng, count, bright, scale) {
   const material = new THREE.ShaderMaterial({
     vertexShader: STAR_VERTEX, fragmentShader: STAR_FRAGMENT,
     uniforms: { uScale: { value: Math.min(window.devicePixelRatio || 1, 2) } },
-    blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+    blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const points = new THREE.Points(geometry, material);
   points.frustumCulled = false;
@@ -484,7 +484,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
     const material = new THREE.ShaderMaterial({
       vertexShader: LAYER_VERTEX, fragmentShader: LAYER_FRAGMENT,
       uniforms: { uMap: { value: v.map.texture }, uGain: { value: 1 }, uSpin: { value: new THREE.Matrix3() } },
-      side: THREE.BackSide, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+      side: THREE.BackSide, blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(LAYER_RADIUS, 48, 24), material);
     mesh.frustumCulled = false;
@@ -501,9 +501,9 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
   for (const s of stars) scene.add(s.points);
 
   // The gas giant and its rings.
-  const radius = 9000;
+  const { radius, distance, ringInner, ringOuter } = SKY.planet;
   const planetDir = new THREE.Vector3(0.62, 0.1, 0.78).normalize();
-  const center = planetDir.clone().multiplyScalar(44000);
+  const center = planetDir.clone().multiplyScalar(distance);
   const pole = new THREE.Vector3(0.25, 1, -0.18).normalize();
   const planetUniforms = {
     uSun: { value: sunDir }, uCenter: { value: center }, uPole: { value: pole }, uRadius: { value: radius },
@@ -514,7 +514,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
   planet.position.copy(center);
   planet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), pole);
   planet.renderOrder = -50;
-  const rings = new THREE.Mesh(new THREE.RingGeometry(radius * 1.4, radius * 2.3, 256, 1),
+  const rings = new THREE.Mesh(new THREE.RingGeometry(radius * ringInner, radius * ringOuter, 256, 1),
     new THREE.ShaderMaterial({
       vertexShader: RING_VERTEX, fragmentShader: RING_FRAGMENT, uniforms: planetUniforms,
       transparent: true, side: THREE.DoubleSide, depthWrite: false,
@@ -541,7 +541,7 @@ export function createSky(renderer, scene, { seed = 7, sunDir }) {
         s.points.setRotationFromAxisAngle(s.axis, time * s.rate);
       }
       // The sun: a white disc with a warm corona, far enough to sit behind everything.
-      const d = 30000, p = camera.position;
+      const d = SKY.sunDistance, p = camera.position;
       const x = p.x + sunDir.x * d, y = p.y + sunDir.y * d, z = p.z + sunDir.z * d;
       glow?.add(x, y, z, 420, 1, 0.97, 0.9, 40);
       glow?.add(x, y, z, 1600, 1, 0.82, 0.6, 2.2);

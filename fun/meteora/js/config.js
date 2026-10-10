@@ -78,8 +78,18 @@ export const SHAKE = {
 };
 
 export const RENDER = {
-  far: 60000, near: 0.5, fov: 70, dprCap: 2,
+  far: 100000, near: 0.5, fov: 70, dprCap: 2,
   scaleMin: 0.6, scaleMax: 1, targetMs: 16.7,
   shadowBox: 600, shadowSize: 2048, lights: 8,
   skyFace: 2048, brightStars: 2500,
+};
+
+/* The sky. three.js reverses its sorted draw lists under a reversed depth
+   buffer, so the sky cannot count on being drawn first: every layer is
+   depth-tested and simply placed behind everything else — the belt, the
+   gas giant and the far edge of its rings — and inside the far plane. */
+export const SKY = {
+  layerRadius: 90000,
+  sunDistance: 30000,
+  planet: { radius: 9000, distance: 44000, ringInner: 1.4, ringOuter: 2.3 },
 };
