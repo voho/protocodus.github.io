@@ -1701,8 +1701,9 @@ export class Renderer {
   // Own abilities: flare reveal rings, barrage target reticles, and the ground-targeting preview.
   drawAbilityMarkers(state, view, clock, ownUnits) {
     const ctx = this.ctx, flare = ABILITIES.scout.duration || 12;
+    // Only flares are marked: a lit mission zone's reveal (source 'zone') shows as the zone's own ring.
     for (const reveal of state.reveals || []) {
-      if (reveal.team !== 0) continue;
+      if (reveal.team !== 0 || reveal.source) continue;
       const remaining = reveal.until - clock, age = flare - remaining;
       if (remaining <= 0 || age < 0) continue;
       const p = this.worldToScreen(reveal.x, reveal.y, view), grow = 1 - (1 - Math.min(1, age / .6)) ** 3, r = reveal.r * view.zoom * grow;
@@ -1927,8 +1928,9 @@ export class Renderer {
       }
     }
     // Flares light their own team's ground with a drifting parachute light; nothing here is hidden by it.
+    // Lit mission zones (source 'zone') are not flares.
     for (const reveal of state.reveals || []) {
-      if (reveal.team !== 0) continue;
+      if (reveal.team !== 0 || reveal.source) continue;
       const remaining = reveal.until - clock, total = ABILITIES.scout.duration || 12, age = total - remaining;
       if (remaining <= 0 || age < 0) continue;
       const x = reveal.x * TILE, y = reveal.y * TILE, flicker = .82 + Math.sin(clock * 19) * .1 + Math.sin(clock * 31) * .08;

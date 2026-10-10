@@ -140,6 +140,14 @@ try {
     for (let y = 28; y < 33; y++) for (let x = 28; x < 33; x++) s.explored[0][y * s.width + x] = 1;
     result.zones.explored = zoneDiff(drill('range'));
     s.explored[0].fill(0);
+    // A lit zone keeps its own reveal alive for both sides (mission.js lightZones). It is no flare: the operation's
+    // frame matches one without it, so the zone's ring is its only mark.
+    const relay = createGame('render-relay', 'normal', { width: 144, height: 112, mission: 'relay-control' }), relayRenderer = new Renderer(world, null);
+    const relayView = { x: relay.mission.zones[0].x, y: relay.mission.zones[0].y, zoom: 38, selected: new Set() };
+    const relayFrame = () => { relayRenderer.draw(relay, relayView); return relayRenderer.ctx.getImageData(0, 0, world.width, world.height).data; };
+    const zoneReveals = (relay.reveals || []).filter(reveal => reveal.team === 0 && reveal.source === 'zone').length;
+    relayFrame(); const relayLit = relayFrame(); relay.reveals = relay.reveals.filter(reveal => !reveal.source);
+    result.zones.litReveal = { reveals: zoneReveals, drawn: difference(relayLit, relayFrame()) };
     s.sites = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }];
     const unexploredSite = render(); delete s.sites; const noSite = render();
     s.sites = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }]; s.explored[0].fill(1);
@@ -344,6 +352,8 @@ try {
   assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,
     `A zone only a hidden objective uses, or no objective uses, draws nothing over unexplored ground (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.explored > 200, 'An explored zone centre shows its ring');
+  assert(checks.zones.litReveal.reveals === 1 && checks.zones.litReveal.drawn === 0,
+    `A lit zone's own reveal draws no flare glow or reveal ring (${JSON.stringify(checks.zones.litReveal)})`);
   assert(checks.sites.unexplored === 0 && checks.sites.explored > 50, `Site labels appear only once explored (${JSON.stringify(checks.sites)})`);
   assert(checks.flare.enemy === 0 && checks.flare.own > 200, 'Only the owning team sees its flare');
   assert(checks.abilities.dig > 50 && checks.abilities.overdrive > 20 && checks.abilities.barrage > 50 && checks.abilities.longShot > 50, `Ability visuals draw (${JSON.stringify(checks.abilities)})`);
