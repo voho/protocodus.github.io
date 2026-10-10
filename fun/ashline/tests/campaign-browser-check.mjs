@@ -133,13 +133,22 @@ try {
   const hold = await page.evaluate(() => ({ waves: ashline.state.events.filter(e => e.kind === 'wave').length, raids: ashline.state.mission.counters['repeat:raids'], sentries: ashline.state.mission.objectives.find(o => o.id === 'sentries').state }));
   assert.deepEqual(hold, { waves: 10, raids: 9, sentries: 'done' });
 
+  // Remix replays the operation on a newly generated sector; Operations returns to the campaign list.
+  assert(await page.locator('#remix-operation').isVisible());
+  await page.locator('#remix-operation').click(); await prestart(page);
+  assert.deepEqual(await page.evaluate(() => [ashline.state.mission.id, /^REMIX-/.test(ashline.state.seed), document.querySelector('#resume').textContent.trim()]), ['hold-the-line', true, 'Begin operation ↗']);
+  assert.equal(await page.locator('#new-game').textContent(), 'Operations');
+  await page.locator('#new-game').click();
+  assert(await page.locator('#campaign-panel').isVisible() && await page.evaluate(() => ashline.state === null));
+
   // Progress survives a reload: the campaign tab returns with medals and the third operation open.
   await page.reload(); await ready(page);
   assert(await page.locator('#campaign-panel').isVisible(), 'The briefing reopens on the campaign');
   const after = await page.evaluate(() => ({ entries: [...document.querySelectorAll('.campaign-entry')].map(b => ({ disabled: b.disabled, medal: b.querySelector('.medal').dataset.medal, pressed: b.getAttribute('aria-pressed') })),
     name: document.querySelector('#campaign-name').textContent, progress: document.querySelector('#campaign-progress').textContent, career: document.querySelector('#career-line').textContent }));
   assert.deepEqual(after.entries.map(e => e.disabled), [false, false, false, true, true, true, true, true]);
-  assert(after.entries.slice(0, 2).every(e => e.medal !== 'none')); assert.equal(after.entries[2].pressed, 'true'); assert.equal(after.name, 'Signal in the Ash');
+  // The remix launched last keeps Hold the Line selected; the unfinished remix records nothing.
+  assert(after.entries.slice(0, 2).every(e => e.medal !== 'none')); assert.equal(after.entries[1].pressed, 'true'); assert.equal(after.name, 'Hold the Line');
   assert.equal(after.progress, '2 / 8'); assert.match(after.career, /2 operations · 2 victories/);
   await page.screenshot({ path: `${output}/campaign-progress.png` });
 
@@ -176,6 +185,16 @@ try {
   assert(await phone.locator('#objectives-list').isVisible());
   await phone.screenshot({ path: `${output}/campaign-tracker-phone.png` });
   await phone.close();
+
+  // Without browser storage the campaign still opens and launches; progress simply is not kept.
+  const blocked = await browser.newPage({ viewport: { width: 1280, height: 800 } }); watch(blocked);
+  await blocked.addInitScript(() => { Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('Storage is blocked', 'SecurityError'); } }); });
+  await blocked.goto(url); await ready(blocked);
+  await blocked.locator('#campaign-tab').click();
+  assert.deepEqual(await blocked.evaluate(() => [...document.querySelectorAll('.campaign-entry')].map(b => b.disabled)), [false, true, true, true, true, true, true, true]);
+  await blocked.locator('#campaign-start').click(); await prestart(blocked);
+  assert.equal(await blocked.evaluate(() => ashline.state.mission.id), 'landfall');
+  await blocked.close();
   assert.deepEqual(errors, []);
-  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation, progress after reload, skirmish modes and phone layout. Screenshots: ${output}`);
+  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, skirmish modes, phone layout and blocked storage. Screenshots: ${output}`);
 } finally { await browser.close(); }
