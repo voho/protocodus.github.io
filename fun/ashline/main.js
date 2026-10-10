@@ -1675,12 +1675,12 @@ function setGameSpeed(percent) {
   $('game-speed').setAttribute('aria-valuetext', `${percent}% game speed`);
 }
 $('game-speed').addEventListener('input', event => setGameSpeed(event.target.valueAsNumber));
-$('game-speed').addEventListener('change', event => {
-  settings.speed = event.target.valueAsNumber; writeSettings(settings);
-  // After a drag the arrow keys belong to the camera again; keyboard users keep the slider focused.
-  if (sliderPointer) { sliderPointer = false; canvas.focus({ preventScroll: true }); }
-});
+// After a click or drag the arrow keys belong to the camera again, even when the value did not move and no
+// change fires; keyboard users keep the slider focused.
+function releaseSlider() { if (sliderPointer) { sliderPointer = false; canvas.focus({ preventScroll: true }); } }
+$('game-speed').addEventListener('change', event => { settings.speed = event.target.valueAsNumber; writeSettings(settings); releaseSlider(); });
 $('game-speed').addEventListener('pointerdown', () => { sliderPointer = true; });
+$('game-speed').addEventListener('pointerup', releaseSlider);
 $('game-speed').addEventListener('focus', () => keys.clear());
 // Interface preferences persist in this browser (hud-data settings); the renderer reads screen shake from
 // view.screenShake. Sound mutes and levels are the audio engine's own settings, stored apart from these.

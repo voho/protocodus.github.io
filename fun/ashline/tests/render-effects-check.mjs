@@ -123,6 +123,10 @@ try {
     const ashA = render(), ashSame = render(); s.time += 1.3; const ashB = render();
     s.visible[0].fill(0); const fogA = render(); s.time += 1.3; const fogB = render(); s.visible[0].fill(1);
     result.ash = { moving: difference(ashA, ashB), frozen: difference(ashA, ashSame), underFog: difference(fogA, fogB) };
+    // Under prefers-reduced-motion the frame matches one drawn without the ash layer at all.
+    const motion = renderer.reducedMotion; renderer.reducedMotion = { matches: true }; const reducedAsh = render(); renderer.reducedMotion = motion;
+    renderer.drawAsh = () => {}; const noAsh = render(); delete renderer.drawAsh;
+    Object.assign(result.ash, { reduced: difference(reducedAsh, noAsh), normal: difference(render(), noAsh) });
 
     // Mission zones: a zone shows through fog once a revealed objective uses it, its definition marks it lit or deploys there;
     // a zone only a hidden objective uses, or a bare spawn anchor, appears only once its centre is explored.
@@ -175,7 +179,14 @@ try {
     s.events.push({ text: 'Field engineer: Field patch', team: 0, time: s.time, kind: 'ability', ability: 'fieldPatch', x: 30, y: 30 });
     s.events.push({ text: 'Vanguard tank promoted to rank 1', team: 1, time: s.time, kind: 'promotion', rank: 1, x: 35.5, y: 35.5 });
     for (let x = 34; x < 38; x++) for (let y = 34; y < 38; y++) s.visible[0][y * s.width + x] = 0;
-    render(); result.events = renderer.particles.map(p => p.kind); s.visible[0].fill(1);
+    render(); result.events = renderer.particles.map(p => p.kind);
+    // An own promotion needs its kill seen, as the log and sound require: a blind barrage's rank 2 draws nothing.
+    renderer.particles.length = 0;
+    for (const [rank, kill] of [[2, 36.5], [1, 31.5]]) {
+      s.events.push({ text: 'Siege crawler promoted', team: 0, time: s.time, kind: 'promotion', rank, x: 28, y: 30 },
+        { text: 'Rifle squad lost', team: 1, time: s.time, kind: 'unitLost', rank: 0, x: kill, y: kill });
+    }
+    render(); result.promotions = renderer.particles.filter(p => p.kind === 'promote').map(p => p.rank); s.visible[0].fill(1);
     // The particle pool stays bounded however many blasts are seen.
     for (let i = 0; i < 400; i++) s.effects.push({ type: 'explosion', x: 10 + i % 40, y: 10 + Math.floor(i / 40), life: .55, maxLife: .6, team: 1, size: 3 });
     render(); result.particleBound = renderer.particles.length;
@@ -350,6 +361,7 @@ try {
   assert(checks.burning > 4, `Vehicles below 25% health burn visibly (${checks.burning})`);
   assert.equal(checks.hiddenBurning, 0, 'A hidden burning enemy draws nothing');
   assert(checks.ash.moving > 0 && checks.ash.frozen === 0 && checks.ash.underFog === 0, `Ash-fall moves only over visible ground and holds on one clock (${JSON.stringify(checks.ash)})`);
+  assert(checks.ash.reduced === 0 && checks.ash.normal > 0, `Ash-fall is left out under prefers-reduced-motion (${JSON.stringify(checks.ash)})`);
   assert(checks.zones.revealed > 200 && checks.zones.done > 200 && checks.zones.lit > 200 && checks.zones.deploy > 200,
     `Zones of revealed objectives, lit zones and the deploy zone show through fog (${JSON.stringify(checks.zones)})`);
   assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,
@@ -362,6 +374,7 @@ try {
   assert(checks.abilities.dig > 50 && checks.abilities.overdrive > 20 && checks.abilities.barrage > 50 && checks.abilities.longShot > 50, `Ability visuals draw (${JSON.stringify(checks.abilities)})`);
   assert.equal(checks.abilities.enemyBarrage, 0, 'Enemy barrage targets are never marked');
   assert.deepEqual(checks.events, ['patch'], 'Event flourishes appear only where the player can see');
+  assert.deepEqual(checks.promotions, [1], 'A promotion flourish plays only when the player saw the kill');
   assert(checks.particleBound <= 900, 'The particle pool stays bounded');
   const m = checks.minimap;
   assert(m.revealedZone > 4 && m.lit > 4 && m.hiddenZone === 0 && m.unreferenced === 0,

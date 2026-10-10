@@ -4,6 +4,7 @@ import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, unitRank, unitRange, bui
 import { mapRoutes, PROFILE_RELIEF } from './terrain.js';
 import { ABILITIES } from './abilities.js';
 import { missionDefinition } from './mission.js';
+import { witnessedKill } from './hud-data.js';
 
 const TILE = 32;
 const TEAM = [
@@ -155,6 +156,9 @@ function sameBytes(a, b) {
 const pulse = (age, length) => age < 0 ? 0 : Math.max(0, 1 - age / length);
 const shortestArc = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const SHELL_FLIGHT = .35, GRAVITY = 260, PARTICLE_LIMIT = 900, HIT_FLASH = .11;
+// Tiles a particle or effect may draw beyond its anchor or flight path: a size-3 collapse's debris and sparks
+// land within four tiles, and so does the field patch ring. Anything farther outside the view draws nothing.
+const EFFECT_REACH = 4;
 const SHAKE_LENGTH = .55, SHAKE_LIMIT = 4, VIGNETTE_STEP = 8;
 const WRECK = '#0d0f10';
 const ASH_LAYERS = [
@@ -1519,7 +1523,8 @@ export class Renderer {
     if (built < 1) ctx.restore();
   }
 
-  // Event-driven flourishes for things the player can see: field patches and promotions.
+  // Event-driven flourishes for things the player can see: field patches and promotions. A promotion also
+  // needs its kill seen, the rule the log and sound follow, so a blind barrage earns no flourish.
   readEvents(state, visible) {
     const events = state.events || [];
     if (state !== this.eventState) { this.eventState = state; this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null; return; }
@@ -1535,20 +1540,22 @@ export class Renderer {
       if (!seen) continue;
       if (event.kind === 'ability' && event.ability === 'fieldPatch') {
         this.addParticle({ kind: 'patch', born: event.time, life: 1, x: event.x * TILE, y: event.y * TILE, r: (ABILITIES.engineer.reach || 4) * TILE });
-      } else if (event.kind === 'promotion') {
+      } else if (event.kind === 'promotion' && (!visible || witnessedKill(state, event, events[i + 1]))) {
         this.addParticle({ kind: 'promote', born: event.time, life: 1.3, x: event.x * TILE, y: event.y * TILE, rank: event.rank || 1 });
       }
     }
     this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null;
   }
 
-  drawParticles(ctx, clock, visible) {
+  drawParticles(ctx, clock, visible, x0, y0, x1, y1) {
+    const left = (x0 - EFFECT_REACH) * TILE, top = (y0 - EFFECT_REACH) * TILE, right = (x1 + EFFECT_REACH) * TILE, bottom = (y1 + EFFECT_REACH) * TILE;
     let keep = 0;
     for (const p of this.particles) {
       const age = clock - p.born;
       if (age >= p.life) continue;
       this.particles[keep++] = p;
       if (age < 0 || p.gate !== undefined && visible && !visible[p.gate]) continue;
+      if (p.x < left || p.x > right || p.y < top || p.y > bottom) continue;
       const k = age / p.life;
       if (p.kind === 'debris') {
         const land = 2 * p.vz / GRAVITY, t = Math.min(age, land), z = Math.max(0, p.vz * t - GRAVITY * t * t / 2);
@@ -1594,12 +1601,12 @@ export class Renderer {
 
   // Screen-space ash-fall in three sparse layers. Gusts integrate analytically, so every mote is a pure
   // function of the drawn clock and camera and paused frames hold still. Like the lava, ash only moves
-  // over ground in current vision: remembered and unexplored areas show no live motion.
+  // over ground in current vision: remembered and unexplored areas show no live motion. Ash is nothing but
+  // drift and parallax, so prefers-reduced-motion leaves it out.
   drawAsh(ctx, view, clock, state, visible, left, top) {
     const w = this.width + 40, h = this.height + 40, count = Math.round(Math.min(110, this.width * this.height / 13000));
-    if (count <= 0) return;
-    const calm = this.reducedMotion?.matches ? .35 : 1;
-    const gust = (12 * clock - 9 * Math.cos(clock * .21) / .21 - 5 * Math.cos(clock * .53 + 1.7) / .53) * calm;
+    if (count <= 0 || this.reducedMotion?.matches) return;
+    const gust = 12 * clock - 9 * Math.cos(clock * .21) / .21 - 5 * Math.cos(clock * .53 + 1.7) / .53;
     const panX = view.x * view.zoom, panY = view.y * view.zoom;
     let first = 0;
     for (const layer of ASH_LAYERS) {
@@ -1607,8 +1614,8 @@ export class Renderer {
       ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const seed = first + i, phase = noise(seed, 7, 23) * 6.283;
-        const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6 * calm) % w + w) % w - 20;
-        const y = ((noise(seed, 5, 19) * h + clock * layer.fall * calm - panY * layer.parallax) % h + h) % h - 20;
+        const x = ((noise(seed, 3, 17) * w + gust * layer.depth - panX * layer.parallax + Math.sin(clock * .9 + phase) * 6) % w + w) % w - 20;
+        const y = ((noise(seed, 5, 19) * h + clock * layer.fall - panY * layer.parallax) % h + h) % h - 20;
         if (visible) {
           const cx = Math.floor((x - left) / view.zoom), cy = Math.floor((y - top) / view.zoom);
           if (cx < 0 || cy < 0 || cx >= state.width || cy >= state.height || !visible[cy * state.width + cx]) continue;
@@ -2088,9 +2095,12 @@ export class Renderer {
           tx * TILE + Math.cos(angle) * r, ty * TILE - 3 + Math.sin(angle) * r, '#ffdda888', .7);
       }
     }
-    this.drawParticles(ctx, clock, visible);
+    this.drawParticles(ctx, clock, visible, x0, y0, x1, y1);
     const effects = this.landed.length ? (state.effects || []).concat(this.landed) : state.effects || [];
+    const nearX0 = x0 - EFFECT_REACH, nearY0 = y0 - EFFECT_REACH, nearX1 = x1 + EFFECT_REACH, nearY1 = y1 + EFFECT_REACH;
     for (const fx of effects) {
+      const toX = fx.tx ?? fx.x, toY = fx.ty ?? fx.y;
+      if (Math.max(fx.x, toX) < nearX0 || Math.min(fx.x, toX) > nearX1 || Math.max(fx.y, toY) < nearY0 || Math.min(fx.y, toY) > nearY1) continue;
       // Effects advance on the drawn clock: between ticks each one is shown slightly younger.
       const maxLife = fx.maxLife || .3, alpha = Math.max(0, Math.min(1, (fx.life + lag) / maxLife)), age = 1 - alpha;
       const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
