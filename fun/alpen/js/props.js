@@ -2696,13 +2696,26 @@ export function createProps(THREE, shading) {
   cragPools.forEach((p, i) => { p.mesh.name = `flank-crag-${i}`; });
 
   /* The flank buttresses go the same way: cliff-face photoscans, less snow
-     — a near-vertical face holds a dusting at most. */
+     — a near-vertical face holds a dusting at most.
+
+     Two of the three are faces and nothing else: rock_face_01 and
+     mountainside were scanned from the front, and under one per cent of
+     either faces away from it. They are turned to face the run, but from
+     the wall side — looking back from the quarterpipe — a single-sided
+     shell is not there at all, and what was left was a few black shards
+     standing in the air. Drawn from both sides, the inside of the face is
+     rock seen from behind. The boulder is closed and keeps its culling. */
   {
     const scans = ['rock_face_01.glb', 'mountainside.glb', 'boulder_01.glb'];
+    const open = [true, true, false];
     for (let i = 0; i < cragPools.length; i++) {
       upgrader.upgradeTextured(cragPools[i], scans[i],
         heightOfGrown(cragVariants[i].geometry),
-        (map) => photoMat(map, 0.42), 0.20);
+        (map) => {
+          const m = photoMat(map, 0.42);
+          if (open[i]) m.side = THREE.DoubleSide;
+          return m;
+        }, 0.20);
     }
   }
 
