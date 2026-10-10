@@ -10,7 +10,7 @@ import {MISSIONS,CAMPAIGN,SKIRMISH_MODES,ARCHIVE} from '../campaign.js';
 import {missionAllows,missionDirective,noteDelivery,noteTagLost,objectiveVoid,missionDeployment,WAVE_SCALE} from '../mission.js';
 import {objectiveRows,objectiveProgress} from '../objectives-hud.js';
 import {encodeGame,decodeGame} from '../save.js';
-import {matchReport,medalFor,commanderGoals,survivingVeterans,addToCareer,readCareer,emptyCareer,rivalName,COMMANDER_GOALS} from '../debrief.js';
+import {matchReport,medalFor,missionTime,commanderGoals,survivingVeterans,addToCareer,readCareer,emptyCareer,rivalName,COMMANDER_GOALS} from '../debrief.js';
 import {readProgress,emptyProgress,isUnlocked,recordResult,launchSettings,newlyCleared,archiveEntries,steppedDifficulty} from '../campaign-ui.js';
 
 const advance=(s,seconds)=>{for(let t=0;t<seconds&&s.status==='playing';t++)updateGame(s,1);};
@@ -450,6 +450,16 @@ delete MISSIONS['check-broken'];
   const gold=structuredClone(landfall);gold.mission.objectives.forEach(o=>{o.state='done';});gold.time=MISSIONS.landfall.par-1;
   assert.equal(medalFor(gold),'gold');gold.time=MISSIONS.landfall.par+1;assert.equal(medalFor(gold),'silver');
   gold.mission.objectives.find(o=>o.id==='overlook').state='active';assert.equal(medalFor(gold),'bronze');
+  // Hold the Line ends on its survival timer, on a quarter-second check just past the par; a perfect run earns gold.
+  const line=structuredClone(completed['hold-the-line']);line.mission.objectives.forEach(o=>{o.state='done';});
+  assert(missionTime(line)>=MISSIONS['hold-the-line'].par);assert.equal(medalFor(line),'gold','A perfect Hold the Line earns gold');
+  // Its fixed length earns only a neutral tempo share, and the economy share counts starting credits and supply
+  // as income: a run with heavy losses and a missed secondary no longer grades S beside a bronze medal.
+  line.mission.objectives.find(o=>o.id==='walls').state='active';line.teams[0].kills=80;line.teams[0].credits=0;
+  Object.assign(line.teams[0].stats,{unitKills:80,structureKills:0,unseenUnitKills:0,unseenStructureKills:0,lost:35,structuresLost:3,mined:6000,spent:8000});
+  assert.deepEqual([matchReport(line).rating,matchReport(line).grade,medalFor(line)],[85,'A','bronze']);
+  line.teams[0].credits=8000;assert.equal(matchReport(line).rating,80,'Unspent income lowers the economy share');
+  line.teams[0].stats.mined=0;assert.equal(matchReport(line).rating,80,'Without mining the economy share is neutral');
   // Dead Signal survivors become the Severance roster; stored progress is sanitized.
   progress=recordResult(progress,completed['dead-signal'],matchReport(completed['dead-signal']));
   assert.deepEqual(progress.veterans,survivingVeterans(completed['dead-signal']));

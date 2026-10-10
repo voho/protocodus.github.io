@@ -3,7 +3,7 @@
 // Rival figures are reported only once the operation has ended, so the debrief never leaks fog.
 import { TEAM_STATS, RACES, unitRole } from './sim.js';
 import { MISSIONS } from './campaign.js';
-import { objectiveVoid } from './mission.js';
+import { objectiveVoid, MISSION_INTERVAL } from './mission.js';
 
 const clamp01 = value => Math.max(0, Math.min(1, value));
 export const GRADES = [['S', 90], ['A', 78], ['B', 64], ['C', 50], ['D', 0]];
@@ -55,7 +55,8 @@ export function medalFor(s) {
   if (!def || s.status !== 'victory' || !Number.isFinite(def.par)) return null;
   const secondary = secondaryTally(s);
   if (secondary.done < secondary.total) return 'bronze';
-  return missionTime(s) <= def.par ? 'gold' : 'silver';
+  // Objectives complete on the mission's quarter-second checks, so a timed operation ends just past its timer.
+  return missionTime(s) <= def.par + MISSION_INTERVAL ? 'gold' : 'silver';
 }
 
 export function gradeFor(rating, scale = GRADES) {
@@ -80,13 +81,16 @@ export function matchReport(s) {
   if (you) {
     const dealt = you.unitKills + 2 * you.structureKills, taken = you.lost + 2 * you.structuresLost, exchange = dealt / Math.max(1, taken);
     rating += 20 * exchange / (exchange + 1);
-    // An operation without an economy (a commando strike) scores the economy share as neutral.
-    rating += you.mined + you.spent === 0 ? 5 : 10 * clamp01(you.spent / Math.max(1, you.mined));
+    // Economy is the share of all income put to work: starting credits, deliveries, supply and refunds are
+    // what was spent plus what is left. An operation without mining (a commando strike) scores it as neutral.
+    rating += you.mined === 0 ? 5 : 10 * clamp01(you.spent / Math.max(1, you.spent + s.teams[0].credits));
   }
   if (secondary) rating += secondary.total ? 10 * secondary.done / secondary.total : 10;
   else if (goals) rating += 10 * goals.filter(goal => goal.done).length / goals.length;
   const par = def?.par ?? SKIRMISH_TEMPO;
-  rating += victory ? 10 * clamp01(par / Math.max(1, time)) : 10 * clamp01(time / par) * .5;
+  // A survival timer fixes when the operation ends, so its victory earns a neutral tempo share.
+  const timed = def?.objectives.some(o => !o.secondary && o.type === 'survive');
+  rating += victory ? (timed ? 5 : 10 * clamp01(par / Math.max(1, time))) : 10 * clamp01(time / par) * .5;
   report.rating = Math.round(Math.min(100, rating));
   report.score = report.rating * 100;
   report.grade = gradeFor(report.rating);

@@ -43,7 +43,7 @@ try {
   assert.equal(list.length, 8); assert.deepEqual(list.map(e => e.disabled), [false, true, true, true, true, true, true, true]);
   assert.equal(await page.locator('#campaign-name').textContent(), 'Landfall');
   assert.match(await page.locator('#campaign-unlocks').textContent(), /Field barracks/);
-  assert.equal(await page.locator('#campaign-par').textContent(), '09:00');
+  assert.equal(await page.locator('#campaign-par').textContent(), '05:00');
   await page.screenshot({ path: `${output}/campaign-briefing.png` });
 
   // The Field archive opens from the briefing with lore for every section.

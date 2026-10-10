@@ -66,7 +66,7 @@ export const MISSIONS={
   },
 
   landfall:{
-    id:'landfall',name:'Landfall',location:'Kessel flats',seed:'LANDFALL-07',par:540,
+    id:'landfall',name:'Landfall',location:'Kessel flats',seed:'LANDFALL-07',par:300,
     summary:'Walk the ground, raise a barracks and clear the Unity picket watching the landing.',
     story:['Expedition 07 is down on Tephra with a nexus, a reactor, one refinery and a handful of squads. Under the Charter the sector is ours for as long as that nexus keeps running.','Unity already knows we are here. A survey picket of Needle cohorts sits on the lane east of the landing. Learn the ground, get the economy turning, then clear it.'],
     briefing:'Expedition 07 makes landfall. Survey the ground, raise a barracks and clear the Unity picket.',
@@ -131,7 +131,7 @@ export const MISSIONS={
   },
 
   'signal-in-the-ash':{
-    id:'signal-in-the-ash',name:'Signal in the Ash',location:'Varn escarpment',seed:'SIGNAL-ASH',par:840,
+    id:'signal-in-the-ash',name:'Signal in the Ash',location:'Varn escarpment',seed:'SIGNAL-ASH',par:720,
     summary:'Break into a fortified Unity outpost and destroy the Logic archive inside.',
     story:['Unity finds our shards with survey algorithms it iterates in Logic archives. One of them sits in a relay outpost on the escarpment, guarded by Lance nodes.','The yard has cleared a laboratory and a War foundry. Tanks break lines; engineers keep them running. The Lance nodes draw from a single Resonance spire.'],
     briefing:'Destroy the Logic archive in a fortified Unity outpost. Its Lance nodes draw from a single spire.',
@@ -169,7 +169,7 @@ export const MISSIONS={
   },
 
   convoy:{
-    id:'convoy',name:'Convoy to Cinder Gap',location:'Cinder Gap',seed:'CINDER-GAP',par:600,
+    id:'convoy',name:'Convoy to Cinder Gap',location:'Cinder Gap',seed:'CINDER-GAP',par:360,
     summary:'Escort the construction vehicle across the basin and bring a nexus online in Cinder Gap.',
     story:['Cinder Gap sits on a blue shard bowl that nobody holds. Our construction vehicle is the claim: if it dies on the road, so does the expedition.','Unity pickets watch the basin and a Lance line covers the approach. The Charter recognises a claim only once its nexus is operating.'],
     briefing:'Escort the construction vehicle to Cinder Gap and bring a nexus online there.',
@@ -239,7 +239,7 @@ export const MISSIONS={
   },
 
   'dead-signal':{
-    id:'dead-signal',name:'Dead Signal',location:'Glass basin',seed:'DEAD-SIGNAL',par:720,
+    id:'dead-signal',name:'Dead Signal',location:'Glass basin',seed:'DEAD-SIGNAL',par:540,
     summary:'A commando strike with no base: silence three Resonance spires, then the relay mainframe.',
     story:['The relay complex in the glass basin ties this region\'s cohorts together. Three Resonance spires feed it and its Lance nodes.','No base and no reinforcements: two rovers, ranked rifle squads, a Vael launcher pair and one engineer. Ranked survivors of Dead Signal come back as veterans for the last operation.'],
     briefing:'Commando strike: destroy three Resonance spires and the relay mainframe. Ranked survivors become veterans.',
@@ -288,7 +288,7 @@ export const MISSIONS={
   },
 
   'hold-the-relay':{
-    id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:1200,aiStep:1,
+    id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:600,aiStep:1,
     summary:'Seize the central relay and hold it for four minutes against Unity\'s veteran cohorts.',
     story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here and will push hard for the relay. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
     briefing:'Hold the lit central relay for four minutes in total before Unity can hold it for as long.',
