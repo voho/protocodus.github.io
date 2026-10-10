@@ -3,6 +3,7 @@
 // Rival figures are reported only once the operation has ended, so the debrief never leaks fog.
 import { TEAM_STATS, RACES, unitRole } from './sim.js';
 import { MISSIONS } from './campaign.js';
+import { objectiveVoid } from './mission.js';
 
 const clamp01 = value => Math.max(0, Math.min(1, value));
 export const GRADES = [['S', 90], ['A', 78], ['B', 64], ['C', 50], ['D', 0]];
@@ -40,7 +41,8 @@ export const missionTime = s => Math.max(0, s.time - (s.mission?.startedAt ?? 0)
 const secondaryTally = s => {
   const def = s.mission && MISSIONS[s.mission.id];
   if (!def) return null;
-  const list = def.objectives.map((o, i) => ({ o, state: s.mission.objectives[i] })).filter(({ o }) => o.secondary);
+  // An objective that cannot apply (veterans nobody brought) neither helps nor blocks a medal.
+  const list = def.objectives.map((o, i) => ({ o, state: s.mission.objectives[i] })).filter(({ o }) => o.secondary && !objectiveVoid(s.mission, o.id));
   return { done: list.filter(({ state }) => state.state === 'done').length, total: list.length };
 };
 

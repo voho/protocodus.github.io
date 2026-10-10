@@ -5,8 +5,11 @@
 // The import cycle with sim.js is safe: neither module reads the other's bindings while it evaluates.
 // Numeric trigger state lives in s.mission.counters beside the objective counters: 'repeat:<id>' (fires so
 // far), 'next:<id>' (next scheduled time since start) and 'at:<id>' (time of the last fire), plus
-// 'rivalHold:<zone>' for the rival's cumulative hold of a contested zone.
-import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats} from './sim.js';
+// 'rivalHold:<zone>' for the rival's cumulative hold of a contested zone. Tags keep 'tagged:<tag>' (members
+// ever tagged), 'mobile:<tag>' (members that are units or arrived after setup, so their total is never
+// published) and 'seen:<tag>' (members whose loss the player witnessed). An objective that cannot apply,
+// such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally.
+import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,seen as seenBy} from './sim.js';
 import {mapLayout,hash} from './terrain.js';
 import {MISSIONS} from './campaign.js';
 
@@ -18,7 +21,7 @@ export const FAIL_RULES=['coreLost','allUnitsLost','tagLost','timeLimit','rivalH
 const HOLDING=['protectTagged','limitLosses'];
 const DEFAULT_FAIL=[{type:'coreLost'}];
 const SETTINGS=['width','height','profile','races','aiTeams','aiProfiles'];
-const CONDITIONS=['time','every','limit','until','after','objectiveDone','objectiveFailed','tagDestroyed','tagsLeft','zoneEntered','kills'];
+const CONDITIONS=['time','every','limit','until','after','objectiveDone','objectiveFailed','objectiveActive','tagDestroyed','tagsLeft','zoneEntered','kills'];
 const ACTIONS=['say','spawn','reveal','credits','directive','rally'];
 const MAX_RADIUS=48,MAX_VETERANS=12;
 export const WAVE_SCALE={easy:.7,normal:1,hard:1.3};
@@ -94,6 +97,7 @@ function checkDefinition(def){
     if(rule.type==='tagLost'&&!tag(rule.tag)||['timeLimit','rivalHold'].includes(rule.type)&&!positive(rule.seconds))fail(`fail rule ${rule.type} is incomplete`);
     if(rule.type==='rivalHold')zone(rule.zone);
     if(rule.label!==undefined&&!text(rule.label,40))fail(`fail rule ${rule.type} has a malformed label`);
+    if(rule.armed!==undefined&&(rule.type!=='allUnitsLost'||typeof rule.armed!=='boolean'))fail(`fail rule ${rule.type} cannot count armed units`);
   }
   for(const t of triggers){
     const w=t.when||{};
@@ -103,7 +107,7 @@ function checkDefinition(def){
     if((w.limit!==undefined||w.until!==undefined)&&w.every===undefined)fail(`trigger ${t.id} limits a trigger that does not repeat`);
     if(w.limit!==undefined&&!whole(w.limit,1,10000))fail(`trigger ${t.id} has a malformed limit`);
     if(w.after!==undefined&&!(w.after&&triggerIds.has(w.after.trigger)&&w.after.trigger!==t.id&&Number.isFinite(w.after.seconds)&&w.after.seconds>=0))fail(`trigger ${t.id} follows an unknown trigger`);
-    for(const key of ['objectiveDone','objectiveFailed'])if(w[key]!==undefined&&!objectives.has(w[key]))fail(`trigger ${t.id} waits for an unknown objective`);
+    for(const key of ['objectiveDone','objectiveFailed','objectiveActive'])if(w[key]!==undefined&&!objectives.has(w[key]))fail(`trigger ${t.id} waits for an unknown objective`);
     if(w.tagDestroyed!==undefined&&!tag(w.tagDestroyed)||w.tagsLeft!==undefined&&!(w.tagsLeft&&tag(w.tagsLeft.tag)&&whole(w.tagsLeft.count,0)))fail(`trigger ${t.id} watches a malformed tag`);
     if(w.zoneEntered!==undefined)zone(w.zoneEntered);
     if(w.kills!==undefined&&!whole(w.kills,1,1e6))fail(`trigger ${t.id} needs a whole kill count`);
@@ -135,6 +139,7 @@ function checkDefinition(def){
   for(const [category,list] of Object.entries(def.allow||{}))if(!Object.hasOwn(catalog,category)||!Array.isArray(list)||!list.every(catalog[category]))fail(`allow.${category} must list known ids`);
   for(const [team,d] of Object.entries(def.directives||{})){if(!['0','1'].includes(team))fail('directives are keyed by team');directive(d,'directive');}
   if(def.score!==undefined&&def.score!=='survival')fail('unknown scoring');
+  if(def.deployZone!==undefined)zone(def.deployZone);
 }
 
 const clampPoint=(s,x,y)=>({x:clamp(x,.5,s.width-.5),y:clamp(y,.5,s.height-.5)});
@@ -206,9 +211,11 @@ function buildingSite(s,size,p,wall){
 }
 function tagEntities(s,ids,tag){
   if(typeof tag!=='string'||!tag||tag.length>40)throw new RangeError('Mission tags are 1-40 characters');
+  const c=s.mission.counters,later=s.time>s.mission.startedAt;
   for(const id of [ids].flat()){
     const e=s.entities.find(e=>e.id===id&&alive(e));if(!e||e.tag===tag)continue;
-    e.tag=tag;s.mission.counters[`tagged:${tag}`]=(s.mission.counters[`tagged:${tag}`]||0)+1;
+    e.tag=tag;c[`tagged:${tag}`]=(c[`tagged:${tag}`]||0)+1;
+    if(e.kind==='unit'||later)c[`mobile:${tag}`]=(c[`mobile:${tag}`]||0)+1;
   }
 }
 const livingUnits=(s,team)=>s.entities.reduce((n,e)=>n+(e.team===team&&e.kind==='unit'&&alive(e)?1:0),0);
@@ -302,6 +309,8 @@ export function createMissionState(s,id,options={}){
   // A structure placed on a zone's centre (an outpost around its archive) moves the marker beside it.
   rebuildNavigation(s);for(const z of m.zones)Object.assign(z,openPoint(s,z));
   for(const [team,d] of Object.entries(def.directives||{}))setDirective(s,Number(team),d);
+  // Protecting a group that never deployed (veterans nobody brought) cannot apply to this operation.
+  for(const o of def.objectives)if(o.type==='protectTagged'&&!taggedTotal(m,o.tag))m.counters[`void:${o.id}`]=1;
   if(def.score)m.score=0;
   lightZones(s,def,m);
   return m;
@@ -312,6 +321,9 @@ const zoneOf=(m,id)=>m.zones.find(z=>z.id===id);
 const armed=e=>e.kind==='unit'&&UNITS[e.type].damage>0;
 const remainingTagged=(s,tag,test=()=>true)=>s.entities.reduce((n,e)=>n+(alive(e)&&e.tag===tag&&test(e)?1:0),0);
 const taggedTotal=(m,tag)=>m.counters[`tagged:${tag}`]||0;
+// What the player knows remains of a tag: members it never saw lost still count as standing.
+const knownLeft=(m,tag)=>taggedTotal(m,tag)-(m.counters[`seen:${tag}`]||0);
+export const objectiveVoid=(m,id)=>Boolean(m.counters[`void:${id}`]);
 const point=z=>z?{x:z.x,y:z.y}:{};
 const elapsed=(s,m)=>s.time-m.startedAt;
 // Contested zones broadcast their surroundings to both sides, so holding one never relies on hidden units.
@@ -334,7 +346,8 @@ function zoneHolder(s,zone){
 function measure(s,m,o,state){
   const zone=o.zone===undefined?null:zoneOf(m,o.zone),stats=s.teams[PLAYER].stats||{};
   switch(o.type){
-    case 'destroyTagged':{const total=taggedTotal(m,o.tag),left=remainingTagged(s,o.tag,e=>e.team!==PLAYER);state.progress=total-left;return total>0&&!left?'done':'';}
+    // Progress counts only witnessed losses; completion is the mission's own ruling on the real state.
+    case 'destroyTagged':{const total=taggedTotal(m,o.tag),left=remainingTagged(s,o.tag,e=>e.team!==PLAYER);state.progress=Math.min(total,m.counters[`seen:${o.tag}`]||0);return total>0&&!left?'done':'';}
     case 'annihilate':{const left=own(s,RIVAL,'core').length+own(s,RIVAL,'constructor').length;state.progress=left?0:1;return left?'':'done';}
     case 'survive':state.progress=Math.min(o.seconds,state.progress+MISSION_INTERVAL);return state.progress>=o.seconds?'done':'';
     case 'endure':state.progress+=MISSION_INTERVAL;return'';
@@ -348,8 +361,9 @@ function measure(s,m,o,state){
     case 'kills':state.progress=s.teams[PLAYER].kills;return state.progress>=o.count?'done':'';
     case 'protectTagged':{const total=taggedTotal(m,o.tag),left=remainingTagged(s,o.tag,e=>e.team===PLAYER);state.progress=left;return total>0&&(o.all?left<total:!left)?'failed':'';}
     case 'limitLosses':{
-      // Unit losses and structure losses (walls included) come from the team's match statistics.
-      const units=stats.lost||0,structures=stats.structuresLost||0;state.progress=units+structures;
+      // Unit losses and structure losses (walls included) come from the team's match statistics; progress
+      // sums only the limited categories.
+      const units=stats.lost||0,structures=stats.structuresLost||0;state.progress=(o.units===undefined?0:units)+(o.structures===undefined?0:structures);
       return o.units!==undefined&&units>o.units||o.structures!==undefined&&structures>o.structures?'failed':'';
     }
   }
@@ -362,8 +376,10 @@ function triggered(s,m,t,repeats){
   if(w.after!==undefined){const at=c[`at:${w.after.trigger}`];if(at===undefined||since-at<w.after.seconds)return false;}
   if(w.objectiveDone!==undefined&&m.objectives.find(o=>o.id===w.objectiveDone)?.state!=='done')return false;
   if(w.objectiveFailed!==undefined&&m.objectives.find(o=>o.id===w.objectiveFailed)?.state!=='failed')return false;
+  if(w.objectiveActive!==undefined&&m.objectives.find(o=>o.id===w.objectiveActive)?.state!=='active')return false;
   if(w.tagDestroyed!==undefined&&!(taggedTotal(m,w.tagDestroyed)>0&&!remainingTagged(s,w.tagDestroyed)))return false;
-  if(w.tagsLeft!==undefined&&!(taggedTotal(m,w.tagsLeft.tag)>0&&remainingTagged(s,w.tagsLeft.tag)<=w.tagsLeft.count))return false;
+  // Counts what the player witnessed, and stays silent once the real group is gone (a stale "one left").
+  if(w.tagsLeft!==undefined){const {tag,count}=w.tagsLeft;if(!(taggedTotal(m,tag)>0&&knownLeft(m,tag)<=count&&(!count||remainingTagged(s,tag)>0)))return false;}
   if(w.zoneEntered!==undefined&&!own(s,PLAYER).some(e=>e.kind==='unit'&&inZone(e,zoneOf(m,w.zoneEntered))))return false;
   if(w.kills!==undefined&&s.teams[PLAYER].kills<w.kills)return false;
   return true;
@@ -407,7 +423,7 @@ function fire(s,m,def,t){
 }
 function ruleBroken(s,m,rule){
   if(rule.type==='coreLost')return!own(s,PLAYER,'core').length&&!own(s,PLAYER,'constructor').length;
-  if(rule.type==='allUnitsLost')return!own(s,PLAYER).some(e=>e.kind==='unit');
+  if(rule.type==='allUnitsLost')return!own(s,PLAYER).some(e=>e.kind==='unit'&&(!rule.armed||armed(e)));
   if(rule.type==='tagLost')return taggedTotal(m,rule.tag)>0&&!remainingTagged(s,rule.tag);
   if(rule.type==='timeLimit')return elapsed(s,m)>=rule.seconds;
   if(rule.type==='rivalHold')return(m.counters[`rivalHold:${rule.zone}`]||0)>=rule.seconds;
@@ -415,6 +431,7 @@ function ruleBroken(s,m,rule){
 }
 const FAIL_TEXT={coreLost:'All nexuses and construction vehicles lost. Operation failed.',allUnitsLost:'All field units lost. Operation failed.',timeLimit:'The operation window has closed. Operation failed.'};
 function failText(rule){
+  if(rule.type==='allUnitsLost'&&rule.armed)return'All armed units lost. Operation failed.';
   if(FAIL_TEXT[rule.type])return FAIL_TEXT[rule.type];
   if(rule.type==='rivalHold')return`${rule.label||'The rival'} holds the ${rule.zone}. Operation failed.`;
   return`${rule.label||'Mission asset'} lost. Operation failed.`;
@@ -422,7 +439,7 @@ function failText(rule){
 function outcome(s){
   const m=s.mission,def=MISSIONS[m.id];
   for(const rule of def.fail??DEFAULT_FAIL)if(ruleBroken(s,m,rule))return{status:'defeat',text:failText(rule)};
-  const primary=def.objectives.map((o,i)=>({o,state:m.objectives[i]})).filter(({o})=>!o.secondary);
+  const primary=def.objectives.map((o,i)=>({o,state:m.objectives[i]})).filter(({o})=>!o.secondary&&!objectiveVoid(m,o.id));
   const failed=primary.find(({state})=>state.state==='failed');
   if(failed)return{status:'defeat',text:`Objective failed: ${failed.o.label}. Operation failed.`};
   const victory={status:'victory',text:def.victoryText??'All objectives complete. Sector secured.'};
@@ -437,7 +454,7 @@ export function missionOutcome(s){return s.mission?outcome(s)?.status??null:null
 // Applies the outcome, if any: the status from the player's side and its closing event.
 export function settleMission(s){
   const result=outcome(s);if(!result)return;
-  if(result.status==='victory')MISSIONS[s.mission.id].objectives.forEach((o,i)=>{const state=s.mission.objectives[i];if(HOLDING.includes(o.type)&&state.revealed&&state.state==='active')state.state='done';});
+  if(result.status==='victory')MISSIONS[s.mission.id].objectives.forEach((o,i)=>{const state=s.mission.objectives[i];if(HOLDING.includes(o.type)&&state.revealed&&state.state==='active'&&!objectiveVoid(s.mission,o.id))state.state='done';});
   s.status=result.status;event(s,result.text,PLAYER,{kind:result.status});
 }
 
@@ -449,7 +466,7 @@ export function updateMission(s){
   lightZones(s,def,m);
   for(const rule of def.fail??[])if(rule.type==='rivalHold'&&zoneHolder(s,zoneOf(m,rule.zone))===RIVAL){const key=`rivalHold:${rule.zone}`;m.counters[key]=Math.min(rule.seconds,(m.counters[key]||0)+MISSION_INTERVAL);}
   def.objectives.forEach((o,i)=>{
-    const state=m.objectives[i];if(state.state!=='active'||!state.revealed)return;
+    const state=m.objectives[i];if(state.state!=='active'||!state.revealed||objectiveVoid(m,o.id))return;
     const result=measure(s,m,o,state);if(!result)return;
     state.state=result;
     event(s,`Objective ${result==='done'?'complete':'failed'}: ${o.label}`,PLAYER,{kind:result==='done'?'objective':'objectiveFailed',status:result==='done'?'complete':'failed',objective:o.id,...point(zoneOf(m,o.zone))});
@@ -465,6 +482,18 @@ export function missionAllows(s,team,category,id){
   if(!s.mission||team!==PLAYER)return true;
   const list=MISSIONS[s.mission.id].allow?.[category];
   return !list||list.includes(id);
+}
+// An operation may confine the player's nexus to a zone (deployZone), so a misplaced deployment cannot spend
+// the only construction vehicle on a claim the operation never counts. Returns the refusal, or ''.
+export function missionDeployment(s,team,x,y){
+  const id=team===PLAYER?MISSIONS[s.mission.id].deployZone:undefined,zone=id===undefined?null:zoneOf(s.mission,id);
+  return zone&&Math.hypot(x-zone.x,y-zone.y)>zone.r?`Deploy inside the ${zone.label}`:'';
+}
+// Called as a tagged entity dies: a loss counts as witnessed when it is the player's own or stands on ground
+// the player currently sees, so progress counts never announce a death under fog (splash, a barrage).
+export function noteTagLost(s,e){
+  if(!seenBy(s,PLAYER,e))return;
+  const key=`seen:${e.tag}`;s.mission.counters[key]=(s.mission.counters[key]||0)+1;
 }
 // Scripted guidance for a commander: where to attack or hold, and whether to expand.
 export function missionDirective(s,team){return s.mission?.directives?.[team]??null;}

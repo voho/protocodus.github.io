@@ -8,6 +8,8 @@
 // when.until end it). A repeating spawn's unit entries are [role, count, growth per later wave, first wave].
 // A {directive} action changes only the keys it names; the rest of that team's standing directive remains.
 // Rival waves from triggers scale with the chosen opposition (mission.js WAVE_SCALE); setup garrisons do not.
+// deployZone confines the player's nexus deployment to a zone. allUnitsLost with armed:true ignores unarmed
+// support. A trigger's objectiveActive holds only while that objective is open, so a hint never trails its step.
 // Fields used only by the briefing UI: seed, location, summary, story, par (seconds for gold) and aiStep
 // (the operation's commander plays this many opposition levels above the chosen one, up to Veteran).
 
@@ -22,7 +24,7 @@ const EXPANSION={buildings:FOUNDRY.buildings,units:[...FOUNDRY.units,'constructo
 export const SKIRMISH_MODES=[
   {id:'annihilation',name:'Annihilation',description:'Destroy every hostile nexus and construction vehicle. A side left without either loses its claim to the sector.'},
   {id:'relay',name:'Relay control',mission:'relay-control',description:'A lit relay sits at the centre of the sector. Hold it for five minutes in total, or void the rival claim. The rival contests it, and wins if it holds the relay first.'},
-  {id:'lastLight',name:'Last Light',mission:'last-light',description:'No rival base, no relief. Endless waves arrive from the dark edges and grow each time. Score is time survived × kills.'},
+  {id:'lastLight',name:'Last Light',mission:'last-light',description:'No rival base, no relief. Endless waves arrive from the dark edges and grow each time. Score is seconds survived × kills ÷ 10.'},
 ];
 
 // The campaign plays these operations in order; finishing one unlocks the next.
@@ -84,7 +86,7 @@ export const MISSIONS={
     ],
     triggers:[
       {id:'welcome',when:{time:1},do:[say(VALE,'Expedition 07, this is Vale. Welcome to Tephra. The Charter gives this sector to whoever keeps a working nexus on it, so ours stays standing.')]},
-      {id:'first-steps',when:{time:8},do:[say(VALE,'First, walk the ground. Select two units and right-click the survey marker.')]},
+      {id:'first-steps',when:{time:8,objectiveActive:'marker'},do:[say(VALE,'First, walk the ground. Select two units and right-click the survey marker.')]},
       {id:'ground',when:{objectiveDone:'marker'},do:[{reveal:'barracks'},say(VALE,'Ground holds. Open the command console, choose the Field barracks and place it within reach of the base.')]},
       {id:'recruit',when:{objectiveDone:'barracks'},do:[{reveal:'rifles'},{reveal:'shards'},say(VALE,'Barracks online. Train three rifle squads. Your hauler is already working the mint field; keep the credits coming.')]},
       {id:'contact',when:{objectiveDone:'rifles'},do:[{reveal:'picket'},say(VALE,'Unity has a picket on the lane east of us. Gather the squads and clear it. Press Q, then click, to attack-move.')]},
@@ -173,7 +175,7 @@ export const MISSIONS={
     opening:'Convoy assembled. Expedition 07, roll out for Cinder Gap.',
     victoryText:'Cinder Gap nexus operating. The claim is filed.',
     width:192,height:144,profile:'basin',races:['organics','aiUnity'],aiTeams:[],start:['none','none'],credits:[1200,0],
-    allow:FOUNDRY,
+    allow:FOUNDRY,deployZone:'gap',
     zones:[{id:'gap',label:'Cinder Gap claim site',at:'lane:0.6',r:7},{id:'ridge',label:'Ash ridge',at:'lane:0.36',r:7}],
     objectives:[
       {id:'claim',type:'nexusInZone',zone:'gap',label:'Deploy the nexus in Cinder Gap and bring it online'},
@@ -186,7 +188,7 @@ export const MISSIONS={
       {id:'charter',when:{time:8},do:[say(KADE,'The Charter recognises a claim when its nexus is operating, not before. Deploy inside the marked site and keep it standing until it comes online.')]},
       {id:'formation',when:{time:16},do:[say(VALE,'Tanks lead, infantry on the flanks, engineer behind the armor. Hold right-click and drag to set a formation.')]},
       {id:'interception',when:{zoneEntered:'ridge'},do:[say(UNITY,'Mobile claim detected. Interception authorised.'),{spawn:{team:1,units:[['scout',3],['rifle',3]],at:'fogEdge',order:{zone:'ridge'},tag:'hunters',text:'Unity hunters closing on the convoy.'}}]},
-      {id:'arrival',when:{zoneEntered:'gap'},do:[say(VALE,'Site is clear enough. Select the construction vehicle, choose Deploy nexus and pick clear ground.')]},
+      {id:'arrival',when:{zoneEntered:'gap'},do:[say(VALE,'Site is clear enough. Select the construction vehicle, choose Deploy nexus and pick clear ground inside the claim site.')]},
       {id:'counter',when:{after:{trigger:'arrival',seconds:30}},do:[say(UNITY,'Claim beacon detected at Cinder Gap. Dispatching correction.'),{spawn:{team:1,units:[['rifle',5],['rocket',2],['tank',2]],at:'fogEdge',order:{zone:'gap'},tag:'counter',text:'Unity counterattack moving on the gap.'}}]},
       {id:'online',when:{objectiveDone:'claim'},do:[say(KADE,'Nexus operating. Claim logged at Cinder Gap.')]},
     ],
@@ -251,7 +253,8 @@ export const MISSIONS={
       {id:'cache',type:'reachZone',zone:'cache',secondary:true,hidden:true,label:'Recover the Expedition 05 survey cache'},
       {id:'team',type:'limitLosses',units:3,secondary:true,label:'Lose no more than three units'},
     ],
-    fail:[{type:'allUnitsLost'}],
+    // The engineer cannot fight, so the strike ends when the last armed unit falls.
+    fail:[{type:'allUnitsLost',armed:true}],
     triggers:[
       {id:'insert',when:{time:1},do:[say(VALE,'Dead Signal is a commando run: no base, no reinforcements. Three spires feed the relay complex. Take them out one at a time.')]},
       {id:'crest',when:{time:8},do:[say(TESK,'My launchers are rested and angry. Spires first; a mainframe without power is a deaf thing.')]},
@@ -364,7 +367,7 @@ export const MISSIONS={
 
   'last-light':{
     id:'last-light',name:'Last Light',score:'survival',
-    briefing:'No rival base and no relief. Waves arrive from the dark edges and grow each time. Score is time survived × kills.',
+    briefing:'No rival base and no relief. Waves arrive from the dark edges and grow each time. Score is seconds survived × kills ÷ 10.',
     opening:'Last Light: no relief is coming. Hold as long as you can.',
     victoryText:'Last Light holds.',
     aiTeams:[],start:['standard','none'],credits:[2000,0],

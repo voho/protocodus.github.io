@@ -197,7 +197,9 @@ export function createCampaign({ launch, focus }) {
     setText('campaign-name', def.name);
     setText('campaign-summary', def.summary);
     $('campaign-story').replaceChildren(...def.story.map(text => { const p = document.createElement('p'); p.textContent = text; return p; }));
-    const visible = def.objectives.filter(o => !o.hidden), hidden = def.objectives.length - visible.length;
+    // Protecting veterans applies only when the roster brings some (mission.js voids it otherwise).
+    const applies = o => !(o.type === 'protectTagged' && o.tag === 'veteran' && !progress.veterans.length);
+    const listed = def.objectives.filter(applies), visible = listed.filter(o => !o.hidden), hidden = listed.length - visible.length;
     $('campaign-objectives').replaceChildren(...visible.map(o => {
       const li = document.createElement('li'); li.dataset.kind = o.secondary ? 'secondary' : 'primary';
       li.textContent = `${o.secondary ? 'Secondary · ' : ''}${o.label}`; return li;
@@ -338,6 +340,7 @@ export function createCampaign({ launch, focus }) {
     resume.firstChild.textContent = 'Resume operation ';
     $('new-game').textContent = campaignOp ? 'Operations' : 'New skirmish';
     for (const id of ['next-operation', 'retry-operation', 'remix-operation']) $(id).hidden = true;
+    const replay = (id, seed) => () => play(id, { difficulty: current?.chosen ?? $('campaign-difficulty').value, seed });
     menuObjective(s);
     $('objective').hidden = finished;
     if (def) {
@@ -349,7 +352,11 @@ export function createCampaign({ launch, focus }) {
         resume.firstChild.textContent = 'Begin operation ';
       }
     }
-    if (!finished) return;
+    if (!finished) {
+      // A running operation can be restarted on its own sector, so no position is ever a dead end.
+      if (campaignOp && s.time > 0) { $('retry-operation').hidden = false; $('retry-operation').onclick = replay(def.id, s.seed); }
+      return;
+    }
     finish(s);
     debrief(s);
     if (!def) return;
@@ -360,9 +367,9 @@ export function createCampaign({ launch, focus }) {
     const next = CAMPAIGN[CAMPAIGN.indexOf(def.id) + 1];
     $('next-operation').hidden = !(victory && next && isUnlocked(progress, next));
     $('retry-operation').hidden = false; $('remix-operation').hidden = false;
-    $('next-operation').onclick = () => play(next, { difficulty: current?.chosen ?? $('campaign-difficulty').value });
-    $('retry-operation').onclick = () => play(def.id, { difficulty: current?.chosen ?? $('campaign-difficulty').value, seed: s.seed });
-    $('remix-operation').onclick = () => play(def.id, { difficulty: current?.chosen ?? $('campaign-difficulty').value, seed: remixSeed() });
+    $('next-operation').onclick = replay(next);
+    $('retry-operation').onclick = replay(def.id, s.seed);
+    $('remix-operation').onclick = () => replay(def.id, remixSeed())();
   }
 
   installArchive();
