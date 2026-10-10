@@ -18,33 +18,32 @@ import {missionDirective} from './mission.js';
 // towers, walls (0 never, 1 Veteran, 2 Commander and up) and outpostTowers shape static defense; expand
 // scales expansion timing and bases adds nexus slots; harass is the hauler-hunting squad size (raider
 // doctrines also hunt on Commander); focus caps attackers per target; storm is how many times a remembered
-// tower's strength a wave needs before it assaults instead of standing off; guns is how many siege crawlers a
-// wave waits for while towers are known; foundries is how many foundries it stands up early; targets ranks
-// raid objectives (towers only for waves with guns).
+// tower's strength a wave needs before it assaults instead of standing off; foundries is how many foundries it
+// stands up early; targets ranks raid objectives (towers only for waves with guns).
 export const DOCTRINES={
   balanced:{name:'Balanced',commander:'Warden Kestrel',callsign:'Watchfire',unity:{commander:'Arbiter WK-9',callsign:'Lattice'},
     description:'Grows a steady economy, holds a powered perimeter and raids with staged combined-arms waves.',
-    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,guns:0,foundries:1,engineers:.08,scouts:1,labs:1,
+    knobs:{mix:{rifle:.3,rocket:.16,scout:0,tank:.34,artillery:.1,striker:.1},raid:1,wave:1,towers:0,walls:1,outpostTowers:1,expand:1,bases:0,harass:2,raider:false,focus:0,towerAversion:8,storm:3,foundries:1,engineers:.08,scouts:1,labs:1,
       research:['gridEfficiency','vehicleWeapons','infantryWeapons','advancedBallistics','infantryArmor','mobility'],
       targets:{refinery:1,reactor:1,lab:1,capacitor:2,core:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   ironclad:{name:'Ironclad',commander:'Marshal Orsa Vantreck',callsign:'Anvil',unity:{commander:'Bastion mind OR-4',callsign:'Keel'},
-    description:'Masses armor and siege guns behind walled sentry lines, then breaks the enemy with one heavy timing push.',
-    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:2,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,storm:3,guns:0,foundries:2,engineers:.12,scouts:1,labs:1,
+    description:'Masses armor and siege guns behind walled sentry lines, then breaks out late with heavy, infrequent pushes.',
+    knobs:{mix:{rifle:.16,rocket:.12,scout:0,tank:.5,artillery:.18,striker:.04},raid:1.7,wave:1,towers:2,walls:2,outpostTowers:2,expand:1.25,bases:-1,harass:0,raider:false,focus:3,towerAversion:4,storm:3,foundries:2,engineers:.12,scouts:1,labs:1,
       research:['vehicleWeapons','gridEfficiency','mobility','advancedBallistics','infantryWeapons','infantryArmor'],
       targets:{core:1,factory:1,barracks:2,reactor:2,refinery:2,lab:3,capacitor:3,turret:3,rocketTower:3,wall:6}}},
   swarm:{name:'Swarm',commander:'Major Idris Kell',callsign:'Wasp',unity:{commander:'Swarm kernel IK-12',callsign:'Chorus'},
-    description:'Floods the field with infantry, rovers and strikers, raids early and often, and hunts haulers on the shard runs.',
-    knobs:{mix:{rifle:.42,rocket:.14,scout:.14,tank:.08,artillery:0,striker:.22},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,storm:2,guns:0,foundries:1,engineers:0,scouts:2,labs:1,
+    description:'Floods the field with infantry, launcher teams, rovers and strikers, raids early and often, and hunts haulers on the shard runs.',
+    knobs:{mix:{rifle:.3,rocket:.26,scout:.08,tank:.1,artillery:0,striker:.26},raid:.6,wave:.75,towers:-1,walls:0,outpostTowers:0,expand:1,bases:0,harass:3,raider:true,focus:0,towerAversion:10,storm:2,foundries:1,engineers:0,scouts:2,labs:1,
       research:['gridEfficiency','advancedBallistics','infantryWeapons','infantryArmor','vehicleWeapons','mobility'],
       targets:{refinery:0,reactor:1,core:2,barracks:2,lab:2,capacitor:2,factory:3,turret:4,rocketTower:4,wall:6}}},
   prospector:{name:'Prospector',commander:'Quartermaster Juno Tal',callsign:'Lodestar',unity:{commander:'Survey core JT-3',callsign:'Assay'},
     description:'Claims remote shard fields early, fortifies each outpost, then turns a broad economy into a late heavy push.',
-    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,storm:3,guns:0,foundries:1,engineers:.08,scouts:1,labs:2,
+    knobs:{mix:{rifle:.26,rocket:.18,scout:0,tank:.36,artillery:.1,striker:.1},raid:1.5,wave:1.6,towers:0,walls:1,outpostTowers:1,expand:.55,bases:2,harass:2,raider:false,focus:0,towerAversion:8,storm:3,foundries:1,engineers:.08,scouts:1,labs:2,
       research:['gridEfficiency','vehicleWeapons','mobility','infantryWeapons','advancedBallistics','infantryArmor'],
       targets:{refinery:0,core:1,reactor:2,lab:2,capacitor:2,barracks:2,factory:2,turret:3,rocketTower:3,wall:6}}},
   siegebreaker:{name:'Siegebreaker',commander:'Major Rhee Ostrander',callsign:'Hammerfall',unity:{commander:'Ballistic node RO-7',callsign:'Parallax'},
     description:'Spots for long guns with rovers and flares, levels defenses from beyond their reach, then shells the reactors dark.',
-    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1.1,wave:1.2,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,guns:2,foundries:1,engineers:.15,scouts:2,labs:1,
+    knobs:{mix:{rifle:.24,rocket:.1,scout:.06,tank:.28,artillery:.32,striker:0},raid:1,wave:1,towers:0,walls:0,outpostTowers:1,expand:1,bases:0,harass:0,raider:false,focus:2,towerAversion:0,storm:8,foundries:1,engineers:.15,scouts:2,labs:1,
       research:['vehicleWeapons','gridEfficiency','advancedBallistics','mobility','infantryWeapons','infantryArmor'],
       targets:{turret:0,rocketTower:0,reactor:1,capacitor:1,core:2,factory:2,barracks:3,refinery:3,lab:3,wall:6}}},
 };
@@ -96,7 +95,7 @@ export function aiState(s,team){return team===1?s.ai:s.aiByTeam?.[team];}
 export function aiKnobs(s,ai){
   const level=LEVELS[s.difficulty]??LEVELS.normal,d=(DOCTRINES[ai.doctrine]??DOCTRINES.balanced).knobs,easy=s.difficulty==='easy',hard=s.difficulty==='hard';
   const wave=Math.max(3,Math.round(level.waveMin*d.wave));
-  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,guns:easy?0:d.guns,foundries:easy?1:d.foundries,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
+  return{...level,level:s.difficulty,mix:d.mix,research:d.research,targets:d.targets,towerAversion:d.towerAversion,storm:d.storm,foundries:easy?1:d.foundries,firstRaid:level.firstRaid*d.raid,cadence:level.cadence*d.raid,
     waveMin:easy?Math.min(level.waveMax,wave):wave,waveMax:easy?level.waveMax:Math.max(level.waveMax,wave),towers:Math.max(1,level.towers+d.towers),
     walls:!easy&&d.walls>=(hard?1:2),outpostTowers:easy?0:d.outpostTowers,bases:Math.max(1,level.bases+(easy?0:d.bases)),expandAt:level.expandAt*d.expand,
     expandEvery:level.expandEvery*d.expand,harass:easy||!(hard||d.raider)?0:d.harass,focus:easy?0:Math.max(level.focus,d.focus),engineers:easy?0:d.engineers,
@@ -807,8 +806,7 @@ function manageWaves(s,team,ai,v,k,ctx,directive){
   if(regrouping&&staged.length>=2&&!holdOnly){
     regrouping.ids.push(...staged.map(u=>u.id));for(const u of staged)ctx.claimed.add(u.id);
     orderGroup(s,staged,'attackMove',{x:regrouping.rx,y:regrouping.ry});ai.mode='Reinforcing a forward regroup';
-  }else if(!holdOnly&&s.time>=ai.nextRaid&&staged.length>=waveMin&&!(k.guns&&v.knownTowers.length&&staged.filter(u=>entityRole(u)==='artillery').length<k.guns&&s.time<ai.nextRaid+90)){
-    // A siege doctrine holds the wave (for at most 90 s) until its guns can answer the known towers.
+  }else if(!holdOnly&&s.time>=ai.nextRaid&&staged.length>=waveMin){
     const members=staged.slice(0,waveMax),target=pickTarget(s,team,ai,v,k,ctx.rally,directive,undefined,members.some(u=>entityRole(u)==='artillery'));
     const wave={id:ai.waveId=(ai.waveId||0)+1,kind:'raid',ids:members.map(u=>u.id),tx:target.x,ty:target.y,...(target.id?{targetId:target.id}:{}),state:'advance',since:s.time};
     ai.waves.push(wave);for(const u of members)ctx.claimed.add(u.id);
