@@ -31,18 +31,19 @@
 
    A hut faces the rider. Square on to the piste it presents a gable to
    somebody who only ever arrives from above, so the front is aimed twenty
-   metres up the run instead: the windows, the door, the terrace and the pool
-   of light are all pointed at the person they are for.
+   metres up the run instead: the windows, the door, the terrace and the light
+   they throw are all pointed at the person they are for.
 
-   And the light is faked twice over. There is no lamp — a real light per hut
-   would be a fourth and fifth shadowless point light in a scene that lights
-   a whole mountain with two — so the windows are an unlit material whose
-   opacity is the night, and the warmth they throw on the snow is one quad
-   with a radial gradient painted into it, the same trick `sky.js` uses for
-   the sun. That pool started as a Sprite, which was wrong for a reason worth
-   recording: a sprite faces the camera, and light lying on snow does not, so
-   from anywhere but head-on the hut stood in a glowing paper lantern. It is
-   a quad on the ground now, tilted to the hill's own normal.
+   And the light is two lamps no light loop ever sees: the windows are an
+   unlit material whose opacity is the night, and what the room's lamp and
+   the terrace lantern throw on the snow, the timber and the rider is worked
+   out in their own shaders — see `HUT_LIGHT` in config.js and
+   `FRAG_HUT_LIGHT` in shading.js. Real point lights would be two more per
+   hut in a scene that lights a whole mountain with two, and three's are
+   shadowless: they would have lit the snow straight through the walls. The
+   light used to be a painted gradient on a quad laid flat in front of the
+   terrace; on the convex lip a hut stands on, its rim hovered metres off the
+   snow.
 
    The hut itself is one baked geometry through `compose`, so all of it —
    walls, roof, chimney, woodpile, bench, terrace — is one draw call, and the
@@ -53,11 +54,11 @@
 
 import { compose } from './geom.js';
 import {
-  heightAt, normalFrom, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
+  heightAt, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
 import { hash2, stream } from './noise.js';
 import { getPointSizeCap } from './particles.js';
-import { RENDER, SKY } from './config.js';
+import { RENDER, SKY, HUT_LIGHT } from './config.js';
 import { sharedTexture } from './textures.js';
 
 /* ==========================================================================
@@ -121,12 +122,6 @@ export const HUTS = {
      because a window with no light behind it at all reads as a painted-on
      rectangle, but close. */
   glow: { storm: 0.45, gamma: 0.75, floor: 0.16, warm: '#ffbe6e' },
-
-  /* The pool of warm light on the snow. Its opacity is the square of the
-     night, because a light that is half on at dusk should read as much less
-     than half. Its size never changes: a light that grows is a light that is
-     coming towards you. */
-  pool: { radius: 9, forward: 7, lift: 0.3, opacity: 0.62, colour: '#ffa445' },
 
   /* Chimney smoke.
 
@@ -372,34 +367,21 @@ function hutGeometry(THREE) {
    every window is the same temperature is a hut nobody lives in. */
 function paneGeometry(THREE) {
   const box = new THREE.BoxGeometry(1, 1, 1);
+  // Built from the light's own table, so the glass is where the light leaves
+  const { front, side, glass, lantern } = HUT_LIGHT;
+  const tints = ['#fff3da', '#ffdfab', '#ffe9bd'];
   return compose(THREE, [
-    { geo: box, color: '#fff3da', pos: [0.35, 1.75, -2.25], scale: [0.98, 0.86, 0.1] },
-    { geo: box, color: '#ffdfab', pos: [1.85, 1.75, -2.25], scale: [0.98, 0.86, 0.1] },
-    { geo: box, color: '#ffdba0', pos: [2.65, 1.75, 0.3], scale: [0.1, 0.86, 0.98] },
-    { geo: box, color: '#ffe9bd', pos: [-1.3, 2.35, -2.29], scale: [0.72, 0.3, 0.1] },
-    // and a lantern on the terrace rail, which is the bit you see first
-    { geo: box, color: '#ffd28a', pos: [2.3, 1.55, -4.35], scale: [0.22, 0.3, 0.22] },
+    ...glass.front.map((p, i) => ({
+      geo: box, color: tints[i],
+      pos: [p.at[0], p.at[1], front - (p.proud || 0)], scale: [p.size[0], p.size[1], 0.1],
+    })),
+    ...glass.side.map((p) => ({
+      geo: box, color: '#ffdba0',
+      pos: [side, p.at[1], p.at[0]], scale: [0.1, p.size[1], p.size[0]],
+    })),
+    // and the lantern on the terrace rail, which is the bit you see first
+    { geo: box, color: '#ffd28a', pos: lantern.at, scale: [0.22, 0.3, 0.22] },
   ]);
-}
-
-/* The pool of light: a radial gradient painted into a canvas, exactly as the
-   sun's glow is built in `sky.js`. Warmer in the middle than at the edge is
-   not physical, it is just what a lit window looks like on snow. */
-function poolTexture(THREE) {
-  const s = 128;
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = s;
-  const g = cv.getContext('2d');
-  const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
-  grd.addColorStop(0, 'rgba(255,255,255,0.95)');
-  grd.addColorStop(0.22, 'rgba(255,255,255,0.55)');
-  grd.addColorStop(0.55, 'rgba(255,255,255,0.16)');
-  grd.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, s, s);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
 }
 
 /* ==========================================================================
@@ -566,7 +548,7 @@ export function createHuts(THREE, shading) {
   // stone and beams matte — every one of them sits well under its lower stop.
   const shell = new THREE.InstancedMesh(
     hutGeometry(THREE),
-    shading.apply(hutMat, { sheen: 1 }),
+    shading.apply(hutMat, { sheen: 1, hutLight: true }),
     HUTS.live,
   );
 
@@ -588,29 +570,7 @@ export function createHuts(THREE, shading) {
   // turn every pane back into an opaque square.
   panes.userData.noShadow = true;
 
-  /* The pool is additive, and additive surfaces cannot be fogged: three's fog
-     mixes towards the haze colour, and adding the haze to the picture is the
-     opposite of disappearing into it. So it is drawn unfogged and faded by
-     hand, per instance, against the same two distances the fog is using. */
-  const poolGeo = new THREE.PlaneGeometry(1, 1);
-  poolGeo.rotateX(-Math.PI / 2);
-  const poolMat = new THREE.MeshBasicMaterial({
-    map: poolTexture(THREE),
-    color: new THREE.Color(HUTS.pool.colour),
-    transparent: true,
-    opacity: 0,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    fog: false,
-  });
-  const pools = new THREE.InstancedMesh(poolGeo, poolMat, HUTS.live);
-  pools.setColorAt(0, new THREE.Color(0xffffff));
-  // An additive pool is light painted on the snow, not geometry standing in
-  // front of the sun. Without this opt-out the generic scene traversal makes
-  // each 18-metre quad cast a solid square into the shadow map.
-  pools.userData.noShadow = true;
-
-  for (const mesh of [shell, panes, pools]) {
+  for (const mesh of [shell, panes]) {
     mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.count = 0;
@@ -663,13 +623,15 @@ export function createHuts(THREE, shading) {
   // --- scratch -------------------------------------------------------------
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
-  const qFlat = new THREE.Quaternion();
   const e = new THREE.Euler();
   const v = new THREE.Vector3();
   const s3 = new THREE.Vector3();
-  const up = new THREE.Vector3(0, 1, 0);
-  const normal = new THREE.Vector3();
   const warm = new THREE.Color(HUTS.glow.warm);
+  // The shared shading's own records; see FRAG_HUT_LIGHT
+  const lampAt = shading.uniforms.uHutAt.value;
+  const lampAxis = shading.uniforms.uHutAxis.value;
+  const lampWarm = shading.uniforms.uHutWarm.value;
+  const lampColour = new THREE.Color(HUT_LIGHT.colour);
   const tint = new THREE.Color();
   const smokeDay = new THREE.Color('#cfd2d6');
   const smokeNight = new THREE.Color('#f0e6d6');
@@ -797,13 +759,10 @@ export function createHuts(THREE, shading) {
         return {
           key: b,
           x, y, z, yaw,
-          // The chimney, and the pool of light in front of the terrace, both
-          // carried through the same rotation the building took
+          // The chimney, carried through the same rotation the building took
           cx: x + CHIMNEY.x * cos + CHIMNEY.z * sin,
           cy: y + CHIMNEY.y,
           cz: z - CHIMNEY.x * sin + CHIMNEY.z * cos,
-          px: x - sin * HUTS.pool.forward,
-          pz: z - cos * HUTS.pool.forward,
           off,
           emit: hash2(b, 13, 3),
           dwell: 0,
@@ -823,22 +782,21 @@ export function createHuts(THREE, shading) {
       m.compose(v, q, s3);
       shell.setMatrixAt(i, m);
       panes.setMatrixAt(i, m);
-
-      // The pool lies on the snow rather than facing the camera, so it takes
-      // the hill's own normal
-      normalFrom(heightAt, h.px, h.pz, normal);
-      qFlat.setFromUnitVectors(up, normal);
-      v.set(h.px, heightAt(h.px, h.pz) + HUTS.pool.lift, h.pz);
-      s3.setScalar(HUTS.pool.radius * 2);
-      m.compose(v, qFlat, s3);
-      pools.setMatrixAt(i, m);
+    }
+    // The lamps go where the buildings went, and an empty slot is dark
+    for (let i = 0; i < lampAt.length; i++) {
+      const h = huts[i];
+      if (h) {
+        lampAt[i].set(h.x, h.y, h.z, 1);
+        lampAxis[i].set(Math.cos(h.yaw), Math.sin(h.yaw));
+      } else {
+        lampAt[i].w = 0;
+      }
     }
     shell.count = huts.length;
     panes.count = huts.length;
-    pools.count = huts.length;
     shell.instanceMatrix.needsUpdate = true;
     panes.instanceMatrix.needsUpdate = true;
-    pools.instanceMatrix.needsUpdate = true;
   }
 
   function rebuild(riderZ) {
@@ -949,7 +907,8 @@ export function createHuts(THREE, shading) {
     tint.copy(w.haze).lerp(warm, lit);
     paneMat.color.copy(tint);
     paneMat.opacity = HUTS.glow.floor + (1 - HUTS.glow.floor) * lit;
-    poolMat.opacity = HUTS.pool.opacity * lit * lit;
+    // The lamps come on with the glass they shine through
+    lampWarm.copy(lampColour).multiplyScalar(lit);
 
     smokeMat.uniforms.uColor.value.copy(smokeDay).lerp(smokeNight, lit);
     smokeMat.uniforms.uFog.value.copy(w.haze);
@@ -1005,12 +964,6 @@ export function createHuts(THREE, shading) {
         if (h.emit >= 1) h.emit = 0;
       }
 
-      // The pool of light, faded by hand against the fog it cannot use
-      const dist = Math.sqrt(d2);
-      const f = clamp((dist - w.fogNear) / (w.fogFar - w.fogNear), 0, 1);
-      tint.setScalar(1 - f);
-      pools.setColorAt(i, tint);
-
       // The cocoa. Generous about stopping — the hill is doing its best to
       // stop you stopping — and paid exactly once.
       if (claimed.has(h.key)) continue;
@@ -1030,7 +983,6 @@ export function createHuts(THREE, shading) {
         h.dwell = 0;
       }
     }
-    if (pools.instanceColor) pools.instanceColor.needsUpdate = true;
 
     stepSmoke(dt, w.windX, w.windZ);
   }

@@ -1551,7 +1551,7 @@ export function createRiderModel(THREE, shading) {
         .replace(RIG_NORMAL_ANCHOR, CLOTH_BAFFLES)
         .replace(RIG_ANCHOR, rigLight(0.12, 0.30, true));
     };
-    return shading.apply(m);
+    return shading.apply(m, { hutLight: true });
   })();
 
   /* THE BOARD FLEXES, and it is the only thing on this rig that is not a rigid
@@ -1648,7 +1648,7 @@ export function createRiderModel(THREE, shading) {
           #endif`)
         .replace(RIG_ANCHOR, rigLight(0.18, 0.45, false, 140, 0.35, 0.65));
     };
-    return shading.apply(m);
+    return shading.apply(m, { hutLight: true });
   })();
 
   const root = new THREE.Group();

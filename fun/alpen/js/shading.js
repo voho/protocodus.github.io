@@ -7,7 +7,7 @@
    continuous; the former fixed-grid vertex snap and stepped light bands have
    intentionally been retired. */
 
-import { RENDER, MIST, TERRAIN } from './config.js';
+import { RENDER, MIST, TERRAIN, HUT_LIGHT } from './config.js';
 
 // The height the shade field's second layer sits at — see `FRAG_SHADE`.
 // The torus is 5 tiles across the run and 6 along it (the extra one
@@ -655,6 +655,134 @@ const FRAG_CANOPY = `
     }
   }`;
 
+/* THE HUTS' OWN LIGHT: the room's lamp through the glass and the lantern
+   on the terrace rail, for each hut standing. The model and its numbers are
+   `HUT_LIGHT` in config.js; the uniforms belong to huts.js, which writes
+   where each hut stands and which way it faces, and the lamps' colour
+   already scaled by the night, so by day the colour is zero and nothing
+   below runs.
+
+   It is evaluated per pixel in the material, in the hut's own frame,
+   rather than drawn on top. What it replaces was a painted gradient on an
+   eighteen-metre quad laid flat at one point of a curved bank: on the convex
+   lip a hut stands on, its rim hovered up to a few metres off the snow and
+   the glow read as an orange slab across the terrace stilts. In here the
+   light lies on whatever surface is drawn, at any range and on any lattice,
+   and falls off the way light does, with distance and with the angle it
+   arrives at, so it rakes across the snow's relief as well as its slope.
+
+   The windows are apertures. The line from a receiver to the room's lamp
+   crosses the glass plane at one point; the lamp's disc, seen from the
+   receiver, covers a patch of that plane that grows with the receiver's
+   distance, and how much of that patch falls inside the pane is how much of
+   the lamp the receiver sees. That one ratio is the penumbra: crisp on the
+   terrace boards, soft out on the slope, with nothing blurred. The terrace
+   floor and the building's front are the same test against an occluder
+   instead of an opening. */
+const hutVec3 = (a) => `vec3(${a.map(asFloat).join(', ')})`;
+const hutPanes = (list) => list.map((p) => {
+  const rect = [p.at[0] - p.size[0] / 2, p.at[1] - p.size[1] / 2,
+    p.at[0] + p.size[0] / 2, p.at[1] + p.size[1] / 2];
+  // A pane without bars puts its crossing far outside itself
+  const bars = p.bars ? p.at : [-99, -99];
+  return `n64HutGlass(n64C, n64H, vec4(${rect.map(asFloat).join(', ')}), `
+    + `vec2(${bars.map(asFloat).join(', ')}))`;
+}).join('\n          + ');
+const HUT_RANGE2 = asFloat(HUT_LIGHT.range ** 2);
+
+const FRAG_HUT_PARS = `
+uniform vec4 uHutAt[3];
+uniform vec2 uHutAxis[3];
+uniform vec3 uHutWarm;
+// The share of [a - h, a + h] that lies inside [lo, hi]
+float n64HutSpan(float a, float h, float lo, float hi) {
+  return clamp((min(a + h, hi) - max(a - h, lo)) / (2.0 * h), 0.0, 1.0);
+}
+float n64HutGlass(vec2 c, float h, vec4 pane, vec2 bars) {
+  return n64HutSpan(c.x, h, pane.x, pane.z) * n64HutSpan(c.y, h, pane.y, pane.w)
+    * (1.0 - n64HutSpan(c.x, h, bars.x - ${asFloat(HUT_LIGHT.bar / 2)}, bars.x + ${asFloat(HUT_LIGHT.bar / 2)}))
+    * (1.0 - n64HutSpan(c.y, h, bars.y - ${asFloat(HUT_LIGHT.bar / 2)}, bars.y + ${asFloat(HUT_LIGHT.bar / 2)}));
+}
+// How much of a lamp the terrace floor leaves a receiver underneath it
+float n64HutTerrace(vec3 p, vec3 lamp, float r) {
+  if (p.y > ${asFloat(HUT_LIGHT.terrace.top - 0.03)}) return 1.0;
+  float t = (${asFloat(HUT_LIGHT.terrace.top)} - p.y) / (lamp.y - p.y);
+  vec2 c = mix(p.xz, lamp.xz, t);
+  float h = max(r * t, 0.002);
+  return 1.0
+    - n64HutSpan(c.x, h, ${asFloat(HUT_LIGHT.terrace.x[0])}, ${asFloat(HUT_LIGHT.terrace.x[1])})
+    * n64HutSpan(c.y, h, ${asFloat(HUT_LIGHT.terrace.z[0])}, ${asFloat(HUT_LIGHT.terrace.z[1])});
+}
+// The irradiance on a receiver at cameraPosition + view, facing nW
+vec3 n64HutLight(vec3 view, vec3 nW) {
+  const vec3 room = ${hutVec3(HUT_LIGHT.room.at)};
+  const vec3 lantern = ${hutVec3(HUT_LIGHT.lantern.at)};
+  float e = 0.0;
+  for (int i = 0; i < 3; i++) {
+    if (uHutAt[i].w <= 0.0) continue;
+    vec3 d = (cameraPosition - uHutAt[i].xyz) + view;
+    float r2 = dot(d.xz, d.xz);
+    if (r2 > ${HUT_RANGE2}) continue;
+    vec2 ax = uHutAxis[i];
+    vec3 p = vec3(ax.x * d.x - ax.y * d.z, d.y, ax.y * d.x + ax.x * d.z);
+    vec3 n = vec3(ax.x * nW.x - ax.y * nW.z, nW.y, ax.y * nW.x + ax.x * nW.z);
+    float fade = r2 / ${HUT_RANGE2};
+    fade = 1.0 - fade * fade;
+    fade *= fade;
+
+    vec3 toRoom = room - p;
+    float roomNL = dot(n, toRoom);
+    if (roomNL > 0.0) {
+      float glass = 0.0;
+      float dp = ${asFloat(HUT_LIGHT.front)} - p.z;
+      if (dp > 0.0) {
+        float t = dp / (dp + ${asFloat(HUT_LIGHT.room.at[2] - HUT_LIGHT.front)});
+        vec2 n64C = mix(p.xy, room.xy, t);
+        float n64H = max(${asFloat(HUT_LIGHT.room.radius)} * t, 0.002);
+        glass += ${hutPanes(HUT_LIGHT.glass.front)};
+      }
+      float ds = p.x - ${asFloat(HUT_LIGHT.side)};
+      if (ds > 0.0) {
+        float t = ds / (ds + ${asFloat(HUT_LIGHT.side - HUT_LIGHT.room.at[0])});
+        vec2 n64C = mix(p.zy, room.zy, t);
+        float n64H = max(${asFloat(HUT_LIGHT.room.radius)} * t, 0.002);
+        glass += ${hutPanes(HUT_LIGHT.glass.side)};
+      }
+      if (glass > 0.0) {
+        float d2 = dot(toRoom, toRoom);
+        e += ${asFloat(HUT_LIGHT.room.intensity)} * glass
+          * n64HutTerrace(p, room, ${asFloat(HUT_LIGHT.room.radius)})
+          * roomNL * inversesqrt(d2) / d2 * fade;
+      }
+    }
+
+    vec3 toLamp = lantern - p;
+    float lampNL = dot(n, toLamp);
+    if (lampNL > 0.0) {
+      float vis = n64HutTerrace(p, lantern, ${asFloat(HUT_LIGHT.lantern.radius)});
+      float dz = p.z - ${asFloat(HUT_LIGHT.body.front)};
+      if (dz > 0.0) {
+        float t = dz / (dz + ${asFloat(HUT_LIGHT.body.front - HUT_LIGHT.lantern.at[2])});
+        vis *= 1.0 - n64HutSpan(mix(p.x, lantern.x, t),
+          max(${asFloat(HUT_LIGHT.lantern.radius)} * t, 0.002),
+          ${asFloat(HUT_LIGHT.body.x[0])}, ${asFloat(HUT_LIGHT.body.x[1])});
+      }
+      float d2 = max(dot(toLamp, toLamp), 0.04);
+      e += ${asFloat(HUT_LIGHT.lantern.intensity)} * vis
+        * lampNL * inversesqrt(d2) / d2 * fade;
+    }
+  }
+  return e * uHutWarm;
+}
+`;
+
+const FRAG_HUT_LIGHT = `
+  if (uHutWarm.r > 0.0) {
+    reflectedLight.directDiffuse += diffuseColor.rgb * RECIPROCAL_PI
+      * n64HutLight(vN64View * mat3(viewMatrix),
+        inverseTransformDirection(normal, viewMatrix));
+  }`;
+
 /* Recover the light-loop shadow before adding the snow response. */
 function lightPatch(sheen) {
   return FRAG_SUN
@@ -1078,6 +1206,14 @@ export function createShading(THREE) {
        metres — see FRAG_STREAM. Parked far downhill until `props.js` writes
        it, so nothing is faded before the forest exists. */
     uStreamEdge: { value: new THREE.Vector2(-1e7, 100) },
+    /* The huts' light — see FRAG_HUT_LIGHT. `huts.js` owns all three: each
+       standing hut's place (w is 1 while the slot holds a hut; one slot
+       for each of the HUTS.live it keeps standing) and the cosine and sine
+       of its yaw, and the lamps' colour scaled by the night. Black until
+       then, so nothing is lit by a hut by day. */
+    uHutAt: { value: [0, 1, 2].map(() => new THREE.Vector4(0, 0, 0, 0)) },
+    uHutAxis: { value: [0, 1, 2].map(() => new THREE.Vector2(1, 0)) },
+    uHutWarm: { value: new THREE.Color(0, 0, 0) },
   };
 
   const viewInv = new THREE.Matrix4();
@@ -1086,8 +1222,9 @@ export function createShading(THREE) {
   /* Patch one material.
 
      `opts.sheen` controls how much crystalline snow response this surface
-     gets, `opts.fog` is false for additive surfaces, and `opts.cameraFade`
-     reserves a clear bubble around the lens for instanced vegetation.
+     gets, `opts.fog` is false for additive surfaces, `opts.cameraFade`
+     reserves a clear bubble around the lens for instanced vegetation, and
+     `opts.hutLight` lets the huts' lamps light it.
 
      `sheen` defaults to nothing, and that is the whole of the policy. Only
      the terrain asks for it. A spruce is not shiny, a hut wall is not shiny,
@@ -1118,6 +1255,7 @@ export function createShading(THREE) {
     const cameraFade = opts.cameraFade === true;
     const canopy = opts.canopy === true;
     const streamFade = opts.streamFade === true;
+    const hutLight = opts.hutLight === true;
     // Only the ground opts out, because the ground already has this per
     // vertex. Everything else that has a light loop to patch gets it.
     const wantShade = opts.shade !== false;
@@ -1141,7 +1279,8 @@ export function createShading(THREE) {
         .replace('#include <project_vertex>', `#include <project_vertex>${VERT_VIEW}`);
 
       let frag = shader.fragmentShader
-        .replace('#include <common>', `#include <common>${FRAG_PARS}`);
+        .replace('#include <common>',
+          `#include <common>${FRAG_PARS}${hutLight ? FRAG_HUT_PARS : ''}`);
       if (cameraFade && frag.indexOf(HASH_ANCHOR) !== -1) {
         frag = frag.replace(HASH_ANCHOR, FRAG_ALPHA_HASH);
       }
@@ -1150,6 +1289,12 @@ export function createShading(THREE) {
       if (wantShade && frag.indexOf(SHADE_ANCHOR) !== -1) {
         frag = frag.replace(SHADE_ANCHOR, FRAG_SHADE)
           .replace(GRADIENT_ANCHOR, `${FRAG_SHADE_GRADIENTS}${GRADIENT_ANCHOR}`);
+      }
+      // Inserted before the snow response so that it lands after it: that
+      // response divides the sun's own shadow back out of the direct light,
+      // and a lamp added ahead of it would read as the sun coming out.
+      if (hutLight && frag.indexOf(LIGHT_ANCHOR) !== -1) {
+        frag = frag.replace(LIGHT_ANCHOR, `${LIGHT_ANCHOR}${FRAG_HUT_LIGHT}`);
       }
       // Only a lit material exposes the light-loop anchor used by the snow
       // response. The custom fog owns Three's fog slot on opaque surfaces.
@@ -1171,7 +1316,7 @@ export function createShading(THREE) {
     };
 
     const key = `alpen|${sheen > 0 ? 'p' : ''}|${wantFog ? 'f' : ''}`
-      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}`
+      + `|${cameraFade ? 'c' : ''}|${wantShade ? 's' : ''}|${canopy ? 'o' : ''}|${streamFade ? 'e' : ''}|${hutLight ? 'h' : ''}`
       + `|${hadPrev ? prev.toString() : ''}`;
     material.customProgramCacheKey = () => key;
 

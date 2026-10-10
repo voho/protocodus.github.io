@@ -178,6 +178,48 @@ export const MIST = {
   floorRate: 2.2,    // per second — how fast the bank follows the descent
 };
 
+/* A hut's own light, in the hut's own frame: +y up from the corner it is
+   planted at, the front (door, windows, terrace) facing -z. See
+   `hutGeometry` in huts.js, which builds its glass from `glass` here, and
+   `FRAG_HUT_LIGHT` in shading.js, which lights the snow, the hut and the
+   rider with all of it.
+
+   Two lamps. The room's hangs under the ceiling and reaches the outside only
+   through the glass, so what it throws on the snow is the windows' own
+   shape, glazing bars and all, sharp near the wall and softening with range
+   by the lamp's size. The lantern on the terrace rail is small and in the
+   open. The terrace floor shadows both from the ground under it, and the
+   building shadows the lantern from everything behind it. Intensities are
+   three's own (radiance = albedo / π · I · cos / d²). Moonlit snow comes out
+   at about 0.06, so the lantern's light falls to the moon's three to four
+   metres out, and the windows' about seven metres past the glass; by
+   `range` either is under a tenth of it. */
+export const HUT_LIGHT = {
+  room: { at: [0.9, 2.6, 0.4], radius: 0.25, intensity: 60 },
+  lantern: { at: [2.3, 1.55, -4.35], radius: 0.1, intensity: 14 },
+  front: -2.25,          // the plane of the front glass
+  side: 2.65,            // and of the side window's
+  /* Each pane's centre and size in its own plane, u across and v up (u is x
+     on the front and z on the side), and whether it has a cross of glazing
+     bars through its centre. */
+  glass: {
+    front: [
+      { at: [0.35, 1.75], size: [0.98, 0.86], bars: true },
+      { at: [1.85, 1.75], size: [0.98, 0.86], bars: true },
+      // over the door, and standing proud of it
+      { at: [-1.3, 2.35], size: [0.72, 0.3], bars: false, proud: 0.04 },
+    ],
+    side: [{ at: [0.3, 1.75], size: [0.98, 0.86], bars: true }],
+  },
+  bar: 0.045,
+  terrace: { top: 0.55, x: [-2.65, 2.65], z: [-4.4, -2.2] },
+  // The building as the lantern sees it: its width, and a front face just
+  // inside the wall's, so the wall itself still catches the light
+  body: { x: [-2.65, 2.65], front: -2.1 },
+  range: 30,
+  colour: '#ffbe6e',
+};
+
 export const TERRAIN = {
   /* The hill's pitch, which is now a function of how far down it you are.
 
