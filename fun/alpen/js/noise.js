@@ -109,6 +109,29 @@ export function snoise2(x, y, seed = 0) {
   return noise2(x, y, seed) * 2 - 1;
 }
 
+/* The same lattice, eased with the quintic instead of the cubic, so the
+   field's curvature is continuous across the cell edges as well as its
+   slope. The cubic's second derivative jumps at every lattice line, which
+   nothing notices on the snow; but the mountain's walls are big terms of
+   this, the snowpack reads their curvature, and every lattice line crossing
+   a wall came out as a ruled edge between rock and snow. Same values at the
+   lattice points, so a wall built on this is the wall it was, smoothed
+   between them. Not as quick as `noise2`, and only the walls pay for it. */
+export function snoise2Smooth(x, y, seed = 0) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const fx = x - x0;
+  const fy = y - y0;
+  const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+  const uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+  const a = hash2(x0, y0, seed);
+  const b = hash2(x0 + 1, y0, seed);
+  const c = hash2(x0, y0 + 1, seed);
+  const d = hash2(x0 + 1, y0 + 1, seed);
+  const top = a + (b - a) * ux;
+  return (top + (c + (d - c) * ux - top) * uy) * 2 - 1;
+}
+
 /* A tiny stream of numbers from one integer key — for a band of hill that
    wants a dozen decisions made about it and nothing kept. mulberry32. */
 export function stream(key) {

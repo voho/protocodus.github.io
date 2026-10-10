@@ -4,7 +4,7 @@
    a continuous wall. The graded grid keeps fine detail under the board and
    world-fixed coarse samples across the distant slopes. */
 
-import { snoise2, noise2, hash2, getWorldSeed } from './noise.js';
+import { snoise2, snoise2Smooth, noise2, hash2, getWorldSeed } from './noise.js';
 import { TERRAIN, RENDER } from './config.js';
 import { buildShadowRegion } from './shadow-cache.js';
 
@@ -958,16 +958,17 @@ function rowContext(z, ctx) {
   /* The flank fields are row facts. Precomputing both sides here avoids four
      identical noise samples for every lateral vertex in a generated row —
      and `heightAt`, which asks for only one point, still takes the exact same
-     route through the same context. */
+     route through the same context. Smooth noise, like the ribs and channels
+     they scale: see `snoise2Smooth`. */
   const S = wall.structure;
   ctx.wallBroadLeft = 0.5
-    + 0.5 * snoise2(z * S.broadFreq, -7.3, S.broadSeed);
+    + 0.5 * snoise2Smooth(z * S.broadFreq, -7.3, S.broadSeed);
   ctx.wallBroadRight = 0.5
-    + 0.5 * snoise2(z * S.broadFreq, 7.3, S.broadSeed);
+    + 0.5 * snoise2Smooth(z * S.broadFreq, 7.3, S.broadSeed);
   ctx.wallDetailLeft = 0.5
-    + 0.5 * snoise2(z * S.detailFreq, -11.9, S.detailSeed);
+    + 0.5 * snoise2Smooth(z * S.detailFreq, -11.9, S.detailSeed);
   ctx.wallDetailRight = 0.5
-    + 0.5 * snoise2(z * S.detailFreq, 11.9, S.detailSeed);
+    + 0.5 * snoise2Smooth(z * S.detailFreq, 11.9, S.detailSeed);
 
   /* Any drop whose face or runout reaches this far down the hill. A drop
      spans about seventy metres against a period of two hundred and sixty, so
@@ -1440,12 +1441,12 @@ function heightIn(ctx, x, coarseDetail = 1, fineDetail = coarseDetail,
       // horizontal terraces. Smooth squared noise gives broad ribs separated
       // by glacial channels, with no absolute-value crease under the board.
       // Their wavelength survives the outer grid; only smaller erosion fades.
-      const ridge = snoise2(w * 0.006 + z * 0.0018,
+      const ridge = snoise2Smooth(w * 0.006 + z * 0.0018,
         z * 0.008 - w * 0.0025, left ? 101 : 203);
       const rib = 1 - ridge * ridge;
       h += rise * (rib * rib - 0.58) * (22 + detail * 34);
       if (bulkDetail > 0.001) {
-        const channel = snoise2(w * 0.013 + z * 0.003,
+        const channel = snoise2Smooth(w * 0.013 + z * 0.003,
           z * 0.021, left ? 307 : 409);
         const steep = (2 * u * eu) / WALL_STEEP_PEAK;
         h -= wall.bulk.depth * bulkDetail * steep * steep
