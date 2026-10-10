@@ -2046,6 +2046,13 @@ export const SCORE = {
   cocoa: 1500,
 };
 
+/* Kinds, as the collision lists report them. Here rather than in props.js
+   because the huts carry solids too, and huts.js must not pull the prop
+   module (and its model loader) in just to name them. */
+export const HARD = 0;   // puts a rider down
+export const SOFT = 1;   // costs speed and throws powder
+export const JUMPABLE = 2; // hard, but low enough to clear
+
 export const PROPS = {
   band: 40,           // metres of hill filled at a time
   /* Bands kept in front of the rider. Thirteen, from eleven: the window's far

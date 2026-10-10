@@ -56,9 +56,9 @@ import { compose } from './geom.js';
 import {
   heightAt, nearestCenter, corridorHalfAt, gradeAt, pisteCenter,
 } from './terrain.js';
-import { hash2, stream } from './noise.js';
+import { hash2, stream, getWorldSeed } from './noise.js';
 import { getPointSizeCap } from './particles.js';
-import { RENDER, SKY, HUT_LIGHT } from './config.js';
+import { RENDER, SKY, HUT_LIGHT, HARD, JUMPABLE } from './config.js';
 import { sharedTexture } from './textures.js';
 import { FOG_CURVE_GLSL } from './shading.js';
 
@@ -526,6 +526,165 @@ const SMOKE_FRAG = `
 `;
 
 /* ==========================================================================
+   Sites
+   ========================================================================== */
+
+/* How level the hill is under a building planted here, and how far the
+   highest corner of it stands above the middle.
+
+   The first is measured against the grade rather than against flat — the
+   mountain is tilted everywhere, and a hut is not on a slope for being on a
+   mountain — and it is what decides whether this is a site at all. The
+   second is measured raw, because it is what the building is planted at:
+   the ground under a hut here falls two and a half metres from corner to
+   corner and it has to be the *top* corner, or the uphill wall is buried to
+   the windowsill. Both come out of the same four samples. */
+const probe = { drop: 0, rise: 0, base: 0 };
+
+function shelf(x, z, grade) {
+  const f = HUTS.footprint;
+  const h0 = heightAt(x, z);
+  let lo = 0;
+  let hi = 0;
+  let crest = 0;
+  /* The four corners, walked so that BOTH samples at one z come before
+     both at the other. `heightAt` rebuilds its row context whenever z
+     changes, and the old order alternated z on every sample — four row
+     builds for four corners, where two will do. The set of corners is
+     identical and the loop only takes minima and maxima over it, so the
+     result is unchanged to the bit. */
+  for (let i = 0; i < 4; i++) {
+    const dz = i < 2 ? -f : f;
+    const dx = i % 2 === 0 ? -f : f;
+    const d = heightAt(x + dx, z + dz) - h0;
+    if (d > crest) crest = d;
+    const r = d - grade * dz;
+    if (r < lo) lo = r;
+    if (r > hi) hi = r;
+  }
+  probe.drop = hi - lo;
+  probe.rise = crest;
+  // The centre sample, kept so the caller planting the hut does not pay
+  // for the same lookup — and the same row rebuild — a second time.
+  probe.base = h0;
+}
+
+/* One block of hill, one hut or none. Everything here is a pure function of
+   the block index, so the same stretch of mountain always grows the same
+   hut in the same place — and a block the mountain refused stays refused. */
+/* THE SITE SEARCH, ASKED ONCE PER BLOCK.
+
+   `siteAt` is documented as a pure function of the block index, and it
+   is — every draw in it comes off that index's own stream. But the window
+   it is asked over slides only 130 m of a 520 m block per rebuild, so
+   three quarters of the blocks searched had already been answered,
+   identically, on the previous rebuild. Each miss costs up to six tries
+   of an eight-stride walk, and every stride is a `shelf` of five terrain
+   samples.
+
+   Memoising is safe for the same reason the prop bands' snapshot cache is:
+   the world seed is set once per page and a new mountain is a page reload,
+   so a block's answer cannot change inside a session. The cache lives out
+   here rather than on the instance because the props ask as well (see
+   `onHutGround`), and so it is keyed on the seed, the way terrain.js keys
+   its rows. A live hut is built from a COPY — `emit` and `dwell` are
+   advanced every frame on it, and the cached record has to stay the
+   pristine one a fresh search would have produced. */
+const siteCache = new Map();
+let siteSeed = NaN;
+
+function siteAt(b) {
+  const seed = getWorldSeed();
+  if (seed !== siteSeed) {
+    siteCache.clear();
+    siteSeed = seed;
+  }
+  if (!siteCache.has(b)) siteCache.set(b, searchSite(b));
+  return siteCache.get(b);
+}
+
+function searchSite(b) {
+  if (b < 1) return null;    // the first half-kilometre is left to itself
+  if (hash2(b, 4441, 71) > HUTS.chance) return null;
+
+  const rnd = stream(b * 2654435761 + 7717);
+  const top = -(b * HUTS.period) - (HUTS.period - HUTS.spread) * rnd();
+
+  for (let k = 0; k < HUTS.tries; k++) {
+    const z = top - rnd() * HUTS.spread;
+    const grade = gradeAt(z);
+    if (grade > HUTS.maxGrade) continue;
+
+    const side = rnd() < 0.5 ? -1 : 1;
+    /* Probed far out to one side, because after the fork there are two
+       centre lines and `nearestCenter` has to be asked which one this hut
+       is standing beside. Asking about the hut's own x would answer with
+       whichever branch it drifted nearest to, which is how the first
+       version put a hut in the middle of an island. */
+    const branch = nearestCenter(pisteCenter(z) + side * 400, z);
+    const edge = corridorHalfAt(z);
+
+    // Walk outward until the ground stops falling away sideways
+    const [near, far] = HUTS.reach;
+    for (let i = 0; i < HUTS.strides; i++) {
+      const off = edge + near + ((far - near) * i) / (HUTS.strides - 1);
+      const x = branch + side * off;
+      shelf(x, z, grade);
+      if (probe.drop > HUTS.maxDrop) continue;
+
+      // Aimed up the run rather than across it: a rider only ever arrives
+      // from above, and the windows should be pointed at them
+      const ax = nearestCenter(branch, z + HUTS.facing) - x;
+      const az = HUTS.facing;
+      const len = Math.hypot(ax, az) || 1;
+      const yaw = Math.atan2(-ax / len, -az / len);
+
+      // Planted at its highest corner, with a hand's breadth over for the
+      // true corners the four axis-aligned samples cannot see
+      const y = probe.base + probe.rise + 0.15;
+      const cos = Math.cos(yaw);
+      const sin = Math.sin(yaw);
+      return {
+        key: b,
+        x, y, z, yaw,
+        // The chimney, carried through the same rotation the building took
+        cx: x + CHIMNEY.x * cos + CHIMNEY.z * sin,
+        cy: y + CHIMNEY.y,
+        cz: z - CHIMNEY.x * sin + CHIMNEY.z * cos,
+        off,
+        emit: hash2(b, 13, 3),
+        dwell: 0,
+      };
+    }
+  }
+  return null;
+}
+
+/* The ground a hut stands on, for anything else that would grow there: the
+   building under its roof, the woodpile and the terrace, in the hut's own
+   frame, and three metres round all of it, which keeps an ordinary spruce's
+   crown off the eaves. Without it the props grew straight through about
+   half the huts on a run: a spruce out of a roof, a boulder through a
+   terrace, a sapling standing in the parlour. */
+const GROUND = { x: -0.2, z: -0.8, hw: 3.5 + 3, hd: 3.6 + 3 };
+
+export function onHutGround(x, z) {
+  const b = Math.floor(-z / HUTS.period);
+  for (let k = b - 1; k <= b + 1; k++) {
+    const h = siteAt(k);
+    // Its ground's far corner is under ten metres out
+    if (!h || Math.abs(z - h.z) > 12) continue;
+    const ux = x - h.x;
+    const uz = z - h.z;
+    const cos = Math.cos(h.yaw);
+    const sin = Math.sin(h.yaw);
+    if (Math.abs(ux * cos - uz * sin - GROUND.x) < GROUND.hw
+      && Math.abs(ux * sin + uz * cos - GROUND.z) < GROUND.hd) return true;
+  }
+  return false;
+}
+
+/* ==========================================================================
    The huts
    ========================================================================== */
 
@@ -729,135 +888,45 @@ export function createHuts(THREE, shading) {
      Placement
      ========================================================================== */
 
-  /* How level the hill is under a building planted here, and how far the
-     highest corner of it stands above the middle.
+  /* THE HUT AS THE RIDER MEETS IT. It had no collider at all: a rider who
+     missed the stop went straight through the walls and out of the back.
+     Three boxes in the hut's own frame (metres, x across, z towards the
+     front, which is negative): the building on its plinth, the woodpile at
+     one end and the terrace. Boxes, not the circles every prop is, because
+     a hut can stand three metres off the groomed edge and circles large
+     enough to fill its walls bulge a metre past them, an invisible wall
+     right where a rider carves by. One contact for all three, so a hut is
+     one hit however many of them a line crosses. The building stands to its
+     chimney; the woodpile and the terrace rail can be cleared. The cocoa
+     radius is far outside all of it, so the stop is untouched. */
+  const HUT_BOXES = [
+    { x: 0, z: 0, hw: 2.75, hd: 2.35, kind: HARD, top: 6.5 },
+    { x: -3.15, z: 0.5, hw: 0.58, hd: 1.1, kind: JUMPABLE, top: 1.25 },
+    { x: 0, z: -3.3, hw: 2.65, hd: 1.1, kind: JUMPABLE, top: 1.5 },
+  ];
+  const solids = [];
 
-     The first is measured against the grade rather than against flat — the
-     mountain is tilted everywhere, and a hut is not on a slope for being on a
-     mountain — and it is what decides whether this is a site at all. The
-     second is measured raw, because it is what the building is planted at:
-     the ground under a hut here falls two and a half metres from corner to
-     corner and it has to be the *top* corner, or the uphill wall is buried to
-     the windowsill. Both come out of the same four samples. */
-  const probe = { drop: 0, rise: 0, base: 0 };
-
-  function shelf(x, z, grade) {
-    const f = HUTS.footprint;
-    const h0 = heightAt(x, z);
-    let lo = 0;
-    let hi = 0;
-    let crest = 0;
-    /* The four corners, walked so that BOTH samples at one z come before
-       both at the other. `heightAt` rebuilds its row context whenever z
-       changes, and the old order alternated z on every sample — four row
-       builds for four corners, where two will do. The set of corners is
-       identical and the loop only takes minima and maxima over it, so the
-       result is unchanged to the bit. */
-    for (let i = 0; i < 4; i++) {
-      const dz = i < 2 ? -f : f;
-      const dx = i % 2 === 0 ? -f : f;
-      const d = heightAt(x + dx, z + dz) - h0;
-      if (d > crest) crest = d;
-      const r = d - grade * dz;
-      if (r < lo) lo = r;
-      if (r > hi) hi = r;
-    }
-    probe.drop = hi - lo;
-    probe.rise = crest;
-    // The centre sample, kept so the caller planting the hut does not pay
-    // for the same lookup — and the same row rebuild — a second time.
-    probe.base = h0;
-  }
-
-  /* One block of hill, one hut or none. Everything here is a pure function of
-     the block index, so the same stretch of mountain always grows the same
-     hut in the same place — and a block the mountain refused stays refused. */
-  /* THE SITE SEARCH, ASKED ONCE PER BLOCK.
-
-     `siteFor` is documented as a pure function of the block index, and it
-     is — every draw in it comes off that index's own stream. But the window
-     it is asked over slides only 130 m of a 520 m block per rebuild, so
-     three quarters of the blocks searched had already been answered,
-     identically, on the previous rebuild. Each miss costs up to six tries
-     of an eight-stride walk, and every stride is a `shelf` of five terrain
-     samples.
-
-     Memoising is safe for the same reason the prop bands' snapshot cache is:
-     the world seed is set once per page and a new mountain is a page reload,
-     so a block's answer cannot change inside a session. What is handed back
-     is a COPY — `emit` and `dwell` are advanced every frame on the live hut,
-     and the cached record has to stay the pristine one a fresh search would
-     have produced. */
-  const siteCache = new Map();
-
-  function siteFor(b) {
-    if (siteCache.has(b)) {
-      const hit = siteCache.get(b);
-      return hit && { ...hit };
-    }
-    const found = searchSite(b);
-    siteCache.set(b, found);
-    return found && { ...found };
-  }
-
-  function searchSite(b) {
-    if (b < 1) return null;    // the first half-kilometre is left to itself
-    if (hash2(b, 4441, 71) > HUTS.chance) return null;
-
-    const rnd = stream(b * 2654435761 + 7717);
-    const top = -(b * HUTS.period) - (HUTS.period - HUTS.spread) * rnd();
-
-    for (let k = 0; k < HUTS.tries; k++) {
-      const z = top - rnd() * HUTS.spread;
-      const grade = gradeAt(z);
-      if (grade > HUTS.maxGrade) continue;
-
-      const side = rnd() < 0.5 ? -1 : 1;
-      /* Probed far out to one side, because after the fork there are two
-         centre lines and `nearestCenter` has to be asked which one this hut
-         is standing beside. Asking about the hut's own x would answer with
-         whichever branch it drifted nearest to, which is how the first
-         version put a hut in the middle of an island. */
-      const branch = nearestCenter(pisteCenter(z) + side * 400, z);
-      const edge = corridorHalfAt(z);
-
-      // Walk outward until the ground stops falling away sideways
-      const [near, far] = HUTS.reach;
-      for (let i = 0; i < HUTS.strides; i++) {
-        const off = edge + near + ((far - near) * i) / (HUTS.strides - 1);
-        const x = branch + side * off;
-        shelf(x, z, grade);
-        if (probe.drop > HUTS.maxDrop) continue;
-
-        // Aimed up the run rather than across it: a rider only ever arrives
-        // from above, and the windows should be pointed at them
-        const ax = nearestCenter(branch, z + HUTS.facing) - x;
-        const az = HUTS.facing;
-        const len = Math.hypot(ax, az) || 1;
-        const yaw = Math.atan2(-ax / len, -az / len);
-
-        // Planted at its highest corner, with a hand's breadth over for the
-        // true corners the four axis-aligned samples cannot see
-        const y = probe.base + probe.rise + 0.15;
-        const cos = Math.cos(yaw);
-        const sin = Math.sin(yaw);
-        return {
-          key: b,
-          x, y, z, yaw,
-          // The chimney, carried through the same rotation the building took
-          cx: x + CHIMNEY.x * cos + CHIMNEY.z * sin,
-          cy: y + CHIMNEY.y,
-          cz: z - CHIMNEY.x * sin + CHIMNEY.z * cos,
-          off,
-          emit: hash2(b, 13, 3),
-          dwell: 0,
-        };
+  function writeSolids() {
+    solids.length = 0;
+    for (let i = 0; i < huts.length; i++) {
+      const h = huts[i];
+      const cos = Math.cos(h.yaw);
+      const sin = Math.sin(h.yaw);
+      const contact = { hit: false };
+      for (const b of HUT_BOXES) {
+        solids.push({
+          type: 'hut', x: h.x + b.x * cos + b.z * sin, z: h.z - b.x * sin + b.z * cos,
+          // `r` is the circle round the box, which is all the broad passes
+          // read; the sweep itself reads the box
+          r: Math.hypot(b.hw, b.hd), hw: b.hw, hd: b.hd, cos, sin,
+          kind: b.kind, top: h.y + b.top, cameraPad: 0.55, volume: true, contact,
+        });
       }
     }
-    return null;
   }
 
   function writeInstances() {
+    writeSolids();
     for (let i = 0; i < huts.length; i++) {
       const h = huts[i];
       e.set(0, h.yaw, 0);
@@ -896,8 +965,8 @@ export function createHuts(THREE, shading) {
       }
     }
     for (let b = Math.max(1, first); b <= last && huts.length < HUTS.live; b++) {
-      const site = siteFor(b);
-      if (site) huts.push(site);
+      const site = siteAt(b);
+      if (site) huts.push({ ...site });
     }
     writeInstances();
   }
@@ -1092,5 +1161,5 @@ export function createHuts(THREE, shading) {
   // The huts themselves are on the returned object, the way the animals are:
   // it is the whole debugger, and it is also the only way anything else could
   // ever be told where a building is standing.
-  return { group, update, reset, huts, smoke };
+  return { group, update, reset, huts, smoke, solids };
 }

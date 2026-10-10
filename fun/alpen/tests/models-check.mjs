@@ -128,8 +128,27 @@ for (const key of wildlifeNames) {
   assert.notEqual(other, a, 'a stubbed namespace never shares with a real one');
 }
 
-const huts = await load('huts.js', ['hutGeometry', 'paneGeometry']);
+const huts = await load('huts.js', ['hutGeometry', 'paneGeometry', 'siteAt']);
 for (const key of ['hutGeometry', 'paneGeometry']) valid(key, huts[key](THREE));
+/* The props keep off a hut's ground, so that ground has to cover the hut:
+   every corner of the building's roof, the woodpile and the terrace, turned
+   the way the hut was turned, and not the open snow beside it. */
+{
+  let found = 0;
+  for (let b = 1; b < 40 && found < 6; b++) {
+    const h = huts.siteAt(b);
+    if (!h) continue;
+    found++;
+    const c = Math.cos(h.yaw);
+    const s = Math.sin(h.yaw);
+    for (const [lx, lz] of [[-3.73, -4.4], [3.3, -4.4], [-3.73, 2.8], [3.3, 2.8]]) {
+      assert.ok(huts.onHutGround(h.x + lx * c + lz * s, h.z - lx * s + lz * c),
+        `hut ${b}: corner (${lx}, ${lz}) is on its ground`);
+    }
+    assert.ok(!huts.onHutGround(h.x + 12 * c, h.z - 12 * s), `hut ${b}: open snow beside it is not`);
+  }
+  assert.ok(found >= 3, 'the first blocks grow huts');
+}
 const rider = await load('riderModel.js',
   ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH']);
 const lampModule = await load('headlamp.js');
