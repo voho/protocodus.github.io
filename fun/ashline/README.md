@@ -157,7 +157,7 @@ Previews that permit local JavaScript modules can also open `index.html` directl
 | P | Pause or resume |
 | Speed slider below the minimap | Set simulation speed to 100%, 125%, 150%, 175%, or 200%; the choice is remembered |
 | B / Command button | Open or close the production console |
-| Escape / × button | Cancel the current action / clear the selection |
+| Escape / × button | Cancel the current action / clear the selection; with nothing to cancel, close the console, then pause (Escape again resumes) |
 | Sidebar | Construct, recruit, research, and monitor power |
 
 Selections containing any military unit automatically exclude haulers, including drag selection, Shift selection, and control groups. Select haulers on their own to command them together.

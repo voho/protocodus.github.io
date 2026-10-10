@@ -1560,7 +1560,11 @@ document.addEventListener('keydown', event => {
   if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) event.preventDefault();
   keys.add(key);
   if (event.repeat) return;
-  if (key === 'escape') { if (view.placement || orderMode || view.selected.size) { cancelOrder(); view.selected.clear(); updateHUD(); } else if (!$('command-console').hidden) setConsole(false); else showMenu(); }
+  if (key === 'escape') {
+    if (view.placement || orderMode || view.selected.size) { cancelOrder(); view.selected.clear(); updateHUD(); } else if (!$('command-console').hidden) setConsole(false);
+    // Unhandled, this Escape would also close the menu it opens (its cancel resumes the game).
+    else { event.preventDefault(); showMenu(); }
+  }
   else if (key === 'b') { event.preventDefault(); setConsole($('command-console').hidden); }
   else if (key === 'p') showMenu();
   else if (key === 'q') setOrder('attackMove');

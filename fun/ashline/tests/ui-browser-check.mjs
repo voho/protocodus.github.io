@@ -334,6 +334,15 @@ try {
   await desktop.setViewportSize({ width: 1440, height: 900 });
   await desktop.waitForTimeout(300);
 
+  // Escape backs out one step at a time: an open console closes, then the game pauses, and Escape resumes it.
+  await desktop.locator('#world').focus();
+  if (await desktop.locator('#command-console').isVisible()) { await desktop.keyboard.press('Escape'); assert(await desktop.locator('#command-console').isHidden(), 'Escape closes the console'); }
+  const pausedState = () => desktop.evaluate(() => [document.querySelector('#menu').open, ashline.paused]);
+  await desktop.keyboard.press('Escape');
+  assert.deepEqual(await pausedState(), [true, true], 'Escape with nothing left to cancel pauses');
+  await desktop.keyboard.press('Escape');
+  assert.deepEqual(await pausedState(), [false, false], 'Escape in the pause menu resumes');
+
   // Settings persist; the speed slider gives the arrow keys back to the camera after a drag.
   await desktop.locator('#pause').click();
   assert.deepEqual(await desktop.evaluate(() => [...document.querySelectorAll('.menu-settings button, .menu-settings input')].map(e => e.id)),
