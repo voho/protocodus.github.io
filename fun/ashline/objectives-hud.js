@@ -39,7 +39,8 @@ export function objectiveRows(s) {
   const shown = rows.filter(({ state }) => state.revealed).sort((a, b) => Number(Boolean(a.o.secondary)) - Number(Boolean(b.o.secondary)));
   return {
     def,
-    rows: shown.map(({ o, state }) => ({ id: o.id, label: o.label, secondary: Boolean(o.secondary), state: state.state, progress: objectiveProgress(s, o, state) })),
+    // A zone is a static mission point, so locating it never reveals anything hidden.
+    rows: shown.map(({ o, state }) => { const zone = o.zone === undefined ? null : s.mission.zones.find(z => z.id === o.zone); return { id: o.id, label: o.label, secondary: Boolean(o.secondary), state: state.state, progress: objectiveProgress(s, o, state), ...(zone ? { zone: { x: zone.x, y: zone.y, label: zone.label } } : {}) }; }),
     classified: rows.length - shown.length,
   };
 }
@@ -47,42 +48,62 @@ export function objectiveRows(s) {
 // A rival's hold on a contested zone is public: the zone is lit for both claimants.
 function contestLine(s, def) {
   const rule = (def.fail || []).find(r => r.type === 'rivalHold');
-  if (!rule) return '';
-  return `${rule.label || 'Rival'} hold ${clock(s.mission.counters[`rivalHold:${rule.zone}`] || 0)} / ${clock(rule.seconds)}`;
+  if (!rule) return null;
+  const who = (rule.label || 'Rival').replace(/^The (\w)/, (_, letter) => letter.toUpperCase());
+  return { label: `${who} hold`, progress: `${clock(s.mission.counters[`rivalHold:${rule.zone}`] || 0)} / ${clock(rule.seconds)}` };
 }
 
-export function createObjectivesHud() {
-  let shownFor = null, signature = '', transmissionUntil = 0, collapsed = matchMedia('(max-width: 680px)').matches;
+export function createObjectivesHud({ focus } = {}) {
+  let shownFor = null, structure = '', measured = '', nodes = [], transmissionUntil = 0, collapsed = matchMedia('(max-width: 680px)').matches;
   const done = new Map();
   const panel = $('objectives'), list = $('objectives-list'), toggle = $('objectives-toggle');
-  const setCollapsed = value => {
-    collapsed = value; panel.dataset.collapsed = String(value); toggle.setAttribute('aria-expanded', String(!value));
+  // Other HUD parts stack below the tracker through --objectives-height; measure only when the layout changes.
+  const measure = () => {
+    const key = `${panel.hidden}|${collapsed}|${structure}|${$('transmission').hidden}|${$('transmission-text').textContent.length}`;
+    if (key === measured) return;
+    measured = key;
     document.body.style.setProperty('--objectives-height', `${panel.hidden ? 0 : panel.getBoundingClientRect().height}px`);
   };
+  const setCollapsed = value => { collapsed = value; panel.dataset.collapsed = String(value); toggle.setAttribute('aria-expanded', String(!value)); measure(); };
   // A pointer click hands the keyboard back to the battlefield so Space and WASD keep working.
   toggle.addEventListener('click', event => { setCollapsed(!collapsed); if (event.detail) document.getElementById('world')?.focus({ preventScroll: true }); });
-  const hide = () => { panel.hidden = true; document.body.style.setProperty('--objectives-height', '0px'); };
+  const hide = () => { panel.hidden = true; measure(); };
 
+  // Rows are rebuilt only when their structure changes; ticking timers and counts update in place, so a
+  // press on a locate button is never lost to a rebuild.
   function renderRows(items) {
-    const key = JSON.stringify(items);
-    if (key === signature) return;
-    signature = key;
-    list.replaceChildren(...items.map(item => {
-      const li = document.createElement('li');
-      li.dataset.state = item.state; li.dataset.kind = item.kind;
-      if (item.fresh) li.classList.add('fresh');
-      const mark = document.createElement('i'); mark.setAttribute('aria-hidden', 'true'); mark.textContent = item.state === 'done' ? '✓' : item.state === 'failed' ? '✕' : item.kind === 'note' ? '·' : '';
-      const label = document.createElement('span'); label.textContent = item.label;
-      li.append(mark, label);
-      if (item.progress) { const progress = document.createElement('small'); progress.textContent = item.progress; li.append(progress); }
-      li.setAttribute('aria-label', `${item.kind === 'secondary' ? 'Secondary: ' : ''}${item.label}${item.progress ? `, ${item.progress}` : ''}${item.state === 'done' ? ', complete' : item.state === 'failed' ? ', failed' : ''}`);
-      return li;
-    }));
+    const shape = JSON.stringify(items.map(item => [item.label, item.state, item.kind, Boolean(item.progress), Boolean(item.zone)]));
+    if (shape !== structure) {
+      structure = shape;
+      nodes = items.map(item => {
+        const li = document.createElement('li'), node = { li, zone: item.zone };
+        li.dataset.state = item.state; li.dataset.kind = item.kind;
+        const mark = document.createElement('i'); mark.setAttribute('aria-hidden', 'true'); mark.textContent = item.state === 'done' ? '✓' : item.state === 'failed' ? '✕' : item.kind === 'note' ? '·' : '';
+        const label = document.createElement('span'); label.textContent = item.label;
+        li.append(mark, label);
+        if (item.progress) { node.progress = document.createElement('small'); li.append(node.progress); }
+        if (item.zone && focus) {
+          const locate = document.createElement('button'); locate.type = 'button'; locate.className = 'objective-locate'; locate.textContent = '⌖';
+          locate.title = `Show ${item.zone.label}`; locate.setAttribute('aria-label', `Show ${item.zone.label} on the battlefield`);
+          locate.addEventListener('click', event => { focus(node.zone.x, node.zone.y); if (event.detail) document.getElementById('world')?.focus({ preventScroll: true }); });
+          li.append(locate);
+        }
+        return node;
+      });
+      list.replaceChildren(...nodes.map(node => node.li));
+    }
+    items.forEach((item, i) => {
+      const node = nodes[i];
+      node.zone = item.zone;
+      if (node.progress && node.progress.textContent !== item.progress) node.progress.textContent = item.progress;
+      node.li.classList.toggle('fresh', Boolean(item.fresh));
+      node.li.setAttribute('aria-label', `${item.kind === 'secondary' ? 'Secondary: ' : ''}${item.label}${item.progress ? `, ${item.progress}` : ''}${item.state === 'done' ? ', complete' : item.state === 'failed' ? ', failed' : ''}`);
+    });
   }
 
   function update(s) {
     if (!s) { hide(); return; }
-    if (shownFor !== s) { shownFor = s; signature = ''; done.clear(); transmissionUntil = 0; $('transmission').hidden = true; setCollapsed(matchMedia('(max-width: 680px)').matches); }
+    if (shownFor !== s) { shownFor = s; structure = ''; done.clear(); transmissionUntil = 0; $('transmission').hidden = true; collapsed = matchMedia('(max-width: 680px)').matches; }
     const now = performance.now(), table = objectiveRows(s);
     let items, title, count;
     if (table) {
@@ -90,12 +111,12 @@ export function createObjectivesHud() {
       // Ticks flash briefly as they complete.
       items = table.rows.map(row => {
         if (row.state !== 'active' && !done.has(row.id)) done.set(row.id, now);
-        return { label: row.label, state: row.state, kind: row.secondary ? 'secondary' : 'primary', progress: row.progress, fresh: now - (done.get(row.id) ?? -1e9) < 2500 };
+        return { label: row.label, state: row.state, kind: row.secondary ? 'secondary' : 'primary', progress: row.progress, zone: row.state === 'active' ? row.zone : undefined, fresh: now - (done.get(row.id) ?? -1e9) < 2500 };
       });
       if (table.classified) items.push({ label: `${table.classified} classified objective${table.classified > 1 ? 's' : ''}`, state: 'active', kind: 'note', progress: '' });
       const contest = contestLine(s, table.def);
-      if (contest) items.push({ label: contest, state: 'active', kind: 'note', progress: '' });
-      if (table.def.score === 'survival') items.push({ label: `Score ${fmt(s.mission.score || 0)}`, state: 'active', kind: 'note', progress: `${fmt(s.teams[0].kills || 0)} kills` });
+      if (contest) items.push({ label: contest.label, state: 'active', kind: 'note', progress: contest.progress });
+      if (table.def.score === 'survival') items.push({ label: 'Score', state: 'active', kind: 'note', progress: `${fmt(s.mission.score || 0)} · ${fmt(s.teams[0].kills || 0)} kills` });
       // Alternative routes to victory ("Or destroy every rival claim") are not counted as extra steps.
       const required = table.def.objectives.map((o, i) => ({ o, state: s.mission.objectives[i] })).filter(({ o }) => !o.secondary);
       const steps = required.filter(({ o }) => !o.sufficient), shortcut = required.some(({ o, state }) => o.sufficient && state.state === 'done');
@@ -111,15 +132,13 @@ export function createObjectivesHud() {
       items = [...recent, ...open].map(goal => ({ label: goal.label, state: goal.done ? 'done' : 'active', kind: 'secondary', progress: goal.done ? '' : `${fmt(goal.progress)} / ${fmt(goal.target)}`, fresh: goal.done }));
       count = `${finished.length} / ${goals.length}`;
     }
-    $('objectives-title').textContent = title;
-    $('objectives-count').textContent = count;
+    if ($('objectives-title').textContent !== title) $('objectives-title').textContent = title;
+    if ($('objectives-count').textContent !== count) $('objectives-count').textContent = count;
     renderRows(items);
     if (transmissionUntil && now > transmissionUntil) { transmissionUntil = 0; $('transmission').hidden = true; }
-    const wasHidden = panel.hidden;
     panel.hidden = false;
     panel.dataset.mode = table ? 'operation' : 'goals';
-    if (wasHidden || panel.dataset.collapsed !== String(collapsed)) setCollapsed(collapsed);
-    else document.body.style.setProperty('--objectives-height', `${panel.getBoundingClientRect().height}px`);
+    if (panel.dataset.collapsed !== String(collapsed)) setCollapsed(collapsed); else measure();
   }
 
   // Shows scripted dialogue as a transmission; returns true when the event is handled here.

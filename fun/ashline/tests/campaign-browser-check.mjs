@@ -67,6 +67,9 @@ try {
   assert.match(await page.locator('#objectives-list').textContent(), /Move two units to the survey marker/);
   await until(page, () => !document.querySelector('#transmission').hidden);
   assert.equal(await page.locator('#transmission-speaker').textContent(), 'Cmdr. Vale');
+  // A zone objective's locate button centres the camera on its static marker.
+  await page.locator('#objectives-list .objective-locate').first().click();
+  assert(await page.evaluate(() => { const marker = ashline.state.mission.zones.find(z => z.id === 'marker'); return Math.hypot(ashline.view.x - marker.x, ashline.view.y - marker.y) < 4; }), 'Locate centres the survey marker');
   // Construction lists only what Landfall clears.
   assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#catalog .build-card')].map(card => card.dataset.type)), ['reactor', 'refinery', 'barracks']);
 

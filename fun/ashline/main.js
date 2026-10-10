@@ -26,8 +26,9 @@ let wallPreviewKey = '', wallPreviewAt = 0;
 let preferredZoomIndex = compactScreen.matches ? 1 : 2;
 const cameraLevels = () => zoomLevels(spriteNativeZoom(renderer.dpr));
 const audio = createAudio();
-// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation.
-const campaign = createCampaign({ launch: () => prepareOperation() });
+// Campaign, skirmish modes, objectives and debrief (campaign-ui.js); it launches through prepareOperation
+// and centres the camera on an objective's zone.
+const campaign = createCampaign({ launch: () => prepareOperation(), focus: (x, y) => { view.x = x; view.y = y; clampCamera(); } });
 audio.setPaused(true);
 let heardEffects = new WeakSet();
 const keys = new Set();
