@@ -44,6 +44,9 @@ const toasts = [], alerts = [], announcements = new Map();
 let alertCursor = -1, alertCursorAt = 0, announcing = false;
 // Promotions earned on kills the player did not see wait here until the unit is next selected.
 const heldPromotions = new Map();
+// The unit in the selection panel's rank line, and how many of its unseen kills (e.unseenKills) the tally counts:
+// like a held promotion, a kill the player did not see joins the tally only when the unit is selected afresh.
+let rankedKills = null;
 // The role whose ground ability the pending target click belongs to.
 let abilityRole = null;
 let barkUntil = 0, barkSequence = 0;
@@ -141,7 +144,7 @@ function expireToasts(now) {
 function clearLog() {
   for (const toast of [...toasts]) removeToast(toast);
   alerts.length = 0; alertCursor = -1; announcements.clear(); $('announcer').textContent = '';
-  heldPromotions.clear();
+  heldPromotions.clear(); rankedKills = null;
   barkUntil = 0; $('comms').hidden = true;
 }
 // Screen readers hear one combined announcement per burst (a frame's events, or one click's feedback).
@@ -816,7 +819,9 @@ function updateHUD() {
   const rankedUnit = selection.length === 1 && first.kind === 'unit' ? first : null;
   const rankInfo = $('selection-rank'); rankInfo.hidden = !rankedUnit;
   if (rankedUnit) {
-    const rank = unitRank(rankedUnit), kills = rankedUnit.kills || 0, stats = unitStats(rankedUnit);
+    if (rankedKills?.id !== rankedUnit.id) rankedKills = { id: rankedUnit.id, unseen: rankedUnit.unseenKills || 0 };
+    // The rank and its chevrons update at once, so the tally never reads below the rank's threshold.
+    const rank = unitRank(rankedUnit), kills = Math.max(rank * 5, (rankedUnit.kills || 0) - (rankedUnit.unseenKills || 0) + rankedKills.unseen), stats = unitStats(rankedUnit);
     const next = rank < 3 ? (rank + 1) * 5 : null, bonus = rank * 20;
     rankInfo.dataset.rank = rank; rankInfo.dataset.kills = kills;
     // Damage and HP share the large bonus; speed gets its own, smaller figure. A narrow panel keeps the
@@ -847,6 +852,7 @@ function updateHUD() {
     const summary = `Rank ${rank} of 3. ${kills} kills. ${next ? `${next - kills} kills to next rank.` : 'Maximum rank.'} +${bonus}% damage and maximum HP, +${rank * 5}% speed. Damage ${Number(stats.damage.toFixed(2))}, speed ${Number(stats.speed.toFixed(2))} tiles/second, maximum HP ${stats.hp}.`;
     rankInfo.title = summary; rankInfo.setAttribute('aria-label', summary);
   } else {
+    rankedKills = null;
     rankInfo.textContent = ''; rankInfo.removeAttribute('title'); rankInfo.removeAttribute('aria-label'); rankInfo.classList.remove('wrap');
     delete rankInfo.dataset.rank; delete rankInfo.dataset.kills; delete rankInfo.dataset.layout; delete rankInfo.dataset.form;
   }

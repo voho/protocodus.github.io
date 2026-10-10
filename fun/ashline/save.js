@@ -46,7 +46,7 @@ function validateGame(s) {
     if(team.race!==undefined)valid(Object.hasOwn(RACES,team.race));
     if(team.research!==undefined)valid(object(team.research)&&Object.entries(team.research).every(([id,value])=>Object.hasOwn(RESEARCH,id)&&value===true&&RESEARCH[id].requires.every(required=>team.research[required])));
     if(team.powerStatus!==undefined)valid(['stable','reserve','brownout'].includes(team.powerStatus));
-    if(team.stats!==undefined)valid(object(team.stats)&&Object.entries(team.stats).every(([key,value])=>TEAM_STATS.includes(key)&&number(value,0)));
+    if(team.stats!==undefined)valid(object(team.stats)&&Object.entries(team.stats).every(([key,value])=>TEAM_STATS.includes(key)&&number(value,0))&&(team.stats.unseenUnitKills??0)<=(team.stats.unitKills??0)&&(team.stats.unseenStructureKills??0)<=(team.stats.structureKills??0));
   }
   valid(Array.isArray(s.entities) && s.entities.length <= cells + UNIT_CAP*2);
   const ids = new Set(), unitCounts = [0, 0];
@@ -57,6 +57,8 @@ function validateGame(s) {
     valid(d.race==='both'||d.race===teamRace(s,e.team));
     valid(integer(e.id, 1, s.nextId - 1) && !ids.has(e.id)); ids.add(e.id);
     valid(e.rank === undefined && (e.kills === undefined || e.kind === 'unit' && integer(e.kills)));
+    // The part of a unit's kills that its team did not see happen.
+    if(e.unseenKills!==undefined)valid(e.kind==='unit'&&integer(e.unseenKills,0,e.kills??0));
     if(e.tech!==undefined)valid(e.kind==='unit'&&Array.isArray(e.tech)&&e.tech.length<=Object.keys(RESEARCH).length&&new Set(e.tech).size===e.tech.length&&e.tech.every(id=>Object.hasOwn(RESEARCH,id)&&RESEARCH[id].requires.every(required=>e.tech.includes(required))));
     const maxHp = e.kind === 'unit' ? unitStats(e).hp : d.hp;
     valid(e.size === d.size && e.maxHp === maxHp && number(e.hp, 0, maxHp) && number(e.progress, 0, 1) && point(e) && number(e.angle) && number(e.cooldown, 0) && number(e.repath));

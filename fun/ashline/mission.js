@@ -9,7 +9,7 @@
 // ever tagged), 'mobile:<tag>' (members that are units or arrived after setup, so their total is never
 // published) and 'seen:<tag>' (members whose loss the player witnessed). An objective that cannot apply,
 // such as protecting veterans nobody brought, is marked 'void:<objective>' and leaves every tally.
-import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,seen as seenBy} from './sim.js';
+import {BUILDINGS,UNITS,UNIT_CAP,RESEARCH,BUILDING_UPGRADES,own,alive,center,clamp,event,addEntity,issueOrder,setUnitStance,rebuildNavigation,raceUnit,raceBuilding,entityRole,unitStats,confirmedKills,seen as seenBy} from './sim.js';
 import {mapLayout,hash} from './terrain.js';
 import {MISSIONS} from './campaign.js';
 
@@ -360,7 +360,7 @@ function measure(s,m,o,state){
     case 'research':state.progress=s.teams[PLAYER].research?.[o.research]?1:0;return state.progress?'done':'';
     case 'build':state.progress=own(s,PLAYER,o.role).filter(e=>e.kind==='building'&&e.progress>=1).length;return state.progress>=(o.count??1)?'done':'';
     case 'train':state.progress=m.counters[`trained:${o.role}`]||0;return state.progress>=(o.count??1)?'done':'';
-    case 'kills':state.progress=s.teams[PLAYER].kills;return state.progress>=o.count?'done':'';
+    case 'kills':state.progress=confirmedKills(s,PLAYER);return state.progress>=o.count?'done':'';
     case 'protectTagged':{const total=taggedTotal(m,o.tag),left=remainingTagged(s,o.tag,e=>e.team===PLAYER);state.progress=left;return total>0&&(o.all?left<total:!left)?'failed':'';}
     case 'limitLosses':{
       // Unit losses and structure losses (walls included) come from the team's match statistics; progress
@@ -383,7 +383,7 @@ function triggered(s,m,t,repeats){
   // Counts what the player witnessed, and stays silent once the real group is gone (a stale "one left").
   if(w.tagsLeft!==undefined){const {tag,count}=w.tagsLeft;if(!(taggedTotal(m,tag)>0&&knownLeft(m,tag)<=count&&(!count||remainingTagged(s,tag)>0)))return false;}
   if(w.zoneEntered!==undefined&&!own(s,PLAYER).some(e=>e.kind==='unit'&&inZone(e,zoneOf(m,w.zoneEntered))))return false;
-  if(w.kills!==undefined&&s.teams[PLAYER].kills<w.kills)return false;
+  if(w.kills!==undefined&&confirmedKills(s,PLAYER)<w.kills)return false;
   return true;
 }
 // Runs one trigger's actions; wave is the trigger's fire index, which scales repeating spawns.
@@ -457,8 +457,12 @@ export function missionOutcome(s){return s.mission?outcome(s)?.status??null:null
 export function settleMission(s){
   const result=outcome(s);if(!result)return;
   if(result.status==='victory')MISSIONS[s.mission.id].objectives.forEach((o,i)=>{const state=s.mission.objectives[i];if(HOLDING.includes(o.type)&&state.revealed&&state.state==='active'&&!objectiveVoid(s.mission,o.id))state.state='done';});
-  s.status=result.status;event(s,result.text,PLAYER,{kind:result.status});
+  s.status=result.status;
+  // The final score also confirms the kills made out of sight.
+  scoreMission(s);event(s,result.text,PLAYER,{kind:result.status});
 }
+// Survival scoring: whole seconds survived times confirmed kills, in tenths.
+function scoreMission(s){const m=s.mission;if(MISSIONS[m.id].score==='survival')m.score=Math.floor(elapsed(s,m)*confirmedKills(s,PLAYER)/10);}
 
 // Runs in step after dead entities are removed and before commanders think, four times a second.
 export function updateMission(s){
@@ -474,8 +478,7 @@ export function updateMission(s){
     event(s,`Objective ${result==='done'?'complete':'failed'}: ${o.label}`,PLAYER,{kind:result==='done'?'objective':'objectiveFailed',status:result==='done'?'complete':'failed',objective:o.id,...point(zoneOf(m,o.zone))});
   });
   for(const t of def.triggers||[])if(!m.fired[t.id]&&triggered(s,m,t,t.when?.every!==undefined))fire(s,m,def,t);
-  // Survival scoring: whole seconds survived times kills, in tenths.
-  if(def.score==='survival')m.score=Math.floor(elapsed(s,m)*s.teams[PLAYER].kills/10);
+  scoreMission(s);
   settleMission(s);
 }
 

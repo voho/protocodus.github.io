@@ -1,6 +1,7 @@
 // Objective tracker, scripted transmissions and the pause-menu objective. Operation progress comes from the
 // saved mission state; skirmishes show optional commander's goals derived from the player's own statistics.
 // Everything shown here is the player's own state or a mission's deliberately published facts.
+import { confirmedKills } from './sim.js';
 import { MISSIONS } from './campaign.js';
 import { objectiveVoid } from './mission.js';
 import { commanderGoals, missionTime } from './debrief.js';
@@ -168,7 +169,7 @@ export function createObjectivesHud({ focus, transmit } = {}) {
       if (table.classified) items.push({ label: `${table.classified} classified objective${table.classified > 1 ? 's' : ''}`, state: 'active', kind: 'note', progress: '' });
       const contest = contestLine(s, table.def);
       if (contest) items.push({ label: contest.label, state: 'active', kind: 'note', progress: contest.progress });
-      if (table.def.score === 'survival') items.push({ label: 'Score', state: 'active', kind: 'note', progress: `${fmt(s.mission.score || 0)} · ${fmt(s.teams[0].kills || 0)} kills` });
+      if (table.def.score === 'survival') items.push({ label: 'Score', state: 'active', kind: 'note', progress: `${fmt(s.mission.score || 0)} · ${fmt(confirmedKills(s, 0))} kills` });
       // Alternative routes to victory ("Or destroy every rival claim") are not counted as extra steps.
       const required = table.def.objectives.map((o, i) => ({ o, state: s.mission.objectives[i] })).filter(({ o }) => !o.secondary && !objectiveVoid(s.mission, o.id));
       const steps = required.filter(({ o }) => !o.sufficient), shortcut = required.some(({ o, state }) => o.sufficient && state.state === 'done');

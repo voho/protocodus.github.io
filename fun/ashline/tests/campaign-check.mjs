@@ -321,6 +321,18 @@ const place=(s,type,near,radius=14)=>{
   const scored=start('last-light');scored.teams[0].kills=10;advance(scored,20);
   assert(scored.mission.score>=19&&scored.mission.score<=20,`score ${scored.mission.score}`);
 }
+// Kills made out of sight stay unconfirmed during play: kill objectives, kill triggers and the live score count
+// only the rest, so a barrage into fog cannot be read off the tracker. The final score counts every kill.
+{
+  const s=start('last-light'),team=s.teams[0];team.kills=team.stats.unitKills=10;team.stats.unseenUnitKills=4;advance(s,20);
+  assert.equal(objective(s,'hundred').progress,6);assert.equal(progressText(s,'hundred'),'6 / 100');
+  assert(s.mission.score>=11&&s.mission.score<=12,`score ${s.mission.score}`);
+  destroy(own(s,0,'core'));advance(s,1);assert.equal(s.status,'defeat');
+  assert.equal(s.mission.score,Math.floor((s.time-s.mission.startedAt)*10/10));assert.equal(matchReport(s).kills,10);
+  const h=start('hold-the-line'),held=h.teams[0];held.kills=held.stats.unitKills=7;held.stats.unseenUnitKills=3;advance(h,2);
+  assert(!h.mission.fired['first-blood'],'Unseen kills never fire a kill trigger');
+  held.stats.unseenUnitKills=2;advance(h,1);assert(h.mission.fired['first-blood']);
+}
 assert.deepEqual(Object.keys(completed).sort(),[...CAMPAIGN,'relay-control'].sort(),'Every operation and the relay mode were completed');
 
 // ---- Engine extensions ----------------------------------------------------------------------------------

@@ -13,7 +13,7 @@ const SURVIVAL_GRADES = [['S', 1200], ['A', 900], ['B', 600], ['C', 300], ['D', 
 const SKIRMISH_TEMPO = 900;
 
 // Optional skirmish goals, in the order they are offered. Each reads only the player's own match
-// statistics, which only ever grow, so a ticked goal never un-ticks.
+// statistics, which only ever grow, so a ticked goal never un-ticks. Kill goals count confirmed kills.
 export const COMMANDER_GOALS = [
   { id: 'payroll', label: 'Deliver 2,000 credits of shards', stat: 'mined', target: 2000 },
   { id: 'company', label: 'Field 15 armed units at once', stat: 'peakArmy', target: 15 },
@@ -34,6 +34,8 @@ const stats = (s, team) => {
 export function commanderGoals(s) {
   const own = stats(s, 0);
   if (!own) return null;
+  // A kill made out of sight is confirmed only when the operation ends (as in confirmedKills).
+  if (s.status === 'playing') { own.unitKills -= own.unseenUnitKills; own.structureKills -= own.unseenStructureKills; }
   return COMMANDER_GOALS.map(goal => ({ ...goal, progress: Math.min(goal.target, own[goal.stat]), done: own[goal.stat] >= goal.target }));
 }
 

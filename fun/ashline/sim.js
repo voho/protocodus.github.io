@@ -186,9 +186,13 @@ export function random(s){let x=s.rng|0;x^=x<<13;x^=x>>>17;x^=x<<5;s.rng=x>>>0;r
 export const EVENT_KINDS=['opening','power','researchStarted','researchComplete','upgradeStarted','upgradeComplete','placed','online','deployed','walls','sold','delivery','explored','underAttack','promotion','unitLost','structureLost','haulersLost','victory','defeat','ready','bayBlocked','objective','objectiveFailed','dialogue','wave','mission','ability','trainingCancelled'];
 export function event(s,text,team=0,extra){s.events.push({text,team,time:s.time,...extra});}
 const subject=e=>{const c=center(e);return{entityId:e.id,role:entityRole(e),x:c.x,y:c.y};};
-// Match statistics are optional (older saves lack them) and never feed back into the simulation.
-export const TEAM_STATS=['trained','lost','built','structuresLost','unitKills','structureKills','mined','spent','damageDealt','damageTaken','peakArmy','researched'];
+// Match statistics are optional (older saves lack them) and never feed back into the simulation. The unseen
+// kill counts are the part of the kill counts that the killing team did not see happen.
+export const TEAM_STATS=['trained','lost','built','structuresLost','unitKills','structureKills','mined','spent','damageDealt','damageTaken','peakArmy','researched','unseenUnitKills','unseenStructureKills'];
 export function tally(s,team,key,amount=1){const stats=s.teams[team]?.stats;if(stats)stats[key]=Math.max(0,(stats[key]??0)+amount);}
+// The kills a team has confirmed. A kill out of its sight (splash, a barrage on remembered ground) is confirmed
+// only when the operation ends, so no counter shown or acted on during play reports a death under fog.
+export function confirmedKills(s,team){const t=s.teams[team],stats=s.status==='playing'?t.stats:null;return t.kills-(stats?.unseenUnitKills||0)-(stats?.unseenStructureKills||0);}
 const armySize=(s,team)=>own(s,team).filter(militaryUnit).length;
 export function getEntity(s,id){
   if(id===undefined||id===null)return undefined;
@@ -1223,11 +1227,12 @@ function hurt(s,target,amount,attacker){
   if(target.hp<=0){
     if(s.mission&&target.tag)noteTagLost(s,target);
     s.teams[attacker.team].kills++;
-    const structure=target.kind==='building';tally(s,attacker.team,structure?'structureKills':'unitKills');tally(s,target.team,structure?'structuresLost':'lost');
+    const structure=target.kind==='building',unseen=!seen(s,attacker.team,target);tally(s,attacker.team,structure?'structureKills':'unitKills');tally(s,target.team,structure?'structuresLost':'lost');
+    if(unseen)tally(s,attacker.team,structure?'unseenStructureKills':'unseenUnitKills');
     // Walls count toward team kills, but a cheap unarmed barrier never earns a unit its rank.
     const killer=getEntity(s,attacker.id);
     if(killer?.kind==='unit'&&killer.team===attacker.team&&!(structure&&buildingRole(target)==='wall')){
-      const previousRank=unitRank(killer);killer.kills=(killer.kills||0)+1;
+      const previousRank=unitRank(killer);killer.kills=(killer.kills||0)+1;if(unseen)killer.unseenKills=(killer.unseenKills||0)+1;
       if(unitRank(killer)>previousRank){
         const stats=unitStats(killer);killer.hp=Math.min(stats.hp,killer.hp+stats.hp-killer.maxHp);killer.maxHp=stats.hp;
         event(s,`${UNITS[killer.type].name} promoted to rank ${stats.rank}`,killer.team,{kind:'promotion',rank:stats.rank,...subject(killer)});

@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BUILDINGS, UNITS, RESEARCH, EVENT_KINDS, TEAM_STATS, createGame, updateGame, canPlace, placeBuilding, planWallLine, buildWallLine, sellBuilding, trainUnit, cancelTraining, startResearch, cancelResearch, getEntity, productionRate, raceUnit} from '../sim.js';
+import {BUILDINGS, UNITS, RESEARCH, EVENT_KINDS, TEAM_STATS, createGame, updateGame, canPlace, placeBuilding, planWallLine, buildWallLine, sellBuilding, trainUnit, cancelTraining, startResearch, cancelResearch, getEntity, productionRate, raceUnit, addEntity, seen, confirmedKills} from '../sim.js';
+import {useAbility} from '../abilities.js';
+import {commanderGoals} from '../debrief.js';
+import {encodeGame, decodeGame} from '../save.js';
 
 const advance = (s, seconds) => { for (let i = 0; i < Math.round(seconds / .05); i++) updateGame(s, .05); };
 function quiet(seed) {
@@ -73,6 +76,36 @@ test('team statistics follow commands, spending, refunds and losses', () => {
   assert(Math.abs(stats.damageDealt - 20) < 1e-9 && s.teams[1].stats.damageTaken === stats.damageDealt, 'Overkill is not counted as damage');
   const lost = s.events.find(e => e.kind === 'unitLost' && e.team === 1);
   assert.deepEqual([lost.entityId, lost.role, lost.rank], [enemy.id, 'rifle', 0]);
+});
+
+test('kills made out of sight stay unconfirmed until the operation ends', () => {
+  const s = createGame('unseen-kills', 'normal', {width: 72, height: 56, aiTeams: []}), stats = s.teams[0].stats;
+  s.terrain.fill(0); s.navVersion++;
+  const artillery = addEntity(s, 0, 'unit', raceUnit(s, 0, 'artillery'), 30.5, 28.5); updateGame(s, .25);
+  // A barrage on explored ground out of sight, within reach, kills a hidden squad.
+  const target = {x: 42.5, y: 28.5};
+  for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) s.explored[0][(28 + y) * s.width + 42 + x] = 1;
+  const foes = [-1, 0, 1].map(i => addEntity(s, 1, 'unit', raceUnit(s, 1, 'rifle'), target.x + i * .4, target.y));
+  assert(useAbility(s, 0, [artillery.id], target).ok);
+  for (let i = 0; i < 200; i++) { updateGame(s, .05); assert(foes.every(e => e.hp <= 0 || !seen(s, 0, e)), 'The squad is never in sight'); }
+  assert(foes.every(e => e.hp <= 0));
+  assert.deepEqual([s.teams[0].kills, stats.unitKills, stats.unseenUnitKills, artillery.kills, artillery.unseenKills], [3, 3, 3, 3, 3]);
+  assert.equal(confirmedKills(s, 0), 0, 'Live counters leave out kills nobody saw');
+  assert.equal(commanderGoals(s).find(goal => goal.id === 'blooded').progress, 0);
+  // A kill in sight is confirmed at once.
+  const rifle = s.entities.find(e => e.team === 0 && e.type === 'rifle'), enemy = addEntity(s, 1, 'unit', raceUnit(s, 1, 'rifle'), rifle.x + 3, rifle.y);
+  enemy.hp = 20; enemy.cooldown = 1000; advance(s, 2);
+  assert(enemy.hp <= 0); assert.equal(stats.unseenUnitKills, 3); assert.equal(confirmedKills(s, 0), 1);
+  assert.equal(commanderGoals(s).find(goal => goal.id === 'blooded').progress, 1);
+  // Saves keep the unseen tallies, and a tally beyond the kills it is part of is refused.
+  const saved = decodeGame(encodeGame(s)).game;
+  assert.equal(confirmedKills(saved, 0), 1); assert.equal(saved.entities.find(e => e.id === artillery.id).unseenKills, 3);
+  for (const corrupt of [g => { g.teams[0].stats.unseenUnitKills = 9; }, g => { g.entities.find(e => e.id === artillery.id).unseenKills = 4; }]) {
+    const broken = JSON.parse(encodeGame(s)); corrupt(broken.game); assert.throws(() => decodeGame(JSON.stringify(broken)));
+  }
+  // Once the operation ends, every kill counts.
+  s.status = 'victory';
+  assert.equal(confirmedKills(s, 0), 4); assert.equal(commanderGoals(s).find(goal => goal.id === 'blooded').progress, 4);
 });
 
 test('deliveries record mined credits and repairs record spending', () => {

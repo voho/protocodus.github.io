@@ -71,6 +71,10 @@ try {
   assert(await page.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id); return ashline.paused && e.kills === 15 && e.maxHp === 168 && e.hp === 138; }, setup.id));
   await page.locator('#resume').click(); await clickUnit(page, setup.id);
   hud = await rankHUD(page); assert.equal(hud.rank, 3); assert.equal(hud.kills, 15); assert(hud.description.includes('Maximum rank.'));
+  // A kill the player did not see joins the tally only when the unit is selected afresh, like a held promotion.
+  await page.evaluate(id => { const e = ashline.state.entities.find(e => e.id === id); e.kills = 16; e.unseenKills = 1; }, setup.id);
+  await clickUnit(page, setup.id); hud = await rankHUD(page); assert.equal(hud.kills, 15, 'An unseen kill waits while the unit stays selected');
+  await page.locator('#deselect').click(); await clickUnit(page, setup.id); hud = await rankHUD(page); assert.equal(hud.kills, 16, 'Selecting the unit again confirms it');
 
   const marks = await page.evaluate(async () => {
     const {UNITS, createGame, unitStats} = await import('./sim.js'), {Renderer} = await import('./render.js');
