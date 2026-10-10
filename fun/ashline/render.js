@@ -716,7 +716,9 @@ export class Renderer {
     this.particles = []; this.shakes = []; this.eventState = null; this.eventCount = 0; this.lastEvent = null;
     this.shakeX = this.shakeY = 0; this.pendingTime = 0; this.blendAlpha = 1; this.blending = false; this.drawLag = 0;
     this.fogState = null; this.fogTime = NaN; this.byIdSource = null; this.byIdLength = -1; this.byId = new Map();
-    this.seenShells = new WeakSet(); this.drawVisible = null; this.pendingScorches = [];
+    this.seenShells = new WeakSet(); this.drawVisible = null; this.pendingRuins = []; this.alphaFloor = 0;
+    this.flights = []; this.flightLife = []; this.flightState = null; this.flightTime = NaN; this.landed = [];
+    this.impacts = []; this.dying = []; this.held = new WeakSet(); this.impactAt = new WeakMap();
   }
   // Props bucketed by tile row, so a frame visits only the rows on screen.
   propRowsFor(state) {
@@ -747,7 +749,7 @@ export class Renderer {
   // other than that tick (a fixture, a load) then snaps to its true position instead of blending.
   settlePoses(state) {
     if (this.afterTime === state.time) return;
-    this.afterTime = state.time;
+    this.afterTime = state.time; this.alphaFloor = 0;
     for (const e of state.entities) {
       if (e.kind !== 'unit') continue;
       const pose = this.poses.get(e.id);
@@ -1291,13 +1293,16 @@ export class Renderer {
     for (const id of this.unitPositions.keys()) if (!currentlySeen.has(id)) this.unitPositions.delete(id);
     for (const fx of state.effects || []) {
       if (fx.type === 'shell') {
-        // A visible landing raises a small dust burst when the shell arrives; barrage shells land as blasts.
         if (this.seenShells.has(fx)) continue;
         this.seenShells.add(fx);
-        const target = Math.floor(fx.ty) * state.width + Math.floor(fx.tx);
-        if (visible && !visible[target] || !Number.isFinite(fx.tx)) continue;
-        if (state.effects.some(o => o.type === 'explosion' && o.weapon === 'artillery' && o.x === fx.tx && o.y === fx.ty)) continue;
+        if (!Number.isFinite(fx.tx) || !Number.isFinite(fx.ty)) continue;
+        // The simulation applies a shell's damage at launch; the hits and deaths it caused wait for it to land.
         const land = state.time + Math.max(0, fx.life || 0);
+        this.impacts.push({ x: fx.tx, y: fx.ty, born: land - (fx.maxLife || SHELL_FLIGHT), land });
+        // A visible landing raises a small dust burst; barrage shells land as blasts.
+        const target = Math.floor(fx.ty) * state.width + Math.floor(fx.tx);
+        if (visible && !visible[target]) continue;
+        if (state.effects.some(o => o.type === 'explosion' && o.weapon === 'artillery' && o.x === fx.tx && o.y === fx.ty)) continue;
         this.addParticle({ kind: 'impact', born: land, life: .55, x: fx.tx * TILE, y: fx.ty * TILE, gate: target, seed: noise(fx.tx, fx.ty, this.seed) });
         this.addShake(land, fx.tx, fx.ty, .45);
         continue;
@@ -1308,25 +1313,93 @@ export class Renderer {
       // Once seen, a blast keeps playing even if the dying unit's own sight collapses.
       this.seenEffects.add(fx);
       const born = state.time - Math.max(0, (fx.maxLife || .6) - (fx.life || 0));
-      // The simulation applies barrage damage at launch; the blast and its scorch wait for the shell to land.
       if (fx.weapon === 'artillery') {
+        // A barrage blast and its scorch wait for the shell to land.
         const land = born + SHELL_FLIGHT;
-        this.pendingScorches.push({ born: land, fx });
+        this.pendingRuins.push({ born: land, fx, body: null, gated: true });
         this.addParticle({ kind: 'blast', born: land, life: .5, x: fx.x * TILE, y: fx.y * TILE - 3, size: fx.size || .8, gate: i, sx: fx.x, sy: fx.y });
-        this.blast(state, fx, ctx, land);
-      } else {
-        this.scorch(ctx, fx);
-        this.blast(state, fx, ctx, born);
+        this.blast(state, fx, land);
+        continue;
       }
+      // A rocket's blast waits for the drawn rocket to arrive, and a death a shell caused waits for the shell.
+      const land = fx.weapon ? this.impactAt.get(fx) ?? born : this.shellLanding(fx, born);
+      const body = this.blast(state, fx, land);
+      if (land > born) {
+        this.held.add(fx);
+        this.addParticle({ kind: 'blast', born: land, life: fx.maxLife || .6, x: fx.x * TILE, y: fx.y * TILE - 3, size: fx.size || 1, sx: fx.x, sy: fx.y });
+        if (body) this.dying.push({ body, until: land });
+        this.pendingRuins.push({ born: land, fx, body, gated: false });
+      } else this.ruin(ctx, fx, body);
     }
-    if (this.pendingScorches.length) {
+    if (this.pendingRuins.length) {
       let keep = 0;
-      for (const pending of this.pendingScorches) {
-        if (pending.born > clock) this.pendingScorches[keep++] = pending;
-        else if (!visible || visible[Math.floor(pending.fx.y) * state.width + Math.floor(pending.fx.x)]) this.scorch(ctx, pending.fx);
+      for (const pending of this.pendingRuins) {
+        if (pending.born > clock) this.pendingRuins[keep++] = pending;
+        else if (!pending.gated || !visible || visible[Math.floor(pending.fx.y) * state.width + Math.floor(pending.fx.x)]) this.ruin(ctx, pending.fx, pending.body);
       }
-      this.pendingScorches.length = keep;
+      this.pendingRuins.length = keep;
     }
+    if (this.impacts.length) {
+      let keep = 0;
+      for (const impact of this.impacts) if (clock < impact.land + .5 && impact.land < clock + 2) this.impacts[keep++] = impact;
+      this.impacts.length = keep;
+    }
+  }
+
+  // Shells splash 1.6 tiles (the barrage uses the same reach). A death born on a shell's launch tick within
+  // that reach (plus the body's half-size) was caused by it and shows when the shell lands.
+  shellLanding(fx, born) {
+    const reach = Math.max(1.6, ABILITIES.artillery.splash || 0) + (fx.size || 1) * .75;
+    for (const impact of this.impacts) {
+      if (Math.abs(impact.born - born) < 1e-3 && Math.hypot(fx.x - impact.x, fx.y - impact.y) <= reach) return impact.land;
+    }
+    return born;
+  }
+  // The same for a hit flash: the simulation stamps lastHit at the end of the launch tick.
+  hitLanding(e, hit) {
+    const n = e.kind === 'building' ? e.size / 2 : 0, reach = Math.max(1.6, ABILITIES.artillery.splash || 0) + (n || .5) * 1.42;
+    for (const impact of this.impacts) {
+      const since = hit - impact.born;
+      if (since > -1e-3 && since < .1 && Math.hypot(e.x + n - impact.x, e.y + n - impact.y) <= reach) return impact.land;
+    }
+    return hit;
+  }
+
+  // The ground a seen death leaves behind: a scorch, plus a husk for vehicles and structures.
+  ruin(ctx, fx, body) {
+    this.scorch(ctx, fx);
+    if (body && (body.kind === 'building' || !isInfantry(body))) this.stampWreck(ctx, body);
+  }
+
+  // The simulation drops a projectile on the tick it lands while the drawn clock still trails that tick, so a
+  // copy finishes the flight on the drawn clock, and a rocket's blast waits for the rocket to arrive.
+  trackFlights(state, time, clock) {
+    if (!this.blending) {
+      this.flights.length = this.flightLife.length = this.landed.length = 0; this.flightState = null;
+      return;
+    }
+    const effects = state.effects || [];
+    if (state !== this.flightState || time !== this.flightTime) {
+      if (state === this.flightState && time > this.flightTime && this.flights.length) {
+        const current = new Set(effects);
+        let blasts = null;
+        for (let i = 0; i < this.flights.length; i++) {
+          const fx = this.flights[i], end = this.flightTime + this.flightLife[i];
+          if (current.has(fx) || end <= clock) continue;
+          this.landed.push({ ...fx, end });
+          if (fx.type !== 'rocket') continue;
+          blasts ??= new Map(effects.filter(o => o.type === 'explosion' && o.weapon && !this.seenEffects.has(o)).map(o => [`${o.x},${o.y}`, o]));
+          const blast = blasts.get(`${fx.tx},${fx.ty}`);
+          if (blast) this.impactAt.set(blast, end);
+        }
+      } else if (state !== this.flightState) this.landed.length = 0;
+      this.flights.length = this.flightLife.length = 0;
+      for (const fx of effects) if (fx.type === 'rocket' || fx.type === 'shell' || fx.type === 'shot') { this.flights.push(fx); this.flightLife.push(fx.life); }
+      this.flightState = state; this.flightTime = time;
+    }
+    let keep = 0;
+    for (const fx of this.landed) if (fx.end > clock) { fx.life = fx.end - time; this.landed[keep++] = fx; }
+    this.landed.length = keep;
   }
 
   scorch(ctx, fx) {
@@ -1340,10 +1413,10 @@ export class Renderer {
     }
   }
 
-  // A newly seen explosion: debris, a wreck or burnt foundation for the body that just left play,
-  // staggered secondary bursts with a short smoke column for a destroyed structure, and a shake.
-  // Everything derives from what the player saw; deaths in fog leave nothing.
-  blast(state, fx, decals, born) {
+  // A newly seen explosion: debris, staggered secondary bursts with a short smoke column for a destroyed
+  // structure, and a shake, all starting at born. Returns the body seen on the previous tick that just left
+  // play here, for its wreck. Everything derives from what the player saw; deaths in fog leave nothing.
+  blast(state, fx, born) {
     const size = fx.size || 1, seed = noise(fx.x * 13.1, fx.y * 7.7, this.seed);
     let body = null;
     if (!fx.weapon) {
@@ -1356,9 +1429,11 @@ export class Renderer {
     }
     const role = body && entityRole(body), structure = body?.kind === 'building' && role !== 'wall';
     const vehicle = body?.kind === 'unit' && !isInfantry(body), x = fx.x * TILE, y = fx.y * TILE;
+    // A structure lost during construction collapses in proportion to what was built.
+    const built = structure ? Math.max(0, Math.min(1, body.progress ?? 1)) : 1;
     this.addShake(born, fx.x, fx.y, fx.weapon ? fx.weapon === 'artillery' ? .9 : fx.weapon === 'rocketTower' ? .5 : .25
-      : structure ? 1.8 + body.size * .8 : vehicle ? 1.2 : body ? .6 : .8 * Math.sqrt(size));
-    const debris = Math.min(18, Math.round((body ? structure ? 9 + size * 3 : vehicle ? 8 : 4 : 3) * (fx.weapon ? .8 : 1)));
+      : structure ? (1.8 + body.size * .8) * (.4 + built * .6) : vehicle ? 1.2 : body ? .6 : .8 * Math.sqrt(size));
+    const debris = Math.min(18, Math.round((body ? structure ? (9 + size * 3) * (.3 + built * .7) : vehicle ? 8 : 4 : 3) * (fx.weapon ? .8 : 1)));
     for (let j = 0; j < debris; j++) {
       const a = noise(seed * 91 + j, 3.1, this.seed) * Math.PI * 2, speed = (24 + noise(j, seed * 57, this.seed) * 46) * Math.sqrt(size);
       const vz = 55 + noise(j * 3, seed, this.seed) * 75;
@@ -1366,20 +1441,19 @@ export class Renderer {
         size: (structure || vehicle ? 1.6 : 1.1) + noise(j, 9, this.seed) * 1.6,
         color: body ? j % 3 ? '#2b2c2c' : body.team === 1 ? '#8f3b40' : '#9aa3a2' : j % 2 ? '#4c463d' : '#2d2b28' });
     }
-    if (!body) return;
-    if (vehicle || body.kind === 'building') this.stampWreck(decals, body);
-    if (!structure) return;
-    const half = body.size * TILE / 2, bursts = 2 + body.size;
+    if (!structure) return body;
+    const half = body.size * TILE / 2, bursts = Math.round((2 + body.size) * built);
     for (let j = 0; j < bursts; j++) {
       const at = born + .16 + j * (.62 / bursts) + noise(j, seed, this.seed) * .08;
       const bx = x + (noise(j, 5, seed) - .5) * half * 1.3, by = y + (noise(j, 6, seed) - .5) * half * 1.1;
       this.addParticle({ kind: 'blast', born: at, life: .42, x: bx, y: by, size: .55 + noise(j, 7, seed) * .35, sx: bx + j, sy: by - j });
       this.addShake(at, bx / TILE, by / TILE, .7);
     }
-    for (let j = 0; j < 10; j++) {
+    for (let j = 0; j < Math.round(10 * built); j++) {
       this.addParticle({ kind: 'smoke', born: born + .3 + j * .26, life: 2.6, x: x + (noise(j, 8, seed) - .5) * half * .7, y: y - half * .2,
         size: (10 + noise(j, 9, seed) * 6) * Math.sqrt(body.size), seed: noise(j, 10, seed) });
     }
+    return body;
   }
 
   addParticle(particle) {
@@ -1417,6 +1491,13 @@ export class Renderer {
   // same frame burnt to graphite. Both are one-off decal stamps; the cached sprite pixels are untouched.
   stampWreck(ctx, body) {
     const building = body.kind === 'building', n = building ? body.size / 2 : 0, x = (body.x + n) * TILE, y = (body.y + n) * TILE;
+    // An unfinished structure leaves only what was built, clipped as the construction view rises.
+    const built = building ? Math.max(0, Math.min(1, body.progress ?? 1)) : 1;
+    if (built < .12) return;
+    if (built < 1) {
+      const s = body.size * TILE;
+      ctx.save(); ctx.beginPath(); ctx.rect(x - s, y + s * .5 - s * 1.6 * built, s * 2, s * 1.6 * built); ctx.clip();
+    }
     const ghost = { type: body.type, team: body.team, kind: body.kind, angle: body.angle, size: body.size, progress: 1, moving: false, id: body.id,
       wallConnections: body.wallConnections };
     const matrix = ctx.getTransform();
@@ -1425,6 +1506,7 @@ export class Renderer {
     ctx.setTransform(matrix); ctx.translate(x, y); ctx.globalAlpha = building ? .5 : .8;
     ctx.filter = 'grayscale(1) brightness(.48) contrast(1.15)'; drawSprite(ctx, ghost, 0); ctx.filter = 'none';
     ctx.setTransform(matrix); ctx.globalAlpha = 1;
+    if (built < 1) ctx.restore();
   }
 
   // Event-driven flourishes for things the player can see: field patches and promotions.
@@ -1529,15 +1611,19 @@ export class Renderer {
     ctx.globalAlpha = 1;
   }
 
-  // Objectives: zone rings with pulsing beacons for active goals. Zones are static mission points the
-  // operation deliberately reveals, so they show through fog.
-  zoneGoals(state) {
+  // Objectives: zone rings with pulsing beacons for active goals. A zone is a deliberate static reveal only
+  // once a revealed objective uses it or its definition marks it lit (public); otherwise it appears when its
+  // centre is explored. Zones also anchor hidden garrisons and spawns, so nothing else draws through fog.
+  // Returns [[zone, goalState], ...] for the zones the player may see.
+  missionZones(state) {
     const mission = state.mission;
     if (!mission?.zones?.length) return null;
     if (this.goalSource !== mission.id) {
-      let definitions = [];
-      try { definitions = missionDefinition(mission.id).objectives || []; } catch { definitions = []; }
-      this.goalZones = new Map(definitions.filter(d => typeof d.zone === 'string').map(d => [d.id, d.zone]));
+      let definition = null;
+      try { definition = missionDefinition(mission.id); } catch { definition = null; }
+      const objectives = definition?.objectives || [];
+      this.goalZones = new Map(objectives.filter(d => typeof d.zone === 'string').map(d => [d.id, d.zone]));
+      this.publicZones = new Set((definition?.zones || []).filter(z => z.lit === true || z.public === true).map(z => z.id));
       this.goalSource = mission.id;
     }
     const goals = new Map();
@@ -1546,17 +1632,23 @@ export class Renderer {
       if (!zone || objective.revealed === false) continue;
       if (objective.state === 'active' || !goals.has(zone)) goals.set(zone, objective.state);
     }
-    return goals;
+    const explored = state.explored?.[0], shown = [];
+    for (const zone of mission.zones) {
+      if (!Number.isFinite(zone.x) || !Number.isFinite(zone.y)) continue;
+      const cell = Math.floor(zone.y) * state.width + Math.floor(zone.x);
+      if (goals.has(zone.id) || this.publicZones.has(zone.id) || !explored || explored[cell]) shown.push([zone, goals.get(zone.id)]);
+    }
+    return shown;
   }
 
   drawMissionMarkers(state, view, clock) {
-    const goals = this.zoneGoals(state);
-    if (!goals) return;
+    const zones = this.missionZones(state);
+    if (!zones) return;
     const ctx = this.ctx;
-    for (const zone of state.mission.zones) {
+    for (const [zone, goal] of zones) {
       const p = this.worldToScreen(zone.x, zone.y, view), r = Math.max(6, zone.r * view.zoom);
       if (p.x + r < -40 || p.y + r < -40 || p.x - r > this.width + 40 || p.y - r > this.height + 40) continue;
-      const goal = goals.get(zone.id), active = goal === 'active', color = active ? '#e2b67e' : goal === 'done' ? '#8dccca' : '#97acb1';
+      const active = goal === 'active', color = active ? '#e2b67e' : goal === 'done' ? '#8dccca' : '#97acb1';
       ctx.globalAlpha = active ? .07 : .035; ctx.fillStyle = color;
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = active ? .85 : .5; ctx.strokeStyle = color; ctx.lineWidth = active ? 1.4 : 1;
@@ -1679,7 +1771,8 @@ export class Renderer {
     this.blending = state === this.poseState && time > this.poseTime && time - this.poseTime < .25;
     if (this.blending) {
       this.settlePoses(state);
-      this.blendAlpha = Math.max(0, Math.min(1, this.pendingTime / (time - this.poseTime)));
+      // Within one tick the drawn moment never steps back, even when the scheduler remainder restarts on resume.
+      this.blendAlpha = this.alphaFloor = Math.max(this.alphaFloor, Math.min(1, this.pendingTime / (time - this.poseTime)));
       this.drawLag = (1 - this.blendAlpha) * (time - this.poseTime);
     } else { this.blendAlpha = 1; this.drawLag = 0; }
     const clock = time - this.drawLag, lag = this.drawLag;
@@ -1718,6 +1811,7 @@ export class Renderer {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'low';
     rect(ctx, 0, 0, this.width, this.height, '#0e1720');
     ctx.drawImage(this.terrain, left, top, W * zoom, state.height * zoom);
+    this.trackFlights(state, time, clock);
     this.drawDecals(state, visible, time, clock);
     ctx.drawImage(this.decals, left, top, W * zoom, state.height * zoom);
     // World layers use one computed transform per body instead of a save/restore pair.
@@ -1751,6 +1845,12 @@ export class Renderer {
       // not need depth sorting with the small portion of the map on screen.
       if (e.kind === 'unit') visibleUnits.push(p);
       if (inView(p)) live.push(p);
+    }
+    // A body a landing shell destroys stays where it was last seen until the shell arrives.
+    if (this.dying.length) {
+      let keep = 0;
+      for (const d of this.dying) if (clock < d.until && d.until - clock < 1) { this.dying[keep++] = d; if (inView(d.body)) live.push(d.body); }
+      this.dying.length = keep;
     }
     if (state.time !== this.bodyTime || state !== this.bodyState) {
       // Bodies the player could see on this tick; a death explosion next tick finds its wreck here.
@@ -1865,7 +1965,7 @@ export class Renderer {
       }
       const isBuilding = e.kind === 'building', n = isBuilding ? e.size / 2 : 0;
       at((e.x + n) * TILE, (e.y + n) * TILE);
-      if (view.selected?.has(e.id)) {
+      if (e.hp > 0 && view.selected?.has(e.id)) {
         // Ground ring sized to the body so the sprite never hides it; width stays ~1 screen pixel at any zoom.
         const r = isBuilding ? e.size * TILE / 2 + 2 : { rifle: 9, rocket: 11, scout: 18, artillery: 26 }[entityRole(e)] ?? 22;
         ctx.strokeStyle = '#b4e2e6'; ctx.lineWidth = 1.2 / scale;
@@ -1879,7 +1979,7 @@ export class Renderer {
           ctx.fillStyle = '#8edbe316'; ctx.fill(); ctx.stroke();
         }
       }
-      const remembered = isBuilding && e.team === 1 && !entityVisible(e);
+      const remembered = isBuilding && e.team === 1 && e.hp > 0 && !entityVisible(e);
       if (!isBuilding && e.abilityUntil > time && ABILITIES[unitRole(e)]?.holdsPosition) {
         // Dig in: a low ring of sandbags (or braced plates) on the ground around the squad.
         const grow = Math.min(1, (clock - (e.abilityUntil - (ABILITIES.rifle.duration || 10))) / .5);
@@ -1893,7 +1993,9 @@ export class Renderer {
       if (isBuilding) building(ctx, visual, remembered ? e.rememberedAt : clock); else unit(ctx, e, clock);
       if (targeted) ctx.restore();
       // Hit flash: a separate light silhouette over the frame; baked friendly pixels are never retinted.
-      const hit = remembered || (e.progress ?? 1) < 1 ? 0 : pulse(clock - (e.lastHit ?? -99), HIT_FLASH);
+      let hitAt = e.lastHit ?? -99;
+      if (this.impacts.length && hitAt > clock - 1) hitAt = this.hitLanding(e, hitAt);
+      const hit = remembered || (e.progress ?? 1) < 1 ? 0 : pulse(clock - hitAt, HIT_FLASH);
       if (hit > 0) { ctx.globalAlpha = hit * (isBuilding ? .16 : .32); drawSpriteOverlay(ctx, visual, clock, '#fff2dc'); ctx.globalAlpha = 1; }
       if (!remembered && (e.progress ?? 1) >= 1) this.drawEntityActivity(ctx, visual, clock, powers[e.team].ratio);
       else if (remembered && e.progress >= 1 && ['lab', 'capacitor'].includes(entityRole(e))) buildingActivity(ctx, e, e.rememberedAt, e.powerRatio ?? 1);
@@ -1911,7 +2013,7 @@ export class Renderer {
         teamInsignia(ctx, e.team, 0, 0, wall ? 4.5 : 7);
         at((e.x + n) * TILE, (e.y + n) * TILE);
       }
-      if ((view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || !remembered)) {
+      if (e.hp > 0 && (view.selected?.has(e.id) || e.hp < e.maxHp * .98) && (e.team === 0 || !remembered)) {
         const w = isBuilding ? Math.min(44, e.size * TILE - 4) : isInfantry(e) ? (entityRole(e) === 'rocket' ? 16 : 13) : 25;
         const yy = isBuilding ? -e.size * TILE / 2 - 16 : -19;
         rect(ctx, -w / 2 - 1, yy - 1, w + 2, 5, '#0a1620ec');
@@ -1964,14 +2066,16 @@ export class Renderer {
       }
     }
     this.drawParticles(ctx, clock, visible);
-    for (const fx of state.effects || []) {
+    const effects = this.landed.length ? (state.effects || []).concat(this.landed) : state.effects || [];
+    for (const fx of effects) {
       // Effects advance on the drawn clock: between ticks each one is shown slightly younger.
       const maxLife = fx.maxLife || .3, alpha = Math.max(0, Math.min(1, (fx.life + lag) / maxLife)), age = 1 - alpha;
       const rocket = fx.type === 'rocket', flying = rocket || fx.type === 'shell';
       const launchX = fx.x - (rocket && fx.weapon === 'rocketTower' ? 14.8 / TILE : 0);
       const px = flying ? launchX + (fx.tx - launchX) * age : fx.x;
       const py = flying ? fx.y + (fx.ty - fx.y) * age : fx.y;
-      if (fx.type === 'explosion' && fx.weapon === 'artillery') continue;
+      // Barrage blasts and blasts held for an arriving projectile play as particles instead.
+      if (fx.type === 'explosion' && (fx.weapon === 'artillery' || this.held.has(fx))) continue;
       if (fx.type !== 'shot' && !seenAt(px, py) && !(fx.type === 'explosion' && this.seenEffects.has(fx)) && !(fx.type === 'shell' && seenAt(fx.tx, fx.ty))) continue;
       const x = fx.x * TILE, y = fx.y * TILE - 3;
       const unity = state.teams[fx.team]?.race === 'aiUnity';
@@ -2355,7 +2459,7 @@ export class Renderer {
     };
     for (const e of state.entities) if (e.hp > 0 && (e.team === 0 || entityVisible(e))) drawDot(e);
     for (const e of this.rememberedBuildings.values()) if (!entityVisible(e)) { ctx.globalAlpha = .4; drawDot(e); ctx.globalAlpha = 1; }
-    // Named sites once explored, and every mission zone (a deliberate static reveal).
+    // Named sites once explored, and the mission zones the player may see.
     const sites = (state.sites || []).filter(site => Number.isFinite(site.x) && Number.isFinite(site.y)
       && (!explored || explored[Math.floor(site.y) * state.width + Math.floor(site.x)]));
     ctx.font = '600 7px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -2368,9 +2472,7 @@ export class Renderer {
         ctx.fillStyle = '#c4d2cf'; ctx.fillText(name, x, y + 4);
       }
     }
-    const goals = this.zoneGoals(state);
-    if (goals) for (const zone of state.mission.zones) {
-      const goal = goals.get(zone.id);
+    for (const [zone, goal] of this.missionZones(state) || []) {
       ctx.strokeStyle = goal === 'active' ? '#e2b67e' : goal === 'done' ? '#8dccca99' : '#97acb177'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(ox + zone.x * s, oy + zone.y * s, Math.max(2.5, zone.r * s), 0, Math.PI * 2); ctx.stroke();
     }
@@ -2392,8 +2494,7 @@ export class Renderer {
       ctx.strokeRect(ox + (e.x + n) * s - pulse, oy + (e.y + n) * s - pulse, pulse * 2, pulse * 2);
     }
     // Active objective beacons pulse on the tactical map as well.
-    const goals = this.zoneGoals(state);
-    if (goals) for (const zone of state.mission.zones) if (goals.get(zone.id) === 'active') {
+    for (const [zone, goal] of this.missionZones(state) || []) if (goal === 'active') {
       const k = time * .45 % 1, x = ox + zone.x * s, y = oy + zone.y * s;
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = '#e2b67e'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.arc(x, y, 2 + k * 7, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;

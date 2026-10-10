@@ -1,6 +1,9 @@
 // Optional browser QA for render-only effects. Uses ASHLINE_PLAYWRIGHT, ASHLINE_URL, ASHLINE_BROWSER and ASHLINE_SCREENSHOTS.
-// Covers tick interpolation (fog-safe, frozen while paused, snapping), screen shake gating, explosions, wrecks,
-// hit flashes, burning vehicles, ash-fall, mission zones, site labels, ability visuals and live-loop hooks.
+// Covers tick interpolation (fog-safe, frozen while paused, snapping, no step back on resume), projectiles that
+// finish their flight on the drawn clock, shell kills shown on landing, screen shake gating, explosions, wrecks
+// (including unfinished structures), structure collapses, hit flashes, burning vehicles, ash-fall, lava embers,
+// mission zones and site labels on the battlefield and tactical map, ability visuals, the ability preview and
+// live-loop hooks.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -17,6 +20,7 @@ try {
   const checks = await page.evaluate(async () => {
     const { UNITS, BUILDINGS, createGame, raceUnit } = await import('./sim.js');
     const { Renderer } = await import('./render.js');
+    const { MISSIONS } = await import('./campaign.js');
     const { drawSprite } = await import('./assets.js');
     const world = document.createElement('canvas');
     world.style.cssText = 'position:fixed;left:0;top:0;width:640px;height:480px;z-index:99999';
@@ -57,6 +61,8 @@ try {
     result.friendBlend = poseFriend.x; result.friendAngle = Math.abs(Math.cos(poseFriend.angle));
     result.enemyBlend = poseEnemy.x; result.hiddenSnap = renderer.poseOf(hiddenStart) === hiddenStart; result.jumpSnap = renderer.poseOf(jumper) === jumper;
     result.frozen = difference(frameA, render());
+    // A scheduler remainder that restarts mid-tick (resume, load) never draws an earlier moment.
+    renderer.pendingTime = 0; render(); result.resumeHold = renderer.poseOf(friend).x;
     friend.x = 35; result.fixtureSnap = renderer.poseOf(friend) === friend; friend.x = 30.4;
     renderer.pendingTime = .05; render(); result.settled = renderer.poseOf(friend).x;
     // An enemy that leaves vision on the new tick is not blended either.
@@ -118,12 +124,19 @@ try {
     s.visible[0].fill(0); const fogA = render(); s.time += 1.3; const fogB = render(); s.visible[0].fill(1);
     result.ash = { moving: difference(ashA, ashB), frozen: difference(ashA, ashSame), underFog: difference(fogA, fogB) };
 
-    // Mission zones (static reveals) and named sites (explored only).
-    const plain = render();
-    s.mission = { id: 'drill', objectives: [{ id: 'muster', state: 'active', progress: 0, revealed: true }], fired: {}, counters: {}, nextCheck: 0, startedAt: 0,
-      zones: [{ id: 'muster', x: 30, y: 30, r: 3, label: 'Muster point' }] };
+    // Mission zones: a zone shows through fog once a revealed objective uses it or its definition marks it lit;
+    // a zone only a hidden objective uses, or a bare spawn anchor, appears only once its centre is explored.
+    const zoneDiff = mission => { s.mission = mission; const a = render(); delete s.mission; return difference(a, render()); };
+    const drill = (zone, revealed = false) => ({ id: 'drill', fired: {}, counters: {}, nextCheck: 0, startedAt: 0,
+      objectives: [{ id: 'muster', state: 'active', progress: 0, revealed: true }, { id: 'range', state: 'active', progress: 0, revealed }],
+      zones: [{ id: zone, x: 30, y: 30, r: 3, label: 'Zone ' + zone }] });
     s.visible[0].fill(0); s.explored[0].fill(0);
-    const zoned = render(); delete s.mission; const unzoned = render(); result.zoneThroughFog = difference(zoned, unzoned);
+    MISSIONS['render-lit'] = { id: 'render-lit', objectives: [], zones: [{ id: 'relay', label: 'Central relay', at: 'center', r: 3, lit: true }] };
+    result.zones = { revealed: zoneDiff(drill('muster')), hiddenObjective: zoneDiff(drill('range')), unreferenced: zoneDiff(drill('spare')),
+      afterReveal: zoneDiff(drill('range', true)), lit: zoneDiff({ ...drill('relay'), id: 'render-lit', objectives: [] }) };
+    for (let y = 28; y < 33; y++) for (let x = 28; x < 33; x++) s.explored[0][y * s.width + x] = 1;
+    result.zones.explored = zoneDiff(drill('spare'));
+    s.explored[0].fill(0);
     s.sites = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }];
     const unexploredSite = render(); delete s.sites; const noSite = render();
     s.sites = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }]; s.explored[0].fill(1);
@@ -156,6 +169,114 @@ try {
     for (let i = 0; i < 400; i++) s.effects.push({ type: 'explosion', x: 10 + i % 40, y: 10 + Math.floor(i / 40), life: .55, maxLife: .6, team: 1, size: 3 });
     render(); result.particleBound = renderer.particles.length;
     s.effects = [];
+    s.effects = []; s.entities = []; renderer.particles.length = 0; renderer.shakes.length = 0; s.time += 3; render();
+    const decals = () => renderer.decals.getContext('2d').getImageData(0, 0, renderer.decals.width, renderer.decals.height).data;
+    const decalSum = (data, x, y, r) => { const k = renderer.terrainScale * 32, w = renderer.decals.width; let n = 0; for (let yy = Math.floor((y - r) * k); yy < (y + r) * k; yy++) for (let xx = Math.floor((x - r) * k); xx < (x + r) * k; xx++) n += data[(yy * w + xx) * 4 + 3]; return n; };
+    const hide = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) s.visible[0][y * s.width + x] = 0; };
+
+    // Tactical map: zone rings and objective beacons follow the battlefield rule; sites appear once explored.
+    const mapCanvas = document.createElement('canvas'), mapWorld = document.createElement('canvas');
+    mapCanvas.style.cssText = 'position:fixed;right:0;bottom:0;width:200px;height:150px;z-index:99999';
+    mapWorld.style.cssText = 'position:fixed;left:0;top:0;width:320px;height:240px;z-index:99998';
+    document.body.append(mapWorld, mapCanvas);
+    const mapped = new Renderer(mapWorld, mapCanvas);
+    const mapRender = () => { mapped.lastMinimap = -Infinity; mapped.draw(s, view); return mapCanvas.getContext('2d').getImageData(0, 0, mapCanvas.width, mapCanvas.height).data; };
+    const mapDiff = (apply, undo) => { apply(); const a = mapRender(); undo(); return difference(a, mapRender()); };
+    s.visible[0].fill(0); s.explored[0].fill(0);
+    const withMission = mission => mapDiff(() => { s.mission = mission; }, () => { delete s.mission; });
+    const site = [{ id: 'ridge', kind: 'outpost', x: 31, y: 31, r: 2, name: 'Cinder Ridge' }];
+    result.minimap = { revealedZone: withMission(drill('muster')), hiddenZone: withMission(drill('range')), unreferenced: withMission(drill('spare')),
+      lit: withMission({ ...drill('relay'), id: 'render-lit', objectives: [] }),
+      unexploredSite: mapDiff(() => { s.sites = site; }, () => { delete s.sites; }) };
+    // The active-objective beacon pulses on the overlay: a done objective's zone keeps only its ring.
+    const doneMission = drill('muster'); doneMission.objectives[0].state = 'done';
+    const centre = data => { const { s: k, ox, oy } = mapped.minimapLayout(s), x = Math.round((ox + 30 * k) * mapped.dpr), y = Math.round((oy + 30 * k) * mapped.dpr); return data[(y * mapCanvas.width + x) * 4]; };
+    s.mission = drill('muster'); const activeCentre = centre(mapRender()); s.mission = doneMission; const doneCentre = centre(mapRender()); delete s.mission;
+    result.minimap.beacon = { active: activeCentre, done: doneCentre };
+    s.explored[0].fill(1);
+    result.minimap.exploredSite = mapDiff(() => { s.sites = site; }, () => { delete s.sites; });
+    s.visible[0].fill(1);
+    delete MISSIONS['render-lit'];
+
+    // Incoming shells mark their landing only where the target cell is visible.
+    const shellAt = () => ({ type: 'shell', weapon: 'artillery', x: 25, y: 30, tx: 33.5, ty: 30.5, life: .2, maxLife: .35, team: 1 });
+    const effectDiff = fx => { s.effects = []; const a = render(); s.effects = [fx]; const b = render(); s.effects = []; return difference(a, b); };
+    hide(24, 28, 36, 33); result.shells = { hidden: effectDiff(shellAt()) };
+    s.visible[0][30 * s.width + 33] = 1; result.shells.visible = effectDiff(shellAt());
+    s.visible[0].fill(1); renderer.particles.length = 0; renderer.shakes.length = 0; renderer.impacts.length = 0;
+
+    // Structure deaths: a seen collapse adds staggered bursts and a smoke column, an unseen one nothing, and an
+    // unfinished structure collapses (and leaves a husk) only in proportion to what was built.
+    const factory = (x, y, progress) => ({ id: nextId++, type: 'factory', team: 1, kind: 'building', x, y, size: 3, hp: 1700, maxHp: 1700, progress, queue: [], cooldown: 0 });
+    const collapse = (progress, hidden) => {
+      const body = factory(28, 28, progress); s.effects = []; s.entities = [body]; s.visible[0].fill(1); if (hidden) hide(27, 27, 32, 32);
+      renderer.particles.length = 0; renderer.shakes.length = 0; s.time += .05; render();
+      renderer.lastDecalFade = s.time; const before = decals();
+      body.hp = 0; s.entities = []; s.time += .05;
+      s.effects = [{ type: 'explosion', x: 29.5, y: 29.5, life: .55, maxLife: .6, team: 1, size: 3 }]; render();
+      const kinds = {}; for (const p of renderer.particles) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
+      const out = { blast: kinds.blast || 0, smoke: kinds.smoke || 0, particles: renderer.particles.length, decal: decalSum(decals(), 29.5, 29.5, 1.6) - decalSum(before, 29.5, 29.5, 1.6) };
+      s.effects = []; s.visible[0].fill(1); s.time += 4; render(); renderer.particles.length = 0; renderer.shakes.length = 0;
+      return out;
+    };
+    result.collapse = { seen: collapse(1), hidden: collapse(1, true), half: collapse(.5), foundation: collapse(.08) };
+
+    // Shell kills show on landing: the body stays until the shell arrives, then its blast and wreck; a
+    // survivor's hit flash waits for the same moment.
+    const victim = unit('tank', 1, 32, 30), survivor = unit('tank', 1, 33.3, 31.1);
+    s.effects = []; s.entities = [victim, survivor]; s.time += .05; render();
+    renderer.lastDecalFade = s.time; const beforeShell = decals();
+    const launch = s.time + .05, death = { type: 'explosion', x: 32, y: 30, life: .55, maxLife: .6, team: 1, size: 1 };
+    victim.hp = 0; s.entities = [survivor]; survivor.lastHit = launch; s.time = launch;
+    s.effects = [{ type: 'shell', weapon: 'artillery', x: 26, y: 30, tx: 32, ty: 30, life: .3, maxLife: .35, team: 0 }, death];
+    const launched = render();
+    result.shellKill = { dying: renderer.dying.length, held: renderer.held.has(death), wreckEarly: decalSum(decals(), 32, 30, .8) - decalSum(beforeShell, 32, 30, .8) };
+    delete survivor.lastHit; result.shellKill.flashEarly = difference(launched, render()); survivor.lastHit = launch;
+    s.time = launch + .32; death.life = .23; s.effects = [death];
+    const landed = render();
+    result.shellKill.dyingAfter = renderer.dying.length;
+    result.shellKill.wreckLanded = decalSum(decals(), 32, 30, .8) - decalSum(beforeShell, 32, 30, .8);
+    result.shellKill.blast = renderer.particles.some(p => p.kind === 'blast' && Math.abs(p.born - (launch + .3)) < 1e-9);
+    delete survivor.lastHit; result.shellKill.flashLanded = difference(landed, render());
+    s.effects = []; s.entities = []; s.time += 4; render(); renderer.particles.length = 0; renderer.shakes.length = 0;
+
+    // Projectiles finish their flight on the drawn clock after the simulation drops them; the rocket's blast waits.
+    const rocketFx = { type: 'rocket', weapon: 'rocket', x: 28, y: 30, tx: 33, ty: 30, life: .04, maxLife: .25, team: 0 };
+    const impact = { type: 'explosion', weapon: 'rocket', x: 33, y: 30, life: .3, maxLife: .35, team: 0, size: .65 };
+    s.effects = [rocketFx]; tick(() => {}, .05); render();
+    tick(() => { s.effects = [impact]; }, .01); const tail = render();
+    result.rocketTail = { landed: renderer.landed.length, held: renderer.held.has(impact),
+      blastWaits: renderer.particles.some(p => p.kind === 'blast' && p.born > s.time - .05 + 1e-9 && p.born <= s.time - .01 + 1e-9) };
+    const copies = renderer.landed.splice(0); result.rocketTail.drawn = difference(tail, render()); renderer.landed.push(...copies);
+    renderer.pendingTime = .05; render(); result.rocketTail.after = renderer.landed.length;
+    s.effects = []; s.time += 4; render(); renderer.particles.length = 0; renderer.shakes.length = 0;
+
+    // Embers rise only over visible lava.
+    const lavaState = createGame('render-embers'); lavaState.terrain.fill(0); lavaState.minerals.fill(0); lavaState.entities = []; lavaState.effects = [];
+    for (let y = 29; y <= 32; y++) for (let x = 28; x <= 33; x++) lavaState.terrain[y * lavaState.width + x] = 3;
+    const lavaRenderer = new Renderer(mapWorld, null); lavaRenderer.createTerrain(lavaState);
+    const emberPixels = visibleGrid => {
+      const c = document.createElement('canvas'); c.width = 40 * 32; c.height = 40 * 32; const g = c.getContext('2d'), saved = lavaRenderer.ctx;
+      lavaRenderer.ctx = g; let n = 0;
+      for (let k = 0; k < 24; k++) {
+        g.clearRect(0, 0, c.width, c.height); lavaRenderer.drawEmbers(lavaState, visibleGrid, k * .37, 20, 20, 40, 40);
+        const data = g.getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < data.length; i += 4) if (data[i]) n++;
+      }
+      lavaRenderer.ctx = saved; c.width = c.height = 0; return n;
+    };
+    const lavaVisible = new Uint8Array(lavaState.width * lavaState.height).fill(1), lavaHidden = new Uint8Array(lavaState.width * lavaState.height);
+    result.embers = { visible: emberPixels(lavaVisible), hidden: emberPixels(lavaHidden) };
+
+    // Ground-targeting preview: cyan when valid, warm orange when not.
+    s.effects = []; s.entities = []; const noPreview = render();
+    view.abilityPreview = { x: 30, y: 30, radius: 7, valid: true }; const validPreview = render();
+    view.abilityPreview = { x: 30, y: 30, radius: 7, valid: false }; const invalidPreview = render(); delete view.abilityPreview;
+    // Warmth (red minus blue) on the ring's right edge, against the same ground without a preview.
+    const warmth = data => { const pixels = region(data, 30 + 7, 30, 4); let n = 0; for (let i = 0; i < pixels.length; i += 3) n += pixels[i] - pixels[i + 2]; return n; };
+    result.preview = { valid: difference(noPreview, validPreview), invalid: difference(noPreview, invalidPreview),
+      validWarmth: warmth(validPreview) - warmth(noPreview), invalidWarmth: warmth(invalidPreview) - warmth(noPreview) };
+    mapCanvas.remove(); mapWorld.remove();
+
     // A review scene with every marker: objective zone, site label, own flare, barrage reticle, dug-in squad and a burning tank.
     world.style.width = '100vw'; world.style.height = '100vh';
     window.markerPreview = zoom => {
@@ -181,6 +302,7 @@ try {
   assert(checks.enemyHiddenNow, 'An enemy hidden on the current tick is not blended');
   assert(checks.jumpSnap, 'Jumps longer than two tiles snap');
   assert.equal(checks.frozen, 0, 'Repeated frames with the same scheduler time are identical');
+  assert(Math.abs(checks.resumeHold - 30.2) < 1e-9, `A restarted scheduler remainder never steps the drawn pose back (${checks.resumeHold})`);
   assert(checks.fixtureSnap, 'A body moved outside the tick snaps to its true position');
   assert(Math.abs(checks.settled - 30.4) < 1e-9, 'A completed blend reaches the simulation pose');
   assert(checks.freshExact, 'Renderers without snapshots draw exact simulation poses');
@@ -195,13 +317,41 @@ try {
   assert(checks.burning > 4, `Vehicles below 25% health burn visibly (${checks.burning})`);
   assert.equal(checks.hiddenBurning, 0, 'A hidden burning enemy draws nothing');
   assert(checks.ash.moving > 0 && checks.ash.frozen === 0 && checks.ash.underFog === 0, `Ash-fall moves only over visible ground and holds on one clock (${JSON.stringify(checks.ash)})`);
-  assert(checks.zoneThroughFog > 200, 'Mission zones show through fog as deliberate static reveals');
+  assert(checks.zones.revealed > 200 && checks.zones.afterReveal > 200 && checks.zones.lit > 200,
+    `Zones of revealed objectives and lit zones show through fog (${JSON.stringify(checks.zones)})`);
+  assert(checks.zones.hiddenObjective === 0 && checks.zones.unreferenced === 0,
+    `A zone only a hidden objective uses, or no objective uses, draws nothing over unexplored ground (${JSON.stringify(checks.zones)})`);
+  assert(checks.zones.explored > 200, 'An explored zone centre shows its ring');
   assert(checks.sites.unexplored === 0 && checks.sites.explored > 50, `Site labels appear only once explored (${JSON.stringify(checks.sites)})`);
   assert(checks.flare.enemy === 0 && checks.flare.own > 200, 'Only the owning team sees its flare');
   assert(checks.abilities.dig > 50 && checks.abilities.overdrive > 20 && checks.abilities.barrage > 50 && checks.abilities.longShot > 50, `Ability visuals draw (${JSON.stringify(checks.abilities)})`);
   assert.equal(checks.abilities.enemyBarrage, 0, 'Enemy barrage targets are never marked');
   assert.deepEqual(checks.events, ['patch'], 'Event flourishes appear only where the player can see');
   assert(checks.particleBound <= 900, 'The particle pool stays bounded');
+  const m = checks.minimap;
+  assert(m.revealedZone > 4 && m.lit > 4 && m.hiddenZone === 0 && m.unreferenced === 0,
+    `Tactical-map zone rings follow the battlefield rule (${JSON.stringify(m)})`);
+  assert(m.beacon.active > 180 && m.beacon.done < 120, `Active objectives mark a beacon on the tactical map (${JSON.stringify(m.beacon)})`);
+  assert(m.unexploredSite === 0 && m.exploredSite > 4, `Tactical-map sites appear only once explored (${JSON.stringify(m)})`);
+  assert(checks.shells.hidden === 0 && checks.shells.visible > 20, `Incoming-shell rings show only over a visible target cell (${JSON.stringify(checks.shells)})`);
+  const c = checks.collapse;
+  assert(c.seen.blast >= 4 && c.seen.smoke >= 8 && c.hidden.particles === 0 && c.hidden.decal === 0,
+    `A seen structure collapses in bursts and smoke; an unseen one leaves nothing (${JSON.stringify(c)})`);
+  assert(c.foundation.blast === 0 && c.foundation.smoke <= 1 && c.half.blast < c.seen.blast && c.half.smoke < c.seen.smoke,
+    `An unfinished structure collapses in proportion to what was built (${JSON.stringify(c)})`);
+  assert(c.foundation.decal > 1000 && c.foundation.decal < c.half.decal && c.half.decal < c.seen.decal,
+    `An unfinished structure leaves only the built part of its husk (${JSON.stringify(c)})`);
+  const k = checks.shellKill;
+  assert(k.dying === 1 && k.held && k.wreckEarly === 0 && k.flashEarly === 0,
+    `A shell kill keeps the body and holds its blast, wreck and survivor flashes until landing (${JSON.stringify(k)})`);
+  assert(k.dyingAfter === 0 && k.wreckLanded > 1000 && k.blast && k.flashLanded > 30, `The shell's kill shows when it lands (${JSON.stringify(k)})`);
+  const t = checks.rocketTail;
+  assert(t.landed === 1 && t.held && t.blastWaits && t.drawn > 10 && t.after === 0,
+    `A rocket finishes its flight on the drawn clock and its blast waits for it (${JSON.stringify(t)})`);
+  assert(checks.embers.visible > 0 && checks.embers.hidden === 0, `Embers rise only over visible lava (${JSON.stringify(checks.embers)})`);
+  const pv = checks.preview;
+  assert(pv.valid > 100 && pv.invalid > 100 && pv.validWarmth < 0 && pv.invalidWarmth > 0,
+    `The ability preview reticle draws, cyan when valid and orange when not (${JSON.stringify(pv)})`);
 
   for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
     await page.setViewportSize(viewport);
