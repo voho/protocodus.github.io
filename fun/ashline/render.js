@@ -4,6 +4,7 @@ import { powerStats, UNITS, BUILDINGS as BUILDING_DEFS, unitRank, unitRange, bui
 import { mapRoutes, PROFILE_RELIEF } from './terrain.js';
 import { ABILITIES } from './abilities.js';
 import { missionDefinition } from './mission.js';
+import { witnessedKill } from './hud-data.js';
 
 const TILE = 32;
 const TEAM = [
@@ -1519,7 +1520,8 @@ export class Renderer {
     if (built < 1) ctx.restore();
   }
 
-  // Event-driven flourishes for things the player can see: field patches and promotions.
+  // Event-driven flourishes for things the player can see: field patches and promotions. A promotion also
+  // needs its kill seen, the rule the log and sound follow, so a blind barrage earns no flourish.
   readEvents(state, visible) {
     const events = state.events || [];
     if (state !== this.eventState) { this.eventState = state; this.eventCount = events.length; this.lastEvent = events.at(-1) ?? null; return; }
@@ -1535,7 +1537,7 @@ export class Renderer {
       if (!seen) continue;
       if (event.kind === 'ability' && event.ability === 'fieldPatch') {
         this.addParticle({ kind: 'patch', born: event.time, life: 1, x: event.x * TILE, y: event.y * TILE, r: (ABILITIES.engineer.reach || 4) * TILE });
-      } else if (event.kind === 'promotion') {
+      } else if (event.kind === 'promotion' && (!visible || witnessedKill(state, event, events[i + 1]))) {
         this.addParticle({ kind: 'promote', born: event.time, life: 1.3, x: event.x * TILE, y: event.y * TILE, rank: event.rank || 1 });
       }
     }
