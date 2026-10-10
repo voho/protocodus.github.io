@@ -297,14 +297,17 @@ try {
     const lavaVisible = new Uint8Array(lavaState.width * lavaState.height).fill(1), lavaHidden = new Uint8Array(lavaState.width * lavaState.height);
     result.embers = { visible: emberPixels(lavaVisible), hidden: emberPixels(lavaHidden) };
 
-    // Ground-targeting preview: cyan when valid, warm orange when not.
+    // Ground-targeting preview, as main.js describes it: reach rings, then the target area in amber when valid and
+    // warning orange when not.
     s.effects = []; s.entities = []; const noPreview = render();
-    view.abilityPreview = { x: 30, y: 30, radius: 7, valid: true }; const validPreview = render();
-    view.abilityPreview = { x: 30, y: 30, radius: 7, valid: false }; const invalidPreview = render(); delete view.abilityPreview;
-    // Warmth (red minus blue) on the ring's right edge, against the same ground without a preview.
-    const warmth = data => { const pixels = region(data, 30 + 7, 30, 4); let n = 0; for (let i = 0; i < pixels.length; i += 3) n += pixels[i] - pixels[i + 2]; return n; };
-    result.preview = { valid: difference(noPreview, validPreview), invalid: difference(noPreview, invalidPreview),
-      validWarmth: warmth(validPreview) - warmth(noPreview), invalidWarmth: warmth(invalidPreview) - warmth(noPreview) };
+    view.abilityPreview = { reach: [{ x: 26, y: 30, r: 5 }] }; const reachPreview = render();
+    view.abilityPreview = { reach: [], x: 30, y: 30, radius: 7, valid: true }; const validPreview = render();
+    view.abilityPreview = { reach: [], x: 30, y: 30, radius: 7, valid: false }; const invalidPreview = render(); delete view.abilityPreview;
+    // Warmth (red minus blue) and amber (green minus blue) on the area's right edge, against the same ground without a preview.
+    const tone = (data, a, b) => { const pixels = region(data, 30 + 7, 30, 4); let n = 0; for (let i = 0; i < pixels.length; i += 3) n += pixels[i + a] - pixels[i + b]; return n; };
+    result.preview = { reach: difference(noPreview, reachPreview), valid: difference(noPreview, validPreview), invalid: difference(noPreview, invalidPreview),
+      validWarmth: tone(validPreview, 0, 2) - tone(noPreview, 0, 2), invalidWarmth: tone(invalidPreview, 0, 2) - tone(noPreview, 0, 2),
+      validAmber: tone(validPreview, 1, 2) - tone(noPreview, 1, 2), invalidAmber: tone(invalidPreview, 1, 2) - tone(noPreview, 1, 2) };
     mapCanvas.remove(); mapWorld.remove();
 
     // A review scene with every marker: objective zone, site label, own flare, barrage reticle, dug-in squad and a burning tank.
@@ -387,8 +390,8 @@ try {
     `A rocket finishes its flight on the drawn clock and its blast waits for it (${JSON.stringify(t)})`);
   assert(checks.embers.visible > 0 && checks.embers.hidden === 0, `Embers rise only over visible lava (${JSON.stringify(checks.embers)})`);
   const pv = checks.preview;
-  assert(pv.valid > 100 && pv.invalid > 100 && pv.validWarmth < 0 && pv.invalidWarmth > 0,
-    `The ability preview reticle draws, cyan when valid and orange when not (${JSON.stringify(pv)})`);
+  assert(pv.reach > 100 && pv.valid > 100 && pv.invalid > 100 && pv.validWarmth > 0 && pv.invalidWarmth > 0 && pv.validAmber > pv.invalidAmber * 1.5,
+    `The ability preview draws reach rings and its target area, amber when valid and orange when not (${JSON.stringify(pv)})`);
 
   for (const [name, viewport] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]]) {
     await page.setViewportSize(viewport);

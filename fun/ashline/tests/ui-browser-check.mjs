@@ -193,6 +193,14 @@ try {
   await desktop.keyboard.press('f');
   assert.match(await desktop.locator('#order-hint-text').textContent(), /within 14 tiles/);
   const scout = await entity(desktop, ids.scout);
+  // The renderer draws the preview main.js describes: the scout's reach and the flare's area under the pointer.
+  // The camera centres on the scout so the aim point is open battlefield, not the console.
+  await desktop.evaluate(({ x, y }) => { ashline.view.x = x; ashline.view.y = y; }, scout);
+  const aim = await point(desktop, scout.x + 2.5, scout.y + 2.5);
+  await desktop.mouse.move(aim.x, aim.y);
+  await desktop.waitForFunction(() => ashline.view.abilityPreview?.valid === true);
+  const aimed = await desktop.evaluate(() => ashline.view.abilityPreview);
+  assert(aimed.reach.length === 1 && aimed.reach[0].r === 14 && aimed.radius === 7, `Ground targeting previews the reach and the flare's area (${JSON.stringify(aimed)})`);
   // Targeting belongs to the ability it began with: recalling a group with another ability leaves it,
   // and the next ground click selects instead of spending that ability.
   await desktop.evaluate(id => { ashline.view.selected = new Set([id]); }, ids.engineer);
@@ -205,6 +213,7 @@ try {
   await desktop.waitForFunction(() => /Field patch|Nano-patch/.test(document.querySelector('#ability-label').textContent));
   assert(await desktop.locator('#order-hint').isHidden(), 'Changing the selection leaves ground targeting');
   assert(!(await desktop.locator('#ability-order').evaluate(e => e.classList.contains('active'))));
+  await desktop.waitForFunction(() => ashline.view.abilityPreview === null);
   const ground = await point(desktop, scout.x + 2.5, scout.y + 2.5);
   await desktop.mouse.click(ground.x, ground.y);
   const patched = await entity(desktop, ids.engineer);

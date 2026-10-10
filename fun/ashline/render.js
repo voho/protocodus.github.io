@@ -1722,12 +1722,21 @@ export class Renderer {
       for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) line(ctx, p.x + Math.cos(a) * (r - 4), p.y + Math.sin(a) * (r - 4), p.x + Math.cos(a) * (r + 5), p.y + Math.sin(a) * (r + 5), '#e8a46f', 1.3);
       for (let i = 0; i < b.shots; i++) rect(ctx, p.x - b.shots * 3 + i * 6 + 1, p.y + r + 6, 4, 2.5, '#f3c48d');
     }
+    // main.js describes ground targeting: each ready unit's reach and the area the pointer would cover.
     const preview = view.abilityPreview;
-    if (preview && Number.isFinite(preview.x) && Number.isFinite(preview.y)) {
-      const p = this.worldToScreen(preview.x, preview.y, view), r = Math.max(6, (preview.radius || 1) * view.zoom), color = preview.valid === false ? '#e39881' : '#a8dcd9';
-      ctx.globalAlpha = .8; ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]);
-      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-      line(ctx, p.x - 6, p.y, p.x + 6, p.y, color, 1.2); line(ctx, p.x, p.y - 6, p.x, p.y + 6, color, 1.2);
+    if (preview) {
+      ctx.globalAlpha = 1; ctx.strokeStyle = '#d9a76490'; ctx.lineWidth = 1.2; ctx.setLineDash([6, 6]);
+      for (const ring of preview.reach || []) {
+        const p = this.worldToScreen(ring.x, ring.y, view);
+        ctx.beginPath(); ctx.arc(p.x, p.y, ring.r * view.zoom, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      if (Number.isFinite(preview.x) && Number.isFinite(preview.y)) {
+        const p = this.worldToScreen(preview.x, preview.y, view), color = preview.valid ? '#d9a764' : '#e29677';
+        ctx.strokeStyle = color; ctx.fillStyle = preview.valid ? '#d9a7641a' : '#e2967714';
+        ctx.beginPath(); ctx.arc(p.x, p.y, (preview.radius || 1) * view.zoom, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) line(ctx, p.x + dx * 4, p.y + dy * 4, p.x + dx * 10, p.y + dy * 10, color, 1.2);
+      }
     }
     ctx.globalAlpha = 1;
   }

@@ -19,7 +19,7 @@ const $ = id => document.getElementById(id);
 const canvas = $('world'), tacticalMap = document.querySelector('.tactical-map');
 const compactScreen = matchMedia('(max-width: 680px)'), coarsePointer = matchMedia('(pointer: coarse)');
 const renderer = new Renderer(canvas, $('minimap'));
-const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, formationPreview: null, commandMarker: null, showGrid: false };
+const view = { x: 14, y: 37, zoom: innerWidth <= 680 ? 24 : 38, selected: new Set(), hover: null, placement: null, placementValid: false, placementReason: '', drag: null, formationPreview: null, abilityPreview: null, commandMarker: null, showGrid: false };
 let frameRequest = 0;
 let game = null, launched = false, paused = true, loading = false, activeTab = 'build', orderMode = null;
 let lastTime = performance.now(), accumulator = 0, hudTimer = 0, lastEvent = 0;
@@ -283,7 +283,7 @@ async function reset(prepared, restored) {
   game = prepared;
   view.selected.clear(); keys.clear();
   view.placement = null; view.placementReason = ''; view.deployUnitId = null; view.drag = null; view.hover = null; view.commandMarker = null;
-  view.wallStart = null; view.wallPlan = null;
+  view.wallStart = null; view.wallPlan = null; view.abilityPreview = null;
   orderMode = null; abilityRole = null; pointer = null; pointerPosition = null; accumulator = 0; lastEvent = game.events.length;
   lastPortrait = ''; lastQueue = null; view.showGrid = false; lowPower = false; touches.clear();
   setOrderHint(); clearLog(); idle = idleSummary(null); idleCheckedAt = -Infinity; idleCursor.units = idleCursor.production = 0; interceptAt = -Infinity; lastGroupPress = { group: null, at: 0 };
@@ -1111,33 +1111,24 @@ function triggerAbility() {
   // The ability event brings its own cue and the unit's reply (soundscape), so the key adds none.
   cancelOrder(); updateHUD();
 }
-// Ground abilities preview each ready unit's reach and the area the click would cover.
-function drawAbilityPreview() {
-  if (orderMode !== 'ability') return;
+// Ground abilities preview each ready unit's reach and the area the click would cover; the renderer draws it.
+function abilityPreview() {
+  if (orderMode !== 'ability') return null;
   const group = abilityGroup(selectedUnits());
-  if (!group.length) return;
-  const ability = ABILITIES[unitRole(group[0])], ctx = renderer.ctx;
+  if (!group.length) return null;
+  const ability = ABILITIES[unitRole(group[0])], reach = [];
   let reachable = false;
-  ctx.save(); ctx.setTransform(renderer.dpr, 0, 0, renderer.dpr, 0, 0); ctx.lineWidth = 1.2; ctx.setLineDash([6, 6]);
-  let drawn = 0;
   for (const u of group) {
     const status = abilityStatus(game, u);
     if (!status?.ready) continue;
     if (view.hover && Math.hypot(view.hover.x - u.x, view.hover.y - u.y) <= status.range) reachable = true;
     // A large battery shows a dozen reach rings; more would only bury the target under outlines.
-    if (drawn++ >= 12) continue;
-    const p = renderer.worldToScreen(u.x, u.y, view);
-    ctx.strokeStyle = '#d9a76490'; ctx.beginPath(); ctx.arc(p.x, p.y, status.range * view.zoom, 0, Math.PI * 2); ctx.stroke();
+    if (reach.length < 12) reach.push({ x: u.x, y: u.y, r: status.range });
   }
-  if (view.hover) {
-    const { x, y } = view.hover, inside = x >= 0 && y >= 0 && x < game.width && y < game.height;
-    const valid = reachable && inside && (ability.id !== 'barrage' || game.explored[0][Math.floor(y) * game.width + Math.floor(x)]);
-    const p = renderer.worldToScreen(x, y, view), radius = (ability.radius ?? ability.scatter + ability.splash) * view.zoom;
-    ctx.setLineDash([]); ctx.strokeStyle = valid ? '#d9a764' : '#e29677'; ctx.fillStyle = valid ? '#d9a7641a' : '#e2967714';
-    ctx.beginPath(); ctx.arc(p.x, p.y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { ctx.beginPath(); ctx.moveTo(p.x + dx * 4, p.y + dy * 4); ctx.lineTo(p.x + dx * 10, p.y + dy * 10); ctx.stroke(); }
-  }
-  ctx.restore();
+  if (!view.hover) return { reach };
+  const { x, y } = view.hover, inside = x >= 0 && y >= 0 && x < game.width && y < game.height;
+  const valid = reachable && inside && (ability.id !== 'barrage' || Boolean(game.explored[0][Math.floor(y) * game.width + Math.floor(x)]));
+  return { reach, x, y, radius: ability.radius ?? ability.scatter + ability.splash, valid };
 }
 
 // A line about the entity under the pointer: friendly callsigns, or what the player can see of an enemy.
@@ -1781,10 +1772,11 @@ function frame(now) {
   if ((check?.reason || '') !== view.placementReason) { view.placementReason = check?.reason || ''; setOrderHint(); }
   if (view.commandMarker && now / 1000 - view.commandMarker.time > .85) view.commandMarker = null;
   renderer.pendingTime = accumulator; // How far the drawn frame has progressed toward the next tick.
+  view.abilityPreview = abilityPreview();
   renderer.draw(game, view);
   // After the draw, so blasts the renderer holds for an arriving shell are heard when they are shown.
   if (!busy()) soundscape.frame(game, view, { width: renderer.width, height: renderer.height, levels: cameraLevels() }, renderer);
-  drawAbilityPreview(); drawAlertPings(now);
+  drawAlertPings(now);
   if (!busy()) checkIntercept(now);
   if (now - hudTimer > 150) {
     updateHUD(); hudTimer = now;
