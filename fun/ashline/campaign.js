@@ -12,7 +12,8 @@
 // support. A trigger's objectiveActive holds only while that objective is open, so a hint never trails its step.
 // Fields used only by the briefing UI: seed, location, summary, story, par (seconds for gold) and aiStep
 // (the operation's commander plays this many opposition levels above the chosen one, up to Veteran).
-// commander names the rival commander in signals intercepts when the story gives the rival a face.
+// commander names the rival commander in signals intercepts when the story gives the rival a face. aiProfiles
+// gives the rival commander the doctrine its story describes (docs/BALANCE.md records the winnability probes).
 
 // The players' cast. Speakers stay within 40 characters for saved dialogue events.
 const VALE='Cmdr. Vale',TESK='Chief Orrun-Tesk',KADE='Auditor Kade',DACE='Captain Dace Mor',UNITY='Unity';
@@ -215,11 +216,11 @@ export const MISSIONS={
   'red-ledger':{
     id:'red-ledger',name:'Red Ledger',location:'Seam country',seed:'RED-LEDGER',par:1500,
     summary:'A rival Compact crew contests the sector. Bring three nexuses online and mine its red seams.',
-    story:['A crew calling itself the Red Ledger has filed a counter-claim on the seam country. They fly crimson and run the same surplus machines we do, under a captain who jumps claims for a living.','Auditor Kade will rule for the claimant who brings three nexuses online and delivers the red seam crystal. Construction vehicles and building upgrades are now cleared.'],
+    story:['A crew calling itself the Red Ledger has filed a counter-claim on the seam country. They fly crimson and run the same surplus machines we do, under a captain who jumps claims for a living and raids the shard runs.','Auditor Kade will rule for the claimant who brings three nexuses online and delivers the red seam crystal. Construction vehicles and building upgrades are now cleared.'],
     briefing:'Outbuild the Red Ledger claim-jumpers: bring three nexuses online and deliver red seam crystal.',
     opening:'Counter-claim filed against Expedition 07. The audit is open.',
     victoryText:'The audit rules for Expedition 07. The Red Ledger claim is struck.',
-    width:192,height:144,profile:'highlands',races:['organics','organics'],aiTeams:[1],credits:[2400,2400],commander:DACE,
+    width:192,height:144,profile:'highlands',races:['organics','organics'],aiTeams:[1],aiProfiles:{1:{doctrine:'swarm'}},credits:[2400,2400],commander:DACE,
     allow:EXPANSION,
     zones:[],
     objectives:[
@@ -290,11 +291,11 @@ export const MISSIONS={
   'hold-the-relay':{
     id:'hold-the-relay',name:'Hold the Relay',location:'Meridian rift',seed:'HOLD-RELAY',par:600,aiStep:1,
     summary:'Seize the central relay and hold it for four minutes against Unity\'s veteran cohorts.',
-    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here and will push hard for the relay. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
+    story:['The central relay stitches Unity\'s eastern cohorts together. Whoever holds it long enough owns the traffic, and the relay is lit, so both sides see every unit inside.','Unity fields its veteran cohorts here under Bastion mind OR-4, which walls in its sentries and comes for the relay late and heavy. Rocket towers, siege crawlers, Pike strikers and the last research are now cleared.'],
     briefing:'Hold the lit central relay for four minutes in total before Unity can hold it for as long.',
     opening:'Relay traffic intercepted. Expedition 07, take the relay.',
     victoryText:'The relay is ours. Unity\'s eastern cohorts are cut off.',
-    width:192,height:144,profile:'rift',races:['organics','aiUnity'],aiTeams:[1],credits:[2400,2000],
+    width:192,height:144,profile:'rift',races:['organics','aiUnity'],aiTeams:[1],aiProfiles:{1:{doctrine:'ironclad'}},credits:[2400,2000],
     zones:[{id:'relay',label:'Central relay',at:'center',r:7,lit:true}],
     objectives:[
       {id:'hold',type:'holdZone',zone:'relay',seconds:240,label:'Hold the central relay for 4:00 in total'},
@@ -317,11 +318,11 @@ export const MISSIONS={
   severance:{
     id:'severance',name:'Severance',location:'The eastern reach',seed:'SEVERANCE',par:2100,
     summary:'The finale: cut every Unity mainframe in the eastern reach, including two outlying cores.',
-    story:['Unity runs the eastern reach through three mainframes: the main core and two outlying installations on the expansion shelves. Cut all three and the cohorts east of the Ashline lose their mind.','Every unit and technology is cleared. Survivors of Dead Signal deploy with their ranks. Leave one mainframe or constructor standing and the claim stands with it.'],
+    story:['Unity runs the eastern reach through three mainframes: the main core and two outlying installations on the expansion shelves. Cut all three and the cohorts east of the Ashline lose their mind. Survey core JT-3 runs the reach and keeps claiming new fields, so expect more of them.','Every unit and technology is cleared. Survivors of Dead Signal deploy with their ranks. Leave one mainframe or constructor standing and the claim stands with it.'],
     briefing:'Destroy every Unity mainframe and constructor in the eastern reach. Dead Signal veterans join the assault.',
     opening:'All Compact forces committed. Expedition 07, begin Severance.',
     victoryText:'Severance complete. The eastern cohorts fall silent and the Ashline moves east.',
-    width:224,height:168,profile:'highlands',races:['organics','aiUnity'],aiTeams:[1],credits:[3000,3000],
+    width:224,height:168,profile:'highlands',races:['organics','aiUnity'],aiTeams:[1],aiProfiles:{1:{doctrine:'prospector'}},credits:[3000,3000],
     zones:[{id:'north',label:'North mainframe',at:{at:'lane:0.7',dx:-6,dy:-30},r:6},{id:'south',label:'South mainframe',at:{at:'lane:0.75',dx:14,dy:26},r:6}],
     objectives:[
       {id:'sever',type:'annihilate',label:'Destroy every Unity mainframe and constructor'},
