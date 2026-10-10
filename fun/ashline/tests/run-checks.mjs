@@ -24,7 +24,8 @@ Options
   --browser            Also run browser checks. A static server for the repository root
                        starts on a free local port and sets ASHLINE_URL.
   --browser-only       Run only browser checks.
-  --tools              Also run performance-benchmark and race-balance, one at a time, last.
+  --tools              Also run ${[...TOOLS].join(', ')},
+                       one at a time, last. A tool that drives a browser gets the --browser setup.
   --jobs N             Parallel node lanes (default: ${defaultJobs()}).
   --browser-jobs N     Parallel browser checks (default: ${defaultBrowserJobs()}).
   --timeout S          Seconds before a check is stopped and failed (default: 900; tools have no limit).
@@ -75,8 +76,10 @@ function discover() {
     const name = file.slice(0, -4), source = readFileSync(join(TESTS, file), 'utf8');
     // Shared fixtures such as performance-scenes.mjs export helpers and run nothing on their own.
     if (/^export\s/m.test(source)) return [];
-    const kind = TOOLS.has(name) ? 'tool' : source.includes('ASHLINE_PLAYWRIGHT') ? 'browser' : file.endsWith('.test.mjs') ? 'suite' : 'node';
-    return [{ name, file, kind }];
+    // Scripts that read the Playwright module path drive a browser; a suite that only sets it for a child does not.
+    const browser = /process\.env\.ASHLINE_PLAYWRIGHT\b/.test(source);
+    const kind = TOOLS.has(name) ? 'tool' : browser ? 'browser' : file.endsWith('.test.mjs') ? 'suite' : 'node';
+    return [{ name, file, kind, browser }];
   });
 }
 
@@ -252,14 +255,14 @@ async function main() {
   const byKind = kinds => selected.filter(check => kinds.includes(check.kind));
   await phase('Node checks', byKind(['node', 'suite']), options.jobs);
 
-  const browserChecks = byKind(['browser']);
-  let server = null;
-  if (browserChecks.length) {
-    let environment;
+  // Browser checks and browser-driven tools share one environment and one server, kept until the tools finish.
+  const browserRuns = selected.filter(check => check.browser);
+  let environment = null, server = null, browserEnv = () => ({});
+  if (browserRuns.length) {
     try { environment = await browserEnvironment(); }
     catch (error) {
       console.error(`\nBrowser checks cannot run: ${error.message}`);
-      for (const check of browserChecks) results.set(check, { status: 'skipped', ms: 0, output: error.message, attempts: 0 });
+      for (const check of browserRuns) results.set(check, { status: 'skipped', ms: 0, output: error.message, attempts: 0 });
     }
     if (environment) {
       let url = process.env.ASHLINE_URL;
@@ -269,12 +272,14 @@ async function main() {
       }
       const screenshots = process.env.ASHLINE_SCREENSHOTS || join(logs, 'screenshots');
       console.log(`\nBrowser: ${environment.ASHLINE_BROWSER} via ${environment.ASHLINE_PLAYWRIGHT} · ${url} · screenshots in ${screenshots}`);
-      const env = check => ({ ...environment, ASHLINE_URL: url, ASHLINE_SCREENSHOTS: join(screenshots, check.name) });
-      try { await phase('Browser checks', browserChecks, options.browserJobs, { env }); }
-      finally { server?.close(); server?.closeAllConnections(); }
+      browserEnv = check => ({ ...environment, ASHLINE_URL: url, ASHLINE_SCREENSHOTS: join(screenshots, check.name) });
     }
   }
-  await phase('Tools', byKind(['tool']), 1, { timeout: options.timeout });
+  const runnable = kind => byKind([kind]).filter(check => !check.browser || environment);
+  try {
+    await phase('Browser checks', runnable('browser'), options.browserJobs, { env: browserEnv });
+    await phase('Tools', runnable('tool'), 1, { timeout: options.timeout, env: check => check.browser ? browserEnv(check) : {} });
+  } finally { server?.close(); server?.closeAllConnections(); }
 
   const rows = selected.map(check => {
     const result = results.get(check);
