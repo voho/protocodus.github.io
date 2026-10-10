@@ -96,11 +96,14 @@ export function compose(THREE, parts, opts = {}) {
    round as the shape on however coarse a grid, and each vertex takes the
    colours of the parts it is near, blended across the same joins.
 
-   Anything thinner than about two cells (an ear, an eye) does not survive
-   the grid and belongs in `compose` beside this. Built once per page.
-   Indexed, with the same attributes as `compose`, whose part it can be. */
+   A part marked `paint` is not shape at all: it colours whatever of the
+   skin lies inside it, softened over its `k`, which is how a saddle or a
+   pale throat is a marking rather than a lump. Anything thinner than about
+   two cells (an ear, an eye) does not survive the grid and belongs in
+   `compose` beside this. Built once per page. Indexed, with the same
+   attributes as `compose`, whose part it can be. */
 export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
-  const shapes = parts.map((p) => {
+  const all = parts.map((p) => {
     const blend = p.k ?? k;
     if (p.to) {
       const [ax, ay, az] = p.pos;
@@ -153,6 +156,8 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
       },
     };
   });
+  const shapes = all.filter((s) => !s.p.paint);
+  const paints = all.filter((s) => s.p.paint);
 
   const field = (x, y, z) => {
     let d = shapes[0].dist(x, y, z);
@@ -289,6 +294,7 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
   const normal = new Float32Array(count * 3);
   const color = new Float32Array(count * 3);
   const tint = shapes.map((s) => new THREE.Color(s.p.color));
+  const pigment = paints.map((s) => new THREE.Color(s.p.color));
   const d = new Float32Array(shapes.length);
   for (let v = 0; v < count; v++) {
     const x = pos[v * 3];
@@ -315,9 +321,18 @@ export function sculpt(THREE, parts, { cell = 0.025, k = 0.04 } = {}) {
       b += tint[s].b * w;
       sum += w;
     }
-    color[v * 3] = r / sum;
-    color[v * 3 + 1] = gg / sum;
-    color[v * 3 + 2] = b / sum;
+    r /= sum;
+    gg /= sum;
+    b /= sum;
+    for (let s = 0; s < paints.length; s++) {
+      const a = Math.min(1, Math.max(0, 0.5 - paints[s].dist(x, y, z) / paints[s].blend));
+      r += (pigment[s].r - r) * a;
+      gg += (pigment[s].g - gg) * a;
+      b += (pigment[s].b - b) * a;
+    }
+    color[v * 3] = r;
+    color[v * 3 + 1] = gg;
+    color[v * 3 + 2] = b;
   }
 
   /* The quad test above judges each quad by one of its two triangles, and
