@@ -11,10 +11,11 @@ const option=name=>{const i=process.argv.indexOf(name);return i<0?undefined:proc
 const selected=option('--profile'),suite=option('--suite')||'calibration',size=option('--size')||'standard',difficulty=option('--difficulty')||'hard';
 const doctrines=option('--doctrines')?.split(',');
 assert.ok(Object.hasOwn(MAP_SIZES,size),'--size must be standard, frontier, or vast');
-assert.ok(['calibration','holdout','extended'].includes(suite));
+assert.ok(['calibration','holdout','fresh','extended'].includes(suite),'--suite must be calibration, holdout, fresh or extended');
 assert.ok(['easy','normal','hard'].includes(difficulty),'--difficulty must be easy, normal or hard');
 assert.ok(!doctrines||doctrines.length===2&&doctrines.every(id=>Object.hasOwn(DOCTRINES,id)),'--doctrines takes two doctrine ids, such as balanced,swarm');
-const seeds=suite==='extended'?['EXTENDED-HORIZON-06']:suite==='holdout'?['HOLDOUT-EMBER-04','HOLDOUT-OBSIDIAN-05']:['BALANCE-CINDER-01','BALANCE-VAULT-02','BALANCE-DUSK-03'];
+// fresh seeds validate a statistics change tuned on the calibration and held-out seeds.
+const seeds=suite==='extended'?['EXTENDED-HORIZON-06']:suite==='holdout'?['HOLDOUT-EMBER-04','HOLDOUT-OBSIDIAN-05']:suite==='fresh'?['FRESH-BASALT-07','FRESH-SLAG-08','FRESH-PUMICE-09']:['BALANCE-CINDER-01','BALANCE-VAULT-02','BALANCE-DUSK-03'];
 const profiles=selected?selected.split(','):Object.keys(MAP_PROFILES);
 assert.ok(profiles.every(profile=>Object.hasOwn(MAP_PROFILES,profile)),`--profile takes one or more of ${Object.keys(MAP_PROFILES).join(', ')}, separated by commas`);
 const limit=Number(option('--limit')||2400),output=option('--output')||`/tmp/ashline-race-balance-${doctrines?doctrines.join('-'):selected?profiles.join('-'):'all'}.json`;

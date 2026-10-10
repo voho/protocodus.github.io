@@ -37,10 +37,15 @@ for(const race of Object.keys(RACES)){
 assert(UNITS.unityRifle.hp>UNITS.rifle.hp&&UNITS.unityRifle.speed<UNITS.rifle.speed,'Unity cohorts exchange speed for resilience');
 assert(UNITS.unityScout.speed>UNITS.scout.speed&&UNITS.unityScout.hp<UNITS.scout.hp,'Unity skimmers exchange armor for speed');
 assert(UNITS.unityTank.speed>UNITS.tank.speed&&UNITS.unityTank.damage<UNITS.tank.damage,'Walkers have a different mobility/firepower tradeoff');
+// Prices level strength per credit between the races (the race trials in docs/BALANCE.md): durable cohorts cost
+// what organic infantry costs, lighter machines print cheaper than sturdy organic vehicles.
+const value=d=>Math.sqrt(d.hp*d.damage/d.interval)/d.cost;
 for(const role of ['rifle','rocket','scout','tank','artillery','harvester','engineer','striker']){
   const organic=UNITS[role],unity=UNITS[`unity${role[0].toUpperCase()}${role.slice(1)}`];
-  if(organic.damage)assert(unity.cost>organic.cost&&unity.cost<=organic.cost*1.125,'Unity combat mobility and durability carry a modest recruitment premium');
-  else assert.equal(unity.cost,organic.cost,'Carrier and support economies remain equivalent');
+  if(!organic.damage){assert.equal(unity.cost,organic.cost,'Carrier and support economies remain equivalent');continue;}
+  if(organic.armor==='infantry')assert(unity.cost===organic.cost&&unity.hp>organic.hp&&unity.damage<organic.damage,'Durable, weaker-hitting cohorts cost what organic infantry costs');
+  else assert(unity.cost<organic.cost&&unity.hp<organic.hp&&unity.damage<=organic.damage,'Lighter Unity machines cost less than sturdy organic vehicles');
+  assert(Math.abs(value(unity)/value(organic)-1)<.03,`${role} strength per credit stays level between the races`);
 }
 
 // Both commanders use independent fog knowledge and full hard-difficulty production pace.

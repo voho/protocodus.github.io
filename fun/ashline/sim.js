@@ -38,7 +38,7 @@ Object.setPrototypeOf(BUILDINGS,null);Object.setPrototypeOf(UNITS,null);
 
 export const RACES = {
   organics:{name:'Organics',description:'Human and alien crews field rugged industrial armor. Reliable firepower, sturdy vehicles and fast infantry.'},
-  aiUnity:{name:'AI Unity',description:'Costlier autonomous cohorts combine durable combat robots with agile, lighter machines and efficient infrastructure.'},
+  aiUnity:{name:'AI Unity',description:'Autonomous cohorts combine durable combat robots with agile, lighter, cheaper machines and efficient infrastructure.'},
 };
 const unityId=role=>`unity${role[0].toUpperCase()}${role.slice(1)}`;
 const UNITY_BUILDINGS={
@@ -47,16 +47,18 @@ const UNITY_BUILDINGS={
   capacitor:{name:'Charge nexus',hp:800},turret:{name:'Lance node',hp:820,damage:44,interval:1.15},rocketTower:{name:'Shard battery',hp:1000,damage:80,interval:2.45},
   wall:{name:'Interlock barrier',hp:600},
 };
+// Prices keep strength per credit, √(health × damage ÷ interval) ÷ cost, level with Organics: the durable,
+// weaker-hitting cohorts cost what organic infantry costs and the lighter machines cost less (docs/BALANCE.md).
 const UNITY_UNITS={
-  rifle:{name:'Needle cohort',cost:90,hp:120,speed:2.4,damage:13,description:'Durable biped combat robots. Slower than organic infantry, with sustained pulse fire.'},
-  rocket:{name:'Breach automaton',cost:175,hp:108,speed:2.15,damage:53,description:'Heavy biped launcher platforms. Tougher but slower than organic rocket teams.'},
-  scout:{name:'Veil skimmer',cost:150,hp:165,speed:4.55,description:'Agile sensor machine with light armor. Wide sight and rapid anti-infantry fire.'},
-  tank:{name:'Bastion walker',cost:325,hp:470,speed:2.4,damage:67,interval:1.5,description:'Articulated assault walker. Trades some armor and shell weight for mobility.'},
-  artillery:{name:'Arc siege walker',cost:410,hp:235,speed:1.95,damage:110,interval:3.1,description:'Mobile long-range siege platform. Lighter armor demands careful screening.'},
+  rifle:{name:'Needle cohort',cost:80,hp:120,speed:2.4,damage:13,description:'Durable biped combat robots. Slower than organic infantry, with sustained pulse fire.'},
+  rocket:{name:'Breach automaton',cost:160,hp:108,speed:2.15,damage:53,description:'Heavy biped launcher platforms. Tougher but slower than organic rocket teams.'},
+  scout:{name:'Veil skimmer',cost:130,hp:165,speed:4.55,description:'Agile sensor machine with light armor. Wide sight and rapid anti-infantry fire.'},
+  tank:{name:'Bastion walker',cost:280,hp:470,speed:2.4,damage:67,interval:1.5,description:'Articulated assault walker. Trades some armor and shell weight for mobility and a lower price.'},
+  artillery:{name:'Arc siege walker',cost:350,hp:235,speed:1.95,damage:110,interval:3.1,description:'Mobile long-range siege platform. Lighter armor demands careful screening.'},
   harvester:{name:'Prism carrier',hp:540,speed:2.7,description:'Autonomous shard carrier with a rear mineral chamber. Same cargo capacity and extraction economy as organic haulers.'},
   engineer:{name:'Mender drone',hp:250,speed:3.1,repairRate:18,description:'Unarmed maintenance machine. Fast relocation; repairs nearby vehicles and structures for credits and power.'},
   constructor:{name:'Mainframe constructor',hp:600,speed:2.2,description:'Unarmed mobile mainframe. Deploy within 4 tiles to establish a remote base and add 200 unit slots when complete. Deployment consumes this machine at no extra cost.'},
-  striker:{name:'Talon runner',cost:280,hp:285,speed:3.85,damage:26,interval:.53,description:'Fast multi-legged hunter with paired anti-infantry pulse cannons. Vulnerable to heavy armor.'},
+  striker:{name:'Talon runner',cost:245,hp:285,speed:3.85,damage:26,interval:.53,description:'Fast multi-legged hunter with paired anti-infantry pulse cannons. Vulnerable to heavy armor.'},
 };
 // Distinct identities share gameplay roles; faction ownership paint is independent of race.
 for(const [role,d] of Object.entries(BUILDINGS)){
