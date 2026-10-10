@@ -1,8 +1,8 @@
 // Run with: node tests/flight-check.mjs
 import { test, run, assert, near } from './harness.mjs';
-import { createShip, stepShip, NEUTRAL_CONTROLS, selectRcsPorts, forward } from '../js/flight.js';
+import { createShip, stepShip, NEUTRAL_CONTROLS, selectRcsPorts, forward, aimCommands } from '../js/flight.js';
 import { PLAYER, STEP as DT } from '../js/config.js';
-import { qRotateInv, qRotate, qFromAxisAngle, len } from '../js/vec.js';
+import { qRotateInv, qRotate, qFromAxisAngle, len, normalize } from '../js/vec.js';
 
 const ctl = (o = {}) => ({ ...NEUTRAL_CONTROLS, ...o });
 const local = s => qRotateInv([0, 0, 0], s.q, s.vel);
@@ -105,5 +105,14 @@ test('selectRcsPorts fires the ports that push the commanded way', () => {
   assert.deepEqual(selectRcsPorts(ports, [10, 0, 0], [0, 0, 0], PLAYER).map(f => f.index), [3]);
   assert.equal(selectRcsPorts(ports, [0, 0, -45], [0, 0, 0], PLAYER).length, 0, 'main engine needs no RCS');
   for (const f of selectRcsPorts(ports, [22, 0, 0], [0, 0, 0], PLAYER)) assert.ok(f.intensity > 0 && f.intensity <= 1);
+});
+test('aimCommands: still on the nose, toward the point otherwise, full stick behind', () => {
+  const s = createShip(PLAYER);
+  let c = aimCommands(s, [0, 0, -1]); near(c.pitch, 0, 1e-12); near(c.yaw, 0, 1e-12);
+  c = aimCommands(s, normalize([0, 0, 0], [0.1, 0, -1])); assert.ok(c.yaw > 0.1 && Math.abs(c.pitch) < 1e-12);
+  c = aimCommands(s, normalize([0, 0, 0], [0, 0.1, -1])); assert.ok(c.pitch > 0.1 && Math.abs(c.yaw) < 1e-12);
+  c = aimCommands(s, [0, 0, 1]); assert.equal(Math.max(Math.abs(c.pitch), Math.abs(c.yaw)), 1);
+  c = aimCommands(s, normalize([0, 0, 0], [0.004, 0, -1])); near(c.yaw, 0, 1e-12, 'inside the deadzone');
+  c = aimCommands(s, [0, 0, 0]); assert.equal(c.pitch, 0); assert.equal(c.yaw, 0);
 });
 await run();

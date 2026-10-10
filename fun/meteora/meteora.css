@@ -38,6 +38,8 @@ html, body {
   display: block;
 }
 .hud { pointer-events: none; }
+/* The HUD draws the aim crosshair while flying. */
+body.flying, body.flying #stage { cursor: none; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden;

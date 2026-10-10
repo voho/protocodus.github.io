@@ -36,6 +36,7 @@ export const ENEMY = {
 
 export const CANNON = {
   rate: 12, speed: 1000, life: 2.2, damage: 8, heat: 4.5, cool: 30, lockAt: 100, releaseAt: 40, radius: 0.3,
+  gimbal: 10 * Math.PI / 180,   // how far the guns swing off the nose toward the aim
 };
 export const ENEMY_CANNON = {
   rate: 6, speed: 850, life: 2.2, damage: 5, heat: 0, cool: 0, lockAt: Infinity, releaseAt: 0, radius: 0.3,

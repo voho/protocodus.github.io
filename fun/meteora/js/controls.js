@@ -1,86 +1,92 @@
-/* Meteora — the keyboard to flight controls, with no DOM in sight.
+/* Meteora — mouse and keyboard to flight controls, with no DOM in sight.
 
-   Keyboard only:
-     W / S        nose up / down          Space   fire the selected weapon
-     A / D        nose left / right       Alt     cannons ⇄ missiles
-     Q / E        roll left / right       Shift   afterburner
-     P / L        throttle up / down      X       throttle to zero
-     ← → ↑ ↓      strafe and lift         Z       flight assist on / off
-     T target · V camera · M mute · Esc pause (the last handled in input.js)
+   The mouse aims: an aim cursor lives on the screen (in normalised screen
+   coordinates, x right and y down, each −1…1), and the ship flies toward
+   wherever it points — the farther from the centre, the harder it turns.
+   The keyboard flies everything else:
 
-   A key is all or nothing, which is no good for aiming, so the steering
-   keys ramp: a tap asks for about a third of the turn rate and a key held
-   for half a second asks for all of it. Small corrections and hard turns
-   both come from the same four keys.
+     W / S   speed up / slow down       Shift   afterburner
+     A / D   slide left / right         X       full stop
+     Q / E   roll left / right          Z       flight assist on / off
+     R / F   thrust up / down           T       cycle targets
+     left mouse or Space  cannons       V       chase / nose camera
+     right mouse          missile       Esc     pause (handled in input.js)
 
-   Keys that act once per press (flight assist, weapon switch, targeting,
-   camera, a missile) go through `pressed` and are consumed when read;
-   browser key repeat never re-fires them. `dropAll` exists for the one
-   failure every browser game meets: the window loses focus while a key is
-   down, the keyup goes elsewhere, and the ship flies on with the key stuck. */
+   Roll is the one keyboard rotation left, and it ramps: a tap asks for about
+   a third of the roll rate and a key held half a second asks for all of it.
 
-const TAP = 0.32, RAMP = 1.4;   // command = TAP + RAMP·held seconds, up to 1
-const ONCE = new Set(['KeyZ', 'KeyT', 'KeyV', 'KeyM', 'AltLeft', 'AltRight']);
+   Edge-triggered actions (flight assist, targeting, camera, a missile) go
+   through `pressed` and are consumed when read; key repeat never re-fires
+   them. `dropAll` exists for the one failure every browser game meets: the
+   window loses focus while a key is down, the keyup goes elsewhere, and the
+   ship flies on with the key stuck. It also centres the aim, so a paused
+   ship does not resume in a hard turn. */
+
+const TAP = 0.32, RAMP = 1.4;   // roll command = TAP + RAMP·held seconds, up to 1
+const ONCE = new Set(['KeyZ', 'KeyT', 'KeyV']);
+const clamp1 = x => Math.max(-1, Math.min(1, x));
 
 export function createControlState(settings) {
   return {
     settings, held: new Set(), pressed: new Set(),
-    weapon: 'cannon', heldFor: { pitch: 0, yaw: 0, roll: 0 },
+    mouse: { left: false, right: false }, cursor: [0, 0], rollHeld: 0,
   };
 }
 
 export function keyDown(state, code, repeat = false) {
   if (ONCE.has(code)) { if (!repeat) state.pressed.add(code); return; }
-  if (code === 'Space' && !repeat && !state.held.has('Space')) state.pressed.add('Trigger');
   state.held.add(code);
 }
-const AXIS_OF = { KeyW: 'pitch', KeyS: 'pitch', KeyA: 'yaw', KeyD: 'yaw', KeyQ: 'roll', KeyE: 'roll' };
 export function keyUp(state, code) {
   state.held.delete(code);
-  // A release ends the ramp even if no frame read the key in between, so a
-  // quick double-tap is two gentle nudges, not one long turn.
-  if (AXIS_OF[code]) state.heldFor[AXIS_OF[code]] = 0;
+  if (code === 'KeyQ' || code === 'KeyE') state.rollHeld = 0;
 }
+
+export function mouseDown(state, button) {
+  if (button === 0) state.mouse.left = true;
+  if (button === 2) { if (!state.mouse.right) state.pressed.add('Missile'); state.mouse.right = true; }
+}
+export function mouseUp(state, button) {
+  if (button === 0) state.mouse.left = false;
+  if (button === 2) state.mouse.right = false;
+}
+
+// Absolute (the pointer's place on screen) and relative (pointer lock).
+export function setCursor(state, x, y) { state.cursor[0] = clamp1(x); state.cursor[1] = clamp1(y); }
+export function moveCursor(state, dx, dy) { setCursor(state, state.cursor[0] + dx, state.cursor[1] + dy); }
 
 export function dropAll(state) {
   state.held.clear();
   state.pressed.clear();
-  state.heldFor.pitch = 0; state.heldFor.yaw = 0; state.heldFor.roll = 0;
+  state.mouse.left = false;
+  state.mouse.right = false;
+  state.cursor[0] = 0; state.cursor[1] = 0;
+  state.rollHeld = 0;
 }
 
 const axis = (state, plus, minus) =>
   (plus.some(k => state.held.has(k)) ? 1 : 0) - (minus.some(k => state.held.has(k)) ? 1 : 0);
 
-function ramped(state, name, direction, dt) {
-  if (direction === 0) { state.heldFor[name] = 0; return 0; }
-  const command = direction * Math.min(1, TAP + RAMP * state.heldFor[name]);
-  state.heldFor[name] += dt;
-  return command;
-}
-
 export function readInput(state, dt) {
   const h = state.held, take = code => state.pressed.delete(code);
-  const switched = take('AltLeft') | take('AltRight');
-  if (switched) state.weapon = state.weapon === 'cannon' ? 'missile' : 'cannon';
-  const trigger = take('Trigger');
+  const direction = axis(state, ['KeyE'], ['KeyQ']);
+  let roll = 0;
+  if (direction === 0) state.rollHeld = 0;
+  else { roll = direction * Math.min(1, TAP + RAMP * state.rollHeld); state.rollHeld += dt; }
   const invert = state.settings.invertPitch ? -1 : 1;
   return {
-    pitch: ramped(state, 'pitch', axis(state, ['KeyW'], ['KeyS']) * invert, dt),
-    yaw: ramped(state, 'yaw', axis(state, ['KeyD'], ['KeyA']), dt),
-    roll: ramped(state, 'roll', axis(state, ['KeyE'], ['KeyQ']), dt),
-    strafe: axis(state, ['ArrowRight'], ['ArrowLeft']),
-    lift: axis(state, ['ArrowUp'], ['ArrowDown']),
-    throttleDelta: axis(state, ['KeyP'], ['KeyL']),
+    cursor: [state.cursor[0], state.cursor[1] * invert],
+    pitch: 0, yaw: 0, roll,
+    strafe: axis(state, ['KeyD'], ['KeyA']),
+    lift: axis(state, ['KeyR'], ['KeyF']),
+    throttleDelta: axis(state, ['KeyW'], ['KeyS']),
     throttleSet: null,
     throttleZero: h.has('KeyX'),
     boost: h.has('ShiftLeft') || h.has('ShiftRight'),
     toggleFA: take('KeyZ'),
-    weapon: state.weapon,
-    switchedWeapon: !!switched,
-    fire: state.weapon === 'cannon' && h.has('Space'),
-    missile: state.weapon === 'missile' && trigger,
+    fire: state.mouse.left || h.has('Space'),
+    missile: take('Missile'),
     cycleTarget: take('KeyT'),
     toggleCamera: take('KeyV'),
-    mute: take('KeyM'),
   };
 }

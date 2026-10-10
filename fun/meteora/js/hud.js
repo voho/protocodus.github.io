@@ -1,25 +1,30 @@
 /* Meteora — the flight HUD, drawn on a 2D canvas at screen resolution.
 
-   Targeting, the part that wins fights:
-     ┌ ┐  red square around the selected enemy, sized to it, with its
-     └ ┘  distance and closing speed; brackets close in as a missile locks
-      ◇   lead marker: where to point the guns so the bolts and the enemy
-          arrive at the same place, solved from both velocities
-      ○   gun pipper: where the bolts will be when they reach the target's
-          range — put it on the diamond and fire
-      ▲   an arrow on the screen edge with the distance when the target is
+   Aiming, with the mouse:
+      ┼   the aim crosshair follows the mouse; the ship turns toward it
+      ○   gun pipper: where the bolts will be at the target's range. The
+          guns swing up to 10° toward the crosshair, so inside that cone the
+          pipper sits on the crosshair; outside it, it waits at the cone's
+          edge while the nose comes round
+      ˄   the nose, where the ship itself points
+   Targeting:
+     ┌ ┐  red square around the selected enemy, with distance and closing
+     └ ┘  speed; brackets close in as a missile locks
+      ◇   lead marker: where the bolts and the enemy arrive together, solved
+          from both velocities — put the crosshair on it and fire
+      ▲   an arrow on the screen edge, with the distance, when the target is
           off screen
-   The pipper and the diamond are joined by a dashed line, so the
-   correction to make is always drawn, not guessed.
+   The pipper and the diamond are joined by a dashed line, so the correction
+   to make is always drawn, not guessed.
 
-   Around it: a crosshair, the velocity marker (where the ship is actually
-   going, which with momentum is often not where it points), speed and
-   throttle, flight assist, the afterburner, shield and hull, the selected
-   weapon, score and wave. */
+   Around it: the velocity marker (where the ship is actually going, which
+   with momentum is often not where it points), speed and throttle, flight
+   assist, the afterburner, shield and hull, guns and missiles, score and
+   wave. */
 
 import * as THREE from 'three';
 import { CANNON, MISSILE } from './config.js';
-import { leadPoint } from './weapons.js';
+import { gimbal, leadPoint } from './weapons.js';
 
 const RED = '#ff3b30', RED_DIM = 'rgba(255, 70, 60, 0.45)', INK = 'rgba(225, 235, 248, 0.92)';
 const MUTED = 'rgba(160, 178, 205, 0.75)', CYAN = '#7fd8ff', AMBER = '#ffb347';
@@ -28,7 +33,7 @@ const FONT = '"Space Grotesk", system-ui, sans-serif';
 export function createHud(canvas) {
   const ctx = canvas.getContext('2d');
   let w = 0, h = 0, dpr = 1;
-  const v = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const v = new THREE.Vector3();
   const callouts = [];
 
   const resize = () => {
@@ -41,10 +46,10 @@ export function createHud(canvas) {
   const project = (camera, x, y, z) => {
     v.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
     const behind = v.z > 0;
-    const vx = v.x, vy = v.y, vz = v.z;
+    const view = [v.x, v.y, v.z];
     v.applyMatrix4(camera.projectionMatrix);
     return {
-      x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h, behind, view: [vx, vy, vz],
+      x: (v.x * 0.5 + 0.5) * w, y: (-v.y * 0.5 + 0.5) * h, behind, view,
       on: !behind && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1,
     };
   };
@@ -68,13 +73,11 @@ export function createHud(canvas) {
   };
 
   const edgeArrow = (p, color, label) => {
-    // Direction from screen centre toward the target, in screen terms.
     let dx = p.view[0], dy = -p.view[1];
     if (Math.hypot(dx, dy) < 1e-6) dy = 1;
     const len = Math.hypot(dx, dy); dx /= len; dy /= len;
     const margin = 46, cx = w / 2, cy = h / 2;
-    const sx = (w / 2 - margin) / Math.max(Math.abs(dx), 1e-6), sy = (h / 2 - margin) / Math.max(Math.abs(dy), 1e-6);
-    const s = Math.min(sx, sy);
+    const s = Math.min((w / 2 - margin) / Math.max(Math.abs(dx), 1e-6), (h / 2 - margin) / Math.max(Math.abs(dy), 1e-6));
     const x = cx + dx * s, y = cy + dy * s;
     ctx.save();
     ctx.translate(x, y); ctx.rotate(Math.atan2(dy, dx));
@@ -86,8 +89,9 @@ export function createHud(canvas) {
 
   const bar = (x, y, width, value, color, label, right = false) => {
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x, y, width, 5);
-    ctx.fillStyle = color; ctx.fillRect(right ? x + width * (1 - value) : x, y, width * Math.max(0, Math.min(1, value)), 5);
-    text(label, right ? x + width : x, y - 9, 11, MUTED, right ? 'right' : 'left');
+    const f = Math.max(0, Math.min(1, value));
+    ctx.fillStyle = color; ctx.fillRect(right ? x + width * (1 - f) : x, y, width * f, 5);
+    if (label) text(label, right ? x + width : x, y - 9, 11, MUTED, right ? 'right' : 'left');
   };
 
   return {
@@ -101,9 +105,10 @@ export function createHud(canvas) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const p = world.player, ship = p.ship;
       const pos = view.position;
-      const fwd = tmp.set(0, 0, -1).applyQuaternion(view.quaternion);
+      const fwdV = new THREE.Vector3(0, 0, -1).applyQuaternion(view.quaternion);
+      const fwd = [fwdV.x, fwdV.y, fwdV.z];
       const target = world.target && world.target.alive ? world.target : null;
-      const range = target ? Math.hypot(...target.ship.pos.map((c, i) => c - ship.pos[i])) : 900;
+      const range = target ? Math.hypot(...target.ship.pos.map((c, i) => c - ship.pos[i])) : 1200;
 
       // Velocity marker: where the ship is going.
       const speed = Math.hypot(...ship.vel);
@@ -118,16 +123,25 @@ export function createHud(canvas) {
         }
       }
 
-      // Gun pipper: the nose line at the target's range.
-      const pip = project(camera, pos.x + fwd.x * range, pos.y + fwd.y * range, pos.z + fwd.z * range);
-      ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(pip.x, pip.y, 11, 0, Math.PI * 2);
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        ctx.moveTo(pip.x + dx * 15, pip.y + dy * 15); ctx.lineTo(pip.x + dx * 22, pip.y + dy * 22);
+      // The nose: a small chevron where the ship points.
+      const nose = project(camera, pos.x + fwd[0] * range, pos.y + fwd[1] * range, pos.z + fwd[2] * range);
+      if (nose.on) {
+        ctx.strokeStyle = MUTED; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(nose.x - 8, nose.y + 5); ctx.lineTo(nose.x, nose.y - 3); ctx.lineTo(nose.x + 8, nose.y + 5); ctx.stroke();
       }
-      ctx.stroke();
-      ctx.fillStyle = INK; ctx.fillRect(pip.x - 1, pip.y - 1, 2, 2);
+
+      // Gun pipper: where the gimballed bolts go at the target's range.
+      let pip = null;
+      if (view.aimPoint) {
+        const aim = [view.aimPoint[0] - ship.pos[0], view.aimPoint[1] - ship.pos[1], view.aimPoint[2] - ship.pos[2]];
+        const dir = gimbal(fwd, aim, CANNON.gimbal);
+        pip = project(camera, pos.x + dir[0] * range, pos.y + dir[1] * range, pos.z + dir[2] * range);
+        if (pip.on) {
+          ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(pip.x, pip.y, 12, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = INK; ctx.fillRect(pip.x - 1, pip.y - 1, 2, 2);
+        }
+      }
 
       // Other enemies: dim corners.
       for (const e of world.enemies) {
@@ -147,16 +161,13 @@ export function createHud(canvas) {
           const pixels = target.radius / Math.max(-q.view[2], 1) * (h / 2) / Math.tan(camera.fov * Math.PI / 360);
           const half = Math.max(16, pixels * 1.4 + 6);
           const lock = world.lock;
-          const missileMode = view.weapon === 'missile';
           ctx.strokeStyle = RED; ctx.lineWidth = 2;
           ctx.strokeRect(q.x - half, q.y - half, half * 2, half * 2);
-          if (missileMode && lock.targetId === target.id && lock.progress > 0) {
-            const closeIn = half + 18 * (1 - lock.progress);
-            brackets(q.x, q.y, closeIn, lock.locked ? RED : AMBER, lock.locked ? 3 : 2, 0.35);
-            text(lock.locked ? 'LOCK' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER);
+          if (p.missiles > 0 && lock.targetId === target.id && lock.progress > 0) {
+            brackets(q.x, q.y, half + 18 * (1 - lock.progress), lock.locked ? RED : AMBER, lock.locked ? 3 : 2, 0.35);
+            text(lock.locked ? 'LOCK · right click' : 'LOCKING', q.x, q.y - half - 12, 12, lock.locked ? RED : AMBER);
           }
           text(label, q.x, q.y + half + 14, 12, RED);
-          // Hull of the target, a thin bar under the label.
           const frac = target.hull / target.maxHull;
           ctx.fillStyle = 'rgba(255,60,50,0.25)'; ctx.fillRect(q.x - half, q.y + half + 25, half * 2, 3);
           ctx.fillStyle = RED; ctx.fillRect(q.x - half, q.y + half + 25, half * 2 * frac, 3);
@@ -169,11 +180,13 @@ export function createHud(canvas) {
         if (lead && range < CANNON.speed * CANNON.life) {
           const L = project(camera, pos.x + lead[0] - ship.pos[0], pos.y + lead[1] - ship.pos[1], pos.z + lead[2] - ship.pos[2]);
           if (L.on) {
-            const onTarget = Math.hypot(L.x - pip.x, L.y - pip.y) < 9;
-            ctx.setLineDash([4, 5]);
-            ctx.strokeStyle = 'rgba(255, 90, 80, 0.7)'; ctx.lineWidth = 1.2;
-            ctx.beginPath(); ctx.moveTo(pip.x, pip.y); ctx.lineTo(L.x, L.y); ctx.stroke();
-            ctx.setLineDash([]);
+            const onTarget = pip && pip.on && Math.hypot(L.x - pip.x, L.y - pip.y) < 10;
+            if (pip && pip.on) {
+              ctx.setLineDash([4, 5]);
+              ctx.strokeStyle = 'rgba(255, 90, 80, 0.7)'; ctx.lineWidth = 1.2;
+              ctx.beginPath(); ctx.moveTo(pip.x, pip.y); ctx.lineTo(L.x, L.y); ctx.stroke();
+              ctx.setLineDash([]);
+            }
             ctx.fillStyle = onTarget ? RED : 'rgba(255, 59, 48, 0.25)';
             ctx.strokeStyle = RED; ctx.lineWidth = 2;
             ctx.beginPath();
@@ -186,30 +199,33 @@ export function createHud(canvas) {
         text('T  select target', w / 2, h / 2 + 64, 12, MUTED);
       }
 
-      // Edge arrows for enemies that are not targeted but off screen are noise; only the target gets one.
+      // The aim crosshair, last so it sits on top.
+      if (view.cursor) {
+        const cx = (view.cursor[0] * 0.5 + 0.5) * w, cy = (view.cursor[1] * 0.5 + 0.5) * h;
+        ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          ctx.moveTo(cx + dx * 5, cy + dy * 5); ctx.lineTo(cx + dx * 13, cy + dy * 13);
+        }
+        ctx.stroke();
+      }
 
       // Bottom left: flight.
       const x0 = 28, y0 = h - 118;
       ctx.font = `600 34px ${FONT}`; ctx.fillStyle = INK; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       ctx.fillText(`${speed.toFixed(0)}`, x0, y0 + 26);
       text('m/s', x0 + 8 + ctx.measureText(`${speed.toFixed(0)}`).width, y0 + 16, 12, MUTED, 'left');
-      const throttle = ship.throttle;
-      bar(x0, y0 + 52, 180, Math.max(0, throttle), CYAN, `THROTTLE ${(throttle * 100).toFixed(0)}%`);
-      bar(x0, y0 + 82, 180, ship.boost / ship.stats.boost.capacity, ship.boostLocked ? '#8a6040' : AMBER, 'AFTERBURNER');
+      bar(x0, y0 + 52, 180, Math.max(0, ship.throttle), CYAN, `THROTTLE ${(ship.throttle * 100).toFixed(0)}%  · W / S`);
+      bar(x0, y0 + 82, 180, ship.boost / ship.stats.boost.capacity, ship.boostLocked ? '#8a6040' : AMBER, 'AFTERBURNER · Shift');
       text(ship.fa ? 'FLIGHT ASSIST ON' : 'FLIGHT ASSIST OFF', x0, y0 + 104, 11, ship.fa ? MUTED : AMBER, 'left');
 
-      // Bottom right: ship and weapon.
+      // Bottom right: ship and weapons.
       const x1 = w - 208;
       bar(x1, y0 + 22, 180, p.shield / p.maxShield, CYAN, 'SHIELD', true);
       bar(x1, y0 + 52, 180, p.hull / p.maxHull, p.hull / p.maxHull < 0.3 ? RED : INK, 'HULL', true);
-      if (view.weapon === 'missile') {
-        text(`MISSILES  ${p.missiles} / ${MISSILE.capacity}`, x1 + 180, y0 + 78, 13, AMBER, 'right');
-        if (p.missiles < MISSILE.capacity) bar(x1, y0 + 92, 180, p.missileTimer / MISSILE.rearm, 'rgba(255,179,71,0.6)', '', true);
-      } else {
-        text('CANNONS', x1 + 180, y0 + 78, 13, CYAN, 'right');
-        bar(x1, y0 + 92, 180, p.gun.heat / CANNON.lockAt, p.gun.overheated ? RED : 'rgba(127,216,255,0.6)', p.gun.overheated ? 'OVERHEAT' : '', true);
-      }
-      text('ALT  switch weapon', x1 + 180, y0 + 112, 10, MUTED, 'right');
+      bar(x1, y0 + 82, 180, p.gun.heat / CANNON.lockAt, p.gun.overheated ? RED : 'rgba(127,216,255,0.6)',
+        p.gun.overheated ? 'CANNONS OVERHEAT' : 'CANNONS · left click', true);
+      text(`MISSILES ${p.missiles}/${MISSILE.capacity} · right click`, x1 + 180, y0 + 104, 11, p.missiles ? AMBER : MUTED, 'right');
 
       // Top: score and wave.
       text(`SCORE  ${world.score.toLocaleString('en')}`, w / 2 - 70, 26, 13, INK);

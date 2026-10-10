@@ -21,6 +21,17 @@ test('bolts inherit the shooter velocity', () => {
   const bolt = fireBolt(w, p, [0, 0, -7], CANNON);
   near(bolt.vel[0], 30, 1e-9); near(bolt.vel[2], -1100, 1e-9);
 });
+test('gimballed cannons follow the aim inside the cone and stop at its edge', () => {
+  const w = createWeapons(); const p = player();
+  const inside = normalize([0, 0, 0], [Math.tan(5 * Math.PI / 180), 0, -1]);
+  let b = fireBolt(w, p, [0, 0, 0], CANNON, inside);
+  near(b.vel[0] / len(b.vel), inside[0], 1e-9);
+  b = fireBolt(w, p, [0, 0, 0], CANNON, normalize([0, 0, 0], [1, 0, -1]));
+  near(Math.acos(-b.vel[2] / len(b.vel)), CANNON.gimbal, 1e-9, 'clamped to the gimbal');
+  assert.ok(b.vel[0] > 0, 'toward the aim side');
+  b = fireBolt(w, p, [0, 0, 0], CANNON, [0, 0, 1]);
+  near(Math.acos(-b.vel[2] / len(b.vel)), CANNON.gimbal, 1e-9, 'straight behind still clamps');
+});
 test('a 1000 m/s bolt does not tunnel through a 1.5 m rock', () => {
   const w = createWeapons(); const ctx = ctxWith([]);
   const rock = ctx.field.addDynamicRock(0, [0, 0, -500], [0, 0, 0]);

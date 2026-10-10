@@ -1,23 +1,54 @@
 /* Meteora — the DOM side of the controls.
 
-   Keyboard only, so there is no pointer lock to ask for and nothing that
-   can swallow a click: the menus keep the mouse, the ship gets the keys.
-   While flying, the game's keys are kept from the browser (Space would
-   scroll, Alt would open the menu bar on some systems, the arrows would
-   scroll). Esc, the window losing focus and the tab being hidden all pause,
-   and each drops every held key on the way. */
+   Wires keyboard, mouse and pointer lock into the pure state in
+   controls.js. The mouse aims, and it does so in one of two modes:
 
-import { dropAll, keyDown, keyUp } from './controls.js';
+     locked  pointer lock is held: raw mouse movement moves the aim cursor,
+             which can never leave the screen or the window
+     cursor  no lock (refused, unsupported or not granted yet): the
+             pointer's place on screen is the aim cursor
+
+   Nothing waits on pointer lock or trusts what the request returns: Chrome
+   hands back a promise that settles once locked, Safari returns nothing and
+   locks a moment later, and a refused lock only fires `pointerlockerror`.
+   Reading the request's result once paused the game in Safari before the
+   lock even arrived, and the late lock then swallowed the clicks meant for
+   the pause screen. So `pointerlockchange` alone decides the mode, and the
+   game flies either way.
+
+   Only real interruptions pause: a held lock being lost (which is how Esc
+   arrives while locked), Esc without a lock, the window losing focus and
+   the tab being hidden. Each drops every held input. Esc on the pause
+   screen resumes. */
+
+import { dropAll, keyDown, keyUp, mouseDown, mouseUp, moveCursor, setCursor } from './controls.js';
 
 export const GAME_KEYS = new Set([
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyP', 'KeyL', 'KeyX', 'KeyZ',
-  'KeyT', 'KeyV', 'Space', 'AltLeft', 'AltRight', 'ShiftLeft', 'ShiftRight',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'KeyF', 'KeyX', 'KeyZ',
+  'KeyT', 'KeyV', 'Space', 'ShiftLeft', 'ShiftRight',
 ]);
 
-export function createInput(state, { isFlying, onPause, onResume }, env = globalThis) {
+export function createInput(canvas, state, { isFlying, onPause, onResume }, env = globalThis) {
   const { window: win, document: doc } = env;
+  const locked = () => doc.pointerLockElement === canvas;
+  let mode = 'cursor';
+
+  const engage = () => {
+    if (!canvas.requestPointerLock || locked()) return;
+    const plain = () => { try { canvas.requestPointerLock()?.catch?.(() => {}); } catch { /* cursor mode */ } };
+    try {
+      const pending = canvas.requestPointerLock({ unadjustedMovement: true });
+      // Raw movement is not offered everywhere; ask again without it.
+      pending?.catch?.(error => { if (error?.name === 'NotSupportedError') plain(); });
+    } catch { plain(); }
+  };
   const lose = reason => { dropAll(state); onPause(reason); };
+
+  doc.addEventListener('pointerlockchange', () => {
+    if (locked()) { mode = 'locked'; return; }
+    if (mode === 'locked') { mode = 'cursor'; lose('lock'); }
+  });
+  doc.addEventListener('pointerlockerror', () => { mode = 'cursor'; });
 
   win.addEventListener('keydown', e => {
     // Esc toggles: it pauses while flying and resumes from the pause screen.
@@ -34,6 +65,30 @@ export function createInput(state, { isFlying, onPause, onResume }, env = global
     keyUp(state, e.code);
     if (isFlying() && GAME_KEYS.has(e.code)) e.preventDefault?.();
   });
+
+  doc.addEventListener('mousemove', e => {
+    if (!isFlying()) return;
+    const rect = canvas.getBoundingClientRect();
+    const hw = rect.width / 2 || 1, hh = rect.height / 2 || 1;
+    // Locked or not, the drawn aim cursor tracks the mouse pixel for pixel.
+    if (locked()) moveCursor(state, e.movementX / hw, e.movementY / hh);
+    else setCursor(state, (e.clientX - rect.left - hw) / hw, (e.clientY - rect.top - hh) / hh);
+  });
+  canvas.addEventListener('mousedown', e => {
+    if (!isFlying()) return;
+    if (!locked()) engage();
+    mouseDown(state, e.button);
+  });
+  win.addEventListener('mouseup', e => mouseUp(state, e.button));
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+
   win.addEventListener('blur', () => lose('blur'));
   doc.addEventListener('visibilitychange', () => { if (doc.hidden) lose('hidden'); });
+
+  return {
+    engage,
+    locked,
+    get mode() { return mode; },
+    release() { if (locked()) doc.exitPointerLock(); },
+  };
 }

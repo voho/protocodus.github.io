@@ -24,4 +24,8 @@ test('every entry has a label and a printable cap per key', () => {
     }
   }
 });
+test('the guide explains the mouse: aim, cannons and missiles', () => {
+  const mouse = KEY_GUIDE.flatMap(group => group.items).filter(item => item.mouse).map(item => item.mouse);
+  assert.deepEqual(mouse.sort(), ['aim', 'left', 'right']);
+});
 await run();

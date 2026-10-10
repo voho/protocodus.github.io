@@ -45,7 +45,7 @@ const controlState = createControlState(settings);
 let storage = null;
 try { storage = window.localStorage; } catch { /* no best score kept */ }
 
-let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight;
+let world, renderer, scene, camera, chase, fieldRender, models, sky, glow, plumes, projectiles, hud, engineLight, input;
 let paused = false, deadTimer = 0, playerMesh;
 const enemyMeshes = new Map();
 const beltTime = { value: 0 };
@@ -104,7 +104,7 @@ async function boot() {
   projectiles = createProjectiles(glow);
   hud = createHud(hudCanvas);
 
-  createInput(controlState, {
+  input = createInput(canvas, controlState, {
     isFlying: () => world.state === 'flying' && !paused,
     onPause: () => pause(),
     onResume: () => { if (paused) launch(); },
@@ -134,6 +134,9 @@ function launch() {
   screens.show(null);
   // The Launch button keeps focus otherwise, and Space would press it again.
   document.activeElement?.blur?.();
+  // Ask for the mouse; whether it comes, comes late or is refused, the
+  // game is already flying (see input.js).
+  if (!AUTOPILOT) input.engage();
 }
 
 function restart() {
@@ -150,6 +153,9 @@ function pause() {
   if (AUTOPILOT || !world || world.state !== 'flying' || paused) return;
   paused = true;
   dropAll(controlState);
+  // A held lock hides the cursor and sends every click to the canvas, so
+  // the pause screen's buttons could never be pressed.
+  input.release();
   screens.stats({ score: world.score, wave: world.wave });
   screens.show('pause');
 }
@@ -158,11 +164,23 @@ function autopilot(t) {
   return {
     ...NEUTRAL_CONTROLS, throttleSet: 0.6,
     yaw: 0.25 * Math.sin(t * 0.21), pitch: 0.18 * Math.sin(t * 0.37),
-    fire: t % 4 < 1.5, missile: false, cycleTarget: t % 10 < 0.02, weapon: 'cannon',
+    fire: t % 4 < 1.5, missile: false, cycleTarget: t % 10 < 0.02,
   };
 }
 
-const IDLE = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false, weapon: 'cannon' };
+const IDLE = { ...NEUTRAL_CONTROLS, fire: false, missile: false, cycleTarget: false };
+const aimRay = new THREE.Vector3();
+
+/* The world point under the aim crosshair: along the camera ray through the
+   cursor, as far out as the target (or 1.2 km with none), which is where
+   both guns converge. */
+function aimPointFor(cursor) {
+  aimRay.set(cursor[0], -cursor[1], 0.5).unproject(camera).sub(camera.position).normalize();
+  let distance = 1200;
+  const t = world.target && world.target.alive ? world.target : null;
+  if (t) distance = Math.min(2200, Math.max(150, Math.hypot(...t.ship.pos.map((c, i) => c - world.player.ship.pos[i]))));
+  return [camera.position.x + aimRay.x * distance, camera.position.y + aimRay.y * distance, camera.position.z + aimRay.z * distance];
+}
 const tmpQ = new THREE.Quaternion(), tmpQ2 = new THREE.Quaternion(), tmpV = new THREE.Vector3();
 
 function place(object, ship, alpha) {
@@ -199,11 +217,12 @@ function frame(now) {
   last = now;
 
   const flying = world.state === 'flying' && !paused;
+  document.body.classList.toggle('flying', flying);
   let controls = IDLE;
   if (flying) {
     controls = AUTOPILOT ? autopilot(world.time) : readInput(controlState, dt);
+    if (controls.cursor) controls.aimPoint = aimPointFor(controls.cursor);
     if (controls.toggleCamera) chase.toggle();
-    if (controls.switchedWeapon) say(controls.weapon === 'missile' ? 'Missiles selected' : 'Cannons selected');
     lastControls = controls;
   }
   if (!paused) advance(world, controls, dt);
@@ -255,8 +274,14 @@ function frame(now) {
   fieldRender.update(camera);
   renderer.render(scene, camera);
 
-  if (world.state === 'flying') hud.draw(world, camera, { position: playerMesh.position, quaternion: playerMesh.quaternion, weapon: lastControls.weapon }, dt);
-  else hud.clear();
+  if (world.state === 'flying') {
+    hud.draw(world, camera, {
+      position: playerMesh.position, quaternion: playerMesh.quaternion,
+      cursor: lastControls.cursor, aimPoint: lastControls.aimPoint,
+    }, dt);
+  } else {
+    hud.clear();
+  }
 
   if (DEBUG) {
     frames++; frameMs += dt * 1000; debugTimer += dt;

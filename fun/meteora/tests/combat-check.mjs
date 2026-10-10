@@ -2,7 +2,7 @@
 import { test, run, assert, near } from './harness.mjs';
 import { applyDamage, stepShield, waveSize, spawnPoints, loadBest, saveBest, scoreKill, scoreRock } from '../js/combat.js';
 import { createWorld, startRun, resetWorld, stepWorld, advance, drainEvents } from '../js/world.js';
-import { NEUTRAL_CONTROLS } from '../js/flight.js';
+import { NEUTRAL_CONTROLS, forward } from '../js/flight.js';
 import { PLAYER, COMBAT, FIELD, MAX_STEPS, STEP as DT } from '../js/config.js';
 import { makeRng } from '../js/rng.js';
 import { dist, dot, normalize, sub } from '../js/vec.js';
@@ -102,6 +102,19 @@ test('when the target dies, targeting moves to the enemy nearest the crosshair',
   applyDamage(first, 1e6, w.events);
   stepWorld(w, idle, DT);
   assert.ok(w.target && w.target !== first && w.target.alive, 'a live enemy is targeted');
+});
+test('with an aim point the fighter turns toward it and its guns converge on it', () => {
+  const w = createWorld({ seed: 1234, storage: memory() }); startRun(w);
+  w.enemies.length = 0; w.waveTimer = 1e9;
+  const near2 = [50, 0, -1000];
+  stepWorld(w, { ...idle, aimPoint: near2, fire: true }, DT);
+  const b = w.weapons.bolts.at(-1);
+  const flight = normalize([0, 0, 0], sub([0, 0, 0], b.vel, w.player.ship.vel));
+  const wanted = normalize([0, 0, 0], sub([0, 0, 0], near2, b.pos));
+  assert.ok(dot(flight, wanted) > 1 - 1e-6, 'bolt flies at the aim point');
+  const far = [600, 0, -1000];
+  for (let i = 0; i < 120; i++) stepWorld(w, { ...idle, aimPoint: far }, DT);
+  assert.ok(forward([0, 0, 0], w.player.ship)[0] > 0.2, 'nose swung toward the aim');
 });
 test('player death ends the run and stores the best score', () => {
   const store = memory(); const w = createWorld({ seed: 1234, storage: store }); startRun(w);

@@ -15,7 +15,7 @@
 import { CANNON, COMBAT, ENEMY, ENEMY_CANNON, FIELD, MAX_STEPS, MISSILE, PLAYER, STEP } from './config.js';
 import { ANCHORS } from './anchors.js';
 import { createField } from './field.js';
-import { NEUTRAL_CONTROLS, createShip, forward, selectRcsPorts, stepShip } from './flight.js';
+import { NEUTRAL_CONTROLS, aimCommands, createShip, forward, selectRcsPorts, stepShip } from './flight.js';
 import {
   createGun, createLock, createWeapons, fireBolt, launchMissile, stepWeapons, triggerGun, updateLock,
 } from './weapons.js';
@@ -25,7 +25,7 @@ import {
   spawnPoints, stepShield, waveSize,
 } from './combat.js';
 import { makeRng } from './rng.js';
-import { dot, len, normalize, qLookRotation, sub } from './vec.js';
+import { dot, len, normalize, qLookRotation, qRotate, sub } from './vec.js';
 
 const LAUNCHER = [0, -1.4, -1.5];
 
@@ -118,14 +118,27 @@ export function stepWorld(world, input, dt) {
   // The player.
   if (p.alive) {
     const flying = world.state === 'flying';
-    stepShip(p.ship, flying ? input : NEUTRAL_CONTROLS, dt);
+    // Mouse flight: an aim point replaces the stick's pitch and yaw.
+    let controls = flying ? input : NEUTRAL_CONTROLS;
+    if (flying && input.aimPoint) {
+      const steer = aimCommands(p.ship, sub([0, 0, 0], input.aimPoint, p.ship.pos));
+      controls = { ...input, pitch: steer.pitch, yaw: steer.yaw };
+    }
+    stepShip(p.ship, controls, dt);
     if (flying) {
       if (input.cycleTarget) cycleTarget(world);
       if (world.target && !world.target.alive) world.target = byCrosshair(world)[0] ?? null;
       updateLock(world.lock, p.ship, world.target, dt);
       if (triggerGun(p.gun, !!input.fire, dt)) {
         const muzzle = ANCHORS.fighter.muzzles[p.gun.muzzle];
-        const bolt = fireBolt(world.weapons, p, muzzle.pos, CANNON);
+        // Both guns converge on the aim point (within their gimbal).
+        let aim = null;
+        if (input.aimPoint) {
+          const from = qRotate([0, 0, 0], p.ship.q, muzzle.pos);
+          for (let k = 0; k < 3; k++) from[k] += p.ship.pos[k];
+          aim = sub(from, input.aimPoint, from);
+        }
+        const bolt = fireBolt(world.weapons, p, muzzle.pos, CANNON, aim);
         ev.push({ type: 'fire', team: 0, shipId: p.id, muzzle: p.gun.muzzle, pos: [...bolt.pos], vel: [...bolt.vel] });
       }
       if (input.missile && p.missiles > 0) {

@@ -24,7 +24,7 @@
      w[2] about +Z — positive lifts the right wing, so roll +1 = −w[2] */
 
 import {
-  addScaled, clamp, cross, dot, len, normalize, qIntegrate, qRotate, qRotateInv, scale,
+  addScaled, clamp, cross, dot, len, lenSq, normalize, qIntegrate, qRotate, qRotateInv, scale,
 } from './vec.js';
 
 export const NEUTRAL_CONTROLS = Object.freeze({
@@ -52,6 +52,24 @@ export function createShip(stats, { pos, vel, q } = {}) {
 }
 
 export const forward = (o, ship) => qRotate(o, ship.q, [0, 0, -1]);
+
+/* Mouse flight: the stick that swings the nose toward a world direction.
+   The command grows with the angle off the nose and saturates at full
+   stick, so the cursor's distance from the centre is the turn rate. Inside
+   a third of a degree it is zero, so a held aim does not hunt. Roll is
+   left to the pilot. */
+const AIM_GAIN = 3, AIM_DEADZONE = 0.3 * Math.PI / 180;
+const aimLocal = [0, 0, 0];
+export function aimCommands(ship, dir) {
+  if (lenSq(dir) < 1e-12) return { pitch: 0, yaw: 0 };
+  qRotateInv(aimLocal, ship.q, dir);
+  const off = Math.acos(clamp(-aimLocal[2] / Math.sqrt(lenSq(aimLocal)), -1, 1));
+  if (off < AIM_DEADZONE) return { pitch: 0, yaw: 0 };
+  return {
+    pitch: clamp(Math.atan2(aimLocal[1], -aimLocal[2]) * AIM_GAIN, -1, 1),
+    yaw: clamp(Math.atan2(aimLocal[0], -aimLocal[2]) * AIM_GAIN, -1, 1),
+  };
+}
 export const up = (o, ship) => qRotate(o, ship.q, [0, 1, 0]);
 export const right = (o, ship) => qRotate(o, ship.q, [1, 0, 0]);
 

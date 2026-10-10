@@ -15,7 +15,7 @@
    closing at 800 m/s, two samples can straddle the target. */
 
 import { MISSILE } from './config.js';
-import { addScaled, dot, len, normalize, qRotate, scale, sub } from './vec.js';
+import { addScaled, cross, dot, len, normalize, qRotate, scale, sub } from './vec.js';
 
 export function createWeapons() { return { bolts: [], missiles: [], nextId: 1 }; }
 
@@ -44,13 +44,30 @@ export function triggerGun(gun, firing, dt) {
 }
 
 const tmp = [0, 0, 0];
-export function fireBolt(weapons, shooter, muzzleLocal, params) {
+
+/* Gimballed guns: the barrels swing toward `aim` but never more than
+   `params.gimbal` off the nose. Outside the cone the shot leaves along the
+   cone's edge, on the side of the aim. */
+export function gimbal(fwd, aim, limit) {
+  if (!aim || !(limit > 0)) return fwd;
+  const a = normalize([0, 0, 0], aim);
+  const cos = dot(a, fwd);
+  if (cos >= Math.cos(limit)) return a;
+  let side = addScaled([0, 0, 0], a, fwd, -cos);
+  // Aim exactly behind: any direction off the nose is as good as another.
+  if (len(side) < 1e-9) side = cross(side, fwd, Math.abs(fwd[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]);
+  normalize(side, side);
+  return addScaled([0, 0, 0], scale([0, 0, 0], fwd, Math.cos(limit)), side, Math.sin(limit));
+}
+
+export function fireBolt(weapons, shooter, muzzleLocal, params, aim = null) {
   const s = shooter.ship;
   const pos = addScaled([0, 0, 0], s.pos, qRotate(tmp, s.q, muzzleLocal), 1);
   const fwd = qRotate([0, 0, 0], s.q, [0, 0, -1]);
+  const dir = gimbal(fwd, aim, params.gimbal);
   const bolt = {
     id: weapons.nextId++, team: shooter.team, ownerId: shooter.id,
-    pos, prev: [...pos], vel: addScaled([0, 0, 0], s.vel, fwd, params.speed),
+    pos, prev: [...pos], vel: addScaled([0, 0, 0], s.vel, dir, params.speed),
     life: params.life, damage: params.damage, radius: params.radius,
   };
   weapons.bolts.push(bolt);
