@@ -3,7 +3,7 @@
 // simulation random stream, and only ever names friendly units or enemies the player currently sees.
 import { hash } from './terrain.js';
 import { UNITS, unitRole, center } from './sim.js';
-import { DOCTRINES } from './ai.js';
+import { aiCommander } from './ai.js';
 
 const SQUADS = ['Harrier', 'Cinder', 'Lantern', 'Juniper', 'Basalt', 'Magpie', 'Tinder', 'Rook', 'Thistle', 'Pilgrim', 'Corvid', 'Heron', 'Wicket', 'Spindle', 'Larkspur', 'Furrow', 'Quarry', 'Sable', 'Tallow', 'Vesper', 'Marten', 'Osprey', 'Bramble', 'Flint', 'Copper', 'Gannet', 'Hollow', 'Sorrel'];
 // The Vael carry launcher teams; given names are built from clan syllables, family from the crest line.
@@ -117,11 +117,11 @@ export function barkLine(type, context, sequence = 0) {
   return pool[(hash(`${type}:${context}`) + sequence) % pool.length];
 }
 
-// The commander named in intercepts: the rival AI's doctrine commander, or null for a side no AI commands.
+// The commander named in intercepts: the rival AI's doctrine commander in its race's naming, or null for a
+// side no AI commands. Callers name it only once the player sees that commander's forces.
 export function rivalCommander(game, team = 1) {
   if (!(game?.aiTeams ?? [1]).includes(team)) return null;
-  const doctrine = (team === 1 ? game.ai : game.aiByTeam?.[team])?.doctrine;
-  return (Object.hasOwn(DOCTRINES, doctrine ?? '') ? DOCTRINES[doctrine] : DOCTRINES.balanced)?.commander || null;
+  return aiCommander(game, team)?.commander || null;
 }
 
 // A column is at least `minimum` armed enemy units the player sees right now, each heading for a

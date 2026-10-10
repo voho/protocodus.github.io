@@ -65,10 +65,11 @@ export function teamPace(s,team){return(s.aiTeams||[1]).includes(team)?AI_PACE[s
 
 // 'random' resolves once, from the seed and team, so the same operation always meets the same commander.
 export function randomDoctrine(seed,team){const keys=Object.keys(DOCTRINES);return keys[hash(`${seed}/rival-doctrine/${team}`)%keys.length];}
-// Setup choices: Random first, then every doctrine with its commander, for the briefing selector.
-export function doctrineOptions(){
+// Setup choices: Random first, then every doctrine with its commander in the rival race's naming, for the
+// briefing selector.
+export function doctrineOptions(race='organics'){
   return[{id:'random',name:'Random',commander:'Unknown commander',callsign:'',description:'A doctrine drawn from the operation seed.'},
-    ...Object.entries(DOCTRINES).map(([id,d])=>({id,name:d.name,commander:d.commander,callsign:d.callsign,description:d.description}))];
+    ...Object.entries(DOCTRINES).map(([id,d])=>{const named=race==='aiUnity'?d.unity:d;return{id,name:d.name,commander:named.commander,callsign:named.callsign,description:d.description};})];
 }
 // The rival commander's identity for a team, in its race's naming; null for a human-controlled team.
 export function aiCommander(s,team){

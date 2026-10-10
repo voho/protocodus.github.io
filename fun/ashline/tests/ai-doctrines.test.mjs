@@ -40,6 +40,7 @@ test("'random' resolves once from the seed and team, never stored as random",()=
   assert.equal(options[0].id,'random');
   assert.deepEqual(options.slice(1).map(o=>o.id),Object.keys(DOCTRINES));
   assert(options.every(o=>o.name&&o.description));
+  assert.deepEqual(doctrineOptions('aiUnity').slice(1).map(o=>o.commander),Object.values(DOCTRINES).map(d=>d.unity.commander),'An AI Unity rival lists machine designations');
 });
 
 test('commander identity follows the doctrine and the race; a doctrine shifts the first raid',()=>{

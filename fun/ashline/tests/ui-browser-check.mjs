@@ -56,16 +56,20 @@ try {
   await desktop.addInitScript(() => { if (!sessionStorage.getItem('ui-check')) { localStorage.removeItem('ashline.settings.v1'); sessionStorage.setItem('ui-check', '1'); } });
   await desktop.goto(url); await desktop.waitForFunction(() => window.ashline?.booted);
   const setup = await desktop.evaluate(async () => {
-    const { DOCTRINES } = await import('./ai.js'), { SKIRMISH_MODES } = await import('./campaign.js');
-    return { doctrines: [...document.querySelectorAll('#rival-doctrine option')].map(o => o.value), expected: ['', ...Object.keys(DOCTRINES)], modes: [...document.querySelectorAll('#skirmish-mode option')].map(o => o.value), expectedModes: SKIRMISH_MODES.map(m => m.id), last: Object.keys(DOCTRINES).at(-1), commander: DOCTRINES[Object.keys(DOCTRINES).at(-1)].commander };
+    const { DOCTRINES, doctrineOptions } = await import('./ai.js'), { SKIRMISH_MODES } = await import('./campaign.js'), last = Object.keys(DOCTRINES).at(-1);
+    return { doctrines: [...document.querySelectorAll('#rival-doctrine option')].map(o => o.value), expected: doctrineOptions().map(o => o.id), modes: [...document.querySelectorAll('#skirmish-mode option')].map(o => o.value), expectedModes: SKIRMISH_MODES.map(m => m.id), last, commander: DOCTRINES[last].commander, unity: DOCTRINES[last].unity.commander };
   });
-  assert.deepEqual(setup.doctrines, setup.expected); assert.deepEqual(setup.modes, setup.expectedModes);
+  assert.deepEqual(setup.doctrines, setup.expected); assert.equal(setup.doctrines[0], 'random', 'Random comes first and is the default'); assert.deepEqual(setup.modes, setup.expectedModes);
   assert.match(await desktop.locator('#doctrine-description').textContent(), /seed/);
   await desktop.locator('#rival-doctrine').selectOption(setup.last);
-  assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.commander), 'Choosing a doctrine names its commander');
+  assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.unity), 'Choosing a doctrine names its commander; the default AI Unity rival goes by machine designation');
+  await desktop.locator('#enemy-race').selectOption('organics');
+  assert((await desktop.locator('#doctrine-description').textContent()).startsWith(setup.commander), 'An Organics rival names its human commander');
+  assert.match(await desktop.locator('#rival-doctrine option:checked').textContent(), new RegExp(setup.commander));
+  await desktop.locator('#enemy-race').selectOption('aiUnity');
   await desktop.screenshot({ path: `${output}/ui-briefing-desktop.png` });
   await deploy(desktop, { 'rival-doctrine': setup.last });
-  assert.equal(await desktop.evaluate(() => ashline.state.ai.doctrine), setup.last, 'The chosen doctrine reaches the simulation');
+  assert.deepEqual(await desktop.evaluate(() => [ashline.state.ai.doctrine, ashline.state.teams[1].race]), [setup.last, 'aiUnity'], 'The chosen doctrine reaches the simulation');
   const ids = await fixture(desktop);
   if (await desktop.locator('#command-console').isHidden()) await desktop.locator('#command-toggle').click();
 
@@ -292,7 +296,8 @@ try {
     // column outlasts the base's return fire for the few seconds the check needs.
     s.aiTeams = [1]; s.ai.nextThink = 1e9; return ids;
   }, ids.core);
-  await desktop.waitForFunction(commander => document.querySelector('#notifications').textContent.includes(`Intercept: ${commander} column advancing · 6 contacts`), setup.commander, { timeout: 8000 });
+  // The deployed rival is AI Unity, so its commander goes by machine designation.
+  await desktop.waitForFunction(commander => document.querySelector('#notifications').textContent.includes(`Intercept: ${commander} column advancing · 6 contacts`), setup.unity, { timeout: 8000 });
   assert(await desktop.evaluate(() => document.querySelector('#notifications .toast[data-tone=warning] .toast-speaker')?.textContent === 'Signals'));
   await desktop.evaluate(column => { ashline.state.aiTeams = []; ashline.state.entities = ashline.state.entities.filter(e => !column.includes(e.id)); }, column);
 
@@ -353,6 +358,7 @@ try {
   const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }); watch(phone, 'phone');
   await phone.addInitScript(() => localStorage.removeItem('ashline.settings.v1'));
   await deploy(phone);
+  assert.equal(await phone.evaluate(async () => (await import('./ai.js')).randomDoctrine(ashline.state.seed, 1)), await phone.evaluate(() => ashline.state.ai.doctrine), 'Random meets the commander the seed draws');
   const phoneIds = await fixture(phone);
   await phone.evaluate(async rifles => {
     const { event } = await import('./sim.js'); ashline.view.selected = new Set(rifles);

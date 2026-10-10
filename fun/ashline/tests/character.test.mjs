@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {UNITS, createGame, updateGame, addEntity, raceUnit, unitRole} from '../sim.js';
 import {encodeGame, decodeGame} from '../save.js';
 import {callsign, barkLine, barkVoice, BARK_CONTEXTS, rivalCommander, approachingColumn} from '../character.js';
-import {DOCTRINES} from '../ai.js';
+import {DOCTRINES, randomDoctrine} from '../ai.js';
 
 const quiet = (seed, races = ['organics', 'aiUnity']) => {
   const s = createGame(seed, 'normal', {width: 72, height: 56, races, aiTeams: []});
@@ -66,6 +66,8 @@ test('rival commanders name the doctrine leading an AI side, and only an AI side
   assert.equal(rivalCommander(s), DOCTRINES.balanced.commander);
   const chosen = Object.keys(DOCTRINES).at(-1);
   assert.equal(rivalCommander(createGame('commander', 'normal', {width: 72, height: 56, aiProfiles: {1: {doctrine: chosen}}})), DOCTRINES[chosen].commander);
+  assert.equal(rivalCommander(createGame('commander', 'normal', {width: 72, height: 56, races: ['organics', 'aiUnity'], aiProfiles: {1: {doctrine: chosen}}})), DOCTRINES[chosen].unity.commander, 'Unity rivals carry machine designations');
+  assert.equal(rivalCommander(createGame('commander', 'normal', {width: 72, height: 56, aiProfiles: {1: {doctrine: 'random'}}})), DOCTRINES[randomDoctrine('commander', 1)].commander, 'Random names the commander the seed drew');
   assert.equal(rivalCommander(quiet('no-commander')), null, 'A rival no AI commands has no commander to intercept');
 });
 
