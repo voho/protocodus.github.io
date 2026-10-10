@@ -353,7 +353,6 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
 #transmission{flex:none;display:grid;gap:3px;padding:8px 10px 9px;border-top:1px solid var(--line);border-left:2px solid var(--amber);background:#0e181dcc}
 #transmission-speaker{font:10px var(--mono);font-weight:400;color:var(--amber);letter-spacing:.4px}
 #transmission-text{font:12px/1.45 var(--font);color:var(--text)}
-#terrain-readout{top:calc(92px + var(--objectives-height,0px))}
 @media(max-width:1190px){.objectives{width:240px}}
 @media(min-width:681px) and (max-width:900px){.objectives{max-width:calc(100% - 290px)}#notifications{top:max(116px,calc(var(--top) + 20px + var(--objectives-height,0px)))}}
 @media(max-width:680px){
@@ -374,6 +373,19 @@ button.queue-main:hover:not(:disabled) b{color:#f2c4aa}
 @media(max-height:500px) and (min-width:681px){
   .objectives{width:320px}
   #notifications{top:calc(var(--top) + var(--edge));left:calc(max(var(--edge),env(safe-area-inset-left)) + 330px);transform:none;max-width:calc(100% - 590px)}
+}
+/* The tracker owns the top-left corner. On wide screens the message log runs beside it; on phones the idle
+   buttons and the comms line stack below it (--objectives-height); on short landscape screens the comms line
+   moves to the top right, and gives way to an open console as it does on phones. */
+@media(min-width:901px) and (min-height:501px){body:has(#objectives:not([hidden])) #notifications{left:calc(max(var(--edge),env(safe-area-inset-left)) + 288px);width:min(460px,calc(100% - 580px))}}
+@media(min-width:901px) and (max-width:1190px) and (min-height:501px){body:has(#objectives:not([hidden])) #notifications{left:calc(max(var(--edge),env(safe-area-inset-left)) + 252px);width:min(440px,calc(100% - 544px))}}
+@media(max-width:680px){
+  body:has(#objectives:not([hidden])) .idle-group{top:calc(66px + var(--objectives-height,0px))}
+  body:has(#objectives:not([hidden])) #comms{top:calc(108px + var(--objectives-height,0px))}
+}
+@media(max-height:500px) and (min-width:681px){
+  #comms{top:calc(var(--top) + var(--edge));bottom:auto;left:auto;right:max(var(--edge),env(safe-area-inset-right));max-width:min(300px,calc(100% - 610px))}
+  body[data-commands=true] #comms{display:none}
 }
 @media(prefers-reduced-motion:reduce){#objectives-list li.fresh,#objectives-toggle.fresh{animation:none}}
 

@@ -2,8 +2,9 @@
 // Plays Landfall and Hold the Line from the briefing with real commands through window.ashline and the
 // game's own modules: campaign tab, loading line, pre-start pause, objective tracker, transmissions,
 // victory debrief with medals, Next operation, persistence across a reload, the Field archive, queued
-// transmissions and the pause-menu Retry in Signal in the Ash, a skirmish mode that starts unpaused, and the
-// phone and landscape-phone layouts.
+// transmissions and the pause-menu Retry in Signal in the Ash, a skirmish mode that starts unpaused, Relay
+// control with a chosen rival commander and its mode restored from a save, and the desktop, phone and
+// landscape-phone layouts of the tracker beside the message log, idle buttons and comms line.
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 const { chromium } = await import(process.env.ASHLINE_PLAYWRIGHT || 'playwright');
@@ -68,6 +69,13 @@ try {
   assert.match(await page.locator('#objectives-list').textContent(), /Move two units to the survey marker/);
   await until(page, () => !document.querySelector('#transmission').hidden);
   assert.equal(await page.locator('#transmission-speaker').textContent(), 'Cmdr. Vale');
+  // The message log runs beside the tracker, and transmissions stay out of it.
+  await page.evaluate(async () => { const { event } = await import('./sim.js'); event(ashline.state, 'Field supply: +300 credits', 0, { kind: 'mission', amount: 300 }); });
+  await until(page, () => document.querySelector('#notifications .toast'));
+  assert(await page.evaluate(() => {
+    const a = document.querySelector('#objectives').getBoundingClientRect(), toasts = [...document.querySelectorAll('#notifications .toast')];
+    return toasts.every(t => { const b = t.getBoundingClientRect(); return b.left >= a.right || b.top >= a.bottom; }) && !toasts.some(t => /this is Vale/.test(t.textContent));
+  }), 'Log lines clear the tracker; transmissions stay out of the log');
   // A zone objective's locate button centres the camera on its static marker.
   await page.locator('#objectives-list .objective-locate').first().click();
   assert(await page.evaluate(() => { const marker = ashline.state.mission.zones.find(z => z.id === 'marker'); return Math.hypot(ashline.view.x - marker.x, ashline.view.y - marker.y) < 4; }), 'Locate centres the survey marker');
@@ -220,6 +228,9 @@ try {
   await until(phone, () => !document.querySelector('#objectives').hidden && ashline.state.time > 1);
   const layout = await phone.evaluate(() => { const box = id => document.querySelector(id).getBoundingClientRect(); const a = box('#objectives'), b = box('#command-toggle'); return { collapsed: document.querySelector('#objectives').dataset.collapsed, overlap: a.right > b.left && a.left < b.right && a.bottom > b.top && a.top < b.bottom, right: a.right, width: innerWidth }; });
   assert.equal(layout.collapsed, 'true'); assert.equal(layout.overlap, false); assert(layout.right <= layout.width);
+  // The idle buttons and the comms line stack below the tracker in its corner.
+  const stack = await phone.evaluate(() => { document.querySelector('#comms').hidden = false; const box = selector => document.querySelector(selector).getBoundingClientRect(), a = box('#objectives'); return { idle: box('.idle-group').top >= a.bottom, comms: box('#comms').top >= box('.idle-group').top + 36 }; });
+  assert.deepEqual(stack, { idle: true, comms: true }, 'Idle buttons and comms sit below the tracker');
   await phone.locator('#objectives-toggle').tap();
   assert(await phone.locator('#objectives-list').isVisible());
   await phone.screenshot({ path: `${output}/campaign-tracker-phone.png` });
@@ -234,6 +245,7 @@ try {
   const clear = () => landscape.evaluate(() => { const a = document.querySelector('#objectives').getBoundingClientRect(), b = document.querySelector('.tactical-map').getBoundingClientRect(), t = document.querySelector('#transmission').getBoundingClientRect(); return { collapsed: document.querySelector('#objectives').dataset.collapsed, gap: b.top - a.bottom, transmission: t.height > 0 && t.bottom <= a.bottom + 1 }; });
   const folded = await clear();
   assert.equal(folded.collapsed, 'true'); assert(folded.gap >= 0 && folded.transmission, `Folded tracker clears the map: ${JSON.stringify(folded)}`);
+  assert(await landscape.evaluate(() => { document.querySelector('#comms').hidden = false; const a = document.querySelector('#objectives').getBoundingClientRect(), c = document.querySelector('#comms').getBoundingClientRect(); return c.left >= a.right && c.right <= innerWidth; }), 'The comms line moves clear of the tracker');
   await landscape.screenshot({ path: `${output}/campaign-landscape-phone.png` });
   await landscape.locator('#objectives-toggle').tap();
   const opened = await clear();
@@ -251,5 +263,5 @@ try {
   assert.equal(await blocked.evaluate(() => ashline.state.mission.id), 'landfall');
   await blocked.close();
   assert.deepEqual(errors, []);
-  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, queued transmissions and pause-menu Retry, skirmish modes, phone and landscape layouts and blocked storage. Screenshots: ${output}`);
+  console.log(`Ashline campaign browser checks passed: campaign tab and locks, archive, loading line, pre-start pause, tracker and transmissions, Landfall and Hold the Line won with real orders, debrief and medals, Next operation and Remix, progress after reload, queued transmissions and pause-menu Retry, skirmish modes and their rival commander, HUD stacking on desktop, phone and landscape, and blocked storage. Screenshots: ${output}`);
 } finally { await browser.close(); }

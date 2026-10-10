@@ -91,9 +91,10 @@ export function createObjectivesHud({ focus, transmit } = {}) {
     const below = map && map.height && map.left < box.right && map.right > box.left && map.top > box.top;
     panel.style.maxHeight = below ? `${Math.max(36, Math.floor(map.top - 8 - box.top))}px` : '';
   };
-  // Other HUD parts stack below the tracker through --objectives-height; measure only when the layout changes.
+  // Other HUD parts stack below the tracker through --objectives-height; measure only when the layout changes
+  // (an open console folds the tracker on phones).
   const measure = () => {
-    const key = `${panel.hidden}|${collapsed}|${structure}|${transmission.hidden}|${$('transmission-text').textContent.length}|${innerWidth}x${innerHeight}`;
+    const key = `${panel.hidden}|${collapsed}|${structure}|${transmission.hidden}|${$('transmission-text').textContent.length}|${innerWidth}x${innerHeight}|${document.body.dataset.commands}`;
     if (key === measured) return;
     measured = key;
     if (!panel.hidden) fit();
