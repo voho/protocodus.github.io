@@ -364,6 +364,13 @@ export class Rider {
       this.summitY = this.pos.y;
     }
     this.landing = null;     // set for one frame after a landing
+    /* …and the same summary kept until the next one, for the renderer. The
+       physics runs in fixed steps and a frame can hold several of them, so
+       `landing` is often cleared by a later step before the frame that
+       draws it — the rig would miss the very landings its arms have to
+       answer. A new object here *is* the event: the rig compares it with
+       the one it last saw. Presentation only; nothing in this file reads it. */
+    this.lastLanding = null;
     this.flowDrive = 0;      // how much meter the powered tuck may spend
     this.yawGlide = 0;       // presentation-only remainder of a landing snap
     this.flipGlide = 0;      // …and the same for the board's landed pitch
@@ -2410,6 +2417,7 @@ export class Rider {
       skid: spinErr,
       tilt: this.airUp.angleTo(n),
     };
+    this.lastLanding = summary;
 
     this.grounded = true;
     this.state = 'ride';

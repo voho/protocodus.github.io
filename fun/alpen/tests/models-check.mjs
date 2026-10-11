@@ -461,7 +461,8 @@ const hutBox = hutModel.boundingBox;
   assert.ok(found >= 3, 'the first blocks grow huts');
 }
 const rider = await load('riderModel.js',
-  ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH']);
+  ['buildGeometries', 'POSE', 'DECK', 'DECK_TOP', 'ANKLE_Y', 'FOOT_X', 'FOOT_Z', 'HALF_WIDTH',
+    'ARMS', 'TRUNK', 'WRIST']);
 const lampModule = await load('headlamp.js');
 const riderGeo = rider.buildGeometries(THREE);
 let riderTriangles = 0;
@@ -590,15 +591,19 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   const board = model.root.children.find((c) => c.name === 'rider-board');
   const headMesh = find((bb) => Math.abs(bb.max.y - 0.298) < 1e-3);
   const torsoMesh = model.root.getObjectByName('rider-torso');
-  const fores = [];
+  // The forearms and the hands on their wrists are named; the lead ones are
+  // on the nose-side shoulder whatever the stance.
+  const fores = ['lead', 'rear'].map((n) => model.root.getObjectByName('rider-forearm-' + n)?.parent);
+  const gloves = ['lead', 'rear'].map((n) => model.root.getObjectByName('rider-hand-' + n));
   const shins = [];
   model.root.traverse((o) => {
     if (!o.isMesh) return;
     o.geometry.computeBoundingBox();
-    if (Math.abs(o.geometry.boundingBox.min.y + 0.352) < 1e-3) fores.push(o.parent);
     if (Math.abs(o.geometry.boundingBox.min.y + 0.372) < 1e-3) shins.push(o.parent);
   });
-  assert.equal(fores.length, 2, 'two forearms');
+  assert.ok(fores.every(Boolean), 'two forearms');
+  assert.ok(gloves.every((g) => g && g.parent.parent === fores[gloves.indexOf(g)]), 'a hand on each wrist');
+  assert.ok(gloves.every((g) => g.morphTargetInfluences?.length === 2), 'each hand opens and closes');
   assert.equal(shins.length, 2, 'two shins');
   assert.ok(model.root.getObjectByName('rider-pelvis')?.parent === torsoMesh.parent.parent,
     'the pelvis hangs off the hips, not the torso');
@@ -657,11 +662,213 @@ for (const [key, geo] of Object.entries(riderGeo)) {
   run(60);
   const P = rider.POSE.grabs[0].point;
   const edge = board.localToWorld(new V(P[0], P[1], P[2]));
-  const reach = Math.min(...fores.map((f) => f.localToWorld(new V(0, -0.29, 0)).distanceTo(edge)));
+  // The glove itself, on its wrist — the hand centre is FORE down the forearm.
+  const handCentre = (i) => gloves[i].localToWorld(new V(0, -(0.29 - rider.WRIST), 0));
+  const reach = Math.min(handCentre(0).distanceTo(edge), handCentre(1).distanceTo(edge));
   assert.ok(reach < 0.01, 'the indy hand reaches the toe edge: ' + reach);
+  assert.ok(gloves.some((g) => g.morphTargetInfluences[1] > 0.9), 'and closes on it');
   for (const kind of [1, 2]) { r.grabKind = kind; run(30); }
   r.grab = 0; r.state = 'ride'; r.grounded = true; r.vel.set(0, 0, -6);
   run(60);
+
+  /* The arms (`ARMS` in riderModel.js), driven through the states they
+     answer. Through every frame of all of it the glove stays out of the
+     jacket — the trunk's column less the glove's own radius — and each elbow
+     bends the way an elbow does: some bend always, never folded flat, and its
+     point never turned forwards into the chest. Then the reads themselves:
+     a hand down to the snow on a laid-over carve, on the side the carve is
+     on; the arms thrown up by a pop; a tuck's hands in a box in front of the
+     chest; a spin led by the arms and coiled against before it; a flip's
+     arms pulled in; a grab's free arm boned out the longer it is held; an
+     unclean landing waving where a clean one does not; a stop's arms out
+     along the board; and a fall's arms out in front of him. */
+  {
+    const torsoG = torsoMesh.parent;
+    const T = rider.TRUNK;
+    const shoulder = (i) => fores[i].parent.getWorldPosition(new V());
+    const elbowAt = (i) => fores[i].getWorldPosition(new V());
+    const inTorso = (p) => torsoG.worldToLocal(p.clone());
+    const segDist = (p, a, b) => {
+      const ab = b.clone().sub(a);
+      const t = Math.min(1, Math.max(0, p.clone().sub(a).dot(ab) / ab.lengthSq()));
+      return a.clone().addScaledVector(ab, t).distanceTo(p);
+    };
+    const limbsOk = (label) => {
+      for (let i = 0; i < 2; i++) {
+        const side = i ? 'rear' : 'lead';
+        const p = inTorso(handCentre(i));
+        if (p.y > T.bottom + T.soft && p.y < T.top - T.soft) {
+          const e = Math.hypot((p.x - T.x) / (T.rx - 0.05), p.z / (T.rz - 0.05));
+          assert.ok(e > 0.97, `${label}: the ${side} hand stays out of the jacket (${e.toFixed(3)})`);
+        }
+        const el = elbowAt(i);
+        const upper = el.clone().sub(shoulder(i)).normalize();
+        const fore = fores[i].localToWorld(new V(0, -0.29, 0)).sub(el).normalize();
+        const bend = Math.acos(Math.min(1, Math.max(-1, upper.dot(fore))));
+        assert.ok(bend > 0.1 && bend < 2.7, `${label}: the ${side} elbow bends ${bend.toFixed(3)} rad`);
+        // (a grab folds him past the horizontal and reaches down past his
+        // knees, where an elbow turned out to the side is what reaching is)
+        const grabbing = model.debug().arms.grab > 0.02;
+        const point = new V(1, 0, 0).transformDirection(fores[i].matrixWorld)
+          .transformDirection(torsoG.matrixWorld.clone().invert());
+        assert.ok(grabbing || point.x < 0.35,
+          `${label}: the ${side} elbow points forwards (${point.x.toFixed(3)})`);
+        // …and out of the legs: the hand the arm is solved to, twelve
+        // centimetres from every leg bone (trouser and glove), unless it is a
+        // grab between the boots
+        if (!grabbing) {
+          const h = fores[i].localToWorld(new V(0, -0.29, 0));
+          for (const shin of shins) {
+            const hip = shin.parent.getWorldPosition(new V());
+            const knee = shin.getWorldPosition(new V());
+            const ankle = shin.localToWorld(new V(0, -0.40, 0));
+            const gap = Math.min(segDist(h, hip, knee), segDist(h, knee, ankle));
+            assert.ok(gap > 0.12, `${label}: the ${side} hand is in a leg (${gap.toFixed(3)})`);
+          }
+        }
+      }
+    };
+    const ride = (n, label, f) => {
+      for (let i = 0; i < n; i++) {
+        run(1, () => { if (f) f(i); });
+        limbsOk(label);
+      }
+    };
+    const calm = () => {
+      Object.assign(r, {
+        state: 'ride', grounded: true, grab: 0, grabKind: 0, grabTime: 0, tucking: false,
+        charging: false, charge: 0, edge: 0, carveLoad: 0, roll: 0, spinVel: 0, flip: 0,
+        flipVel: 0, brake: 0, chatter: 0, compression: 0.33, tumble: 0, fallTimer: 0,
+        fallElapsed: 0, slide: 0, lateral: 0, touchdownIn: Infinity,
+      });
+      r.vel.set(0, 0, -15);
+      r.yaw = 0;
+      ride(60, 'settle');
+    };
+    const height = (i) => handCentre(i).y - r.pos.y;
+    const rise = (i) => handCentre(i).y - shoulder(i).y;
+    const yawOf = (v) => { const l = model.root.worldToLocal(v); return Math.atan2(-l.z, l.x); };
+    const handsYaw = () => yawOf(handCentre(0).add(handCentre(1)).multiplyScalar(0.5));
+
+    // Carving: toeside the leading hand goes down to the snow, heelside the
+    // trailing one does, and the other hand stays up as the counterweight.
+    calm();
+    const straight = [height(0), height(1)];
+    ride(90, 'toeside carve', () => {
+      r.edge = 0.95; r.carveLoad = 1; r.roll = -0.55; r.vel.set(0, 0, -18);
+    });
+    assert.ok(board.localToWorld(new V(0.155, 0, 0)).y < board.localToWorld(new V(-0.155, 0, 0)).y,
+      'a positive edge buries the toe edge');
+    const toe = [height(0), height(1)];
+    assert.ok(toe[0] < toe[1] - 0.1, `toeside, the leading hand is the low one: ${toe.map((v) => v.toFixed(2))}`);
+    assert.ok(toe[0] < straight[0] - 0.15, `…reaching down for the snow: ${toe[0].toFixed(2)} from ${straight[0].toFixed(2)}`);
+    ride(40, 'carve release', () => { r.edge = 0; r.carveLoad = 0; r.roll = 0; });
+    ride(90, 'heelside carve', () => {
+      r.edge = -0.95; r.carveLoad = 1; r.roll = 0.55; r.vel.set(0, 0, -18);
+    });
+    const heel = [height(0), height(1)];
+    assert.ok(heel[1] < heel[0] - 0.1, `heelside, the trailing hand is the low one: ${heel.map((v) => v.toFixed(2))}`);
+    assert.ok(heel[1] < straight[1] - 0.1, `…dragging towards the snow: ${heel[1].toFixed(2)} from ${straight[1].toFixed(2)}`);
+    assert.ok(Math.min(...toe, ...heel) > 0.05, 'and no hand goes into the snow');
+    // …and riding switch, through the swap of the hands' jobs, with nothing
+    // crossing through the body on the way
+    ride(60, 'switch carve', (i) => {
+      r.switchStance = true; r.edge = i < 30 ? 0.9 : -0.9; r.carveLoad = 1; r.roll = i < 30 ? -0.5 : 0.5;
+    });
+    ride(30, 'back to regular', () => { r.switchStance = false; r.edge = 0; r.carveLoad = 0; r.roll = 0; });
+
+    // The pop throws both arms up.
+    calm();
+    const before = [rise(0), rise(1)];
+    const peak = [-Infinity, -Infinity];
+    ride(4, 'pop', (i) => { r.compression = 0.33 - 0.1 * (i + 1); });
+    ride(14, 'off the lip', () => {
+      r.state = 'air'; r.grounded = false; r.compression = -0.07;
+      peak[0] = Math.max(peak[0], rise(0)); peak[1] = Math.max(peak[1], rise(1));
+    });
+    assert.ok(peak[0] > before[0] + 0.12 && peak[1] > before[1] + 0.12,
+      `the arms swing up on the pop: ${before.map((v) => v.toFixed(2))} → ${peak.map((v) => v.toFixed(2))}`);
+
+    // The tuck's hands: close in front of the chest, at the knees.
+    calm();
+    ride(90, 'tuck', () => { r.tucking = true; r.vel.set(0, 0, -28); });
+    for (let i = 0; i < 2; i++) {
+      const p = inTorso(handCentre(i));
+      assert.ok(p.x > 0.15 && p.x < 0.6 && p.y > -0.4 && p.y < 0.42 && Math.abs(p.z) < 0.3,
+        `a tucked hand is in front of the chest: ${p.toArray().map((v) => v.toFixed(2))}`);
+    }
+
+    // A spin: the arms lead it in the air and coil against it on the snow.
+    // The rig turns by −yaw, so a positive spin leads towards negative yaw.
+    const spun = (rate, air) => {
+      calm();
+      ride(30, air ? 'spin' : 'coil', () => {
+        if (air) { r.state = 'air'; r.grounded = false; r.yaw += rate * dt; } else {
+          r.charging = true; r.charge = 1;
+        }
+        r.spinVel = rate;
+      });
+      // measured in the root's own frame, which has already turned with the board
+      return handsYaw();
+    };
+    const leadsPos = spun(7.5, true);
+    const leadsNeg = spun(-7.5, true);
+    assert.ok(leadsPos < leadsNeg - 0.5, `the arms lead a spin: ${leadsPos.toFixed(2)} / ${leadsNeg.toFixed(2)}`);
+    const coilPos = spun(1.4, false);
+    const coilNeg = spun(-1.4, false);
+    assert.ok(coilPos > coilNeg + 0.3, `and wind against it before the pop: ${coilPos.toFixed(2)} / ${coilNeg.toFixed(2)}`);
+
+    // A flip pulls the hands in together.
+    const apart = () => handCentre(0).distanceTo(handCentre(1));
+    calm();
+    ride(30, 'flight', () => { r.state = 'air'; r.grounded = false; });
+    const flying = apart();
+    ride(30, 'flip', () => { r.flipVel = 6.2; r.flip += 6.2 * dt; });
+    assert.ok(apart() < flying - 0.2, `a flip tucks the arms: ${flying.toFixed(2)} → ${apart().toFixed(2)}`);
+
+    // An indy held: the free (leading) arm bones out.
+    calm();
+    const reachOf = (i) => handCentre(i).distanceTo(shoulder(i));
+    ride(12, 'indy', () => { r.state = 'air'; r.grounded = false; r.grab = 1; r.grabTime += dt; });
+    const early = reachOf(0);
+    ride(48, 'indy styled', () => { r.grabTime += dt; });
+    // (lifts in his own frame: folded over the board, the chest's up is sideways)
+    assert.ok(reachOf(0) > early + 0.03 && inTorso(handCentre(0)).y > 0.5,
+      `a held grab's free arm straightens and lifts: ${early.toFixed(2)} → ${reachOf(0).toFixed(2)}`);
+
+    // Landings: an unclean one waves the arms up, a clean one of the same
+    // impact only absorbs it.
+    const landed = (verdict) => {
+      calm();
+      ride(20, 'flight', () => { r.state = 'air'; r.grounded = false; });
+      let top = -Infinity;
+      ride(40, 'landing', (i) => {
+        r.state = 'ride'; r.grounded = true; r.compression = i === 0 ? 0.6 : 0.33;
+        if (i === 0) r.lastLanding = { verdict, impact: 12 };
+        top = Math.max(top, rise(0), rise(1));
+      });
+      return top;
+    };
+    const clean = landed(0);
+    const sketchy = landed(1);
+    assert.ok(sketchy > clean + 0.08, `an unclean landing waves: ${sketchy.toFixed(2)} / ${clean.toFixed(2)}`);
+
+    // A stop: the arms go out along the board.
+    const spread = () => Math.abs(inTorso(handCentre(0)).z - inTorso(handCentre(1)).z);
+    calm();
+    const riding = spread();
+    ride(40, 'brake', () => { r.brake = 1; r.edge = -0.5; r.carveLoad = 0.8; r.roll = 0.3; });
+    assert.ok(spread() > riding + 0.12, `a stop spreads the arms: ${riding.toFixed(2)} → ${spread().toFixed(2)}`);
+
+    // Going down, the arms go out in front of him first.
+    calm();
+    ride(12, 'fall', (i) => { r.state = 'fall'; r.grounded = false; r.fallElapsed = i * dt; r.tumble += 4 * dt; });
+    for (let i = 0; i < 2; i++) {
+      assert.ok(inTorso(handCentre(i)).x > 0.2, 'a falling rider\'s hands go out in front of him');
+    }
+    ride(90, 'tumble', (i) => { r.fallElapsed += dt; r.tumble += 6 * dt; });
+    calm();
+  }
 
   /* The headlamp is not fitted (HEADLAMP.fitted): dark by day and dark at
      night, so nothing that reads its level — the snowfall, the eye shine,
@@ -1342,10 +1549,21 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
   assert.ok(box(g.foreArmRear).max.y > 0.065, 'the elbow ball covers the bend');
   assert.ok(box(g.shin).min.y < -rider.ANKLE_Y + rider.DECK_TOP - 0.12, 'the gaiter falls over the boot');
   assert.ok(box(g.thighLead).max.y > 0.12, 'the thigh is domed into the seat');
-  assert.ok(box(g.foreArmRear).min.y < -0.33 && box(g.foreArmRear).min.y > -0.37, 'the glove ends past the hand centre');
+  // The glove is its own segment on the wrist now, its origin `WRIST` down
+  // the forearm; measured back in the forearm's frame it still ends past the
+  // hand centre, and the sleeve and cuff end before the wrist. (Its rest
+  // shape: three's own bounding box takes in the morph targets too.)
+  const rest = (geo) => new THREE.Box3().setFromBufferAttribute(geo.attributes.position);
+  assert.ok(rest(g.handRear).min.y - rider.WRIST < -0.33 && rest(g.handRear).min.y - rider.WRIST > -0.37,
+    'the glove ends past the hand centre');
+  assert.ok(rest(g.handRear).max.y < 0.03, 'the glove starts at the wrist');
+  assert.ok(box(g.foreArmRear).min.y > -rider.WRIST - 0.01, 'the sleeve ends at the wrist');
+  assert.ok(g.handRear.morphAttributes.position?.length === 2 && g.handRear.morphTargetsRelative,
+    'the glove opens and closes');
   assert.ok(box(g.rearBoot).max.y > rider.ANKLE_Y, 'the boot cuff rises past the ankle');
   // left and right hands, and the cargo pocket on the outside of each leg
-  for (const [a, b] of [[g.foreArmLead, g.foreArmRear], [g.thighLead, g.thighRear]]) {
+  for (const [a, b] of [[g.foreArmLead, g.foreArmRear], [g.handLead, g.handRear],
+    [g.thighLead, g.thighRear]]) {
     assert.ok(Math.abs(box(a).min.z + box(b).max.z) < 1e-4 && Math.abs(box(a).max.z + box(b).min.z) < 1e-4,
       'lead and rear are mirror images');
   }
@@ -1372,14 +1590,14 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
     assert.ok(hem > 0.9, 'the front hem is free');
     const s = g.upperArm.attributes.aFlap.array;
     assert.ok(Math.max(...s) > 0.25 && Math.max(...s) < 0.4, 'the sleeves stir a little');
-    for (const key of ['pelvis', 'head', 'foreArmLead', 'thighLead', 'shin', 'rearBoot']) {
+    for (const key of ['pelvis', 'head', 'foreArmLead', 'handLead', 'thighLead', 'shin', 'rearBoot']) {
       assert.ok(g[key].attributes.aFlap.array.every((v) => v === 0), key + ': rigid');
     }
   }
   // The glove is woven, the gold cuff a little, the helmet and goggles not at all.
   {
     const ink = new THREE.Color('#181c24');
-    const fore = g.foreArmRear;
+    const fore = g.handRear;
     let glove = 0;
     for (let i = 0; i < fore.attributes.position.count; i++) {
       const c = fore.attributes.color;
@@ -1388,7 +1606,7 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
         assert.equal(fore.attributes.aCloth.getX(i), 1, 'the glove is cloth');
       }
     }
-    assert.ok(glove > 50, 'the forearm ends in a glove');
+    assert.ok(glove > 50, 'the hand is a glove');
     assert.ok(g.head.attributes.aCloth.array.some((v, i) => i % 2 === 0 && v === 0), 'the helmet is hard');
   }
 
@@ -1488,6 +1706,96 @@ assert.ok(meshes <= 24, 'resort draw-call budget');
       m.updateMatrixWorld(true);
       assert.ok(m.matrixWorld.elements.every(Number.isFinite), 'figures ride');
     }
+
+    /* Their arms (`NPC_POLE` in mountainLife.js). Every upper half is skinned
+       to five bones — body, two shoulders, two hands — with every vertex
+       fully weighted, so the arms cost no mesh and no draw call more. A
+       skier keeps his poles in time with his turns: before each edge change
+       (the lean changing sides) the pole on the side he is about to lean to
+       comes down to the snow beside and ahead of his boots, and no pole tip
+       is ever in the snow. A boarder's leading arm goes into a toeside turn
+       and the trailing one out over the heel edge on a heelside one. */
+    const skinned = figures.filter((m) => m.isSkinnedMesh);
+    assert.equal(skinned.length, 8, 'every upper half is skinned');
+    for (const m of skinned) {
+      assert.equal(m.skeleton.bones.length, 5, 'body, shoulders and hands');
+      const w = m.geometry.attributes.skinWeight;
+      for (let i = 0; i < w.count; i++) {
+        assert.ok(Math.abs(w.getX(i) + w.getY(i) + w.getZ(i) + w.getW(i) - 1) < 1e-5, 'a vertex is all there');
+      }
+    }
+    const skier = skinned[0];
+    const boarder = skinned[1];
+    const tipOf = (m, bone) => {
+      const p = m.geometry.attributes.position;
+      const idx = m.geometry.attributes.skinIndex;
+      let lowest = -1;
+      for (let i = 0; i < p.count; i++) {
+        if (idx.getX(i) === bone && (lowest < 0 || p.getY(i) < p.getY(lowest))) lowest = i;
+      }
+      return lowest;
+    };
+    const tips = { [-1]: tipOf(skier, 2), [1]: tipOf(skier, 4) };
+    assert.ok(tips[-1] >= 0 && tips[1] >= 0, 'both poles ride their hands');
+    const { heightAt } = await import(new URL('js/terrain.js', base).href);
+    const v = new THREE.Vector3();
+    const trace = [];
+    let deepest = 0;
+    let lastBank = 0;
+    let crossed = 0;
+    let held = 0;
+    const flips = [];
+    const leanToe = [];
+    const leanHeel = [];
+    for (let f = 0; f < 960; f++) {
+      const g = skier.parent;
+      r.pos.set(g.position.x + 40, g.position.y, g.position.z + 20);
+      life.update(1 / 60, r);
+      scene.updateMatrixWorld(true);
+      const row = {};
+      for (const side of [-1, 1]) {
+        skier.getVertexPosition(tips[side], v);
+        skier.localToWorld(v);
+        const h = v.y - heightAt(v.x, v.z);
+        const local = g.worldToLocal(v.clone());
+        const reach = skier.skeleton.bones[side < 0 ? 1 : 3].rotation.x;
+        row[side] = { h, x: local.x, z: local.z, reach };
+        if (f > 60) deepest = Math.min(deepest, h);
+      }
+      trace.push(row);
+      const bank = g.rotation.z;
+      // an edge change is the lean going over by a clear margin, not a wobble
+      // through upright (a fork in the line can make one), and it is dated
+      // to the moment the lean crossed upright
+      if (Math.sign(bank) !== Math.sign(lastBank)) crossed = f;
+      if (Math.abs(bank) > 0.08 && Math.sign(bank) !== held) {
+        if (held && crossed > 150) flips.push({ f: crossed, side: bank < 0 ? 1 : -1 });
+        held = Math.sign(bank);
+      }
+      lastBank = bank;
+      const b = boarder.parent.rotation.z;
+      const [, lead, , rear] = boarder.skeleton.bones;
+      if (b < -0.2) leanToe.push(lead.rotation.z);
+      if (b > 0.2) leanHeel.push(rear.rotation.z);
+    }
+    assert.ok(deepest > -0.05, 'no pole tip goes into the snow: ' + deepest.toFixed(3));
+    assert.ok(flips.length >= 4, 'the skier turns: ' + flips.length);
+    for (const { f, side } of flips) {
+      // (a pole at rest trails on the snow behind him too: the plant is the
+      // one at or ahead of the boots)
+      const before = trace.slice(Math.max(0, f - 40), f).map((row) => row[side]);
+      const planted = before.filter((p) => p.h < 0.12 && Math.sign(p.x) === side && p.z < 0.12 && p.reach > 0.1);
+      assert.ok(planted.length > 0,
+        `the ${side > 0 ? '+X' : '−X'} pole plants before the edge change at ${f}: `
+        + JSON.stringify(before.reduce((a, b) => (b.z < a.z ? b : a))));
+      assert.ok(trace.slice(Math.max(0, f - 40), f).every((row) => row[-side].reach < 0.1),
+        `…and the other arm is at rest meanwhile (${f})`);
+    }
+    const mean = (a) => a.reduce((s, x) => s + x, 0) / Math.max(1, a.length);
+    assert.ok(leanToe.length > 30 && mean(leanToe) > 0.15,
+      'a boarder\'s leading arm goes into a toeside turn: ' + mean(leanToe).toFixed(2));
+    assert.ok(leanHeel.length > 30 && mean(leanHeel) < -0.15,
+      'and the trailing one out on a heelside one: ' + mean(leanHeel).toFixed(2));
   }
 }
 /* The modelled Alpine forest (`tools/blender/trees.py` → alpine-trees.glb,

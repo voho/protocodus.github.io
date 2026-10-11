@@ -30,7 +30,9 @@
    downhill as a statue; two rigid pieces let the upper body absorb through
    the turn, counter-rotate against the skis and stay upright while the deck
    banks — which is most of what reads as "riding" from thirty metres, and
-   it costs one matrix per figure per frame. */
+   it costs one matrix per figure per frame. The arms are the other half of
+   that read, and they ride the body piece as five bones rather than as
+   meshes of their own — see `NPC_POLE`. */
 
 import {
   heightAt, nearestCenter, centersAt, rockBandAt,
@@ -43,6 +45,52 @@ import { parseGlb } from './glb.js';
 
 // Seconds a tumbled figure takes to come back round to its riding pose.
 const RECOVER = 0.5;
+
+/* THE OTHER RIDERS' ARMS.
+
+   The two-piece figure (see above) had its arms baked into the upper half,
+   so a skier went the length of the piste with both poles held out behind
+   him like a pair of tails, and a boarder's arms never moved at all. They
+   are skinned now: the upper half is a SkinnedMesh with five bones — the
+   body, each shoulder, and each hand, which is where a pole pivots — so the
+   arms move without a draw call or a mesh more than the figure already had,
+   and its shadow moves with them. Five bones and a handful of sines per
+   figure per frame is the whole cost.
+
+   A skier's poles keep the rhythm of his turns. Just before each edge change
+   the pole on the inside of the turn that is coming swings forward, and its
+   tip touches the snow beside the boot; the skier then runs past it, which
+   at fifteen metres a second is a tap rather than a plant, and it trails
+   back to rest while the other one starts its swing. `swing` and `lead` are
+   radians of turn phase — how long before the edge change the swing starts
+   and the tip lands — and `release` is how long after it the arm takes to
+   come home. The tip is kept off the snow through the swing by carrying it
+   out to the side, never through it. A boarder gets the player's arms in
+   miniature: the leading one into a toeside turn and over the nose on a
+   heelside one, the trailing one as the counterweight.
+
+   `NPC_RIG` is the modelled figures' skeleton, the numbers
+   `tools/blender/riders.py` posed them with (`npc_skier`, `npc_boarder`);
+   the bones are put where it put the joints, and each vertex of the baked
+   body is weighed to the bone it was modelled on. */
+const NPC_RIG = {
+  waist: 0.07, shoulderY: 0.40, shoulderZ: 0.20, neckY: 0.44, upper: 0.29, fore: 0.29,
+  skierLean: -0.42, boarderLean: -0.20, boarderOpen: 0.45,
+};
+const NPC_POLE = {
+  swing: 1.15,      // radians of turn phase before the edge change the swing starts…
+  lead: 0.32,       // …and the tip touches down
+  release: 0.55,    // and after it, the arm is home again
+  reach: 0.30,      // radians the planting arm reaches forward
+  wide: 0.10,       // and both arms are held out from the body
+  clear: 0.03,      // metres the swinging tip keeps off the snow
+  ahead: 0.42,      // radians in front of the hand the tip lands
+};
+// The other riders' S-turns: `sPhase` advances at TURN_RATE and the line
+// is chased at TURN_GAIN, so a figure's own motion runs this far behind it.
+const TURN_RATE = 1.35;
+const TURN_GAIN = 2.2;
+const TURN_LAG = Math.atan(TURN_RATE / TURN_GAIN);
 
 const PYLON_SPACING = 200;
 /* Eleven, so the span reaches 1400 m ahead — past the kilometre of the
@@ -717,11 +765,24 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
   const DETAIL = { color: 0x101318, sheen: 0.20 }; // straps, zips, frames
   const PALE = { color: 0xeef2f7, sheen: 0.50 }; // pole shafts
 
-  const put = (list, geo, kit, pos, rot, scale) => {
+  // `bone` is which of the body's five bones the part rides on (see
+  // `NPC_RIG`): 0 the body, 1/2 the −X arm and its hand, 3/4 the +X ones.
+  const put = (list, geo, kit, pos, rot, scale, bone = 0) => {
     list.push({
-      geo, color: kit.color, sheen: kit.sheen, pos, rot, scale,
+      geo, color: kit.color, sheen: kit.sheen, pos, rot, scale, bone,
     });
   };
+  // The top and the bottom of a `limb` part as it was put: its two joints.
+  const limbEnds = (pos, rot, h) => {
+    _limbQ.setFromEuler(_limbE.set(rot[0], rot[1], rot[2]));
+    return [
+      new THREE.Vector3(0, h / 2, 0).applyQuaternion(_limbQ).add(_limbP.set(...pos)),
+      new THREE.Vector3(0, -h / 2, 0).applyQuaternion(_limbQ).add(_limbP.set(...pos)),
+    ];
+  };
+  const _limbQ = new THREE.Quaternion();
+  const _limbE = new THREE.Euler();
+  const _limbP = new THREE.Vector3();
 
   function buildSkier(v) {
     const deck = [];
@@ -789,26 +850,36 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     put(body, GEO.goggleStrap, DETAIL, [0, 1.48, -0.10], null, [1, 1, 1.04]);
 
     // --- Arms, Mittens & Poles ---
+    const arms = [];
     for (const side of [-1, 1]) {
       const ax = side * 0.26;
+      const arm = side < 0 ? 1 : 3;
       // Upper arm angled forward and slightly out
-      put(body, GEO.upperArm, jacket, [ax, 1.18, -0.14], [-0.35, 0, side * 0.32]);
+      put(body, GEO.upperArm, jacket, [ax, 1.18, -0.14], [-0.35, 0, side * 0.32], null, arm);
       // Forearm reaching forward to grip pole
-      put(body, GEO.foreArm, jacket, [ax * 1.05, 0.98, -0.28], [-0.55, 0, side * 0.18]);
+      put(body, GEO.foreArm, jacket, [ax * 1.05, 0.98, -0.28], [-0.55, 0, side * 0.18], null, arm);
       // Cuff where the sleeve ends
-      put(body, GEO.sleeveCuff, accent, [side * 0.265, 0.865, -0.325], [-0.55, 0, side * 0.18]);
+      put(body, GEO.sleeveCuff, accent, [side * 0.265, 0.865, -0.325], [-0.55, 0, side * 0.18], null, arm);
       // Mitten holding the pole grip
-      put(body, GEO.mitten, HARD, [side * 0.26, 0.90, -0.34]);
+      put(body, GEO.mitten, HARD, [side * 0.26, 0.90, -0.34], null, null, arm);
 
-      // Ski Pole held in hand, shaft angling down and back (+Z)
+      // Ski Pole held in hand, shaft angling down and back (+Z) — from the
+      // grip to the basket, which it used to miss: tilted the other way, it
+      // ran forwards from the hand and into the snow ahead of the boot.
       const px = side * 0.26;
       const py = 0.90;
       const pz = -0.34;
-      put(body, GEO.poleGrip, DETAIL, [px, py, pz], [0.38, 0, side * 0.12]);
-      put(body, GEO.poleShaft, PALE, [px + side * 0.05, py - 0.44, pz + 0.32],
-        [0.38, 0, side * 0.12]);
-      put(body, GEO.poleBasket, DETAIL, [px + side * 0.10, 0.10, pz + 0.68],
-        [0.38, 0, side * 0.12]);
+      const tip = new THREE.Vector3(px + side * 0.10, 0.10, pz + 0.68);
+      const shaft = tip.clone().sub(_limbP.set(px, py, pz));
+      const lean = new THREE.Euler().setFromQuaternion(
+        new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), shaft.clone().normalize()));
+      const tilt = [lean.x, lean.y, lean.z];
+      put(body, GEO.poleGrip, DETAIL, [px, py, pz], tilt, null, arm + 1);
+      put(body, GEO.poleShaft, PALE, [px + shaft.x / 2, py + shaft.y / 2, pz + shaft.z / 2],
+        tilt, [1, shaft.length() / 1.15, 1], arm + 1);
+      put(body, GEO.poleBasket, DETAIL, [tip.x, tip.y, tip.z], tilt, null, arm + 1);
+      const [shoulder, elbow] = limbEnds([ax, 1.18, -0.14], [-0.35, 0, side * 0.32], 0.32);
+      arms.push({ shoulder, elbow, hand: new THREE.Vector3(px, py, pz), basket: tip });
     }
 
     if (v.pack) {
@@ -818,7 +889,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       }
     }
 
-    return { deck, body, hip: 0.80 };
+    return { deck, body, hip: 0.80, arms };
   }
 
   function buildBoarder(v) {
@@ -910,17 +981,25 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     put(body, GEO.goggleStrap, DETAIL, [hx, 1.42, -0.05], [0, headAngle, 0], [1, 1, 1.04]);
 
     // --- Arms (Freeride Balance Posture) ---
-    // Lead arm reaching forward/downward (-Z)
-    put(body, GEO.upperArm, jacket, [0.18, 1.12, -0.15], [-0.45, stanceAngle, 0.35]);
-    put(body, GEO.foreArm, jacket, [0.26, 0.94, -0.28], [-0.65, stanceAngle, 0.20]);
-    put(body, GEO.sleeveCuff, accent, [0.285, 0.865, -0.335], [-0.65, stanceAngle, 0.20]);
-    put(body, GEO.mitten, HARD, [0.30, 0.85, -0.38]);
+    // Lead arm reaching forward/downward (-Z); on the arm bone that answers
+    // the turns (1), the trailing one on the other (3)
+    put(body, GEO.upperArm, jacket, [0.18, 1.12, -0.15], [-0.45, stanceAngle, 0.35], null, 1);
+    put(body, GEO.foreArm, jacket, [0.26, 0.94, -0.28], [-0.65, stanceAngle, 0.20], null, 1);
+    put(body, GEO.sleeveCuff, accent, [0.285, 0.865, -0.335], [-0.65, stanceAngle, 0.20], null, 1);
+    put(body, GEO.mitten, HARD, [0.30, 0.85, -0.38], null, null, 1);
 
     // Trailing arm raised out/back for balance (+Z)
-    put(body, GEO.upperArm, jacket, [-0.18, 1.14, 0.12], [0.35, stanceAngle, -0.45]);
-    put(body, GEO.foreArm, jacket, [-0.28, 1.02, 0.25], [0.55, stanceAngle, -0.30]);
-    put(body, GEO.sleeveCuff, accent, [-0.325, 0.965, 0.325], [0.55, stanceAngle, -0.30]);
-    put(body, GEO.mitten, HARD, [-0.35, 0.98, 0.36]);
+    put(body, GEO.upperArm, jacket, [-0.18, 1.14, 0.12], [0.35, stanceAngle, -0.45], null, 3);
+    put(body, GEO.foreArm, jacket, [-0.28, 1.02, 0.25], [0.55, stanceAngle, -0.30], null, 3);
+    put(body, GEO.sleeveCuff, accent, [-0.325, 0.965, 0.325], [0.55, stanceAngle, -0.30], null, 3);
+    put(body, GEO.mitten, HARD, [-0.35, 0.98, 0.36], null, null, 3);
+    const arms = [
+      [[0.18, 1.12, -0.15], [-0.45, stanceAngle, 0.35], [0.30, 0.85, -0.38]],
+      [[-0.18, 1.14, 0.12], [0.35, stanceAngle, -0.45], [-0.35, 0.98, 0.36]],
+    ].map(([pos, rot, hand]) => {
+      const [shoulder, elbow] = limbEnds(pos, rot, 0.32);
+      return { shoulder, elbow, hand: new THREE.Vector3(...hand), basket: null };
+    });
 
     if (v.pack) {
       put(body, GEO.packBody, accent,
@@ -928,7 +1007,7 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         [-0.16, stanceAngle, 0]);
     }
 
-    return { deck, body, hip: 0.76 };
+    return { deck, body, hip: 0.76, arms };
   }
 
   /* Split at the hip, bake each half, hang the upper one off the joint.
@@ -945,9 +1024,8 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     const lifted = spec.body.map((p) => ({
       ...p, pos: [p.pos[0], p.pos[1] - spec.hip, p.pos[2]],
     }));
-    const bodyMesh = new THREE.Mesh(
-      compose(THREE, lifted, { uv: true, sheen: true }), figureMat,
-    );
+    const bodyGeo = skinByParts(compose(THREE, lifted, { uv: true, sheen: true }), lifted);
+    const bodyMesh = new THREE.SkinnedMesh(bodyGeo, figureMat);
     bodyMesh.position.y = spec.hip;
     bodyMesh.rotation.order = 'YXZ';
 
@@ -956,7 +1034,180 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       m.receiveShadow = true;
       group.add(m);
     }
-    return { group, deck: deckMesh, body: bodyMesh, hip: spec.hip };
+    const arms = rigBody(bodyMesh, spec.arms, spec.hip);
+    return { group, deck: deckMesh, body: bodyMesh, hip: spec.hip, arms };
+  }
+
+  /* The skin of a figure built from parts: every vertex rides its part's
+     bone, rigidly — `compose` lays each part down as one contiguous run of
+     its de-indexed corners, the same assumption the rider's cloth masks make. */
+  function skinByParts(g, parts) {
+    const n = g.attributes.position.count;
+    const index = new Uint16Array(n * 4);
+    const weight = new Float32Array(n * 4);
+    let o = 0;
+    for (const part of parts) {
+      const span = part.geo.index ? part.geo.index.count : part.geo.attributes.position.count;
+      for (let i = o; i < o + span; i++) {
+        index[i * 4] = part.bone || 0;
+        weight[i * 4] = 1;
+      }
+      o += span;
+    }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(index, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weight, 4));
+    return g;
+  }
+
+  /* The skin of a modelled figure, whose body arrives as one welded buffer
+     with nothing in it to say which vertex is an arm: so each is weighed by
+     where it is. Measured against the bones `riders.py` posed — the spine,
+     each upper arm, each forearm run on past the hand to take in the mitt,
+     and each pole — scaled by how thick that part is, the nearest wins. An
+     upper arm blends into the body over its first decimetre, the way a
+     shoulder does, so the sleeve bends at the seam rather than tearing; a
+     pole is everything thin along its line, except the mitt round its grip,
+     which stays with the hand. */
+  const _sk = [0, 1, 2, 3].map(() => new THREE.Vector3());
+  function segment(p, a, b) {
+    _sk[0].subVectors(b, a);
+    const len2 = Math.max(_sk[0].lengthSq(), 1e-9);
+    const t = Math.min(1, Math.max(0, _sk[1].subVectors(p, a).dot(_sk[0]) / len2));
+    return { d: _sk[2].copy(a).addScaledVector(_sk[0], t).distanceTo(p), t };
+  }
+  function skinByJoints(g, arms, spine) {
+    const p = g.attributes.position;
+    const index = new Uint16Array(p.count * 4);
+    const weight = new Float32Array(p.count * 4);
+    const v = new THREE.Vector3();
+    const handEnd = arms.map((a) => a.hand.clone().add(_sk[3].subVectors(a.hand, a.elbow).setLength(0.075)));
+    const gripStart = arms.map((a) => (a.basket
+      ? a.hand.clone().add(_sk[3].subVectors(a.hand, a.basket).setLength(0.09)) : null));
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      let best = segment(v, spine[0], spine[1]).d / 0.17;
+      let bone = 0;
+      let w = 1;
+      arms.forEach((a, k) => {
+        const upper = segment(v, a.shoulder, a.elbow);
+        const fore = segment(v, a.elbow, handEnd[k]);
+        const score = Math.min(upper.d, fore.d) / 0.085;
+        if (score < best) {
+          best = score;
+          bone = 1 + k * 2;
+          // the shoulder's seam: blended into the body over the first decimetre
+          const along = upper.d <= fore.d ? upper.t * NPC_RIG.upper : 1;
+          w = Math.min(1, Math.max(0, (along - 0.02) / 0.10));
+        }
+        if (a.basket) {
+          const pole = segment(v, gripStart[k], a.basket);
+          const nearHand = v.distanceTo(a.hand) < 0.065;
+          if (pole.d < (nearHand ? 0.022 : 0.05) && pole.d / 0.03 < best + 0.5) {
+            best = pole.d / 0.03;
+            bone = 2 + k * 2;
+            w = 1;
+          }
+        }
+      });
+      index[i * 4] = bone;
+      weight[i * 4] = w;
+      if (w < 1) {
+        index[i * 4 + 1] = 0;
+        weight[i * 4 + 1] = 1 - w;
+      }
+    }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(index, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weight, 4));
+    return g;
+  }
+
+  /* The bones, put where the joints are and bound in that rest pose: the
+     body at the hip, each arm at its shoulder, each hand (where a pole
+     pivots) at the hand. Called again when the modelled figures arrive,
+     whose joints are elsewhere; the bones are kept and only moved. What the
+     poses need to know about each arm — the pole's length and its angle at
+     rest, how high the hand rides — comes back with them. */
+  function rigBody(mesh, arms, hip) {
+    let skeleton = mesh.skeleton;
+    if (!skeleton) {
+      const root = new THREE.Bone();
+      const bones = [root];
+      for (let k = 0; k < 2; k++) {
+        const arm = new THREE.Bone();
+        const grip = new THREE.Bone();
+        arm.rotation.order = 'ZXY';
+        grip.rotation.order = 'ZXY';
+        arm.add(grip);
+        root.add(arm);
+        bones.push(arm, grip);
+      }
+      mesh.add(root);
+      skeleton = new THREE.Skeleton(bones);
+    }
+    const [root, armA, gripA, armB, gripB] = skeleton.bones;
+    root.position.set(0, 0, 0);
+    const out = [[armA, gripA], [armB, gripB]].map(([arm, grip], k) => {
+      const j = arms[k];
+      arm.position.copy(j.shoulder);
+      arm.position.y -= hip;
+      grip.position.subVectors(j.hand, j.shoulder);
+      arm.rotation.set(0, 0, 0);
+      grip.rotation.set(0, 0, 0);
+      const pole = j.basket ? j.basket.clone().sub(j.hand) : null;
+      return {
+        arm, grip, side: k ? 1 : -1,
+        length: pole ? pole.length() : 0,
+        rest: pole ? Math.atan2(pole.z, -pole.y) : 0,
+        handY: j.hand.y,
+        // the tip in the hand bone's own frame, and the pole's eased turn
+        tip: pole, swing: 0, out: 0, plantW: 0,
+      };
+    });
+    mesh.bind(skeleton);
+    /* The arms reach past the rest pose's bounds — a planted pole a long way
+       — so the culling sphere is the rest one with room for that, rather
+       than whatever pose it happened to be measured in. */
+    mesh.geometry.computeBoundingSphere();
+    mesh.boundingSphere = mesh.geometry.boundingSphere.clone();
+    mesh.boundingSphere.radius += 0.6;
+    return out;
+  }
+
+  /* Where `riders.py` put the modelled figures' joints (`npc_skier`,
+     `npc_boarder`): the same matrices, the same two-bone solve, in the
+     file's frame. */
+  function modelledJoints(kind, hip) {
+    const R = NPC_RIG;
+    const torso = new THREE.Matrix4();
+    const m = new THREE.Matrix4();
+    if (kind === 'skier') {
+      torso.makeTranslation(0, hip + R.waist, 0)
+        .multiply(m.makeRotationY(Math.PI / 2)).multiply(m.makeRotationZ(R.skierLean));
+    } else {
+      torso.makeTranslation(0, hip, 0).multiply(m.makeRotationY(R.boarderOpen))
+        .multiply(m.makeTranslation(0, R.waist, 0)).multiply(m.makeRotationZ(R.boarderLean));
+    }
+    const V = THREE.Vector3;
+    const posed = kind === 'skier'
+      ? [-1, 1].map((side) => [side, new V(side * 0.265, 0.905, -0.40),
+        new V(side * 0.55, -0.35, 0.75), new V(side * 0.38, 0.10, 0.30)])
+      : [[-1, new V(0.20, 0.98, -0.34), new V(-0.7, -0.3, -0.45), null],
+        [1, new V(0.08, 0.96, 0.30), new V(-0.7, -0.3, 0.45), null]];
+    const arms = posed.map(([side, hand, pole, basket]) => {
+      const shoulder = new V(0, R.shoulderY, side * R.shoulderZ).applyMatrix4(torso);
+      // the rig's own two-bone solve, as riders.py runs it
+      const d = hand.clone().sub(shoulder);
+      const f = d.clone().normalize();
+      const reach = Math.min(Math.max(d.length(), Math.abs(R.upper - R.fore) + 0.05), (R.upper + R.fore) * 0.999);
+      const u = pole.clone().addScaledVector(f, -pole.dot(f)).normalize();
+      const c = Math.min(1, Math.max(-1,
+        (R.upper * R.upper + reach * reach - R.fore * R.fore) / (2 * R.upper * reach)));
+      const elbow = shoulder.clone().addScaledVector(f, R.upper * c)
+        .addScaledVector(u, R.upper * Math.sqrt(1 - c * c));
+      return { shoulder, elbow, hand, basket };
+    });
+    const spine = [new V(0, 0, 0).applyMatrix4(torso), new V(0, R.neckY, 0).applyMatrix4(torso)];
+    return { arms, spine };
   }
 
   /* THE FIGURES AS MODELLED. Once `npcs.glb` has arrived (see `main.js`)
@@ -1009,7 +1260,13 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     const parts = [pick('body'), pick(v.beanie ? 'beanie' : 'helmet')];
     if (v.pack) parts.push(pick('pack'));
     const body = weaveUv(riderGeometry(THREE, parts, look).translate(0, -hip, 0));
-    return { deck, body, hip };
+    // weighed to its bones in the body's own frame, which hangs at the hip
+    const joints = modelledJoints(kind, hip);
+    const down = (p) => p && p.clone().setY(p.y - hip);
+    skinByJoints(body, joints.arms.map((a) => ({
+      shoulder: down(a.shoulder), elbow: down(a.elbow), hand: down(a.hand), basket: down(a.basket),
+    })), joints.spine.map(down));
+    return { deck, body, hip, arms: joints.arms };
   }
 
   /* Eight riders where there used to be five. The count went up because the
@@ -1055,7 +1312,160 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
       recoverFrom: new THREE.Quaternion(),
       bodyFrom: new THREE.Quaternion(),
       sPhase: Math.random() * Math.PI * 2,
+      // the arms' bones and what they know (see `rigBody`), and the turn
+      // they answer: the sideways acceleration, smoothed
+      arms: fig.arms,
+      ax: 0,
+      vxLast: 0,
+      flail: 0,
     });
+  }
+
+  /* …and whatever the turn, the slope across the line or the lean has done
+     to the snow under it, a pole's tip never goes into it. The swing above
+     is worked out in the body's own frame; here the tip is found where it
+     really is, and a tip below the snow is swung about the hand — fore or
+     aft, whichever is the smaller turn — exactly far enough to clear it,
+     which is what a trailing pole does when the hill comes up to meet it.
+     One matrix update and one height sample per pole. */
+  const _gp = new THREE.Vector3();
+  const _tip = new THREE.Vector3();
+  const _ax = new THREE.Vector3();
+  const _az = new THREE.Vector3();
+  const _cr = new THREE.Vector3();
+  const _tq = new THREE.Quaternion();
+  const wrapPi = (x) => Math.atan2(Math.sin(x), Math.cos(x));
+  /* The smallest turn about the unit axis `k` that raises the end of `p` by
+     `rise` (negative lowers it). Turned by Δ, the end's height is
+     (p·y − w)·cos Δ + (k × p)·y·sin Δ + w, with w = k·y (k · p); out of
+     reach, it is the turn that gets closest. */
+  function turnFor(p, k, rise) {
+    const w = k.y * k.dot(p);
+    const A = p.y - w;
+    const B = _cr.crossVectors(k, p).y;
+    const R = Math.hypot(A, B);
+    if (R < 1e-6) return 0;
+    const phi = Math.atan2(B, A);
+    const c = Math.acos(Math.min(1, Math.max(-1, (A + rise) / R)));
+    const d1 = wrapPi(phi - c);
+    const d2 = wrapPi(phi + c);
+    return Math.abs(d1) < Math.abs(d2) ? d1 : d2;
+  }
+  function liftTips(npc) {
+    npc.mesh.updateMatrixWorld(true);
+    for (const a of npc.arms) {
+      if (!a.tip) continue;
+      _gp.setFromMatrixPosition(a.grip.matrixWorld);
+      _tip.copy(a.tip).applyMatrix4(a.grip.matrixWorld).sub(_gp);
+      const snow = heightAt(_gp.x + _tip.x, _gp.z + _tip.z) + NPC_POLE.clear;
+      _ax.setFromMatrixColumn(a.grip.matrixWorld, 0).normalize();
+      /* Planted, the tip goes *onto* the snow, not merely above it — by
+         turning the pole in or out at the hand, so it lands where the swing
+         put it along the travel. */
+      if (a.plantW > 0.01) {
+        _az.setFromMatrixColumn(a.arm.matrixWorld, 2).normalize();
+        const dz = turnFor(_tip, _az, snow - _gp.y - _tip.y) * a.plantW;
+        const out = Math.max(0.05, a.out + a.side * dz);
+        const turned = (out - a.out) * a.side;
+        a.out = out;
+        _tq.setFromAxisAngle(_az, turned);
+        _tip.applyQuaternion(_tq);
+        _ax.applyQuaternion(_tq);
+        // …and if the hand is riding too high for that (the figure leaning
+        // the other way still), the tip comes back towards the boot instead
+        const high = snow - _gp.y - _tip.y;
+        if (high < -0.005) {
+          const dx = turnFor(_tip, _ax, high) * a.plantW;
+          a.swing += dx;
+          _tq.setFromAxisAngle(_ax, dx);
+          _tip.applyQuaternion(_tq);
+        }
+      }
+      // Anywhere else, only ever lifted: fore or aft, the smaller turn.
+      const deficit = snow - _gp.y - _tip.y;
+      if (deficit > 0) a.swing += turnFor(_tip, _ax, deficit);
+      a.grip.rotation.set(a.swing, 0, a.side * a.out);
+    }
+  }
+
+  /* The arms, posed for one figure (see `NPC_POLE`). `turn` is the smoothed
+     sideways acceleration over 15 m/s², positive turning towards +X, which
+     is the figure's right and — for a boarder — the toe edge. Every target
+     is a continuous function of the turn's phase or of a smoothed signal,
+     and the bones ease towards it, so nothing here can snap. */
+  const settle = (bone, x, z, rate, dt) => {
+    const k = 1 - Math.exp(-rate * dt);
+    bone.rotation.x += (x - bone.rotation.x) * k;
+    bone.rotation.z += (z - bone.rotation.z) * k;
+  };
+  function poseArms(npc, dt, turn, hipY) {
+    const flail = npc.flail;
+    const t = npc.flailClock || 0;
+    if (npc.kind === 'skier') {
+      /* `d` is the turn's phase since its last edge change: the figure's own
+         path runs TURN_LAG behind `sPhase`, and its edge changes as it
+         crosses its line. The pole that plants is the one on the inside of
+         the turn to come; the other is the one that planted last. */
+      const psi = npc.sPhase - TURN_LAG;
+      const d = ((psi % Math.PI) + Math.PI) % Math.PI;
+      const next = Math.sin(psi) >= 0 ? 1 : -1;
+      const speed = Math.max(4, Math.abs(npc.vz));
+      for (const a of npc.arms) {
+        let reach = 0;
+        let swing = 0;
+        const touch = a.rest + NPC_POLE.ahead;   // the swing that lands the tip ahead of the hand
+        const planted = (since) => {
+          // running past a tip on the snow, `since` seconds after it landed
+          const h = Math.max(0.3, a.handY - (npc.hip - hipY));
+          const lean = Math.atan(Math.tan(-NPC_POLE.ahead) + speed * since / h);
+          return Math.max(0, Math.min(touch, a.rest - lean));
+        };
+        let plant = 0;
+        if (a.side === next) {
+          const f = (d - (Math.PI - NPC_POLE.swing)) / (NPC_POLE.swing - NPC_POLE.lead);
+          reach = f <= 0 ? 0 : f >= 1 ? 1 : f * f * (3 - 2 * f);
+          swing = d > Math.PI - NPC_POLE.lead
+            ? planted((d - (Math.PI - NPC_POLE.lead)) / TURN_RATE)
+            : touch * reach;
+          // brought down onto the snow through the end of the swing, and on
+          // it until the skier has run past it
+          const down = Math.min(1, Math.max(0, (f - 0.55) / 0.35));
+          plant = down * down * (3 - 2 * down) * (swing > 0.05 ? 1 : 0);
+        } else {
+          const f = Math.min(1, d / NPC_POLE.release);
+          reach = 1 - f * f * (3 - 2 * f);
+          swing = planted((d + NPC_POLE.lead) / TURN_RATE);
+          plant = swing > 0.05 ? 1 : 0;
+        }
+        a.plantW += (plant * (1 - flail) - a.plantW) * (1 - Math.exp(-25 * dt));
+        /* Out to the side as far as it takes to keep the tip off the snow:
+           the pole is `length` long from a hand `handY` up, and turned
+           `rest − swing` from straight down along the travel. */
+        const along = Math.cos(a.rest - swing);
+        const room = (a.handY - NPC_POLE.clear) / Math.max(1e-3, a.length * along);
+        const out = along > 0 && room < 1 ? Math.acos(room) : 0;
+        const armX = NPC_POLE.reach * reach + Math.sin(t * 6.3 + a.side) * 0.9 * flail;
+        const armZ = a.side * (NPC_POLE.wide + 0.5 * flail);
+        settle(a.arm, armX, armZ, 14, dt);
+        // The pole's swing is measured from the body, so the arm's own reach
+        // forward is taken back out of it at the hand.
+        const k = 1 - Math.exp(-30 * dt);
+        a.swing += (swing * (1 - flail) + Math.sin(t * 5.1 + a.side) * 0.8 * flail - a.arm.rotation.x - a.swing) * k;
+        a.out += (out * (1 - flail) - a.out) * k;
+        a.grip.rotation.set(a.swing, 0, a.side * a.out);
+      }
+      liftTips(npc);
+      return;
+    }
+    /* A boarder: the leading arm (−X bone) into a toeside turn and over the
+       nose on a heelside one; the trailing arm out the other way. */
+    const toe = Math.max(0, turn);
+    const heel = Math.max(0, -turn);
+    const [lead, rear] = npc.arms;
+    settle(lead.arm, 0.25 * toe + 0.35 * heel + Math.sin(t * 6.3) * 0.9 * flail,
+      0.45 * toe + 0.12 * heel - 0.5 * flail, 6, dt);
+    settle(rear.arm, -0.25 * toe - 0.20 * heel + Math.sin(t * 5.7 + 1) * 0.9 * flail,
+      -0.40 * toe - 0.42 * heel + 0.5 * flail, 6, dt);
   }
 
   return {
@@ -1290,6 +1700,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
           // Folded over the skis rather than riding above them.
           npc.body.position.y = npc.hip - 0.05;
           npc.body.rotation.set(0.55, 0, 0.30);
+          // …and the arms (and the poles) going everywhere.
+          npc.flail += (1 - npc.flail) * (1 - Math.exp(-8 * dt));
+          npc.flailClock = (npc.flailClock || 0) + dt;
+          poseArms(npc, dt, 0, npc.body.position.y);
           if (npc.tumbleTimer <= 0) {
             npc.tumbled = false;
             npc.vz = -(11 + (i % 4) * 3);
@@ -1309,11 +1723,11 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
 
         // Easy S-turns about the nearest branch line, so they stay on the
         // corduroy through forks instead of skiing the island.
-        npc.sPhase += dt * 1.35;
+        npc.sPhase += dt * TURN_RATE;
         const edge = Math.sin(npc.sPhase);
         const sTurn = edge * 12.0;
         const targetX = nearestCenter(npc.x, npc.z) + sTurn;
-        npc.vx = (targetX - npc.x) * 2.2;
+        npc.vx = (targetX - npc.x) * TURN_GAIN;
 
         // How far back onto their feet they are: 0 the frame the tumble
         // ends, 1 once they are riding. Speed returns with it rather than
@@ -1347,8 +1761,18 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         const yBehind = heightAt(npc.x - hRatio * 0.9, zBehind);
         const pitch = Math.atan2(yAhead - yBehind, 1.8);
 
-        // Bank angle (lean into the carve)
-        const bank = Math.max(-0.35, Math.min(0.35, -npc.vx * 0.045));
+        /* Bank angle: the lean into the carve, which is the turn's sideways
+           acceleration. It used to be the sideways *speed*, which put the
+           most lean where the path crosses its line — the straight bit
+           between two turns, where a rider is changing edges and stands up —
+           and none at the fall line, where the turn is tightest. The poles
+           (`poseArms`) keep time with the edge changes, so the lean has to
+           change at them too. Clamped and eased, because a figure handed
+           back from beyond the fog arrives with a sideways speed to lose. */
+        const ax = (npc.vx - npc.vxLast) / Math.max(dt, 1e-3);
+        npc.vxLast = npc.vx;
+        npc.ax += (Math.max(-30, Math.min(30, ax)) - npc.ax) * (1 - Math.exp(-6 * dt));
+        const bank = Math.max(-0.35, Math.min(0.35, -npc.ax * 0.016));
 
         npc.mesh.rotation.set(pitch, -yaw, bank);
 
@@ -1362,6 +1786,10 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         b.position.y = npc.hip - 0.055 * load - 0.05 * (1 - up);
         b.rotation.set(0.055 * Math.cos(npc.sPhase * 2.0),
           yaw * npc.counter, -bank * 0.55);
+        // The arms: poles in time with the turns, or a boarder's balance.
+        npc.flail *= Math.exp(-3 * dt);
+        npc.flailClock = (npc.flailClock || 0) + dt;
+        poseArms(npc, dt, Math.max(-1, Math.min(1, npc.ax / 15)), b.position.y);
 
         /* …and while they are still getting up, both halves of the figure
            are swung from the attitude the tumble left them in towards the
@@ -1412,17 +1840,19 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
     },
     /* Swap every figure for its modelled self. The meshes, their material
        and their shadows stay; the hip the body hangs from moves to the one
-       the file says. */
+       the file says, and the bones move to the joints it was modelled on and
+       are bound there again. */
     adopt(nodes) {
       const built = npcs.map((npc) => modelledFigure(nodes, npc.kind, npc.dress));
       npcs.forEach((npc, i) => {
-        const { deck, body, hip } = built[i];
+        const { deck, body, hip, arms } = built[i];
         npc.deck.geometry.dispose();
         npc.deck.geometry = deck;
         npc.body.geometry.dispose();
         npc.body.geometry = body;
         npc.body.position.y += hip - npc.hip;
         npc.hip = hip;
+        npc.arms = rigBody(npc.body, arms, hip);
       });
     },
     /* The lift and the guns as modelled: `liftReady` settles true once
@@ -1452,6 +1882,9 @@ export function createMountainLife(THREE, scene, shading, spray, audio) {
         npc.mesh.rotation.set(0, 0, 0);
         npc.body.position.y = npc.hip;
         npc.body.rotation.set(0, 0, 0);
+        npc.ax = 0;
+        npc.vxLast = 0;
+        npc.flail = 0;
       }
     },
   };
