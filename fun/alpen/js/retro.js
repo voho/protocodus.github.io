@@ -685,6 +685,13 @@ export function createRetro(THREE, renderer) {
   let slowFor = 0;
   let fastFor = 0;
   let stallRun = 0;   // consecutive frames past the stall threshold
+  // Where the current walk down began, and its slowest frame time — see the
+  // note on the floor in `updatePerformance`.
+  let descentFrom = 0;
+  let descentFrame = 0;
+  let capped = false;      // the last walk to the floor bought nothing
+  let failedScale = 0;     // the scale that last proved too slow…
+  let retryAfter = 6;      // …and the comfortable seconds owed before retrying it
   let sized = false;
   let fallFx = 0;
   let fallHold = 0;
@@ -814,21 +821,54 @@ export function createRetro(THREE, renderer) {
     // A persistent 50 FPS is already visibly uneven on a 60 Hz display.
     // Keep hysteresis around 60, while still ignoring isolated refill hitches.
     if (averageFrame > 1 / 55) {
-      slowFor += dt;
+      // Bounded: only its crossing of 1.6 s is read, and a capped minute
+      // banked here would walk the scale down the moment the cap lifted.
+      slowFor = Math.min(3, slowFor + dt);
       fastFor = Math.max(0, fastFor - dt * 2);
     } else if (averageFrame < 1 / 57) {
       fastFor += dt;
       slowFor = Math.max(0, slowFor - dt);
+      descentFrom = 0;
+      // A sustained real frame rate means whatever was capping it has gone.
+      if (fastFor > 2) capped = false;
     } else {
       slowFor = Math.max(0, slowFor - dt * 0.5);
       fastFor = Math.max(0, fastFor - dt * 0.5);
     }
 
+    /* A slow frame clock is not always a slow GPU. It includes vsync, so a
+       50 Hz panel, a power saver's 30 fps cap or a busy CPU all read exactly
+       like an overloaded GPU — and were answered by walking down to the
+       minimum scale: a third of the pixels, for no frames at all. Where the
+       GPU's own time is known, a GPU that is mostly idle vetoes the walk.
+       Where it is not, the walk is judged when it reaches the floor: no
+       faster than where it began means resolution was never the problem, so
+       it goes back up and stays there until the frame rate is free again. */
+    const gpuBound = gpuMs === null || gpuMs / 1000 > averageFrame * 0.6;
     let next = scale;
-    if (slowFor > 1.6 && scale > RENDER.minScale) {
-      next = Math.max(RENDER.minScale, Math.round((scale - 0.1) * 20) / 20);
-    } else if (fastFor > 6 && scale < RENDER.maxScale) {
-      next = Math.min(RENDER.maxScale, Math.round((scale + 0.05) * 20) / 20);
+    if (slowFor > 1.6 && gpuBound && !capped) {
+      if (scale > RENDER.minScale) {
+        // The slowest the walk has seen, not where it began: a load that
+        // grew on the way down must not read as resolution doing nothing.
+        if (!descentFrom) {
+          descentFrom = scale;
+          descentFrame = 0;
+        }
+        descentFrame = Math.max(descentFrame, averageFrame);
+        // A scale that fails again waits twice as long before its next try,
+        // rather than costing a second of dropped frames every few seconds.
+        retryAfter = Math.abs(scale - failedScale) < 0.01 ? Math.min(120, retryAfter * 2) : 6;
+        failedScale = scale;
+        next = Math.max(RENDER.minScale, Math.round((scale - 0.1) * 20) / 20);
+      } else if (descentFrom && averageFrame > descentFrame * 0.92) {
+        next = descentFrom;
+        capped = true;
+        descentFrom = 0;
+        failedScale = 0;
+      }
+    } else if (scale < RENDER.maxScale) {
+      const up = Math.min(RENDER.maxScale, Math.round((scale + 0.05) * 20) / 20);
+      if (fastFor > (up > failedScale - 0.01 ? retryAfter : 6)) next = up;
     }
     if (next === scale) return false;
 
@@ -864,7 +904,6 @@ export function createRetro(THREE, renderer) {
         timeGpu = true;
       }
     }
-    renderer.info.reset();
     // Every post shader covers its target completely. Clear the world once;
     // autoClear otherwise clears it twice and each fullscreen pass again.
     const autoClear = renderer.autoClear;

@@ -299,7 +299,9 @@ export class Rider {
     this.touchdownIn = Infinity; // seconds until the predicted landing
     this._landClock = 0;
 
-    this.compression = 0;
+    // Standing at rest: one g of squat, which is what the spring settles to.
+    // From zero, every restart opened with the rider bobbing down into it.
+    this.compression = RIDER.compressPerG * RIDER.gravity / 9.81;
     this.compressionVel = 0;
     this.extension = 0;      // how far off the snow the board is floating
     this.gLoad = 1;
@@ -1371,7 +1373,11 @@ export class Rider {
         stroke.addScaledVector(n, -stroke.dot(n)).normalize();
         if (this.switchStance) stroke.multiplyScalar(-1);
         stroke.multiplyScalar(0.65).add(flow).normalize();
-        vel.addScaledVector(stroke, RIDER.pushImpulse);
+        /* A stroke has to out-push the snow it is standing in. At rest,
+           powder's friction and plough take about 4.7 m/s² against the
+           stroke's 2.4 average, so each one died in a third of a second and
+           a hollow a hand deep held a stopped rider for good. */
+        vel.addScaledVector(stroke, RIDER.pushImpulse * (1 + deep));
         this.pushStroke += 1;
         this.emit('push', RIDER.pushImpulse, this.pushStroke);
       }
@@ -1384,8 +1390,11 @@ export class Rider {
 
     // Gravity, a collision or a severe wash-out may have arrived from outside
     // the board frame. Keep those exceptional vectors in the forward half of
-    // the generated course as well.
-    this.limitCourseVelocity(vel, n, courseLimit);
+    // the generated course as well. Not with the press's widened limit: that
+    // opens for the board alone (see above), and handed to the momentum it
+    // let a slow butter carry the run round and back up the mountain.
+    this.limitCourseVelocity(vel, n,
+      brakeActive ? RIDER.brakeCourseLimit : RIDER.courseLimit);
 
     // The two forward constraints above still allow opposite traverses: both
     // can be down-course while one is tail-first relative to the board. Remove
@@ -2095,6 +2104,9 @@ export class Rider {
       vel.z += windZ * RIDER.windAir * dt;
     }
 
+    const x0 = pos.x;
+    const y0 = pos.y;
+    const z0 = pos.z;
     pos.x += vel.x * dt;
     // Trapezoidal integration is exact for constant acceleration, so the
     // simulated centre of mass stays on y = y0 + vy0·t - ½g·t² instead of
@@ -2152,7 +2164,8 @@ export class Rider {
       // `RIDER.buryDepth`.
       const descending = vel.y <= 0 || gy - pos.y > RIDER.buryDepth;
       if (this.airTime >= RIDER.launchContactGrace && descending && approaching) {
-        pos.y = gy;
+        this.firstContact(x0, y0, z0);
+        pos.y = this.world.height(pos.x, pos.z);
         this.land();
       } else {
         // Separating or rising contact is not a landing. Keep the ballistic
@@ -2163,6 +2176,26 @@ export class Rider {
     } else {
       this.extension = pos.y - gy;
     }
+  }
+
+  /* Back along this step to where it first met the snow. Touchdown used to
+     put the rider straight up from wherever the step ended, and a fast arc
+     into a steep face ends its step most of a metre inside the hill — a
+     one-step jump upwards on landing. Only a step that began above the snow
+     has a crossing to find. */
+  firstContact(x0, y0, z0) {
+    const { pos } = this;
+    const height = this.world.height;
+    if (y0 <= height(x0, z0)) return;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 5; i++) {
+      const s = (lo + hi) * 0.5;
+      if (y0 + (pos.y - y0) * s > height(x0 + (pos.x - x0) * s, z0 + (pos.z - z0) * s)) lo = s;
+      else hi = s;
+    }
+    pos.x = x0 + (pos.x - x0) * hi;
+    pos.z = z0 + (pos.z - z0) * hi;
   }
 
   /* THE BOARD'S ATTITUDE IN THE AIR, which the air used to throw away.
@@ -2582,13 +2615,17 @@ export class Rider {
       if (this.airborne) {
         vel.y -= RIDER.gravity * dt;
         vel.multiplyScalar(Math.max(0, 1 - RIDER.fallDrag * dt));
+        const x0 = pos.x;
+        const y0 = pos.y;
+        const z0 = pos.z;
         pos.x += vel.x * dt;
         pos.y += vel.y * dt;
         pos.z += vel.z * dt;
 
         const ny = this.world.height(pos.x, pos.z);
         if (pos.y <= ny) {
-          pos.y = ny;
+          this.firstContact(x0, y0, z0);
+          pos.y = this.world.height(pos.x, pos.z);
           const n = normalFrom(this.world.height, pos.x, pos.z, this._n);
           this.normal.copy(n);
           const into = vel.dot(n);
@@ -2871,7 +2908,8 @@ export function trickName(s, verdict) {
    than choosing a second number is the point: the two paths now agree about
    what "completed" means by construction, and cannot drift apart. */
 export function butterHalfTurns(spin) {
-  return Math.floor((Math.abs(spin) + RIDER.landWindow) / Math.PI);
+  return Math.min(RIDER.pressMaxHalfTurns,
+    Math.floor((Math.abs(spin) + RIDER.landWindow) / Math.PI));
 }
 
 /* And what it is called, which is a name rather than a sentence for the same

@@ -225,7 +225,7 @@ export function createAudio() {
        are silent either way, and the gains have to keep tracking the run —
        frozen at their pre-mute values, unmuting at a standstill replayed a
        third of a second of 120 km/h wind before the ramps caught up. */
-    if (!started || !ctx || parked) return;
+    if (!started || !ctx || parked || ctx.state !== 'running') return;
 
     const ms = performance.now();
     if (ms - ambienceAt < 35) return;
@@ -284,13 +284,15 @@ export function createAudio() {
 
   /* --- one-shots ------------------------------------------------------- */
 
-  /* Both one-shot builders refuse to schedule into a parked context. Nothing
-     should be asking — the simulation that fires them stops when the game
-     pauses — but a sound scheduled against a suspended clock would sit in the
+  /* Both one-shot builders refuse to schedule into a context that is not
+     running. A sound scheduled against a suspended clock would sit in the
      queue and all play at once, stale, on the next resume, which is worse
-     than the sound simply not happening. */
+     than the sound simply not happening — and a pause is not the only way
+     to get one: a run started from the pad has no user activation, its
+     resume is refused, and the game goes on playing into the frozen clock
+     until the next key or tap. */
   function tone(freq, endFreq, dur, gain, type = 'sine', delay = 0) {
-    if (!started || !ctx || parked) return;
+    if (!started || !ctx || parked || ctx.state !== 'running') return;
     const t = now() + delay;
     const o = ctx.createOscillator();
     const g = ctx.createGain();
@@ -306,7 +308,7 @@ export function createAudio() {
   }
 
   function burst(dur, freq, gain, type = 'lowpass', sweepTo = null, delay = 0, buffer = null, pan = 0) {
-    if (!started || !ctx || parked) return;
+    if (!started || !ctx || parked || ctx.state !== 'running') return;
     const t = now() + delay;
     const src = ctx.createBufferSource();
     src.buffer = buffer || brownBuf;
@@ -516,7 +518,7 @@ export function createAudio() {
        spaced terrain samples from becoming a machine-gun while preserving
        distinct, diminishing thumps as the rider actually bounces. */
     bodyImpact(impact) {
-      if (!started || !ctx || parked) return;
+      if (!started || !ctx || parked || ctx.state !== 'running') return;
       const t = now();
       if (t - lastBodyImpact < 0.11) return;
       lastBodyImpact = t;
@@ -570,7 +572,11 @@ export function createAudio() {
         // can report 'interrupted' rather than 'running', and a refusal is
         // fine: the gains are at zero either way.
         if (parked && ctx.state !== 'suspended' && ctx.state !== 'closed') {
-          ctx.suspend().catch(() => { /* muted is silent enough */ });
+          ctx.suspend().then(() => {
+            // A `start` that landed while this was in flight found the
+            // context still running and asked for nothing; ask for it now.
+            if (!parked) start();
+          }, () => { /* muted is silent enough */ });
         }
       }, 350);
     },

@@ -453,7 +453,13 @@ const retro = createRetro(THREE, renderer);
 retro.setSize(1280, 720);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera();
-retro.render(scene, camera);
+// main.js starts the frame's statistics before the probe and rider-shadow
+// passes, then hands the world to retro.
+const renderFrame = () => {
+  renderer.info.reset();
+  retro.render(scene, camera);
+};
+renderFrame();
 const fullPasses = submissions;
 const fullWidth = retro.width;
 assert.equal(fullPasses, 8, 'world, tight bloom, wide bloom and composite');
@@ -511,31 +517,37 @@ retro.updatePerformance(0.6);
 assert.equal(retro.scale, RENDER.maxScale, 'an isolated stall does not reduce resolution');
 for (let i = 0; i < 120; i++) retro.updatePerformance(1 / 50);
 assert.ok(retro.scale < RENDER.maxScale, 'persistent 50 FPS pressure targets smoother 60 Hz riding');
-for (let i = 0; i < 300; i++) { retro.updatePerformance(1 / 25); retro.updateEffects(1 / 25); }
+// A GPU too slow even at the floor: the frame shrinks with the pixel count
+// but never gets back under the 55 Hz line.
+for (let i = 0; i < 600; i++) {
+  const dt = 0.012 + 0.03 * retro.scale * retro.scale;
+  retro.updatePerformance(dt);
+  retro.updateEffects(dt);
+}
 assert.equal(retro.scale, RENDER.minScale, 'sustained pressure reaches the quality floor');
 assert.ok(retro.width < fullWidth);
 assert.equal(retro.displayWidth, 1280, 'final output remains native size');
 assert.equal(canvasSizes, 1, 'governor does not reallocate the visible canvas');
 for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60);
-retro.render(scene, camera);
+renderFrame();
 assert.equal(submissions, fullPasses - 3, 'settled low quality removes exactly the three halo passes');
 assert.ok(lastComposite.uBloomWide.value < 0.001, 'halo fades before its passes stop');
 for (let i = 0; i < 90 * 80; i++) { retro.updatePerformance(1 / 90); retro.updateEffects(1 / 90); }
 assert.equal(retro.scale, RENDER.maxScale, 'sustained headroom recovers full resolution');
-retro.render(scene, camera);
+renderFrame();
 assert.equal(submissions, fullPasses, 'wide halo returns with recovered quality');
 assert.equal(retro.width, fullWidth);
 assert.equal(canvasSizes, 1);
 retro.setSun(0.5, 0.8, 1);
-retro.render(scene, camera);
+renderFrame();
 assert.equal(submissions, fullPasses + 1);
 assert.equal(clears, 1);
 assert.equal(lastComposite.uRays.value, GRADE.rays, 'visible rays retain their authored strength');
 retro.setSun(0.5, 0.8, 0);
-retro.render(scene, camera);
+renderFrame();
 assert.equal(clears, 2, 'sunset clears the former ray image once');
 assert.equal(lastComposite.uRays.value, 0, 'ray sampling stops on the same frame as the light pass');
-retro.render(scene, camera);
+renderFrame();
 assert.equal(clears, 1, 'settled darkness stops clearing the unused ray target');
 retro.fade(0.6);
 for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60, false);
@@ -543,6 +555,26 @@ assert.equal(retro.animating, false, 'paused fade settles so rendering can sleep
 retro.fade(1);
 for (let i = 0; i < 120; i++) retro.updateEffects(1 / 60);
 assert.equal(retro.animating, false, 'resume fade settles normally');
+
+// A capped frame rate is not a slow GPU. Walking down buys nothing, so the
+// walk is undone at the floor and not retried while the cap holds.
+{
+  const capped = createRetro(THREE, renderer);
+  capped.setSize(1280, 720);
+  for (let i = 0; i < 30 * 30; i++) capped.updatePerformance(1 / 30);
+  assert.equal(capped.scale, RENDER.maxScale, 'a 30 fps cap ends at full resolution');
+  // Near the budget, a scale that fails again waits longer before its next
+  // try instead of costing a second of dropped frames every few seconds.
+  const edge = createRetro(THREE, renderer);
+  edge.setSize(1280, 720);
+  let resizes = 0;
+  for (let t = 0; t < 600;) {
+    const dt = Math.max(1 / 60, (3 + 15.2 * edge.scale * edge.scale) / 1000);
+    t += dt;
+    if (edge.updatePerformance(dt)) resizes++;
+  }
+  assert.ok(resizes < 40, `near the budget the scale settles (${resizes} resizes in ten minutes)`);
+}
 
 // Timer results are optional and read only after the driver reports ready.
 let available = false, disjoint = false, timerActive = false, queries = 0;
@@ -586,6 +618,10 @@ assert.equal(timed.gpuReusedShadowMs, null);
 disjoint = false;
 for (let i = 0; i < 13; i++) timed.render(scene, camera);
 assert.equal(timed.gpuFreshShadowMs, 11, 'shadow refresh timing follows the sampled frame');
+// Eleven milliseconds of GPU work in a 30 fps frame: the frame is long for
+// some other reason, and a lower resolution would not shorten it.
+for (let i = 0; i < 30 * 10; i++) timed.updatePerformance(1 / 30);
+assert.equal(timed.scale, RENDER.maxScale, 'an idle GPU vetoes the walk down');
 contextLost = true;
 renderer.domElement.dispatchEvent(new Event('webglcontextlost'));
 assert.equal(timed.gpuMs, null, 'context loss clears stale GPU diagnostics');

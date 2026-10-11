@@ -200,6 +200,13 @@ once per press; and `rumble` falls back to `navigator.vibrate` only on a
 bound touch pad, after a user gesture, and only for the stronger pulses.
 HUD checks cover mode transitions, controls disclosure, focus and idle DOM writes.
 The graphics check uses a renderer stub; it does not compile GPU shaders.
+Its resolution governor cases tell a slow GPU from a slow frame clock: a
+30 fps cap (or a frame time resolution does not change) walks down, finds
+nothing gained at the floor and returns to full resolution for good; a GPU
+timer showing idle time vetoes the walk outright; and a GPU just over budget
+settles in under 40 resizes in ten minutes instead of cycling every few
+seconds. Counted passes start from `info.reset()`, which main.js now calls
+once per frame before the probe and rider-shadow passes.
 It exercises all six snowfall bands across nine times of day, cloud extinction,
 night-storm visibility, the modelled skyline's occlusion and its fallback.
 It also pins the sun's depth-map box half a box ahead of the rider along the

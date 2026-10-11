@@ -84,6 +84,12 @@ export function createRiderShadow(THREE, renderer, shading) {
     const needsUpdate = renderer.shadowMap.needsUpdate;
     const autoClear = renderer.autoClear;
     const previous = renderer.getRenderTarget();
+    /* Only the rider is drawn here, so only the rider's matrices have to be
+       current. Left to the render, this pass updated every matrix in the
+       scene a second time each frame; the frame's own render does that. */
+    const autoWorld = scene.matrixWorldAutoUpdate;
+    root.updateMatrixWorld();
+    scene.matrixWorldAutoUpdate = false;
     renderer.shadowMap.autoUpdate = false;
     renderer.shadowMap.needsUpdate = false;
     renderer.autoClear = false;
@@ -92,6 +98,7 @@ export function createRiderShadow(THREE, renderer, shading) {
     renderer.clear(false, true, false);
     renderer.render(scene, camera);
     scene.overrideMaterial = null;
+    scene.matrixWorldAutoUpdate = autoWorld;
     renderer.setRenderTarget(previous);
     renderer.autoClear = autoClear;
     renderer.shadowMap.autoUpdate = autoUpdate;

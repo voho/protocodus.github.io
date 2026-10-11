@@ -471,14 +471,15 @@ export function createBackdrop(THREE, { sunDir, noise, rockDetail }) {
   }
 
   /* The eight horizons' weights for a sun on `bearing`: the two either side
-     of it, shared linearly. */
+     of it, shared linearly. Called every frame, so the scratch is kept. */
+  const sunWeights = new Float32Array(8);
   function setSun(bearing) {
     const n = BACKDROP.horizons;
     let f = (bearing / TAU) * n;
     f -= Math.floor(f / n) * n;
     const i = Math.floor(f) % n;
     const t = f - Math.floor(f);
-    const w = new Float32Array(8);
+    const w = sunWeights.fill(0);
     w[i] = 1 - t;
     w[(i + 1) % n] += t;
     uniforms.uSunA.value.set(w[0], w[1], w[2], w[3]);

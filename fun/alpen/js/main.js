@@ -409,6 +409,14 @@ model.root.traverse((o) => {
   o.castShadow = false;
   o.layers.enable(RIDER_SHADOW_LAYER);
 });
+/* The lights join that layer too, though the pass draws depth and lights
+   nothing. three keeps one light state per scene and gathers only the lights
+   the camera's layers can see, so a pass without them changed that state
+   twice a frame — and every lit material in the world then re-derived its
+   shader program on every frame. */
+sky.lights.traverse((o) => {
+  if (o.isLight) o.layers.enable(RIDER_SHADOW_LAYER);
+});
 const riderShadow = createRiderShadow(THREE, renderer, shading);
 
 const chase = createChaseCamera(THREE, camera);
@@ -509,6 +517,7 @@ const stepFrom = new THREE.Vector3();
 const truePos = new THREE.Vector3();
 const viewPos = new THREE.Vector3();
 let stepFromYaw = 0;
+let stepFromFlip = 0;
 let hadStep = false;
 
 function showMuted(value) {
@@ -535,12 +544,17 @@ function showMuted(value) {
    comes up silent. Unlocking it early costs nothing — there is nothing
    playing yet. */
 let bootReady = false;
+// Whether a run has been dropped into yet — not the same as being in attract
+// mode, which a lost graphics context also leaves (see `webglcontextlost`).
+let runStarted = false;
+// Nothing draws while the context is gone, so nothing may start a run.
+let contextLost = false;
 
 function begin() {
   if (game.mode === 'playing') return;
   audio.start();
   showMuted(audio.muted);
-  if (!bootReady) return;
+  if (!bootReady || contextLost) return;
   /* A run starts at the top of the mountain. `restart()` alone resumes from
      wherever the rider is standing, and on the title screen that is wherever
      the attract demo has carved to — so a player who read the controls for
@@ -548,7 +562,8 @@ function begin() {
      already behind them and nothing above them but a mountain they never
      rode. The full reset forgets any checkpoint and puts them on the start
      line at z = 0, where the seeded mountain begins. */
-  if (game.mode === 'attract') restart(true);
+  if (!runStarted) restart(true);
+  runStarted = true;
   game.mode = 'playing';
   pausedRendered = false;
   curtain.classList.remove('on');
@@ -681,6 +696,12 @@ function onKey(e) {
     restartRun();
     return;
   }
+  /* Only a key that reads as "go" starts or resumes the run. A modifier, a
+     shortcut or a system key — Alt+Tab, Cmd+L, F12, a volume key — used to
+     resume a paused run on its way to somewhere else. */
+  if (e.altKey || e.ctrlKey || e.metaKey) return;
+  const key = e.key || '';
+  if (key.length !== 1 && key !== 'Enter' && !key.startsWith('Arrow')) return;
   if (game.mode !== 'playing') begin();
 }
 
@@ -693,7 +714,7 @@ function onKey(e) {
    screen used to resume the run in silence until something else happened
    to call `begin`. */
 function restartRun() {
-  if (game.mode === 'attract' || !bootReady) return;
+  if (!runStarted || !bootReady || contextLost) return;
   audio.start();
   showMuted(audio.muted);
   restart();
@@ -725,9 +746,13 @@ touchMute?.addEventListener('click', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pause();
 });
+// Focus going to another window releases every held key (input.js), so a run
+// left going after it is a run nobody is steering.
+window.addEventListener('blur', pause);
 
 canvas.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
+  contextLost = true;
   game.mode = 'paused';
   pausedRendered = true;
   curtain.dataset.screen = 'paused';
@@ -739,6 +764,8 @@ canvas.addEventListener('webglcontextlost', (e) => {
 });
 
 canvas.addEventListener('webglcontextrestored', () => {
+  contextLost = false;
+  sky.refreshProbe();
   const note = curtain.querySelector('.pause-only.tagline');
   if (note) note.textContent = 'Paused.';
   chase.reset();
@@ -1074,6 +1101,12 @@ function checkGates() {
        to thread — which could be kilometres uphill. It respawns on the line
        itself, which is the middle of the groomed ribbon. */
     lastPassedGate = { x: g.x, z: g.z - 3.0 };
+    // A body tumbling through the panels did not ride them: no payout, and
+    // the run of linked gates ends as it would on a miss.
+    if (rider.state === 'fall') {
+      game.gateRun = 0;
+      continue;
+    }
     const t = (zFrom - g.z) / (zFrom - zTo || 1);
     const x = prev.x + (rider.pos.x - prev.x) * t;
     if (Math.abs(x - g.x) > g.half) {
@@ -1263,7 +1296,6 @@ function sweepBox(ax, az, bx, bz, s, radius, out) {
 }
 
 function collide() {
-  if (rider.state === 'fall') return;
   const zLo = Math.min(prev.z, rider.pos.z) - RIDER.radius;
   const zHi = Math.max(prev.z, rider.pos.z) + RIDER.radius;
   // The huts keep their own short list; see `HUT_BOXES` in huts.js.
@@ -1310,6 +1342,20 @@ function collideWith(solids, zLo, zHi) {
       continue;
     }
     const contact = s.contact || s;
+    /* Inside a rock or a log when the step began, never having touched it:
+       the rider came down onto it from above, having cleared its side in the
+       air. Pushing them out from there threw them up to a metre and a half
+       sideways — often back up their own path and into a full-speed strike —
+       so they ride off it instead. A hut's box is a building: landing on it
+       is still a crash. */
+    if (sweepHit.t === 0 && !contact.hit && s.hw === undefined) continue;
+    // A tumbling body is held out of what it slides into, and only held: the
+    // wipeout has already happened. Left out, it slid through every trunk,
+    // rock and hut wall in its path.
+    if (rider.state === 'fall') {
+      if (s.volume) holdOut(1);
+      continue;
+    }
     if (s.kind === SOFT) {
       if (contact.hit) continue;
       contact.hit = true;
@@ -1462,6 +1508,14 @@ let cpuFrameMs = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const cpuStart = performance.now();
+  /* A pending resize is applied here, before this frame draws, rather than in
+     its own callback. That callback was queued after this one, so it resized
+     — and thereby cleared — the canvas after the frame had been drawn, and
+     every resize, rotation or pixel-ratio change showed one black frame. */
+  if (resizeFrame) {
+    cancelAnimationFrame(resizeFrame);
+    resize();
+  }
   if (!last) last = now;
   // The unclamped delta exists for exactly one consumer: the resolution
   // governor, which has to tell a sustained 20 fps (act) from a one-off
@@ -1498,9 +1552,8 @@ function frame(now) {
       const offLine = Math.abs(rider.pos.x - guideAt(rider.pos.z));
       if (demo.stall > 2.5 || offLine > 34) {
         const z = rider.pos.z - 4;
-        rider.reset(z);
-        rider.pos.x = guideAt(z);
-        rider.pos.y = world.height(rider.pos.x, z);
+        // On the line, so the board frame is built from the snow it stands on.
+        rider.reset(z, guideAt(z));
         hadStep = false;
         demo.stall = 0;
         /* The spawn is meant to be invisible, and two systems could still
@@ -1522,7 +1575,9 @@ function frame(now) {
       prev.copy(rider.pos);
       // Where the newest step began, kept for the render interpolation below.
       stepFrom.copy(rider.pos);
-      stepFromYaw = rider.yaw;
+      // The drawn angles: physics plus the landing snap's undrained glide.
+      stepFromYaw = rider.yaw + rider.yawGlide;
+      stepFromFlip = rider.flip + rider.flipGlide;
       hadStep = true;
       rider.step(STEP, control);
       // A latched tap is retired by the step that read it, never by the frame
@@ -1599,7 +1654,8 @@ function frame(now) {
       u.uFar.value = w.fogFar;
     }
     sky.update(viewPos, w, dt);
-    mountainLife.update(dt, rider, w);
+    // The demo rider is spared a knock-down, as it is spared every solid.
+    mountainLife.update(dt, rider, w, game.mode === 'attract');
     // The terrain's horizon atlas evaluates this direction immediately; a
     // re-anchor only precalculates geometry and the direction-independent
     // horizon facts for the next patch of mountain.
@@ -1678,24 +1734,30 @@ function frame(now) {
        restored before the frame returns. See the note beside `stepFrom`. */
     let viewSwapped = false;
     let trueYaw = 0;
+    let trueFlip = 0;
     if (hadStep && game.mode !== 'paused') {
       truePos.copy(rider.pos);
       trueYaw = rider.yaw;
+      trueFlip = rider.flip;
       rider.pos.copy(viewPos);
-      // `yawGlide` is the un-drained remainder of the last landing snap —
-      // presentation only, so it is subtracted here where the pose becomes
-      // a picture and never seen by the physics that wrote it.
-      /* The delta is wrapped to the nearest half turn before it is scaled.
-         Ordinary steps move the yaw a few hundredths of a radian and the
-         wrap is the identity — but the landing snap rewrites the yaw by
-         whole turns in one step (a landed 720 leaves `trueYaw` about 4π
-         from `stepFromYaw`), and lerping across that raw gap swept the
-         model through every heading in between: one frame of the rider
-         facing somewhere arbitrary, on exactly the landings the eye is
-         following most closely. */
-      const yawStep = trueYaw - stepFromYaw;
-      rider.yaw = stepFromYaw + (yawStep - TAU * Math.round(yawStep / TAU)) * stepAlpha
-        + rider.yawGlide;
+      /* What is interpolated is the DRAWN angle — the physics angle plus the
+         glide the last landing snap left behind (presentation only, never
+         seen by the physics that wrote it). That sum is continuous through a
+         landing, where the raw yaw snaps one way and the glide the other;
+         interpolating the raw yaw and adding the new glide on top drew the
+         landing frame up to sixty degrees off for a frame.
+
+         Each delta is wrapped to the nearest whole turn before it is scaled:
+         the snap rewrites the yaw by whole turns (a landed 720 is about 4π)
+         and lerping across that raw gap swept the model through every
+         heading in between. The flip is drawn the same way so a flip does not
+         advance in the 0-1-1 cadence of a fast panel; the rig adds
+         `flipGlide` itself, so it is taken back out here. */
+      const yawStep = trueYaw + rider.yawGlide - stepFromYaw;
+      rider.yaw = stepFromYaw + (yawStep - TAU * Math.round(yawStep / TAU)) * stepAlpha;
+      const flipStep = trueFlip + rider.flipGlide - stepFromFlip;
+      rider.flip = stepFromFlip + (flipStep - TAU * Math.round(flipStep / TAU)) * stepAlpha
+        - rider.flipGlide;
       viewSwapped = true;
     }
 
@@ -1813,6 +1875,7 @@ function frame(now) {
     if (viewSwapped) {
       rider.pos.copy(truePos);
       rider.yaw = trueYaw;
+      rider.flip = trueFlip;
     }
   }
 
@@ -1825,6 +1888,9 @@ function frame(now) {
 
   retro.updateEffects(dt, running);
   if (running || !pausedRendered || retro.animating) {
+    // The frame's statistics start here, so they count the sky probe and the
+    // rider's own shadow as well as the world and the post stack.
+    renderer.info.reset();
     // Where the rider is drawn, which between steps is not where they are
     riderShadow.update(scene, model.root, camera, sky.shadowLevel);
     sky.renderProbe(renderer);

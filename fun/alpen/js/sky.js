@@ -689,6 +689,7 @@ const ramp = (v, a, b) => smooth01(clamp01((v - a) / (b - a)));
 // Into the first tile of a field that repeats at one, which for a tiling
 // texture is not an approximation of anything — it is the same sample
 const frac = (v) => v - Math.floor(v);
+const wrap10 = (v) => v - Math.floor(v / 10) * 10;
 
 /* The texture the dome's clouds are made from: four tiling fields baked once
    into one small plate, so a whole cloud layer costs three filtered fetches
@@ -786,6 +787,7 @@ const DOME_FRAG = `
   uniform float uGlowStrength;
   uniform float uCloud;
   uniform vec2 uCloudDrift;
+  uniform vec2 uCirrusDrift;
   uniform sampler2D uCloudTex;
   uniform float uCirrus;
 #ifdef SKY_PROBE
@@ -858,12 +860,14 @@ const DOME_FRAG = `
        whole tracts of sky are clear. Three filtered fetches of the cloud
        plate replace the eight hashes; mipmapping thins the strands out
        towards the horizon, where they would otherwise alias. The drift is
-       the deck's own, geared by a quarter, which keeps its 64-cell wrap a
-       whole number of plate repeats. Lit like the deck: by the horizon stop,
+       the deck's wind, geared by a quarter, on its own longer repeat (see
+       wrapCirrus in weather.js): the deck's 64-cell wrap is not a whole
+       number of plate repeats once the jet frame turns and stretches it. Lit
+       like the deck: by the horizon stop,
        with the sun's glow forward-scattered through it — white at noon,
        rose at dusk, grey under the moon. */
     if (uCirrus > 0.01) {
-      vec2 cp = dir.xz * (0.55 / max(up, 0.035)) + uCloudDrift * 0.25;
+      vec2 cp = dir.xz * (0.55 / max(up, 0.035)) + uCirrusDrift * 0.25;
       vec2 cq = vec2(dot(cp, vec2(0.8, 0.6)), dot(cp, vec2(-0.6, 0.8)));
       vec4 cw = texture2D(uCloudTex, cq * 0.21 + vec2(0.37, 0.11));
       vec2 fq = cq + (cw.ba - 0.5) * 0.55;
@@ -1425,12 +1429,12 @@ const RANGE_FRAG = `
        none: a horizon with a glacier every few degrees is not a high range,
        it is a marbled one. */
     float tongue = smoothstep(0.62, 0.86,
-      texture2D(uNoise, vec2(vU * 3.2 + 0.31, alt * 0.22 + 0.07)).b);
+      texture2D(uNoise, vec2(vU * 3.25 + 0.31, alt * 0.22 + 0.07)).b);
 
     // The line itself: a level, wobbled by whatever the aspect of the slope
     // is worth, and dragged down wherever a tongue is running
     float line = uLine
-      + (texture2D(uNoise, vec2(vU * 0.9, 0.17)).g - 0.5) * uWobble
+      + (texture2D(uNoise, vec2(vU, 0.17)).g - 0.5) * uWobble
       - tongue * uGlacier;
     float snow = smoothstep(line - 0.05, line + 0.07, alt);
 
@@ -1442,7 +1446,7 @@ const RANGE_FRAG = `
        this is, how fast that column's skyline is falling, and a field read
        four times faster around the range than up it, so the rock arrives as
        vertical ribs. A face is buttresses and gullies, not a wall. */
-    float rib = texture2D(uNoise, vec2(vU * 4.6, alt * 0.55 + 0.41)).r;
+    float rib = texture2D(uNoise, vec2(vU * 4.5, alt * 0.55 + 0.41)).r;
     float crest = alt / max(vTop, 0.06);
     /* The steepness has to be stretched before it is any use. Most of a ring
        is shoulder: the median column's skyline falls at about a fifth and
@@ -1557,6 +1561,7 @@ export function createSky(THREE) {
       uGlowStrength: { value: 1 },
       uCloud: { value: 0 },
       uCloudDrift: { value: new THREE.Vector2() },
+      uCirrusDrift: { value: new THREE.Vector2() },
       uCloudTex: { value: cloudTex },
       uCirrus: { value: 0.6 },
     },
@@ -1636,7 +1641,23 @@ export function createSky(THREE) {
   probeScene.add(probeQuad);
   const probeCamera = new THREE.Camera();
   let probeFormatChecked = false;
+  /* Twenty redraws a second, not one a frame. The probe is the whole sky and
+     range at half a megapixel of HDR plus two dozen draws, and nothing in it
+     moves by a texel between frames: the hour and the cloud drift take
+     minutes, and the dome the eye actually sees is still drawn every frame.
+     A lightning strike and the range's arrival are the exceptions — the fog
+     has to follow those frame by frame — and so is a restored context, whose
+     targets come back empty. */
+  const PROBE_EVERY = 1 / 20;
+  let probeAge = Infinity;
+  let probeForced = true;
+  function refreshProbe() {
+    probeForced = true;
+  }
   function renderProbe(renderer) {
+    if (probeAge < PROBE_EVERY && !probeForced) return;
+    probeAge = 0;
+    probeForced = false;
     // Bytes where float targets cannot be drawn to, as the frame's own
     // targets do (retro.js); decided before the first draw allocates it.
     if (!probeFormatChecked) {
@@ -1682,8 +1703,8 @@ export function createSky(THREE) {
     Math.PI / 2 - BELT.head, BELT.head - BELT.foot,
   ), beltMat);
   belt.renderOrder = -19.5;
-  // One cheap uniform discard at zero is preferable to compiling this program
-  // on the exact frame the first twilight band becomes perceptible.
+  // Drawn through the warm-up so its program is compiled before the first
+  // twilight band needs it; see `update`.
   belt.visible = true;
   group.add(belt);
 
@@ -2347,8 +2368,10 @@ export function createSky(THREE) {
          the raw index rather than the wrapped one, so the last column runs
          to `tiles` instead of back to zero; `tiles` is an integer and the
          field repeats at one, so those are the same coordinate and the ring
-         closes without a seam. Wrapping it here instead would draw the whole
-         field backwards across the final quad. */
+         closes without a seam — as long as every rate RANGE_FRAG reads it at
+         is a whole number of quarters (3.2, 0.9 and 4.6 left a step in the
+         glaciers, snow line and ribs at bearing +x). Wrapping it here instead
+         would draw the whole field backwards across the final quad. */
       along[m] = (i / segments) * HORIZON.tiles;
       p += 3;
       m += 1;
@@ -2694,6 +2717,7 @@ export function createSky(THREE) {
     domeMat.uniforms.uGlowStrength.value = 1 - w.storm * 0.8;
     domeMat.uniforms.uCloud.value = w.cloud;
     domeMat.uniforms.uCloudDrift.value.set(w.cloudX, w.cloudZ);
+    domeMat.uniforms.uCirrusDrift.value.set(w.cirrusX, w.cirrusZ);
     /* Cirrus runs ahead of weather: an unsettled airmass combs the upper sky
        long before anything reaches the mountain, and a settled high leaves it
        nearly bare. The front itself swallows them into the deck. */
@@ -2712,6 +2736,8 @@ export function createSky(THREE) {
        does that. */
     backdropShown += (backdropWant - backdropShown) * (1 - Math.exp(-2.8 * dt));
     if (backdropWant - backdropShown < 0.002) backdropShown = backdropWant;
+    probeAge += dt;
+    if (w.flash > 0 || backdropShown !== backdropWant || warmingLayers) probeForced = true;
 
     // Four hundred and twenty zero-alpha points are cheap enough to remain in
     // the render list. That buys a compiled night-sky program before dusk;
@@ -2747,6 +2773,10 @@ export function createSky(THREE) {
       * (1 - ramp(w.elevation, -0.01, 0.10))
       * (1 - w.storm) * (1 - 0.7 * w.moon) * BELT.gain;
     beltMat.uniforms.uStrength.value = belted;
+    // Compiled during the warm-up like the aurora, then submitted only for
+    // the couple of minutes it shows: all day it was most of the sky's
+    // fragments discarding nothing but its own zero.
+    belt.visible = warmingLayers || belted > 0.003;
     /* Both colours are taken off the weather rather than fixed, so the
        band is a dawn colour at dawn and a dusk one at dusk without knowing
        which it is. The shadow is the sky's own two blues met most of the
@@ -3057,11 +3087,16 @@ export function createSky(THREE) {
     if (shadowRight.lengthSq() < 1e-6) shadowRight.set(1, 0, 0);
     shadowRight.normalize();
     shadowUp.crossVectors(sunDir, shadowRight).normalize();
-    // Refresh at 30 Hz, or sooner after fast travel or a light change.
-    // Freeze both the anchor and light direction between refreshes.
+    // Refresh at 30 Hz, or sooner after a teleport or a light change.
+    // Freeze both the anchor and light direction between refreshes. Ordinary
+    // travel never needs an early refresh: the box leads the rider by ninety
+    // metres and moves in whole texels, so the static shadows it redraws are
+    // the same ones. The old 1.5 m trigger fired on every frame above about
+    // 45 m/s and doubled the 4096² depth pass exactly when the run was
+    // fastest.
     shadowElapsed += dt;
     const shadowStep = !shadowPrimed || shadowElapsed >= 1 / 30
-      || shadowPosition.distanceToSquared(pos) > 2.25
+      || shadowPosition.distanceToSquared(pos) > 400
       || shadowSun.dot(sunDir) < 0.99999;
     if (shadowStep) {
       shadowElapsed %= 1 / 30;
@@ -3211,7 +3246,10 @@ export function createSky(THREE) {
        level sags as it burns off. */
     bu.uSea.value = (1 - (w.airmass ?? 1)) * ramp(w.mist, 0.08, 0.45) * (1 - ramp(w.storm, 0.12, 0.4));
     bu.uSeaTop.value = -620 + 120 * ramp(w.mist, 0.08, 0.6);
-    bu.uSeaDrift.value.set(frac(time * 0.0009), frac(time * 0.0004));
+    // Wrapped at ten, not one: the rolls' second octave samples the drift
+    // at 3.1×, and only a period of ten lands that on a whole repeat — at one
+    // the shoreline round the peaks jumped every eighteen minutes.
+    bu.uSeaDrift.value.set(wrap10(time * 0.0009), wrap10(time * 0.0004));
     backdrop.setSun(w.azimuth);
     backdrop.group.visible = backdropShown > 0.001;
     if (dt > 0) warmSkyLayers = false;
@@ -3278,7 +3316,7 @@ export function createSky(THREE) {
      and the two have to fade out on the same dusk and in the same whiteout.
      One number, owned in one place, read by both. */
   return {
-    group, lights, sunDir, sun, update, project, renderProbe,
+    group, lights, sunDir, sun, update, project, renderProbe, refreshProbe,
     probe: probe.texture, backdropReady, snapBackdrop,
     get shadowLevel() { return key.shadow.intensity; },
   };

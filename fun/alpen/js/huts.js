@@ -779,6 +779,11 @@ function searchSite(b) {
       let y = probe.base + probe.rise + 0.15;
       const cos = Math.cos(yaw);
       const sin = Math.sin(yaw);
+      /* Turned to face the run, the terrace and the near corner of the walls
+         swing back towards the piste: three metres past the edge put four
+         huts in five partly on the corduroy, a wall where a rider carves by.
+         The stride is judged by the footprint as turned, not by its middle. */
+      if (footprintOnPiste(x, z, cos, sin)) continue;
       /* The terrace runs four metres on up the hill from the front wall,
          onto ground the shelf never sampled, and about a site in four had
          snow standing over the front of its deck, the rail and boards cut
@@ -838,6 +843,21 @@ const HUT_BOXES = [
   { x: -3.215, z: 0.5, hw: 0.35, hd: 1.2, kind: JUMPABLE, top: 1.3 },
   { x: 0, z: -3.35, hw: 2.75, hd: 1.15, kind: JUMPABLE, top: 1.5 },
 ];
+
+// Whether any corner of those boxes, turned by the hut's yaw, stands on the
+// groomed corridor or within a metre of it.
+function footprintOnPiste(x, z, cos, sin) {
+  for (const b of HUT_BOXES) {
+    for (let k = 0; k < 4; k++) {
+      const lx = b.x + (k & 1 ? b.hw : -b.hw);
+      const lz = b.z + (k & 2 ? b.hd : -b.hd);
+      const wx = x + lx * cos + lz * sin;
+      const wz = z - lx * sin + lz * cos;
+      if (Math.abs(wx - nearestCenter(wx, wz)) < corridorHalfAt(wz) + 1) return true;
+    }
+  }
+  return false;
+}
 
 export function onHutGround(x, z) {
   const b = Math.floor(-z / HUTS.period);
@@ -1180,6 +1200,9 @@ export function createHuts(THREE, shading) {
 
   const huts = [];
   const claimed = new Set();
+  // Huts the rider has gone down beside since arriving, keyed like `claimed`
+  // so a rebuild of the list cannot forget one.
+  const spoiled = new Set();
   let block = NaN;
 
   /* ==========================================================================
@@ -1385,8 +1408,8 @@ export function createHuts(THREE, shading) {
       * (1 - lit) * (1 - w.storm * 0.8);
 
     // --- per hut ------------------------------------------------------------
-    const stopped = rider.speed < HUTS.cocoa.speed
-      && rider.grounded && rider.state !== 'fall' && rider.state !== 'rise';
+    const down = rider.state === 'fall' || rider.state === 'rise';
+    const stopped = rider.speed < HUTS.cocoa.speed && rider.grounded && !down;
     const r2 = HUTS.cocoa.radius * HUTS.cocoa.radius;
 
     for (let i = 0; i < huts.length; i++) {
@@ -1411,7 +1434,12 @@ export function createHuts(THREE, shading) {
       // stop you stopping — and paid exactly once.
       if (claimed.has(h.key)) continue;
       const near = d2 < r2;
-      if (near && stopped) {
+      /* Going down inside the radius — into the wall, as often as not —
+         leaves the rider standing at the door once they are up, which is a
+         crash, not a stop. It stays one until they have left and come back. */
+      if (near && down) spoiled.add(h.key);
+      else if (!near) spoiled.delete(h.key);
+      if (near && stopped && !spoiled.has(h.key)) {
         h.dwell += dt;
         if (h.dwell >= HUTS.cocoa.dwell) {
           claimed.add(h.key);
@@ -1432,6 +1460,7 @@ export function createHuts(THREE, shading) {
 
   function reset() {
     claimed.clear();
+    spoiled.clear();
     block = NaN;
     live = 0;
     for (let i = 0; i < S.count; i++) {

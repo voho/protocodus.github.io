@@ -1852,6 +1852,9 @@ export const RIDER = {
   pressSkid: 3.05,      // radians the skid clamp opens to — nearly a half turn
   pressMinSpin: 2.62,   // radians (150°) under which a butter is just a press
   pressMinTime: 0.3,    // seconds under which it is just a wobble
+  // …and the most one press is paid for (720°). A press can turn for as long
+  // as Q is held, and uncapped twenty seconds of it out-paid a dozen airs.
+  pressMaxHalfTurns: 4,
   // Landing. Anything inside the window snaps straight; anything outside
   // is a bail. Switch is the same window rotated half a turn.
   landWindow: 0.92,   // radians ≈ 53°

@@ -1054,6 +1054,10 @@ export function createTrail(THREE, shading) {
       : Math.atan2(Math.abs(lateralNow), Math.max(0.1, forwardNow));
     const axisMix = smoothstep(Math.PI / 30, Math.PI / 6, slipAngle);
     if (!down) lat.lerp(motionLat, axisMix).normalize();
+    // In the snow's own plane: on the touchdown frame the board's right axis
+    // is still the air attitude, and a tilted lateral stood the wide lanes of
+    // the mark's first section up off the slope.
+    lat.addScaledVector(rider.normal, -lat.dot(rider.normal)).normalize();
     if (lat.lengthSq() < 0.5) lat.set(1, 0, 0);
 
     if (open) {
@@ -1121,8 +1125,12 @@ export function createTrail(THREE, shading) {
     currentState.chatter = chatter;
     currentState.half = liveHalf;
 
+    /* A stroke starts on the snow, not at `pos.y`: on a touchdown frame that
+       is the render interpolation, still partway down from the air, and the
+       first section is committed once and never rewritten, so it hung over
+       the snow for the whole life of the mark. */
     if (!open) {
-      startStroke(pos.x, pos.y, pos.z, currentState);
+      startStroke(pos.x, heightAt(pos.x, pos.z), pos.z, currentState);
     } else {
       let dx = pos.x - lastCommitX;
       let dz = pos.z - lastCommitZ;
@@ -1144,7 +1152,7 @@ export function createTrail(THREE, shading) {
          relocation also calls `clear()`; this is the belt to that brace.) */
       if (remaining > TELEPORT_GAP) {
         open = false;
-        startStroke(pos.x, pos.y, pos.z, currentState);
+        startStroke(pos.x, heightAt(pos.x, pos.z), pos.z, currentState);
         dx = 0;
         dz = 0;
         remaining = 0;

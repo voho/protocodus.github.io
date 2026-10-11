@@ -418,6 +418,8 @@ const FLASH = {
   chance: 0.05,     // the odds any one cell strikes
   decay: 0.15,      // seconds for a strike to fall to 1/e
 };
+// What is left of a strike when its cell ends — see where it is subtracted.
+const FLASH_TAIL = Math.exp(-1 / (FLASH.rate * FLASH.decay));
 
 /* A near-full-screen white strobe is exactly the class of motion the
    preference exists for. Gated at the trigger so both consumers — the dome
@@ -432,6 +434,12 @@ const clampAbs = (v, m) => (v > m ? m : v < -m ? -m : v);
 /* Into the deck's own repeat. The noise field wraps at 64, so this is the same
    sample and not an approximation of it — see the drift note in `update`. */
 const wrap64 = (v) => v - Math.floor(v / 64) * 64;
+/* The cirrus turns the drift by (0.8, 0.6) and scales it by 0.21, 0.34, 1.35,
+   0.9 and 3.6 before sampling the plate (sky.js), so a 64-unit wrap moved its
+   strands by a fraction of a repeat and the whole layer reshuffled in one
+   frame. 2000 is the shortest period that is a whole number of repeats for
+   every one of those lookups. */
+const wrapCirrus = (v) => v - Math.floor(v / 2000) * 2000;
 const ramp = (v, a, b) => smooth(Math.min(1, Math.max(0, (v - a) / (b - a))));
 
 export function createWeather(THREE) {
@@ -481,6 +489,9 @@ export function createWeather(THREE) {
     cloud: 0,
     cloudX: 0,
     cloudZ: 0,
+    // The same drift on the cirrus's own, longer repeat — see `wrapCirrus`.
+    cirrusX: 0,
+    cirrusZ: 0,
   };
 
   const stormTint = new THREE.Color();
@@ -759,9 +770,11 @@ export function createWeather(THREE) {
     if (strike > 0 && !CALM) {
       const cell = Math.floor(weatherClock * FLASH.rate);
       if (hash2(cell, 977, 431) < FLASH.chance) {
-        state.flash = Math.exp(
-          -(weatherClock - cell / FLASH.rate) / FLASH.decay,
-        ) * strike;
+        // Rescaled to reach zero exactly at the cell's end: cut there at
+        // e^(−1/(rate·decay)) ≈ 0.036, every strike ended with the fill
+        // light and the whole sky stepping back from white in one frame.
+        state.flash = (Math.exp(-(weatherClock - cell / FLASH.rate) / FLASH.decay)
+          - FLASH_TAIL) / (1 - FLASH_TAIL) * strike;
       }
     }
 
@@ -812,6 +825,8 @@ export function createWeather(THREE) {
        and its projected ground shadow move downwind. */
     state.cloudX = wrap64(state.cloudX - state.windX * dt * CLOUD.drift);
     state.cloudZ = wrap64(state.cloudZ - state.windZ * dt * CLOUD.drift);
+    state.cirrusX = wrapCirrus(state.cirrusX - state.windX * dt * CLOUD.drift);
+    state.cirrusZ = wrapCirrus(state.cirrusZ - state.windZ * dt * CLOUD.drift);
     // The sun crosses the run rather than sitting behind it. Side light is
     // the only light that shapes snow: from behind, a mogul field is a flat
     // white sheet with the fill light's colour on it, which is exactly what

@@ -137,6 +137,11 @@ const STEEL = '#aeb6c0';
 
 const RISE_TIME = RIDER.riseTime;
 const TAU = Math.PI * 2;
+// main.js's fixed step. The physics state differenced here only moves on it,
+// so a rate taken over a shorter render frame is that many times too large.
+const PHYSICS_STEP = 1 / 120;
+// How fast a pop or a thump may arrive, in full strengths per second.
+const EVENT_RISE = 10;
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 // How far a slow board goes into deep powder: the deck just under the
@@ -2467,7 +2472,9 @@ export function createRiderModel(THREE, shading) {
   // against dt, none of it is read back by anyone else.
   const s = {
     clock: 0, down: 0, air: 0, grab: 0, tuck: 0, push: 0, charge: 0,
-    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0, tumbleLag: 0, wash: 0, press: 0, airTuck: 0,
+    twist: 0, lean: 0, comp: 0, pop: 0, thump: 0,
+    popAim: 0, thumpAim: 0, popShown: 0, thumpShown: 0,
+    tumbleLag: 0, tumbleShown: 0, wash: 0, press: 0, airTuck: 0,
     edge: 0, load: 0, steer: 0, switched: 0, sink: 0,
     // the head's lead into a turn, and the follow-through spring's state:
     // the slow copies of the two accelerations, then position and velocity
@@ -2581,13 +2588,27 @@ export function createRiderModel(THREE, shading) {
        here: the half of it that is extending is a pop, the half that is
        collapsing is an impact. Each decays on its own clock rather than
        being smoothed, because both are events and not states. */
-    const rate = (rider.compression - s.comp) / Math.max(step, 1e-4);
+    const rate = (rider.compression - s.comp) / Math.max(step, PHYSICS_STEP);
     s.comp = rider.compression;
-    s.pop = Math.max(s.pop * Math.exp(-7 * step), clamp(-rate * 0.10, 0, 1));
-    s.thump = Math.max(s.thump * Math.exp(-5 * step), clamp(rate * 0.09, 0, 1));
+    const popIn = clamp(-rate * 0.10, 0, 1);
+    const thumpIn = clamp(rate * 0.09, 0, 1);
+    s.pop = Math.max(s.pop * Math.exp(-7 * step), popIn);
+    s.thump = Math.max(s.thump * Math.exp(-5 * step), thumpIn);
+    /* The body takes each event up at `EVENT_RISE` and only then lets it
+       decay: latched straight into the hips, every touchdown dropped them
+       29 cm in one frame. The hands keep the latch — their springs already
+       smooth it. */
+    s.popAim = Math.max(s.popAim, popIn);
+    s.thumpAim = Math.max(s.thumpAim, thumpIn);
+    s.popShown = Math.max(s.popShown * Math.exp(-7 * step),
+      Math.min(s.popAim, s.popShown + EVENT_RISE * step));
+    s.thumpShown = Math.max(s.thumpShown * Math.exp(-5 * step),
+      Math.min(s.thumpAim, s.thumpShown + EVENT_RISE * step));
+    if (s.popShown >= s.popAim) s.popAim = 0;
+    if (s.thumpShown >= s.thumpAim) s.thumpAim = 0;
     if (snap) {
-      s.pop = 0;
-      s.thump = 0;
+      s.pop = s.popAim = s.popShown = 0;
+      s.thump = s.thumpAim = s.thumpShown = 0;
       s.tumbleLag = rider.tumble;
     }
 
@@ -2646,8 +2667,8 @@ export function createRiderModel(THREE, shading) {
     const grounded = 1 - s.air;
     flexUniform.value = clamp(
       -(FLEX.edge * s.load * Math.abs(Math.sin(s.edge)) + FLEX.press * s.press) * grounded
-      + FLEX.pop * s.pop
-      - FLEX.thump * s.thump,
+      + FLEX.pop * s.popShown
+      - FLEX.thump * s.thumpShown,
       FLEX.min, FLEX.max,
     );
 
@@ -2867,10 +2888,17 @@ export function createRiderModel(THREE, shading) {
     // heading is (sin yaw, 0, −cos yaw), which is this rotation and not its
     // mirror. See the note at the top of the file.
     qy.setFromAxisAngle(UP, -rider.yaw);
+    /* The tumble is drawn from a copy that stops counting turns once he
+       stops tumbling. `rider.tumble` holds every radian of the fall, so
+       scaling it out with `s.down` rewound the whole fall — seven turns, at
+       a hard crash — through the half second of getting up, and the
+       physics zeroing it at the end snapped what was left. */
+    if (rider.state === 'fall') s.tumbleShown = rider.tumble;
+    else s.tumbleShown -= TAU * Math.round(s.tumbleShown / TAU);
     // `flipGlide` is the un-drained remainder of the last landing's pitch
     // snap — presentation only, exactly like `yawGlide` on the axis above.
     qx.setFromAxisAngle(AX, rider.flip + rider.flipGlide
-      + rider.tumble * s.down + tweakPitch);
+      + s.tumbleShown * s.down + tweakPitch);
     qz.setFromAxisAngle(AZ, -s.lean * (1 + 1.2 * s.down) + tweakRoll);
     q.multiply(qy).multiply(qx).multiply(qz);
 
@@ -2911,7 +2939,7 @@ export function createRiderModel(THREE, shading) {
        are still extending, the rest as the board leaves, levelled again by
        the time the pop has decayed. */
     const pressPitch = POSE.pressPitch * press * pressEnd;
-    bt.pitch = s.pop * (0.12 + POSE.popNose * s.air) * sw + pressPitch;
+    bt.pitch = s.popShown * (0.12 + POSE.popNose * s.air) * sw + pressPitch;
     // The board is rolled further than the body: that difference *is*
     // angulation, and it is now the two signals subtracted rather than a
     // share of one of them guessed at.
@@ -3092,7 +3120,7 @@ export function createRiderModel(THREE, shading) {
       // the knees come up off the snow and the landing folds them; both are
       // events with their own decay, and neither is anything the leg spring's
       // own travel would ever have drawn
-      - POSE.airTuck * s.airTuck + POSE.popRise * s.pop - POSE.thumpDrop * s.thump
+      - POSE.airTuck * s.airTuck + POSE.popRise * s.popShown - POSE.thumpDrop * s.thumpShown
       // and up with the deck when it is laid over, because the boots went up
       // with it and the leg between them has not changed length
       + bt.y;
@@ -3164,8 +3192,8 @@ export function createRiderModel(THREE, shading) {
        still right, so the hinge is scaled out as the tuck comes on. What is
        left is a rider who sinks and keeps his chest up. */
     const hinge = POSE.chestFwd * upright * (1 - s.tuck * 0.85) * (1 - s.air * 0.35);
-    const pitch = (-hinge - s.charge * 0.35 + s.pop * 0.20
-      - s.thump * 0.34 - grab * (0.25 + G.hinge)) * sw - skate * POSE.pushHinge
+    const pitch = (-hinge - s.charge * 0.35 + s.popShown * 0.20
+      - s.thumpShown * 0.34 - grab * (0.25 + G.hinge)) * sw - skate * POSE.pushHinge
       // …and over whichever end he is standing on, because that is where the
       // weight has to be for it to stay down.
       + POSE.pressChest * press * pressEnd;
@@ -3256,7 +3284,7 @@ export function createRiderModel(THREE, shading) {
        axis whatever the yaw. Carried forwards by a braking board, it dips;
        left behind by an accelerating one, it comes up. */
     head.rotation.set(
-      -0.05 + s.air * 0.22 + s.thump * 0.30
+      -0.05 + s.air * 0.22 + s.thumpShown * 0.30
         - s.down * (lag * 0.6 + Math.sin(s.clock * 5.2) * 0.25),
       POSE.look * sw - s.twist * 0.55 + Math.sin(s.clock * 0.41) * 0.05 * idle
         + s.down * Math.sin(s.clock * 3.9 + 2.1) * 0.35 + lead * 0.7,
@@ -3601,7 +3629,10 @@ export function createRiderModel(THREE, shading) {
       _f.z += SHOULDER_Z * sw * gs;
       _f.z *= sw;                 // …and back into the travel frame with the rest
       reach.lerp(_f, grab);
-      reachPole.lerp(_u.set(-0.45, 0.75, -0.2 * gs), grab);
+      // Outboard rather than up: for a hand reaching down to the board an
+      // upward pole lies almost along the arm, which leaves the side the
+      // elbow goes to undecided, and it flipped at both ends of an indy.
+      reachPole.lerp(_u.set(-0.35, 0.05, -0.95 * gs), grab);
       s.style = approach(s.style,
         smooth01(((rider.grabTime || 0) - ARMS.styleFrom) / ARMS.styleSpan), 6, sdt);
       const A = ARMS.freeArm;
@@ -3825,6 +3856,7 @@ export function createRiderModel(THREE, shading) {
     s.wash = 0;
     s.switched = 0;
     s.yawRate = 0;
+    s.tumbleShown = 0;
     s.aF = s.aL = s.fx = s.fv = s.lx = s.lv = 0;
     // the arms' own signals; their springs are re-seeded by the snap
     s.touch = s.brake = s.flail = s.heavy = s.wave = s.wind = 0;
