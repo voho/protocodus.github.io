@@ -197,8 +197,10 @@ function damageRockTagged(ctx, ref, amount, point, impulse, team) {
   return result;
 }
 
-function explode(ctx, m, point, targetId, kind) {
-  ctx.events.push({ type: kind, pos: [...point], targetId: targetId ?? null, team: m.team });
+// `vel` is the velocity of what the missile hit (or its own, if it hit
+// nothing), which the renderer's fireball carries on with.
+function explode(ctx, m, point, targetId, kind, vel) {
+  ctx.events.push({ type: kind, pos: [...point], targetId: targetId ?? null, team: m.team, vel: [...vel] });
   // The blast pushes as well as burns: an impulse falling off with distance
   // like the damage, so a near miss still throws a ship off its line.
   for (const e of ctx.entities) {
@@ -245,15 +247,18 @@ export function stepWeapons(weapons, ctx, dt) {
       addScaled(hitPoint, b.prev, sub(tmp, b.pos, b.prev), bestT);
       const point = [...hitPoint];
       const dir = normalize([0, 0, 0], b.vel);
+      // Hits carry the velocity of what was hit, so their sparks move with it.
       if (hit.kind === 'rock') {
         damageRockTagged(ctx, hit.rock.ref, b.damage, point, scale([0, 0, 0], dir, b.damage * 20), b.team);
-        ctx.events.push({ type: 'boltHit', pos: point, normal: hit.rock.normal, kind: 'rock', team: b.team });
+        const vel = hit.rock.ref.rock ? [...hit.rock.ref.rock.vel] : [0, 0, 0];
+        ctx.events.push({ type: 'boltHit', pos: point, normal: hit.rock.normal, kind: 'rock', team: b.team, vel });
       } else {
         const normal = normalize([0, 0, 0], sub([0, 0, 0], point, hit.entity.ship.pos));
         const shielded = (hit.entity.shield ?? 0) > 0;
         ctx.damage(hit.entity, b.damage, point, dir);
         ctx.events.push({
           type: 'boltHit', pos: point, normal, kind: 'ship', shielded, team: b.team, targetId: hit.entity.id,
+          vel: [...hit.entity.ship.vel],
         });
       }
       weapons.bolts.splice(i, 1);
@@ -292,14 +297,14 @@ export function stepWeapons(weapons, ctx, dt) {
     }
     const rock = field.sweepSphere(m.prev, m.pos, MISSILE.radius);
     if (rock && (!fused || rock.t < fused.t)) {
-      explode(ctx, m, rock.point, null, 'missileExplode');
+      explode(ctx, m, rock.point, null, 'missileExplode', rock.ref.rock?.vel ?? [0, 0, 0]);
       weapons.missiles.splice(i, 1);
     } else if (fused) {
       const point = addScaled([0, 0, 0], m.prev, sub(tmp, m.pos, m.prev), fused.t);
-      explode(ctx, m, point, fused.e.id, 'missileExplode');
+      explode(ctx, m, point, fused.e.id, 'missileExplode', fused.e.ship.vel);
       weapons.missiles.splice(i, 1);
     } else if (m.age >= MISSILE.life) {
-      explode(ctx, m, m.pos, null, 'missileExpire');
+      explode(ctx, m, m.pos, null, 'missileExpire', m.vel);
       weapons.missiles.splice(i, 1);
     }
   }

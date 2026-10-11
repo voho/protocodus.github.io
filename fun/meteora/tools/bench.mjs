@@ -6,6 +6,9 @@
 //            collections
 //   effects  per-frame CPU of the engine plumes, bolts and the glow batch
 //            for eleven ships — time per frame and garbage collections
+//   blasts   per-frame CPU of explosions under a heavy, steady load: a kill
+//            every half second, a rock breaking every quarter, two bolt
+//            hits a frame
 //   cull     choosing which rocks to draw
 // three.js is resolved to the vendored copy, so the render-side modules run
 // unchanged; nothing is drawn.
@@ -17,9 +20,9 @@ registerHooks({ resolve: (s, c, next) => (s === 'three' ? { url: three, shortCir
 
 const js = name => import(new URL(`../js/${name}`, import.meta.url).href);
 const [{ createWorld, startRun, stepWorld }, { NEUTRAL_CONTROLS }, { STEP }, THREE, { createGlowBatch },
-  { createPlumes }, { createProjectiles }, { createCuller }, { FIELD }] = await Promise.all([
+  { createPlumes }, { createProjectiles }, { createCuller }, { FIELD }, { createSmokeBatch }, { createExplosions }] = await Promise.all([
   js('world.js'), js('flight.js'), js('config.js'), import('three'), js('glow.js'), js('plumes.js'),
-  js('projectiles.js'), js('cull.js'), js('config.js')]);
+  js('projectiles.js'), js('cull.js'), js('config.js'), js('smoke.js'), js('explosions.js')]);
 
 const gc = { count: 0, ms: 0 };
 new PerformanceObserver(list => { for (const e of list.getEntries()) { gc.count++; gc.ms += e.duration; } }).observe({ entryTypes: ['gc'] });
@@ -87,6 +90,41 @@ for (let f = 0; f < 60 * 30; f++) {
 }
 await settle();
 console.log(`effects  ${stats(frames)}  gc ${gc.count} (${gc.ms.toFixed(1)} ms) per 30 s  [${ships.length} ships, ${world.weapons.bolts.length} bolts, ${glow.count} sprites]`);
+
+// --- blasts ----------------------------------------------------------------
+{
+  const scene = new THREE.Scene(), glow = createGlowBatch(scene), smoke = createSmokeBatch(scene, new THREE.Vector3(0, 1, 0));
+  const lod1 = new THREE.IcosahedronGeometry(1.5, 0);
+  lod1.computeBoundingSphere();
+  const fx = createExplosions(scene, glow, smoke, { lod1, material: new THREE.MeshStandardMaterial() });
+  const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.5, 1e5);
+  camera.position.set(0, 50, 600); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+  const f = camera.getWorldDirection(new THREE.Vector3());
+  const spot = k => [Math.sin(k * 1.7) * 300, Math.cos(k * 2.3) * 100, Math.sin(k * 0.9) * 300];
+  const frame = k => {
+    if (k % 30 === 0) fx.shipDeath(spot(k), [Math.sin(k) * 150, 0, Math.cos(k) * 150], 'interceptor');
+    if (k % 15 === 0) fx.rockBreak(spot(k + 7), [0, 0, 0], 4 + (k / 15 % 3) * 4, false);
+    fx.impact('hull', spot(k + 3), [0, 1, 0], [0, 0, 0]);
+    fx.impact(k % 2 ? 'shield' : 'rock', spot(k + 5), [0, 0, 1], [0, 0, 0]);
+    glow.begin(); smoke.begin();
+    glow.setCamera(camera.position.x, camera.position.y, camera.position.z, f.x, f.y, f.z);
+    smoke.setCamera(camera.position.x, camera.position.y, camera.position.z, f.x, f.y, f.z);
+    fx.update(1 / 60, camera);
+    glow.end(); smoke.end();
+  };
+  for (let k = 0; k < 600; k++) frame(k);
+  await settle();
+  gc.count = 0; gc.ms = 0;
+  const times = [];
+  for (let k = 600; k < 600 + 60 * 30; k++) {
+    const t0 = performance.now();
+    frame(k);
+    times.push(performance.now() - t0);
+  }
+  await settle();
+  const c = fx.counts;
+  console.log(`blasts   ${stats(times)}  gc ${gc.count} (${gc.ms.toFixed(1)} ms) per 30 s  [${c.sparks} sparks, ${c.puffs} puffs, ${c.lobes} lobes, ${c.debris} pieces]`);
+}
 
 // --- cull ------------------------------------------------------------------
 const culler = createCuller(world.field.belt, FIELD, {});

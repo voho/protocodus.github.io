@@ -16,7 +16,7 @@ momentum, break rocks apart and outfight endless waves of interceptors.
 | Tab | Afterburner (hold) |
 | T | Cycle targets, nearest the crosshair first |
 | Z | Lock your speed to the target's; W or S hands the throttle back |
-| Esc | Pause and the key guide; Esc again resumes |
+| Esc | Pause and the key guide; Esc again resumes. The pause screen also sets the sound volume |
 
 The game asks for pointer lock on the first click. When the browser grants
 it, the mouse moves the crosshair; when it does not, the crosshair simply
@@ -77,6 +77,55 @@ spending that energy.
 - Engine flames follow speed — a blue glow at rest, a long plume at cruise,
   fire tongues at pace, white-hot shock diamonds on the afterburner.
 
+## Explosions
+
+- A kill is a white flash and a point light that lights the rocks and hulls
+  nearby, a fireball of noise lobes that swell, cool from white through
+  orange to dull red and burn out in patches, a shock ring, molten sparks,
+  embers, torn hull plates that glow and trail smoke as they tumble away,
+  and lit smoke that spreads and thins for seconds.
+- Everything inherits the velocity of what blew up: an interceptor killed
+  at 200 m/s leaves a fireball that carries on at 200 m/s, so a kill on the
+  pass streaks by. Sparks and debris fly dead straight, as nothing in vacuum
+  slows them.
+- Missiles burst into a smaller fireball and ring. A breaking rock flashes,
+  sheds chips of itself and raises a cloud of grey regolith dust; the oldest
+  fragments crumble to dust when there are too many. A bolt on rock throws
+  grit, on a hull sparks and fire, on a shield a cyan splash and ripple.
+- Close blasts shake the camera and briefly raise the exposure, as a camera
+  or an eye would be dazzled; with `prefers-reduced-motion` both are halved.
+- When the fighter is lost, the camera leaves it and watches the wreck,
+  keeping its momentum at first and then falling behind as the burning
+  cloud drifts away.
+
+## Sound
+
+Space carries no sound; the cockpit makes it from what the sensors track,
+placed in 3D (Web Audio's HRTF panner, best on headphones) around the camera.
+Every sound is synthesised at load from oscillators and noise — there are no
+audio files.
+
+- **Engine:** a dark drone whose pitch glides with speed — continuously,
+  never in steps, and on past the afterburner's speed — under a rumble that
+  follows the thrust. The afterburner lights with a whoomp and roars and
+  crackles while it burns.
+- **Other ships:** the nearest four interceptors within 1.6 km are each a jet
+  whine at their position, dulled by distance and bent by doppler (computed
+  from the closing speed), so a flyby rises, roars past and drops. Missiles
+  hiss in flight.
+- **Weapons:** our cannons fire from their muzzles, left and right; enemy
+  fire is a rougher buzz wherever the shooter is. Hits sound by what they
+  strike — a crack and a rattle of grit on rock, a fizz and a ring on a
+  shield, a clang on a hull — and our own hits land close and unplaced.
+- **Explosions:** rocks crunch and rattle, warheads and ships boom with a
+  sub-bass drop and a tail of debris, a ship with a second blast a beat
+  later.
+- **Cockpit:** a chirp when the target changes; while a missile locks, beeps
+  that quicken as the lock builds, and a steady tone once it holds.
+
+Sound starts with the Launch click, as browsers require; the volume is on
+the pause screen and kept in the browser.
+
 ## Models
 
 Every model is built by Blender scripts in `tools/blender/` and committed as
@@ -106,8 +155,12 @@ They cover the flight model and flight assist, belt generation and
 collision queries, swept projectiles and missile guidance, enemy pilots in a
 dense cell, combat rules and the fixed-step world, input and pointer lock in
 Chrome's and Safari's behaviours, the key guide against the bindings, model
-budgets and anchors, culling, adaptive resolution and the sky's depth
-layout.
+budgets and anchors, culling, adaptive resolution, the sky's depth layout,
+explosions (every layer appears, carries the wreck's momentum, burns out on
+time and stays within its pools; smoke and fire are sorted for blending),
+the sound bank (every sound audible, unclipped and click-free at both ends;
+engine pitch, doppler, distance and the lock tone) and the camera (its shake
+never reaches the aim; the death view keeps the wreck ahead of it).
 
 ## Performance
 
@@ -138,9 +191,22 @@ layout.
   both held 60 fps, so on that machine the gain is headroom rather than
   frames. The bench flight does not use the afterburner, so the glow fix is
   not part of that comparison.
-- `node tools/bench.mjs` measures the simulation, the per-frame effects work
-  and culling in Node. `?debug` shows frame time, draw calls, triangles,
-  rocks drawn and the pixel ratio in the browser; `?debug&autopilot` flies a
-  scripted pattern.
+- Explosions add five draw calls whatever is burning (smoke, fireball lobes,
+  shock rings, hull shards, rock chips); a fireball lobe is two triangles
+  with the ball traced per pixel. Their CPU work in Node averages 0.44 ms a
+  frame (p95 0.75 ms) for a busy fight — a kill every three seconds, a rock
+  breaking every two, a hit every fifth frame — and about 1.6 ms (p95 about
+  2.5 ms) for the bench's `blasts` load, a kill every half second with every
+  pool full.
+  The two explosion lights are always in the scene, at zero when idle,
+  because adding a light recompiles every lit material.
+- The sound bank, about 30 s of audio, is synthesised during loading in
+  6 ms slices between frames: about half a second of work in all, the
+  sounds a fight needs first coming first.
+- `node tools/bench.mjs` measures the simulation, the per-frame effects work,
+  explosions under load and culling in Node. `?debug` shows frame time,
+  draw calls, triangles, rocks drawn, live effects and the pixel ratio in
+  the browser; `?debug&autopilot` flies a scripted pattern (silently: sound
+  waits for a click).
 
 The design and the implementation plan are in `docs/`.
